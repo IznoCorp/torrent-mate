@@ -28,9 +28,33 @@
       "expires": "2028-05-08"
     },
     {
-      "anchor": "cron-setup-launchd",
+      "anchor": "scheduled-jobs-pm2",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "reason": "PM2 cutover (watch-seed 0.39.0) — operator scheduling documentation, no in-repo behavior to contract-test; the watcher daemon itself is covered by tests/integration/acquire/test_watcher_loop.py.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "weekly-enrich-pass-sunday-0430",
+      "category": "documentation_only",
+      "reason": "PM2 cutover (watch-seed 0.39.0) — operator scheduling documentation, no in-repo behavior to contract-test; the watcher daemon itself is covered by tests/integration/acquire/test_watcher_loop.py.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "weekly-backfill-ids-sunday-0500",
+      "category": "documentation_only",
+      "reason": "PM2 cutover (watch-seed 0.39.0) — operator scheduling documentation, no in-repo behavior to contract-test; the watcher daemon itself is covered by tests/integration/acquire/test_watcher_loop.py.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "legacy-agents-decommissioned",
+      "category": "documentation_only",
+      "reason": "PM2 cutover (watch-seed 0.39.0) — operator scheduling documentation, no in-repo behavior to contract-test; the watcher daemon itself is covered by tests/integration/acquire/test_watcher_loop.py.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "monitoring-cron-jobs",
+      "category": "documentation_only",
+      "reason": "PM2 cutover (watch-seed 0.39.0) — operator scheduling documentation, no in-repo behavior to contract-test; the watcher daemon itself is covered by tests/integration/acquire/test_watcher_loop.py.",
       "expires": "2028-05-08"
     },
     {

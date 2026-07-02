@@ -382,7 +382,7 @@ python -m pytest tests/integration/acquire/test_cross_seed_service.py -q
 ACC-7 — ingest skips a SEED_PURE cross-seed injection (roundtrip):
 
 ```bash
-python -m pytest tests/e2e -q -k cross_seed
+python -m pytest tests/e2e -q -k cross_seed -m e2e
 # Expected: N passed, 0 failed (injected cross-seed is skipped by ingest)
 ```
 
