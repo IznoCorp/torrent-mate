@@ -223,7 +223,7 @@ class CrossSeedService:
                 errored_trackers=sorted(errored_names),
             )
 
-        # 7-8. Per-tracker → per-candidate loop.
+        # 7. Per-tracker → per-candidate loop.
         # ONE injection per source torrent max (first match wins).
         for tracker in remaining:
             candidates = candidates_by_provider.get(tracker, [])
@@ -232,7 +232,7 @@ class CrossSeedService:
                 continue
 
             for candidate in candidates:
-                # 7. Fetch .torrent bytes (fail-soft per candidate).
+                # Fetch .torrent bytes (fail-soft per candidate).
                 try:
                     source = resolve_source(candidate, self._registry.transports())
                 except (TorrentFetchError, TrackerAuthError, CircuitOpenError, ApiError) as exc:
@@ -353,7 +353,7 @@ class CrossSeedService:
                     )
                     continue
 
-                # 8. MATCH → inject → verify → resume + tag + obligation.
+                # MATCH → inject → verify → resume + tag + obligation.
                 injected_hash = self._injector.inject(
                     source.file_bytes,
                     save_path=item.save_path,
@@ -526,7 +526,7 @@ class CrossSeedService:
         quota_exhausted = False
         max_per_day = self._config.cross_seed.max_searches_per_day
         delay = self._config.cross_seed.min_delay_between_searches_s
-        need_sleep = False  # Set after a quota-counted check(); cleared on skip.
+        need_sleep = False  # Set after a quota-counted check(); never cleared.
 
         try:
             completed = self._lister.get_completed()

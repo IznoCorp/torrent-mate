@@ -71,7 +71,8 @@ class WatcherInput:
         ingested_hashes: Set of already-ingested hashes.
         seed_pure_hashes: Set of SEED_PURE-tagged hashes (skip these).
         sentinel_present: True if ``data_dir/watch.trigger`` exists.
-        pipeline_lock_held: True if the lock file exists (manual run in progress).
+        pipeline_lock_held: True if the lock is held by a live process
+            (``is_lock_held`` probe; manual run in progress).
         now: Current wall-clock timestamp (float, e.g. ``time.time()``).
     """
 

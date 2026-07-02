@@ -86,7 +86,7 @@ def watch(ctx: typer.Context) -> None:
     and spawns ``personalscraper run --no-console`` (async, tracked) or
     ``personalscraper cross-seed --hash <H>`` (sync, sequential) as
     subprocesses.  The daemon itself does NOT acquire ``pipeline.lock``
-    (W5) — only its spawned children do.
+    (W6) — only its spawned children do.
 
     Runs until SIGTERM, SIGINT, or a fatal error.
     """

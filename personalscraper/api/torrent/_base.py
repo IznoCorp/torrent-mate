@@ -39,9 +39,9 @@ class TorrentItem:
             Used by ``ingest`` to enforce ``config.ingest.min_ratio``.
         save_path: Absolute path to the torrent's save directory on disk
             (default ``""``). Populated by the qBittorrent mapper from the
-            ``save_path`` field in ``torrents/info``; set to ``""`` by the
-            Transmission mapper (the library's ``Torrent`` object does not
-            expose ``downloadDir`` as a dedicated attribute in all versions).
+            ``save_path`` field in ``torrents/info``, and by the Transmission
+            mapper from ``t.download_dir`` (falling back to ``""`` when the
+            daemon returns no download directory).
         completion_on: Unix timestamp of completion, or ``None`` if never
             completed (default ``None``). qBittorrent returns 0 or -1 for
             never-completed — the mapper normalizes values ≤ 0 to ``None``.

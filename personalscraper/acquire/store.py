@@ -977,9 +977,8 @@ class _CrossSeedSubStore:
         """Increment today's search count (UPSERT).
 
         If today's row does not exist yet, inserts it with ``count=1``.
-        Otherwise increments ``count`` by 1.  UNSAFE outside a transaction:
-        the caller must wrap this in ``_write_tx`` or an equivalent
-        ``BEGIN IMMEDIATE`` block.
+        Otherwise increments ``count`` by 1.  Self-contained — opens its
+        own transaction via ``_write_tx``; call bare (no wrapping needed).
         """
         today = date.today().isoformat()
         with _write_tx(self._conn):

@@ -220,8 +220,9 @@ class TorrentInjector(Protocol):
     """Capability — inject a .torrent at a specified save path with recheck.
 
     Composed by :class:`~personalscraper.api.torrent.qbittorrent.QBitClient`.
-    Not implemented by :class:`TransmissionClient` — Transmission lacks
-    ``savepath`` on add (D2) and 1:1 recheck semantics.
+    Not implemented by :class:`TransmissionClient` — RP10b scopes injection
+    to qBittorrent per DESIGN §D2 (seed source is qBittorrent's
+    ``complete/`` copy only).
 
     Duplicate injects are idempotent — injecting a torrent whose info-hash
     is already present in the client is a no-op (same contract as
