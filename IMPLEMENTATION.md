@@ -27,7 +27,7 @@
 | 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
 | 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [x]    |
 | 12  | PR fixes cycle 3                                     | phase-12-pr-fixes-cycle-3.md            | [x]    |
-| 13  | PR polish (cycle 4 optional LOW)                     | phase-13-pr-polish-cycle-4.md           | [ ]    |
+| 13  | PR polish (cycle 4 optional LOW)                     | phase-13-pr-polish-cycle-4.md           | [x]    |
 
 ## Review cycles
 
@@ -73,7 +73,11 @@
 - Retained: 0 blocking. 2 LOW observability items (both explicitly "optional / not merge-blocker"): skip_reason conflation on the media-type-drop path; no direct unit test for production TrackerRegistry.queryable_for.
 - Decision: loop exits (Case A). Per operator "nothing deferred without sign-off", the 2 LOW items are RESOLVED (not deferred) in an optional polish phase 13 before handing off for the manual merge.
 - Fix phase created: phase-13-pr-polish-cycle-4.md
-- Status: polish dispatched → then manual merge (operator)
+- Status: polish COMPLETE (2 commits: precise skip_reason + direct queryable_for unit test 6bc5d48c; pre-existing test-file mypy nits cleaned e4ed9053) — make check green (91.04% cov). Review loop CONVERGED at cycle 4; both LOW items resolved. PR pristine → awaiting operator manual merge.
+
+## Next action
+
+Review loop converged (cycle 4 clean, Case A). All 13 phases [x]. PR #212 CI-green, mypy fully clean (incl. tests), 7263 passing. **Merge mode = manual** — awaiting operator squash-merge of PR #212.
 
 ## Next action
 
