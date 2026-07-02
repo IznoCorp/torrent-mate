@@ -55,6 +55,7 @@ class TestCrossSeedConfig:
         assert cfg.max_searches_per_day == 250
         assert cfg.min_delay_between_searches_s == 30
         assert cfg.exclude_recent_search_days == 3
+        assert cfg.verify_timeout_s == 900
 
     def test_max_searches_invalid_rejected(self):
         """CrossSeedConfig(max_searches_per_day=0) must raise ValidationError.
@@ -134,6 +135,13 @@ class TestConfigJson5CrossSeedBlocks:
         assert "cross_seed" in ws, "config.example/watch_seed.json5 must have 'cross_seed' top-level key"
         assert "watch" in ws, "config.example/watch_seed.json5 must have 'watch' top-level key"
 
+        # 2b. cross_seed block must contain verify_timeout_s key (anti-drift).
+        # The key is commented-out in JSON5, so check the raw file text.
+        raw_text = ws_path.read_text(encoding="utf-8")
+        assert "verify_timeout_s" in raw_text, (
+            "config.example/watch_seed.json5 must contain 'verify_timeout_s' key (commented)"
+        )
+
         # 3. config.example/config.json5 overlays array must reference watch_seed.json5
         master_path = _EXAMPLE_DIR / "config.json5"
         assert master_path.is_file(), f"config.example/config.json5 missing at {master_path}"
@@ -166,6 +174,13 @@ class TestConfigJson5CrossSeedBlocks:
 
         assert "cross_seed" in ws, "config/watch_seed.json5 must have 'cross_seed' top-level key"
         assert "watch" in ws, "config/watch_seed.json5 must have 'watch' top-level key"
+
+        # cross_seed block must contain verify_timeout_s key (anti-drift).
+        # The key is commented-out in JSON5, so check the raw file text.
+        raw_text = ws_path.read_text(encoding="utf-8")
+        assert "verify_timeout_s" in raw_text, (
+            "config/watch_seed.json5 must contain 'verify_timeout_s' key (commented)"
+        )
 
         # Local master overlays reference
         master_path = _LOCAL_DIR / "config.json5"

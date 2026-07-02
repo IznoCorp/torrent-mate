@@ -40,9 +40,19 @@ class CrossSeedConfig(_StrictModel):
             operations (throttle).
         exclude_recent_search_days: Skip torrents whose info_hash was already
             searched within this many days.
+        verify_timeout_s: Maximum seconds to wait for the torrent client to
+            recheck a freshly injected cross-seed.  When this deadline passes
+            without a definitive progress≥1.0 observation the injection is
+            rejected with reason ``"verify_timeout"`` (deadline passed, no
+            definitive verdict).  Reason ``"recheck_failed"`` is reserved for
+            a future poll observation of a definitive check-failed state (e.g.
+            torrent present, progress stuck, and qBit reports the recheck
+            finished).  Default 900 s (15 min) — realistic for large media
+            over macFUSE/NTFS.
     """
 
     enabled: bool = False
     max_searches_per_day: int = Field(default=250, ge=1)
     min_delay_between_searches_s: int = Field(default=30, ge=5)
     exclude_recent_search_days: int = Field(default=3, ge=1)
+    verify_timeout_s: int = Field(default=900, ge=30, le=7200)
