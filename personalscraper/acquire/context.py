@@ -17,6 +17,7 @@ from personalscraper.core.ownership import NullOwnershipChecker
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
+    from personalscraper.acquire.cross_seed import CrossSeedService
     from personalscraper.acquire.delete_authority import DeleteAuthority
     from personalscraper.acquire.service import GrabCore
     from personalscraper.api.torrent.qbittorrent import QBitClient
@@ -43,6 +44,10 @@ class AcquireContext:
     - ``torrent_client``: BORROWED — shared with ``ingest``; its lifecycle is
       managed by the ``ingest`` boundary, NOT here. ``close()`` must NOT call
       ``torrent_client.close()``.
+    - ``cross_seed``: BORROWED — the :class:`CrossSeedService` holds no
+      closeable resources of its own (its torrent client, store, and registry
+      are all borrowed from this context and closed above). ``close()`` does
+      NOT touch ``cross_seed``.
 
     Attributes:
         tracker_registry: Configured ``TrackerRegistry`` (always present at
@@ -59,6 +64,13 @@ class AcquireContext:
             commands).  Owns no closeable resource of its own — the bus is
             borrowed and the store / registry lifecycles are owned here —
             so ``close()`` does NOT touch it.
+        cross_seed: ``CrossSeedService`` or ``None``.  Built by
+            ``_factory.build_acquire_context`` only when the ``torrent_client``
+            satisfies all four required capabilities (:class:`TorrentLister`,
+            :class:`TorrentInjector`, :class:`TorrentController`,
+            :class:`TorrentTagger`).  Transmission clients lack
+            ``TorrentInjector`` and leave this ``None``.  Holds no closeable
+            resources of its own — ``close()`` does NOT touch it.
         ownership: ``OwnershipChecker`` port implementation (RP6). Typed on the
             CORE port (``core.ownership.OwnershipChecker``), never the indexer
             impl — ``acquire/`` stays free of any ``indexer/`` import. Defaults
@@ -76,6 +88,7 @@ class AcquireContext:
     delete_authority: "DeleteAuthority | None" = None
     torrent_client: "QBitClient | TransmissionClient | None" = None
     grab: "GrabCore | None" = None
+    cross_seed: "CrossSeedService | None" = None
     ownership: "OwnershipChecker" = field(default_factory=NullOwnershipChecker)
 
     def close(self) -> None:
@@ -87,6 +100,9 @@ class AcquireContext:
         store handle, and has no ``close()`` method.
         Does NOT close ``grab`` — the ``GrabCore`` holds no closeable resource
         (its bus is borrowed; its store / registry are closed above).
+        Does NOT close ``cross_seed`` — the ``CrossSeedService`` holds no
+        closeable resources of its own (its torrent client is borrowed, its
+        store / registry are owned by this context and closed above).
         Closes ``ownership`` ONLY when it exposes a ``close()`` method: the
         injected ``IndexerOwnershipChecker`` owns a lazy read connection it must
         release (idempotent, fail-soft); ``NullOwnershipChecker`` has no

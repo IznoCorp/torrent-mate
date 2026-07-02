@@ -16,6 +16,7 @@ from personalscraper.acquire.delete_authority import build_delete_authority
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api.tracker._factory import build_tracker_registry
 from personalscraper.core.ownership import NullOwnershipChecker
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.api.torrent.qbittorrent import QBitClient
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
     from personalscraper.core.ownership import OwnershipChecker
+
+logger = get_logger(__name__)
 
 
 def build_acquire_context(
@@ -144,6 +147,44 @@ def build_acquire_context(
         )
         grab = GrabCore(service=service, orchestrator=orchestrator)
 
+    # CrossSeedService: cross-seed orchestration handle.  Built ONLY when the
+    # torrent_client satisfies ALL four required capabilities.  Transmission
+    # lacks TorrentInjector → cross_seed stays None (logged at debug).  The
+    # service holds no closeable resources of its own — its torrent client,
+    # store, and registry are all borrowed from this context.
+    cross_seed: CrossSeedService | None = None
+    if torrent_client is not None:
+        from personalscraper.api.torrent._contracts import (  # noqa: PLC0415
+            TorrentController,
+            TorrentInjector,
+            TorrentLister,
+            TorrentTagger,
+        )
+
+        if (
+            isinstance(torrent_client, TorrentLister)
+            and isinstance(torrent_client, TorrentInjector)
+            and isinstance(torrent_client, TorrentController)
+            and isinstance(torrent_client, TorrentTagger)
+        ):
+            from personalscraper.acquire.cross_seed import CrossSeedService  # noqa: PLC0415
+
+            cross_seed = CrossSeedService(
+                registry=tracker_registry,
+                lister=torrent_client,
+                injector=torrent_client,
+                controller=torrent_client,
+                tagger=torrent_client,
+                store=store,
+                config=config,
+            )
+        else:
+            logger.debug(
+                "acquire.cross_seed.unavailable",
+                reason="missing_capability",
+                client_type=type(torrent_client).__name__,
+            )
+
     # RP6: ownership handle (single field, anti-service-locator). The concrete
     # IndexerOwnershipChecker is built+injected at the composition root; this
     # frame only forwards it (acquire/ stays free of any indexer/ import). When
@@ -155,6 +196,7 @@ def build_acquire_context(
         delete_authority=delete_authority,
         torrent_client=torrent_client,
         grab=grab,
+        cross_seed=cross_seed,
         ownership=ownership if ownership is not None else NullOwnershipChecker(),
     )
 

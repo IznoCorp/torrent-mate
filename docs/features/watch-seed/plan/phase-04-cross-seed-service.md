@@ -18,7 +18,7 @@ Build `CrossSeedService` in `acquire/` — a thin orchestrator consuming RP10a+R
 | 4.1 | `feat(watch-seed): add cross-seed sub-stores to acquire.db`              | DB schema |
 | 4.2 | `feat(watch-seed): implement CrossSeedService.check() — X1 core`         | X1        |
 | 4.3 | `feat(watch-seed): implement CrossSeedService.sweep() — X2 back-catalog` | X2        |
-| 4.4 | `feat(watch-seed): wire CrossSeedService into _build_app_context`        | Wiring    |
+| 4.4 | `feat(watch-seed): wire CrossSeedService into the acquire context`       | Wiring    |
 | 4.5 | `test(watch-seed): add unit + integration tests for CrossSeedService`    | Tests     |
 
 ## Sub-phase 4.1 — cross-seed sub-stores in acquire.db
@@ -169,26 +169,41 @@ def sweep(self) -> SweepResult:
 
 `SweepResult` dataclass: `checked: int`, `injected: int`, `quota_exhausted: bool`.
 
-## Sub-phase 4.4 — wire CrossSeedService into _build_app_context
+## Sub-phase 4.4 — wire CrossSeedService into the acquire context
 
 **Files:**
 
-- Modify: `personalscraper/cli_helpers/__init__.py` (`_build_app_context`)
+- Modify: `personalscraper/acquire/context.py` (add `cross_seed` field to `AcquireContext`)
+- Modify: `personalscraper/acquire/_factory.py` (`build_acquire_context` — the RP5c one-handle seam)
 
-Build `CrossSeedService` after the `TrackerRegistry` and `QBitClient` are available, passing the registry, lister, injector, store, and config. Expose via **one handle** (RP5c discipline) — add a `cross_seed_service` attribute on the acquire context object or pass it to the `acquire/context.py` module.
+Build `CrossSeedService` inside `build_acquire_context` (RP5c discipline — NOT `_build_app_context` directly) after the `TrackerRegistry` and store are available, mirroring the `GrabCore` conditional pattern. The service is built ONLY when the `torrent_client` satisfies ALL four required capabilities (`TorrentLister`, `TorrentInjector`, `TorrentController`, `TorrentTagger`). Transmission clients lack `TorrentInjector` → `cross_seed` stays `None` (logged at debug).
 
 ```python
-# In _build_app_context, after building qbit_client and registry:
-cross_seed_service = CrossSeedService(
-    registry=registry,
-    lister=qbit_client,
-    injector=qbit_client,
-    store=acquire_store,
-    config=app_config,
-)
+# In build_acquire_context, after building grab:
+cross_seed: CrossSeedService | None = None
+if torrent_client is not None:
+    from personalscraper.api.torrent._contracts import (
+        TorrentController, TorrentInjector, TorrentLister, TorrentTagger,
+    )
+    if (
+        isinstance(torrent_client, TorrentLister)
+        and isinstance(torrent_client, TorrentInjector)
+        and isinstance(torrent_client, TorrentController)
+        and isinstance(torrent_client, TorrentTagger)
+    ):
+        from personalscraper.acquire.cross_seed import CrossSeedService
+        cross_seed = CrossSeedService(
+            registry=tracker_registry,
+            lister=torrent_client,
+            injector=torrent_client,
+            controller=torrent_client,
+            tagger=torrent_client,
+            store=store,
+            config=config,
+        )
 ```
 
-The `QBitClient` satisfies both `TorrentLister` and `TorrentInjector` — pass the same instance.
+The same `torrent_client` instance satisfies all four protocol roles (QBitClient composes all of them).
 
 ## Sub-phase 4.5 — tests
 
