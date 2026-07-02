@@ -26,7 +26,7 @@
 | 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [x]    |
 | 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
 | 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [x]    |
-| 12  | PR fixes cycle 3                                     | phase-12-pr-fixes-cycle-3.md            | [ ]    |
+| 12  | PR fixes cycle 3                                     | phase-12-pr-fixes-cycle-3.md            | [x]    |
 
 ## Review cycles
 
@@ -63,7 +63,7 @@
 - Ignored (informational, non-blocking): shutdown-removal no-op vs restart-clears-set (correct outcome, redundant code); timeout heuristic ≤2 verify polls; _cross_seed_failures unbounded growth (reset on restart); double-read TOCTOU (atomic writer mitigates)
 - Design contradictions: none
 - Fix phase created: phase-12-pr-fixes-cycle-3.md
-- Status: fix phase dispatched → awaiting /implement:phase
+- Status: fix phase COMPLETE (2 sub-phases, 2 commits, no timeout) — make check green (91.02% cov) → pushed for re-review cycle 4
 
 ## Next action
 
