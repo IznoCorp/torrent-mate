@@ -662,6 +662,156 @@ def test_valid_empty_tracker_proceeds_normally(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 12b.  test_whitespace_tracker_skips_cycle  (ACC 11.1)
+# ---------------------------------------------------------------------------
+
+
+def test_whitespace_tracker_skips_cycle(tmp_path: Path) -> None:
+    r"""Whitespace-only tracker file (``\n``) → cycle skipped, no spawns.
+
+    A truncated write can leave a whitespace-only file with ``st_size > 0``.
+    ``load()`` degrades to ``{}`` which would trigger mass dispatch.  The
+    guard must detect this and skip the cycle before ``.keys()`` produces an
+    empty frozenset.
+    """
+    from personalscraper.commands.watch import watch
+
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_text("\n", encoding="utf-8")
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must have skipped the cycle — no subprocess calls at all.
+    p.mock_subprocess.Popen.assert_not_called()
+    p.mock_subprocess.run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 12c.  test_non_dict_tracker_skips_cycle  (ACC 11.1)
+# ---------------------------------------------------------------------------
+
+
+def test_non_dict_tracker_skips_cycle(tmp_path: Path) -> None:
+    """Non-dict JSON tracker (``[1,2,3]``) → cycle skipped without crash.
+
+    Before the guard, ``load()`` returned the list and ``.keys()`` raised
+    ``AttributeError`` → daemon crash loop.  The guard must detect non-dict
+    JSON and skip the cycle before reaching ``.keys()``.
+    """
+    from personalscraper.commands.watch import watch
+
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_text("[1,2,3]", encoding="utf-8")
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must have skipped the cycle — no subprocess calls at all.
+    p.mock_subprocess.Popen.assert_not_called()
+    p.mock_subprocess.run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 12d.  test_io_error_tracker_skips_cycle  (ACC 11.1)
+# ---------------------------------------------------------------------------
+
+
+def test_io_error_tracker_skips_cycle(tmp_path: Path, monkeypatch: Any) -> None:
+    """OSError on tracker ``read_text`` → cycle skipped, no spawns.
+
+    When the tracker file exists but cannot be read (I/O error), the guard
+    must skip the cycle with ``cause="io_error"`` instead of crashing.
+    """
+    from pathlib import Path as _Path
+
+    from personalscraper.commands.watch import watch
+
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_text("{}", encoding="utf-8")
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    real_read_text = _Path.read_text
+
+    def _fake_read_text(self: Any, *args: Any, **kwargs: Any) -> str:
+        if self == tracker_file:
+            raise OSError(5, "Input/output error")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(_Path, "read_text", _fake_read_text)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must have skipped the cycle — no subprocess calls at all.
+    p.mock_subprocess.Popen.assert_not_called()
+    p.mock_subprocess.run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 12e.  test_valid_nonempty_tracker_proceeds  (ACC 11.1)
+# ---------------------------------------------------------------------------
+
+
+def test_valid_nonempty_tracker_proceeds(tmp_path: Path) -> None:
+    """Valid non-empty tracker (``{"abc123": {...}}``) → cycle proceeds normally.
+
+    A tracker with real ingested entries must pass the guard and let the
+    watcher evaluate completed torrents.  The guard validates the raw JSON
+    on disk, not the output of ``load()``.
+    """
+    from personalscraper.commands.watch import watch
+
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_text(
+        '{"abc123": {"name": "test", "action": "copied", "date": "2024-01-01"}}',
+        encoding="utf-8",
+    )
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must NOT have skipped — cross-seed must have been spawned
+    # (the completed hash is not in the mocked ingested set).
+    p.mock_subprocess.run.assert_called_once()
+    run_args = p.mock_subprocess.run.call_args[0][0]
+    assert "--hash" in run_args
+    hash_idx = run_args.index("--hash")
+    assert run_args[hash_idx + 1] == h
+
+
+# ---------------------------------------------------------------------------
 # 13.  test_cross_seed_child_timeout_retries  (ACC 10.8)
 # ---------------------------------------------------------------------------
 

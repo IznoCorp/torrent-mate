@@ -131,34 +131,71 @@ def watch(ctx: typer.Context) -> None:
             # 1. Fresh ingested set — re-read every cycle (spawned runs mutate
             #    ingested_torrents.json).
             tracker_path = data_dir / "ingested_torrents.json"
-            tracker = IngestTracker(tracker_path=tracker_path)
-            ingested_data = tracker.load()
-            ingested_hashes = frozenset(ingested_data.keys())
 
-            # Cycle guard: corrupt/unreadable tracker file.  load() degrades
-            # to {} on JSON errors (logged at ERROR by IngestTracker), which
-            # would cause the watcher to treat the library as fresh — mass
-            # cross-seed dispatch + run trigger.  Skip the cycle when the raw
-            # file text fails json.loads (truly corrupt), not when it parses
-            # to valid JSON (including a valid-but-empty {} tracker — e.g.
-            # after entry pruning or a fresh library that has not yet ingested
-            # any torrent).
-            if tracker_path.exists() and tracker_path.stat().st_size > 0 and not ingested_data:
+            # Cycle guard: validate the tracker file BEFORE calling
+            # IngestTracker.load(), which degrades to {} on errors.  A
+            # degraded load would cause the watcher to treat the library as
+            # fresh — mass cross-seed dispatch + run trigger.
+            if tracker_path.exists():
+                # (a) Read raw text.  OSError → unreadable, skip the cycle.
                 try:
                     raw = tracker_path.read_text(encoding="utf-8")
                 except OSError:
-                    log.warning("watcher_tracker_unreadable", path=str(tracker_path))
+                    log.warning(
+                        "watcher_tracker_unreadable",
+                        path=str(tracker_path),
+                        cause="io_error",
+                    )
                     _interruptible_sleep(config.watch.poll_interval_s)
                     continue
-                if raw.strip():
+
+                # (b) Whitespace-only file (truncated write) — st_size > 0
+                #     but no content.  load() would degrade to {} which means
+                #     mass dispatch.
+                if raw.strip() == "":
                     try:
-                        json.loads(raw)
-                    except json.JSONDecodeError:
-                        log.warning("watcher_tracker_unreadable", path=str(tracker_path))
+                        st_size = tracker_path.stat().st_size
+                    except OSError:
+                        st_size = 0
+                    if st_size > 0:
+                        log.warning(
+                            "watcher_tracker_unreadable",
+                            path=str(tracker_path),
+                            cause="empty",
+                        )
                         _interruptible_sleep(config.watch.poll_interval_s)
                         continue
-                    # Valid JSON (including {} or non-empty objects) — trust
-                    # load() and proceed with the cycle normally.
+
+                # (c) Invalid JSON (corrupt content).  load() would degrade
+                #     to {} → mass dispatch.
+                try:
+                    parsed = json.loads(raw)
+                except json.JSONDecodeError:
+                    log.warning(
+                        "watcher_tracker_unreadable",
+                        path=str(tracker_path),
+                        cause="invalid_json",
+                    )
+                    _interruptible_sleep(config.watch.poll_interval_s)
+                    continue
+
+                # (d) Non-dict JSON (e.g. a list).  load() would return the
+                #     parsed value and .keys() below would raise
+                #     AttributeError → daemon crash loop.
+                if not isinstance(parsed, dict):
+                    log.warning(
+                        "watcher_tracker_unreadable",
+                        path=str(tracker_path),
+                        cause="not_a_dict",
+                    )
+                    _interruptible_sleep(config.watch.poll_interval_s)
+                    continue
+
+            # Safe to call load() — the file is either absent (fresh library)
+            # or a validated JSON dict.
+            tracker = IngestTracker(tracker_path=tracker_path)
+            ingested_data = tracker.load()
+            ingested_hashes = frozenset(ingested_data.keys())
 
             # 2. Completed torrents with error guard (W1: log, skip cycle,
             #    never crash).

@@ -178,3 +178,28 @@ def test_is_lock_held_permission_error_returns_true(tmp_path, monkeypatch):
 
     monkeypatch.setattr("personalscraper.lock.os.kill", _raise_permission)
     assert is_lock_held(lock_file) is True
+
+
+def test_is_lock_held_oserror_read_failure_returns_false(tmp_path, monkeypatch):
+    """is_lock_held returns False on OSError from read_text and logs lock_read_failed.
+
+    Regression test for the watcher loop's is_lock_held probe: when the lock
+    file exists but read_text raises OSError (I/O error, not a corrupt PID),
+    is_lock_held must return False and log lock_read_failed rather than
+    letting the exception propagate to the daemon loop.
+    """
+    from pathlib import Path as _Path
+
+    lock_file = tmp_path / "pipeline.lock"
+    lock_file.write_text("12345")
+
+    real_read_text = _Path.read_text
+
+    def _fake_read_text(self, *args, **kwargs):
+        if self == lock_file:
+            raise OSError(5, "Input/output error")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(_Path, "read_text", _fake_read_text)
+
+    assert is_lock_held(lock_file) is False
