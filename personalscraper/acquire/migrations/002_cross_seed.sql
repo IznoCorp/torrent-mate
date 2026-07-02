@@ -14,3 +14,5 @@ CREATE TABLE IF NOT EXISTS cross_seed_quota (
     count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (date)
 );
+
+INSERT INTO schema_version(version) VALUES (2);

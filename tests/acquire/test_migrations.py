@@ -92,21 +92,12 @@ class TestAcquireMigrations:
         assert _table_names(conn) == _EXPECTED_TABLES
 
     def test_schema_version_row_exists(self, tmp_path: Path) -> None:
-        """After applying the full chain, schema_version contains version 1.
-
-        Every migration script must record its version in the ``schema_version``
-        audit table — this is the contract that lets tooling reason about the
-        migration chain.  A migration that bumps ``PRAGMA user_version`` without
-        inserting into ``schema_version`` is a bug.
-
-        Note: 002_cross_seed.sql omitted the INSERT (tech-debt) — only version 1
-        is present despite user_version == 2.
-        """
+        """After applying the full chain, schema_version contains version 1 then version 2."""
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert rows == [(1,)]
+        assert rows == [(1,), (2,)]
 
     def test_partial_index_wanted_pending_exists(self, tmp_path: Path) -> None:
         """After applying the full chain, the partial index idx_wanted_pending exists (001)."""
