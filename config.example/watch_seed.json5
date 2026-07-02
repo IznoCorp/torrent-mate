@@ -1,0 +1,16 @@
+{
+  // Cross-seed + watch configuration (watch-seed feature).
+  // See docs/features/watch-seed/DESIGN.md §Config.
+  cross_seed: {
+    enabled: false,
+    // max_searches_per_day: 250,
+    // min_delay_between_searches_s: 30,
+    // exclude_recent_search_days: 3,
+  },
+  watch: {
+    enabled: false,
+    // poll_interval_s: 60,
+    // debounce_s: 900,
+    // safety_net_hours: 24,
+  },
+}
