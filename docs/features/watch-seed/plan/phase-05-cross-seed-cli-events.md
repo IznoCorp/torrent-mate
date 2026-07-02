@@ -133,7 +133,7 @@ Events (`CrossSeedInjected`, `CrossSeedRejected`) are emitted by `CrossSeedServi
 
 **Files:**
 
-- Create: `tests/unit/commands/test_cross_seed_cli.py`
+- Create: `tests/commands/test_cross_seed_cli.py`
 
 CLI tests must patch `load_config` (project memory: CI has no `config/`):
 
