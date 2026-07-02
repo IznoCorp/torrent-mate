@@ -224,3 +224,28 @@ def watch(ctx: typer.Context) -> None:
         if acquire is not None:
             acquire.close()
         log.info("watcher_shutdown_complete")
+
+
+@command_with_telemetry("watch-now")
+@handle_cli_errors
+def watch_now(ctx: typer.Context) -> None:
+    """Write the sentinel file that the watcher daemon consumes next cycle.
+
+    No IPC, no daemon dependency — if the daemon is down, the sentinel is
+    consumed at next boot.  Same channel as the future Web UI (W4).
+
+    The running ``personalscraper watch`` daemon detects this file at the
+    next poll cycle and fires a pipeline run with ``reason=manual``.
+    """
+    config: Config = ctx.obj.config
+    assert config is not None
+
+    sentinel = config.paths.data_dir / "watch.trigger"
+    sentinel.write_text("")
+    log.info("watch_now_sentinel_written", path=str(sentinel))
+    typer.echo(f"Sentinel written: {sentinel}")
+    typer.echo(
+        "Consumed by the watch daemon next cycle "
+        "-> pipeline run with reason=manual; "
+        "if the daemon is down the sentinel persists until next boot."
+    )

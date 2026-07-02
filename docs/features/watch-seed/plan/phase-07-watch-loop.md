@@ -114,24 +114,49 @@ respects:
 
 **Files:**
 
-- Modify: `personalscraper/commands/watch.py` (add `run_watch_now()`)
+- Modify: `personalscraper/commands/watch.py` (add `watch_now()`)
+
+**Plan snippet was stale** — this plan was written before the Phase 7.3 dispatch
+brief established the `ctx.obj` pattern (config comes from the Typer context, not
+`_build_app_context()`). The authoritative implementation in
+`personalscraper/commands/watch.py` follows the sub-phase 7.4 dispatch brief and
+differs in these respects:
+
+- **Typer command**: `@command_with_telemetry("watch-now")` + `@handle_cli_errors`
+  (mirrors the `watch` command), not a bare `run_watch_now()` function.
+- **Config from `ctx.obj.config`**: no `_build_app_context()` needed — writing a
+  sentinel file is a pure filesystem operation with no AppContext dependency.
+- **No `Path` import needed**: `config.paths.data_dir` is already a `Path`, and
+  the `/` operator returns a `Path` (same as the existing `watch()` function at
+  lines 132, 165).
+- **Structured log**: `watch_now_sentinel_written` via `get_logger(__name__)`, not
+  a bare `logger`.
+- **Output via `typer.echo`**: mirrors the `watch` command convention, not `print`.
 
 ```python
-def run_watch_now() -> None:
+@command_with_telemetry("watch-now")
+@handle_cli_errors
+def watch_now(ctx: typer.Context) -> None:
     """Write the sentinel file that the watcher daemon consumes next cycle.
 
     No IPC, no daemon dependency — if the daemon is down, the sentinel is
     consumed at next boot.  Same channel as the future Web UI (W4).
-    """
-    from personalscraper.cli_helpers import _build_app_context
 
-    ctx = _build_app_context()
-    data_dir = Path(ctx.app_config.paths.data_dir)
-    sentinel = data_dir / "watch.trigger"
+    The running ``personalscraper watch`` daemon detects this file at the
+    next poll cycle and fires a pipeline run with ``reason=manual``.
+    """
+    config: Config = ctx.obj.config
+    assert config is not None
+
+    sentinel = config.paths.data_dir / "watch.trigger"
     sentinel.write_text("")
-    logger.info("watch_now_sentinel_written", path=str(sentinel))
-    print(f"Sentinel written: {sentinel}")
-    print("The watcher daemon will consume it next cycle and fire a pipeline run.")
+    log.info("watch_now_sentinel_written", path=str(sentinel))
+    typer.echo(f"Sentinel written: {sentinel}")
+    typer.echo(
+        "Consumed by the watch daemon next cycle "
+        "-> pipeline run with reason=manual; "
+        "if the daemon is down the sentinel persists until next boot."
+    )
 ````
 
 ## Sub-phase 7.5 — wire into Typer CLI
