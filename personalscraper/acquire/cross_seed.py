@@ -511,6 +511,10 @@ class CrossSeedService:
     def _build_local_layout(self, item: TorrentItem) -> TorrentLayout | None:
         """Build a :class:`TorrentLayout` from the local torrent's metadata.
 
+        Normalizes the qBittorrent :meth:`list_files` output to the same
+        root-excluded frame that :func:`~personalscraper.api.torrent._base.parse_torrent_layout`
+        produces (see :func:`_normalize_qbit_files` for the convention).
+
         Args:
             item: The source :class:`TorrentItem`.
 
@@ -555,11 +559,17 @@ class CrossSeedService:
         else:
             meta_version = 1
 
-        total_size = sum(size for _, size in files)
+        # Normalize qBit list_files output to the candidate frame: qBittorrent
+        # ``torrents/files`` returns names INCLUDING the root folder for
+        # multi-file torrents, while parse_torrent_layout yields root-excluded
+        # paths.  Stripping the shared prefix and using it as the layout name
+        # makes the two frames comparable.
+        normalized_files, layout_name = _normalize_qbit_files(files, item.name)
+        total_size = sum(size for _, size in normalized_files)
         return TorrentLayout(
-            name=item.name,
+            name=layout_name,
             piece_length=piece_length,
-            files=files,
+            files=normalized_files,
             total_size=total_size,
             meta_version=meta_version,
         )
@@ -691,6 +701,62 @@ class CrossSeedService:
                 tracker=tracker,
                 error=str(exc),
             )
+
+
+def _normalize_qbit_files(
+    files: list[tuple[str, int]],
+    item_name: str,
+) -> tuple[list[tuple[str, int]], str]:
+    """Normalize qBittorrent ``list_files`` output to the candidate frame.
+
+    qBittorrent ``torrents/files`` returns names that INCLUDE the torrent
+    root folder for multi-file torrents (``"Root/inner.mkv"``), while
+    :func:`~personalscraper.api.torrent._base.parse_torrent_layout` yields
+    paths relative to ``info.name`` WITHOUT the root (``"inner.mkv"``).
+    This function strips the shared root prefix so the two frames are
+    comparable via :func:`~personalscraper.api.torrent._layout.structural_match`.
+
+    Args:
+        files: The ``(path, size)`` list from qBittorrent's ``list_files``.
+        item_name: The torrent's display name from qBittorrent
+            (``item.name``), used as a fallback when no shared root is found.
+
+    Returns:
+        A ``(normalized_files, layout_name)`` pair.  *layout_name* is either
+        the shared root component stripped from the paths or *item_name* when
+        no shared root exists.
+    """
+    if not files:
+        return files, item_name
+
+    # Single-file torrent: the entry name IS the filename, same as info.name
+    # from the .torrent.  qBit does not prefix single-file paths with a root
+    # component, so the frames already agree — leave as-is.
+    if len(files) == 1 and "/" not in files[0][0]:
+        return files, item_name
+
+    # Multi-file or path-containing entries: compute the first path component
+    # of every entry.  If ALL entries share the same first component, it is
+    # the torrent root injected by qBit — strip it and use it as the layout
+    # name (more truthful than the renameable qBit display name).
+    first_components: list[str | None] = []
+    for path, _size in files:
+        if "/" in path:
+            first_components.append(path.split("/", 1)[0])
+        else:
+            first_components.append(None)
+
+    unique_roots = {c for c in first_components if c is not None}
+
+    if len(unique_roots) == 1 and None not in first_components:
+        # All entries share the same root prefix — strip it.
+        root = unique_roots.pop()
+        stripped: list[tuple[str, int]] = [(path[len(root) + 1 :], size) for path, size in files]
+        return stripped, root
+
+    # Mixed roots (e.g. "DirA/file1" + "DirB/file2") or entries without "/"
+    # (e.g. flat multi-file at top level): leave paths as-is, use item.name.
+    return files, item_name
 
 
 def _candidate_id(candidate: object) -> str:

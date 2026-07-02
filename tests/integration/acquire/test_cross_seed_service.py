@@ -1283,3 +1283,254 @@ class TestSweepDelayRespected:
         assert len(sleep_log) == 2
         assert sleep_log[0] == min_delay
         assert sleep_log[1] == min_delay
+
+
+# ===========================================================================
+# Tests: path-frame normalization (sub-phase 10.1 regression)
+# ===========================================================================
+
+
+class TestPathFrameNormalization:
+    """Regression: root-prefixed qBit file list matches root-excluded torrent parse."""
+
+    def test_root_prefixed_multi_file_matches_parsed_torrent(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """qBit-style root-prefixed paths normalize to match parsed .torrent layout.
+
+        Regression for the bug where ``torrents/files`` returns names including
+        the root folder (``"Show.S01/Season 01/ep1.mkv"``) while
+        ``parse_torrent_layout`` yields root-excluded paths
+        (``"Season 01/ep1.mkv"``), causing ``structural_match`` to string-compare
+        and always return ``FILE_LIST_MISMATCH`` for real multi-file torrents.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item(name="Show.S01")
+
+        # qBit-style file list: root-PREFIXED paths (the real-world frame).
+        qbit_files: list[tuple[str, int]] = [
+            ("Show.S01/Season 01/ep1.mkv", 1_000_000_000),
+            ("Show.S01/Season 01/ep2.mkv", 1_200_000_000),
+        ]
+        # Parsed .torrent layout: root-EXCLUDED paths (the candidate frame).
+        parsed_files: list[tuple[str, int]] = [
+            ("Season 01/ep1.mkv", 1_000_000_000),
+            ("Season 01/ep2.mkv", 1_200_000_000),
+        ]
+        piece_length = 262144
+        torrent_name = "Show.S01"
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, qbit_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": piece_length})
+
+        # Candidate .torrent bytes with the ROOT-EXCLUDED frame (same tree).
+        candidate_torrent = make_torrent_bytes(
+            name=torrent_name,
+            files=parsed_files,
+            piece_length=piece_length,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # After normalization, the paths should match → MATCH → injected.
+        assert result.injected == [injected_hash], (
+            f"Expected injection of {injected_hash}, got rejected: {result.rejected}"
+        )
+        assert result.skipped is False
+
+    def test_renamed_qbit_root_still_matches_by_file_structure(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """When qBit display name differs but file paths share one root, strip prevails.
+
+        The normalization uses the first path component as the layout name
+        (more truthful than the renameable qBit display name).  If the parsed
+        .torrent uses the same root, they match.
+        """
+        # -- Arrange ----------------------------------------------------------
+        # qBit was renamed to "Show.S01.Renamed" but files still live under "Show.S01/".
+        item = _source_item(name="Show.S01.Renamed")
+        qbit_files: list[tuple[str, int]] = [
+            ("Show.S01/Season 01/ep1.mkv", 1_000_000_000),
+            ("Show.S01/Season 01/ep2.mkv", 1_200_000_000),
+        ]
+        piece_length = 262144
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, qbit_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": piece_length})
+
+        # Candidate .torrent: root = "Show.S01" (matches the file structure).
+        candidate_torrent = make_torrent_bytes(
+            name="Show.S01",
+            files=[("Season 01/ep1.mkv", 1_000_000_000), ("Season 01/ep2.mkv", 1_200_000_000)],
+            piece_length=piece_length,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        candidate_url = "https://torr9.example.com/dl/renamed"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Normalization strips "Show.S01/" → name="Show.S01", matching candidate.
+        assert result.injected == [injected_hash]
+
+    def test_flat_multi_file_without_root_prefix_still_matches(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Entries without '/' (flat multi-file) are left as-is with item.name.
+
+        This is the existing behaviour for torrents where files live at the
+        torrent root level — the frames agree without normalization.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item(name="Flat.Release.2024")
+        files: list[tuple[str, int]] = [
+            ("Flat.Release.2024.part1.mkv", 1_000_000_000),
+            ("Flat.Release.2024.part2.mkv", 800_000_000),
+        ]
+        piece_length = 524288
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": piece_length})
+
+        # Candidate .torrent with matching flat multi-file structure.
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=files,
+            piece_length=piece_length,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        candidate_url = "https://torr9.example.com/dl/flat"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Flat multi-file (no "/" in any entry) leaves files + name as-is → MATCH.
+        assert result.injected == [injected_hash]
+
+    def test_mixed_roots_leave_files_as_is(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Entries with different first components are left as-is, using item.name.
+
+        This is a rare but valid case (torrent with files in two different
+        top-level directories).  The frames diverge and the name check will
+        catch the mismatch when the candidate has a single root.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item(name="Mixed.Release")
+        mixed_files: list[tuple[str, int]] = [
+            ("CD1/track01.flac", 30_000_000),
+            ("CD2/track01.flac", 30_000_000),
+        ]
+        piece_length = 131072
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, mixed_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": piece_length})
+
+        # Candidate .torrent with a single root "CD1" → names won't match.
+        candidate_torrent = make_torrent_bytes(
+            name="Mixed.Release",
+            files=[("CD1/track01.flac", 30_000_000), ("CD2/track01.flac", 30_000_000)],
+            piece_length=piece_length,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        candidate_url = "https://torr9.example.com/dl/mixed"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Mixed roots → files left as-is, name=item.name="Mixed.Release".
+        # Candidate has same name + same file list → should MATCH.
+        assert result.injected == [injected_hash]

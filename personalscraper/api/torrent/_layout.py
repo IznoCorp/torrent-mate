@@ -29,8 +29,11 @@ class TorrentLayout:
             renamed root cannot match without linking (D11).
         piece_length: ``info.piece length`` in bytes.
         files: Ordered list of ``(relative_path, size)`` — the slash-separated
-            path joined to ``name/`` at the torrent root, with the declared
-            byte size.
+            path relative to the torrent root (``name``), root-excluded.  For
+            multi-file torrents each path is the remainder after stripping the
+            root, e.g. ``"Season 01/ep1.mkv"`` under root ``"Show.S01"``.
+            For single-file torrents the single entry IS the ``name``, e.g.
+            ``("movie.mkv", 1048576)``.
         total_size: Sum of every file's declared size (computed, not parsed).
         meta_version: ``info.meta version`` if present (1 = v1, 2 = v2/hybrid),
             or ``1`` when absent (default v1).
