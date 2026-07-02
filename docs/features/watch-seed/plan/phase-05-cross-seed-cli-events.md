@@ -22,7 +22,12 @@ Register the `cross-seed` Typer command group on the top-level CLI. Two subcomma
 
 **Files:**
 
-- Modify: `personalscraper/acquire/events.py`
+- Modify: `personalscraper/acquire/events.py` (two new frozen kw_only dataclasses over `Event`)
+- Modify: `personalscraper/acquire/cross_seed.py` (ctor extension + emission)
+- Modify: `personalscraper/acquire/_factory.py` (bus wiring)
+- Modify: `personalscraper/events/__init__.py` (hub re-exports)
+- Modify: `tests/fixtures/event_samples.py` (sample factories)
+- Modify: `tests/acquire/test_acquire_events.py` (parametrized entries)
 
 Follow the existing pattern of frozen kw_only dataclasses over `core.event_bus.Event`:
 
@@ -61,6 +66,16 @@ class CrossSeedRejected(Event):
     reason: str
     source_hash: str
 ```
+
+**Ctor extension (PLAN CLARIFICATION):** The Phase 4 service has no event bus.
+`CrossSeedService.__init__` is extended with `event_bus: EventBus | None = None`
+(keyword-only, default `None` → no emission). The bus is wired in
+`_factory.py` where `event_bus` is already available. Emission follows the
+`AcquisitionService` emit-after-persist convention:
+
+- `CrossSeedInjected` is emitted AFTER the obligation write.
+- `CrossSeedRejected` is emitted at each rejection point (fetch_failed,
+  magnet_not_supported, parse_failed, structural mismatch, recheck_failed).
 
 ## Sub-phase 5.2 — cross-seed --sweep CLI command
 

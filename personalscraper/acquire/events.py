@@ -215,7 +215,54 @@ class TrackerAuthFailed(Event):
     media_ref: MediaRef
 
 
+@dataclass(frozen=True, kw_only=True)
+class CrossSeedInjected(Event):
+    """Emitted when a cross-seed torrent is successfully injected + verified.
+
+    Emitted by :class:`~personalscraper.acquire.cross_seed.CrossSeedService`
+    after the obligation record is persisted (emit-after-persist convention).
+
+    Attributes:
+        info_hash: The info-hash of the injected torrent.
+        source_tracker: The tracker the ``.torrent`` was fetched from (target).
+        source_hash: The info-hash of the original (source) torrent.
+        save_path: Absolute path to the data directory used as save path.
+    """
+
+    info_hash: str
+    source_tracker: str
+    source_hash: str
+    save_path: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class CrossSeedRejected(Event):
+    """Emitted when a cross-seed candidate is rejected before injection.
+
+    Emitted by :class:`~personalscraper.acquire.cross_seed.CrossSeedService`
+    at each rejection point — fetch failure, magnet, parse error, structural
+    mismatch, or recheck failure.
+
+    Attributes:
+        info_hash: The info-hash of the CANDIDATE ``.torrent`` (not the
+            source). When the candidate carries no hash, this is the
+            download URL or ``"unknown"``.
+        tracker: The tracker the candidate was fetched from.
+        reason: Human-readable rejection reason
+            (e.g. ``"structural_mismatch: root_name"``, ``"fetch_failed"``).
+        source_hash: The info-hash of the source torrent that triggered the
+            cross-seed attempt.
+    """
+
+    info_hash: str
+    tracker: str
+    reason: str
+    source_hash: str
+
+
 __all__ = [
+    "CrossSeedInjected",
+    "CrossSeedRejected",
     "GrabFailed",
     "GrabSucceeded",
     "RatioMeasured",

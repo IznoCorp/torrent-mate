@@ -331,6 +331,8 @@ def make_registry_boot_validated() -> RegistryBootValidated:
 # ---------------------------------------------------------------------------
 
 from personalscraper.acquire.events import (  # noqa: E402, PLC0415
+    CrossSeedInjected,
+    CrossSeedRejected,
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
@@ -450,6 +452,28 @@ def make_tracker_auth_failed() -> TrackerAuthFailed:
         tracker="lacale",
         http_status=401,
         media_ref=_BREAKING_BAD_REF,
+    )
+
+
+@register_factory(CrossSeedInjected)
+def make_cross_seed_injected() -> CrossSeedInjected:
+    """Realistic CrossSeedInjected factory — cross-seeded to c411 from lacale source."""
+    return CrossSeedInjected(
+        info_hash="d" * 40,
+        source_tracker="c411",
+        source_hash="b" * 40,
+        save_path="/Volumes/Disk1/TV Shows/Breaking Bad (2008)",
+    )
+
+
+@register_factory(CrossSeedRejected)
+def make_cross_seed_rejected() -> CrossSeedRejected:
+    """Realistic CrossSeedRejected factory — structural mismatch on root_name."""
+    return CrossSeedRejected(
+        info_hash="e" * 40,
+        tracker="c411",
+        reason="structural_mismatch: root_name",
+        source_hash="b" * 40,
     )
 
 

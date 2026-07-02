@@ -177,6 +177,7 @@ def build_acquire_context(
                 tagger=torrent_client,
                 store=store,
                 config=config,
+                event_bus=event_bus,
             )
         else:
             logger.debug(
