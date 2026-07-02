@@ -428,9 +428,10 @@ def _parse_info_walk(data: bytes, info_start: int, info_end: int) -> TorrentLayo
     if files is not None:
         if not files:
             raise ValueError("info.files list is empty")
-        total_size = sum(size for _, size in files)
+        files_tuple: tuple[tuple[str, int], ...] = tuple(files)
+        total_size = sum(size for _, size in files_tuple)
     elif single_length is not None:
-        files = [(name, single_length)]
+        files_tuple = ((name, single_length),)
         total_size = single_length
     else:
         raise ValueError("info dict missing both 'files' and 'length' keys")
@@ -438,7 +439,7 @@ def _parse_info_walk(data: bytes, info_start: int, info_end: int) -> TorrentLayo
     return TorrentLayout(
         name=name,
         piece_length=piece_length,
-        files=files,
+        files=files_tuple,
         total_size=total_size,
         meta_version=meta_version,
     )

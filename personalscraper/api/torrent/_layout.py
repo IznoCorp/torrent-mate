@@ -28,7 +28,7 @@ class TorrentLayout:
             (single-file). Structural matching requires identical names; a
             renamed root cannot match without linking (D11).
         piece_length: ``info.piece length`` in bytes.
-        files: Ordered list of ``(relative_path, size)`` — the slash-separated
+        files: Ordered tuple of ``(relative_path, size)`` — the slash-separated
             path relative to the torrent root (``name``), root-excluded.  For
             multi-file torrents each path is the remainder after stripping the
             root, e.g. ``"Season 01/ep1.mkv"`` under root ``"Show.S01"``.
@@ -41,9 +41,30 @@ class TorrentLayout:
 
     name: str
     piece_length: int
-    files: list[tuple[str, int]]
+    files: tuple[tuple[str, int], ...]
     total_size: int
     meta_version: int = 1
+
+    def __post_init__(self) -> None:
+        """Validate invariants after frozen dataclass initialisation.
+
+        Raises:
+            ValueError: If *files* is empty, *piece_length* ≤ 0, any file
+                size is negative, or *total_size* does not equal the sum of
+                all file sizes.
+        """
+        if not self.files:
+            raise ValueError("TorrentLayout.files must not be empty")
+        if self.piece_length <= 0:
+            raise ValueError(f"TorrentLayout.piece_length must be > 0, got {self.piece_length}")
+        for rel_path, size in self.files:
+            if size < 0:
+                raise ValueError(f"File size must be >= 0, got {size} for {rel_path!r}")
+        computed = sum(size for _, size in self.files)
+        if self.total_size != computed:
+            raise ValueError(
+                f"TorrentLayout.total_size ({self.total_size}) does not match sum of file sizes ({computed})"
+            )
 
 
 def structural_match(local: TorrentLayout, candidate: TorrentLayout) -> MatchVerdict:
@@ -61,9 +82,10 @@ def structural_match(local: TorrentLayout, candidate: TorrentLayout) -> MatchVer
         ``MatchVerdict.MATCH`` or the first mismatch reason encountered,
         in priority order: v2_hybrid → piece_length → root_name → file_list.
     """
-    # Reject v2/hybrid on either side — v2 has a different info-dict shape
-    # and can never structurally match under v1 semantics.
-    if local.meta_version == 2 or candidate.meta_version == 2:
+    # Reject non-v1 on either side — v2/hybrid and anything beyond has a
+    # different info-dict shape and can never structurally match under v1
+    # semantics.
+    if local.meta_version != 1 or candidate.meta_version != 1:
         return MatchVerdict.V2_HYBRID
 
     if local.piece_length != candidate.piece_length:

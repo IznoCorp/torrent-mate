@@ -35,6 +35,47 @@ class TestParseTorrentLayout:
             assert rel_path, f"empty rel_path in {path.name}"
             assert size > 0, f"zero-size file in {path.name}: {rel_path}"
 
+    # --- Golden exact-value pins for the 3 committed fixtures (sub-phase 10.10a) ---
+
+    def test_single_file_golden_pin(self) -> None:
+        """Pinned from fixture ground truth: single_file.torrent."""
+        path = FIXTURE_DIR / "single_file.torrent"
+        if not path.exists():
+            pytest.skip("fixture not present")
+        layout = parse_torrent_layout(path.read_bytes())
+        # pinned from fixture ground truth
+        assert layout.name == "House.of.the.Dragon.S03E01.MULTi.1080p.WEB.H265-TyHD.mkv"
+        assert layout.piece_length == 2_097_152
+        assert len(layout.files) == 1
+        assert layout.total_size == 1_709_268_712
+        assert layout.meta_version == 1
+
+    def test_multi_file_golden_pin(self) -> None:
+        """Pinned from fixture ground truth: multi_file.torrent."""
+        path = FIXTURE_DIR / "multi_file.torrent"
+        if not path.exists():
+            pytest.skip("fixture not present")
+        layout = parse_torrent_layout(path.read_bytes())
+        # pinned from fixture ground truth
+        assert layout.name == ("Rafa.S01.MULTI.AD.1080p.WEB.NF.DV.HDR.H265.EAC3.5.1.Atmos-Amen")
+        assert layout.piece_length == 4_194_304
+        assert len(layout.files) == 4
+        assert layout.total_size == 5_522_454_799
+        assert layout.meta_version == 1
+
+    def test_multi_file_13_golden_pin(self) -> None:
+        """Pinned from fixture ground truth: multi_file_13.torrent."""
+        path = FIXTURE_DIR / "multi_file_13.torrent"
+        if not path.exists():
+            pytest.skip("fixture not present")
+        layout = parse_torrent_layout(path.read_bytes())
+        # pinned from fixture ground truth
+        assert layout.name == "Les.Groos.2026.S01.VFF.1080p.WEBRip.AAC.2.0.x264-LOLOPC"
+        assert layout.piece_length == 16_777_216
+        assert len(layout.files) == 13
+        assert layout.total_size == 1_004_276_088
+        assert layout.meta_version == 1
+
     def test_single_file_fixture_has_synthetic_filelist(self) -> None:
         """A single-file .torrent yields one-entry file-list with info.name."""
         path = FIXTURE_DIR / "single_file.torrent"
@@ -132,4 +173,68 @@ class TestParseTorrentLayoutAdversarial:
         layout = parse_torrent_layout(data)
         assert layout.meta_version == 2
         assert layout.name == "test4"
-        assert layout.files == [("test4", 1_000_000)]
+        assert layout.files == (("test4", 1_000_000),)
+
+
+class TestTorrentLayoutValidation:
+    """Adversarial tests for :class:`TorrentLayout.__post_init__` (sub-phase 10.10c)."""
+
+    def test_empty_files_raises_valueerror(self) -> None:
+        """``TorrentLayout(files=())`` raises ValueError."""
+        from personalscraper.api.torrent._layout import TorrentLayout
+
+        with pytest.raises(ValueError, match="files must not be empty"):
+            TorrentLayout(
+                name="test",
+                piece_length=262144,
+                files=(),
+                total_size=0,
+            )
+
+    def test_piece_length_zero_raises_valueerror(self) -> None:
+        """``TorrentLayout(piece_length=0)`` raises ValueError."""
+        from personalscraper.api.torrent._layout import TorrentLayout
+
+        with pytest.raises(ValueError, match="piece_length must be > 0"):
+            TorrentLayout(
+                name="test",
+                piece_length=0,
+                files=(("f.mkv", 1000),),
+                total_size=1000,
+            )
+
+    def test_piece_length_negative_raises_valueerror(self) -> None:
+        """``TorrentLayout(piece_length=-1)`` raises ValueError."""
+        from personalscraper.api.torrent._layout import TorrentLayout
+
+        with pytest.raises(ValueError, match="piece_length must be > 0"):
+            TorrentLayout(
+                name="test",
+                piece_length=-1,
+                files=(("f.mkv", 1000),),
+                total_size=1000,
+            )
+
+    def test_negative_file_size_raises_valueerror(self) -> None:
+        """A file entry with negative size raises ValueError."""
+        from personalscraper.api.torrent._layout import TorrentLayout
+
+        with pytest.raises(ValueError, match="File size must be >= 0"):
+            TorrentLayout(
+                name="test",
+                piece_length=262144,
+                files=(("f.mkv", -1),),
+                total_size=-1,
+            )
+
+    def test_total_size_lie_raises_valueerror(self) -> None:
+        """``TorrentLayout(total_size != sum(sizes))`` raises ValueError."""
+        from personalscraper.api.torrent._layout import TorrentLayout
+
+        with pytest.raises(ValueError, match="total_size.*does not match"):
+            TorrentLayout(
+                name="test",
+                piece_length=262144,
+                files=(("f.mkv", 1000),),
+                total_size=9999,  # lie
+            )

@@ -161,11 +161,23 @@ class CrossSeedService:
             result.skip_reason = "no_piece_size"
             return result
 
-        # Reject v2/hybrid local — can never structurally match under v1 semantics.
-        if local_layout.meta_version == 2:
+        # Reject non-v1 local — can never structurally match under v1 semantics.
+        if local_layout.meta_version != 1:
             logger.info("acquire.cross_seed.skip", info_hash=info_hash, reason="v2_hybrid")
             result.skipped = True
             result.skip_reason = "v2_hybrid"
+            return result
+
+        # 4b. Refuse to inject when no save_path is available (D10 — write-then-resume
+        # requires a data directory to seed from).
+        if not item.save_path:
+            logger.info(
+                "acquire.cross_seed.skip",
+                info_hash=info_hash,
+                reason="no_save_path",
+            )
+            result.skipped = True
+            result.skip_reason = "no_save_path"
             return result
 
         # 5. Determine eligible target trackers, excluding origin + recently searched.

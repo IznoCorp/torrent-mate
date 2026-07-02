@@ -103,7 +103,7 @@ def _media_type_for(name: str) -> MediaType:
 def _normalize_qbit_files(
     files: list[tuple[str, int]],
     item_name: str,
-) -> tuple[list[tuple[str, int]], str]:
+) -> tuple[tuple[tuple[str, int], ...], str]:
     """Normalize qBittorrent ``list_files`` output to the candidate frame.
 
     qBittorrent ``torrents/files`` returns names that INCLUDE the torrent
@@ -124,13 +124,13 @@ def _normalize_qbit_files(
         no shared root exists.
     """
     if not files:
-        return files, item_name
+        return (), item_name
 
     # Single-file torrent: the entry name IS the filename, same as info.name
     # from the .torrent.  qBit does not prefix single-file paths with a root
     # component, so the frames already agree — leave as-is.
     if len(files) == 1 and "/" not in files[0][0]:
-        return files, item_name
+        return (tuple(files), item_name)
 
     # Multi-file or path-containing entries: compute the first path component
     # of every entry.  If ALL entries share the same first component, it is
@@ -149,11 +149,11 @@ def _normalize_qbit_files(
         # All entries share the same root prefix — strip it.
         root = unique_roots.pop()
         stripped: list[tuple[str, int]] = [(path[len(root) + 1 :], size) for path, size in files]
-        return stripped, root
+        return (tuple(stripped), root)
 
     # Mixed roots (e.g. "DirA/file1" + "DirB/file2") or entries without "/"
     # (e.g. flat multi-file at top level): leave paths as-is, use item.name.
-    return files, item_name
+    return (tuple(files), item_name)
 
 
 def _candidate_id(candidate: object) -> str:

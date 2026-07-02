@@ -14,42 +14,42 @@ from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, str
 BASE = TorrentLayout(
     name="Release.Name.2024",
     piece_length=262144,
-    files=[("Release.Name.2024.mkv", 1_000_000)],
+    files=(("Release.Name.2024.mkv", 1_000_000),),
     total_size=1_000_000,
 )
 
 IDENTICAL = TorrentLayout(
     name="Release.Name.2024",
     piece_length=262144,
-    files=[("Release.Name.2024.mkv", 1_000_000)],
+    files=(("Release.Name.2024.mkv", 1_000_000),),
     total_size=1_000_000,
 )
 
 PIECE_DIFF = TorrentLayout(
     name="Release.Name.2024",
     piece_length=524288,  # different
-    files=[("Release.Name.2024.mkv", 1_000_000)],
+    files=(("Release.Name.2024.mkv", 1_000_000),),
     total_size=1_000_000,
 )
 
 NAME_DIFF = TorrentLayout(
     name="Release.Name.2024.REPACK",  # renamed root
     piece_length=262144,
-    files=[("Release.Name.2024.REPACK.mkv", 1_000_000)],
+    files=(("Release.Name.2024.REPACK.mkv", 1_000_000),),
     total_size=1_000_000,
 )
 
 EXTRA_FILE = TorrentLayout(
     name="Release.Name.2024",
     piece_length=262144,
-    files=[("Release.Name.2024.mkv", 1_000_000), ("Sample.mkv", 50_000)],  # extra
+    files=(("Release.Name.2024.mkv", 1_000_000), ("Sample.mkv", 50_000)),  # extra
     total_size=1_050_000,
 )
 
 V2_HYBRID = TorrentLayout(
     name="Release.Name.2024",
     piece_length=262144,
-    files=[("Release.Name.2024.mkv", 1_000_000)],
+    files=(("Release.Name.2024.mkv", 1_000_000),),
     total_size=1_000_000,
     meta_version=2,
 )
@@ -60,8 +60,17 @@ V2_HYBRID = TorrentLayout(
 DIFF_ORDER = TorrentLayout(
     name="Release.Name.2024",
     piece_length=262144,
-    files=[("Sample.mkv", 50_000), ("Release.Name.2024.mkv", 1_000_000)],
+    files=(("Sample.mkv", 50_000), ("Release.Name.2024.mkv", 1_000_000)),
     total_size=1_050_000,
+)
+
+# Non-v1 meta_version fixture for meta_version != 1 gate test.
+V3_META = TorrentLayout(
+    name="Release.Name.2024",
+    piece_length=262144,
+    files=(("Release.Name.2024.mkv", 1_000_000),),
+    total_size=1_000_000,
+    meta_version=3,
 )
 
 
@@ -114,3 +123,11 @@ class TestStructuralMatch:
         DESIGN D4 requires identical order, not just identical file sets.
         """
         assert structural_match(EXTRA_FILE, DIFF_ORDER) == MatchVerdict.FILE_LIST_MISMATCH
+
+    def test_meta_version_3_rejected(self) -> None:
+        """Candidate with meta_version=3 yields V2_HYBRID.
+
+        The ``meta_version != 1`` gate rejects anything beyond v1, not just
+        v2 — future hybrid versions may change the info-dict shape.
+        """
+        assert structural_match(BASE, V3_META) == MatchVerdict.V2_HYBRID
