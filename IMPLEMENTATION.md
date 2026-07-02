@@ -7,7 +7,7 @@
 **Version bump**: 0.38.0 → 0.39.0 (minor)
 **Branch**: feat/watch-seed
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/personal-scraper/pull/212
 **Design**: docs/features/watch-seed/DESIGN.md
 **Master plan**: docs/features/watch-seed/plan/INDEX.md
 
