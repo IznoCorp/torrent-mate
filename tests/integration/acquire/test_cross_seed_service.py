@@ -2294,3 +2294,330 @@ class TestVerifyTimeoutConfig:
         timeout_rejections = [e for e in rejected_events if e.reason == "verify_timeout"]
         assert len(timeout_rejections) == 1
         assert timeout_rejections[0].info_hash == injected_hash
+
+
+# ===========================================================================
+# Tests: sub-phase 11.3 — inject/layout guards + self-delete + queried_names
+# ===========================================================================
+
+
+class TestCheckInjectApiError:
+    """test_check_inject_api_error_rejected_inject_failed (11.3a)."""
+
+    def test_inject_api_error_rejected_inject_failed(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Inject raises ApiError → rejected inject_failed, check() continues."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        # Override inject to raise ApiError.
+        def _inject_raises_api_error(
+            torrent_bytes: bytes,
+            *,
+            save_path: str,
+            recheck: bool = True,
+            paused: bool = True,
+        ) -> str:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message="test inject failure",
+            )
+
+        fake_client.inject = _inject_raises_api_error  # type: ignore[method-assign]
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        rejected_events: list[CrossSeedRejected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedRejected, lambda e: rejected_events.append(e))
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Not injected.
+        assert result.injected == []
+        # Rejected with inject_failed.
+        assert len(result.rejected) == 1
+        _, rejected_tracker, rejected_reason = result.rejected[0]
+        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_reason == "inject_failed"
+
+        # CrossSeedRejected with reason=inject_failed emitted.
+        inject_failures = [e for e in rejected_events if e.reason == "inject_failed"]
+        assert len(inject_failures) == 1
+        assert inject_failures[0].tracker == _TRACKER_TORR9
+        assert inject_failures[0].source_hash == _SOURCE_HASH
+
+
+class TestCheckInjectValueError:
+    """test_check_inject_value_error_rejected_inject_failed (11.3a — ValueError variant)."""
+
+    def test_inject_value_error_rejected_inject_failed(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Inject raises ValueError → rejected inject_failed, check() continues."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        # Override inject to raise ValueError (simulating hash_uncomputable in inject).
+        def _inject_raises_value_error(
+            torrent_bytes: bytes,
+            *,
+            save_path: str,
+            recheck: bool = True,
+            paused: bool = True,
+        ) -> str:
+            raise ValueError("hash_uncomputable")
+
+        fake_client.inject = _inject_raises_value_error  # type: ignore[method-assign]
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        rejected_events: list[CrossSeedRejected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedRejected, lambda e: rejected_events.append(e))
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        assert result.injected == []
+        assert len(result.rejected) == 1
+        _, rejected_tracker, rejected_reason = result.rejected[0]
+        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_reason == "inject_failed"
+
+        inject_failures = [e for e in rejected_events if e.reason == "inject_failed"]
+        assert len(inject_failures) == 1
+        assert inject_failures[0].tracker == _TRACKER_TORR9
+        assert inject_failures[0].source_hash == _SOURCE_HASH
+
+
+class TestCheckEmptyFileList:
+    """test_check_empty_file_list_skips (11.3b)."""
+
+    def test_empty_file_list_skips_no_raise(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Empty list_files → TorrentLayout ValueError → _build_local_layout returns None → skipped."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+
+        fake_client = FakeTorrentClient(completed=[item])
+        # Seed empty file list — TorrentLayout.__post_init__ raises ValueError
+        # for empty files, but _build_local_layout catches it and returns None.
+        fake_client.seed_files(_SOURCE_HASH, [])
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(provider=_TRACKER_TORR9, results=[]),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Skipped (local layout is None) — no raise, no crash.
+        assert result.skipped is True
+        assert result.skip_reason == "no_piece_size"
+        assert result.injected == []
+
+
+class TestObligationWriteFailSelfHash:
+    """test_obligation_write_fail_self_hash_no_delete (11.3c)."""
+
+    def test_obligation_write_fail_self_hash_no_delete(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Obligation write fails AND injected_hash == source_hash → delete averted."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # Override inject to return _SOURCE_HASH (simulating qBit Conflict409).
+        def _inject_returns_source(
+            torrent_bytes: bytes,
+            *,
+            save_path: str,
+            recheck: bool = True,
+            paused: bool = True,
+        ) -> str:
+            fake_client.injected.append((torrent_bytes, save_path, recheck, paused))
+            fake_client.injected_hashes.append(_SOURCE_HASH)
+            fake_client._files[_SOURCE_HASH] = fake_client._files.get(_SOURCE_HASH, [])
+            fake_client._props[_SOURCE_HASH] = {"piece_size": 262144}
+            return _SOURCE_HASH
+
+        fake_client.inject = _inject_returns_source  # type: ignore[method-assign]
+
+        candidate_url = "https://torr9.example.com/dl/self-ob"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # Monkeypatch store.seed.add to raise after verification succeeds.
+        with patch.object(store.seed, "add", side_effect=RuntimeError("disk full")):
+            with caplog.at_level(logging.ERROR, logger="personalscraper.acquire.cross_seed"):
+                # -- Act ----------------------------------------------------------
+                result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Rejected with obligation_write_failed.
+        assert len(result.rejected) == 1
+        _, _, rejected_reason = result.rejected[0]
+        assert rejected_reason == "obligation_write_failed"
+
+        # NO delete was called (self-delete averted).
+        assert len(fake_client.deleted) == 0, (
+            f"Delete was called but self-delete guard should have averted it: {fake_client.deleted}"
+        )
+
+        # self_delete_averted logged at ERROR.
+        assert any("self_delete_averted" in record.message for record in caplog.records), (
+            f"Expected self_delete_averted ERROR, got: {[r.message for r in caplog.records]}"
+        )
+
+
+class TestTrackerAbsentFromRegistryNotRecorded:
+    """test_tracker_absent_from_registry_not_recorded (11.3d)."""
+
+    def test_tracker_absent_from_registry_not_recorded(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Tracker in remaining but absent from registry → NOT recorded as searched.
+
+        When a tracker is not registered (client None in the registry), it
+        never appears in queried_names.  The record_search filter must skip
+        it — otherwise it gets a false 3-day lockout.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # Only lacale is registered — torr9 is absent (client None in
+        # FakeRegistry).  lacale is origin (excluded from remaining),
+        # torr9 is in remaining but not in queried_names.
+        fake_registry = make_registry(
+            {_TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[])},
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # No candidates from any tracker → no injection.
+        assert result.injected == []
+
+        # torr9 was in remaining but NOT in queried_names → NOT recorded.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is False, (
+            "torr9 should NOT be recorded as searched — it was never queried (client None)"
+        )
+
+        # lacale is origin → excluded from remaining → never recorded either.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_LACALE, days=3) is False
