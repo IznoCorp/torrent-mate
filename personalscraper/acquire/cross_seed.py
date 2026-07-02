@@ -210,14 +210,23 @@ class CrossSeedService:
             remaining = [t for t in remaining if t in queryable]
 
         if not remaining:
+            # Distinguish two emptiness causes (observability polish, phase 13):
+            # (a) all_excluded_recent — there ARE queryable trackers in
+            #     eligible but they were excluded by the recent-search
+            #     window (the storm-prevention path from 12.1).
+            # (b) not_queryable_for_media_type — NO eligible tracker is
+            #     queryable for this media type at all (the per-media-type
+            #     priority override dropped them all).
+            eligible_queryable = any(t in queryable for t in eligible)
+            reason = "all_excluded_recent" if eligible_queryable else "not_queryable_for_media_type"
             logger.info(
                 "acquire.cross_seed.skip",
                 info_hash=info_hash,
-                reason="all_excluded_recent",
+                reason=reason,
                 eligible_count=len(eligible),
             )
             result.skipped = True
-            result.skip_reason = "all_excluded_recent"
+            result.skip_reason = reason
             return result
 
         # 6. Search candidates by release name (D7 — strongest signal).

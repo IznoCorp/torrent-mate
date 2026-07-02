@@ -3003,3 +3003,112 @@ class TestCheckMediaTypeQueryableScope:
         # Default config: happy path unchanged — injection succeeds.
         assert len(result.injected) == 1
         assert result.skipped is False
+
+
+# ===========================================================================
+# Tests: sub-phase 13.1 — precise skip_reason
+# ===========================================================================
+
+
+class TestCheckNotQueryableForMediaType:
+    """test_check_not_queryable_for_media_type_skip_reason (13.1)."""
+
+    def test_not_queryable_for_media_type_when_no_eligible_tracker_is_queryable(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """All eligible trackers excluded from media-type override → not_queryable_for_media_type.
+
+        When the only eligible trackers are absent from the per-media-type
+        priority override, the skip reason is ``not_queryable_for_media_type``
+        — NOT ``all_excluded_recent`` because no eligible tracker was ever
+        queryable for this media type.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()  # tagged lacale (origin)
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # torr9 has candidates but is NOT in the movie priority override.
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        # "third" also has candidates but is NOT in the movie override.
+        third_url = "https://third.example.com/dl/456"
+        fake_third_transport = FakeTransport(provider_name="third")
+
+        # movie override = [lacale] only.  lacale is the origin → excluded
+        # from eligible.  torr9 + third are eligible but NOT queryable for
+        # movies → remaining becomes empty at the media-type filter step.
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+                "third": FakeTracker(
+                    provider="third",
+                    transport=fake_third_transport,
+                    results=[_candidate_result(provider="third", download_url=third_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
+            priority_by_media_type={"movie": [_TRACKER_LACALE]},
+        )
+
+        cfg = make_config(
+            tmp_path,
+            tracker_providers={
+                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_TORR9: _tracker_provider(),
+                "third": _tracker_provider(),
+            },
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
+            tracker_priority_by_media_type={"movie": [_TRACKER_LACALE]},
+        )
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act: first check -------------------------------------------------
+        with caplog.at_level(logging.DEBUG, logger="personalscraper.acquire.cross_seed"):
+            first = svc.check(_SOURCE_HASH)
+
+        # -- Assert: first check ----------------------------------------------
+        # Skipped — NO eligible tracker is queryable for movies.
+        assert first.skipped is True, f"Expected skipped, got skipped={first.skipped} reason={first.skip_reason}"
+        assert first.skip_reason == "not_queryable_for_media_type", (
+            f"Expected not_queryable_for_media_type, got: {first.skip_reason}"
+        )
+        assert first.injected == []
+
+        # DEBUG log emitted for each dropped tracker.
+        debug_messages = [r.message for r in caplog.records if r.levelno == logging.DEBUG]
+        assert any("cross_seed_tracker_not_queryable_for_type" in msg for msg in debug_messages), (
+            f"Expected cross_seed_tracker_not_queryable_for_type DEBUG, got: {debug_messages}"
+        )
+
+        # No search history recorded (trackers were dropped before search).
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is False
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, "third", days=3) is False
+
+        # -- Act: second check ------------------------------------------------
+        second = svc.check(_SOURCE_HASH)
+
+        # -- Assert: second check ---------------------------------------------
+        # Same reason on re-check — the media-type filter still drops everything.
+        assert second.skipped is True
+        assert second.skip_reason == "not_queryable_for_media_type", (
+            f"Expected not_queryable_for_media_type on re-check, got: {second.skip_reason}"
+        )
