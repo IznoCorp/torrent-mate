@@ -20,7 +20,7 @@
 | 3   | Cross-seed + watch configuration                     | phase-03-cross-seed-config.md           | [x]    |
 | 4   | CrossSeedService — X1 core + X2 sweep                | phase-04-cross-seed-service.md          | [x]    |
 | 5   | Cross-seed CLI + events                              | phase-05-cross-seed-cli-events.md       | [x]    |
-| 6   | WatcherService pure state machine                    | phase-06-watcher-state-machine.md       | [ ]    |
+| 6   | WatcherService pure state machine                    | phase-06-watcher-state-machine.md       | [x]    |
 | 7   | Watch command loop + watch-now + run flags           | phase-07-watch-loop.md                  | [ ]    |
 | 8   | PM2 ecosystem + launchd decommission                 | phase-08-pm2-launchd-cutover.md         | [ ]    |
 | 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [ ]    |
@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 6 (WatcherService state machine) is next — continue via `/implement:phase`.
+Phase 7 (watch loop + watch-now + run flags) is next — continue via `/implement:phase`.
