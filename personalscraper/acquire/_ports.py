@@ -9,6 +9,7 @@ exposed as attribute namespaces:
   * ``store.seed``       — ``seed_obligation`` writer + reader (deletion authority)
   * ``store.ratio``      — ``ratio_state`` reader + upsert (data-carrier)
   * ``store.cross_seed`` — ``cross_seed_history`` + ``cross_seed_quota`` (watch-seed)
+  * ``store.watch``      — ``watch_state`` KV store (watcher daemon state)
 
 All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
@@ -181,6 +182,19 @@ class RatioSubStore(Protocol):
 
 
 @runtime_checkable
+class WatchSubStore(Protocol):
+    """Writer + reader for the ``watch_state`` key-value table."""
+
+    def get_last_successful_run_at(self) -> float | None:
+        """Return the persisted ``last_successful_run_at`` timestamp, or ``None``."""
+        ...
+
+    def set_last_successful_run_at(self, ts: float) -> None:
+        """Persist the ``last_successful_run_at`` timestamp (upsert)."""
+        ...
+
+
+@runtime_checkable
 class CrossSeedSubStore(Protocol):
     """Writer + reader for the ``cross_seed_history`` and ``cross_seed_quota`` tables."""
 
@@ -239,6 +253,11 @@ class AcquireStore(Protocol):
         """``cross_seed_history`` + ``cross_seed_quota`` sub-store (opens on access)."""
         ...
 
+    @property
+    def watch(self) -> WatchSubStore:
+        """``watch_state`` KV sub-store (opens on access)."""
+        ...
+
     def close(self) -> None:
         """Release all resources held by the store (fail-soft — never raises)."""
         ...
@@ -251,4 +270,5 @@ __all__ = [
     "RatioSubStore",
     "SeedSubStore",
     "WantedSubStore",
+    "WatchSubStore",
 ]

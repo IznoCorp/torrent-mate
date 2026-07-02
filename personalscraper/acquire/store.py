@@ -1,10 +1,10 @@
-"""Concrete ``AcquireStore`` over ``core/sqlite``: 5 sub-stores, lock-free reads.
+"""Concrete ``AcquireStore`` over ``core/sqlite``: 6 sub-stores, lock-free reads.
 
-One ``acquire.db`` file shared by five sub-store method namespaces
+One ``acquire.db`` file shared by six sub-store method namespaces
 (``store.follow.*``, ``store.wanted.*``, ``store.seed.*``, ``store.ratio.*``,
-``store.cross_seed.*``)
-over a single connection — matching the indexer precedent where one DB file
-backs many logical writers (no 3-file/3-lock split).
+``store.cross_seed.*``, ``store.watch.*``) over a single connection — matching
+the indexer precedent where one DB file backs many logical writers (no
+3-file/3-lock split).
 
 Concurrency model (CORRECTED — see DESIGN §6.3):
     Cross-process single-writer is provided by **SQLite itself** — WAL mode +
@@ -49,9 +49,7 @@ raising; it is idempotent (double-close is safe) and a pure no-op when the store
 was never opened, honoring ``AcquireContext.close()``'s no-suppress contract.
 
 Logging: ``personalscraper.logger.get_logger`` (NEVER ``structlog.get_logger``);
-event names ``acquire.store.*``.
-
-Import direction: ``core/``, ``conf/`` + stdlib only — never indexer/ or triage.
+event names ``acquire.store.*``.  Imports: ``core/``, ``conf/`` + stdlib only.
 """
 
 from __future__ import annotations
@@ -65,6 +63,7 @@ from datetime import date
 from pathlib import Path
 from typing import cast
 
+from personalscraper.acquire._watch_store import _WatchSubStore  # noqa: PLC0415
 from personalscraper.acquire.domain import (
     FollowedSeries,
     RatioState,
@@ -1007,9 +1006,9 @@ class ConcreteAcquireStore:
     ``BEGIN IMMEDIATE`` + ``busy_timeout``); no ``FileLock`` is held for the
     store's lifetime.
 
-    The five sub-stores are exposed as properties (``follow`` / ``wanted`` /
-    ``seed`` / ``ratio`` / ``cross_seed``) that ensure-open on first touch and
-    return a sub-store bound to the shared connection.
+    The six sub-stores are exposed as properties (``follow`` / ``wanted`` /
+    ``seed`` / ``ratio`` / ``cross_seed`` / ``watch``) that ensure-open on
+    first touch and return a sub-store bound to the shared connection.
 
     Attributes:
         follow: ``followed_series`` sub-store (lazy).
@@ -1017,6 +1016,7 @@ class ConcreteAcquireStore:
         seed: ``seed_obligation`` sub-store (deletion authority, lazy).
         ratio: ``ratio_state`` sub-store (data-carrier, lazy).
         cross_seed: ``cross_seed_history`` + ``cross_seed_quota`` sub-store (lazy).
+        watch: ``watch_state`` KV sub-store (watcher daemon state, lazy).
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -1036,6 +1036,7 @@ class ConcreteAcquireStore:
         self._seed: _SeedSubStore | None = None
         self._ratio: _RatioSubStore | None = None
         self._cross_seed: _CrossSeedSubStore | None = None
+        self._watch: _WatchSubStore | None = None
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -1116,6 +1117,13 @@ class ConcreteAcquireStore:
         if self._cross_seed is None:
             self._cross_seed = _CrossSeedSubStore(conn)
         return self._cross_seed
+
+    @property
+    def watch(self) -> _WatchSubStore:
+        """``watch_state`` KV sub-store (ensures open)."""
+        if self._watch is None:
+            self._watch = _WatchSubStore(self._ensure_open(), _write_tx)
+        return self._watch
 
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).

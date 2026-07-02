@@ -26,7 +26,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Expected tables after the full migration chain (001 + 002) is applied.
-_LATEST_VERSION = 2
+_LATEST_VERSION = 3
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -35,6 +35,7 @@ _EXPECTED_TABLES = {
     "ratio_state",
     "cross_seed_history",
     "cross_seed_quota",
+    "watch_state",
     "schema_version",
 }
 
@@ -96,8 +97,8 @@ class TestAcquireMigrations:
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
-        rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert rows == [(1,), (2,)]
+        rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
+        assert rows == [(1,), (2,), (3,)]
 
     def test_partial_index_wanted_pending_exists(self, tmp_path: Path) -> None:
         """After applying the full chain, the partial index idx_wanted_pending exists (001)."""

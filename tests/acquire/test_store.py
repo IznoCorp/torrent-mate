@@ -129,6 +129,7 @@ def test_all_tables_exist(store: ConcreteAcquireStore, tmp_path: Path) -> None:
         "ratio_state",
         "cross_seed_history",
         "cross_seed_quota",
+        "watch_state",
     } <= tables
 
 
