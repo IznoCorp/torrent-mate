@@ -589,6 +589,9 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     content_path = t.content_path or ""
     raw_tags = getattr(t, "tags", "") or ""
     tags = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
+    # qBittorrent returns 0 or -1 for never-completed torrents; normalize to None.
+    completion_on_raw = getattr(t, "completion_on", 0) or 0
+    completion_on: int | None = completion_on_raw if completion_on_raw > 0 else None
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -600,6 +603,8 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         category=t.category if t.category else None,
         tags=tags,
         added_on=datetime.fromtimestamp(t.added_on) if t.added_on else None,
+        save_path=getattr(t, "save_path", "") or "",
+        completion_on=completion_on,
     )
 
 
