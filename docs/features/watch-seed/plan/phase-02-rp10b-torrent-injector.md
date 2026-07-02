@@ -217,12 +217,17 @@ The `TorrentItem` dataclass currently drops `save_path` and `completion_on`. Add
 - `completion_on: int | None` — from `completion_on` (Unix timestamp, None if never completed).
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass
 class TorrentItem:
     # ... existing fields ...
-    save_path: str
+    save_path: str = ""
     completion_on: int | None = None
 ```
+
+Both fields carry defaults so existing callers in `TransmissionClient` and
+tests are unaffected. The qBittorrent mapper normalizes `completion_on` ≤ 0
+to `None`; the Transmission mapper reads `download_dir` → `save_path` and
+`done_date` → `completion_on` defensively.
 
 Update `_torrent_item()` to read `item.get("save_path", "")` and `item.get("completion_on")`. Check `api/torrent/_base.py` for the dataclass definition.
 
