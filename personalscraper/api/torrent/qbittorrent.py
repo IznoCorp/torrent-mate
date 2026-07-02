@@ -163,7 +163,8 @@ class QBitClient(
             Ordered list of ``(relative_path, byte_size)`` for each file.
 
         Raises:
-            ApiError: Torrent hash not found in qBittorrent (404).
+            ApiError: Torrent hash not found in qBittorrent (404) or
+                auth/connection failure.
         """
         try:
             files = self._client.torrents_files(torrent_hash=info_hash)
@@ -172,6 +173,24 @@ class QBitClient(
                 provider=ProviderName.QBITTORRENT,
                 http_status=404,
                 message=f"Torrent {info_hash} not found",
+            ) from exc
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent list_files forbidden: {exc}",
+            ) from exc
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent list_files unauthorized: {exc}",
+            ) from exc
+        except qbittorrentapi.APIConnectionError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent list_files connection error: {exc}",
             ) from exc
         return [(entry.name, entry.size) for entry in files]
 
@@ -189,7 +208,8 @@ class QBitClient(
             the torrent's ``piece_length`` in bytes.
 
         Raises:
-            ApiError: Torrent hash not found in qBittorrent (404).
+            ApiError: Torrent hash not found in qBittorrent (404) or
+                auth/connection failure.
         """
         try:
             props = self._client.torrents_properties(torrent_hash=info_hash)
@@ -198,6 +218,24 @@ class QBitClient(
                 provider=ProviderName.QBITTORRENT,
                 http_status=404,
                 message=f"Torrent {info_hash} not found",
+            ) from exc
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent properties forbidden: {exc}",
+            ) from exc
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent properties unauthorized: {exc}",
+            ) from exc
+        except qbittorrentapi.APIConnectionError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent properties connection error: {exc}",
             ) from exc
         return dict(props)
 
@@ -216,8 +254,30 @@ class QBitClient(
 
         Args:
             hash: Torrent info hash.
+
+        Raises:
+            ApiError: Provider-uniform error on auth/connection failure.
         """
-        self._client.torrents_resume(torrent_hashes=hash)
+        try:
+            self._client.torrents_resume(torrent_hashes=hash)
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent resume forbidden: {exc}",
+            ) from exc
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent resume unauthorized: {exc}",
+            ) from exc
+        except qbittorrentapi.APIConnectionError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent resume connection error: {exc}",
+            ) from exc
 
     def delete(self, hash: str, *, delete_files: bool = False) -> None:
         """Delete a torrent by hash.
@@ -225,8 +285,30 @@ class QBitClient(
         Args:
             hash: Torrent info hash.
             delete_files: If True, also delete the downloaded files.
+
+        Raises:
+            ApiError: Provider-uniform error on auth/connection failure.
         """
-        self._client.torrents_delete(torrent_hashes=hash, delete_files=delete_files)
+        try:
+            self._client.torrents_delete(torrent_hashes=hash, delete_files=delete_files)
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent delete forbidden: {exc}",
+            ) from exc
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent delete unauthorized: {exc}",
+            ) from exc
+        except qbittorrentapi.APIConnectionError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent delete connection error: {exc}",
+            ) from exc
 
     def add(
         self,
@@ -387,7 +469,7 @@ class QBitClient(
             # Duplicate — idempotent success (same contract as add() D7).
             log.debug("qbit_inject_duplicate", info_hash=info_hash)
             if recheck:
-                self._client.torrents_recheck(torrent_hashes=info_hash)
+                self._recheck_safe(info_hash)
             return info_hash
         except qbittorrentapi.Forbidden403Error as exc:
             raise ApiError(
@@ -422,8 +504,43 @@ class QBitClient(
                 message=f"qBittorrent inject failed (result={result!r})",
             )
         if recheck:
-            self._client.torrents_recheck(torrent_hashes=info_hash)
+            self._recheck_safe(info_hash)
         return info_hash
+
+    def _recheck_safe(self, info_hash: str) -> None:
+        """Issue a recheck, logging but not raising on transient failure.
+
+        The recheck after a successful add is best-effort: a transient
+        auth/connection error during the recheck call must NOT report the
+        injection as failed.  The caller's verify poll is the arbiter of
+        whether the injected torrent successfully rechecked.
+
+        Args:
+            info_hash: V1 info-hash of the torrent to recheck.
+        """
+        try:
+            self._client.torrents_recheck(torrent_hashes=info_hash)
+        except qbittorrentapi.Forbidden403Error as exc:
+            log.warning(
+                "qbit_recheck_transient",
+                info_hash=info_hash,
+                error="forbidden",
+                detail=str(exc),
+            )
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            log.warning(
+                "qbit_recheck_transient",
+                info_hash=info_hash,
+                error="unauthorized",
+                detail=str(exc),
+            )
+        except qbittorrentapi.APIConnectionError as exc:
+            log.warning(
+                "qbit_recheck_transient",
+                info_hash=info_hash,
+                error="connection",
+                detail=str(exc),
+            )
 
     def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
         """Apply transfer limits to an existing torrent (D2/§5.4).
