@@ -102,14 +102,22 @@ class CrossSeedService:
         registry: TrackerRegistry,
         lister: TorrentLister,
         injector: TorrentInjector,
+        controller: TorrentController,
+        tagger: TorrentTagger,
         store: AcquireStore,
         config,  # AppConfig — typed loosely to avoid circular imports
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._registry = registry
         self._lister = lister
         self._injector = injector
+        self._controller = controller
+        self._tagger = tagger
         self._store = store
         self._config = config
+        self._clock = clock
+        self._sleep = sleep
 
     def check(self, info_hash: str) -> CrossSeedResult:
         """Per-completion cross-seed for a single torrent (X1 — D3).
