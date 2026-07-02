@@ -68,6 +68,13 @@ def _interruptible_sleep(seconds: float) -> None:
     Args:
         seconds: Total sleep duration in seconds.  Stops early when
             :data:`_shutdown_requested` becomes ``True``.
+
+    Note:
+        While the sleep itself is interruptible, a running subprocess child
+        (cross-seed ``subprocess.run``) blocks SIGTERM for up to the child
+        timeout (``max(1800, 2×verify_timeout_s + 300)``).  This is
+        design-inherent — W5 serial spawns cannot interrupt a mid-flight
+        child.
     """
     remaining = seconds
     while remaining > 0 and not _shutdown_requested:
@@ -125,6 +132,11 @@ def watch(ctx: typer.Context) -> None:
             log.warning("watcher_state_restore_failed", exc_info=True)
 
     tracked_run: subprocess.Popen[bytes] | None = None
+    # Per-hash failure counter — in-memory (resets on daemon restart).
+    # After 3 consecutive failures or timeouts for the same hash, the
+    # hash is left in cross_seed_dispatched (no more retries this
+    # daemon lifetime).
+    _cross_seed_failures: dict[str, int] = {}
 
     try:
         while not _shutdown_requested:
@@ -252,7 +264,25 @@ def watch(ctx: typer.Context) -> None:
                         (data_dir / "watch.trigger").unlink(missing_ok=True)
 
             elif out.decision == WatcherDecision.FIRE_CROSS_SEED:
-                for h in out.cross_seed_hashes:
+                # Child timeout must leave room for up to two sequential
+                # verify polls per cross-seed check (each up to
+                # verify_timeout_s) plus a 300 s margin for I/O and
+                # subprocess startup/shutdown.
+                child_timeout = max(1800, 2 * config.cross_seed.verify_timeout_s + 300)
+                for idx, h in enumerate(out.cross_seed_hashes):
+                    if _shutdown_requested:
+                        # Unspawned hashes: remove from dispatched so the
+                        # next daemon boot retries them.
+                        remaining = frozenset(out.cross_seed_hashes[idx:])
+                        state = dataclasses.replace(
+                            state,
+                            cross_seed_dispatched=state.cross_seed_dispatched - remaining,
+                        )
+                        log.info(
+                            "watcher_cross_seed_shutdown_interrupt",
+                            unspawned=len(remaining),
+                        )
+                        break
                     try:
                         result = subprocess.run(
                             [
@@ -264,21 +294,22 @@ def watch(ctx: typer.Context) -> None:
                                 h,
                             ],
                             capture_output=True,
-                            timeout=1800,
+                            timeout=child_timeout,
                         )
-                    except subprocess.TimeoutExpired:
+                    except subprocess.TimeoutExpired as exc:
+                        stderr_tail = ""
+                        if exc.stderr:
+                            stderr_tail = exc.stderr.decode("utf-8", errors="replace")[-500:]
                         log.warning(
                             "watcher_cross_seed_timeout",
                             info_hash=h,
+                            stderr_tail=stderr_tail,
+                            note=("stranded injection possible — SIGKILL may have landed mid-verify"),
                         )
-                        # Remove from dispatched so it retries next cycle
-                        # (acquire.db exclude-recent guard prevents hammering).
-                        state = dataclasses.replace(
-                            state,
-                            cross_seed_dispatched=state.cross_seed_dispatched - {h},
-                        )
+                        failed = True
                     else:
-                        if result.returncode != 0:
+                        failed = result.returncode != 0
+                        if failed:
                             stderr_tail = (
                                 result.stderr.decode("utf-8", errors="replace")[-500:] if result.stderr else ""
                             )
@@ -288,7 +319,22 @@ def watch(ctx: typer.Context) -> None:
                                 returncode=result.returncode,
                                 stderr_tail=stderr_tail,
                             )
-                            # Remove from dispatched so it retries next cycle.
+
+                    if failed:
+                        failures = _cross_seed_failures.get(h, 0) + 1
+                        _cross_seed_failures[h] = failures
+                        if failures >= 3:
+                            log.warning(
+                                "watcher_cross_seed_gave_up",
+                                info_hash=h,
+                                attempts=3,
+                            )
+                            # Leave in dispatched — no more retries this
+                            # daemon lifetime.
+                        else:
+                            # Remove from dispatched so it retries next
+                            # cycle (acquire.db exclude-recent guard
+                            # prevents hammering).
                             state = dataclasses.replace(
                                 state,
                                 cross_seed_dispatched=state.cross_seed_dispatched - {h},

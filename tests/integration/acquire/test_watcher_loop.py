@@ -16,7 +16,7 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.api.torrent._base import TorrentItem
-from personalscraper.conf.models.watch_seed import WatchConfig
+from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
 
 # ---------------------------------------------------------------------------
 # autouse — reset the module-global _shutdown_requested before/after each test
@@ -49,6 +49,7 @@ def _make_watch_config(
     poll_interval_s: int = 10,
     debounce_s: int = 60,
     safety_net_hours: int = 24,
+    verify_timeout_s: int = 900,
 ) -> SimpleNamespace:
     """Build a minimal config stub with only the attributes ``watch()`` reads.
 
@@ -58,10 +59,12 @@ def _make_watch_config(
         poll_interval_s: ``WatchConfig.poll_interval_s``.
         debounce_s: ``WatchConfig.debounce_s``.
         safety_net_hours: ``WatchConfig.safety_net_hours``.
+        verify_timeout_s: ``CrossSeedConfig.verify_timeout_s``.
 
     Returns:
-        A ``SimpleNamespace`` with ``watch`` (real ``WatchConfig``) and
-        ``paths`` (``SimpleNamespace`` with ``data_dir=tmp_path``).
+        A ``SimpleNamespace`` with ``watch`` (real ``WatchConfig``),
+        ``cross_seed`` (real ``CrossSeedConfig``), and ``paths``
+        (``SimpleNamespace`` with ``data_dir=tmp_path``).
     """
     watch_cfg = WatchConfig(
         enabled=enabled,
@@ -69,8 +72,12 @@ def _make_watch_config(
         debounce_s=debounce_s,
         safety_net_hours=safety_net_hours,
     )
+    cross_seed_cfg = CrossSeedConfig(
+        verify_timeout_s=verify_timeout_s,
+    )
     return SimpleNamespace(
         watch=watch_cfg,
+        cross_seed=cross_seed_cfg,
         paths=SimpleNamespace(data_dir=tmp_path),
     )
 
@@ -886,6 +893,154 @@ def test_cross_seed_child_failure_retries(tmp_path: Path) -> None:
     # run must have been called twice — retry on cycle 2.
     assert p.mock_subprocess.run.call_count == 2, (
         f"Expected 2 cross-seed spawns (initial + retry), got {p.mock_subprocess.run.call_count}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 14a.  test_child_timeout_derived_from_config  (ACC 11.2)
+# ---------------------------------------------------------------------------
+
+
+def test_child_timeout_derived_from_config(tmp_path: Path) -> None:
+    """Child timeout = max(1800, 2*verify_timeout_s + 300) from config.
+
+    With ``verify_timeout_s=1200``, the computed timeout must be
+    ``max(1800, 2×1200 + 300) = 2700``.
+    """
+    from personalscraper.commands.watch import watch
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True, verify_timeout_s=1200)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+        p.mock_subprocess.run.return_value.returncode = 0
+
+        watch(ctx)
+
+    p.mock_subprocess.run.assert_called_once()
+    _, kwargs = p.mock_subprocess.run.call_args
+    assert kwargs.get("timeout") == 2700, (
+        f"Expected child timeout=2700 (max(1800, 2×1200+300)), got {kwargs.get('timeout')}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 14b.  test_shutdown_flag_mid_spawn_stops_remaining_hashes  (ACC 11.2)
+# ---------------------------------------------------------------------------
+
+
+def test_shutdown_flag_mid_spawn_stops_remaining_hashes(tmp_path: Path) -> None:
+    """_shutdown_requested mid-list stops remaining spawns after first hash.
+
+    Three hashes queued, shutdown flag set after the first spawn → only
+    one subprocess.run call, remaining two hashes removed from dispatched.
+    """
+    import personalscraper.commands.watch as _wm
+    from personalscraper.commands.watch import watch
+
+    h1 = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    h2 = "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b1"
+    h3 = "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b2"
+    completed = [_completed_item(hash=h, name=f"t{i}") for i, h in enumerate([h1, h2, h3])]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        # Set shutdown after the first spawn completes.
+        def _run_side_effect(*args: Any, **kwargs: Any) -> MagicMock:
+            _wm._shutdown_requested = True
+            result = MagicMock()
+            result.returncode = 0
+            return result
+
+        p.mock_subprocess.run.side_effect = _run_side_effect
+
+        watch(ctx)
+
+    # Only the first hash must have been spawned; the other two are skipped.
+    assert p.mock_subprocess.run.call_count == 1, (
+        f"Expected 1 spawn before shutdown interrupt, got {p.mock_subprocess.run.call_count}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 14c.  test_third_failure_gives_up  (ACC 11.2)
+# ---------------------------------------------------------------------------
+
+
+def test_third_failure_gives_up(tmp_path: Path) -> None:
+    """After 3 consecutive failures, hash is NOT retried on cycle 4.
+
+    The first 3 failures remove the hash from dispatched (retry), but the
+    3rd increments the counter to 3 → gave_up → hash left in dispatched →
+    cycle 4 skips it.
+    """
+    from personalscraper.commands.watch import watch
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        # 4 cycles: 3 retries + 1 skip.
+        # poll_interval_s=10 → 10 sleeps per cycle → 31 sleeps total.
+        p.set_time_sequence([0.0, 0.0, 0.0, 0.0], shutdown_after_sleeps=31)
+
+        p.mock_subprocess.run.return_value.returncode = 1  # always fails
+
+        watch(ctx)
+
+    # After 3 failures, the 4th cycle must NOT spawn.
+    assert p.mock_subprocess.run.call_count == 3, (
+        f"Expected 3 spawns (3 retries then gave_up), got {p.mock_subprocess.run.call_count}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 14d.  test_timeout_expired_handles_stderr_tail  (ACC 11.2)
+# ---------------------------------------------------------------------------
+
+
+def test_timeout_expired_handles_stderr_tail(tmp_path: Path) -> None:
+    """TimeoutExpired with stderr → daemon survives, hash retries.
+
+    The TimeoutExpired path must extract stderr_tail from exc.stderr
+    and log it without crashing.  The hash is removed from dispatched
+    (failure < 3) so the next cycle retries.
+    """
+    from personalscraper.commands.watch import watch
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        # 2 cycles: first times out (hash removed), second retries.
+        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=11)
+
+        stderr_bytes = b"recheck failed: disk full\n" * 50  # >500 bytes
+        p.mock_subprocess.run.side_effect = _subprocess_module.TimeoutExpired(
+            cmd=["fake"],
+            timeout=1800,
+            stderr=stderr_bytes,
+        )
+
+        watch(ctx)
+
+    # Must have retried on cycle 2 (one failure < 3).
+    assert p.mock_subprocess.run.call_count == 2, (
+        f"Expected 2 spawns (initial + retry after timeout), got {p.mock_subprocess.run.call_count}"
     )
 
 
