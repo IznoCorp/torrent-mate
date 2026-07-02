@@ -590,9 +590,8 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     raw_tags = getattr(t, "tags", "") or ""
     tags = [tag.strip() for tag in raw_tags.split(",") if tag.strip()]
     # qBittorrent returns 0 or -1 for never-completed torrents; normalize to None.
-    # isinstance guards defend against MagicMock: getattr on a MagicMock returns
-    # a MagicMock (truthy), not the default — so ``getattr(t, "k", 0) or 0``
-    # is reliably 0 only on a real TorrentDictionary with a falsy int value.
+    # qBittorrent API objects are duck-typed; narrow to int/float and str before
+    # use so unexpected shapes degrade to None/"" instead of raising.
     completion_on_raw = getattr(t, "completion_on", 0)
     completion_on: int | None = (
         int(completion_on_raw) if isinstance(completion_on_raw, (int, float)) and completion_on_raw > 0 else None
