@@ -82,157 +82,33 @@ The event emission must also be added to the EventBus catalog if there's a centr
 
 - Create: `personalscraper/commands/watch.py`
 
-```python
-"""Watch daemon loop — personalscraper watch.
+**Plan snippet was stale** — this plan was written before the Phase 6 deliverables
+(WatcherService, WatcherInput, is_lock_held, _WatchSubStore, **main**.py) were
+finalised. The authoritative implementation in `personalscraper/commands/watch.py`
+follows the sub-phase 7.3 dispatch brief (not this plan) and differs in these
+respects:
 
-Spawns ``personalscraper run --no-console`` and
-``personalscraper cross-seed --hash <H>`` as subprocesses per DESIGN W5.
-"""
+- **Typer command**: `@command_with_telemetry("watch")` + `@handle_cli_errors`
+  (mirrors `cross_seed.py`), not a bare `run_watch()` function called from
+  `cli.py`.
+- **AppContext via `_build_app_context(config, settings, build_torrent_client=True)`**
+  held for daemon lifetime; `try/finally` closes `provider_registry` + `acquire`.
+- **`is_lock_held()`** from `personalscraper.lock` (read-only PID probe, no
+  mutate), not `Path.exists()`.
+- **Cross-seed is `subprocess.run`** (synchronous, sequential per hash), not
+  `Popen`. Log `watcher_cross_seed_failed` on non-zero returncode.
+- **Run is `Popen` + polled**: tracked across cycles; skip if still alive
+  (`watcher_run_still_active`). On `returncode==0` → persist + reset backoff
+  - log `watcher_run_succeeded`; non-zero → `watcher_run_failed`.
+- **Sentinel consumed ONLY when reason=="manual"** (operator poke), after spawn.
+- **IngestTracker re-read every cycle** via `tracker.load().keys()` — spawned
+  runs mutate `ingested_torrents.json`.
+- **`t.hash`** not `t.info_hash` (TorrentItem.hash attribute).
+- **Structured logs**: all events `watcher_*` snake_case via `get_logger(__name__)`.
+- **`store.watch`** property chain: `app_context.acquire.store.watch.get/set`
+  on `_WatchSubStore` (commit 2b865bf5).
 
-from __future__ import annotations
-
-import os
-import signal
-import subprocess
-import sys
-import time
-from pathlib import Path
-
-from personalscraper.logger import get_logger
-
-logger = get_logger(__name__)
-
-# Set by SIGTERM handler.
-_shutdown_requested = False
-
-
-def _on_sigterm(signum, frame) -> None:
-    global _shutdown_requested
-    _shutdown_requested = True
-    logger.info("watcher_sigterm_received", signum=signum)
-
-
-def run_watch() -> None:
-    """Main watch loop — runs until SIGTERM or config.enabled becomes False.
-
-    Builds a listing-only qBittorrent client (TorrentLister), reads
-    IngestTracker's hash set, consults WatcherService, and executes
-    decisions by spawning subprocesses.
-    """
-    from personalscraper.cli_helpers import _build_app_context
-
-    ctx = _build_app_context()
-    config_watch = ctx.app_config.watch
-    if not config_watch.enabled:
-        logger.info("watcher_disabled", reason="config.watch.enabled=false")
-        return
-
-    signal.signal(signal.SIGTERM, _on_sigterm)
-    signal.signal(signal.SIGINT, _on_sigterm)
-
-    from personalscraper.acquire.watcher import WatcherService, WatcherState, WatcherInput
-
-    svc = WatcherService(config_watch)
-    state = WatcherState()
-
-    # Restore last_successful_run_at from acquire.db
-    try:
-        store = ctx.acquire_store  # or however the context exposes it
-        state.last_successful_run_at = store.get_last_successful_run_at()
-    except Exception:
-        logger.warning("watcher_state_restore_failed", exc_info=True)
-
-    while not _shutdown_requested:
-        try:
-            now = time.time()
-            completed = ctx.qbit_client.get_completed()
-            completed_hashes = {t.info_hash for t in completed}
-
-            # Build input snapshot
-            ingested_set = ctx.ingest_tracker.get_all_hashes()  # or equivalent
-            seed_pure_set = _get_seed_pure_hashes(completed)
-
-            sentinel_path = Path(ctx.app_config.paths.data_dir) / "watch.trigger"
-            sentinel_present = sentinel_path.exists()
-
-            # Check if pipeline.lock is held
-            lock_path = Path(ctx.app_config.paths.data_dir) / "pipeline.lock"  # or staging
-            lock_held = lock_path.exists()
-
-            inp = WatcherInput(
-                completed_hashes=frozenset(completed_hashes),
-                ingested_hashes=frozenset(ingested_set),
-                seed_pure_hashes=frozenset(seed_pure_set),
-                sentinel_present=sentinel_present,
-                pipeline_lock_held=lock_held,
-                now=now,
-            )
-
-            out = svc.evaluate(inp, state)
-            state = out.new_state
-
-            # Execute decision
-            if out.decision == WatcherDecision.FIRE_RUN:
-                _spawn_run(out.run_reason)
-                state = _record_success(state, now, store)
-
-            elif out.decision == WatcherDecision.FIRE_CROSS_SEED:
-                for h in out.cross_seed_hashes:
-                    _spawn_cross_seed(h)
-
-            elif out.decision == WatcherDecision.START_DEBOUNCE:
-                logger.debug("watcher_debounce_started", until=state.debounce_until)
-
-            elif out.decision == WatcherDecision.REQUEUE:
-                logger.debug("watcher_requeue", reason="pipeline_lock_held")
-
-            # Consume sentinel
-            if sentinel_present:
-                sentinel_path.unlink(missing_ok=True)
-
-        except TORRENT_LISTING_ERRORS:
-            logger.warning("watcher_poll_error", exc_info=True)
-            # W1: log, skip cycle, never crash
-
-        time.sleep(config_watch.poll_interval_s)
-
-    logger.info("watcher_shutdown_complete")
-
-
-def _spawn_run(reason: str) -> None:
-    """Spawn ``personalscraper run --no-console --trigger-reason <reason>``."""
-    cmd = [sys.executable, "-m", "personalscraper", "run", "--no-console",
-           "--trigger-reason", reason]
-    logger.info("watcher_spawning_run", reason=reason, cmd=cmd)
-    subprocess.Popen(cmd)
-
-
-def _spawn_cross_seed(info_hash: str) -> None:
-    """Spawn ``personalscraper cross-seed --hash <H>``."""
-    cmd = [sys.executable, "-m", "personalscraper", "cross-seed", "--hash", info_hash]
-    logger.info("watcher_spawning_cross_seed", info_hash=info_hash, cmd=cmd)
-    subprocess.Popen(cmd)
-
-
-def _get_seed_pure_hashes(completed_torrents) -> set[str]:
-    """Extract info-hashes of SEED_PURE-tagged completed torrents."""
-    # Reuse core/tags.py SEED_PURE constant
-    from personalscraper.core.tags import SEED_PURE
-    return {t.info_hash for t in completed_torrents if SEED_PURE in (t.tags or set())}
-
-
-def _record_success(state, now, store) -> WatcherState:
-    """Record a successful run fire and reset backoff."""
-    try:
-        store.set_last_successful_run_at(now)
-    except Exception:
-        logger.warning("watcher_state_persist_failed", exc_info=True)
-    return WatcherState(
-        debounce_until=state.debounce_until,
-        last_successful_run_at=now,
-        backoff_multiplier=0,
-    )
-```
+````
 
 ## Sub-phase 7.4 — watch-now sentinel command
 
@@ -256,7 +132,7 @@ def run_watch_now() -> None:
     logger.info("watch_now_sentinel_written", path=str(sentinel))
     print(f"Sentinel written: {sentinel}")
     print("The watcher daemon will consume it next cycle and fire a pipeline run.")
-```
+````
 
 ## Sub-phase 7.5 — wire into Typer CLI
 
