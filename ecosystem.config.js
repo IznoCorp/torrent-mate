@@ -23,6 +23,9 @@ module.exports = {
       autorestart: true,
       restart_delay: 5000,
       max_restarts: 10,
+      // 30 s grace before SIGKILL — covers 1 s interruptible-sleep slice
+      // granularity + context close (acquire, provider_registry) + shutdown log.
+      kill_timeout: 30000,
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
 

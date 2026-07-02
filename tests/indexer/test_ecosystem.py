@@ -243,6 +243,20 @@ def test_watch_app_no_cron_restart() -> None:
     assert "cron_restart" not in watch, "watch app must not have cron_restart (it is a daemon, not a cron job)"
 
 
+def test_watch_app_has_kill_timeout_30000() -> None:
+    """``personalscraper-watch`` must have ``kill_timeout: 30000`` for graceful SIGTERM shutdown.
+
+    The 30 s grace window covers the 1 s interruptible-sleep slice granularity
+    plus the ``finally`` block (context close + shutdown log) before PM2
+    escalates to SIGKILL.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    watch = _get_app_by_name(apps, "personalscraper-watch")
+    assert watch.get("kill_timeout") == 30000, (
+        f"watch app: expected kill_timeout=30000, got {watch.get('kill_timeout')!r}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests — enrich cron specifics
 # ---------------------------------------------------------------------------

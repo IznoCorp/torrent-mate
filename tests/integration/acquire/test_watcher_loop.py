@@ -359,7 +359,9 @@ def test_new_completion_spawns_cross_seed(tmp_path: Path) -> None:
 
     with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
         # 2 cycles: first for cross-seed, second for idle (dedup).
-        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=2)
+        # _interruptible_sleep slices poll_interval_s=10 into 1 s chunks →
+        #   11 slices = 10 (cycle 1 full sleep) + 1 (cycle 2 early exit).
+        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=11)
 
         watch(ctx)
 
@@ -395,7 +397,9 @@ def test_debounce_fires_run(tmp_path: Path) -> None:
         # Cycle 1 (t=0):  FIRE_CROSS_SEED
         # Cycle 2 (t=10): START_DEBOUNCE  (debounce_until = 10 + 60 = 70)
         # Cycle 3 (t=70): FIRE_RUN         (70 >= 70)
-        p.set_time_sequence([0.0, 10.0, 70.0], shutdown_after_sleeps=3)
+        # _interruptible_sleep slices poll_interval_s=10 into 1 s chunks →
+        #   21 slices = 10+10 (cycles 1-2 full) + 1 (cycle 3 early exit).
+        p.set_time_sequence([0.0, 10.0, 70.0], shutdown_after_sleeps=21)
 
         watch(ctx)
 
@@ -494,13 +498,18 @@ def test_poll_error_skips_cycle(tmp_path: Path) -> None:
 
     with _WatchPatches(fake_app, is_lock_held=False) as p:
         # 2 cycles: first hits the error, second succeeds normally.
-        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=2)
+        # _interruptible_sleep slices poll_interval_s=10 into 1 s chunks →
+        #   11 slices = 10 (cycle 1 sleep) + 1 (cycle 2 early exit).
+        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=11)
 
         # Must not crash.
         watch(ctx)
 
-    # Both cycles should have slept (loop continued).
-    assert p.mock_time.sleep.call_count == 2, f"Expected 2 sleep calls, got {p.mock_time.sleep.call_count}"
+    # 10 slices for cycle 1 (error path sleep) + 1 slice for cycle 2
+    # (shutdown flag set during first chunk).
+    assert p.mock_time.sleep.call_count == 11, (
+        f"Expected 11 sleep calls (10 + 1 interrupt), got {p.mock_time.sleep.call_count}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -546,7 +555,36 @@ def test_sigterm_flag_stops_loop(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 11.  ACC-8 — help tests via CliRunner
+# 11.  _interruptible_sleep
+# ---------------------------------------------------------------------------
+
+
+def test_interruptible_sleep_returns_early_when_shutdown_requested() -> None:
+    """``_interruptible_sleep`` returns early when ``_shutdown_requested`` is set mid-sleep.
+
+    The shutdown flag (set by SIGTERM handler) is polled between 1 s slices.
+    Patching ``time.sleep`` to count calls and set the flag after 2 slices
+    must result in fewer calls than the duration (5) — i.e. the function
+    exits early instead of sleeping the full 5 s.
+    """
+    import personalscraper.commands.watch as _wm
+
+    call_count = [0]
+
+    def _counting_sleep(secs: float) -> None:
+        call_count[0] += 1
+        if call_count[0] >= 2:
+            _wm._shutdown_requested = True
+
+    with patch.object(_wm.time, "sleep", side_effect=_counting_sleep):
+        _wm._interruptible_sleep(5.0)
+
+    # Flag set after 2 calls — must return in well under the 5 full slices.
+    assert call_count[0] < 5, f"Expected _interruptible_sleep to return early (<5 calls), got {call_count[0]}"
+
+
+# ---------------------------------------------------------------------------
+# 12.  ACC-8 — help tests via CliRunner
 # ---------------------------------------------------------------------------
 
 

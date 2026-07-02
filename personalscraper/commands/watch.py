@@ -53,6 +53,28 @@ def _on_signal(signum: int, _frame: object) -> None:
     log.info("watcher_signal_received", signum=signum)
 
 
+def _interruptible_sleep(seconds: float) -> None:
+    """Sleep in 1 s slices, polling :data:`_shutdown_requested` between slices.
+
+    Python 3.5+ (PEP 475) automatically retries C-level ``sleep()`` when a
+    signal handler runs, so a ``time.sleep(60)`` after SIGTERM continues
+    sleeping the full duration without the loop ever seeing the flag.  Slicing
+    into 1 s chunks guarantees a signal received during the sleep phase
+    reaches the ``while`` condition within at most 1 s, allowing the daemon's
+    ``finally`` block (context close, shutdown log) to execute before PM2
+    escalates to SIGKILL.
+
+    Args:
+        seconds: Total sleep duration in seconds.  Stops early when
+            :data:`_shutdown_requested` becomes ``True``.
+    """
+    remaining = seconds
+    while remaining > 0 and not _shutdown_requested:
+        chunk = min(remaining, 1.0)
+        time.sleep(chunk)
+        remaining -= chunk
+
+
 @command_with_telemetry("watch")
 @handle_cli_errors
 def watch(ctx: typer.Context) -> None:
@@ -116,7 +138,7 @@ def watch(ctx: typer.Context) -> None:
                 completed = app_context.torrent_client.get_completed()
             except TORRENT_LISTING_ERRORS:
                 log.warning("watcher_poll_error", exc_info=True)
-                time.sleep(config.watch.poll_interval_s)
+                _interruptible_sleep(config.watch.poll_interval_s)
                 continue
 
             # 3. Hash sets for the decision engine.
@@ -216,8 +238,8 @@ def watch(ctx: typer.Context) -> None:
                         log.warning("watcher_run_failed", returncode=returncode)
                     tracked_run = None
 
-            # 8. Sleep for the configured poll interval.
-            time.sleep(config.watch.poll_interval_s)
+            # 8. Sleep for the configured poll interval (interruptible).
+            _interruptible_sleep(config.watch.poll_interval_s)
 
     finally:
         if tracked_run is not None:
