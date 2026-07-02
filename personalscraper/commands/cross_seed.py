@@ -100,6 +100,13 @@ def cross_seed(
         if sweep:
             sweep_result = cs.sweep()
 
+            if sweep_result.lister_failed:
+                console.print(
+                    "[red]Sweep failed:[/red] could not enumerate completed torrents "
+                    "(torrent client unreachable or error)."
+                )
+                raise typer.Exit(code=1)
+
             console.print(
                 f"[green]Sweep complete:[/green] "
                 f"{sweep_result.checked} checked, "
@@ -111,6 +118,7 @@ def cross_seed(
                 checked=sweep_result.checked,
                 injected=sweep_result.injected,
                 quota_exhausted=sweep_result.quota_exhausted,
+                lister_failed=sweep_result.lister_failed,
             )
         else:
             assert info_hash is not None  # guaranteed by mutual-exclusion gate above

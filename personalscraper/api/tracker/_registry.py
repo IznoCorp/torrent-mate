@@ -158,6 +158,7 @@ class TrackerRegistry:
         all_results: list[TrackerResult] = []
         queried = 0
         errored = 0
+        errored_names: list[str] = []
         for name in self._priority_for(str(media_type)):
             client = self._trackers.get(name)
             if client is None:
@@ -176,10 +177,12 @@ class TrackerRegistry:
                 # are logged and counted; the surviving trackers' results stand.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
                 errored += 1
+                errored_names.append(name)
         return SearchOutcome(
             results=all_results,
             trackers_queried=queried,
             trackers_errored=errored,
+            errored_names=errored_names,
         )
 
     def transports(self) -> "dict[str, HttpTransport]":

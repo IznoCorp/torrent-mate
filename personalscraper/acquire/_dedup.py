@@ -54,11 +54,14 @@ class SearchOutcome:
         results: Un-ranked, un-deduped list of every tracker result collected.
         trackers_queried: Number of trackers that were attempted.
         trackers_errored: Number of trackers whose ``search()`` raised.
+        errored_names: Names of the trackers that errored (so callers can
+            distinguish which trackers succeeded vs failed, not just how many).
     """
 
     results: list[TrackerResult] = field(default_factory=list)
     trackers_queried: int = 0
     trackers_errored: int = 0
+    errored_names: list[str] = field(default_factory=list)
 
     @property
     def all_errored(self) -> bool:

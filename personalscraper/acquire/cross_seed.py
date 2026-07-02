@@ -7,14 +7,18 @@ downward on ``api/`` ports + ``acquire.db``, never importing triage packages.
 from __future__ import annotations
 
 import time as _time_module
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
 
-from guessit import guessit as guess
-
+from personalscraper.acquire._cross_seed_support import (
+    CrossSeedResult,
+    SweepResult,
+    _candidate_id,
+    _media_type_for,
+    _normalize_qbit_files,
+)
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentItem, _bencode_info_hash, parse_torrent_layout
 from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, structural_match
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
@@ -38,46 +42,8 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Recheck verification timeout and poll interval (seconds).
-_VERIFY_TIMEOUT_S = 120
+# Recheck verification poll interval (seconds).
 _VERIFY_POLL_INTERVAL_S = 2
-
-
-@dataclass
-class CrossSeedResult:
-    """Result of one :meth:`CrossSeedService.check` call.
-
-    Attributes:
-        injected: Info-hashes of successfully injected cross-seeds.
-        rejected: ``(candidate_hash_or_id, tracker, reason)`` triples for
-            each candidate that was considered but rejected.
-        skipped: ``True`` when the entire check was skipped (kill-switch,
-            not-found, seed-pure, etc.).
-        skip_reason: Machine-readable reason for the skip, or ``None``.
-    """
-
-    injected: list[str] = field(default_factory=list)
-    rejected: list[tuple[str, str, str]] = field(default_factory=list)
-    skipped: bool = False
-    skip_reason: str | None = None
-
-
-@dataclass
-class SweepResult:
-    """Result of one :meth:`CrossSeedService.sweep` call (X2 — back-catalog).
-
-    Attributes:
-        checked: Number of torrents where :meth:`CrossSeedService.check` was
-            actually invoked.
-        injected: Total number of successfully injected cross-seeds across
-            all checked torrents.
-        quota_exhausted: ``True`` when the sweep stopped early because the
-            daily quota was reached.
-    """
-
-    checked: int = 0
-    injected: int = 0
-    quota_exhausted: bool = False
 
 
 class CrossSeedService:
@@ -228,10 +194,22 @@ class CrossSeedService:
         for r in search_outcome.results:
             candidates_by_provider.setdefault(r.provider, []).append(r)
 
-        # Record search for each target tracker (history only — per-completion
-        # searches are quota-exempt per DESIGN §Config).
+        # Record search history ONLY for trackers that actually succeeded.
+        # An errored tracker is NOT recorded — retry is possible on the next
+        # check (within the exclude_recent_search_days window).  A tracker
+        # that succeeded but returned zero hits IS recorded (no candidates
+        # for the exclude window = don't re-search the same query fruitlessly).
+        errored_names = set(search_outcome.errored_names)
         for tracker in remaining:
-            self._store.cross_seed.record_search(info_hash, tracker)
+            if tracker not in errored_names:
+                self._store.cross_seed.record_search(info_hash, tracker)
+
+        if errored_names:
+            logger.warning(
+                "acquire.cross_seed.search_partial_outage",
+                info_hash=info_hash,
+                errored_trackers=sorted(errored_names),
+            )
 
         # 7-8. Per-tracker → per-candidate loop.
         # ONE injection per source torrent max (first match wins).
@@ -371,7 +349,8 @@ class CrossSeedService:
                     paused=True,
                 )
 
-                if self._verify_injection(injected_hash):
+                verify_failure = self._verify_injection(injected_hash)
+                if verify_failure is None:
                     # D10 — write-then-resume finalization:
                     # (i) persist obligation FIRST (abort on failure);
                     # (ii) resume (log but keep obligation on failure);
@@ -444,7 +423,14 @@ class CrossSeedService:
                     # ONE injection per source torrent max — first match wins.
                     return result
                 else:
-                    # Recheck failed → remove injection, NO obligation (D10).
+                    # Verification failed → remove injection, NO obligation (D10).
+                    # *verify_failure* is the rejection reason:
+                    #   "verify_timeout" — deadline passed, no definitive verdict
+                    #     (the recheck may still be running or may have finished
+                    #     with non-1.0 progress — the current progress-only poll
+                    #     cannot distinguish).
+                    #   "recheck_failed" — reserved for a future definitive
+                    #     check-failed observation.
                     # Belt-and-braces: guard the delete when injected_hash equals
                     # the source info_hash (self-candidate that slipped through
                     # the early guard because _bencode_info_hash raised ValueError
@@ -471,14 +457,14 @@ class CrossSeedService:
                         info_hash=info_hash,
                         injected_hash=injected_hash,
                         tracker=tracker,
-                        reason="recheck_failed",
+                        reason=verify_failure,
                     )
-                    result.rejected.append((injected_hash, tracker, "recheck_failed"))
+                    result.rejected.append((injected_hash, tracker, verify_failure))
                     self._event_bus.emit(
                         CrossSeedRejected(
                             info_hash=injected_hash,
                             tracker=tracker,
-                            reason="recheck_failed",
+                            reason=verify_failure,
                             source_hash=info_hash,
                         )
                     )
@@ -537,7 +523,7 @@ class CrossSeedService:
                 "acquire.cross_seed.sweep.lister_error",
                 error=str(exc),
             )
-            return SweepResult()
+            return SweepResult(lister_failed=True)
 
         for item in completed:
             # Skip SEED_PURE (cheap tag check — avoids wasted check() call).
@@ -737,17 +723,29 @@ class CrossSeedService:
             eligible.append(name)
         return eligible
 
-    def _verify_injection(self, injected_hash: str) -> bool:
-        """Poll until *injected_hash* appears verified or timeout.
+    def _verify_injection(self, injected_hash: str) -> str | None:
+        """Poll until *injected_hash* appears verified or the configurable timeout.
 
         Args:
             injected_hash: The info-hash of the injected torrent.
 
         Returns:
-            ``True`` if the injection was verified (progress >= 1.0) within
-            the module-level timeout, ``False`` otherwise.
+            ``None`` when the injection was verified (progress >= 1.0).
+            A rejection reason string otherwise:
+
+            * ``"verify_timeout"`` — the ``verify_timeout_s`` deadline
+              passed without a definitive verdict.  The recheck may still
+              be running, or may have finished with a non-1.0 progress that
+              the current poll cannot observe — we cannot distinguish with
+              the data available from ``get_completed()``.
+            * ``"recheck_failed"`` — **reserved** for a future poll
+              observation of a definitive check-failed state (e.g. torrent
+              present, progress stuck, and qBit reports the recheck
+              finished).  Not reachable with the current ``progress``-only
+              poll; all timeouts return ``"verify_timeout"``.
         """
-        deadline = self._clock() + _VERIFY_TIMEOUT_S
+        timeout_s = self._config.cross_seed.verify_timeout_s
+        deadline = self._clock() + timeout_s
         while self._clock() < deadline:
             try:
                 completed = self._lister.get_completed()
@@ -761,14 +759,14 @@ class CrossSeedService:
                 continue
             for item in completed:
                 if item.hash == injected_hash and item.progress >= 1.0:
-                    return True
+                    return None
             self._sleep(_VERIFY_POLL_INTERVAL_S)
         logger.warning(
             "acquire.cross_seed.verify_timeout",
             injected_hash=injected_hash,
-            timeout_s=_VERIFY_TIMEOUT_S,
+            timeout_s=timeout_s,
         )
-        return False
+        return "verify_timeout"
 
     def _write_obligation(self, injected_hash: str, tracker: str, source_item: TorrentItem) -> None:
         """Write a :class:`SeedObligation` for the verified cross-seed injection.
@@ -808,111 +806,6 @@ class CrossSeedService:
             dispatched_path=dispatched_path,
         )
         self._store.seed.add(obligation)
-
-
-def _media_type_for(name: str) -> MediaType:
-    """Derive the :class:`MediaType` from a release name using guessit.
-
-    D6 (back-catalog sweep) requires ALL completed torrents regardless of
-    media type.  D7 (strongest signal) mandates searching by release name.
-    Hardcoding ``MediaType.MOVIE`` violates D6: TV/anime completions would
-    search the movies category and miss candidates.  This helper uses guessit
-    to detect episode-style releases and route to the correct tracker endpoint
-    (c411 picks its ``t=movie`` / ``t=tvsearch`` endpoint by media_type).
-
-    Args:
-        name: Release name (e.g. ``"Show.S01E01.1080p.x264-GROUP"``).
-
-    Returns:
-        ``MediaType.TV`` when guessit detects ``type == "episode"``,
-        ``MediaType.MOVIE`` otherwise (including on guessit failure).
-    """
-    try:
-        parsed = guess(name)
-        if parsed.get("type") == "episode":
-            return MediaType.TV
-    except Exception:
-        logger.debug("acquire.cross_seed.guessit_failed", name=name)
-    return MediaType.MOVIE
-
-
-def _normalize_qbit_files(
-    files: list[tuple[str, int]],
-    item_name: str,
-) -> tuple[list[tuple[str, int]], str]:
-    """Normalize qBittorrent ``list_files`` output to the candidate frame.
-
-    qBittorrent ``torrents/files`` returns names that INCLUDE the torrent
-    root folder for multi-file torrents (``"Root/inner.mkv"``), while
-    :func:`~personalscraper.api.torrent._base.parse_torrent_layout` yields
-    paths relative to ``info.name`` WITHOUT the root (``"inner.mkv"``).
-    This function strips the shared root prefix so the two frames are
-    comparable via :func:`~personalscraper.api.torrent._layout.structural_match`.
-
-    Args:
-        files: The ``(path, size)`` list from qBittorrent's ``list_files``.
-        item_name: The torrent's display name from qBittorrent
-            (``item.name``), used as a fallback when no shared root is found.
-
-    Returns:
-        A ``(normalized_files, layout_name)`` pair.  *layout_name* is either
-        the shared root component stripped from the paths or *item_name* when
-        no shared root exists.
-    """
-    if not files:
-        return files, item_name
-
-    # Single-file torrent: the entry name IS the filename, same as info.name
-    # from the .torrent.  qBit does not prefix single-file paths with a root
-    # component, so the frames already agree — leave as-is.
-    if len(files) == 1 and "/" not in files[0][0]:
-        return files, item_name
-
-    # Multi-file or path-containing entries: compute the first path component
-    # of every entry.  If ALL entries share the same first component, it is
-    # the torrent root injected by qBit — strip it and use it as the layout
-    # name (more truthful than the renameable qBit display name).
-    first_components: list[str | None] = []
-    for path, _size in files:
-        if "/" in path:
-            first_components.append(path.split("/", 1)[0])
-        else:
-            first_components.append(None)
-
-    unique_roots = {c for c in first_components if c is not None}
-
-    if len(unique_roots) == 1 and None not in first_components:
-        # All entries share the same root prefix — strip it.
-        root = unique_roots.pop()
-        stripped: list[tuple[str, int]] = [(path[len(root) + 1 :], size) for path, size in files]
-        return stripped, root
-
-    # Mixed roots (e.g. "DirA/file1" + "DirB/file2") or entries without "/"
-    # (e.g. flat multi-file at top level): leave paths as-is, use item.name.
-    return files, item_name
-
-
-def _candidate_id(candidate: object) -> str:
-    """Return a stable identifier string for a tracker search result.
-
-    Prefers ``info_hash`` (hex or base32) when available; falls back to
-    a truncated download URL for results that carry no hash.
-
-    Args:
-        candidate: A :class:`~personalscraper.api.tracker._base.TrackerResult`
-            or compatible object with ``info_hash`` and ``download_url``
-            attributes.
-
-    Returns:
-        A human-readable identifier string (≤ 80 chars).
-    """
-    info_hash = getattr(candidate, "info_hash", None)
-    if info_hash:
-        return str(info_hash)[:80]
-    download_url = getattr(candidate, "download_url", None)
-    if download_url:
-        return str(download_url)[:80]
-    return "unknown"
 
 
 __all__ = ["CrossSeedResult", "CrossSeedService", "SweepResult"]
