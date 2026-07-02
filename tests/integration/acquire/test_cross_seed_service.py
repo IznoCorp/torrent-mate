@@ -460,6 +460,9 @@ class FakeRegistry:
         """
         self._trackers = trackers
         self._priority = priority
+        self.last_media_type: MediaType | None = None
+        """The *media_type* argument received by the most recent
+        :meth:`search_candidates` call, or ``None`` before the first call."""
 
     def search_candidates(
         self,
@@ -477,6 +480,7 @@ class FakeRegistry:
         Returns:
             Merged :class:`SearchOutcome` with results from all configured trackers.
         """
+        self.last_media_type = media_type
         all_results: list[TrackerResult] = []
         queried = 0
         for name in self._priority:
@@ -721,6 +725,9 @@ class TestCheckHappyPath:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
+        # Media type derived from release name (D6/D7).
+        assert fake_registry.last_media_type == MediaType.MOVIE
+
         # Result shape.
         assert result.injected == [injected_hash]
         assert result.rejected == []
@@ -2017,3 +2024,52 @@ class TestResumeFailureKeepsObligation:
         obligations = store.seed.find_active_under(Path(item.save_path))
         assert len(obligations) == 1
         assert obligations[0].info_hash == injected_hash
+
+
+# ===========================================================================
+# Tests: _media_type_for()
+# ===========================================================================
+
+
+class TestMediaTypeFor:
+    """Unit tests for :func:`~personalscraper.acquire.cross_seed._media_type_for`."""
+
+    def test_episode_style_name_returns_tv(self) -> None:
+        """``"Show.S01E01.1080p.x264-GROUP"`` → :attr:`MediaType.TV`."""
+        from personalscraper.acquire.cross_seed import _media_type_for
+
+        result = _media_type_for("Show.S01E01.1080p.x264-GROUP")
+        assert result == MediaType.TV
+
+    def test_anime_style_name_returns_tv(self) -> None:
+        """Anime episode pattern ``"[Group] Show - 01 (1080p)"`` → :attr:`MediaType.TV`."""
+        from personalscraper.acquire.cross_seed import _media_type_for
+
+        result = _media_type_for("[SubsPlease] Anime - 01 (1080p)")
+        assert result == MediaType.TV
+
+    def test_movie_style_name_returns_movie(self) -> None:
+        """``"Movie.2024.1080p.BluRay.x264-GROUP"`` → :attr:`MediaType.MOVIE`."""
+        from personalscraper.acquire.cross_seed import _media_type_for
+
+        result = _media_type_for("Movie.2024.1080p.BluRay.x264-GROUP")
+        assert result == MediaType.MOVIE
+
+    def test_unknown_format_falls_back_to_movie(self) -> None:
+        """A name guessit cannot classify → :attr:`MediaType.MOVIE` fallback."""
+        from personalscraper.acquire.cross_seed import _media_type_for
+
+        result = _media_type_for("SomeRandomFile.2024")
+        assert result == MediaType.MOVIE
+
+    def test_guessit_exception_falls_back_to_movie(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When guessit raises an exception → :attr:`MediaType.MOVIE` fallback."""
+        from personalscraper.acquire.cross_seed import _media_type_for
+
+        def _raise(*args: object, **kwargs: object) -> None:
+            raise RuntimeError("guessit failure")
+
+        monkeypatch.setattr("personalscraper.acquire.cross_seed.guess", _raise)
+
+        result = _media_type_for("Show.S01E01.1080p.x264-GROUP")
+        assert result == MediaType.MOVIE

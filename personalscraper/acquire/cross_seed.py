@@ -10,6 +10,8 @@ import time as _time_module
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
 
+from guessit import guessit as guess
+
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.api._contracts import ApiError, MediaType
@@ -221,7 +223,7 @@ class CrossSeedService:
         # 6. Search candidates by release name (D7 — strongest signal).
         # The registry does not support per-tracker restriction, so we search
         # all managed trackers once and group results by provider.
-        search_outcome = self._registry.search_candidates(item.name, MediaType.MOVIE)
+        search_outcome = self._registry.search_candidates(item.name, _media_type_for(item.name))
         candidates_by_provider: dict[str, list["TrackerResult"]] = {}
         for r in search_outcome.results:
             candidates_by_provider.setdefault(r.provider, []).append(r)
@@ -806,6 +808,32 @@ class CrossSeedService:
             dispatched_path=dispatched_path,
         )
         self._store.seed.add(obligation)
+
+
+def _media_type_for(name: str) -> MediaType:
+    """Derive the :class:`MediaType` from a release name using guessit.
+
+    D6 (back-catalog sweep) requires ALL completed torrents regardless of
+    media type.  D7 (strongest signal) mandates searching by release name.
+    Hardcoding ``MediaType.MOVIE`` violates D6: TV/anime completions would
+    search the movies category and miss candidates.  This helper uses guessit
+    to detect episode-style releases and route to the correct tracker endpoint
+    (c411 picks its ``t=movie`` / ``t=tvsearch`` endpoint by media_type).
+
+    Args:
+        name: Release name (e.g. ``"Show.S01E01.1080p.x264-GROUP"``).
+
+    Returns:
+        ``MediaType.TV`` when guessit detects ``type == "episode"``,
+        ``MediaType.MOVIE`` otherwise (including on guessit failure).
+    """
+    try:
+        parsed = guess(name)
+        if parsed.get("type") == "episode":
+            return MediaType.TV
+    except Exception:
+        logger.debug("acquire.cross_seed.guessit_failed", name=name)
+    return MediaType.MOVIE
 
 
 def _normalize_qbit_files(
