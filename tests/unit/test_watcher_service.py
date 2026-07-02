@@ -112,6 +112,7 @@ class TestWatcherService:
         assert out.run_reason == "manual"
         assert out.new_state.debounce_until is None
         assert out.new_state.backoff_multiplier == 0
+        assert out.new_state.debounce_origin is None
 
     # ------------------------------------------------------------------
     # Case  5: new completion → FIRE_CROSS_SEED with sorted hashes + dispatched-set grows
@@ -214,6 +215,7 @@ class TestWatcherService:
         assert out.run_reason == "completion"
         assert out.new_state.backoff_multiplier == 1
         assert out.new_state.debounce_until == 1_000_100.0 + 900 * (2**0)  # 1_001_000.0
+        assert out.new_state.debounce_origin == "completion"
 
     def test_debounce_expired_free_fires_completion_backoff_multiplier_1(self, svc: WatcherService) -> None:
         """Multiplier 1: debounce_s * 2^1 = 1800 s."""
@@ -228,6 +230,7 @@ class TestWatcherService:
         assert out.run_reason == "completion"
         assert out.new_state.backoff_multiplier == 2
         assert out.new_state.debounce_until == 1_001_100.0 + 900 * (2**1)  # 1_002_900.0
+        assert out.new_state.debounce_origin == "completion"
 
     def test_debounce_expired_free_fires_completion_backoff_multiplier_2(self, svc: WatcherService) -> None:
         """Multiplier 2: debounce_s * 2^2 = 3600 s."""
@@ -242,6 +245,7 @@ class TestWatcherService:
         assert out.run_reason == "completion"
         assert out.new_state.backoff_multiplier == 3
         assert out.new_state.debounce_until == 1_003_000.0 + 900 * (2**2)  # 1_006_600.0
+        assert out.new_state.debounce_origin == "completion"
 
     # ------------------------------------------------------------------
     # Case 12: stale-window clear — work vanished + old debounce_until
@@ -259,6 +263,7 @@ class TestWatcherService:
         assert out.decision == WatcherDecision.IDLE
         assert out.new_state.debounce_until is None
         assert out.new_state.backoff_multiplier == 0
+        assert out.new_state.debounce_origin is None
 
     # ------------------------------------------------------------------
     # Case 13: safety net
@@ -272,7 +277,8 @@ class TestWatcherService:
         assert out.decision == WatcherDecision.FIRE_RUN
         assert out.run_reason == "safety_net"
         assert out.new_state.debounce_until == 1_000_000.0 + 900
-        assert out.new_state.backoff_multiplier == 0
+        assert out.new_state.backoff_multiplier == 1  # incremented, not reset
+        assert out.new_state.debounce_origin == "safety_net"
 
     def test_safety_net_fires_when_expired_25h(self, svc: WatcherService) -> None:
         """25 h elapsed with 24 h config → safety net triggers."""
@@ -281,7 +287,8 @@ class TestWatcherService:
         out = svc.evaluate(inp, state)
         assert out.decision == WatcherDecision.FIRE_RUN
         assert out.run_reason == "safety_net"
-        assert out.new_state.backoff_multiplier == 0  # backoff reset on safety-net run
+        assert out.new_state.backoff_multiplier == 1  # incremented, not reset
+        assert out.new_state.debounce_origin == "safety_net"
 
     def test_safety_net_fires_at_exact_boundary_24h(self, svc: WatcherService) -> None:
         """Exactly 24 h elapsed with 24 h config → safety net triggers (boundary)."""
@@ -290,6 +297,8 @@ class TestWatcherService:
         out = svc.evaluate(inp, state)
         assert out.decision == WatcherDecision.FIRE_RUN
         assert out.run_reason == "safety_net"
+        assert out.new_state.backoff_multiplier == 1  # incremented
+        assert out.new_state.debounce_origin == "safety_net"
 
     def test_safety_net_expired_lock_held_requeues(self, svc: WatcherService) -> None:
         """Safety net expired but pipeline lock is held → REQUEUE."""
@@ -382,7 +391,8 @@ class TestWatcherService:
         """Stale debounce window clears before safety net is evaluated (order 4 < 5).
 
         Even though safety net *would* fire (last_successful_run_at=None), the
-        stale-window clear (step 4) returns first.
+        stale-window clear (step 4) returns first.  Origin defaults to None,
+        which is always clearable by branch 4.
         """
         state = WatcherState(debounce_until=1_000_000.0)  # last_successful_run_at=None
         inp = _inp(completed=set(), ingested=set(), now=1_500_000.0)
@@ -391,3 +401,194 @@ class TestWatcherService:
         assert out.decision == WatcherDecision.IDLE
         assert out.new_state.debounce_until is None
         assert out.new_state.backoff_multiplier == 0
+        assert out.new_state.debounce_origin is None
+
+    # ------------------------------------------------------------------
+    # Acceptance (a): completion backoff clamps at safety_net_hours × 3600
+    # ------------------------------------------------------------------
+
+    def test_completion_backoff_clamped_at_safety_net_boundary(self) -> None:
+        """Repeated completion fires with predicate stuck true → delays clamp.
+
+        With debounce_s=900 and safety_net_hours=1 (3600s):
+        - multiplier 0 → 900 s
+        - multiplier 1 → 1800 s
+        - multiplier 2 → 3600 s (exact clamp)
+        - multiplier 3 → 3600 s (clamped, would be 7200)
+        - multiplier 4 → 3600 s (still clamped)
+        """
+        svc = WatcherService(WatchConfig(
+            enabled=True, debounce_s=900, safety_net_hours=1, poll_interval_s=60,
+        ))
+        t = 1_000_000.0
+
+        # multiplier 0 → delay = min(900, 3600) = 900
+        state = WatcherState(
+            debounce_until=t,
+            backoff_multiplier=0,
+            cross_seed_dispatched=frozenset({"abc"}),
+        )
+        out = svc.evaluate(_inp(completed={"abc"}, ingested=set(), now=t), state)
+        assert out.decision == WatcherDecision.FIRE_RUN
+        assert out.run_reason == "completion"
+        assert out.new_state.backoff_multiplier == 1
+        assert out.new_state.debounce_until == t + 900
+        assert out.new_state.debounce_origin == "completion"
+
+        # multiplier 1 → delay = min(1800, 3600) = 1800
+        t2 = out.new_state.debounce_until
+        state2 = out.new_state
+        out2 = svc.evaluate(_inp(completed={"abc"}, ingested=set(), now=t2), state2)
+        assert out2.new_state.backoff_multiplier == 2
+        assert out2.new_state.debounce_until == t2 + 1800
+
+        # multiplier 2 → delay = min(3600, 3600) = 3600 (at clamp)
+        t3 = out2.new_state.debounce_until
+        state3 = out2.new_state
+        out3 = svc.evaluate(_inp(completed={"abc"}, ingested=set(), now=t3), state3)
+        assert out3.new_state.backoff_multiplier == 3
+        assert out3.new_state.debounce_until == t3 + 3600
+
+        # multiplier 3 → delay = min(7200, 3600) = 3600 (clamped!)
+        t4 = out3.new_state.debounce_until
+        state4 = out3.new_state
+        out4 = svc.evaluate(_inp(completed={"abc"}, ingested=set(), now=t4), state4)
+        assert out4.new_state.backoff_multiplier == 4
+        assert out4.new_state.debounce_until == t4 + 3600  # still 3600
+
+    # ------------------------------------------------------------------
+    # Acceptance (b): work vanishes after completion fire → window cleared
+    # ------------------------------------------------------------------
+
+    def test_work_vanishes_after_completion_fire_clears_window(self, svc: WatcherService) -> None:
+        """After a completion fire, work vanishes → next cycle clears window + backoff.
+
+        This is the normal success path: the machine's branch 4 resets
+        completion-origin windows when work disappears.
+        """
+        state = WatcherState(
+            debounce_until=1_000_000.0,
+            backoff_multiplier=2,
+            debounce_origin="completion",
+            cross_seed_dispatched=frozenset({"abc"}),
+            last_successful_run_at=500_000.0,  # prevents safety-net
+        )
+        # No work → branch 4 fires.
+        inp = _inp(completed=set(), ingested=set(), now=1_500_000.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.IDLE
+        assert out.new_state.debounce_until is None
+        assert out.new_state.backoff_multiplier == 0
+        assert out.new_state.debounce_origin is None
+
+    # ------------------------------------------------------------------
+    # Acceptance (c): safety-net pacing — window blocks re-fire, spaces
+    # ------------------------------------------------------------------
+
+    def test_safety_net_pacing_blocks_refire_within_window(self, svc: WatcherService) -> None:
+        """Safety-net sets a debounce window; next cycle does not re-fire until it expires.
+
+        With last_successful_run_at=None, the safety net fires immediately in
+        cycle 1.  Cycle 2 (within the window) must return IDLE — the debounce
+        gate blocks.  Cycle 3 (after the window expires) fires again with
+        incremented backoff.
+        """
+        t = 1_000_000.0
+        state = WatcherState()  # last_successful_run_at=None → safety-net expired
+
+        # Cycle 1: safety-net fires, sets debounce_until = t + 900, backoff=1.
+        out1 = svc.evaluate(_inp(completed=set(), ingested=set(), now=t), state)
+        assert out1.decision == WatcherDecision.FIRE_RUN
+        assert out1.run_reason == "safety_net"
+        assert out1.new_state.debounce_until == t + 900
+        assert out1.new_state.backoff_multiplier == 1
+        assert out1.new_state.debounce_origin == "safety_net"
+
+        # Cycle 2: now = t + 300 (within window).  Branch 4 sees origin="safety_net"
+        # → does NOT clear.  Branch 5 safety_net_expired is True but debounce gate
+        # blocks (now < debounce_until) → IDLE.
+        out2 = svc.evaluate(_inp(completed=set(), ingested=set(), now=t + 300), out1.new_state)
+        assert out2.decision == WatcherDecision.IDLE
+        assert out2.new_state is out1.new_state  # unchanged
+
+        # Cycle 3: now = t + 900 (window expired).  Branch 4 does NOT clear
+        # (origin="safety_net").  Branch 5 debounce gate: now >= debounce_until → fires.
+        out3 = svc.evaluate(_inp(completed=set(), ingested=set(), now=t + 900), out1.new_state)
+        assert out3.decision == WatcherDecision.FIRE_RUN
+        assert out3.run_reason == "safety_net"
+        assert out3.new_state.backoff_multiplier == 2  # incremented (was 1)
+        assert out3.new_state.debounce_origin == "safety_net"
+        assert out3.new_state.debounce_until == (t + 900) + 1800  # min(900*2^1, 86400)
+
+    def test_safety_net_window_survives_stale_clear(self) -> None:
+        """Safety-net-origin debounce window is NOT cleared by branch 4.
+
+        Config with debounce_s=60, safety_net_hours=1 (3600s).  After a
+        safety-net fire sets origin="safety_net", branch 4 must leave the
+        window intact.
+        """
+        svc = WatcherService(WatchConfig(
+            enabled=True, debounce_s=60, safety_net_hours=1, poll_interval_s=10,
+        ))
+        t = 1_000_000.0
+
+        # Set up state as if a safety-net fire just happened.
+        state = WatcherState(
+            debounce_until=t + 60,
+            backoff_multiplier=1,
+            debounce_origin="safety_net",
+            last_successful_run_at=t,  # fresh run, safety-net NOT expired yet
+        )
+        # No work, safety-net not expired → branch 4 is evaluated.
+        # Origin is "safety_net" → branch 4 must NOT clear.
+        inp = _inp(completed=set(), ingested=set(), now=t + 30)  # within window
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.IDLE  # safety-net not expired, no work
+        assert out.new_state.debounce_until == t + 60  # window survives
+        assert out.new_state.backoff_multiplier == 1  # backoff survives
+        assert out.new_state.debounce_origin == "safety_net"  # origin survives
+
+    # ------------------------------------------------------------------
+    # Acceptance (d): cross_seed_dispatched survives every FIRE_RUN path
+    # ------------------------------------------------------------------
+
+    def test_cross_seed_dispatched_survives_manual_fire(self, svc: WatcherService) -> None:
+        """Manual fire (sentinel) preserves cross_seed_dispatched."""
+        dispatched = frozenset({"hash_a", "hash_b"})
+        state = WatcherState(
+            cross_seed_dispatched=dispatched,
+            debounce_until=2_000_000.0,
+            backoff_multiplier=3,
+        )
+        inp = _inp(completed=set(), ingested=set(), now=1_000_000.0, sentinel=True)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.FIRE_RUN
+        assert out.run_reason == "manual"
+        assert out.new_state.cross_seed_dispatched == dispatched
+
+    def test_cross_seed_dispatched_survives_completion_fire(self, svc: WatcherService) -> None:
+        """Completion fire preserves cross_seed_dispatched."""
+        dispatched = frozenset({"hash_a"})
+        state = WatcherState(
+            cross_seed_dispatched=dispatched,
+            debounce_until=1_000_000.0,
+            backoff_multiplier=0,
+        )
+        inp = _inp(completed={"hash_a"}, ingested=set(), now=1_000_100.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.FIRE_RUN
+        assert out.run_reason == "completion"
+        assert out.new_state.cross_seed_dispatched == dispatched
+
+    def test_cross_seed_dispatched_survives_safety_net_fire(self, svc: WatcherService) -> None:
+        """Safety-net fire preserves cross_seed_dispatched."""
+        dispatched = frozenset({"hash_x"})
+        state = WatcherState(
+            cross_seed_dispatched=dispatched,
+            last_successful_run_at=None,  # triggers safety-net
+        )
+        inp = _inp(completed=set(), ingested=set(), now=1_000_000.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.FIRE_RUN
+        assert out.run_reason == "safety_net"
+        assert out.new_state.cross_seed_dispatched == dispatched

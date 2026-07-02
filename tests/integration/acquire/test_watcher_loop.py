@@ -440,7 +440,41 @@ def test_run_success_recorded(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7.  test_poll_error_skips_cycle
+# 7.  test_run_failure_does_not_persist_or_reset_state  (ACC 10.4e)
+# ---------------------------------------------------------------------------
+
+
+def test_run_failure_does_not_persist_or_reset_state(tmp_path: Path) -> None:
+    """Tracked Popen returns non-zero → ``set_last_successful_run_at`` NOT called, state untouched.
+
+    The machine owns debounce/backoff resets (W7 anti-storm).  A failed run
+    must neither persist the timestamp nor touch debounce/backoff fields.
+    """
+    from personalscraper.commands.watch import watch
+
+    (tmp_path / "watch.trigger").write_text("")
+
+    fake_popen = MagicMock()
+    fake_popen.poll.return_value = 1  # failure
+
+    store_watch_mock = MagicMock()
+    store_watch_mock.get_last_successful_run_at.return_value = None
+    fake_app = _make_fake_app_context(store_watch=store_watch_mock)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False) as p:
+        p.mock_subprocess.Popen.return_value = fake_popen
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Failure must NOT persist the timestamp.
+    store_watch_mock.set_last_successful_run_at.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 8.  test_poll_error_skips_cycle
 # ---------------------------------------------------------------------------
 
 
@@ -470,7 +504,7 @@ def test_poll_error_skips_cycle(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 8.  test_disabled_exits_immediately
+# 9.  test_disabled_exits_immediately
 # ---------------------------------------------------------------------------
 
 
@@ -490,7 +524,7 @@ def test_disabled_exits_immediately(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 9.  test_sigterm_flag_stops_loop
+# 10.  test_sigterm_flag_stops_loop
 # ---------------------------------------------------------------------------
 
 
@@ -512,7 +546,7 @@ def test_sigterm_flag_stops_loop(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 10.  ACC-8 — help tests via CliRunner
+# 11.  ACC-8 — help tests via CliRunner
 # ---------------------------------------------------------------------------
 
 
