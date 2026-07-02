@@ -24,7 +24,7 @@
 | 7   | Watch command loop + watch-now + run flags           | phase-07-watch-loop.md                  | [x]    |
 | 8   | PM2 ecosystem + launchd decommission                 | phase-08-pm2-launchd-cutover.md         | [x]    |
 | 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [x]    |
-| 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [ ]    |
+| 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
 
 ## Review cycles
 
@@ -37,7 +37,7 @@
 - Ignored (open items, operator sign-off pending): TorrentLayoutReader protocol split, typed properties() return, run_in_flight machine input, LOW polish (completion_on consumption, CrossSeedResult NamedTuple)
 - Design contradictions: none (all fixes move toward the frozen DESIGN)
 - Fix phase created: phase-10-pr-fixes-cycle-1.md
-- Status: fix phase dispatched → awaiting /implement:phase
+- Status: fix phase COMPLETE (18 commits, 2 wrapper-timeout continuations recovered, 2 in-flight corrections: valid-empty tracker freeze, format stragglers) — make check green → pushed for re-review cycle 2
 
 ## Next action
 
