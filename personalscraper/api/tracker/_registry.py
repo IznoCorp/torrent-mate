@@ -159,11 +159,14 @@ class TrackerRegistry:
         queried = 0
         errored = 0
         errored_names: list[str] = []
+        queried_names: list[str] = []
         for name in self._priority_for(str(media_type)):
             client = self._trackers.get(name)
             if client is None:
+                log.warning("tracker_unavailable", tracker=name)
                 continue
             queried += 1
+            queried_names.append(name)
             try:
                 all_results.extend(client.search(query, media_type, year))
             except (
@@ -183,6 +186,7 @@ class TrackerRegistry:
             trackers_queried=queried,
             trackers_errored=errored,
             errored_names=errored_names,
+            queried_names=queried_names,
         )
 
     def transports(self) -> "dict[str, HttpTransport]":

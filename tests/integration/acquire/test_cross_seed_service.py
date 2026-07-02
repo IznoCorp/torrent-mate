@@ -498,11 +498,13 @@ class FakeRegistry:
         queried = 0
         errored = 0
         errored_names: list[str] = []
+        queried_names: list[str] = []
         for name in self._priority:
             tracker = self._trackers.get(name)
             if tracker is None:
                 continue
             queried += 1
+            queried_names.append(name)
             if name in self._errored:
                 errored += 1
                 errored_names.append(name)
@@ -513,6 +515,7 @@ class FakeRegistry:
             trackers_queried=queried,
             trackers_errored=errored,
             errored_names=errored_names,
+            queried_names=queried_names,
         )
 
     def transports(self) -> dict[str, FakeTransport]:

@@ -56,12 +56,19 @@ class SearchOutcome:
         trackers_errored: Number of trackers whose ``search()`` raised.
         errored_names: Names of the trackers that errored (so callers can
             distinguish which trackers succeeded vs failed, not just how many).
+        queried_names: Names of the trackers that were actually queried
+            (success OR error). A tracker absent from this list was never
+            reached — either it is not in the per-media-type priority
+            override, or its client was ``None`` at query time. Callers
+            use this to avoid recording search history for never-queried
+            trackers (which would produce a false 3-day lockout).
     """
 
     results: list[TrackerResult] = field(default_factory=list)
     trackers_queried: int = 0
     trackers_errored: int = 0
     errored_names: list[str] = field(default_factory=list)
+    queried_names: list[str] = field(default_factory=list)
 
     @property
     def all_errored(self) -> bool:
