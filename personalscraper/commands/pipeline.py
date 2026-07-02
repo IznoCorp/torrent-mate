@@ -459,6 +459,23 @@ def process(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
+def _validate_trigger_reason(value: str) -> str:
+    """Validate the ``--trigger-reason`` value against the allowed set.
+
+    Args:
+        value: Raw string from the CLI option.
+
+    Returns:
+        The validated value unchanged.
+
+    Raises:
+        typer.BadParameter: If *value* is not one of the allowed reasons.
+    """
+    if value not in ("", "completion", "safety_net", "manual"):
+        raise typer.BadParameter(f"Must be one of: completion, safety_net, manual (got '{value}')")
+    return value
+
+
 @command_with_telemetry("run", help=_run_help())
 @handle_cli_errors
 def run(
@@ -482,6 +499,25 @@ def run(
             "Run with no subscribers (silent mode for cron / CI). "
             "Disables Rich console output and Telegram notifications."
         ),
+    ),
+    no_console: bool = typer.Option(
+        False,
+        "--no-console",
+        help=(
+            "Disable Rich console output (progress bars, live tables). "
+            "Telegram notifications remain active. "
+            "Used by the Watcher daemon (``personalscraper watch``) when "
+            "spawning pipeline runs; contrast with ``--headless`` which "
+            "disables both Rich and Telegram. If both are passed, "
+            "``--headless`` wins."
+        ),
+    ),
+    trigger_reason: str = typer.Option(
+        "",
+        "--trigger-reason",
+        hidden=True,
+        callback=_validate_trigger_reason,
+        help="Set by the Watcher daemon to attribute this run.",
     ),
     no_post_maintenance: bool = typer.Option(
         False,
@@ -567,6 +603,12 @@ def run(
             # Build subscribers — both self-subscribe in their constructors via the
             # shared AppContext bus. ``--headless`` skips subscriber construction
             # for silent cron / CI runs.
+            #
+            # ``--no-console`` (used by the Watcher daemon) disables the Rich
+            # console subscriber but keeps Telegram subscribers active.
+            # ``--headless`` disables both; if both flags are passed, ``--headless``
+            # wins (the outer ``not headless`` gate prevents all subscriber
+            # construction).
             rich_subscriber: RichConsoleSubscriber | None = None
             telegram_subscriber: TelegramSubscriber | None = None
             acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
@@ -578,13 +620,14 @@ def run(
             if verbose:
                 debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:
-                rich_subscriber = RichConsoleSubscriber(
-                    app_context.event_bus,
-                    console=console,
-                    verbose=verbose,
-                    dry_run=dry_run,
-                    run_id=run_id,
-                )
+                if not no_console:
+                    rich_subscriber = RichConsoleSubscriber(
+                        app_context.event_bus,
+                        console=console,
+                        verbose=verbose,
+                        dry_run=dry_run,
+                        run_id=run_id,
+                    )
                 if TelegramNotifier.is_configured(settings):
                     tg_transport = HttpTransport(
                         TelegramNotifier.policy(settings.telegram_bot_token),
@@ -597,6 +640,11 @@ def run(
                         notifier=tg_notifier,
                         enabled=config.notify.acquire_notify_enabled,
                     )
+
+            # Sub-phase 7.2 will emit ``WatcherRunTriggered(reason=trigger_reason)``
+            # here, before ``PipelineStarted``, when ``trigger_reason`` is non-empty.
+            # The validated value is available in this scope via the
+            # ``trigger_reason`` function parameter (see --trigger-reason option).
 
             pipeline = Pipeline(app_context)
             try:

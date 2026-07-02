@@ -28,13 +28,14 @@ Three deliverables: the watch daemon loop (`commands/watch.py`), the `watch-now`
 
 - Modify: `personalscraper/commands/pipeline.py`
 
-Add two hidden flags to the existing `run` Typer command:
+Add two flags to the existing `run` Typer command (`--no-console` is visible
+per ACC-11; `--trigger-reason` is hidden):
 
 ```python
 @app.command(name="run")
 def run(
     headless: bool = typer.Option(False, "--headless", help="No Rich console, no Telegram"),
-    no_console: bool = typer.Option(False, "--no-console", hidden=True,
+    no_console: bool = typer.Option(False, "--no-console", hidden=False,
         help="Rich console off, Telegram ON (daemon-spawned mode)"),
     trigger_reason: str = typer.Option("", "--trigger-reason", hidden=True,
         help="Set by the Watcher daemon to attribute this run"),
