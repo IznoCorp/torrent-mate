@@ -13,6 +13,8 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 
+from personalscraper.api.torrent._layout import TorrentLayout
+
 # Maximum bencode nesting depth. A legitimate ``.torrent`` is shallow
 # (top-level dict → info dict → a few lists); anything deeper is adversarial
 # and could blow the Python recursion stack (Md2 hardening).
@@ -266,6 +268,201 @@ def _bencode_end(data: bytes, pos: int, depth: int = 0) -> int:
             raise ValueError("bencode string truncated")
         return end
     raise ValueError(f"Unknown bencode token {tok!r} at {pos}")
+
+
+def _bencode_int(data: bytes, pos: int) -> tuple[int, int]:
+    """Parse a bencoded integer at ``pos``, returning ``(value, next_pos)``.
+
+    Args:
+        data: Full bencode bytes.
+        pos: Index of the leading ``i`` token.
+
+    Returns:
+        A ``(value, end)`` pair: the decoded integer and the index one past
+        the closing ``e``.
+
+    Raises:
+        ValueError: Not an integer here, the integer is empty, or it is
+            truncated (no closing ``e``).
+    """
+    if pos >= len(data) or data[pos : pos + 1] != b"i":
+        raise ValueError(f"expected a bencoded integer at {pos}")
+    try:
+        end = data.index(b"e", pos + 1)
+    except ValueError:
+        raise ValueError(f"truncated bencoded integer at {pos}") from None
+    if end == pos + 1:
+        raise ValueError(f"empty bencoded integer at {pos}")
+    return int(data[pos + 1 : end]), end + 1
+
+
+def _parse_path_list(data: bytes, pos: int) -> tuple[list[bytes], int]:
+    """Parse a bencoded list of byte-string path components.
+
+    Args:
+        data: Full bencode bytes.
+        pos: Index of the leading ``l`` token of the path list.
+
+    Returns:
+        A ``(components, next_pos)`` pair: the list of byte-string components
+        (one per path segment) and the index one past the closing ``e``.
+
+    Raises:
+        ValueError: Not a list here, or any component is not a byte-string.
+    """
+    if pos >= len(data) or data[pos : pos + 1] != b"l":
+        raise ValueError(f"expected a bencoded list at {pos}")
+    pos += 1
+    components: list[bytes] = []
+    while pos < len(data) and data[pos : pos + 1] != b"e":
+        comp, pos = _bencode_str(data, pos)
+        components.append(comp)
+    pos += 1  # skip the closing 'e'
+    return components, pos
+
+
+def _parse_files_list(data: bytes, pos: int) -> tuple[list[tuple[str, int]], int]:
+    """Parse the ``info.files`` list of file-entry dicts.
+
+    Each file entry is a dict with at least ``length`` (int) and ``path``
+    (list of byte-string components).  Extra keys are skipped silently via
+    :func:`_bencode_end`.
+
+    Args:
+        data: Full bencode bytes.
+        pos: Index of the leading ``l`` token of the files list.
+
+    Returns:
+        A ``(files, next_pos)`` pair: ordered list of ``(relative_path, size)``
+        tuples and the index one past the closing ``e`` of the files list.
+
+    Raises:
+        ValueError: Malformed bencode, or a file entry missing ``length`` or
+            ``path``.
+    """
+    if pos >= len(data) or data[pos : pos + 1] != b"l":
+        raise ValueError(f"expected a bencoded list at {pos}")
+    pos += 1
+    files: list[tuple[str, int]] = []
+    while pos < len(data) and data[pos : pos + 1] != b"e":
+        # Each element is a dict: d...e
+        if pos >= len(data) or data[pos : pos + 1] != b"d":
+            raise ValueError(f"expected a bencoded dict in files list at {pos}")
+        pos += 1  # skip the leading 'd'
+        f_len: int | None = None
+        f_path: list[bytes] | None = None
+        while pos < len(data) and data[pos : pos + 1] != b"e":
+            key_bytes, pos = _bencode_str(data, pos)
+            if key_bytes == b"length":
+                f_len, pos = _bencode_int(data, pos)
+            elif key_bytes == b"path":
+                f_path, pos = _parse_path_list(data, pos)
+            else:
+                # Skip unknown keys (e.g. "path.utf-8", "attr", "sha1").
+                pos = _bencode_end(data, pos)
+        pos += 1  # skip the closing 'e' of the file-entry dict
+        if f_len is None or f_path is None:
+            raise ValueError("file entry missing 'length' or 'path'")
+        rel_path = "/".join(p.decode("utf-8") for p in f_path)
+        files.append((rel_path, f_len))
+    pos += 1  # skip the closing 'e' of the files list
+    return files, pos
+
+
+def _parse_info_walk(data: bytes, info_start: int, info_end: int) -> TorrentLayout:
+    """Walk the ``info`` dict structurally and return a :class:`TorrentLayout`.
+
+    Extracts ``name``, ``piece length``, ``files`` (multi-file) or ``length``
+    (single-file), and optionally ``meta version``.  Skips unknown keys via
+    :func:`_bencode_end`.
+
+    Args:
+        data: Full bencode bytes.
+        info_start: Index of the leading ``d`` of the info dict.
+        info_end: Index one past the closing ``e`` of the info dict.
+
+    Returns:
+        A populated TorrentLayout.
+
+    Raises:
+        ValueError: Missing required keys, malformed bencode, or empty file list.
+    """
+    pos = info_start + 1  # skip the leading 'd'
+    name: str | None = None
+    piece_length: int | None = None
+    files: list[tuple[str, int]] | None = None
+    single_length: int | None = None
+    meta_version: int = 1
+
+    while pos < info_end and data[pos : pos + 1] != b"e":
+        key_bytes, pos = _bencode_str(data, pos)
+        if key_bytes == b"name":
+            val_bytes, pos = _bencode_str(data, pos)
+            name = val_bytes.decode("utf-8")
+        elif key_bytes == b"piece length":
+            piece_length, pos = _bencode_int(data, pos)
+        elif key_bytes == b"length":
+            single_length, pos = _bencode_int(data, pos)
+        elif key_bytes == b"meta version":
+            meta_version, pos = _bencode_int(data, pos)
+        elif key_bytes == b"files":
+            files, pos = _parse_files_list(data, pos)
+        else:
+            pos = _bencode_end(data, pos)
+
+    if name is None:
+        raise ValueError("info dict missing 'name' key")
+    if piece_length is None:
+        raise ValueError("info dict missing 'piece length' key")
+
+    if files is not None:
+        if not files:
+            raise ValueError("info.files list is empty")
+        total_size = sum(size for _, size in files)
+    elif single_length is not None:
+        files = [(name, single_length)]
+        total_size = single_length
+    else:
+        raise ValueError("info dict missing both 'files' and 'length' keys")
+
+    return TorrentLayout(
+        name=name,
+        piece_length=piece_length,
+        files=files,
+        total_size=total_size,
+        meta_version=meta_version,
+    )
+
+
+def parse_torrent_layout(data: bytes) -> TorrentLayout:
+    """Parse a ``.torrent`` file's ``info`` dict into a :class:`TorrentLayout`.
+
+    Walks the top-level bencode dict structurally (same pattern as
+    :func:`_bencode_info_hash`) to locate the ``info`` dict, then extracts
+    ``name``, ``piece length``, ``files`` (multi-file) or ``length``
+    (single-file), and optionally ``meta version``.
+
+    Args:
+        data: Raw ``.torrent`` file bytes (full bencode).
+
+    Returns:
+        A populated TorrentLayout.
+
+    Raises:
+        ValueError: Malformed bencode, missing required keys, or nesting
+            beyond the depth cap.
+    """
+    if data[:1] != b"d":
+        raise ValueError("not a bencoded dict")
+    pos = 1
+    while pos < len(data) and data[pos : pos + 1] != b"e":
+        key, pos = _bencode_str(data, pos)
+        value_start = pos
+        value_end = _bencode_end(data, value_start)
+        if key == b"info":
+            return _parse_info_walk(data, value_start, value_end)
+        pos = value_end
+    raise ValueError("No 'info' key in .torrent bencode")
 
 
 # NOTE — provider-ids feature, sub-phase 13.1 :
