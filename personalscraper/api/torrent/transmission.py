@@ -501,6 +501,16 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         else:
             added_on = datetime.fromtimestamp(t.added_date)
 
+    # done_date is optional — not present on in-progress torrents.
+    done_date = getattr(t, "done_date", None)
+    completion_on: int | None = None
+    if done_date:
+        if isinstance(done_date, datetime):
+            completion_on = int(done_date.timestamp())
+        else:
+            # transmission-rpc typically returns datetime; handle int defensively.
+            completion_on = int(done_date)
+
     return TorrentItem(
         hash=t.hash_string,
         name=t.name,
@@ -512,4 +522,6 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         category=category,
         tags=tags,
         added_on=added_on,
+        save_path=str(t.download_dir) if t.download_dir else "",
+        completion_on=completion_on,
     )
