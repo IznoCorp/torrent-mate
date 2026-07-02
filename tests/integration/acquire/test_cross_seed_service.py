@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
-from personalscraper.acquire.cross_seed import CrossSeedService
+from personalscraper.acquire.cross_seed import CrossSeedResult, CrossSeedService
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
@@ -2621,3 +2621,185 @@ class TestTrackerAbsentFromRegistryNotRecorded:
 
         # lacale is origin → excluded from remaining → never recorded either.
         assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_LACALE, days=3) is False
+
+
+# ===========================================================================
+# Tests: sub-phase 11.4 — sweep item-error accounting + throttle-hole fix
+# ===========================================================================
+
+
+class TestSweepItemErrors:
+    """test_sweep_item_errors_counted_and_throttle_holds (11.4a)."""
+
+    def test_one_item_raises_item_errors_counted_quota_consumed(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """One item raises in sweep → item_errors=1, quota consumed, throttle holds.
+
+        The throttle-hole fix: per-item errors used to bypass quota+need_sleep,
+        allowing an unbounded fast-iterate error loop.  After the fix, even
+        errored items consume a daily quota slot and set the need_sleep flag.
+        """
+        # -- Arrange ----------------------------------------------------------
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        items = [
+            _source_item(info_hash=f"hash{i:040d}", name=f"Movie.{i}.2024", save_path=f"/data/Movie.{i}.2024")
+            for i in range(3)
+        ]
+
+        fake_client = FakeTorrentClient(completed=list(items))
+        for i in range(3):
+            fake_client.seed_files(f"hash{i:040d}", source_files)
+            fake_client.seed_properties(f"hash{i:040d}", {"piece_size": 262144})
+
+        candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(3)]
+
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        for i, cb in enumerate(candidate_bytes):
+            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+
+        fake_torrent_tracker = FakeTracker(
+            provider=_TRACKER_TORR9,
+            transport=fake_transport,
+            results=[
+                _candidate_result(
+                    provider=_TRACKER_TORR9,
+                    title=items[i].name,
+                    download_url=f"https://torr9.example.com/dl/{i}",
+                )
+                for i in range(3)
+            ],
+        )
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: fake_torrent_tracker,
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        # Make check() raise on the second call (item index 1).
+        import personalscraper.acquire.cross_seed as cs_module
+
+        check_calls = [0]
+        original_check = cs_module.CrossSeedService.check
+
+        def _check_raises_on_nth(self: Any, info_hash: str) -> CrossSeedResult:
+            check_calls[0] += 1
+            if check_calls[0] == 2:
+                raise RuntimeError("simulated transient error")
+            return original_check(self, info_hash)
+
+        cfg = make_config(tmp_path, max_searches_per_day=10)
+        sleep_log: list[float] = []
+        svc = _build_service(cfg, store, fake_client, fake_registry, sleep=lambda s: sleep_log.append(s))
+
+        # -- Act --------------------------------------------------------------
+        with (
+            patch.object(cs_module.CrossSeedService, "check", _check_raises_on_nth),
+            caplog.at_level(logging.ERROR, logger="personalscraper.acquire.cross_seed"),
+        ):
+            result = svc.sweep()
+
+        # -- Assert -----------------------------------------------------------
+        # Item 0 succeeded, item 1 errored, item 2 succeeded.
+        assert result.checked == 2  # Two items returned normally.
+        assert result.injected == 2  # Both successful checks injected.
+        assert result.item_errors == 1  # One item raised.
+        assert result.quota_exhausted is False
+
+        # sweep_item_error logged at ERROR.
+        assert any("sweep_item_error" in record.message for record in caplog.records), (
+            f"Expected sweep_item_error ERROR, got: {[r.message for r in caplog.records]}"
+        )
+
+        # Throttle holds: sleep was called between items (at least 2 sleeps for
+        # 3 items where none were skipped).  Before the fix, need_sleep was
+        # never set on error paths, so the loop would fast-iterate without delay.
+        assert len(sleep_log) >= 2, (
+            f"Expected >= 2 sleeps (throttle held), got {len(sleep_log)}"
+        )
+
+        # Quota was consumed for all 3 items (including the errored one).
+        # daily_searches_remaining starts at 10; 3 quota units consumed → 7 remaining.
+        assert store.cross_seed.daily_searches_remaining(10) == 7, (
+            f"Expected 7 remaining (3 consumed), got {store.cross_seed.daily_searches_remaining(10)}"
+        )
+
+    def test_all_items_raise_checked_zero_item_errors_positive(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Every item raises → checked=0, item_errors>0 (total failure signal)."""
+        # -- Arrange ----------------------------------------------------------
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        items = [
+            _source_item(info_hash=f"hash{i:040d}", name=f"Movie.{i}.2024", save_path=f"/data/Movie.{i}.2024")
+            for i in range(2)
+        ]
+
+        fake_client = FakeTorrentClient(completed=list(items))
+        for i in range(2):
+            fake_client.seed_files(f"hash{i:040d}", source_files)
+            fake_client.seed_properties(f"hash{i:040d}", {"piece_size": 262144})
+
+        candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(2)]
+
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        for i, cb in enumerate(candidate_bytes):
+            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+
+        fake_torrent_tracker = FakeTracker(
+            provider=_TRACKER_TORR9,
+            transport=fake_transport,
+            results=[
+                _candidate_result(
+                    provider=_TRACKER_TORR9,
+                    title=items[i].name,
+                    download_url=f"https://torr9.example.com/dl/{i}",
+                )
+                for i in range(2)
+            ],
+        )
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: fake_torrent_tracker,
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        # Make every check() call raise.
+        import personalscraper.acquire.cross_seed as cs_module
+
+        def _check_always_raises(self: Any, info_hash: str) -> CrossSeedResult:
+            raise RuntimeError("simulated persistent error")
+
+        cfg = make_config(tmp_path, max_searches_per_day=10)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        with (
+            patch.object(cs_module.CrossSeedService, "check", _check_always_raises),
+            caplog.at_level(logging.ERROR, logger="personalscraper.acquire.cross_seed"),
+        ):
+            result = svc.sweep()
+
+        # -- Assert -----------------------------------------------------------
+        assert result.checked == 0  # No item returned normally.
+        assert result.injected == 0
+        assert result.item_errors == 2  # Both items errored.
+        assert result.quota_exhausted is False
+
+        # Both errors logged.
+        error_count = sum(1 for r in caplog.records if "sweep_item_error" in r.message)
+        assert error_count == 2, f"Expected 2 sweep_item_error, got {error_count}"

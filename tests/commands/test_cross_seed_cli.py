@@ -162,3 +162,45 @@ def test_cross_seed_sweep_lister_failed_exits_one() -> None:
     assert "could not enumerate" in result.output.lower() or "failed" in result.output.lower(), (
         f"Expected red error about enumeration failure; got:\n{result.output}"
     )
+
+
+# ── 8.  Sweep item_errors → yellow warning, total-failure exit (11.4) ────────
+
+
+def test_sweep_item_errors_yellow_warning_exit_zero() -> None:
+    """Item errors > 0 but checked > 0 → yellow warning, exit 0 (partial success)."""
+    mock_service = MagicMock()
+    mock_service.sweep.return_value = SweepResult(
+        checked=5,
+        injected=3,
+        item_errors=2,
+        quota_exhausted=False,
+    )
+
+    result = _invoke(["cross-seed", "--sweep"], cross_seed_service=mock_service)
+
+    assert result.exit_code == 0, f"Expected exit 0 for partial success; got {result.exit_code}:\n{result.output}"
+    assert "2 item error" in result.output.lower(), (
+        f"Expected yellow warning about 2 item errors; got:\n{result.output}"
+    )
+    assert "Sweep complete" in result.output, (
+        f"Expected green Sweep complete; got:\n{result.output}"
+    )
+
+
+def test_sweep_all_items_errored_exit_one() -> None:
+    """All items errored (item_errors > 0, checked == 0) → exit 1 (total failure)."""
+    mock_service = MagicMock()
+    mock_service.sweep.return_value = SweepResult(
+        checked=0,
+        injected=0,
+        item_errors=3,
+        quota_exhausted=False,
+    )
+
+    result = _invoke(["cross-seed", "--sweep"], cross_seed_service=mock_service)
+
+    assert result.exit_code == 1, f"Expected exit 1 for total failure; got {result.exit_code}:\n{result.output}"
+    assert "all items raised errors" in result.output.lower() or "sweep failed" in result.output.lower(), (
+        f"Expected red 'all items raised errors' or 'Sweep failed'; got:\n{result.output}"
+    )
