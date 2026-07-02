@@ -78,6 +78,26 @@ class TrackerRegistry:
             return self._priority
         return self._priority_by_media_type.get(media_type, self._priority)
 
+    def queryable_for(self, media_type: str) -> set[str]:
+        """Return the set of tracker names queryable for *media_type*.
+
+        Intersects ``_priority_for(media_type)`` with the trackers actually
+        present in ``self._trackers`` whose client is not ``None``.  This is
+        the same set :meth:`search_candidates` would iterate — every name
+        in the returned set is guaranteed to produce a non-``None`` client
+        and be counted in ``queried_names``.
+
+        Args:
+            media_type: ``"movie"`` or ``"tv"`` — the string form of
+                :class:`~personalscraper.api._contracts.MediaType`.
+
+        Returns:
+            Set of tracker names that would be queried for the given
+            media type.
+        """
+        priority = self._priority_for(media_type)
+        return {name for name in priority if self._trackers.get(name) is not None}
+
     def search_all(
         self,
         query: str,

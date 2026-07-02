@@ -187,6 +187,28 @@ class CrossSeedService:
         remaining = [
             t for t in eligible if not self._store.cross_seed.was_searched_recently(info_hash, t, exclude_days)
         ]
+
+        # 5b. Scope remaining to trackers actually queryable for this media type.
+        # _eligible_trackers uses the flat media-type-AGNOSTIC priority list, but
+        # search_candidates honours the per-media-type priority_by_media_type
+        # override.  A tracker in eligible but absent from the per-media-type
+        # override is not a target for this media type — crossing it off
+        # remaining prevents a perpetual re-search storm where a never-queried
+        # tracker keeps remaining non-empty, the all_excluded_recent
+        # short-circuit never fires, and check() runs a full network search on
+        # every call.
+        media_type = _media_type_for(item.name)
+        queryable = self._registry.queryable_for(str(media_type))
+        not_queryable = [t for t in remaining if t not in queryable]
+        if not_queryable:
+            for tracker in not_queryable:
+                logger.debug(
+                    "cross_seed_tracker_not_queryable_for_type",
+                    tracker=tracker,
+                    media_type=str(media_type),
+                )
+            remaining = [t for t in remaining if t in queryable]
+
         if not remaining:
             logger.info(
                 "acquire.cross_seed.skip",
@@ -201,7 +223,7 @@ class CrossSeedService:
         # 6. Search candidates by release name (D7 — strongest signal).
         # The registry does not support per-tracker restriction, so we search
         # all managed trackers once and group results by provider.
-        search_outcome = self._registry.search_candidates(item.name, _media_type_for(item.name))
+        search_outcome = self._registry.search_candidates(item.name, media_type)
         candidates_by_provider: dict[str, list["TrackerResult"]] = {}
         for r in search_outcome.results:
             candidates_by_provider.setdefault(r.provider, []).append(r)

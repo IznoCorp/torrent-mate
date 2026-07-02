@@ -166,6 +166,7 @@ def make_config(
     verify_timeout_s: int = 120,
     tracker_providers: dict[str, TrackerProviderConfig] | None = None,
     tracker_priority: list[str] | None = None,
+    tracker_priority_by_media_type: dict[str, list[str]] | None = None,
 ) -> Config:
     """Build a minimal :class:`Config` for :class:`CrossSeedService` tests.
 
@@ -180,6 +181,8 @@ def make_config(
         verify_timeout_s: Recheck verification timeout (default 120 for tests).
         tracker_providers: Per-tracker configuration dict.
         tracker_priority: Ordered tracker priority list.
+        tracker_priority_by_media_type: Optional per-media-type priority
+            overrides for :class:`TrackerConfig`.
 
     Returns:
         A validated :class:`Config` instance.
@@ -220,6 +223,7 @@ def make_config(
         tracker=TrackerConfig(
             providers=tracker_providers,
             priority=tracker_priority,
+            priority_by_media_type=tracker_priority_by_media_type or {},
         ),
     )
 
@@ -434,17 +438,19 @@ class FakeTracker:
 def make_registry(
     trackers: dict[str, FakeTracker],
     priority: list[str] | None = None,
+    priority_by_media_type: dict[str, list[str]] | None = None,
 ) -> "FakeRegistry":
     """Build a fake :class:`TrackerRegistry` from :class:`FakeTracker` instances.
 
     Args:
         trackers: ``{name: FakeTracker}`` mapping.
         priority: Ordered tracker priority list (defaults to ``trackers`` keys).
+        priority_by_media_type: Optional per-media-type priority overrides.
 
     Returns:
         A :class:`FakeRegistry` wrapping the trackers.
     """
-    return FakeRegistry(trackers, priority or list(trackers.keys()))
+    return FakeRegistry(trackers, priority or list(trackers.keys()), priority_by_media_type=priority_by_media_type)
 
 
 class FakeRegistry:
@@ -454,15 +460,19 @@ class FakeRegistry:
         self,
         trackers: dict[str, FakeTracker],
         priority: list[str],
+        priority_by_media_type: dict[str, list[str]] | None = None,
     ) -> None:
         """Initialise with tracker map and priority order.
 
         Args:
             trackers: ``{name: FakeTracker}`` mapping.
             priority: Ordered tracker priority list.
+            priority_by_media_type: Optional per-media-type priority overrides,
+                mirroring the production :class:`TrackerRegistry` parameter.
         """
         self._trackers = trackers
         self._priority = priority
+        self._priority_by_media_type: dict[str, list[str]] = priority_by_media_type or {}
         self.last_media_type: MediaType | None = None
         """The *media_type* argument received by the most recent
         :meth:`search_candidates` call, or ``None`` before the first call."""
@@ -476,6 +486,35 @@ class FakeRegistry:
         are skipped (no results returned) and counted as errored.
         """
         self._errored = set(names)
+
+    def _priority_for(self, media_type: str | None) -> list[str]:
+        """Return the tracker order to use for the given *media_type*.
+
+        Falls back to ``self._priority`` when no per-media-type override
+        applies — mirrors the production
+        :meth:`~personalscraper.api.tracker._registry.TrackerRegistry._priority_for`.
+        """
+        if media_type is None:
+            return self._priority
+        return self._priority_by_media_type.get(media_type, self._priority)
+
+    def queryable_for(self, media_type: str) -> set[str]:
+        """Return the set of tracker names queryable for *media_type*.
+
+        Intersects ``_priority_for(media_type)`` with the trackers actually
+        present in ``self._trackers`` whose client is not ``None``.  Mirrors
+        the production
+        :meth:`~personalscraper.api.tracker._registry.TrackerRegistry.queryable_for`.
+
+        Args:
+            media_type: ``"movie"`` or ``"tv"``.
+
+        Returns:
+            Set of tracker names that would be queried for the given
+            media type.
+        """
+        priority = self._priority_for(media_type)
+        return {name for name in priority if self._trackers.get(name) is not None}
 
     def search_candidates(
         self,
@@ -499,7 +538,7 @@ class FakeRegistry:
         errored = 0
         errored_names: list[str] = []
         queried_names: list[str] = []
-        for name in self._priority:
+        for name in self._priority_for(str(media_type)):
             tracker = self._trackers.get(name)
             if tracker is None:
                 continue
@@ -2801,3 +2840,166 @@ class TestSweepItemErrors:
         # Both errors logged.
         error_count = sum(1 for r in caplog.records if "sweep_item_error" in r.message)
         assert error_count == 2, f"Expected 2 sweep_item_error, got {error_count}"
+
+
+# ===========================================================================
+# Tests: sub-phase 12.1 — media-type-scoped queryable trackers
+# ===========================================================================
+
+
+class TestCheckMediaTypeQueryableScope:
+    """test_check_tracker_excluded_by_media_type_override_not_searched_not_recorded (12.1)."""
+
+    def test_tracker_excluded_by_media_type_override_not_searched_not_recorded(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Tracker excluded from media-type priority → NOT searched, NOT recorded.
+
+        When a ``priority_by_media_type`` override is a strict subset, a tracker
+        that is enabled + ``cross_seed=True`` but excluded from the override is
+        NOT a target for that media type.  It must not be searched, not recorded,
+        and a second ``check()`` with all real targets excluded-recent must
+        short-circuit via ``all_excluded_recent`` instead of re-searching.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # torr9 has candidates (queryable for movies), "third" has candidates
+        # too but is excluded from the movie priority override.
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        third_url = "https://third.example.com/dl/456"
+        fake_third_transport = FakeTransport(provider_name="third")
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+                "third": FakeTracker(
+                    provider="third",
+                    transport=fake_third_transport,
+                    results=[_candidate_result(provider="third", download_url=third_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
+            priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TORR9]},
+        )
+
+        cfg = make_config(
+            tmp_path,
+            tracker_providers={
+                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_TORR9: _tracker_provider(),
+                "third": _tracker_provider(),
+            },
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
+            tracker_priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TORR9]},
+        )
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act: first check -------------------------------------------------
+        with caplog.at_level(logging.DEBUG, logger="personalscraper.acquire.cross_seed"):
+            first = svc.check(_SOURCE_HASH)
+
+        # -- Assert: first check ----------------------------------------------
+        # Injection succeeded via torr9.
+        assert len(first.injected) == 1
+
+        # "third" was in eligible (enabled + cross_seed + not origin) but NOT
+        # queryable for movies → dropped from remaining before search.
+        # NOT recorded as searched.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, "third", days=3) is False, (
+            "third should NOT be recorded — it was excluded from movie priority override"
+        )
+
+        # torr9 IS recorded as searched.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+
+        # DEBUG log emitted for the dropped tracker.
+        debug_messages = [r.message for r in caplog.records if r.levelno == logging.DEBUG]
+        assert any("cross_seed_tracker_not_queryable_for_type" in msg for msg in debug_messages), (
+            f"Expected cross_seed_tracker_not_queryable_for_type DEBUG, got: {debug_messages}"
+        )
+
+        # -- Act: second check ------------------------------------------------
+        second = svc.check(_SOURCE_HASH)
+
+        # -- Assert: second check ---------------------------------------------
+        # torr9 was recently searched → excluded from remaining.
+        # third is not queryable for movies → excluded from remaining.
+        # remaining empty → all_excluded_recent short-circuit fires.
+        assert second.skipped is True, (
+            f"Expected second check to skip, got skipped={second.skipped} reason={second.skip_reason}"
+        )
+        assert second.skip_reason == "all_excluded_recent"
+        assert second.injected == []
+
+    def test_default_config_no_override_queryable_for_returns_full_set(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """No priority_by_media_type override → queryable_for returns full eligible set.
+
+        The default config path is unchanged — with no override, all eligible
+        trackers are queryable and the existing happy-path behaviour is preserved.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        # Default config: no priority_by_media_type override.
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Default config: happy path unchanged — injection succeeds.
+        assert len(result.injected) == 1
+        assert result.skipped is False
