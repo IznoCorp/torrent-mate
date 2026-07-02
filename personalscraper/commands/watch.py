@@ -198,6 +198,10 @@ def watch(ctx: typer.Context) -> None:
                 if returncode is not None:
                     if returncode == 0:
                         # Persist the successful run timestamp (fail-soft).
+                        # The machine owns debounce/backoff resets — the loop
+                        # must NOT clear them (W7 anti-storm).  Branch 4
+                        # clears completion windows when work vanishes and
+                        # keeps safety-net pacing when it does not.
                         if store is not None:
                             try:
                                 store.watch.set_last_successful_run_at(now)
@@ -206,8 +210,6 @@ def watch(ctx: typer.Context) -> None:
                         state = dataclasses.replace(
                             state,
                             last_successful_run_at=now,
-                            debounce_until=None,
-                            backoff_multiplier=0,
                         )
                         log.info("watcher_run_succeeded")
                     else:
