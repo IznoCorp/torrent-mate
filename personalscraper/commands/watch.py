@@ -129,8 +129,19 @@ def watch(ctx: typer.Context) -> None:
         while not _shutdown_requested:
             # 1. Fresh ingested set — re-read every cycle (spawned runs mutate
             #    ingested_torrents.json).
-            tracker = IngestTracker(tracker_path=data_dir / "ingested_torrents.json")
-            ingested_hashes = frozenset(tracker.load().keys())
+            tracker_path = data_dir / "ingested_torrents.json"
+            tracker = IngestTracker(tracker_path=tracker_path)
+            ingested_data = tracker.load()
+            ingested_hashes = frozenset(ingested_data.keys())
+
+            # Cycle guard: corrupt/unreadable tracker file.  load() degrades
+            # to {} on JSON errors (logged at ERROR by IngestTracker), which
+            # would cause the watcher to treat the library as fresh — mass
+            # cross-seed dispatch + run trigger.  Skip the cycle entirely.
+            if tracker_path.exists() and tracker_path.stat().st_size > 0 and not ingested_data:
+                log.warning("watcher_tracker_unreadable", path=str(tracker_path))
+                _interruptible_sleep(config.watch.poll_interval_s)
+                continue
 
             # 2. Completed torrents with error guard (W1: log, skip cycle,
             #    never crash).
@@ -188,22 +199,46 @@ def watch(ctx: typer.Context) -> None:
 
             elif out.decision == WatcherDecision.FIRE_CROSS_SEED:
                 for h in out.cross_seed_hashes:
-                    result = subprocess.run(
-                        [
-                            sys.executable,
-                            "-m",
-                            "personalscraper",
-                            "cross-seed",
-                            "--hash",
-                            h,
-                        ],
-                    )
-                    if result.returncode != 0:
-                        log.warning(
-                            "watcher_cross_seed_failed",
-                            info_hash=h,
-                            returncode=result.returncode,
+                    try:
+                        result = subprocess.run(
+                            [
+                                sys.executable,
+                                "-m",
+                                "personalscraper",
+                                "cross-seed",
+                                "--hash",
+                                h,
+                            ],
+                            capture_output=True,
+                            timeout=1800,
                         )
+                    except subprocess.TimeoutExpired:
+                        log.warning(
+                            "watcher_cross_seed_timeout",
+                            info_hash=h,
+                        )
+                        # Remove from dispatched so it retries next cycle
+                        # (acquire.db exclude-recent guard prevents hammering).
+                        state = dataclasses.replace(
+                            state,
+                            cross_seed_dispatched=state.cross_seed_dispatched - {h},
+                        )
+                    else:
+                        if result.returncode != 0:
+                            stderr_tail = (
+                                result.stderr.decode("utf-8", errors="replace")[-500:] if result.stderr else ""
+                            )
+                            log.warning(
+                                "watcher_cross_seed_failed",
+                                info_hash=h,
+                                returncode=result.returncode,
+                                stderr_tail=stderr_tail,
+                            )
+                            # Remove from dispatched so it retries next cycle.
+                            state = dataclasses.replace(
+                                state,
+                                cross_seed_dispatched=state.cross_seed_dispatched - {h},
+                            )
 
             elif out.decision == WatcherDecision.START_DEBOUNCE:
                 log.debug("watcher_debounce_started", until=state.debounce_until)

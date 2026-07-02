@@ -6,6 +6,7 @@ exercise the watch loop without real qBittorrent, subprocesses, or sleeps.
 
 from __future__ import annotations
 
+import subprocess as _subprocess_module
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -195,6 +196,7 @@ class _WatchPatches:
 
         self.mock_time = MagicMock()
         self.mock_subprocess = MagicMock()
+        self.mock_subprocess.TimeoutExpired = _subprocess_module.TimeoutExpired
         self.mock_build = MagicMock(return_value=fake_app)
         self.mock_is_lock_held = MagicMock(return_value=is_lock_held)
         self.mock_get_settings = MagicMock()
@@ -363,6 +365,10 @@ def test_new_completion_spawns_cross_seed(tmp_path: Path) -> None:
         #   11 slices = 10 (cycle 1 full sleep) + 1 (cycle 2 early exit).
         p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=11)
 
+        # Simulate a successful cross-seed spawn (returncode=0) so the hash
+        # stays in the dispatched set — no retry on cycle 2.
+        p.mock_subprocess.run.return_value.returncode = 0
+
         watch(ctx)
 
     # Cycle 1: cross-seed via subprocess.run (synchronous).
@@ -400,6 +406,10 @@ def test_debounce_fires_run(tmp_path: Path) -> None:
         # _interruptible_sleep slices poll_interval_s=10 into 1 s chunks →
         #   21 slices = 10+10 (cycles 1-2 full) + 1 (cycle 3 early exit).
         p.set_time_sequence([0.0, 10.0, 70.0], shutdown_after_sleeps=21)
+
+        # Simulate a successful cross-seed spawn so the debounce transition
+        # proceeds to FIRE_RUN on cycle 3.
+        p.mock_subprocess.run.return_value.returncode = 0
 
         watch(ctx)
 
@@ -584,7 +594,120 @@ def test_interruptible_sleep_returns_early_when_shutdown_requested() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 12.  ACC-8 — help tests via CliRunner
+# 12.  test_corrupt_tracker_skips_cycle  (ACC 10.8)
+# ---------------------------------------------------------------------------
+
+
+def test_corrupt_tracker_skips_cycle(tmp_path: Path) -> None:
+    """Corrupt (non-empty, invalid JSON) tracker file → cycle skipped, no spawns.
+
+    When ``ingested_torrents.json`` exists, has content, but ``load()`` returns
+    ``{}`` (degradation on JSON errors), the watcher must skip the cycle
+    entirely — treating the library as fresh would trigger mass cross-seed
+    dispatch.
+    """
+    from personalscraper.commands.watch import watch
+
+    # Write corrupt JSON to the tracker file (non-empty but unparseable).
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_text("{corrupt garbage", encoding="utf-8")
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must have skipped the cycle — no subprocess calls at all.
+    p.mock_subprocess.Popen.assert_not_called()
+    p.mock_subprocess.run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 13.  test_cross_seed_child_timeout_retries  (ACC 10.8)
+# ---------------------------------------------------------------------------
+
+
+def test_cross_seed_child_timeout_retries(tmp_path: Path) -> None:
+    """``subprocess.run`` raises ``TimeoutExpired`` → hash removed, retried next cycle.
+
+    The daemon must not crash on a hung child.  Removing the hash from
+    ``cross_seed_dispatched`` lets it retry next cycle; the acquire.db
+    exclude-recent guard prevents tracker hammering.
+    """
+    from personalscraper.commands.watch import watch
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        # 2 cycles: first times out (hash removed), second retries.
+        # poll_interval_s=10 → 10 sleep calls per cycle → 20 for two cycles.
+        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=11)
+
+        # Cycle 1: TimeoutExpired → hash removed from dispatched.
+        # Cycle 2: hash no longer in dispatched → FIRE_CROSS_SEED again.
+        p.mock_subprocess.run.side_effect = _subprocess_module.TimeoutExpired(
+            cmd=["fake"],
+            timeout=1800,
+        )
+
+        watch(ctx)
+
+    # run must have been called twice — retry on cycle 2.
+    assert p.mock_subprocess.run.call_count == 2, (
+        f"Expected 2 cross-seed spawns (initial + retry), got {p.mock_subprocess.run.call_count}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 14.  test_cross_seed_child_failure_retries  (ACC 10.8)
+# ---------------------------------------------------------------------------
+
+
+def test_cross_seed_child_failure_retries(tmp_path: Path) -> None:
+    """Child ``returncode != 0`` → stderr logged, hash removed, retried next cycle.
+
+    After a failed spawn the hash must be removed from
+    ``cross_seed_dispatched`` so the next cycle re-attempts it.  The stderr
+    tail (≤500 chars) is included in the warning log for diagnostics.
+    """
+    from personalscraper.commands.watch import watch
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        # 2 cycles: first fails (hash removed), second retries.
+        p.set_time_sequence([0.0, 0.0], shutdown_after_sleeps=11)
+
+        # Non-zero returncode with stderr.
+        fake_result = MagicMock()
+        fake_result.returncode = 1
+        fake_result.stderr = b"Error: tracker unreachable\nTraceback (most recent call last):\n..."
+        p.mock_subprocess.run.return_value = fake_result
+
+        watch(ctx)
+
+    # run must have been called twice — retry on cycle 2.
+    assert p.mock_subprocess.run.call_count == 2, (
+        f"Expected 2 cross-seed spawns (initial + retry), got {p.mock_subprocess.run.call_count}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 15.  ACC-8 — help tests via CliRunner
 # ---------------------------------------------------------------------------
 
 
