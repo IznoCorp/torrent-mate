@@ -206,14 +206,19 @@ class CrossSeedService:
         for r in search_outcome.results:
             candidates_by_provider.setdefault(r.provider, []).append(r)
 
-        # Record search history ONLY for trackers that actually succeeded.
-        # An errored tracker is NOT recorded — retry is possible on the next
-        # check (within the exclude_recent_search_days window).  A tracker
-        # that succeeded but returned zero hits IS recorded (no candidates
-        # for the exclude window = don't re-search the same query fruitlessly).
+        # Record search history ONLY for trackers that were actually queried
+        # AND succeeded.  A tracker absent from queried_names was never
+        # reached (not in the per-media-type priority override, or its
+        # client was None) — recording it as "searched" would produce a
+        # false 3-day lockout.  An errored tracker is NOT recorded — retry
+        # is possible on the next check (within the exclude_recent_search_days
+        # window).  A tracker that succeeded but returned zero hits IS
+        # recorded (no candidates for the exclude window = don't re-search
+        # the same query fruitlessly).
         errored_names = set(search_outcome.errored_names)
+        queried_set = set(search_outcome.queried_names)
         for tracker in remaining:
-            if tracker not in errored_names:
+            if tracker in queried_set and tracker not in errored_names:
                 self._store.cross_seed.record_search(info_hash, tracker)
 
         if errored_names:
@@ -354,12 +359,32 @@ class CrossSeedService:
                     continue
 
                 # MATCH → inject → verify → resume + tag + obligation.
-                injected_hash = self._injector.inject(
-                    source.file_bytes,
-                    save_path=item.save_path,
-                    recheck=True,
-                    paused=True,
-                )
+                try:
+                    injected_hash = self._injector.inject(
+                        source.file_bytes,
+                        save_path=item.save_path,
+                        recheck=True,
+                        paused=True,
+                    )
+                except (ValueError, ApiError) as exc:
+                    logger.warning(
+                        "acquire.cross_seed.rejected",
+                        info_hash=info_hash,
+                        tracker=tracker,
+                        reason="inject_failed",
+                        error=str(exc),
+                        exc_info=True,
+                    )
+                    result.rejected.append((_candidate_id(candidate), tracker, "inject_failed"))
+                    self._event_bus.emit(
+                        CrossSeedRejected(
+                            info_hash=_candidate_id(candidate),
+                            tracker=tracker,
+                            reason="inject_failed",
+                            source_hash=info_hash,
+                        )
+                    )
+                    continue
 
                 verify_failure = self._verify_injection(injected_hash)
                 if verify_failure is None:
@@ -377,14 +402,31 @@ class CrossSeedService:
                             error=str(exc),
                             consequence="hit_and_run_risk — deleting injection",
                         )
-                        try:
-                            self._controller.delete(injected_hash, delete_files=False)
-                        except Exception as del_exc:  # noqa: BLE001 — best-effort cleanup
+                        # Belt-and-braces: guard the delete when injected_hash
+                        # equals the source info_hash (self-candidate that
+                        # slipped through the early guard because
+                        # _bencode_info_hash raised ValueError →
+                        # hash_uncomputable, or qBit Conflict409 dedup
+                        # returned the source hash).  Deleting the source
+                        # torrent itself would be a catastrophic data-loss
+                        # bug.  The same guard also exists in the
+                        # verify-failure branch below.
+                        if injected_hash.lower() == info_hash.lower():
                             logger.error(
-                                "acquire.cross_seed.obligation_delete_failed",
-                                info_hash=injected_hash,
-                                error=str(del_exc),
+                                "acquire.cross_seed.self_delete_averted",
+                                info_hash=info_hash,
+                                injected_hash=injected_hash,
+                                tracker=tracker,
                             )
+                        else:
+                            try:
+                                self._controller.delete(injected_hash, delete_files=False)
+                            except Exception as del_exc:  # noqa: BLE001 — best-effort cleanup
+                                logger.error(
+                                    "acquire.cross_seed.obligation_delete_failed",
+                                    info_hash=injected_hash,
+                                    error=str(del_exc),
+                                )
                         result.rejected.append((injected_hash, tracker, "obligation_write_failed"))
                         self._event_bus.emit(
                             CrossSeedRejected(
@@ -447,7 +489,8 @@ class CrossSeedService:
                     # the source info_hash (self-candidate that slipped through
                     # the early guard because _bencode_info_hash raised ValueError
                     # → hash_uncomputable).  Deleting the source torrent itself
-                    # would be a catastrophic data-loss bug.
+                    # would be a catastrophic data-loss bug.  The same guard
+                    # also exists in the obligation_write_failed branch above.
                     if injected_hash.lower() == info_hash.lower():
                         logger.error(
                             "acquire.cross_seed.self_delete_averted",
@@ -630,7 +673,9 @@ class CrossSeedService:
         Returns:
             A :class:`TorrentLayout` built from the local torrent's file list
             and properties, or ``None`` if ``piece_size`` is missing from
-            properties.
+            properties or if the layout construction raises
+            :class:`ValueError` (e.g., empty file list or invalid
+            ``piece_size``).
         """
         files = self._injector.list_files(item.hash)
         props = self._injector.properties(item.hash)
@@ -675,13 +720,22 @@ class CrossSeedService:
         # makes the two frames comparable.
         normalized_files, layout_name = _normalize_qbit_files(files, item.name)
         total_size = sum(size for _, size in normalized_files)
-        return TorrentLayout(
-            name=layout_name,
-            piece_length=piece_length,
-            files=normalized_files,
-            total_size=total_size,
-            meta_version=meta_version,
-        )
+        try:
+            return TorrentLayout(
+                name=layout_name,
+                piece_length=piece_length,
+                files=normalized_files,
+                total_size=total_size,
+                meta_version=meta_version,
+            )
+        except ValueError:
+            logger.warning(
+                "acquire.cross_seed.no_piece_size",
+                info_hash=item.hash,
+                reason="layout_construction_failed",
+                file_count=len(normalized_files),
+            )
+            return None
 
     def _resolve_origin(self, item: TorrentItem) -> str | None:
         """Resolve the origin tracker from *item*'s tags.

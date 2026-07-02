@@ -1805,7 +1805,15 @@ class TestSweepInjectErrorIsolation:
         store: ConcreteAcquireStore,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Inject raises ApiError on Nth item → sweep logs + continues to next."""
+        """Inject raises ApiError on Nth item → check() rejects inject_failed, sweep continues.
+
+        Before sub-phase 11.3, inject ApiError propagated out of check()
+        and was caught by the sweep-level except (logged sweep_item_error,
+        item not counted as checked).  After 11.3, check() catches
+        ApiError from inject and converts it to a CrossSeedRejected with
+        reason inject_failed — the item is counted as checked (it was
+        successfully evaluated, just the injection was rejected).
+        """
         # -- Arrange ----------------------------------------------------------
         source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
 
@@ -1872,18 +1880,20 @@ class TestSweepInjectErrorIsolation:
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
         # -- Act --------------------------------------------------------------
-        with caplog.at_level(logging.ERROR, logger="personalscraper.acquire.cross_seed"):
+        with caplog.at_level(logging.WARNING, logger="personalscraper.acquire.cross_seed"):
             result = svc.sweep()
 
         # -- Assert -----------------------------------------------------------
-        # Sweep returns a result (not an exception).
-        assert result.checked == 2  # Items 0 and 2 succeeded; item 1 errored → not counted.
-        assert result.injected == 2
+        # After 11.3, check() catches inject ApiError internally and converts
+        # it to a rejected inject_failed — the item IS counted as checked
+        # (the check completed, injection was just rejected).
+        assert result.checked == 3  # All 3 items evaluated; item 1 rejected inject_failed.
+        assert result.injected == 2  # Items 0 and 2 succeeded; item 1 rejected.
         assert result.quota_exhausted is False
 
-        # sweep_item_error logged for the failed item.
-        assert any("sweep_item_error" in record.message for record in caplog.records), (
-            f"Expected sweep_item_error, got: {[r.message for r in caplog.records]}"
+        # inject_failed rejection logged at WARNING from inside check().
+        assert any("inject_failed" in record.message for record in caplog.records), (
+            f"Expected inject_failed in WARNING, got: {[r.message for r in caplog.records]}"
         )
 
 

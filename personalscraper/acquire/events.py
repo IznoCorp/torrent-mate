@@ -270,6 +270,10 @@ class CrossSeedRejected(Event):
                 Candidate resolved to a magnet link (no ``.torrent`` bytes).
             ``"parse_failed"``
                 Candidate ``.torrent`` bytes failed bencode parsing.
+            ``"inject_failed"``
+                Injection failed — the candidate's info-hash could not be
+                computed (:class:`ValueError` from bencode) or the torrent
+                client rejected the injection (:class:`ApiError`).
             ``"self_candidate"``
                 Candidate ``info_hash`` equals the source ``info_hash``
                 (same-release cross-post, or origin-unresolvable loop).
