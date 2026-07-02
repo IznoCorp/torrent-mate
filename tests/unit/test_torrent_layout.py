@@ -45,20 +45,29 @@ class TestParseTorrentLayout:
         assert layout.files[0][0] == layout.name
         assert layout.files[0][1] == layout.total_size
 
-    def test_nested_fixture_has_path_separator(self) -> None:
-        """At least one rel_path in the nested fixture contains ``'/'``.
+    def test_synthetic_nested_path_join(self) -> None:
+        """Multi-file info dict with multi-component path lists joins with ``'/'``.
 
-        Skips when no real nested (subdir-containing) ``.torrent`` fixture is
-        available.  The current qBittorrent ``BT_backup/`` on this host
-        contains zero torrents with nested directories — all are flat
-        multi-file or single-file.  When a real nested fixture is added,
-        this test validates that the parser preserves the ``/`` separators.
+        Synthetic bencode covering the nested-directory code path (no real
+        nested ``.torrent`` fixture is available on this host — all qBittorrent
+        torrents are flat multi-file or single-file).  Craft a minimal info
+        dict with two files whose ``path`` lists have depth 2 (e.g.
+        ``["Season 01", "ep1.mkv"]``) and assert the parser joins components
+        with ``/`` and preserves sizes.
         """
-        path = FIXTURE_DIR / "multi_file_nested.torrent"
-        if not path.exists():
-            pytest.skip("fixture not present")
-        layout = parse_torrent_layout(path.read_bytes())
-        nested = [(r, s) for r, s in layout.files if "/" in r]
-        if not nested:
-            pytest.skip("fixture is flat — no '/' in any rel_path (no nested dirs on this host)")
-        # Test passes by construction: at least one entry has '/'.
+        # Top-level dict → info dict with:
+        #   name="Show.S01", piece length=262144,
+        #   files=[ {length:1000, path:["Season 01","ep1.mkv"]},
+        #           {length:2000, path:["Season 02","ep1.mkv"]} ]
+        data = (
+            b"d4:infod4:name8:Show.S0112:piece lengthi262144e5:filesl"
+            b"d6:lengthi1000e4:pathl9:Season 017:ep1.mkvee"
+            b"d6:lengthi2000e4:pathl9:Season 027:ep1.mkvee"
+            b"eeee"
+        )
+        layout = parse_torrent_layout(data)
+        assert layout.name == "Show.S01"
+        assert len(layout.files) == 2
+        assert layout.files[0] == ("Season 01/ep1.mkv", 1000)
+        assert layout.files[1] == ("Season 02/ep1.mkv", 2000)
+        assert layout.total_size == 3000
