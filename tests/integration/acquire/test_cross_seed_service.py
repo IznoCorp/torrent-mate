@@ -8,6 +8,7 @@ and ``structural_match`` without any parsing mocks.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -1534,3 +1535,215 @@ class TestPathFrameNormalization:
         # Mixed roots → files left as-is, name=item.name="Mixed.Release".
         # Candidate has same name + same file list → should MATCH.
         assert result.injected == [injected_hash]
+
+
+# ===========================================================================
+# Tests: self-candidate guard (sub-phase 10.2)
+# ===========================================================================
+
+
+class TestCheckSelfCandidate:
+    """test_check_self_candidate_rejected (sub-phase 10.2)."""
+
+    def test_self_candidate_rejected_no_inject_no_delete(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Candidate bytes hash to source hash → rejected self_candidate, no inject/delete."""
+        # -- Arrange ----------------------------------------------------------
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name="Movie.2024.1080p.BluRay.x264-GROUP",
+            files=source_files,
+            piece_length=262144,
+        )
+        real_hash = _derive_injected_hash(candidate_torrent)
+
+        item = _source_item(info_hash=real_hash)
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(real_hash, source_files)
+        fake_client.seed_properties(real_hash, {"piece_size": 262144})
+
+        candidate_url = "https://torr9.example.com/dl/self"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        rejected_events: list[CrossSeedRejected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedRejected, lambda e: rejected_events.append(e))
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(real_hash)
+
+        # -- Assert -----------------------------------------------------------
+        # Rejected with self_candidate, NO inject, NO delete.
+        assert result.injected == []
+        assert len(result.rejected) == 1
+        _, rejected_tracker, rejected_reason = result.rejected[0]
+        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_reason == "self_candidate"
+        assert len(fake_client.injected) == 0
+        assert len(fake_client.deleted) == 0
+
+        # EventBus: CrossSeedRejected with reason=self_candidate emitted.
+        self_rejections = [e for e in rejected_events if e.reason == "self_candidate"]
+        assert len(self_rejections) == 1
+        assert self_rejections[0].source_hash == real_hash
+
+
+class TestOriginUnresolvedWarning:
+    """test_origin_unresolved_logs_warning (sub-phase 10.2)."""
+
+    def test_origin_unresolved_logs_warning(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Origin unresolvable (no known tracker tag) → warning logged."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item(tags=["unknown_tracker"])
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(provider=_TRACKER_TORR9, results=[]),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        with caplog.at_level(logging.WARNING, logger="personalscraper.acquire.cross_seed"):
+            svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        assert any("origin_unresolved" in record.message for record in caplog.records), (
+            f"Expected origin_unresolved WARNING, got: {[r.message for r in caplog.records]}"
+        )
+
+
+class TestSelfDeleteAverted:
+    """test_self_delete_averted_belt_and_braces (sub-phase 10.2)."""
+
+    def test_self_delete_averted_belt_and_braces(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Belt-and-braces: verify-failure, injected_hash==info_hash → delete averted.
+
+        When _bencode_info_hash raises ValueError the early self-candidate guard
+        is bypassed (hash_uncomputable).  The inject still returns the source's
+        own hash (qBit dedup), and if verify fails, the delete guard must
+        prevent deleting the source torrent itself.
+        """
+        # -- Arrange ----------------------------------------------------------
+        import personalscraper.acquire.cross_seed as cs_module
+
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name="Movie.2024.1080p.BluRay.x264-GROUP",
+            files=source_files,
+            piece_length=262144,
+        )
+
+        # Source item with progress < 1.0 so _verify_injection does NOT
+        # find it as "completed" — the original item and the injected hash
+        # share the same hash (simulating qBit Conflict409 dedup), so a
+        # progress=1.0 source would falsely pass verification.
+        item = _source_item(info_hash=_SOURCE_HASH, progress=0.5)
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # Override inject: return _SOURCE_HASH (simulating qBit Conflict409
+        # when injecting the same torrent) and do NOT add a completed entry
+        # → verify never succeeds.
+        def _inject_returns_source(
+            torrent_bytes: bytes,
+            *,
+            save_path: str,
+            recheck: bool = True,
+            paused: bool = True,
+        ) -> str:
+            fake_client.injected.append((torrent_bytes, save_path, recheck, paused))
+            fake_client.injected_hashes.append(_SOURCE_HASH)
+            fake_client._files[_SOURCE_HASH] = fake_client._files.get(_SOURCE_HASH, [])
+            fake_client._props[_SOURCE_HASH] = {"piece_size": 262144}
+            return _SOURCE_HASH
+
+        fake_client.inject = _inject_returns_source  # type: ignore[method-assign]
+
+        # Monkeypatch _bencode_info_hash to raise ValueError → early guard bypassed.
+        original_bencode = cs_module._bencode_info_hash  # type: ignore[attr-defined]
+        cs_module._bencode_info_hash = lambda data: (_ for _ in ()).throw(  # type: ignore[attr-defined]
+            ValueError("hash_uncomputable")
+        )
+
+        try:
+            candidate_url = "https://torr9.example.com/dl/self-bb"
+            fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+            fake_transport.seed(candidate_url, candidate_torrent)
+
+            fake_registry = make_registry(
+                {
+                    _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                    _TRACKER_TORR9: FakeTracker(
+                        provider=_TRACKER_TORR9,
+                        transport=fake_transport,
+                        results=[_candidate_result(download_url=candidate_url)],
+                    ),
+                },
+                priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            )
+
+            cfg = make_config(tmp_path)
+            clock_ticks = iter([0.0, 2.0, 130.0])  # verify timeout after 2nd poll
+            sleep_log: list[float] = []
+
+            svc = _build_service(
+                cfg,
+                store,
+                fake_client,
+                fake_registry,
+                clock=lambda: next(clock_ticks),
+                sleep=lambda s: sleep_log.append(s),
+            )
+
+            # -- Act ----------------------------------------------------------
+            result = svc.check(_SOURCE_HASH)
+
+            # -- Assert -------------------------------------------------------
+            # Verify failed → rejected, but delete was NOT called.
+            assert result.injected == []
+            assert len(result.rejected) >= 1
+            assert any(r[2] == "recheck_failed" for r in result.rejected)
+            assert len(fake_client.deleted) == 0, (
+                f"Delete was called but should have been averted: {fake_client.deleted}"
+            )
+        finally:
+            cs_module._bencode_info_hash = original_bencode  # type: ignore[attr-defined]

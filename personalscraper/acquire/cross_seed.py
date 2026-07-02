@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Callable
 from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.torrent._base import TorrentItem, parse_torrent_layout
+from personalscraper.api.torrent._base import TorrentItem, _bencode_info_hash, parse_torrent_layout
 from personalscraper.api.torrent._layout import MatchVerdict, TorrentLayout, structural_match
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
@@ -303,6 +303,44 @@ class CrossSeedService:
                     )
                     continue
 
+                # Self-candidate guard: compute the candidate's v1 info-hash
+                # and reject when it equals the source info_hash.  This covers
+                # byte-identical same-hash releases cross-posted on other
+                # trackers (injecting the same hash is always a no-op at best
+                # and a recheck/delete hazard at worst) and the case where the
+                # origin tracker is unresolvable and the search returns the
+                # source torrent itself.
+                # Wrapped in try/except ValueError — proceed without the guard
+                # but log hash_uncomputable (belt-and-braces delete guard below
+                # still protects against self-deletion when inject returns the
+                # source hash).
+                try:
+                    candidate_hash = _bencode_info_hash(source.file_bytes)
+                except ValueError:
+                    logger.debug(
+                        "acquire.cross_seed.hash_uncomputable",
+                        info_hash=info_hash,
+                        tracker=tracker,
+                    )
+                else:
+                    if candidate_hash.lower() == info_hash.lower():
+                        logger.info(
+                            "acquire.cross_seed.rejected",
+                            info_hash=info_hash,
+                            tracker=tracker,
+                            reason="self_candidate",
+                        )
+                        result.rejected.append((_candidate_id(candidate), tracker, "self_candidate"))
+                        self._event_bus.emit(
+                            CrossSeedRejected(
+                                info_hash=_candidate_id(candidate),
+                                tracker=tracker,
+                                reason="self_candidate",
+                                source_hash=info_hash,
+                            )
+                        )
+                        continue
+
                 # Structural match — strict full-match only (D4).
                 verdict = structural_match(local_layout, candidate_layout)
                 if verdict != MatchVerdict.MATCH:
@@ -362,7 +400,20 @@ class CrossSeedService:
                     return result
                 else:
                     # Recheck failed → remove injection, NO obligation (D10).
-                    self._controller.delete(injected_hash, delete_files=False)
+                    # Belt-and-braces: guard the delete when injected_hash equals
+                    # the source info_hash (self-candidate that slipped through
+                    # the early guard because _bencode_info_hash raised ValueError
+                    # → hash_uncomputable).  Deleting the source torrent itself
+                    # would be a catastrophic data-loss bug.
+                    if injected_hash.lower() == info_hash.lower():
+                        logger.error(
+                            "acquire.cross_seed.self_delete_averted",
+                            info_hash=info_hash,
+                            injected_hash=injected_hash,
+                            tracker=tracker,
+                        )
+                    else:
+                        self._controller.delete(injected_hash, delete_files=False)
                     logger.warning(
                         "acquire.cross_seed.rejected",
                         info_hash=info_hash,
@@ -591,7 +642,7 @@ class CrossSeedService:
         for tag in item.tags:
             if tag in known_trackers:
                 return tag
-        logger.debug(
+        logger.warning(
             "acquire.cross_seed.origin_unresolved",
             info_hash=item.hash,
             tags=item.tags,
