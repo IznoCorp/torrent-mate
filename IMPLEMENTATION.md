@@ -26,6 +26,7 @@
 | 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [x]    |
 | 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
 | 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [x]    |
+| 12  | PR fixes cycle 3                                     | phase-12-pr-fixes-cycle-3.md            | [ ]    |
 
 ## Review cycles
 
@@ -51,6 +52,18 @@
 - Design contradictions: none
 - Fix phase created: phase-11-pr-fixes-cycle-2.md
 - Status: fix phase COMPLETE (12 commits across 4 sub-phases; 1 wrapper-timeout continuation on 11.3, 2 in-flight corrections: mypy import from real module, ruff format stragglers) — make check green (91.03% cov) → pushed for re-review cycle 3
+
+### Cycle 3
+
+- Findings received: cycle-2 fixes verified by 2 agents (code-reviewer + silent-failure-hunter)
+- Cycle-2 fixes verdict: ALL 9 findings confirmed genuinely closed, non-vacuous, no regression; both agents recommend merge in default config
+- Retained: 2 medium (0 critical, 0 major) → 2 fix sub-phases
+  - MEDIUM F1: re-search storm — my 11.3 queried_names filter regresses under a subset priority_by_media_type override (eligible-but-not-queried tracker never recorded → all_excluded_recent never fires → full search every check() forever, quota drain). Non-default config trigger.
+  - MEDIUM F2: my 11.1 tracker-file guard restructure lets UnicodeDecodeError (ValueError subclass, not OSError) escape → daemon crash on invalid-UTF-8 tracker file (breaks the fail-closed contract).
+- Ignored (informational, non-blocking): shutdown-removal no-op vs restart-clears-set (correct outcome, redundant code); timeout heuristic ≤2 verify polls; _cross_seed_failures unbounded growth (reset on restart); double-read TOCTOU (atomic writer mitigates)
+- Design contradictions: none
+- Fix phase created: phase-12-pr-fixes-cycle-3.md
+- Status: fix phase dispatched → awaiting /implement:phase
 
 ## Next action
 
