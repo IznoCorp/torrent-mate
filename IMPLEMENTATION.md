@@ -15,7 +15,7 @@
 
 | #   | Phase                                                | File                                    | Status |
 | --- | ---------------------------------------------------- | --------------------------------------- | ------ |
-| 1   | RP10a — TorrentLayout parser + structural match      | phase-01-rp10a-torrent-layout-parser.md | [ ]    |
+| 1   | RP10a — TorrentLayout parser + structural match      | phase-01-rp10a-torrent-layout-parser.md | [x]    |
 | 2   | RP10b — TorrentInjector protocol + QBitClient inject | phase-02-rp10b-torrent-injector.md      | [ ]    |
 | 3   | Cross-seed + watch configuration                     | phase-03-cross-seed-config.md           | [ ]    |
 | 4   | CrossSeedService — X1 core + X2 sweep                | phase-04-cross-seed-service.md          | [ ]    |
@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Phase 2 (RP10b — TorrentInjector) is next — continue via `/implement:phase`.
