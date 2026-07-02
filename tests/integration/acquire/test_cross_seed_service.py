@@ -552,32 +552,6 @@ def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
         s.close()
 
 
-@pytest.fixture
-def fake_clock() -> Iterator[list[float]]:
-    """Yield a mutable float list usable as a fake monotonic clock.
-
-    Usage in tests::
-
-        clock = fake_clock
-        service = CrossSeedService(..., clock=lambda: clock[0])
-        clock[0] = 130.0  # advance past verify timeout
-    """
-    yield [0.0]
-
-
-@pytest.fixture
-def fake_sleep() -> Iterator[list[float]]:
-    """Yield a list that records every sleep duration.
-
-    Usage in tests::
-
-        sleep_log = fake_sleep
-        service = CrossSeedService(..., sleep=lambda s: sleep_log.append(s))
-        assert sleep_log == [30.0]
-    """
-    yield []
-
-
 # ---------------------------------------------------------------------------
 # Shared builder — CrossSeedService with two trackers (lacale origin, torr9 target)
 # ---------------------------------------------------------------------------
@@ -948,14 +922,21 @@ class TestCheckIdempotent:
 
 
 class TestCheckOriginExcluded:
-    """test_check_origin_tracker_excluded."""
+    """test_check_origin_tracker_excluded (D5 — ACC-6)."""
 
     def test_origin_tracker_excluded(
         self,
         tmp_path: Path,
         store: ConcreteAcquireStore,
     ) -> None:
-        """Source item tagged with 'lacale' → candidates from 'lacale' are not processed."""
+        """Source from lacale → lacale candidates excluded, torr9 candidate injected.
+
+        The promised scenario from the phase-10 plan: the origin tracker has
+        candidates (which must be excluded), AND an eligible other tracker has
+        candidates → only the non-origin tracker is used.  This proves the
+        origin-exclusion guard works without relying on there being zero other
+        trackers (the degenerate case tested before).
+        """
         # -- Arrange ----------------------------------------------------------
         item = _source_item(tags=[_TRACKER_LACALE])
         source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
@@ -964,29 +945,49 @@ class TestCheckOriginExcluded:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # Both candidates are from lacale (origin) — should be excluded.
-        fake_transport = FakeTransport(provider_name=_TRACKER_LACALE)
+        # Matching .torrent bytes for the torr9 candidate.
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
 
-        # Only lacale configured (no other trackers).
+        # lacale (origin) has candidates — must be excluded.
+        fake_lacale_transport = FakeTransport(provider_name=_TRACKER_LACALE)
+        lacale_results = [
+            _candidate_result(provider=_TRACKER_LACALE, download_url="https://lacale.example.com/dl/1")
+        ]
+
+        # torr9 (eligible) has a structurally-matching candidate → should be injected.
+        torr9_url = "https://torr9.example.com/dl/456"
+        fake_torr9_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_torr9_transport.seed(torr9_url, candidate_torrent)
+        torr9_results = [_candidate_result(provider=_TRACKER_TORR9, download_url=torr9_url)]
+
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(
                     provider=_TRACKER_LACALE,
-                    transport=fake_transport,
-                    results=[
-                        _candidate_result(provider=_TRACKER_LACALE, download_url="https://lacale.example.com/dl/1")
-                    ],
+                    transport=fake_lacale_transport,
+                    results=lacale_results,
+                ),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_torr9_transport,
+                    results=torr9_results,
                 ),
             },
-            priority=[_TRACKER_LACALE],
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
         )
 
         cfg = make_config(
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_TORR9: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE],
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -994,11 +995,21 @@ class TestCheckOriginExcluded:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
-        # Skipped because all eligible trackers excluded (origin == only tracker).
-        assert result.skipped is True
-        # Could be "all_excluded_recent" if no remaining trackers after excluding origin.
-        assert result.skip_reason is not None
-        assert result.injected == []
+        # torr9 candidate was injected (origin lacale excluded → not iterated).
+        assert result.injected == [injected_hash]
+        assert result.rejected == []
+        assert result.skipped is False
+
+        # Injected hash was resumed and tagged.
+        assert injected_hash in fake_client.resumed
+        assert SEED_PURE in fake_client.tags_added.get(injected_hash, set())
+
+        # Search history recorded for torr9 only (lacale is origin → excluded).
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+        # lacale was never in remaining → no search recorded.
+        obligations = store.seed.find_active_under(Path(item.save_path))
+        assert len(obligations) == 1
+        assert obligations[0].source_tracker == _TRACKER_TORR9
 
 
 class TestCheckSeedPureSkipped:
