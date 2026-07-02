@@ -25,6 +25,7 @@
 | 8   | PM2 ecosystem + launchd decommission                 | phase-08-pm2-launchd-cutover.md         | [x]    |
 | 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [x]    |
 | 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
+| 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [ ]    |
 
 ## Review cycles
 
@@ -38,6 +39,18 @@
 - Design contradictions: none (all fixes move toward the frozen DESIGN)
 - Fix phase created: phase-10-pr-fixes-cycle-1.md
 - Status: fix phase COMPLETE (18 commits, 2 wrapper-timeout continuations recovered, 2 in-flight corrections: valid-empty tracker freeze, format stragglers) — make check green → pushed for re-review cycle 2
+
+### Cycle 2
+
+- Findings received: 16 (2 agents: code-reviewer verification pass + silent-failure-hunter)
+- Cycle-1 fixes verdict: ALL 11 areas confirmed SOUND by both agents (non-vacuous tests, no regression from finalization reordering / debounce_origin / module split)
+- Retained: 9 grouped (0 critical, 2 major, 7 medium) → 4 fix sub-phases
+  - MAJOR: whitespace-only tracker file bypasses the corrupt-file guard (mass-dispatch path); hardcoded child timeout 1800s vs verify_timeout_s ≤7200 (stranded paused injection on SIGKILL) + shutdown-blind spawn loop
+  - MEDIUM: inject/local-layout unguarded in check(); self-delete guard asymmetry (comment lies); never-queried trackers recorded as searched; sweep item-errors invisible (fabricated green one level down) + throttle bypass on error; exc_info missing on 5 catch-alls; guessit fallback at DEBUG; lister_error severity; qbittorrentapi terminal mapping
+- Ignored (informational): backoff growth under safety-net-only operation (clamped, by design); SIGTERM-during-child residual (design-inherent W5, acknowledged in comment)
+- Design contradictions: none
+- Fix phase created: phase-11-pr-fixes-cycle-2.md
+- Status: fix phase dispatched → awaiting /implement:phase
 
 ## Next action
 
