@@ -102,7 +102,7 @@ def test_build_is_inert_no_db_file_until_first_access(tmp_path: Path) -> None:
 
 
 def test_build_runs_migration_user_version_on_first_access(tmp_path: Path) -> None:
-    """After first sub-store access PRAGMA user_version == 1 (001_init.sql)."""
+    """After first sub-store access PRAGMA user_version reflects latest migration."""
     cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
     s = build_acquire_store(cfg)
     try:
@@ -111,18 +111,25 @@ def test_build_runs_migration_user_version_on_first_access(tmp_path: Path) -> No
         conn = sqlite3.connect(str(tmp_path / "acquire.db"))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         conn.close()
-        assert version == 1
+        assert version >= 2  # latest migration is 002_cross_seed.sql
     finally:
         s.close()
 
 
-def test_all_four_tables_exist(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """All four domain tables are present after the store opens."""
+def test_all_tables_exist(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """All domain tables (including cross-seed) are present after the store opens."""
     _ = store.follow  # ensure the store has opened + migrated
     conn = sqlite3.connect(str(tmp_path / "acquire.db"))
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
-    assert {"followed_series", "wanted", "seed_obligation", "ratio_state"} <= tables
+    assert {
+        "followed_series",
+        "wanted",
+        "seed_obligation",
+        "ratio_state",
+        "cross_seed_history",
+        "cross_seed_quota",
+    } <= tables
 
 
 def test_build_requires_resolved_db_path() -> None:

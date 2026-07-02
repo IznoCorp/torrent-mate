@@ -1,7 +1,8 @@
-"""Concrete ``AcquireStore`` over ``core/sqlite``: 4 sub-stores, lock-free reads.
+"""Concrete ``AcquireStore`` over ``core/sqlite``: 5 sub-stores, lock-free reads.
 
-One ``acquire.db`` file shared by four sub-store method namespaces
-(``store.follow.*``, ``store.wanted.*``, ``store.seed.*``, ``store.ratio.*``)
+One ``acquire.db`` file shared by five sub-store method namespaces
+(``store.follow.*``, ``store.wanted.*``, ``store.seed.*``, ``store.ratio.*``,
+``store.cross_seed.*``)
 over a single connection — matching the indexer precedent where one DB file
 backs many logical writers (no 3-file/3-lock split).
 
@@ -57,8 +58,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 from typing import cast
 
@@ -887,6 +890,109 @@ class _RatioSubStore:
             )
 
 
+class _CrossSeedSubStore:
+    """Writer + reader for the ``cross_seed_history`` and ``cross_seed_quota`` tables.
+
+    Records every cross-seed search attempt (upsert by source_hash+tracker)
+    and enforces a daily quota to prevent runaway searches during back-catalog
+    sweeps.  Reads are lock-free (WAL); writes use ``BEGIN IMMEDIATE``.
+    """
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        """Initialise with the shared connection.
+
+        Args:
+            conn: Shared :class:`sqlite3.Connection` to ``acquire.db``.
+        """
+        self._conn = conn
+
+    def record_search(self, source_hash: str, tracker: str) -> None:
+        """Record a cross-seed search attempt (upsert).
+
+        A re-search for the same source_hash+tracker pair updates
+        ``searched_at`` in-place so that the most recent attempt is
+        always the one checked by :meth:`was_searched_recently`.
+
+        Args:
+            source_hash: Torrent info-hash of the source (hex string).
+            tracker: Tracker identifier string (e.g. ``"lacale"``).
+        """
+        now = time.time()
+        with _write_tx(self._conn):
+            self._conn.execute(
+                """
+                INSERT INTO cross_seed_history (source_hash, tracker, searched_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(source_hash, tracker) DO UPDATE SET
+                    searched_at = excluded.searched_at
+                """,
+                (source_hash, tracker, now),
+            )
+
+    def was_searched_recently(self, source_hash: str, tracker: str, days: int) -> bool:
+        """Return ``True`` if the pair was searched within *days*.
+
+        Args:
+            source_hash: Torrent info-hash of the source (hex string).
+            tracker: Tracker identifier string.
+            days: Look-back window in calendar days (86400 seconds each).
+
+        Returns:
+            ``True`` if a row exists with ``searched_at >= cutoff``.
+        """
+        cutoff = time.time() - (days * 86400)
+        self._conn.row_factory = sqlite3.Row
+        row = self._conn.execute(
+            """
+            SELECT 1 FROM cross_seed_history
+            WHERE source_hash = ? AND tracker = ? AND searched_at >= ?
+            LIMIT 1
+            """,
+            (source_hash, tracker, cutoff),
+        ).fetchone()
+        return row is not None
+
+    def daily_searches_remaining(self, max_per_day: int) -> int:
+        """Return the remaining quota for today.
+
+        Reads the ``cross_seed_quota`` row for the current local date
+        (``YYYY-MM-DD``).  Returns ``max_per_day - used``, clamped to
+        ``>= 0``.
+
+        Args:
+            max_per_day: Maximum number of searches allowed per calendar day.
+
+        Returns:
+            Remaining quota, never negative.
+        """
+        today = date.today().isoformat()
+        self._conn.row_factory = sqlite3.Row
+        row = self._conn.execute(
+            "SELECT count FROM cross_seed_quota WHERE date = ?",
+            (today,),
+        ).fetchone()
+        used = row["count"] if row is not None else 0
+        return max(0, max_per_day - used)
+
+    def increment_daily_count(self) -> None:
+        """Increment today's search count (UPSERT).
+
+        If today's row does not exist yet, inserts it with ``count=1``.
+        Otherwise increments ``count`` by 1.  UNSAFE outside a transaction:
+        the caller must wrap this in ``_write_tx`` or an equivalent
+        ``BEGIN IMMEDIATE`` block.
+        """
+        today = date.today().isoformat()
+        with _write_tx(self._conn):
+            self._conn.execute(
+                """
+                INSERT INTO cross_seed_quota (date, count) VALUES (?, 1)
+                ON CONFLICT(date) DO UPDATE SET count = count + 1
+                """,
+                (today,),
+            )
+
+
 # ---------------------------------------------------------------------------
 # Concrete store
 # ---------------------------------------------------------------------------
@@ -901,15 +1007,16 @@ class ConcreteAcquireStore:
     ``BEGIN IMMEDIATE`` + ``busy_timeout``); no ``FileLock`` is held for the
     store's lifetime.
 
-    The four sub-stores are exposed as properties (``follow`` / ``wanted`` /
-    ``seed`` / ``ratio``) that ensure-open on first touch and return a sub-store
-    bound to the shared connection.
+    The five sub-stores are exposed as properties (``follow`` / ``wanted`` /
+    ``seed`` / ``ratio`` / ``cross_seed``) that ensure-open on first touch and
+    return a sub-store bound to the shared connection.
 
     Attributes:
         follow: ``followed_series`` sub-store (lazy).
         wanted: ``wanted`` sub-store (lazy).
         seed: ``seed_obligation`` sub-store (deletion authority, lazy).
         ratio: ``ratio_state`` sub-store (data-carrier, lazy).
+        cross_seed: ``cross_seed_history`` + ``cross_seed_quota`` sub-store (lazy).
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -928,6 +1035,7 @@ class ConcreteAcquireStore:
         self._wanted: _WantedSubStore | None = None
         self._seed: _SeedSubStore | None = None
         self._ratio: _RatioSubStore | None = None
+        self._cross_seed: _CrossSeedSubStore | None = None
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -1000,6 +1108,14 @@ class ConcreteAcquireStore:
         if self._ratio is None:
             self._ratio = _RatioSubStore(conn)
         return self._ratio
+
+    @property
+    def cross_seed(self) -> _CrossSeedSubStore:
+        """``cross_seed_history`` + ``cross_seed_quota`` sub-store (ensures open)."""
+        conn = self._ensure_open()
+        if self._cross_seed is None:
+            self._cross_seed = _CrossSeedSubStore(conn)
+        return self._cross_seed
 
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).

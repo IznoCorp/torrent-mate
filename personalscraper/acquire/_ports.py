@@ -1,15 +1,16 @@
 """Port protocols for the acquire lobe.
 
 RP5c established the minimal lifecycle seam (``close()``).  RP3 extends
-``AcquireStore`` with the query/write surface for the four sub-stores,
+``AcquireStore`` with the query/write surface for the five sub-stores,
 exposed as attribute namespaces:
 
-  * ``store.follow``  — ``followed_series`` writer + reader
-  * ``store.wanted``  — ``wanted`` writer + reader (status transitions)
-  * ``store.seed``    — ``seed_obligation`` writer + reader (deletion authority)
-  * ``store.ratio``   — ``ratio_state`` reader + upsert (data-carrier)
+  * ``store.follow``     — ``followed_series`` writer + reader
+  * ``store.wanted``     — ``wanted`` writer + reader (status transitions)
+  * ``store.seed``       — ``seed_obligation`` writer + reader (deletion authority)
+  * ``store.ratio``      — ``ratio_state`` reader + upsert (data-carrier)
+  * ``store.cross_seed`` — ``cross_seed_history`` + ``cross_seed_quota`` (watch-seed)
 
-All four sub-stores share a single ``acquire.db`` connection.  Cross-process
+All five sub-stores share a single ``acquire.db`` connection.  Cross-process
 single-writer is SQLite-native (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``):
 no ``FileLock`` is held for the store's lifetime, and reads are lock-free.  The
 concrete store opens lazily (on first sub-store access).  See
@@ -180,6 +181,27 @@ class RatioSubStore(Protocol):
 
 
 @runtime_checkable
+class CrossSeedSubStore(Protocol):
+    """Writer + reader for the ``cross_seed_history`` and ``cross_seed_quota`` tables."""
+
+    def record_search(self, source_hash: str, tracker: str) -> None:
+        """Record a cross-seed search attempt (upsert by source_hash+tracker)."""
+        ...
+
+    def was_searched_recently(self, source_hash: str, tracker: str, days: int) -> bool:
+        """Return ``True`` if the pair was searched within *days*."""
+        ...
+
+    def daily_searches_remaining(self, max_per_day: int) -> int:
+        """Return remaining quota for today (max_per_day - today's count)."""
+        ...
+
+    def increment_daily_count(self) -> None:
+        """Increment today's search count (UPSERT)."""
+        ...
+
+
+@runtime_checkable
 class AcquireStore(Protocol):
     """Full store contract for the acquisition lobe (RP3).
 
@@ -187,7 +209,7 @@ class AcquireStore(Protocol):
     cross-process by SQLite itself (WAL + ``BEGIN IMMEDIATE`` + ``busy_timeout``);
     reads are lock-free.  The concrete store opens lazily on first access.
 
-    The four sub-store namespaces are **read-only accessors** (the concrete
+    The five sub-store namespaces are **read-only accessors** (the concrete
     store exposes them as ensure-open properties): callers read ``store.follow``
     but never assign it.
     """
@@ -212,6 +234,11 @@ class AcquireStore(Protocol):
         """``ratio_state`` sub-store / data-carrier (opens on access)."""
         ...
 
+    @property
+    def cross_seed(self) -> CrossSeedSubStore:
+        """``cross_seed_history`` + ``cross_seed_quota`` sub-store (opens on access)."""
+        ...
+
     def close(self) -> None:
         """Release all resources held by the store (fail-soft — never raises)."""
         ...
@@ -219,6 +246,7 @@ class AcquireStore(Protocol):
 
 __all__ = [
     "AcquireStore",
+    "CrossSeedSubStore",
     "FollowSubStore",
     "RatioSubStore",
     "SeedSubStore",
