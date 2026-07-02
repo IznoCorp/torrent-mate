@@ -147,6 +147,57 @@ class QBitClient(
             )
         return Path(raw[0].content_path)
 
+    def list_files(self, info_hash: str) -> list[tuple[str, int]]:
+        """Return ``(name, size)`` for every file in a torrent.
+
+        Wraps qBittorrent ``torrents/files`` endpoint via
+        :meth:`qbittorrentapi.Client.torrents_files`.
+
+        Args:
+            info_hash: V1 info-hash of an active torrent.
+
+        Returns:
+            Ordered list of ``(relative_path, byte_size)`` for each file.
+
+        Raises:
+            ApiError: Torrent hash not found in qBittorrent (404).
+        """
+        try:
+            files = self._client.torrents_files(torrent_hash=info_hash)
+        except qbittorrentapi.NotFound404Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=404,
+                message=f"Torrent {info_hash} not found",
+            ) from exc
+        return [(entry.name, entry.size) for entry in files]
+
+    def properties(self, info_hash: str) -> dict[str, object]:
+        """Return the raw ``torrents/properties`` dict for *info_hash*.
+
+        Wraps qBittorrent ``torrents/properties`` endpoint via
+        :meth:`qbittorrentapi.Client.torrents_properties`.
+
+        Args:
+            info_hash: V1 info-hash of an active torrent.
+
+        Returns:
+            The full properties dictionary. The ``piece_size`` key is
+            the torrent's ``piece_length`` in bytes.
+
+        Raises:
+            ApiError: Torrent hash not found in qBittorrent (404).
+        """
+        try:
+            props = self._client.torrents_properties(torrent_hash=info_hash)
+        except qbittorrentapi.NotFound404Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=404,
+                message=f"Torrent {info_hash} not found",
+            ) from exc
+        return dict(props)
+
     # -- Protocol: mutations -------------------------------------------------
 
     def pause(self, hash: str) -> None:

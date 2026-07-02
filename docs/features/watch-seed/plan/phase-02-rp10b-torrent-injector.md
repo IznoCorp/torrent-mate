@@ -100,27 +100,37 @@ Add two methods to `QBitClient`:
 ```python
 def list_files(self, info_hash: str) -> list[tuple[str, int]]:
     """Return ``(name, size)`` for every file in a torrent."""
-    self._ensure_logged_in()
-    data = self._transport.get(
-        "/api/v2/torrents/files",
-        {"hash": info_hash},
-    )
-    return [
-        (entry["name"], entry["size"])
-        for entry in data
-    ]
+    try:
+        files = self._client.torrents_files(torrent_hash=info_hash)
+    except qbittorrentapi.NotFound404Error as exc:
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=404,
+            message=f"Torrent {info_hash} not found",
+        ) from exc
+    return [(entry.name, entry.size) for entry in files]
 
 
 def properties(self, info_hash: str) -> dict[str, object]:
     """Return the raw ``torrents/properties`` dict."""
-    self._ensure_logged_in()
-    return self._transport.get(
-        "/api/v2/torrents/properties",
-        {"hash": info_hash},
-    )
+    try:
+        props = self._client.torrents_properties(torrent_hash=info_hash)
+    except qbittorrentapi.NotFound404Error as exc:
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=404,
+            message=f"Torrent {info_hash} not found",
+        ) from exc
+    return dict(props)
 ```
 
-Reuse the existing `_ensure_logged_in()` + `_transport.get()` pattern. Both methods are read-only and use the existing `TORRENT_LISTING_ERRORS` except-tuple.
+Uses `self._client.torrents_files` / `self._client.torrents_properties`
+(the real qbittorrentapi.Client methods). Both methods catch
+`qbittorrentapi.NotFound404Error` (raised by the library for an unknown hash)
+and re-raise as `ApiError(http_status=404)` — consistent with the
+`get_content_path` unknown-hash pattern. The methods are read-only; callers
+can wrap them with `TORRENT_LISTING_ERRORS` (`NotFound404Error` inherits from
+`qbittorrentapi.APIError`, which is in the except-tuple).
 
 ## Sub-phase 2.3 — inject on QBitClient
 
