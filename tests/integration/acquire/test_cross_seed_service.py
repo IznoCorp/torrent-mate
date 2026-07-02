@@ -163,6 +163,7 @@ def make_config(
     max_searches_per_day: int = 250,
     min_delay_between_searches_s: int = 30,
     exclude_recent_search_days: int = 3,
+    verify_timeout_s: int = 120,
     tracker_providers: dict[str, TrackerProviderConfig] | None = None,
     tracker_priority: list[str] | None = None,
 ) -> Config:
@@ -176,6 +177,7 @@ def make_config(
         max_searches_per_day: Daily sweep quota.
         min_delay_between_searches_s: Inter-search delay for sweep.
         exclude_recent_search_days: History look-back window.
+        verify_timeout_s: Recheck verification timeout (default 120 for tests).
         tracker_providers: Per-tracker configuration dict.
         tracker_priority: Ordered tracker priority list.
 
@@ -213,6 +215,7 @@ def make_config(
             max_searches_per_day=max_searches_per_day,
             min_delay_between_searches_s=min_delay_between_searches_s,
             exclude_recent_search_days=exclude_recent_search_days,
+            verify_timeout_s=verify_timeout_s,
         ),
         tracker=TrackerConfig(
             providers=tracker_providers,
@@ -463,6 +466,16 @@ class FakeRegistry:
         self.last_media_type: MediaType | None = None
         """The *media_type* argument received by the most recent
         :meth:`search_candidates` call, or ``None`` before the first call."""
+        self._errored: set[str] = set()
+        """Tracker names that should simulate an error in :meth:`search_candidates`."""
+
+    def seed_errored(self, names: set[str]) -> None:
+        """Configure which tracker names should simulate errors.
+
+        On the next :meth:`search_candidates` call, trackers in this set
+        are skipped (no results returned) and counted as errored.
+        """
+        self._errored = set(names)
 
     def search_candidates(
         self,
@@ -483,16 +496,23 @@ class FakeRegistry:
         self.last_media_type = media_type
         all_results: list[TrackerResult] = []
         queried = 0
+        errored = 0
+        errored_names: list[str] = []
         for name in self._priority:
             tracker = self._trackers.get(name)
             if tracker is None:
                 continue
             queried += 1
+            if name in self._errored:
+                errored += 1
+                errored_names.append(name)
+                continue
             all_results.extend(tracker.search(query, media_type, year))
         return SearchOutcome(
             results=all_results,
             trackers_queried=queried,
-            trackers_errored=0,
+            trackers_errored=errored,
+            errored_names=errored_names,
         )
 
     def transports(self) -> dict[str, FakeTransport]:
@@ -844,14 +864,16 @@ class TestCheckRecheckFails:
         # -- Assert -----------------------------------------------------------
         # Not injected.
         assert result.injected == []
-        # Rejected with reason recheck_failed.
+        # Rejected with reason verify_timeout (deadline passed, no definitive
+        # verdict — the current progress-only poll cannot distinguish a
+        # completed-check-failed from a still-running recheck).
         assert len(result.rejected) == 1
         _, rejected_tracker, rejected_reason = result.rejected[0]
         assert rejected_tracker == _TRACKER_TORR9
-        assert rejected_reason == "recheck_failed"
+        assert rejected_reason == "verify_timeout"
 
-        # EventBus: a CrossSeedRejected with reason=recheck_failed was emitted.
-        recheck_rejections = [e for e in rejected_events if e.reason == "recheck_failed"]
+        # EventBus: a CrossSeedRejected with reason=verify_timeout was emitted.
+        recheck_rejections = [e for e in rejected_events if e.reason == "verify_timeout"]
         assert len(recheck_rejections) == 1
         assert recheck_rejections[0].info_hash == injected_hash
         assert recheck_rejections[0].tracker == _TRACKER_TORR9
@@ -1749,7 +1771,7 @@ class TestSelfDeleteAverted:
             # Verify failed → rejected, but delete was NOT called.
             assert result.injected == []
             assert len(result.rejected) >= 1
-            assert any(r[2] == "recheck_failed" for r in result.rejected)
+            assert any(r[2] == "verify_timeout" for r in result.rejected)
             assert len(fake_client.deleted) == 0, (
                 f"Delete was called but should have been averted: {fake_client.deleted}"
             )
@@ -2069,7 +2091,184 @@ class TestMediaTypeFor:
         def _raise(*args: object, **kwargs: object) -> None:
             raise RuntimeError("guessit failure")
 
-        monkeypatch.setattr("personalscraper.acquire.cross_seed.guess", _raise)
+        monkeypatch.setattr("personalscraper.acquire._cross_seed_support.guess", _raise)
 
         result = _media_type_for("Show.S01E01.1080p.x264-GROUP")
         assert result == MediaType.MOVIE
+
+
+# ===========================================================================
+# Tests: tracker-outage handling (sub-phase 10.7)
+# ===========================================================================
+
+
+class TestErroredTrackerNotRecorded:
+    """test_errored_tracker_not_recorded_in_history (sub-phase 10.7a)."""
+
+    def test_errored_tracker_not_recorded_search_history(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Tracker that errors is NOT recorded in search history → retry possible.
+
+        A tracker outage that suppresses retries for exclude_recent_search_days
+        (3 d) is a silent data-loss bug.  Only trackers that actually succeeded
+        (returned results or zero hits) should be recorded.
+        """
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # torr9 succeeds (has candidate), lacale errors.
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+        # lacale errors → no candidates from it, errored_names = ["lacale"].
+        fake_registry.seed_errored({_TRACKER_LACALE})
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Injection succeeded via torr9 (the non-errored tracker).
+        assert len(result.injected) == 1
+
+        # torr9 (succeeded) IS recorded in search history.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+
+        # lacale (errored) is NOT recorded → retry possible next check.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_LACALE, days=3) is False
+
+
+class TestVerifyTimeoutConfig:
+    """test_verify_timeout_s_default_and_used (sub-phase 10.7c)."""
+
+    def test_verify_timeout_default_is_900(self) -> None:
+        """Default ``verify_timeout_s`` is 900 (15 min), not the old 120 constant."""
+        cfg = CrossSeedConfig()
+        assert cfg.verify_timeout_s == 900, f"Expected default 900, got {cfg.verify_timeout_s}"
+
+    def test_verify_timeout_below_30_rejected(self) -> None:
+        """Values below 30 are rejected by pydantic validation."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            CrossSeedConfig(verify_timeout_s=10)
+
+    def test_verify_timeout_above_7200_rejected(self) -> None:
+        """Values above 7200 are rejected by pydantic validation."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            CrossSeedConfig(verify_timeout_s=8000)
+
+    def test_verify_timeout_emits_reason_verify_timeout(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Timeout during verify → rejection reason is ``verify_timeout``, not ``recheck_failed``."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        # Override inject: do NOT add completed entry → verify never succeeds.
+        def _inject_no_complete(
+            torrent_bytes: bytes,
+            *,
+            save_path: str,
+            recheck: bool = True,
+            paused: bool = True,
+        ) -> str:
+            info_hash = _derive_injected_hash(torrent_bytes)
+            fake_client.injected.append((torrent_bytes, save_path, recheck, paused))
+            fake_client.injected_hashes.append(info_hash)
+            fake_client._files[info_hash] = fake_client._files.get(_SOURCE_HASH, [])
+            fake_client._props[info_hash] = {"piece_size": 262144}
+            return info_hash
+
+        fake_client.inject = _inject_no_complete  # type: ignore[method-assign]
+
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        # Use a non-default verify_timeout_s to prove the config value is read.
+        cfg = make_config(tmp_path, verify_timeout_s=60)
+        clock_ticks = iter([0.0, 2.0, 65.0])  # deadline=60, tick 65 > 60 → timeout
+        sleep_log: list[float] = []
+
+        rejected_events: list[CrossSeedRejected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedRejected, lambda e: rejected_events.append(e))
+
+        svc = _build_service(
+            cfg,
+            store,
+            fake_client,
+            fake_registry,
+            clock=lambda: next(clock_ticks),
+            sleep=lambda s: sleep_log.append(s),
+            event_bus=bus,
+        )
+
+        # -- Act --------------------------------------------------------------
+        result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Rejection reason is verify_timeout, not recheck_failed.
+        assert len(result.rejected) == 1
+        _, _, rejected_reason = result.rejected[0]
+        assert rejected_reason == "verify_timeout", f"Expected verify_timeout, got {rejected_reason}"
+
+        # CrossSeedRejected with reason=verify_timeout emitted.
+        timeout_rejections = [e for e in rejected_events if e.reason == "verify_timeout"]
+        assert len(timeout_rejections) == 1
+        assert timeout_rejections[0].info_hash == injected_hash

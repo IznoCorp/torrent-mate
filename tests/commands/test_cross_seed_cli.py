@@ -141,3 +141,24 @@ def test_cross_seed_service_none_exits_one() -> None:
     assert "no compatible torrent client" in result.output.lower() or "not available" in result.output.lower(), (
         f"Expected 'not available' or 'no compatible torrent client' in output; got:\n{result.output}"
     )
+
+
+# ── 7.  Sweep lister failure → exit 1 (sub-phase 10.7b) ───────────────────
+
+
+def test_cross_seed_sweep_lister_failed_exits_one() -> None:
+    """``cross-seed --sweep`` exits 1 when ``lister_failed`` is True."""
+    mock_service = MagicMock()
+    mock_service.sweep.return_value = SweepResult(
+        checked=0,
+        injected=0,
+        quota_exhausted=False,
+        lister_failed=True,
+    )
+
+    result = _invoke(["cross-seed", "--sweep"], cross_seed_service=mock_service)
+
+    assert result.exit_code == 1, f"Expected exit 1 for lister_failed; got {result.exit_code}:\n{result.output}"
+    assert "could not enumerate" in result.output.lower() or "failed" in result.output.lower(), (
+        f"Expected red error about enumeration failure; got:\n{result.output}"
+    )
