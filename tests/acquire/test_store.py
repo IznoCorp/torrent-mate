@@ -862,3 +862,31 @@ def test_acquire_errors_subclass_core_markers() -> None:
     assert isinstance(corrupt_err, SqliteCorruptError)
     assert corrupt_err.db_path == Path("/db/acquire.db")
     assert corrupt_err.quarantine_path == Path("/db/acquire.db.corrupt-1")
+
+
+# ---------------------------------------------------------------------------
+# _WatchSubStore — real round-trip on tmp acquire.db
+# ---------------------------------------------------------------------------
+
+
+def test_watch_get_returns_none_when_never_set(store):
+    """watch.get_last_successful_run_at returns None before any write."""
+    assert store.watch.get_last_successful_run_at() is None
+
+
+def test_watch_set_then_get_round_trip(store):
+    """watch.set_last_successful_run_at persists a value readable by get."""
+    store.watch.set_last_successful_run_at(1234.5)
+    assert store.watch.get_last_successful_run_at() == 1234.5
+
+
+def test_watch_set_upsert_overwrites_previous_value(store):
+    """A second set_last_successful_run_at upserts (replaces, not duplicates)."""
+    store.watch.set_last_successful_run_at(1234.5)
+    store.watch.set_last_successful_run_at(2000.0)
+    assert store.watch.get_last_successful_run_at() == 2000.0
+    # Verify no duplicate rows — only one canonical key should exist.
+    conn = store.watch._conn
+    conn.row_factory = lambda cursor, row: row[0]
+    count: int = conn.execute("SELECT COUNT(*) FROM watch_state WHERE key = 'last_successful_run_at'").fetchone()
+    assert count == 1

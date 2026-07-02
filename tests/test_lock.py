@@ -2,7 +2,7 @@
 
 import os
 
-from personalscraper.lock import acquire_lock, release_lock
+from personalscraper.lock import acquire_lock, is_lock_held, release_lock
 
 
 def test_acquire_creates_lock(tmp_path):
@@ -129,3 +129,52 @@ def test_acquire_lock_permission_error_other_user(tmp_path, monkeypatch):
     assert acquire_lock(lock_file) is False
     # Lock file untouched
     assert lock_file.read_text().strip() == "12345"
+
+
+# ---------------------------------------------------------------------------
+# is_lock_held — read-only probe (5 direct tests)
+# ---------------------------------------------------------------------------
+
+
+def test_is_lock_held_missing_file_returns_false(tmp_path):
+    """is_lock_held returns False when the lock file does not exist."""
+    lock_file = tmp_path / "pipeline.lock"
+    assert is_lock_held(lock_file) is False
+
+
+def test_is_lock_held_corrupt_pid_returns_false(tmp_path):
+    """is_lock_held returns False when the lock file contains non-integer text."""
+    lock_file = tmp_path / "pipeline.lock"
+    lock_file.write_text("not_a_number")
+    assert is_lock_held(lock_file) is False
+
+
+def test_is_lock_held_stale_dead_pid_returns_false(tmp_path, monkeypatch):
+    """is_lock_held returns False when the stored PID belongs to a dead process."""
+    lock_file = tmp_path / "pipeline.lock"
+    lock_file.write_text(str(os.getpid()))
+
+    def _raise_process_lookup(_pid, _sig):
+        raise ProcessLookupError("no such process")
+
+    monkeypatch.setattr("personalscraper.lock.os.kill", _raise_process_lookup)
+    assert is_lock_held(lock_file) is False
+
+
+def test_is_lock_held_live_pid_returns_true(tmp_path):
+    """is_lock_held returns True when the stored PID is the current process."""
+    lock_file = tmp_path / "pipeline.lock"
+    lock_file.write_text(str(os.getpid()))
+    assert is_lock_held(lock_file) is True
+
+
+def test_is_lock_held_permission_error_returns_true(tmp_path, monkeypatch):
+    """is_lock_held returns True on PermissionError — lock held by another user."""
+    lock_file = tmp_path / "pipeline.lock"
+    lock_file.write_text("12345")
+
+    def _raise_permission(_pid, _sig):
+        raise PermissionError("not allowed")
+
+    monkeypatch.setattr("personalscraper.lock.os.kill", _raise_permission)
+    assert is_lock_held(lock_file) is True

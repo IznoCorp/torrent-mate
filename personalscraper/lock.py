@@ -86,10 +86,12 @@ def is_lock_held(lock_file: Path | None = None) -> bool:
 
     Implements the SAME stale-PID detection as :func:`acquire_lock` — exists +
     valid PID integer + ``os.kill(pid, 0)`` alive → ``True``; missing / stale /
-    corrupt / owned by another user → ``False`` — but performs NO write and
-    NEVER unlinks the file.  Safe to call every poll cycle from a long-lived
-    daemon (the Watcher loop) that must not mutate a lock owned by a concurrent
-    pipeline run.
+    corrupt → ``False`` (with no write and no unlink); owned by another user
+    (``PermissionError`` on ``os.kill``) → ``True`` (lock held by another
+    user's live process, mirroring :func:`acquire_lock`).
+
+    Safe to call every poll cycle from a long-lived daemon (the Watcher loop)
+    that must not mutate a lock owned by a concurrent pipeline run.
 
     Args:
         lock_file: Path to the lock file.  Defaults to
@@ -105,8 +107,17 @@ def is_lock_held(lock_file: Path | None = None) -> bool:
         return False
     try:
         stored_pid = int(lock_file.read_text().strip())
-    except (ValueError, OSError):
-        # Corrupt PID file or unreadable — lock is effectively not held.
+    except ValueError:
+        # Corrupt PID text — lock is effectively not held.
+        return False
+    except OSError:
+        # Unreadable file — log the error, treat as not held.
+        log.warning(
+            "lock_read_failed",
+            lock_file=str(lock_file),
+            errno=getattr(lock_file.stat(), "st_mode", None),
+            exc_info=True,
+        )
         return False
     try:
         os.kill(stored_pid, 0)
