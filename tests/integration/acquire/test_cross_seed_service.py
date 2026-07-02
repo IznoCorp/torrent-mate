@@ -955,9 +955,7 @@ class TestCheckOriginExcluded:
 
         # lacale (origin) has candidates — must be excluded.
         fake_lacale_transport = FakeTransport(provider_name=_TRACKER_LACALE)
-        lacale_results = [
-            _candidate_result(provider=_TRACKER_LACALE, download_url="https://lacale.example.com/dl/1")
-        ]
+        lacale_results = [_candidate_result(provider=_TRACKER_LACALE, download_url="https://lacale.example.com/dl/1")]
 
         # torr9 (eligible) has a structurally-matching candidate → should be injected.
         torr9_url = "https://torr9.example.com/dl/456"
