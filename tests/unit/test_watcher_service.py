@@ -417,9 +417,14 @@ class TestWatcherService:
         - multiplier 3 → 3600 s (clamped, would be 7200)
         - multiplier 4 → 3600 s (still clamped)
         """
-        svc = WatcherService(WatchConfig(
-            enabled=True, debounce_s=900, safety_net_hours=1, poll_interval_s=60,
-        ))
+        svc = WatcherService(
+            WatchConfig(
+                enabled=True,
+                debounce_s=900,
+                safety_net_hours=1,
+                poll_interval_s=60,
+            )
+        )
         t = 1_000_000.0
 
         # multiplier 0 → delay = min(900, 3600) = 900
@@ -527,9 +532,14 @@ class TestWatcherService:
         safety-net fire sets origin="safety_net", branch 4 must leave the
         window intact.
         """
-        svc = WatcherService(WatchConfig(
-            enabled=True, debounce_s=60, safety_net_hours=1, poll_interval_s=10,
-        ))
+        svc = WatcherService(
+            WatchConfig(
+                enabled=True,
+                debounce_s=60,
+                safety_net_hours=1,
+                poll_interval_s=10,
+            )
+        )
         t = 1_000_000.0
 
         # Set up state as if a safety-net fire just happened.

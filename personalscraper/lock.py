@@ -110,12 +110,12 @@ def is_lock_held(lock_file: Path | None = None) -> bool:
     except ValueError:
         # Corrupt PID text — lock is effectively not held.
         return False
-    except OSError:
+    except OSError as exc:
         # Unreadable file — log the error, treat as not held.
         log.warning(
             "lock_read_failed",
             lock_file=str(lock_file),
-            errno=getattr(lock_file.stat(), "st_mode", None),
+            errno=exc.errno,
             exc_info=True,
         )
         return False

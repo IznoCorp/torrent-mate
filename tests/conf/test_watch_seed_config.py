@@ -178,9 +178,7 @@ class TestConfigJson5CrossSeedBlocks:
         # cross_seed block must contain verify_timeout_s key (anti-drift).
         # The key is commented-out in JSON5, so check the raw file text.
         raw_text = ws_path.read_text(encoding="utf-8")
-        assert "verify_timeout_s" in raw_text, (
-            "config/watch_seed.json5 must contain 'verify_timeout_s' key (commented)"
-        )
+        assert "verify_timeout_s" in raw_text, "config/watch_seed.json5 must contain 'verify_timeout_s' key (commented)"
 
         # Local master overlays reference
         master_path = _LOCAL_DIR / "config.json5"
