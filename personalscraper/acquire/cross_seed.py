@@ -370,8 +370,50 @@ class CrossSeedService:
                 )
 
                 if self._verify_injection(injected_hash):
-                    # Verified → resume, tag SEED_PURE, write obligation (D10).
-                    self._controller.resume(injected_hash)
+                    # D10 — write-then-resume finalization:
+                    # (i) persist obligation FIRST (abort on failure);
+                    # (ii) resume (log but keep obligation on failure);
+                    # (iii) tag (best-effort); (iv) emit event.
+                    try:
+                        self._write_obligation(injected_hash, tracker, item)
+                    except Exception as exc:  # noqa: BLE001 — caller handles
+                        logger.error(
+                            "acquire.cross_seed.obligation_write_failed",
+                            info_hash=injected_hash,
+                            tracker=tracker,
+                            error=str(exc),
+                            consequence="hit_and_run_risk — deleting injection",
+                        )
+                        try:
+                            self._controller.delete(injected_hash, delete_files=False)
+                        except Exception as del_exc:  # noqa: BLE001 — best-effort cleanup
+                            logger.error(
+                                "acquire.cross_seed.obligation_delete_failed",
+                                info_hash=injected_hash,
+                                error=str(del_exc),
+                            )
+                        result.rejected.append((injected_hash, tracker, "obligation_write_failed"))
+                        self._event_bus.emit(
+                            CrossSeedRejected(
+                                info_hash=injected_hash,
+                                tracker=tracker,
+                                reason="obligation_write_failed",
+                                source_hash=info_hash,
+                            )
+                        )
+                        continue
+
+                    try:
+                        self._controller.resume(injected_hash)
+                    except Exception as exc:  # noqa: BLE001 — state is recoverable
+                        logger.error(
+                            "acquire.cross_seed.stranded_paused_injection",
+                            info_hash=injected_hash,
+                            save_path=item.save_path,
+                            error=str(exc),
+                            hint="manual_resume_required",
+                        )
+
                     try:
                         self._tagger.add_tags(injected_hash, [SEED_PURE])
                     except Exception as exc:  # noqa: BLE001 — best-effort tagging
@@ -379,8 +421,9 @@ class CrossSeedService:
                             "acquire.cross_seed.tag_failed",
                             info_hash=injected_hash,
                             error=str(exc),
+                            consequence="will_be_reprocessed_as_new_work_until_tagged",
                         )
-                    self._write_obligation(injected_hash, tracker, item)
+
                     self._event_bus.emit(
                         CrossSeedInjected(
                             info_hash=injected_hash,
@@ -413,7 +456,14 @@ class CrossSeedService:
                             tracker=tracker,
                         )
                     else:
-                        self._controller.delete(injected_hash, delete_files=False)
+                        try:
+                            self._controller.delete(injected_hash, delete_files=False)
+                        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+                            logger.error(
+                                "acquire.cross_seed.recheck_failed_delete_error",
+                                info_hash=injected_hash,
+                                error=str(exc),
+                            )
                     logger.warning(
                         "acquire.cross_seed.rejected",
                         info_hash=info_hash,
@@ -508,7 +558,15 @@ class CrossSeedService:
             if need_sleep:
                 self._sleep(delay)
 
-            result = self.check(item.hash)
+            try:
+                result = self.check(item.hash)
+            except Exception as exc:  # noqa: BLE001 — per-item isolation
+                logger.error(
+                    "acquire.cross_seed.sweep_item_error",
+                    info_hash=item.hash,
+                    error=str(exc),
+                )
+                continue
             checked += 1
             injected += len(result.injected)
 
@@ -713,9 +771,10 @@ class CrossSeedService:
     def _write_obligation(self, injected_hash: str, tracker: str, source_item: TorrentItem) -> None:
         """Write a :class:`SeedObligation` for the verified cross-seed injection.
 
-        Fail-soft: a store write error is logged and swallowed — a lost
-        obligation degrades to fail-open at deletion time, same contract as
-        :class:`DeleteAuthority.record_dispatch`.
+        Raises the original exception on store write failure so the caller
+        can abort finalization (delete the injection, reject the candidate)
+        rather than silently seeding with no obligation row (hit-and-run risk).
+        The caller is responsible for logging the ERROR with the H&R consequence.
 
         Obligation fields (D10): ``source_tracker`` is the *target* tracker
         (where the cross-seed was injected), ``min_seed_time_s`` /
@@ -727,6 +786,9 @@ class CrossSeedService:
             injected_hash: The info-hash of the injected torrent.
             tracker: The target tracker name.
             source_item: The source :class:`TorrentItem` (for content path).
+
+        Raises:
+            Exception: The store write error, re-raised for the caller to handle.
         """
         provider_cfg = self._config.tracker.providers.get(tracker)
         economy = provider_cfg.economy if provider_cfg else None
@@ -743,15 +805,7 @@ class CrossSeedService:
             added_at=int(_time_module.time()),
             dispatched_path=dispatched_path,
         )
-        try:
-            self._store.seed.add(obligation)
-        except Exception as exc:  # noqa: BLE001 — fail-soft store write
-            logger.warning(
-                "acquire.cross_seed.obligation_write_failed",
-                info_hash=injected_hash,
-                tracker=tracker,
-                error=str(exc),
-            )
+        self._store.seed.add(obligation)
 
 
 def _normalize_qbit_files(
