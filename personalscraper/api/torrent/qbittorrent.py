@@ -192,6 +192,12 @@ class QBitClient(
                 http_status=0,
                 message=f"qBittorrent list_files connection error: {exc}",
             ) from exc
+        except qbittorrentapi.APIError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=502,
+                message=f"qBittorrent list_files failed: {exc}",
+            ) from exc
         return [(entry.name, entry.size) for entry in files]
 
     def properties(self, info_hash: str) -> dict[str, object]:
@@ -237,6 +243,12 @@ class QBitClient(
                 http_status=0,
                 message=f"qBittorrent properties connection error: {exc}",
             ) from exc
+        except qbittorrentapi.APIError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=502,
+                message=f"qBittorrent properties failed: {exc}",
+            ) from exc
         return dict(props)
 
     # -- Protocol: mutations -------------------------------------------------
@@ -278,6 +290,12 @@ class QBitClient(
                 http_status=0,
                 message=f"qBittorrent resume connection error: {exc}",
             ) from exc
+        except qbittorrentapi.APIError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=502,
+                message=f"qBittorrent resume failed: {exc}",
+            ) from exc
 
     def delete(self, hash: str, *, delete_files: bool = False) -> None:
         """Delete a torrent by hash.
@@ -308,6 +326,12 @@ class QBitClient(
                 provider=ProviderName.QBITTORRENT,
                 http_status=0,
                 message=f"qBittorrent delete connection error: {exc}",
+            ) from exc
+        except qbittorrentapi.APIError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=502,
+                message=f"qBittorrent delete failed: {exc}",
             ) from exc
 
     def add(

@@ -100,8 +100,8 @@ def _media_type_for(name: str) -> MediaType:
         parsed = guess(name)
         if parsed.get("type") == "episode":
             return MediaType.TV
-    except Exception:
-        logger.debug("acquire.cross_seed.guessit_failed", name=name)
+    except Exception as exc:
+        logger.warning("acquire.cross_seed.guessit_failed", name=name, error=str(exc))
     return MediaType.MOVIE
 
 

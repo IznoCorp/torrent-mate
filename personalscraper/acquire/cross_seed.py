@@ -401,6 +401,7 @@ class CrossSeedService:
                             tracker=tracker,
                             error=str(exc),
                             consequence="hit_and_run_risk — deleting injection",
+                            exc_info=True,
                         )
                         # Belt-and-braces: guard the delete when injected_hash
                         # equals the source info_hash (self-candidate that
@@ -426,6 +427,7 @@ class CrossSeedService:
                                     "acquire.cross_seed.obligation_delete_failed",
                                     info_hash=injected_hash,
                                     error=str(del_exc),
+                                    exc_info=True,
                                 )
                         result.rejected.append((injected_hash, tracker, "obligation_write_failed"))
                         self._event_bus.emit(
@@ -447,6 +449,7 @@ class CrossSeedService:
                             save_path=item.save_path,
                             error=str(exc),
                             hint="manual_resume_required",
+                            exc_info=True,
                         )
 
                     try:
@@ -506,6 +509,7 @@ class CrossSeedService:
                                 "acquire.cross_seed.recheck_failed_delete_error",
                                 info_hash=injected_hash,
                                 error=str(exc),
+                                exc_info=True,
                             )
                     logger.warning(
                         "acquire.cross_seed.rejected",
@@ -575,7 +579,7 @@ class CrossSeedService:
         try:
             completed = self._lister.get_completed()
         except Exception as exc:  # noqa: BLE001 — fail-soft, logged
-            logger.warning(
+            logger.error(
                 "acquire.cross_seed.sweep.lister_error",
                 error=str(exc),
             )
@@ -609,6 +613,7 @@ class CrossSeedService:
                     "acquire.cross_seed.sweep_item_error",
                     info_hash=item.hash,
                     error=str(exc),
+                    exc_info=True,
                 )
                 item_errors += 1
                 # Consume quota + set sleep even on error — the search was
