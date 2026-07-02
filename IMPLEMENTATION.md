@@ -27,6 +27,7 @@
 | 10  | PR fixes cycle 1                                     | phase-10-pr-fixes-cycle-1.md            | [x]    |
 | 11  | PR fixes cycle 2                                     | phase-11-pr-fixes-cycle-2.md            | [x]    |
 | 12  | PR fixes cycle 3                                     | phase-12-pr-fixes-cycle-3.md            | [x]    |
+| 13  | PR polish (cycle 4 optional LOW)                     | phase-13-pr-polish-cycle-4.md           | [ ]    |
 
 ## Review cycles
 
@@ -64,6 +65,15 @@
 - Design contradictions: none
 - Fix phase created: phase-12-pr-fixes-cycle-3.md
 - Status: fix phase COMPLETE (2 sub-phases, 2 commits, no timeout) — make check green (91.02% cov) → pushed for re-review cycle 4
+
+### Cycle 4
+
+- Findings received: cycle-3 fixes verified by 2 agents (code-reviewer + silent-failure-hunter)
+- Verdict: LOOP CONVERGED (Case A) — both agents: "sound and mergeable", "cycle 4: clean". Both cycle-3 fixes (F1 media-type scoping, F2 UnicodeDecodeError guard) confirmed correct/complete/non-vacuous, no new regression, no new silent failure. 0 critical, 0 major, 0 medium.
+- Retained: 0 blocking. 2 LOW observability items (both explicitly "optional / not merge-blocker"): skip_reason conflation on the media-type-drop path; no direct unit test for production TrackerRegistry.queryable_for.
+- Decision: loop exits (Case A). Per operator "nothing deferred without sign-off", the 2 LOW items are RESOLVED (not deferred) in an optional polish phase 13 before handing off for the manual merge.
+- Fix phase created: phase-13-pr-polish-cycle-4.md
+- Status: polish dispatched → then manual merge (operator)
 
 ## Next action
 
