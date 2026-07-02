@@ -484,13 +484,28 @@ class CrossSeedService:
                 piece_size_type=type(piece_size_raw).__name__,
             )
             return None
+        # Read meta_version from properties when available.
+        # qBittorrent does not expose this in ``torrents/properties``, but
+        # the fake injector in tests can inject it so the v2/hybrid skip is
+        # exercised — and a future qBit API that DOES include it Just Works.
+        meta_version_raw = props.get("meta_version")
+        if meta_version_raw is not None:
+            if isinstance(meta_version_raw, int):
+                meta_version = meta_version_raw
+            elif isinstance(meta_version_raw, str):
+                meta_version = int(meta_version_raw)
+            else:
+                meta_version = 1
+        else:
+            meta_version = 1
+
         total_size = sum(size for _, size in files)
         return TorrentLayout(
             name=item.name,
             piece_length=piece_length,
             files=files,
             total_size=total_size,
-            meta_version=1,
+            meta_version=meta_version,
         )
 
     def _resolve_origin(self, item: TorrentItem) -> str | None:
