@@ -58,6 +58,24 @@ class CrossSeedResult:
     skip_reason: str | None = None
 
 
+@dataclass
+class SweepResult:
+    """Result of one :meth:`CrossSeedService.sweep` call (X2 — back-catalog).
+
+    Attributes:
+        checked: Number of torrents where :meth:`CrossSeedService.check` was
+            actually invoked.
+        injected: Total number of successfully injected cross-seeds across
+            all checked torrents.
+        quota_exhausted: ``True`` when the sweep stopped early because the
+            daily quota was reached.
+    """
+
+    checked: int = 0
+    injected: int = 0
+    quota_exhausted: bool = False
+
+
 class CrossSeedService:
     """Orchestrates cross-seed matching + injection for completed torrents.
 
@@ -309,6 +327,103 @@ class CrossSeedService:
 
         return result
 
+    def sweep(self) -> SweepResult:
+        """Throttled back-catalog sweep over all completed torrents (X2 — D6).
+
+        Iterates every completed torrent via :meth:`TorrentLister.get_completed`,
+        skipping ``SEED_PURE``-tagged items.  For each eligible torrent:
+
+        * **Quota gate** — checks
+          :meth:`~personalscraper.acquire.store._CrossSeedSubStore.daily_searches_remaining`
+          against ``max_searches_per_day``; stops early when quota is exhausted.
+        * Calls :meth:`check` for the torrent.
+        * Only counts a **quota unit** when :meth:`check` actually searched
+          (i.e. the result was NOT skipped) — one unit per source torrent,
+          even when ``check()`` queries several trackers.  This is documented
+          in the :class:`~personalscraper.conf.models.watch_seed.CrossSeedConfig`
+          docstring: the quota is per-source-torrent sweep operation.
+        * Honours ``min_delay_between_searches_s`` by sleeping between
+          quota-counted ``check()`` calls (not after skipped ones, not after
+          the last).
+
+        Per-completion searches (``check()`` called standalone) are
+        **quota-exempt** — only the back-catalog sweep counts toward the
+        daily cap.
+
+        Global kill-switch: when ``cross_seed.enabled`` is ``False``, returns
+        immediately with all fields zero and ``quota_exhausted=False``.
+
+        Returns:
+            A :class:`SweepResult` with counts for checked, injected, and
+            whether the sweep stopped early due to quota exhaustion.
+        """
+        # Global kill-switch.
+        if not self._config.cross_seed.enabled:
+            logger.info("acquire.cross_seed.sweep.skip", reason="disabled")
+            return SweepResult()
+
+        logger.info("acquire.cross_seed.sweep.started")
+
+        checked = 0
+        injected = 0
+        quota_exhausted = False
+        max_per_day = self._config.cross_seed.max_searches_per_day
+        delay = self._config.cross_seed.min_delay_between_searches_s
+        need_sleep = False  # Set after a quota-counted check(); cleared on skip.
+
+        try:
+            completed = self._lister.get_completed()
+        except Exception as exc:  # noqa: BLE001 — fail-soft, logged
+            logger.warning(
+                "acquire.cross_seed.sweep.lister_error",
+                error=str(exc),
+            )
+            return SweepResult()
+
+        for item in completed:
+            # Skip SEED_PURE (cheap tag check — avoids wasted check() call).
+            if SEED_PURE in item.tags:
+                continue
+
+            # Quota gate — stop if no daily searches remain.
+            remaining = self._store.cross_seed.daily_searches_remaining(max_per_day)
+            if remaining <= 0:
+                quota_exhausted = True
+                logger.info(
+                    "acquire.cross_seed.sweep.quota_exhausted",
+                    checked=checked,
+                    injected=injected,
+                    max_per_day=max_per_day,
+                )
+                break
+
+            # Honour inter-search delay between quota-counted calls.
+            if need_sleep:
+                self._sleep(delay)
+
+            result = self.check(item.hash)
+            checked += 1
+            injected += len(result.injected)
+
+            if not result.skipped:
+                # Count ONE quota unit per source torrent that was actually
+                # searched (even if check() queried several trackers).
+                self._store.cross_seed.increment_daily_count()
+                need_sleep = True
+            # If skipped, need_sleep stays as-is — no sleep before the next item.
+
+        logger.info(
+            "acquire.cross_seed.sweep.finished",
+            checked=checked,
+            injected=injected,
+            quota_exhausted=quota_exhausted,
+        )
+        return SweepResult(
+            checked=checked,
+            injected=injected,
+            quota_exhausted=quota_exhausted,
+        )
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -530,4 +645,4 @@ def _candidate_id(candidate: object) -> str:
     return "unknown"
 
 
-__all__ = ["CrossSeedResult", "CrossSeedService"]
+__all__ = ["CrossSeedResult", "CrossSeedService", "SweepResult"]
