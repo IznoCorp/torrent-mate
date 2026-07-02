@@ -2,6 +2,11 @@
 
 No I/O, no sleep, no subprocess — the service is a pure function of its
 inputs per cycle.  The watch loop drives it each poll cycle.
+
+The machine owns all backoff resets (W7 anti-storm).  The loop MUST NOT
+clear ``debounce_until``, ``backoff_multiplier``, or ``debounce_origin``
+after a successful run — the machine's branch 4 clears completion windows
+when work vanishes and keeps safety-net pacing when it does not.
 """
 
 from __future__ import annotations
@@ -33,7 +38,14 @@ class WatcherState:
         last_successful_run_at: Wall-clock timestamp of the last successful
             pipeline run. Persisted in acquire.db across restarts.
         backoff_multiplier: Exponential backoff factor for the anti-storm
-            mechanism (W7).  0 = normal (no backoff).
+            mechanism (W7).  0 = normal (no backoff).  Incremented on every
+            completion or safety-net fire; reset only by the machine's
+            stale-window clear (branch 4) or sentinel (branch 1).
+        debounce_origin: Which transition set the current debounce window.
+            ``"completion"`` for branch 3b fires, ``"safety_net"`` for
+            branch 5 fires, ``None`` after a sentinel/manual reset or when
+            no fire has occurred.  The stale-window clear (branch 4) only
+            resets ``"completion"`` windows; ``"safety_net"`` pacing survives.
         cross_seed_dispatched: Info-hashes already sent to cross-seed this
             daemon lifetime.  Prevents re-firing cross-seed every poll cycle
             for the same not-yet-ingested hashes during the entire debounce
@@ -44,6 +56,7 @@ class WatcherState:
     debounce_until: float | None = None
     last_successful_run_at: float | None = None
     backoff_multiplier: int = 0
+    debounce_origin: str | None = None
     cross_seed_dispatched: frozenset[str] = frozenset()
 
 
@@ -113,9 +126,26 @@ class WatcherService:
         :class:`WatcherState` instances via :func:`dataclasses.replace`;
         never mutates *inp* or *state*.
 
-        The watch loop (Phase 7) must reset ``backoff_multiplier=0`` and
-        ``debounce_until=None`` after a successful ``FIRE_RUN`` that makes
-        the work predicate go false (storm-is-over signal).
+        **Debounce origins and the anti-storm contract (W7)**:
+
+        The machine owns all backoff resets.  The loop MUST NOT clear
+        ``debounce_until``, ``backoff_multiplier``, or ``debounce_origin``
+        after a successful run — the machine's branch 4 clears completion
+        windows when work vanishes (success case) and keeps safety-net
+        pacing when it does not (persistent-failure case).
+
+        * Branch 3b (completion fire): sets origin ``"completion"``, clamps
+          the next window to ``min(debounce_s × 2^multiplier,
+          safety_net_hours × 3600)``.
+        * Branch 4 (stale-window clear): resets the window + backoff ONLY
+          when ``debounce_origin`` is ``"completion"`` or ``None``.  A
+          ``"safety_net"``-origin window survives (it IS the pacing for
+          persistent failure).
+        * Branch 5 (safety net): fires only when the debounce gate is open
+          (``debounce_until is None or now >= debounce_until``); sets origin
+          ``"safety_net"``, increments backoff (never resets to 0), and
+          clamps the window identically to branch 3b.
+        * Branch 1 (sentinel/manual): clears everything (origin ``None``).
 
         Args:
             inp: Snapshot of the world for this cycle.
@@ -135,6 +165,7 @@ class WatcherService:
                 state,
                 debounce_until=None,
                 backoff_multiplier=0,
+                debounce_origin=None,
             )
             return WatcherOutput(
                 decision=WatcherDecision.FIRE_RUN,
@@ -171,11 +202,14 @@ class WatcherService:
                 if inp.pipeline_lock_held:
                     return self._requeue(state)
                 multiplier = state.backoff_multiplier
-                new_debounce = inp.now + self._debounce_s * (2**multiplier)
+                raw_delay = self._debounce_s * (2**multiplier)
+                clamped_delay = min(raw_delay, self._safety_net_hours * 3600)
+                new_debounce = inp.now + clamped_delay
                 new_state = dataclasses.replace(
                     state,
                     debounce_until=new_debounce,
                     backoff_multiplier=multiplier + 1,
+                    debounce_origin="completion",
                 )
                 return WatcherOutput(
                     decision=WatcherDecision.FIRE_RUN,
@@ -190,23 +224,39 @@ class WatcherService:
                 )
         # 4. Stale-window clear: work vanished while debounce window was open.
         if state.debounce_until is not None:
-            new_state = dataclasses.replace(
-                state,
-                debounce_until=None,
-                backoff_multiplier=0,
-            )
-            return WatcherOutput(
-                decision=WatcherDecision.IDLE,
-                new_state=new_state,
-            )
+            # Only clear completion-origin windows (or None = never fired).
+            # Safety-net windows survive — they are the pacing for persistent
+            # failure (W7).
+            if state.debounce_origin in (None, "completion"):
+                new_state = dataclasses.replace(
+                    state,
+                    debounce_until=None,
+                    backoff_multiplier=0,
+                    debounce_origin=None,
+                )
+                return WatcherOutput(
+                    decision=WatcherDecision.IDLE,
+                    new_state=new_state,
+                )
+            # Safety-net origin: window survives, fall through to step 5.
         # 5. Safety-net: no successful run for too long.
         if self._safety_net_expired(state, inp.now):
+            # Gate: do not fire while a debounce window is still active.
+            if state.debounce_until is not None and inp.now < state.debounce_until:
+                return WatcherOutput(
+                    decision=WatcherDecision.IDLE,
+                    new_state=state,
+                )
             if inp.pipeline_lock_held:
                 return self._requeue(state)
+            multiplier = state.backoff_multiplier
+            raw_delay = self._debounce_s * (2**multiplier)
+            clamped_delay = min(raw_delay, self._safety_net_hours * 3600)
             new_state = dataclasses.replace(
                 state,
-                debounce_until=inp.now + self._debounce_s,
-                backoff_multiplier=0,
+                debounce_until=inp.now + clamped_delay,
+                backoff_multiplier=multiplier + 1,
+                debounce_origin="safety_net",
             )
             return WatcherOutput(
                 decision=WatcherDecision.FIRE_RUN,
