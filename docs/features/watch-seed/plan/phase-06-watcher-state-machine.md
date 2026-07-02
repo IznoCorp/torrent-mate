@@ -121,124 +121,154 @@ class WatcherOutput:
 
 - Modify: `personalscraper/acquire/watcher.py` (add `WatcherService.evaluate()`)
 
+**Corrected implementation** (the code below is authoritative — the original
+DESIGN snippet was revised during 6.2 to fix the sentinel/lock ordering, add
+cross-seed dedup, fix the backoff formula, and add stale-window clearing):
+
 ```python
 class WatcherService:
-    """Pure decision engine for the watcher daemon.
-
-    Injected clock (now) keeps the unit testable — no ``time.time()`` calls.
-    """
+    """Pure decision engine for the watcher daemon."""
 
     def __init__(self, config_watch) -> None:
-        """Args: config_watch: ``AppConfig.watch`` (:class:`WatchConfig`)."""
+        """Initialise from watch config."""
         self._poll_interval_s = config_watch.poll_interval_s
         self._debounce_s = config_watch.debounce_s
         self._safety_net_hours = config_watch.safety_net_hours
         self._enabled = config_watch.enabled
 
     def evaluate(self, inp: WatcherInput, state: WatcherState) -> WatcherOutput:
-        """Produce one cycle's decision.
+        """Produce one cycle's decision (see DESIGN §Watcher for details).
 
-        Logic (per DESIGN flow):
-        1. sentinel present → consume → FIRE_RUN (reason=manual)
-        2. Work predicate: NEW completions (not ingested, not SEED_PURE)
-           → FIRE_CROSS_SEED per new hash
-        3. Work predicate true?
-           → not in debounce: START_DEBOUNCE
-           → debounce expired: FIRE_RUN (reason=completion)
-        4. No successful run for safety_net_hours? → FIRE_RUN (reason=safety_net)
-        5. Lock held → REQUEUE
-        6. Otherwise → IDLE
+        Decision order (numbered):
+        0. Disabled → IDLE (state unchanged).
+        1. Sentinel: lock_held → REQUEUE; else → FIRE_RUN(manual),
+           clearing debounce_until and backoff_multiplier.
+        2. Cross-seed: new hashes (not yet dispatched) → FIRE_CROSS_SEED
+           with sorted deduplicated hashes; cross_seed_dispatched updated.
+        3. Work predicate true:
+           a. No debounce → START_DEBOUNCE.
+           b. Debounce expired: lock_held → REQUEUE; else → FIRE_RUN(completion)
+              with backoff: debounce_s * (2 ** multiplier),
+              multiplier += 1 (W7 anti-storm).
+           c. Debounce active → IDLE.
+        4. Work predicate false BUT debounce_until set → IDLE,
+           clearing stale window (debounce_until=None, backoff_multiplier=0).
+        5. Safety-net expired: lock_held → REQUEUE; else → FIRE_RUN(safety_net),
+           resetting debounce + backoff.
+        6. Otherwise → IDLE (state unchanged).
+
+        Pure: no I/O. Uses dataclasses.replace for immutable state.
         """
         if not self._enabled:
             return WatcherOutput(decision=WatcherDecision.IDLE, new_state=state)
 
-        # (1) Sentinel bypass
+        # 1. Sentinel — manual poke bypasses all windows.
         if inp.sentinel_present:
+            if inp.pipeline_lock_held:
+                return self._requeue(state)
+            new_state = dataclasses.replace(
+                state, debounce_until=None, backoff_multiplier=0,
+            )
             return WatcherOutput(
                 decision=WatcherDecision.FIRE_RUN,
-                run_reason="manual",
-                new_state=state,
+                run_reason="manual", new_state=new_state,
             )
 
-        # (2) New completions → cross-seed
-        new_hashes = self._new_completions(inp)
-        if new_hashes:
+        # 2. Cross-seed: new completions, deduped against dispatched.
+        work_set = inp.completed_hashes - inp.ingested_hashes - inp.seed_pure_hashes
+        cross_seed_new = work_set - state.cross_seed_dispatched
+        if cross_seed_new:
+            new_state = dataclasses.replace(
+                state,
+                cross_seed_dispatched=state.cross_seed_dispatched | cross_seed_new,
+            )
             return WatcherOutput(
                 decision=WatcherDecision.FIRE_CROSS_SEED,
-                cross_seed_hashes=list(new_hashes),
-                new_state=state,
+                cross_seed_hashes=sorted(cross_seed_new), new_state=new_state,
             )
 
-        # (3) Work predicate → pipeline run
-        work_exists = self._work_predicate(inp)
-        if work_exists:
+        # 3. Work predicate: items need a pipeline run.
+        if work_set:
             if state.debounce_until is None:
-                # Start debounce window
-                new_state = WatcherState(
-                    debounce_until=inp.now + self._debounce_s,
-                    last_successful_run_at=state.last_successful_run_at,
-                    backoff_multiplier=state.backoff_multiplier,
+                new_state = dataclasses.replace(
+                    state, debounce_until=inp.now + self._debounce_s,
                 )
-                return WatcherOutput(decision=WatcherDecision.START_DEBOUNCE, new_state=new_state)
+                return WatcherOutput(
+                    decision=WatcherDecision.START_DEBOUNCE, new_state=new_state,
+                )
             elif inp.now >= state.debounce_until:
-                # Debounce expired
                 if inp.pipeline_lock_held:
                     return self._requeue(state)
-                backoff = state.backoff_multiplier
-                delay = self._debounce_s * (2 ** max(0, backoff - 1))
-                new_state = WatcherState(
-                    debounce_until=inp.now + delay,
-                    last_successful_run_at=state.last_successful_run_at,
-                    backoff_multiplier=backoff + 1,  # exponential backoff (W7)
+                m = state.backoff_multiplier
+                new_state = dataclasses.replace(
+                    state,
+                    debounce_until=inp.now + self._debounce_s * (2**m),
+                    backoff_multiplier=m + 1,
                 )
                 return WatcherOutput(
                     decision=WatcherDecision.FIRE_RUN,
-                    run_reason="completion",
-                    new_state=new_state,
+                    run_reason="completion", new_state=new_state,
+                )
+            else:
+                return WatcherOutput(
+                    decision=WatcherDecision.IDLE, new_state=state,
                 )
 
-        # (4) Safety net
+        # 4. Stale-window clear: work vanished while window was open.
+        if state.debounce_until is not None:
+            new_state = dataclasses.replace(
+                state, debounce_until=None, backoff_multiplier=0,
+            )
+            return WatcherOutput(
+                decision=WatcherDecision.IDLE, new_state=new_state,
+            )
+
+        # 5. Safety-net: no successful run for too long.
         if self._safety_net_expired(state, inp.now):
             if inp.pipeline_lock_held:
                 return self._requeue(state)
-            new_state = WatcherState(
+            new_state = dataclasses.replace(
+                state,
                 debounce_until=inp.now + self._debounce_s,
-                last_successful_run_at=state.last_successful_run_at,
                 backoff_multiplier=0,
             )
             return WatcherOutput(
                 decision=WatcherDecision.FIRE_RUN,
-                run_reason="safety_net",
-                new_state=new_state,
+                run_reason="safety_net", new_state=new_state,
             )
 
+        # 6. Nothing to do.
         return WatcherOutput(decision=WatcherDecision.IDLE, new_state=state)
-
-    def _new_completions(self, inp: WatcherInput) -> set[str]:
-        """Hashes in completed_hashes but NOT in ingested nor SEED_PURE."""
-        return inp.completed_hashes - inp.ingested_hashes - inp.seed_pure_hashes
-
-    def _work_predicate(self, inp: WatcherInput) -> bool:
-        """True when ∃ completed torrent NOT ingested AND NOT SEED_PURE (W7)."""
-        return bool(self._new_completions(inp))
 
     def _safety_net_expired(self, state: WatcherState, now: float) -> bool:
         """True when no successful run for ``safety_net_hours``."""
         if state.last_successful_run_at is None:
             return True
-        elapsed_hours = (now - state.last_successful_run_at) / 3600.0
-        return elapsed_hours >= self._safety_net_hours
+        return (now - state.last_successful_run_at) / 3600.0 >= self._safety_net_hours
 
     def _requeue(self, state: WatcherState) -> WatcherOutput:
-        """Lock held → retry after debounce (W6)."""
+        """Lock held → REQUEUE, state unchanged (W6)."""
         return WatcherOutput(decision=WatcherDecision.REQUEUE, new_state=state)
 ```
 
-## Sub-phase 6.3 — sentinel bypass + backoff
+## Sub-phase 6.3 — sentinel bypass + backoff (FOLDED INTO 6.2 → NO_OP)
 
-The sentinel bypass is already handled in step (1) of `evaluate()` above. The exponential backoff is integrated into step (3): `backoff_multiplier` increases on each FIRE_RUN while the work predicate stays true, so repeated failing items get exponentially longer waits (W7 anti-storm). The safety-net run resets backoff to 0.
+The sentinel/lock ordering, cross-seed dedup, exponential backoff, and
+stale-window clearing were all integrated into `evaluate()` during 6.2
+per the corrected procedure (see §6.2 above). This sub-phase is now a
+**NO_OP verification** — confirm that the committed `evaluate()` handles:
 
-The `last_successful_run_at` field is set by the **watch loop** (Phase 7) after a successful subprocess run, not by the WatcherService itself. The service only reads it.
+- Sentinel with lock held → REQUEUE (not FIRE_RUN).
+- Sentinel without lock → FIRE_RUN(`manual`) with debounce + backoff reset.
+- Cross-seed dedup via `cross_seed_dispatched` + `sorted()` determinism.
+- Backoff formula: `debounce_s * (2 ** multiplier)` (not `max(0, backoff-1)`).
+- Stale-window clearing: when work vanishes, `debounce_until` + `backoff_multiplier`
+  are reset so the next completion gets a fresh debounce window.
+
+All verified by the inline smoke test in the 6.2 commit message.
+
+The `last_successful_run_at` field is set by the **watch loop** (Phase 7)
+after a successful subprocess run, not by the WatcherService itself.
 
 ## Sub-phase 6.4 — exhaustive unit tests (ACC-10)
 
