@@ -149,39 +149,61 @@ def inject(
 ) -> str:
     """Inject a .torrent at *save_path*, add paused, optionally recheck.
 
-    Sends the .torrent as a multipart file upload. After adding, if
-    *recheck* is True, issues a ``/api/v2/torrents/recheck`` and waits
-    for the check phase to complete (poll ``torrents/info`` state).
+    Uses :meth:`qbittorrentapi.Client.torrents_add` with *save_path*,
+    ``is_skip_checking=False``, and ``is_paused`` per *paused*. The info-hash
+    is computed from *torrent_bytes* via :func:`_bencode_info_hash` before the
+    add — needed for idempotent return on duplicate (Conflict409) and for the
+    recheck. A duplicate add (``Conflict409Error``) is idempotent success
+    (same contract as :meth:`add`): still issue the recheck when *recheck* is
+    True, return the computed *info_hash*. A ``"Fails."`` result from
+    ``torrents_add`` maps to ``ApiError`` (same as :meth:`add`).
+
+    Recheck (via :meth:`~qbittorrentapi.Client.torrents_recheck`) is issued
+    but NOT polled for completion — state polling is the caller's
+    responsibility (CrossSeedService, Phase 4).
 
     Args:
         torrent_bytes: Raw .torrent file content.
         save_path: Absolute path to existing data.
-        recheck: Run recheck after adding (default True).
+        recheck: Run recheck after adding (default True). Does NOT poll —
+            the caller must verify completion.
         paused: Add in paused state (default True).
 
     Returns:
         The torrent's v1 info-hash.
 
     Raises:
-        Conflict409: Torrent with this hash already present.
-        QBitAuthError: Authentication failed.
-        QBitError: Recheck timeout or API error.
+        ApiError: qBittorrent returns 401/403, a corrupt-payload error
+            (415 / torrent-file), or a ``"Fails."`` result.
     """
-    self._ensure_logged_in()
-    files = {"torrents": ("candidate.torrent", torrent_bytes, "application/x-bittorrent")}
-    params = {
-        "savepath": save_path,
-        "skip_checking": "false",
-        "paused": "true" if paused else "false",
-    }
-    self._transport.post("/api/v2/torrents/add", data=params, files=files)
     info_hash = _bencode_info_hash(torrent_bytes)
+    try:
+        result = self._client.torrents_add(
+            torrent_files=torrent_bytes,
+            save_path=save_path,
+            is_skip_checking=False,
+            is_paused=paused,
+        )
+    except qbittorrentapi.Conflict409Error:
+        log.debug("qbit_inject_duplicate", info_hash=info_hash)
+        if recheck:
+            self._client.torrents_recheck(torrent_hashes=info_hash)
+        return info_hash
+    # ... 401/403/415/TorrentFileError → ApiError (same as add()) ...
+    if isinstance(result, str) and result.strip().rstrip(".").lower() != "ok":
+        raise ApiError(...)
     if recheck:
-        self._transport.post("/api/v2/torrents/recheck", {"hashes": info_hash})
+        self._client.torrents_recheck(torrent_hashes=info_hash)
     return info_hash
 ```
 
-`Conflict409` detection is already present in the transport's POST handling — existing pattern.
+Uses `self._client.torrents_add` (not a raw `self._transport.post`) — all error
+handling follows the existing `add()` pattern: `Conflict409Error` → idempotent
+success, `"Fails."` result → `ApiError`, typed exception mapping for
+401/403/415/TorrentFileError. The installed `qbittorrentapi` uses the `is_paused`
+kwarg (verified 2026-07-02). Recheck is issued via
+`self._client.torrents_recheck(torrent_hashes=info_hash)` — the caller
+(CrossSeedService) polls for completion, not `inject()`.
 
 ## Sub-phase 2.4 — extend TorrentItem mapper
 

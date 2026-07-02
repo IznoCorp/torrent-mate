@@ -3,8 +3,8 @@
 Wraps qbittorrentapi.Client with anti-ban protection (lockout file, pre-check)
 and maps qBit API responses to TorrentItem dataclasses. Composes
 :class:`TorrentLister`, :class:`TorrentInspector`, :class:`AuthenticatedClient`,
-:class:`TorrentStateInspector`, :class:`TorrentController`, :class:`TorrentAdder`
-and :class:`TorrentLimiter` from
+:class:`TorrentStateInspector`, :class:`TorrentController`, :class:`TorrentAdder`,
+:class:`TorrentLimiter`, :class:`TorrentTagger`, and :class:`TorrentInjector` from
 :mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13, D1/D2/D8).
 
 Provider-specific exceptions (QBitAuthLockoutError, LoginFailed, Forbidden403Error,
@@ -24,11 +24,12 @@ import qbittorrentapi
 import requests
 
 from personalscraper.api._contracts import ApiError, ProviderName
-from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource
+from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource, _bencode_info_hash
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
     TorrentAdder,
     TorrentController,
+    TorrentInjector,
     TorrentInspector,
     TorrentLimiter,
     TorrentLister,
@@ -57,6 +58,7 @@ class QBitClient(
     TorrentAdder,
     TorrentLimiter,
     TorrentTagger,
+    TorrentInjector,
 ):
     """qBittorrent client wrapping qbittorrentapi.Client.
 
@@ -64,7 +66,8 @@ class QBitClient(
     (:class:`TorrentLister`, :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
     :class:`TorrentController`, :class:`TorrentAdder`,
-    :class:`TorrentLimiter`). Login is handled by :func:`build_client` —
+    :class:`TorrentLimiter`, :class:`TorrentTagger`,
+    :class:`TorrentInjector`). Login is handled by :func:`build_client` —
     this class assumes an already-authenticated underlying client.
     """
 
@@ -334,6 +337,93 @@ class QBitClient(
             http_status=0,
             message=f"qBittorrent add failed (result={result!r})",
         )
+
+    def inject(
+        self,
+        torrent_bytes: bytes,
+        *,
+        save_path: str,
+        recheck: bool = True,
+        paused: bool = True,
+    ) -> str:
+        """Inject a .torrent at *save_path*, add paused, optionally recheck.
+
+        Uses :meth:`qbittorrentapi.Client.torrents_add` with *save_path*,
+        ``is_skip_checking=False``, and ``is_paused`` per *paused*. The info-hash
+        is computed from *torrent_bytes* via :func:`_bencode_info_hash` before the
+        add — needed for idempotent return on duplicate (Conflict409) and for the
+        recheck. A duplicate add (``Conflict409Error``) is idempotent success
+        (same contract as :meth:`add`): still issue the recheck when *recheck* is
+        True, return the computed *info_hash*. A ``"Fails."`` result from
+        ``torrents_add`` maps to ``ApiError`` (same as :meth:`add`).
+
+        Recheck (via :meth:`~qbittorrentapi.Client.torrents_recheck`) is issued
+        but NOT polled for completion — state polling is the caller's
+        responsibility (CrossSeedService, Phase 4).
+
+        Args:
+            torrent_bytes: Raw .torrent file content.
+            save_path: Absolute path to existing data directory.
+            recheck: Run recheck after adding (default True). Does NOT poll —
+                the caller must verify completion.
+            paused: Add in paused state (default True).
+
+        Returns:
+            The torrent's v1 info-hash.
+
+        Raises:
+            ApiError: qBittorrent returns 401/403, a corrupt-payload error
+                (415 / torrent-file), or a ``"Fails."`` result.
+        """
+        info_hash = _bencode_info_hash(torrent_bytes)
+        try:
+            result = self._client.torrents_add(
+                torrent_files=torrent_bytes,
+                save_path=save_path,
+                is_skip_checking=False,
+                is_paused=paused,
+            )
+        except qbittorrentapi.Conflict409Error:
+            # Duplicate — idempotent success (same contract as add() D7).
+            log.debug("qbit_inject_duplicate", info_hash=info_hash)
+            if recheck:
+                self._client.torrents_recheck(torrent_hashes=info_hash)
+            return info_hash
+        except qbittorrentapi.Forbidden403Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=403,
+                message=f"qBittorrent inject forbidden: {exc}",
+            ) from exc
+        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=401,
+                message=f"qBittorrent inject unauthorized: {exc}",
+            ) from exc
+        except qbittorrentapi.UnsupportedMediaType415Error as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=415,
+                message=f"qBittorrent rejected corrupt torrent payload: {exc}",
+            ) from exc
+        except qbittorrentapi.TorrentFileError as exc:
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent could not read torrent file: {exc}",
+            ) from exc
+        # Same result handling as add(): "Ok." / TorrentsAddedMetadata → success;
+        # "Fails." → ApiError.
+        if isinstance(result, str) and result.strip().rstrip(".").lower() != "ok":
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message=f"qBittorrent inject failed (result={result!r})",
+            )
+        if recheck:
+            self._client.torrents_recheck(torrent_hashes=info_hash)
+        return info_hash
 
     def apply_limits(self, info_hash: str, limits: TorrentLimits) -> None:
         """Apply transfer limits to an existing torrent (D2/§5.4).
