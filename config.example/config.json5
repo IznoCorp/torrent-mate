@@ -24,5 +24,6 @@
     "tracker.json5",
     "ranking.json5",
     "notify.json5",
+    "watch_seed.json5",
   ],
 }
