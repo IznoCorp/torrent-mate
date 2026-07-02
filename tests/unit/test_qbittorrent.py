@@ -268,8 +268,38 @@ class TestQBitClient:
         client.delete("abc", delete_files=True)
         client._client.torrents_delete.assert_called_once_with(torrent_hashes="abc", delete_files=True)  # type: ignore[attr-defined]
 
-    def test_login_logout(self) -> None:
-        """login() and logout() call the underlying auth methods."""
+    def test_resume_403_raises_apierror(self) -> None:
+        """``resume()`` raises ``ApiError(http_status=403)`` on ``Forbidden403Error``.
+
+        Typed-error mapping from the 10.3 API hardening — an auth/IP-ban error
+        on resume must be observable as a uniform ``ApiError`` per the
+        :class:`TorrentController` contract, not a raw library exception.
+        """
+        client = self._client()
+        client._client.torrents_resume.side_effect = qbittorrentapi.Forbidden403Error(  # type: ignore[attr-defined]
+            "ip banned"
+        )
+        with pytest.raises(ApiError, match="resume forbidden") as exc_info:
+            client.resume("abc")
+        assert exc_info.value.http_status == 403
+
+    def test_delete_403_raises_apierror(self) -> None:
+        """``delete()`` raises ``ApiError(http_status=403)`` on ``Forbidden403Error``.
+
+        Typed-error mapping from the 10.3 API hardening — an auth/IP-ban error
+        on delete must be observable as a uniform ``ApiError`` per the
+        :class:`TorrentController` contract, not a raw library exception.
+        """
+        client = self._client()
+        client._client.torrents_delete.side_effect = qbittorrentapi.Forbidden403Error(  # type: ignore[attr-defined]
+            "ip banned"
+        )
+        with pytest.raises(ApiError, match="delete forbidden") as exc_info:
+            client.delete("abc")
+        assert exc_info.value.http_status == 403
+
+    def test_login_logout_delegate_to_auth_methods(self) -> None:
+        """``login()`` and ``logout()`` call the underlying auth methods."""
         client = self._client()
         client._client.auth_log_in.return_value = None  # type: ignore[attr-defined]
         client._client.auth_log_out.return_value = None  # type: ignore[attr-defined]

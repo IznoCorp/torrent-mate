@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 import qbittorrentapi
 
+from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import _bencode_info_hash
 from personalscraper.api.torrent._contracts import TorrentInjector
 from personalscraper.api.torrent.qbittorrent import QBitClient, _torrent_item
@@ -66,6 +68,31 @@ class TestInject:
         client._client.torrents_recheck.assert_called_once_with(  # type: ignore[attr-defined]
             torrent_hashes=_EXPECTED_INFO_HASH,
         )
+
+    def test_inject_fails_string_raises_apierror(self) -> None:
+        r"""``inject()`` raises ``ApiError`` when ``torrents_add`` returns ``"Fails."`` (D8).
+
+        ``"Fails."`` is a generic failure (bad magnet, disk full, bad save path),
+        NOT a duplicate — it must surface as an observable error, never a silent
+        fake-success.  Mirrors :meth:`QBitClient.add`'s contract.
+        """
+        client = self._client()
+        client._client.torrents_add.return_value = "Fails."  # type: ignore[attr-defined]
+        with pytest.raises(ApiError, match="Fails"):
+            client.inject(_TORRENT_BYTES, save_path="/data/movies")
+
+    def test_inject_forbidden_403_raises_apierror(self) -> None:
+        """``inject()`` raises ``ApiError(http_status=403)`` on ``Forbidden403Error``.
+
+        Typed-error mapping from the 10.3 API hardening — an auth/IP-ban error
+        on inject must be observable as a uniform ``ApiError``, not a raw
+        library exception.
+        """
+        client = self._client()
+        client._client.torrents_add.side_effect = qbittorrentapi.Forbidden403Error("ip banned")  # type: ignore[attr-defined]
+        with pytest.raises(ApiError) as exc_info:
+            client.inject(_TORRENT_BYTES, save_path="/data/movies")
+        assert exc_info.value.http_status == 403
 
 
 class TestListFiles:
