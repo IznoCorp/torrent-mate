@@ -36,6 +36,7 @@ from personalscraper.conf.models.scraper import (
 )
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.conf.models.trailers import TrailersConfig
+from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
 
 # ---------------------------------------------------------------------------
 # Type alias re-exported for consumers that import from conf.models
@@ -67,6 +68,10 @@ class Config(_StrictModel):
         trailers: Trailer download feature configuration. Disabled by default (enabled=False).
         indexer: Media indexer sub-system configuration.
         acquire: Acquisition lobe SQLite store configuration (RP3).
+        cross_seed: Cross-seeding engine configuration (watch-seed feature).
+            Disabled by default (enabled=False).
+        watch: Watcher daemon configuration (watch-seed feature).
+            Disabled by default (enabled=False).
     """
 
     config_version: int = Field(default=1, description="Schéma version pour migration future.")
@@ -113,6 +118,9 @@ class Config(_StrictModel):
     indexer: IndexerConfig = Field(default_factory=IndexerConfig)
 
     acquire: AcquireConfig = Field(default_factory=AcquireConfig)
+
+    cross_seed: CrossSeedConfig = Field(default_factory=CrossSeedConfig)
+    watch: WatchConfig = Field(default_factory=WatchConfig)
 
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
     torrent: TorrentConfig = Field(default_factory=TorrentConfig)
