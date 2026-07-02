@@ -11,6 +11,7 @@ Runs until SIGTERM/SIGINT.  Designed to be managed by PM2 via
 from __future__ import annotations
 
 import dataclasses
+import json
 import signal
 import subprocess
 import sys
@@ -137,11 +138,27 @@ def watch(ctx: typer.Context) -> None:
             # Cycle guard: corrupt/unreadable tracker file.  load() degrades
             # to {} on JSON errors (logged at ERROR by IngestTracker), which
             # would cause the watcher to treat the library as fresh — mass
-            # cross-seed dispatch + run trigger.  Skip the cycle entirely.
+            # cross-seed dispatch + run trigger.  Skip the cycle when the raw
+            # file text fails json.loads (truly corrupt), not when it parses
+            # to valid JSON (including a valid-but-empty {} tracker — e.g.
+            # after entry pruning or a fresh library that has not yet ingested
+            # any torrent).
             if tracker_path.exists() and tracker_path.stat().st_size > 0 and not ingested_data:
-                log.warning("watcher_tracker_unreadable", path=str(tracker_path))
-                _interruptible_sleep(config.watch.poll_interval_s)
-                continue
+                try:
+                    raw = tracker_path.read_text(encoding="utf-8")
+                except OSError:
+                    log.warning("watcher_tracker_unreadable", path=str(tracker_path))
+                    _interruptible_sleep(config.watch.poll_interval_s)
+                    continue
+                if raw.strip():
+                    try:
+                        json.loads(raw)
+                    except json.JSONDecodeError:
+                        log.warning("watcher_tracker_unreadable", path=str(tracker_path))
+                        _interruptible_sleep(config.watch.poll_interval_s)
+                        continue
+                    # Valid JSON (including {} or non-empty objects) — trust
+                    # load() and proceed with the cycle normally.
 
             # 2. Completed torrents with error guard (W1: log, skip cycle,
             #    never crash).

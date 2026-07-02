@@ -628,6 +628,39 @@ def test_corrupt_tracker_skips_cycle(tmp_path: Path) -> None:
     p.mock_subprocess.run.assert_not_called()
 
 
+def test_valid_empty_tracker_proceeds_normally(tmp_path: Path) -> None:
+    """Valid empty tracker (``{}``) → cycle proceeds normally (no skip).
+
+    A tracker file containing valid JSON ``{}`` (e.g. after entry pruning or
+    a fresh library with no ingested torrents yet) must NOT trigger the cycle
+    guard.  The watcher must proceed to evaluate completed torrents and spawn
+    as usual.
+    """
+    from personalscraper.commands.watch import watch
+
+    # Write valid empty JSON to the tracker file.
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_text("{}", encoding="utf-8")
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must NOT have skipped — cross-seed must have been spawned.
+    p.mock_subprocess.run.assert_called_once()
+    run_args = p.mock_subprocess.run.call_args[0][0]
+    assert "--hash" in run_args
+    hash_idx = run_args.index("--hash")
+    assert run_args[hash_idx + 1] == h
+
+
 # ---------------------------------------------------------------------------
 # 13.  test_cross_seed_child_timeout_retries  (ACC 10.8)
 # ---------------------------------------------------------------------------
