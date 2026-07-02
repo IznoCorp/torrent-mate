@@ -109,6 +109,7 @@ def main(
 # Import command modules after the callback is registered.  Import side effects
 # attach commands to the shared Typer app.
 import personalscraper.commands.config  # noqa: E402,F401
+import personalscraper.commands.cross_seed  # noqa: E402,F401
 import personalscraper.commands.follow  # noqa: E402,F401
 import personalscraper.commands.grab  # noqa: E402,F401
 import personalscraper.commands.library  # noqa: E402,F401 — re-exports from library/{scan,query,maintenance,audit,analyze}

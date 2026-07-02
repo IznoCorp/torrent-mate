@@ -82,60 +82,25 @@ class CrossSeedRejected(Event):
 **Files:**
 
 - Create: `personalscraper/commands/cross_seed.py`
+- Modify: `personalscraper/cli.py` (import list)
 
-```python
-"""cross-seed CLI commands — personalscraper cross-seed --sweep / --hash.
+**IMPLEMENTATION NOTE (2026-07-02):** The snippets below were STALE and have been
+replaced by the actual implementation. Key corrections vs the original plan:
 
-See docs/features/watch-seed/DESIGN.md §CLI.
-"""
+- `_build_app_context()` takes `(config, settings, *, build_torrent_client=...)`
+  — it is NOT a zero-arg factory. Use `per_step_boundary(config, settings,
+build_torrent_client=True)` for the context-manager pattern that sibling
+  acquire commands (`grab`, `seed`) follow.
+- The cross-seed service handle lives at `app_context.acquire.cross_seed`
+  (`AcquireContext` field), not `ctx.cross_seed_service`.
+- The command is a `@command_with_telemetry("cross-seed")` top-level entry,
+  registered via import side-effect in `cli.py`, matching the `grab` command
+  pattern (single command with options, NOT a sub-group like `seed`/`follow`).
+- `--hash` is deferred to sub-phase 5.3 for minimal diff.
+- No `pipeline.lock` — cross-seed touches only qBittorrent + acquire.db.
 
-from __future__ import annotations
-
-from personalscraper.logger import get_logger
-from personalscraper.cli_helpers import _build_app_context
-
-logger = get_logger(__name__)
-
-
-def run_sweep() -> None:
-    """Throttled back-catalog cross-seed sweep (X2).
-
-    Reuses the full AppContext so event subscribers (Telegram, etc.)
-    are wired.  The sweep iterates all completed torrents, applies the
-    daily quota + exclude-recent + inter-search delay, and calls
-    ``CrossSeedService.check()`` for each eligible torrent.
-    """
-    ctx = _build_app_context()
-    app_config = ctx.app_config  # noqa: F841 — may be needed for config access
-    cs = ctx.cross_seed_service
-    result = cs.sweep()
-    logger.info(
-        "cross_seed_sweep_done",
-        checked=result.checked,
-        injected=result.injected,
-        quota_exhausted=result.quota_exhausted,
-    )
-```
-
-Wire into the Typer app (modify `personalscraper/cli.py` or `commands/__init__.py`):
-
-```python
-@app.command(name="cross-seed")
-def cross_seed_cmd(
-    sweep: bool = typer.Option(False, "--sweep", help="Run throttled back-catalog sweep"),
-    hash: str = typer.Option("", "--hash", help="Cross-seed a single torrent by info-hash"),
-) -> None:
-    """Native cross-seeding engine."""
-    if sweep:
-        from personalscraper.commands.cross_seed import run_sweep
-        run_sweep()
-    elif hash_str:
-        from personalscraper.commands.cross_seed import run_hash
-        run_hash(hash_str)
-    else:
-        typer.echo("Use --sweep or --hash <H>", err=True)
-        raise typer.Exit(code=2)
-```
+See the actual file `personalscraper/commands/cross_seed.py` for the
+authoritative implementation.
 
 ## Sub-phase 5.3 — cross-seed --hash CLI command
 
