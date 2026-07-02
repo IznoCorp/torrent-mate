@@ -149,7 +149,8 @@ def watch(ctx: typer.Context) -> None:
             # degraded load would cause the watcher to treat the library as
             # fresh — mass cross-seed dispatch + run trigger.
             if tracker_path.exists():
-                # (a) Read raw text.  OSError → unreadable, skip the cycle.
+                # (a) Read raw text.  OSError / UnicodeDecodeError →
+                #     unreadable, skip the cycle.
                 try:
                     raw = tracker_path.read_text(encoding="utf-8")
                 except OSError:
@@ -157,6 +158,14 @@ def watch(ctx: typer.Context) -> None:
                         "watcher_tracker_unreadable",
                         path=str(tracker_path),
                         cause="io_error",
+                    )
+                    _interruptible_sleep(config.watch.poll_interval_s)
+                    continue
+                except UnicodeDecodeError:
+                    log.warning(
+                        "watcher_tracker_unreadable",
+                        path=str(tracker_path),
+                        cause="undecodable",
                     )
                     _interruptible_sleep(config.watch.poll_interval_s)
                     continue

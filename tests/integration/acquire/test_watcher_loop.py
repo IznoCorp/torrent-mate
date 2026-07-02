@@ -779,7 +779,41 @@ def test_io_error_tracker_skips_cycle(tmp_path: Path, monkeypatch: Any) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 12e.  test_valid_nonempty_tracker_proceeds  (ACC 11.1)
+# 12e.  test_undecodable_tracker_skips_cycle  (ACC 11.1)
+# ---------------------------------------------------------------------------
+
+
+def test_undecodable_tracker_skips_cycle(tmp_path: Path) -> None:
+    """Invalid UTF-8 bytes in tracker file → cycle skipped, no spawns.
+
+    A tracker file with invalid UTF-8 bytes raises ``UnicodeDecodeError``
+    on ``read_text(encoding="utf-8")`` — a ``ValueError`` subclass that
+    escapes ``except OSError``.  The guard must catch it with
+    ``cause="undecodable"`` instead of crashing the daemon.
+    """
+    from personalscraper.commands.watch import watch
+
+    tracker_file = tmp_path / "ingested_torrents.json"
+    tracker_file.write_bytes(b"\xff\xfe\x00 garbage")
+
+    h = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+    completed = [_completed_item(hash=h, name="fresh.torrent")]
+    fake_app = _make_fake_app_context(completed=completed)
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False, ingested={}) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Guard must have skipped the cycle — no subprocess calls at all.
+    p.mock_subprocess.Popen.assert_not_called()
+    p.mock_subprocess.run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 12f.  test_valid_nonempty_tracker_proceeds  (ACC 11.1)
 # ---------------------------------------------------------------------------
 
 
