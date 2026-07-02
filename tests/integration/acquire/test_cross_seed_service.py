@@ -12,6 +12,7 @@ import logging
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -19,7 +20,7 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.cross_seed import CrossSeedService
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
-from personalscraper.api._contracts import MediaType
+from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentItem, TorrentSource
 from personalscraper.api.tracker._base import TrackerResult
@@ -1747,3 +1748,272 @@ class TestSelfDeleteAverted:
             )
         finally:
             cs_module._bencode_info_hash = original_bencode  # type: ignore[attr-defined]
+
+
+# ===========================================================================
+# Tests: fail-safe finalization + sweep isolation (sub-phase 10.3)
+# ===========================================================================
+
+
+class TestSweepInjectErrorIsolation:
+    """test_sweep_inject_api_error_continues (sub-phase 10.3a)."""
+
+    def test_sweep_inject_api_error_continues(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Inject raises ApiError on Nth item → sweep logs + continues to next."""
+        # -- Arrange ----------------------------------------------------------
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+
+        items = [
+            _source_item(info_hash=f"hash{i:040d}", name=f"Movie.{i}.2024", save_path=f"/data/Movie.{i}.2024")
+            for i in range(3)
+        ]
+
+        fake_client = FakeTorrentClient(completed=list(items))
+        for i in range(3):
+            fake_client.seed_files(f"hash{i:040d}", source_files)
+            fake_client.seed_properties(f"hash{i:040d}", {"piece_size": 262144})
+
+        candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(3)]
+
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        for i, cb in enumerate(candidate_bytes):
+            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+
+        fake_torrent_tracker = FakeTracker(
+            provider=_TRACKER_TORR9,
+            transport=fake_transport,
+            results=[
+                _candidate_result(
+                    provider=_TRACKER_TORR9,
+                    title=items[i].name,
+                    download_url=f"https://torr9.example.com/dl/{i}",
+                )
+                for i in range(3)
+            ],
+        )
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: fake_torrent_tracker,
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        # Make inject fail on the second call (item index 1).
+        inject_calls: list[int] = [0]
+        original_inject = fake_client.inject
+
+        def _inject_fail_on_nth(
+            torrent_bytes: bytes,
+            *,
+            save_path: str,
+            recheck: bool = True,
+            paused: bool = True,
+        ) -> str:
+            inject_calls[0] += 1
+            if inject_calls[0] == 2:
+                raise ApiError(
+                    provider=ProviderName.QBITTORRENT,
+                    http_status=0,
+                    message="test injection failure",
+                )
+            return original_inject(torrent_bytes, save_path=save_path, recheck=recheck, paused=paused)
+
+        fake_client.inject = _inject_fail_on_nth  # type: ignore[method-assign]
+
+        cfg = make_config(tmp_path, max_searches_per_day=10)
+        svc = _build_service(cfg, store, fake_client, fake_registry)
+
+        # -- Act --------------------------------------------------------------
+        with caplog.at_level(logging.ERROR, logger="personalscraper.acquire.cross_seed"):
+            result = svc.sweep()
+
+        # -- Assert -----------------------------------------------------------
+        # Sweep returns a result (not an exception).
+        assert result.checked == 2  # Items 0 and 2 succeeded; item 1 errored → not counted.
+        assert result.injected == 2
+        assert result.quota_exhausted is False
+
+        # sweep_item_error logged for the failed item.
+        assert any("sweep_item_error" in record.message for record in caplog.records), (
+            f"Expected sweep_item_error, got: {[r.message for r in caplog.records]}"
+        )
+
+
+class TestObligationWriteFailure:
+    """test_obligation_write_fails_deletes_and_rejects (sub-phase 10.3b)."""
+
+    def test_obligation_write_fails_deletes_and_rejects(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+    ) -> None:
+        """Obligation store write raises → injection deleted, no CrossSeedInjected emitted."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        injected_events: list[CrossSeedInjected] = []
+        rejected_events: list[CrossSeedRejected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedInjected, lambda e: injected_events.append(e))
+        bus.subscribe(CrossSeedRejected, lambda e: rejected_events.append(e))
+
+        cfg = make_config(tmp_path)
+        svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
+
+        # Monkeypatch store.seed.add to raise after verification succeeds.
+        with patch.object(store.seed, "add", side_effect=RuntimeError("disk full")):
+            # -- Act ----------------------------------------------------------
+            result = svc.check(_SOURCE_HASH)
+
+        # -- Assert -----------------------------------------------------------
+        # Not injected.
+        assert result.injected == []
+
+        # Rejected with obligation_write_failed.
+        assert len(result.rejected) == 1
+        _, rejected_tracker, rejected_reason = result.rejected[0]
+        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_reason == "obligation_write_failed"
+
+        # Injection deleted (delete_files=False).
+        assert any(h == injected_hash and not df for h, df in fake_client.deleted), (
+            f"Expected delete of {injected_hash}, got: {fake_client.deleted}"
+        )
+
+        # No CrossSeedInjected emitted.
+        assert len(injected_events) == 0
+
+        # CrossSeedRejected with obligation_write_failed emitted.
+        ob_failures = [e for e in rejected_events if e.reason == "obligation_write_failed"]
+        assert len(ob_failures) == 1
+        assert ob_failures[0].info_hash == injected_hash
+        assert ob_failures[0].source_hash == _SOURCE_HASH
+
+
+class TestResumeFailureKeepsObligation:
+    """test_resume_fails_keeps_obligation_and_emits_event (sub-phase 10.3c)."""
+
+    def test_resume_fails_keeps_obligation_and_emits_event(
+        self,
+        tmp_path: Path,
+        store: ConcreteAcquireStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Resume raises → obligation kept, ERROR logged, CrossSeedInjected still emitted."""
+        # -- Arrange ----------------------------------------------------------
+        item = _source_item()
+        source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
+        candidate_torrent = make_torrent_bytes(
+            name=item.name,
+            files=source_files,
+            piece_length=262144,
+        )
+        injected_hash = _derive_injected_hash(candidate_torrent)
+
+        fake_client = FakeTorrentClient(completed=[item])
+        fake_client.seed_files(_SOURCE_HASH, source_files)
+        fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
+
+        candidate_url = "https://torr9.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport.seed(candidate_url, candidate_torrent)
+
+        fake_registry = make_registry(
+            {
+                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_TORR9: FakeTracker(
+                    provider=_TRACKER_TORR9,
+                    transport=fake_transport,
+                    results=[_candidate_result(download_url=candidate_url)],
+                ),
+            },
+            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        injected_events: list[CrossSeedInjected] = []
+        bus = EventBus()
+        bus.subscribe(CrossSeedInjected, lambda e: injected_events.append(e))
+
+        cfg = make_config(
+            tmp_path,
+            tracker_providers={
+                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_TORR9: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
+            },
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+        )
+
+        # Override resume to raise.
+        original_resume = fake_client.resume
+
+        def _resume_raises(hash: str) -> None:
+            fake_client.resumed.append(hash)
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=0,
+                message="test resume failure",
+            )
+
+        fake_client.resume = _resume_raises  # type: ignore[method-assign]
+
+        svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
+
+        # -- Act --------------------------------------------------------------
+        with caplog.at_level(logging.ERROR, logger="personalscraper.acquire.cross_seed"):
+            result = svc.check(_SOURCE_HASH)
+
+        # Restore original resume.
+        fake_client.resume = original_resume  # type: ignore[method-assign]
+
+        # -- Assert -----------------------------------------------------------
+        # Injection counted as success despite resume failure.
+        assert result.injected == [injected_hash]
+
+        # Stranded paused injection logged at ERROR.
+        assert any("stranded_paused_injection" in record.message for record in caplog.records), (
+            f"Expected stranded_paused_injection ERROR, got: {[r.message for r in caplog.records]}"
+        )
+
+        # CrossSeedInjected emitted.
+        assert len(injected_events) == 1
+        assert injected_events[0].info_hash == injected_hash
+        assert injected_events[0].source_tracker == _TRACKER_TORR9
+
+        # Obligation persisted.
+        obligations = store.seed.find_active_under(Path(item.save_path))
+        assert len(obligations) == 1
+        assert obligations[0].info_hash == injected_hash
