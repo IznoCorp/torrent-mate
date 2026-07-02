@@ -2721,9 +2721,7 @@ class TestSweepItemErrors:
         # Throttle holds: sleep was called between items (at least 2 sleeps for
         # 3 items where none were skipped).  Before the fix, need_sleep was
         # never set on error paths, so the loop would fast-iterate without delay.
-        assert len(sleep_log) >= 2, (
-            f"Expected >= 2 sleeps (throttle held), got {len(sleep_log)}"
-        )
+        assert len(sleep_log) >= 2, f"Expected >= 2 sleeps (throttle held), got {len(sleep_log)}"
 
         # Quota was consumed for all 3 items (including the errored one).
         # daily_searches_remaining starts at 10; 3 quota units consumed → 7 remaining.

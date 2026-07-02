@@ -183,9 +183,7 @@ def test_sweep_item_errors_yellow_warning_exit_zero() -> None:
     assert "2 item error" in result.output.lower(), (
         f"Expected yellow warning about 2 item errors; got:\n{result.output}"
     )
-    assert "Sweep complete" in result.output, (
-        f"Expected green Sweep complete; got:\n{result.output}"
-    )
+    assert "Sweep complete" in result.output, f"Expected green Sweep complete; got:\n{result.output}"
 
 
 def test_sweep_all_items_errored_exit_one() -> None:

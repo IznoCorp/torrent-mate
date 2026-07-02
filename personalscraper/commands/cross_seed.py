@@ -118,14 +118,10 @@ def cross_seed(
             # errored (checked == 0 and item_errors > 0 → total failure).
             if sweep_result.item_errors > 0:
                 console.print(
-                    f"[yellow]Sweep: {sweep_result.item_errors} item error(s) "
-                    f"(see log for details).[/yellow]"
+                    f"[yellow]Sweep: {sweep_result.item_errors} item error(s) (see log for details).[/yellow]"
                 )
                 if sweep_result.checked == 0:
-                    console.print(
-                        "[red]Sweep failed:[/red] all items raised errors "
-                        "(see log for per-item details)."
-                    )
+                    console.print("[red]Sweep failed:[/red] all items raised errors (see log for per-item details).")
                     raise typer.Exit(code=1)
 
             console.print(
