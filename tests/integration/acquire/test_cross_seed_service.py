@@ -2080,35 +2080,35 @@ class TestMediaTypeFor:
 
     def test_episode_style_name_returns_tv(self) -> None:
         """``"Show.S01E01.1080p.x264-GROUP"`` → :attr:`MediaType.TV`."""
-        from personalscraper.acquire.cross_seed import _media_type_for
+        from personalscraper.acquire._cross_seed_support import _media_type_for
 
         result = _media_type_for("Show.S01E01.1080p.x264-GROUP")
         assert result == MediaType.TV
 
     def test_anime_style_name_returns_tv(self) -> None:
         """Anime episode pattern ``"[Group] Show - 01 (1080p)"`` → :attr:`MediaType.TV`."""
-        from personalscraper.acquire.cross_seed import _media_type_for
+        from personalscraper.acquire._cross_seed_support import _media_type_for
 
         result = _media_type_for("[SubsPlease] Anime - 01 (1080p)")
         assert result == MediaType.TV
 
     def test_movie_style_name_returns_movie(self) -> None:
         """``"Movie.2024.1080p.BluRay.x264-GROUP"`` → :attr:`MediaType.MOVIE`."""
-        from personalscraper.acquire.cross_seed import _media_type_for
+        from personalscraper.acquire._cross_seed_support import _media_type_for
 
         result = _media_type_for("Movie.2024.1080p.BluRay.x264-GROUP")
         assert result == MediaType.MOVIE
 
     def test_unknown_format_falls_back_to_movie(self) -> None:
         """A name guessit cannot classify → :attr:`MediaType.MOVIE` fallback."""
-        from personalscraper.acquire.cross_seed import _media_type_for
+        from personalscraper.acquire._cross_seed_support import _media_type_for
 
         result = _media_type_for("SomeRandomFile.2024")
         assert result == MediaType.MOVIE
 
     def test_guessit_exception_falls_back_to_movie(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When guessit raises an exception → :attr:`MediaType.MOVIE` fallback."""
-        from personalscraper.acquire.cross_seed import _media_type_for
+        from personalscraper.acquire._cross_seed_support import _media_type_for
 
         def _raise(*args: object, **kwargs: object) -> None:
             raise RuntimeError("guessit failure")
