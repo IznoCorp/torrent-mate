@@ -165,7 +165,7 @@ Add the new blocks to BOTH `config/config.json5` and `config.example/config.json
 
 **Files:**
 
-- Create: `tests/unit/conf/test_watch_seed_config.py`
+- Create: `tests/conf/test_watch_seed_config.py` (real convention is `tests/conf/`, not `tests/unit/conf/`)
 
 Tests:
 
@@ -181,5 +181,5 @@ Tests:
 - [ ] `make lint` — 0 errors.
 - [ ] `python -c "from personalscraper.conf.models.api_config import TrackerProviderConfig; print(TrackerProviderConfig().cross_seed)"` → `False` (ACC-4).
 - [ ] `grep -c 'cross_seed' config/tracker.json5 config.example/tracker.json5` — each ≥ 3 (one per provider).
-- [ ] `python -m pytest tests/unit/conf/test_watch_seed_config.py -q` — all pass.
+- [ ] `python -m pytest tests/conf/test_watch_seed_config.py -q` — all pass.
 - [ ] `python -c "import personalscraper"` — smoke test (config modules load clean).
