@@ -9,11 +9,21 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/watch-seed/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/watch-seed/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                | File                                    | Status |
+| --- | ---------------------------------------------------- | --------------------------------------- | ------ |
+| 1   | RP10a — TorrentLayout parser + structural match      | phase-01-rp10a-torrent-layout-parser.md | [ ]    |
+| 2   | RP10b — TorrentInjector protocol + QBitClient inject | phase-02-rp10b-torrent-injector.md      | [ ]    |
+| 3   | Cross-seed + watch configuration                     | phase-03-cross-seed-config.md           | [ ]    |
+| 4   | CrossSeedService — X1 core + X2 sweep                | phase-04-cross-seed-service.md          | [ ]    |
+| 5   | Cross-seed CLI + events                              | phase-05-cross-seed-cli-events.md       | [ ]    |
+| 6   | WatcherService pure state machine                    | phase-06-watcher-state-machine.md       | [ ]    |
+| 7   | Watch command loop + watch-now + run flags           | phase-07-watch-loop.md                  | [ ]    |
+| 8   | PM2 ecosystem + launchd decommission                 | phase-08-pm2-launchd-cutover.md         | [ ]    |
+| 9   | E2E roundtrip + ACCEPTANCE gate                      | phase-09-e2e-acceptance-gate.md         | [ ]    |
 
 ## Review cycles
 
@@ -21,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
