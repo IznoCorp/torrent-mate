@@ -21,6 +21,7 @@ from personalscraper.acquire.events import (
     SeriesUnfollowed,
     WantedAbandoned,
     WantedEnqueued,
+    WatcherRunTriggered,
 )
 from personalscraper.core.event_bus import (
     _EVENT_CLASS_REGISTRY,
@@ -43,6 +44,7 @@ ACQUIRE_EVENT_CLASSES: tuple[type[Event], ...] = (
     SeedObligationBreached,
     SeedObligationSatisfied,
     RatioMeasured,
+    WatcherRunTriggered,
 )
 
 

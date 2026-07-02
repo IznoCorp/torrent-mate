@@ -216,6 +216,21 @@ class TrackerAuthFailed(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class WatcherRunTriggered(Event):
+    """Emitted when the Watcher daemon triggers a pipeline run.
+
+    Emitted by ``personalscraper run --trigger-reason <reason>`` before
+    ``PipelineStarted``. The reason is set by the watcher loop.
+
+    Attributes:
+        reason: Why the run was triggered — ``"completion"``,
+            ``"safety_net"``, or ``"manual"`` (watch-now sentinel).
+    """
+
+    reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class CrossSeedInjected(Event):
     """Emitted when a cross-seed torrent is successfully injected + verified.
 
@@ -274,4 +289,5 @@ __all__ = [
     "TrackerAuthFailed",
     "WantedAbandoned",
     "WantedEnqueued",
+    "WatcherRunTriggered",
 ]

@@ -344,6 +344,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
+    WatcherRunTriggered,
 )
 from personalscraper.core.identity import MediaRef  # noqa: E402, PLC0415
 
@@ -475,6 +476,12 @@ def make_cross_seed_rejected() -> CrossSeedRejected:
         reason="structural_mismatch: root_name",
         source_hash="b" * 40,
     )
+
+
+@register_factory(WatcherRunTriggered)
+def make_watcher_run_triggered() -> WatcherRunTriggered:
+    """Realistic WatcherRunTriggered factory — daemon completion trigger."""
+    return WatcherRunTriggered(reason="completion")
 
 
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]

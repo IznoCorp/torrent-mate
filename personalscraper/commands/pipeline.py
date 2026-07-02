@@ -641,10 +641,14 @@ def run(
                         enabled=config.notify.acquire_notify_enabled,
                     )
 
-            # Sub-phase 7.2 will emit ``WatcherRunTriggered(reason=trigger_reason)``
-            # here, before ``PipelineStarted``, when ``trigger_reason`` is non-empty.
-            # The validated value is available in this scope via the
-            # ``trigger_reason`` function parameter (see --trigger-reason option).
+            # Emit ``WatcherRunTriggered`` before ``PipelineStarted`` when the
+            # run is spawned by the Watcher daemon (``--trigger-reason`` set).
+            # Subscribers (Telegram, Rich console) are already wired at this
+            # point, so they will observe and forward the event.
+            if trigger_reason:
+                from personalscraper.acquire.events import WatcherRunTriggered
+
+                app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
 
             pipeline = Pipeline(app_context)
             try:

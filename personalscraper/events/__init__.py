@@ -33,6 +33,7 @@ from personalscraper.acquire.events import (
     TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
+    WatcherRunTriggered,
 )
 from personalscraper.api.metadata.registry import _events as _registry_events  # noqa: F401
 from personalscraper.api.metadata.registry._events import (
@@ -109,4 +110,5 @@ __all__ = [
     "VerifyItemDone",
     "WantedAbandoned",
     "WantedEnqueued",
+    "WatcherRunTriggered",
 ]
