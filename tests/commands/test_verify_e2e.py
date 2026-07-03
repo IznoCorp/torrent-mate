@@ -71,7 +71,7 @@ def test_verify_some_valid_some_blocked(
 ) -> None:
     """Some items valid, some blocked → summary reflects both counts."""
     mock_run.return_value = (
-        _verify_report(success_count=3, error_count=2, details=["[valid] Inception...", "[blocked] Bad.Movie..."]),
+        _verify_report(success_count=3, skip_count=2, details=["[valid] Inception...", "[blocked] Bad.Movie..."]),
         [MagicMock(), MagicMock(), MagicMock()],
     )
     mock_settings.return_value = make_typed_settings_stub()
@@ -97,7 +97,7 @@ def test_verify_all_blocked(
 ) -> None:
     """All items blocked → 0 OK, all blocked, 0 dispatchable."""
     mock_run.return_value = (
-        _verify_report(success_count=0, error_count=4),
+        _verify_report(success_count=0, skip_count=4),
         [],
     )
     mock_settings.return_value = make_typed_settings_stub()
@@ -257,7 +257,7 @@ def test_verify_summary_always_printed(
     mock_settings,
 ) -> None:
     """Even with all blocked, the summary + dispatchable count is printed."""
-    mock_run.return_value = (_verify_report(success_count=0, error_count=3), [])
+    mock_run.return_value = (_verify_report(success_count=0, skip_count=3), [])
     mock_settings.return_value = make_typed_settings_stub()
 
     result = run_cli(["verify"])
