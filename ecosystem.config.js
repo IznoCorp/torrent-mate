@@ -77,5 +77,18 @@ module.exports = {
       // 03:20 daily (after detect) + 15:20 to retry backed-off items sooner.
       cron_restart: "20 3,15 * * *",
     },
+
+    // ---- Proactive health monitor ----
+    // Hourly liveness + log-anomaly check; alerts Telegram on any anomaly the
+    // pipeline's own event alerting does not cover (dead watcher, stuck lock).
+    {
+      name: "personalscraper-health-check",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
+      args: "health-check",
+      interpreter: "none",
+      cwd: __dirname,
+      autorestart: false,
+      cron_restart: "15 * * * *", // hourly at :15
+    },
   ],
 };
