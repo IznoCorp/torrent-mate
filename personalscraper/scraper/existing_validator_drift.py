@@ -18,7 +18,7 @@ log = get_logger("scraper")
 
 # Local regex copies — kept here to avoid a circular re-import from
 # ``existing_validator`` (which re-exports the helpers below).
-_EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
+_EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2})? - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
 

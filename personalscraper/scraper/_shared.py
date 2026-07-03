@@ -14,7 +14,7 @@ log = get_logger("scraper")
 
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
-_EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
+_EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2})? - .+\.\w+$")
 _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IGNORECASE)
 
 
