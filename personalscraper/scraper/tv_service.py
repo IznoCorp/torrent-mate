@@ -1006,11 +1006,17 @@ class TvServiceMixin:
         allow_synthetic_rename = (
             self.config is None or self.config.metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched
         )
+        # Season-pack markers (whole-season single-file handling). ``None``
+        # disables the path entirely (byte-identical pre-existing behavior).
+        season_pack_markers: list[str] | None = None
+        if self.config is not None and self.config.metadata.season_pack_policy.enabled:
+            season_pack_markers = self.config.metadata.season_pack_policy.markers
         matched = match_episode_files(
             video_files,
             api_episodes,
             episode_default_name=episode_default_name,
             allow_synthetic_rename=allow_synthetic_rename,
+            season_pack_markers=season_pack_markers,
         )
         if not matched:
             return 0, []

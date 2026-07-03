@@ -26,6 +26,26 @@ if TYPE_CHECKING:
 log = get_logger("scraper")
 
 
+def _strip_xml_declaration(xml: str) -> str:
+    """Drop a leading ``<?xml …?>`` declaration line so blocks can be stacked.
+
+    Kodi multi-episode NFOs are several ``<episodedetails>`` roots in one file
+    under a single declaration. ``generate_episode_nfo`` emits a declaration per
+    block; this removes it so the caller can prepend exactly one.
+
+    Args:
+        xml: A full XML document string.
+
+    Returns:
+        The document without its leading XML declaration line.
+    """
+    stripped = xml.lstrip()
+    if stripped.startswith("<?xml"):
+        _, _, rest = stripped.partition("?>")
+        return rest.lstrip("\n")
+    return xml
+
+
 class TvServiceNfoMixin:
     """Episode NFO generation and thumbnail download methods.
 
@@ -114,6 +134,12 @@ class TvServiceNfoMixin:
             if info.get("fallback"):
                 continue
 
+            # Season packs get a Kodi multi-episode NFO (one <episodedetails>
+            # per covered episode) named to the SxxE01-Eyy range.
+            if info.get("is_season_pack"):
+                warnings.extend(self._generate_season_pack_nfo(video_path, info, show_dir, show_title, mpaa, studio))
+                continue
+
             season_dir_name = self.patterns.format("season_dir", Season=season)
             new_stem = self.patterns.format(
                 "episode_video",
@@ -183,4 +209,104 @@ class TvServiceNfoMixin:
             # Download episode thumbnail
             self._download_episode_thumb(still_path, thumb_path, season, episode)
 
+        return warnings
+
+    def _generate_season_pack_nfo(
+        self,
+        video_path: Path,
+        info: dict[str, Any],
+        show_dir: Path,
+        show_title: str,
+        mpaa: str,
+        studio: str,
+    ) -> list[str]:
+        """Write a Kodi multi-episode NFO for a whole-season single file.
+
+        Concatenates one ``<episodedetails>`` block per covered episode (Kodi's
+        documented multi-episode NFO format) under a single XML declaration,
+        named to the ``SxxE01-Eyy`` range. Stream info is attached to the first
+        block only (there is one physical file). Idempotent: skips when the NFO
+        already exists.
+
+        Args:
+            video_path: The season-pack video file (pre-rename path).
+            info: The season-pack match dict (carries ``covered_episode_infos``).
+            show_dir: TV show root directory.
+            show_title: Series title for the NFO ``showtitle``.
+            mpaa: Content rating string.
+            studio: Studio/network name.
+
+        Returns:
+            Warning strings for any NFO write failure (empty on success).
+        """
+        warnings: list[str] = []
+        season = info["season"]
+        ep_start = info["episode"]
+        ep_end = info["episode_end"]
+        api_title = info["api_title"]
+        season_dir_name = self.patterns.format("season_dir", Season=season)
+        new_stem = self.patterns.format(
+            "episode_video_range",
+            Season=season,
+            EpisodeStart=ep_start,
+            EpisodeEnd=ep_end,
+            EpisodeTitle=api_title,
+        )
+        nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
+        if nfo_path.exists():
+            return warnings
+
+        renamed_video = show_dir / season_dir_name / f"{new_stem}{video_path.suffix}"
+        stream_info = None
+        if renamed_video.exists():
+            from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+
+            stream_info = scraper_api.extract_stream_info(renamed_video)
+
+        blocks: list[str] = []
+        for ep_info in info.get("covered_episode_infos", []):
+            episode_data = {
+                "name": ep_info.get("title") or f"Episode {ep_info['episode']}",
+                "showtitle": show_title,
+                "id": ep_info.get("tmdb_episode_id", ""),
+                "tvdb_id": ep_info.get("tvdb_episode_id", ""),
+                "imdb_id": ep_info.get("imdb_episode_id", ""),
+                "season_number": season,
+                "episode_number": ep_info["episode"],
+                "overview": "",
+                "mpaa": mpaa,
+                "studio": studio,
+                "crew": [],
+                "still_path": ep_info.get("still_path", ""),
+            }
+            try:
+                # Stream info only on the first block (one physical file).
+                xml = self._nfo.generate_episode_nfo(episode_data, stream_info if not blocks else None)
+                blocks.append(_strip_xml_declaration(xml))
+            except Exception as e:  # noqa: BLE001 - per-episode fail-soft
+                log.warning(
+                    "episode_nfo_failed",
+                    season=season,
+                    episode=ep_info.get("episode"),
+                    error=str(e),
+                    exc_info=True,
+                )
+                warnings.append(f"episode_nfo_failed: season={season} episode={ep_info.get('episode')} reason={e}")
+
+        if blocks:
+            multi = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + "\n".join(blocks)
+            if not self.dry_run:
+                nfo_path.parent.mkdir(parents=True, exist_ok=True)
+                self._nfo.write_nfo(multi, nfo_path)
+
+        thumb_name = self.patterns.format(
+            "episode_thumb_range",
+            Season=season,
+            EpisodeStart=ep_start,
+            EpisodeEnd=ep_end,
+            EpisodeTitle=api_title,
+        )
+        self._download_episode_thumb(
+            info.get("still_path", ""), show_dir / season_dir_name / thumb_name, season, ep_start
+        )
         return warnings
