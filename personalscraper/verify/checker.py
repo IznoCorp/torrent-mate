@@ -34,7 +34,7 @@ _DIR_PATTERN = re.compile(r"^.+ \(\d{4}\)$")
 # title-less fallback "SxxExx.ext" produced when the provider lacks an episode
 # (see episode_manager.rename_episodes). The fallback must not trip
 # episode_renamed / season_structure checks.
-_EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2}(?: - .+)?\.\w+$")
+_EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2,})?(?: - .+)?\.\w+$")
 
 
 class MediaChecker:

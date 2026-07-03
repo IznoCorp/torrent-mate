@@ -26,6 +26,7 @@ __all__ = [
     "MetadataEpisodeScrapingPolicy",
     "MetadataPriorities",
     "MetadataProviderConfig",
+    "MetadataSeasonPackPolicy",
     "NotifyConfig",
     "NotifyProviderConfig",
     "RankingBonuses",
@@ -112,6 +113,52 @@ class MetadataEpisodeScrapingPolicy(_StrictModel):
     allow_synthetic_rename_on_unmatched: bool = False
 
 
+class MetadataSeasonPackPolicy(_StrictModel):
+    """Whole-season single-file ("Intégrale" / "Complete") handling.
+
+    A season pack is ONE video file holding an entire season (no per-episode
+    split), e.g. ``Show.Integrale.S01.mkv``. Such files carry a season number
+    but no episode number, so the per-episode matcher skips them and verify
+    blocks them (they never dispatch).
+
+    When ``enabled`` AND all four detection gates hold, the file is renamed to
+    the Kodi multi-episode form ``SxxE01-Eyy - <title>`` under ``Saison XX/``
+    and gets a multi-episode NFO. The gates (ALL required, else the pre-existing
+    skip behavior is preserved byte-for-byte):
+
+    1. an explicit complete-season ``marker`` appears in the filename
+       (accent- and case-insensitive),
+    2. the file has a season number but NO episode number,
+    3. it is the ONLY video file for that ``(show, season)``,
+    4. the locked provider (TVDB, or TMDB on fallback) returns a non-empty
+       episode list for that season (used to derive the ``E01-Eyy`` range).
+
+    The new path lives entirely inside the ``episode is None`` branch, so no
+    normal ``SxxExx`` file can ever be affected.
+
+    Attributes:
+        enabled: Master switch for season-pack range naming.
+        markers: Complete-season tokens matched (accent/case-insensitive) as a
+            delimited token in the filename. Stored without accents; the
+            detector strips accents before comparing.
+    """
+
+    enabled: bool = True
+    markers: list[str] = Field(
+        default_factory=lambda: [
+            "integrale",
+            "integral",
+            "complete",
+            "complet",
+            "coffret",
+            "full.season",
+            "full season",
+            "season.pack",
+            "season pack",
+        ]
+    )
+
+
 class MetadataConfig(_StrictModel):
     """Top-level metadata.json5 model.
 
@@ -120,12 +167,14 @@ class MetadataConfig(_StrictModel):
         priorities: Per-use-case priority ordering.
         defaults: Language and title preferences.
         episode_scraping_policy: Provider-lock and rename-on-unmatched contract.
+        season_pack_policy: Whole-season single-file (Intégrale) handling.
     """
 
     providers: dict[str, MetadataProviderConfig] = Field(default_factory=dict)
     priorities: MetadataPriorities = Field(default_factory=MetadataPriorities)
     defaults: MetadataDefaults = Field(default_factory=MetadataDefaults)
     episode_scraping_policy: MetadataEpisodeScrapingPolicy = Field(default_factory=MetadataEpisodeScrapingPolicy)
+    season_pack_policy: MetadataSeasonPackPolicy = Field(default_factory=MetadataSeasonPackPolicy)
 
 
 # ---------------------------------------------------------------------------

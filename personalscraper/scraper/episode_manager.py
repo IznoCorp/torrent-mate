@@ -70,6 +70,170 @@ def _extract_season_episode(name: str) -> tuple[int | None, int | None]:
     return None, None
 
 
+# Already-a-range pattern: a file this feature previously renamed
+# (``S02E01-E151 - Title``). Re-parsing it as a plain ``S02E01`` would collapse
+# the range on the next scrape, so it is re-affirmed as a season pack instead.
+_SE_RANGE_STEM = re.compile(r"^[Ss](\d{1,2})[Ee](\d{1,3})-[Ee](\d{1,4})(?: - (.+))?$")
+
+
+def _extract_season_episode_range(stem: str) -> tuple[int, int, int, str] | None:
+    """Parse a ``SxxE01-Eyy - Title`` stem into ``(season, start, end, title)``.
+
+    Args:
+        stem: Filename without extension.
+
+    Returns:
+        ``(season, episode_start, episode_end, title)`` for an already-ranged
+        season-pack filename, or ``None``. ``title`` is ``""`` when absent.
+    """
+    m = _SE_RANGE_STEM.match(stem)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3)), (m.group(4) or "")
+    return None
+
+
+# Season-only patterns (no episode number) — used ONLY for season-pack
+# detection, never for normal per-episode matching. ``S01`` must NOT be
+# followed by an episode marker (``E\d``) so a real ``S01E01`` never matches
+# here.
+_SEASON_ONLY_PATTERNS = [
+    re.compile(r"(?:^|[^A-Za-z0-9])[Ss](\d{1,2})(?![Ee]?\d)"),
+    re.compile(r"(?:saison|season)[\s._-]*(\d{1,2})", re.IGNORECASE),
+]
+
+
+def _extract_season_only(name: str) -> int | None:
+    """Extract a season number from a filename that has NO episode number.
+
+    Returns ``None`` when the name carries a normal ``SxxExx`` (that is the
+    per-episode matcher's job) or when no season token is present.
+
+    Args:
+        name: Raw media filename.
+
+    Returns:
+        The season number, or ``None``.
+    """
+    _, ep = _extract_season_episode(name)
+    if ep is not None:  # a real SxxExx — not a season-only name
+        return None
+    for pattern in _SEASON_ONLY_PATTERNS:
+        m = pattern.search(name)
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def _file_season(name: str) -> int | None:
+    """Return a file's season via SxxExx first, else the season-only token."""
+    season, _ = _extract_season_episode(name)
+    if season is not None:
+        return season
+    return _extract_season_only(name)
+
+
+def _normalize_marker_text(text: str) -> str:
+    """Lowercase + strip accents so 'Intégrale' matches the ascii 'integrale'."""
+    import unicodedata
+
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii").lower()
+
+
+def _has_season_pack_marker(name: str, markers: list[str]) -> bool:
+    """True when a complete-season marker appears as a delimited token in *name*.
+
+    Accent- and case-insensitive. A marker is matched only when it is bounded
+    by non-alphanumerics (or string ends) so 'complete' does not match inside
+    an unrelated word.
+
+    Args:
+        name: Raw filename.
+        markers: Complete-season tokens (stored without accents).
+
+    Returns:
+        True if any marker is present.
+    """
+    norm = _normalize_marker_text(name)
+    for marker in markers:
+        mnorm = _normalize_marker_text(marker)
+        if not mnorm:
+            continue
+        if re.search(rf"(?:^|[^a-z0-9]){re.escape(mnorm)}(?:[^a-z0-9]|$)", norm):
+            return True
+    return False
+
+
+def _try_season_pack_match(
+    video_path: Path,
+    video_files: list[Path],
+    api_episodes: dict[tuple[int, int], dict[str, Any]],
+    markers: list[str],
+) -> dict[str, Any] | None:
+    """Return a range match for a genuine whole-season single file, else None.
+
+    Applies the four cumulative gates (see :class:`MetadataSeasonPackPolicy`):
+    explicit marker, season-known/episode-absent, exactly-one-video-for-season,
+    and a non-empty provider episode list for that season. Only when ALL hold
+    does it emit a range match (``episode`` = first, ``episode_end`` = last).
+
+    Args:
+        video_path: The candidate video file.
+        video_files: Every video file for the show (to count per-season files).
+        api_episodes: Provider episode map keyed by ``(season, episode)``.
+        markers: Complete-season filename markers.
+
+    Returns:
+        A match dict with ``episode_end`` + ``is_season_pack=True``, or ``None``.
+    """
+    # Gate 2: season known, episode absent.
+    season = _extract_season_only(video_path.name)
+    if season is None:
+        return None
+    # Gate 1: explicit complete-season marker.
+    if not _has_season_pack_marker(video_path.name, markers):
+        return None
+    # Gate 3: exactly one video file resolves to this season.
+    if sum(1 for f in video_files if _file_season(f.name) == season) != 1:
+        return None
+    # Gate 4: provider has a non-empty episode list for this season.
+    season_eps = sorted(ep for (s, ep) in api_episodes if s == season)
+    if not season_eps:
+        return None
+    ep_start, ep_end = season_eps[0], season_eps[-1]
+    first_info = api_episodes.get((season, ep_start), {})
+    api_title = first_info.get("title") or f"Saison {season}"
+    # Per-episode info for the Kodi multi-episode NFO (one episodedetails each).
+    covered_infos = [
+        {
+            "episode": ep,
+            "title": api_episodes.get((season, ep), {}).get("title", ""),
+            "still_path": api_episodes.get((season, ep), {}).get("still_path", ""),
+            **_provider_id_fields(api_episodes.get((season, ep), {})),
+        }
+        for ep in season_eps
+    ]
+    log.info(
+        "episode_season_pack_matched",
+        filename=video_path.name,
+        season=season,
+        episode_start=ep_start,
+        episode_end=ep_end,
+        covered=len(season_eps),
+    )
+    return {
+        "season": season,
+        "episode": ep_start,
+        "episode_end": ep_end,
+        "api_title": api_title,
+        "still_path": first_info.get("still_path", ""),
+        "fallback": False,
+        "is_season_pack": True,
+        "covered_episodes": season_eps,
+        "covered_episode_infos": covered_infos,
+        **_provider_id_fields(first_info),
+    }
+
+
 def create_season_dirs(
     show_dir: Path,
     episodes: list[dict[str, Any]],
@@ -119,6 +283,7 @@ def match_episode_files(
     api_episodes: dict[tuple[int, int], dict[str, Any]],
     episode_default_name: str = "Episode",
     allow_synthetic_rename: bool = True,
+    season_pack_markers: list[str] | None = None,
 ) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
@@ -158,6 +323,10 @@ def match_episode_files(
             a title and the file is propagated for renaming. When
             ``False`` (current default contract), Pass-3 excludes the file
             entirely so it stays at its current location.
+        season_pack_markers: Complete-season filename markers enabling the
+            whole-season single-file path (see :func:`_try_season_pack_match`).
+            ``None`` (default) disables that path entirely — a file with no
+            episode number keeps the pre-existing skip behavior.
 
     Returns:
         Dict mapping video path to match info:
@@ -172,8 +341,39 @@ def match_episode_files(
     max_season = max(available_seasons) if available_seasons else None
 
     for video_path in video_files:
+        # Idempotence: a file already named as a range (S02E01-E151 - Title) is
+        # a season pack this feature placed earlier. Re-affirm it as-is so a
+        # re-scrape does NOT collapse it back to a single S02E01. Independent of
+        # the marker gate — this only preserves an existing valid state.
+        already_range = _extract_season_episode_range(video_path.stem)
+        if already_range is not None:
+            r_season, r_start, r_end, r_title = already_range
+            r_info = api_episodes.get((r_season, r_start), {})
+            matched[video_path] = {
+                "season": r_season,
+                "episode": r_start,
+                "episode_end": r_end,
+                "api_title": r_title or r_info.get("title") or f"Saison {r_season}",
+                "still_path": r_info.get("still_path", ""),
+                "fallback": False,
+                "is_season_pack": True,
+                "covered_episodes": list(range(r_start, r_end + 1)),
+                "covered_episode_infos": [],
+                **_provider_id_fields(r_info),
+            }
+            continue
+
         season, episode = _extract_season_episode(video_path.name)
         if season is None or episode is None:
+            # Season-pack path: a genuine whole-season single file (episode
+            # absent) may be range-matched. Gated behind season_pack_markers
+            # being provided (policy enabled) AND four strict criteria. When
+            # not a season pack, the original skip behavior is preserved.
+            if season_pack_markers is not None:
+                pack = _try_season_pack_match(video_path, video_files, api_episodes, season_pack_markers)
+                if pack is not None:
+                    matched[video_path] = pack
+                    continue
             log.warning("episode_se_not_found", filename=video_path.name)
             continue
 
@@ -286,17 +486,29 @@ def rename_episodes(
         season = info["season"]
         episode = info["episode"]
         api_title = info["api_title"]
+        episode_end = info.get("episode_end")
 
         # Build destination path: show_dir/Saison XX/S01E01 - Title.ext
         season_dir_name = patterns.format("season_dir", Season=season)
         season_dir = show_dir / season_dir_name
 
-        new_stem = patterns.format(
-            "episode_video",
-            Season=season,
-            Episode=episode,
-            EpisodeTitle=api_title,
-        )
+        # Season packs (a whole season in one file) get the Kodi multi-episode
+        # form S01E01-E02; single episodes keep S01E01.
+        if episode_end is not None and episode_end != episode:
+            new_stem = patterns.format(
+                "episode_video_range",
+                Season=season,
+                EpisodeStart=episode,
+                EpisodeEnd=episode_end,
+                EpisodeTitle=api_title,
+            )
+        else:
+            new_stem = patterns.format(
+                "episode_video",
+                Season=season,
+                Episode=episode,
+                EpisodeTitle=api_title,
+            )
         new_video_name = f"{new_stem}{video_path.suffix}"
         dest = season_dir / new_video_name
 

@@ -92,6 +92,12 @@ class NamingPatterns:
     episode_nfo: str = "S{Season:02d}E{Episode:02d} - {EpisodeTitle}.nfo"
     episode_thumb: str = "S{Season:02d}E{Episode:02d} - {EpisodeTitle}-thumb.jpg"
 
+    # --- Season-pack / multi-episode patterns (Kodi "S01E01-E02" form) ---
+    # Used for a single video file that holds a whole season.
+    episode_video_range: str = "S{Season:02d}E{EpisodeStart:02d}-E{EpisodeEnd:02d} - {EpisodeTitle}"
+    episode_nfo_range: str = "S{Season:02d}E{EpisodeStart:02d}-E{EpisodeEnd:02d} - {EpisodeTitle}.nfo"
+    episode_thumb_range: str = "S{Season:02d}E{EpisodeStart:02d}-E{EpisodeEnd:02d} - {EpisodeTitle}-thumb.jpg"
+
     def format(self, pattern_name: str, **kwargs: object) -> str:
         """Format a pattern by name with the given variables.
 

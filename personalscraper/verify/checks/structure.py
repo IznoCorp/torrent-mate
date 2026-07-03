@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 _MIN_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
 
 # Episode file pattern (copied from checker.py _EPISODE_PATTERN).
-_EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2}(?: - .+)?\.\w+$")
+_EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2,})?(?: - .+)?\.\w+$")
 
 
 @register_check
