@@ -107,7 +107,7 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_all_v1_events() -> None:
-    """The catalog is pinned at 33 events.
+    """The catalog is pinned at 37 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
@@ -122,14 +122,17 @@ def test_event_registry_has_all_v1_events() -> None:
     ``GrabSucceeded``, ``GrabFailed``, ``SeedObligationRecorded``,
     ``SeedObligationBreached``, ``SeedObligationSatisfied``,
     ``RatioMeasured`` (→ 33). The ``tracker-auth`` Phase 1 adds
-    ``TrackerAuthFailed`` (→ 34). The literal count guards against silent
+    ``TrackerAuthFailed`` (→ 34). The ``watch-seed`` Phase 5 adds
+    ``CrossSeedInjected`` and ``CrossSeedRejected`` (→ 36). The
+    ``watch-seed`` Phase 7 adds ``WatcherRunTriggered`` (→ 37).
+    The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 34, (
-        f"Expected 34 events (23 existing + 11 acquire-events), "
+    assert len(_EVENT_CLASS_REGISTRY) == 37, (
+        f"Expected 37 events (36 existing + 1 watch-seed WatcherRunTriggered event), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

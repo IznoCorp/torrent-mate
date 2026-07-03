@@ -122,7 +122,7 @@ set in `config.json5` under `indexer.scan.budget_seconds`. When the budget is
 exhausted the scanner writes a checkpoint and exits with `budget_exhausted=True`;
 the next invocation resumes from the last checkpoint automatically.
 
-For nightly scheduled scans (launchd), set the budget to ≤ 3 600 s (1 hour) to
+For nightly scheduled scans (PM2 cron), set the budget to ≤ 3 600 s (1 hour) to
 ensure the job completes before the next wake window. Use `--mode quick` for
 nightly runs, `--mode incremental` for more frequent scans (e.g. every few hours
 during the day), and reserve `--mode full` for weekend maintenance windows.

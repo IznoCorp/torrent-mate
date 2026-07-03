@@ -20,6 +20,8 @@ from __future__ import annotations
 from personalscraper import pipeline_events as _pipeline_events  # noqa: F401
 from personalscraper.acquire import events as _acquire_events  # noqa: F401
 from personalscraper.acquire.events import (
+    CrossSeedInjected,
+    CrossSeedRejected,
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
@@ -31,6 +33,7 @@ from personalscraper.acquire.events import (
     TrackerAuthFailed,
     WantedAbandoned,
     WantedEnqueued,
+    WatcherRunTriggered,
 )
 from personalscraper.api.metadata.registry import _events as _registry_events  # noqa: F401
 from personalscraper.api.metadata.registry._events import (
@@ -78,6 +81,8 @@ __all__ = [
     "CircuitBreakerClosed",
     "CircuitBreakerHalfOpened",
     "CircuitBreakerOpened",
+    "CrossSeedInjected",
+    "CrossSeedRejected",
     "DiskFullWarning",
     "GrabFailed",
     "GrabSucceeded",
@@ -105,4 +110,5 @@ __all__ = [
     "VerifyItemDone",
     "WantedAbandoned",
     "WantedEnqueued",
+    "WatcherRunTriggered",
 ]

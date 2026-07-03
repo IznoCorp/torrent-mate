@@ -121,20 +121,26 @@ personalscraper trailers purge                   # Purger les BA selon critères
 
 **Prérequis :** fichier `.env` configuré avec les credentials des services). Voir `.env.example`.
 
-**Scheduling :** un agent launchd (`com.personalscraper.pipeline.plist`) peut exécuter le pipeline automatiquement à une heure donnée.
+**Scheduling :** le watcher `personalscraper watch` tourne en daemon PM2
+(`pm2 start ecosystem.config.js`). Il poll qBittorrent à intervalle régulier
+(`watch.poll_interval_s`, défaut 60s), applique un debounce après la détection
+d'un nouveau torrent terminé (`watch.debounce_s`, défaut 900s), puis déclenche
+automatiquement `personalscraper run`. Un filet de sécurité (`watch.safety_net_hours`,
+défaut 24h) garantit un run minimum par jour même si aucun nouveau torrent n'est
+détecté.
 
 ```bash
-# Installer et activer (via le script d'installation)
-bash scripts/install-launchd.sh
+# Statut du daemon
+pm2 status personalscraper-watch
 
-# Désactiver
-launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+# Logs du watcher
+pm2 logs personalscraper-watch
 
-# Lancer manuellement
-launchctl start com.personalscraper.pipeline
+# Déclencher un run immédiatement (poke)
+personalscraper watch-now
 
-# Statut
-launchctl list | grep personalscraper
+# Désactiver le watcher
+pm2 stop personalscraper-watch
 ```
 
 ---

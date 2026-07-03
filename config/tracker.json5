@@ -5,9 +5,10 @@
   //   torr9 → TORR9_PASSKEY (RSS freeleech radar R1 follow-on)
   tracker: {
     providers: {
-      lacale: { enabled: true },
+      lacale: { enabled: true, cross_seed: false },
       c411: {
         enabled: true,
+        cross_seed: false,
         economy: {
           target_ratio: 2.0,
           min_ratio: 1.0,
@@ -17,6 +18,7 @@
       },
       torr9: {
         enabled: true,
+        cross_seed: false,
         economy: {
           target_ratio: 2.0,
           min_ratio: 1.0,

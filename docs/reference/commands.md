@@ -89,10 +89,15 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 
 44. [`config migrate-category`](#personalscraper-config-migrate-category) — rename a category across config + paths
 
+### Watcher — daemon (PM2)
+
+45. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
+46. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
+
 ### Make targets + scheduling (appendix)
 
 - `make` targets — test, lint, format, install-dev
-- launchd scheduling — plist install / load / unload
+- PM2 scheduling — ecosystem daemon + cron entries
 
 ---
 
@@ -334,7 +339,7 @@ operation. Supports `--interactive` for ambiguous scrape matches.
 
 **Purpose**: Runs the full pipeline from start to finish: ingest → sort → clean
 → scrape → cleanup → enforce → verify → trailers → dispatch. This is the main
-orchestration command for unattended/automated runs (e.g. via launchd). Each
+orchestration command for unattended/automated runs (e.g. via the PM2 watcher daemon). Each
 step reports its own summary, and the pipeline stops on the first fatal error
 unless `--continue-on-trailer-error` is set (for trailer-specific failures).
 
@@ -351,6 +356,8 @@ Telegram)
 - `--skip-trailers` : skip the trailers pipeline step for this invocation
 - `--continue-on-trailer-error` : do not abort dispatch when the trailers step crashes
 - `--headless` : run with no subscribers (silent mode for cron / CI) — disables Rich console output and Telegram notifications
+- `--no-console` : disable Rich console Live display (useful when stdout is not a TTY, e.g. invoked by the watcher daemon). Unlike `--headless`, structlog file logging and Telegram notifications remain active.
+- `--trigger-reason` : label this run with a human-readable trigger cause (e.g. `"watcher-debounce"`, `"watch-now"`, `"safety-net"`). Emitted as a `WatcherRunTriggered` event for observability.
 
 **Examples**:
 
@@ -359,8 +366,9 @@ Telegram)
     personalscraper run --skip-trailers
     personalscraper run --continue-on-trailer-error
     personalscraper run --headless
+    personalscraper run --no-console --trigger-reason "watch-now"
 
-**Related**: `ingest`, `sort`, `scrape`, `enforce`, `verify`, `dispatch`, `process`
+**Related**: `ingest`, `sort`, `scrape`, `enforce`, `verify`, `dispatch`, `process`, `watch`, `watch-now`
 
 ---
 
@@ -1583,3 +1591,64 @@ additional effect.
     personalscraper config migrate-category --from old_cat --to new_cat
 
 **Related**: `config`, `init-config`, `library-status`
+
+---
+
+## Watcher — daemon (PM2)
+
+> The watcher daemon is designed to run under PM2 via `ecosystem.config.js`.
+> See [INSTALLATION.md](../../INSTALLATION.md) for PM2 setup instructions.
+
+## `personalscraper watch`
+
+**Purpose**: Starts the watcher daemon — a single-process scheduler that polls the
+configured torrent client each cycle and spawns `personalscraper run --no-console
+--trigger-reason <reason>` when new completed torrents are detected. Also spawns
+`personalscraper cross-seed --hash <H>` for torrents tagged with `seed_pure`.
+Runs until SIGTERM/SIGINT. The daemon itself does NOT acquire `pipeline.lock`
+(W5) — only its spawned children do.
+
+**Side effects**: `mutate FS` (writes watch.trigger sentinel), spawns subprocesses
+that `mutate FS` + `mutate BDD` + `network`
+
+**Pipeline position**: n/a (daemon — runs independently, triggers pipeline runs)
+
+**Args**:
+
+- `--interval INTEGER` : Override the poll interval in seconds (default from `config.watch.poll_interval_s`, typically 60)
+
+**Configuration** (in `config/watch_seed.json5`):
+
+- `watch.enabled` (bool) : Kill-switch. When `false`, the command prints "Watch daemon is disabled" and exits immediately. The PM2 daemon continues running (autorestart) but each cycle is a no-op until re-enabled. Change and `pm2 restart personalscraper-watch` to apply.
+- `watch.poll_interval_s` (int) : Seconds between qBittorrent polls [default: 60]
+- `watch.debounce_s` (int) : Seconds to wait after a torrent completes before triggering a run [default: 900]
+- `watch.safety_net_hours` (int) : Maximum hours between pipeline runs — triggers a run regardless of torrent activity [default: 24]
+
+**Examples**:
+
+    personalscraper watch
+    personalscraper watch --interval 120
+
+**Related**: `watch-now`, `run`, `cross-seed`
+
+---
+
+## `personalscraper watch-now`
+
+**Purpose**: Triggers an immediate pipeline run by writing a sentinel file
+(`watch.trigger`) in the data directory. The running `personalscraper watch`
+daemon detects this file at the next poll cycle and fires `personalscraper run
+--no-console --trigger-reason manual`. No IPC — if the daemon is down, the
+sentinel persists and is consumed at the next boot.
+
+**Side effects**: `mutate FS` (writes a single empty sentinel file)
+
+**Pipeline position**: n/a (poke mechanism — triggers the watcher daemon)
+
+**Args**: none beyond global flags
+
+**Examples**:
+
+    personalscraper watch-now
+
+**Related**: `watch`, `run`

@@ -102,7 +102,7 @@ def test_build_is_inert_no_db_file_until_first_access(tmp_path: Path) -> None:
 
 
 def test_build_runs_migration_user_version_on_first_access(tmp_path: Path) -> None:
-    """After first sub-store access PRAGMA user_version == 1 (001_init.sql)."""
+    """After first sub-store access PRAGMA user_version reflects latest migration."""
     cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
     s = build_acquire_store(cfg)
     try:
@@ -111,18 +111,26 @@ def test_build_runs_migration_user_version_on_first_access(tmp_path: Path) -> No
         conn = sqlite3.connect(str(tmp_path / "acquire.db"))
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         conn.close()
-        assert version == 1
+        assert version >= 2  # latest migration is 002_cross_seed.sql
     finally:
         s.close()
 
 
-def test_all_four_tables_exist(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """All four domain tables are present after the store opens."""
+def test_all_tables_exist(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """All domain tables (including cross-seed) are present after the store opens."""
     _ = store.follow  # ensure the store has opened + migrated
     conn = sqlite3.connect(str(tmp_path / "acquire.db"))
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
-    assert {"followed_series", "wanted", "seed_obligation", "ratio_state"} <= tables
+    assert {
+        "followed_series",
+        "wanted",
+        "seed_obligation",
+        "ratio_state",
+        "cross_seed_history",
+        "cross_seed_quota",
+        "watch_state",
+    } <= tables
 
 
 def test_build_requires_resolved_db_path() -> None:
@@ -854,3 +862,31 @@ def test_acquire_errors_subclass_core_markers() -> None:
     assert isinstance(corrupt_err, SqliteCorruptError)
     assert corrupt_err.db_path == Path("/db/acquire.db")
     assert corrupt_err.quarantine_path == Path("/db/acquire.db.corrupt-1")
+
+
+# ---------------------------------------------------------------------------
+# _WatchSubStore — real round-trip on tmp acquire.db
+# ---------------------------------------------------------------------------
+
+
+def test_watch_get_returns_none_when_never_set(store):
+    """watch.get_last_successful_run_at returns None before any write."""
+    assert store.watch.get_last_successful_run_at() is None
+
+
+def test_watch_set_then_get_round_trip(store):
+    """watch.set_last_successful_run_at persists a value readable by get."""
+    store.watch.set_last_successful_run_at(1234.5)
+    assert store.watch.get_last_successful_run_at() == 1234.5
+
+
+def test_watch_set_upsert_overwrites_previous_value(store):
+    """A second set_last_successful_run_at upserts (replaces, not duplicates)."""
+    store.watch.set_last_successful_run_at(1234.5)
+    store.watch.set_last_successful_run_at(2000.0)
+    assert store.watch.get_last_successful_run_at() == 2000.0
+    # Verify no duplicate rows — only one canonical key should exist.
+    conn = store.watch._conn
+    conn.row_factory = lambda cursor, row: row[0]
+    count: int = conn.execute("SELECT COUNT(*) FROM watch_state WHERE key = 'last_successful_run_at'").fetchone()
+    assert count == 1

@@ -215,7 +215,96 @@ class TrackerAuthFailed(Event):
     media_ref: MediaRef
 
 
+@dataclass(frozen=True, kw_only=True)
+class WatcherRunTriggered(Event):
+    """Emitted when the Watcher daemon triggers a pipeline run.
+
+    Emitted by ``personalscraper run --trigger-reason <reason>`` before
+    ``PipelineStarted``. The reason is set by the watcher loop.
+
+    Attributes:
+        reason: Why the run was triggered — ``"completion"``,
+            ``"safety_net"``, or ``"manual"`` (watch-now sentinel).
+    """
+
+    reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class CrossSeedInjected(Event):
+    """Emitted when a cross-seed torrent is successfully injected + verified.
+
+    Emitted by :class:`~personalscraper.acquire.cross_seed.CrossSeedService`
+    after the obligation record is persisted (emit-after-persist convention).
+
+    Attributes:
+        info_hash: The info-hash of the injected torrent.
+        source_tracker: The tracker the ``.torrent`` was fetched from (target).
+        source_hash: The info-hash of the original (source) torrent.
+        save_path: Absolute path to the data directory used as save path.
+    """
+
+    info_hash: str
+    source_tracker: str
+    source_hash: str
+    save_path: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class CrossSeedRejected(Event):
+    """Emitted when a cross-seed candidate is rejected before injection.
+
+    Emitted by :class:`~personalscraper.acquire.cross_seed.CrossSeedService`
+    at each rejection point — fetch failure, magnet, parse error, structural
+    mismatch, or recheck failure.
+
+    Attributes:
+        info_hash: The info-hash of the CANDIDATE ``.torrent`` (not the
+            source). When the candidate carries no hash, this is the
+            download URL or ``"unknown"``.
+        tracker: The tracker the candidate was fetched from.
+        reason: Closed-set rejection reason:
+            ``"fetch_failed"``
+                Transport/auth/circuit error during candidate download.
+            ``"magnet_not_supported"``
+                Candidate resolved to a magnet link (no ``.torrent`` bytes).
+            ``"parse_failed"``
+                Candidate ``.torrent`` bytes failed bencode parsing.
+            ``"inject_failed"``
+                Injection failed — the candidate's info-hash could not be
+                computed (:class:`ValueError` from bencode) or the torrent
+                client rejected the injection (:class:`ApiError`).
+            ``"self_candidate"``
+                Candidate ``info_hash`` equals the source ``info_hash``
+                (same-release cross-post, or origin-unresolvable loop).
+            ``"piece_length_mismatch"``
+                ``structural_match``: ``piece_length`` differs.
+            ``"file_list_mismatch"``
+                ``structural_match``: file count or name/size list differs.
+            ``"root_name_mismatch"``
+                ``structural_match``: ``info.name`` differs.
+            ``"v2_hybrid"``
+                ``structural_match``: candidate is v2/hybrid (non-v1).
+            ``"obligation_write_failed"``
+                Seed obligation persist failed — injection deleted.
+            ``"verify_timeout"``
+                Recheck verification deadline passed without progress ≥ 1.0.
+            ``"recheck_failed"``
+                **Reserved** — recheck finished but progress < 1.0 (not
+                reachable with the current progress-only poll).
+        source_hash: The info-hash of the source torrent that triggered the
+            cross-seed attempt.
+    """
+
+    info_hash: str
+    tracker: str
+    reason: str
+    source_hash: str
+
+
 __all__ = [
+    "CrossSeedInjected",
+    "CrossSeedRejected",
     "GrabFailed",
     "GrabSucceeded",
     "RatioMeasured",
@@ -227,4 +316,5 @@ __all__ = [
     "TrackerAuthFailed",
     "WantedAbandoned",
     "WantedEnqueued",
+    "WatcherRunTriggered",
 ]

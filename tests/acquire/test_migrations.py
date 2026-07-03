@@ -1,12 +1,13 @@
 """Unit tests for personalscraper.acquire migration chain.
 
 Covers:
-- Applying migration 001 to a fresh DB.
-- All 4 domain tables + schema_version table exist.
-- PRAGMA user_version == 1 after fresh apply.
-- Partial index idx_wanted_pending exists.
-- schema_version contains version 1.
+- Applying the full migration chain (001 + 002) to a fresh DB.
+- All 6 domain tables + schema_version table exist (including cross-seed tables from 002).
+- PRAGMA user_version == 2 after fresh apply.
+- Partial indexes idx_wanted_pending + idx_seed_dispatched_path exist (001).
+- schema_version contains version 1 (002 omitted the INSERT — tracked as tech-debt).
 - Idempotence (second apply is a no-op).
+- seed_obligation CHECK constraints (001).
 """
 
 from __future__ import annotations
@@ -24,12 +25,17 @@ from personalscraper.core.sqlite import apply_migrations
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
-# Expected tables after migration 001 is applied.
+# Expected tables after the full migration chain (001 + 002) is applied.
+_LATEST_VERSION = 3
+
 _EXPECTED_TABLES = {
     "followed_series",
     "wanted",
     "seed_obligation",
     "ratio_state",
+    "cross_seed_history",
+    "cross_seed_quota",
+    "watch_state",
     "schema_version",
 }
 
@@ -65,43 +71,37 @@ def _user_version(conn: sqlite3.Connection) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Test: apply 001 to fresh DB
+# Test: apply full migration chain to fresh DB
 # ---------------------------------------------------------------------------
 
 
-class TestAcquireMigrations001:
-    """Migration 001 creates the initial acquire.db schema with 4 domain tables."""
+class TestAcquireMigrations:
+    """Full migration chain (001 + 002) creates 6 domain tables + schema_version."""
 
-    def test_user_version_is_one(self, tmp_path: Path) -> None:
-        """After applying 001, PRAGMA user_version equals 1."""
+    def test_user_version_is_latest(self, tmp_path: Path) -> None:
+        """After applying the full chain, PRAGMA user_version equals the latest version."""
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 1
+        assert _user_version(conn) == _LATEST_VERSION
 
     def test_all_tables_present(self, tmp_path: Path) -> None:
-        """After applying 001, all 4 domain tables + schema_version exist."""
+        """After applying the full chain, all 6 domain tables + schema_version exist."""
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _table_names(conn) == _EXPECTED_TABLES
 
     def test_schema_version_row_exists(self, tmp_path: Path) -> None:
-        """After applying 001, schema_version contains version 1.
-
-        Every migration script must record its version in the ``schema_version``
-        audit table — this is the contract that lets tooling reason about the
-        migration chain.  A migration that bumps ``PRAGMA user_version`` without
-        inserting into ``schema_version`` is a bug.
-        """
+        """After applying the full chain, schema_version contains version 1 then version 2."""
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
-        rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert rows == [(1,)]
+        rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
+        assert rows == [(1,), (2,), (3,)]
 
     def test_partial_index_wanted_pending_exists(self, tmp_path: Path) -> None:
-        """After applying 001, the partial index idx_wanted_pending exists."""
+        """After applying the full chain, the partial index idx_wanted_pending exists (001)."""
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
@@ -111,7 +111,7 @@ class TestAcquireMigrations001:
         assert len(rows) == 1
 
     def test_partial_index_seed_dispatched_path_exists(self, tmp_path: Path) -> None:
-        """After applying 001, the partial index idx_seed_dispatched_path exists."""
+        """After applying the full chain, the partial index idx_seed_dispatched_path exists (001)."""
         db_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)

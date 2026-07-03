@@ -436,3 +436,82 @@ If any step above fails and cannot be resolved in-place:
 - `docs/features/<codename>/ACCEPTANCE.md` — per-feature executable criteria (when a feature is active)
 - `docs/archive/features/tech-debt/ACCEPTANCE.md` — archived 0.16.0 criteria (historical)
 - `docs/reference/storage.md` — disk layout, rsync flags, NTFS/macFUSE notes
+
+---
+
+## watch-seed (0.39.0) — launchd → PM2 cutover
+
+**When**: after `git pull` on the production host (IznoServer), before
+starting the watcher daemon.
+
+### Step 1 — Stop + remove stale launchd agents
+
+Run as the operator, not root:
+
+```bash
+# The 3 indexer agents have been silently failing for months
+# (stale repo path /Users/izno/dev/PersonnalScaper — exit 1).
+launchctl bootout gui/$(id -u) com.personalscraper.index-quick 2>/dev/null || true
+launchctl bootout gui/$(id -u) com.personalscraper.index-rotate 2>/dev/null || true
+launchctl bootout gui/$(id -u) com.personalscraper.index-enrich 2>/dev/null || true
+rm -f ~/Library/LaunchAgents/com.personalscraper.index-*.plist
+```
+
+### Step 2 — Verify PM2 is installed and running
+
+```bash
+pm2 ping
+# Expected: pong
+```
+
+### Step 3 — Start the PM2 ecosystem
+
+From the repo root:
+
+```bash
+cd ~/dev/PersonalScraper
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+### Step 4 — Verify the watcher daemon
+
+```bash
+pm2 status personalscraper-watch
+# Expected: "online", restarts=0
+
+pm2 logs personalscraper-watch --lines 10
+# Expected: watcher_disabled log line if watch.enabled is false,
+# or cycle log lines if enabled.
+```
+
+### Step 5 — Enable the watcher
+
+Only after verifying step 4 is clean. Edit `config/watch_seed.json5` → set
+`watch.enabled: true`, then:
+
+```bash
+pm2 restart personalscraper-watch
+pm2 logs personalscraper-watch --lines 5
+# Expected: first poll cycle visible (60 s after start).
+```
+
+### Step 6 — Rollback
+
+If the watcher misbehaves:
+
+```bash
+pm2 stop personalscraper-watch
+```
+
+The rest of the pipeline continues to work manually (`personalscraper run`).
+
+### Boot persistence
+
+PM2 must be configured to resurrect on system boot (one-time setup):
+
+```bash
+pm2 startup
+# Follow the printed instructions (typically a sudo command).
+pm2 save
+```

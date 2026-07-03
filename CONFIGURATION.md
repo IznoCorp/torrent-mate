@@ -337,7 +337,7 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
 
 ## Monitoring (optionnel)
 
-Ping de supervision pour le scheduling automatique (launchd).
+Ping de supervision pour le scheduling automatique (watcher PM2).
 
 | Variable          | Défaut   | Description                                                          |
 | ----------------- | -------- | -------------------------------------------------------------------- |
@@ -359,6 +359,10 @@ HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 > Le pipeline envoie un ping au début (`/start`), en cas de succès, et en cas d'échec (`/fail`). Si le ping n'arrive pas dans les 24h + 1h de grâce, Healthchecks.io envoie une alerte (email, Telegram, Slack, etc.).
+>
+> Le filet de sécurité du watcher (`watch.safety_net_hours`, défaut 24h) garantit
+> un run au maximum toutes les 24h même sans nouveau torrent — la période de 1 jour
+> du check Healthchecks reste donc valide tant que le watcher PM2 est actif.
 
 ---
 

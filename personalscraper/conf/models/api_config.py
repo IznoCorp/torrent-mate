@@ -230,6 +230,8 @@ class TrackerProviderConfig(_StrictModel):
     Attributes:
         enabled: Whether this tracker is active.
         economy: Optional seeding economy policy. None = activation-only mode.
+        cross_seed: Allow this tracker to receive cross-seed injections.
+            Defaults to False — trackers must opt in (D9).
         enrich_seeders: When True, the tracker re-checks the top-K search
             results' seeders/leechers against its per-torrent detail endpoint
             before ranking. Default False (opt-in): torr9's ``/torrents/search``
@@ -241,6 +243,7 @@ class TrackerProviderConfig(_StrictModel):
 
     enabled: bool = False
     economy: TrackerEconomyConfig | None = None
+    cross_seed: bool = False
     enrich_seeders: bool = False
     enrich_seeders_top_k: int = 10
 

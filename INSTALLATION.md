@@ -95,27 +95,75 @@ personalscraper run --dry-run
 
 ## Scheduling automatique (optionnel)
 
-Un agent launchd permet d'exécuter le pipeline automatiquement tous les jours à 3h du matin.
+Le watcher `personalscraper watch` tourne en daemon via PM2 et déclenche
+automatiquement le pipeline quand de nouveaux torrents sont terminés.
 
-### Installer l'agent
+### Prérequis
 
-```bash
-# Utiliser le script d'installation (substitue les placeholders du template)
-bash scripts/install-launchd.sh
-```
-
-### Gérer l'agent
+PM2 doit être installé globalement (il gère déjà n8n sur IznoServer) :
 
 ```bash
-# Lancer manuellement
-launchctl start com.personalscraper.pipeline
-
-# Vérifier le statut
-launchctl list | grep personalscraper
-
-# Désactiver
-launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+npm install -g pm2
 ```
+
+### Installer le daemon
+
+```bash
+# Depuis la racine du dépôt
+pm2 start ecosystem.config.js && pm2 save
+```
+
+Cela démarre trois apps :
+
+- **personalscraper-watch** — daemon qui poll qBittorrent toutes les 60s
+  (configurable via `watch.poll_interval_s` dans `config/watch_seed.json5`).
+  Quand un torrent se termine, le watcher applique un debounce de 15 min
+  (`watch.debounce_s`) puis déclenche `personalscraper run`.
+- **personalscraper-index-enrich** — cron PM2 (dimanche 04:30) :
+  `library-index --mode enrich --budget 1800`
+- **personalscraper-backfill-ids** — cron PM2 (dimanche 05:00) :
+  `library-backfill-ids`
+
+### Kill-switch
+
+Le watcher peut être désactivé sans arrêter PM2 :
+
+```json5
+// config/watch_seed.json5
+watch: {
+  enabled: false,  // Le daemon tourne mais ne déclenche pas de run
+}
+```
+
+Appliquer le changement : `pm2 restart personalscraper-watch`
+
+### Gérer le daemon
+
+```bash
+# Statut
+pm2 status personalscraper-watch
+
+# Logs
+pm2 logs personalscraper-watch
+
+# Arrêter
+pm2 stop personalscraper-watch
+
+# Redémarrer
+pm2 restart personalscraper-watch
+
+# Déclencher un run immédiat (poke sans attendre le prochain poll)
+personalscraper watch-now
+```
+
+### Persistance au boot
+
+```bash
+pm2 startup
+pm2 save
+```
+
+PM2 redémarre automatiquement tous les daemons après un reboot.
 
 ### Logs
 
@@ -140,7 +188,8 @@ pip install -e ".[dev]"
 ## Désinstallation
 
 ```bash
+pm2 stop personalscraper-watch personalscraper-index-enrich personalscraper-backfill-ids
+pm2 delete personalscraper-watch personalscraper-index-enrich personalscraper-backfill-ids
+pm2 save
 pip uninstall personalscraper
-launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
-rm ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
 ```

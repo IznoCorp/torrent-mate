@@ -1,0 +1,256 @@
+# Phase 2 — RP10b: TorrentInjector protocol + QBitClient inject
+
+## Gate
+
+- **Requires Phase 1**: `TorrentLayout` + `parse_torrent_layout()` + `structural_match()` importable from `personalscraper.api.torrent._layout`.
+- **Produces for Phase 4**: `TorrentInjector` protocol (importable from `_contracts.py`), `inject()` / `list_files()` / `properties()` on `QBitClient`, extended `TorrentItem` with `save_path` + `completion_on` — all ready for `CrossSeedService` consumption.
+
+## Overview
+
+Create the `@runtime_checkable` `TorrentInjector` protocol in `api/torrent/_contracts.py` alongside existing protocols (`TorrentLister`, `TorrentAdder`, etc.). Implement `inject()`, `list_files()`, and `properties()` on `QBitClient`. Extend the `TorrentItem` dataclass mapper with `save_path` + `completion_on` (currently dropped). TransmissionClient opts out cleanly (does not implement `TorrentInjector`).
+
+### Sub-phases (5 commits)
+
+| #   | Commit                                                                               | Scope      |
+| --- | ------------------------------------------------------------------------------------ | ---------- |
+| 2.1 | `feat(watch-seed): add TorrentInjector protocol to _contracts.py`                    | Protocol   |
+| 2.2 | `feat(watch-seed): add list_files and properties methods to QBitClient`              | Read APIs  |
+| 2.3 | `feat(watch-seed): add inject method to QBitClient`                                  | Inject API |
+| 2.4 | `feat(watch-seed): extend TorrentItem with save_path and completion_on`              | Mapper     |
+| 2.5 | `test(watch-seed): add integration tests for RP10b inject + list_files + properties` | Tests      |
+
+## Sub-phase 2.1 — TorrentInjector protocol
+
+**Files:**
+
+- Modify: `personalscraper/api/torrent/_contracts.py` (add `TorrentInjector`)
+
+Follow the existing pattern of `@runtime_checkable` protocols in the same file. The protocol exposes three methods:
+
+```python
+@runtime_checkable
+class TorrentInjector(Protocol):
+    """Capability: inject a .torrent at a specified save path with recheck.
+
+    Composed by :class:`~personalscraper.api.torrent.qbittorrent.QBitClient`.
+    Not implemented by :class:`TransmissionClient` — Transmission lacks
+    ``savepath`` on add (D2) and 1:1 recheck semantics.
+    """
+
+    def inject(
+        self,
+        torrent_bytes: bytes,
+        *,
+        save_path: str,
+        recheck: bool = True,
+        paused: bool = True,
+    ) -> str:
+        """Inject a .torrent into the client, pointed at an existing data path.
+
+        Args:
+            torrent_bytes: Raw .torrent file bytes.
+            save_path: Absolute path to the existing data directory
+                (the source torrent's ``save_path``).
+            recheck: Whether to run a recheck after adding (default True).
+            paused: Whether to add in paused state (default True).
+
+        Returns:
+            The info-hash (v1) of the injected torrent.
+
+        """
+
+        ...
+
+    def list_files(self, info_hash: str) -> list[tuple[str, int]]:
+        """Return ``(name, size)`` for every file in a torrent.
+
+        Wraps qBittorrent ``torrents/files``.
+
+        Args:
+            info_hash: V1 info-hash of an active torrent.
+
+        Returns:
+            Ordered list of (relative_path, byte_size) for each file.
+        """
+        ...
+
+    def properties(self, info_hash: str) -> dict[str, object]:
+        """Return the raw ``torrents/properties`` dict for *info_hash*.
+
+        Args:
+            info_hash: V1 info-hash.
+
+        Returns:
+            The full properties dictionary. The ``piece_size`` key is
+            the torrent's ``piece_length`` in bytes.
+        """
+        ...
+```
+
+Update `__all__` to include `"TorrentInjector"`. Re-export in `api/torrent/__init__.py` if the module has a convenience re-export.
+
+## Sub-phase 2.2 — list_files + properties on QBitClient
+
+**Files:**
+
+- Modify: `personalscraper/api/torrent/qbittorrent.py`
+
+Add two methods to `QBitClient`:
+
+```python
+def list_files(self, info_hash: str) -> list[tuple[str, int]]:
+    """Return ``(name, size)`` for every file in a torrent."""
+    try:
+        files = self._client.torrents_files(torrent_hash=info_hash)
+    except qbittorrentapi.NotFound404Error as exc:
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=404,
+            message=f"Torrent {info_hash} not found",
+        ) from exc
+    return [(entry.name, entry.size) for entry in files]
+
+
+def properties(self, info_hash: str) -> dict[str, object]:
+    """Return the raw ``torrents/properties`` dict."""
+    try:
+        props = self._client.torrents_properties(torrent_hash=info_hash)
+    except qbittorrentapi.NotFound404Error as exc:
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=404,
+            message=f"Torrent {info_hash} not found",
+        ) from exc
+    return dict(props)
+```
+
+Uses `self._client.torrents_files` / `self._client.torrents_properties`
+(the real qbittorrentapi.Client methods). Both methods catch
+`qbittorrentapi.NotFound404Error` (raised by the library for an unknown hash)
+and re-raise as `ApiError(http_status=404)` — consistent with the
+`get_content_path` unknown-hash pattern. The methods are read-only; callers
+can wrap them with `TORRENT_LISTING_ERRORS` (`NotFound404Error` inherits from
+`qbittorrentapi.APIError`, which is in the except-tuple).
+
+## Sub-phase 2.3 — inject on QBitClient
+
+**Files:**
+
+- Modify: `personalscraper/api/torrent/qbittorrent.py`
+
+```python
+def inject(
+    self,
+    torrent_bytes: bytes,
+    *,
+    save_path: str,
+    recheck: bool = True,
+    paused: bool = True,
+) -> str:
+    """Inject a .torrent at *save_path*, add paused, optionally recheck.
+
+    Uses :meth:`qbittorrentapi.Client.torrents_add` with *save_path*,
+    ``is_skip_checking=False``, and ``is_paused`` per *paused*. The info-hash
+    is computed from *torrent_bytes* via :func:`_bencode_info_hash` before the
+    add — needed for idempotent return on duplicate (Conflict409) and for the
+    recheck. A duplicate add (``Conflict409Error``) is idempotent success
+    (same contract as :meth:`add`): still issue the recheck when *recheck* is
+    True, return the computed *info_hash*. A ``"Fails."`` result from
+    ``torrents_add`` maps to ``ApiError`` (same as :meth:`add`).
+
+    Recheck (via :meth:`~qbittorrentapi.Client.torrents_recheck`) is issued
+    but NOT polled for completion — state polling is the caller's
+    responsibility (CrossSeedService, Phase 4).
+
+    Args:
+        torrent_bytes: Raw .torrent file content.
+        save_path: Absolute path to existing data.
+        recheck: Run recheck after adding (default True). Does NOT poll —
+            the caller must verify completion.
+        paused: Add in paused state (default True).
+
+    Returns:
+        The torrent's v1 info-hash.
+
+    Raises:
+        ApiError: qBittorrent returns 401/403, a corrupt-payload error
+            (415 / torrent-file), or a ``"Fails."`` result.
+    """
+    info_hash = _bencode_info_hash(torrent_bytes)
+    try:
+        result = self._client.torrents_add(
+            torrent_files=torrent_bytes,
+            save_path=save_path,
+            is_skip_checking=False,
+            is_paused=paused,
+        )
+    except qbittorrentapi.Conflict409Error:
+        log.debug("qbit_inject_duplicate", info_hash=info_hash)
+        if recheck:
+            self._client.torrents_recheck(torrent_hashes=info_hash)
+        return info_hash
+    # ... 401/403/415/TorrentFileError → ApiError (same as add()) ...
+    if isinstance(result, str) and result.strip().rstrip(".").lower() != "ok":
+        raise ApiError(...)
+    if recheck:
+        self._client.torrents_recheck(torrent_hashes=info_hash)
+    return info_hash
+```
+
+Uses `self._client.torrents_add` (not a raw `self._transport.post`) — all error
+handling follows the existing `add()` pattern: `Conflict409Error` → idempotent
+success, `"Fails."` result → `ApiError`, typed exception mapping for
+401/403/415/TorrentFileError. The installed `qbittorrentapi` uses the `is_paused`
+kwarg (verified 2026-07-02). Recheck is issued via
+`self._client.torrents_recheck(torrent_hashes=info_hash)` — the caller
+(CrossSeedService) polls for completion, not `inject()`.
+
+## Sub-phase 2.4 — extend TorrentItem mapper
+
+**Files:**
+
+- Modify: `personalscraper/api/torrent/qbittorrent.py` (the `_torrent_item` function)
+
+The `TorrentItem` dataclass currently drops `save_path` and `completion_on`. Add both fields to `TorrentItem` (in `api/torrent/_base.py` if defined there — check) and populate them from the qBittorrent API response:
+
+- `save_path: str` — from the `save_path` field in `torrents/info`.
+- `completion_on: int | None` — from `completion_on` (Unix timestamp, None if never completed).
+
+```python
+@dataclass
+class TorrentItem:
+    # ... existing fields ...
+    save_path: str = ""
+    completion_on: int | None = None
+```
+
+Both fields carry defaults so existing callers in `TransmissionClient` and
+tests are unaffected. The qBittorrent mapper normalizes `completion_on` ≤ 0
+to `None`; the Transmission mapper reads `download_dir` → `save_path` and
+`done_date` → `completion_on` defensively.
+
+Update `_torrent_item()` to read `item.get("save_path", "")` and `item.get("completion_on")`. Check `api/torrent/_base.py` for the dataclass definition.
+
+## Sub-phase 2.5 — integration tests
+
+**Files:**
+
+- Create: `tests/integration/api/torrent/test_rp10b_injector.py`
+
+Integration tests against a mocked `QBitClient` (or fake transport):
+
+- `test_inject_posts_with_correct_savepath` — asserts `savepath` = source.save_path, `skip_checking=false`, `paused=true`.
+- `test_inject_recheck_called` — asserts `/api/v2/torrents/recheck` was called with the info-hash.
+- `test_inject_conflict409_raises` — when the transport returns HTTP 409.
+- `test_list_files_returns_name_size_pairs` — raw API response → correct list-of-tuples.
+- `test_properties_includes_piece_size` — verifies `piece_size` key present.
+- `test_torrent_injector_isinstance_qbit` — `isinstance(QBitClient(), TorrentInjector)` is True.
+- `test_torrent_injector_not_transmission` — `isinstance(TransmissionClient(), TorrentInjector)` is False (ACC-3).
+- `test_torrent_item_save_path_and_completion_on` — mapper reads both fields from API response.
+
+## Gate check (before advancing to Phase 3)
+
+- [ ] `make lint` — 0 errors.
+- [ ] `python -c "from personalscraper.api.torrent._contracts import TorrentInjector; from personalscraper.api.torrent.qbittorrent import QBitClient; print(hasattr(QBitClient,'inject') and hasattr(QBitClient,'list_files'))"` → `True` (ACC-3).
+- [ ] `python -m pytest tests/integration/api/torrent/test_rp10b_injector.py -q` — all pass.
+- [ ] Module size: `api/torrent/qbittorrent.py` stays under soft limit (if near, consider extracting the inject methods into a mixin or separate module).

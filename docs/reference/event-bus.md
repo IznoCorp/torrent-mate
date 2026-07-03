@@ -215,7 +215,7 @@ The set is pinned by `test_every_event_has_factory` in `tests/fixtures/test_fact
 ## Boundary-only AppContext rule
 
 `AppContext` is a frozen dataclass holding the three process-scoped
-singletons (`config`, `settings`, `event_bus`). Only **CLI / launchd
+singletons (`config`, `settings`, `event_bus`). Only **CLI / PM2
 boundaries** are allowed to construct one. Domain modules receive what
 they need through their own constructor / function parameters; passing
 `AppContext` deeper is a design violation.
@@ -228,7 +228,7 @@ the allowlist. Currently the allowlist contains:
 - `personalscraper.cli_helpers._build_app_context` (the constructor)
 - `personalscraper.cli.main` (the typer top-level callback, decorated `@app.callback()`)
 - `personalscraper.commands.pipeline.run` (the full-pipeline CLI)
-- `personalscraper.commands.library.scan.library_index` (the launchd command)
+- `personalscraper.commands.library.scan.library_index` (the indexer command)
 - the three `personalscraper.trailers.cli.*` subcommands (`scan`, `download`, `purge`)
 
 To add a new boundary, append its qualified name to the allowlist in
@@ -325,7 +325,7 @@ structlog's context binding (`bind_contextvars(run_id=...)`) is wired
 in parallel at the CLI boundary (`personalscraper/commands/pipeline.py`
 inside the `run` command) so log records also carry the same id.
 
-### launchd scan bootstrap (`personalscraper library-index`)
+### Indexer scan bootstrap (`personalscraper library-index`)
 
 The `library_index_command` binds `current_correlation_id` for the
 duration of the scan with a fresh `run_id`. Long-lived breakers (HTTP

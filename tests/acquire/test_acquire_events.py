@@ -9,6 +9,8 @@ import pytest
 
 import personalscraper.events  # noqa: F401 — eager-import side effect
 from personalscraper.acquire.events import (
+    CrossSeedInjected,
+    CrossSeedRejected,
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
@@ -19,6 +21,7 @@ from personalscraper.acquire.events import (
     SeriesUnfollowed,
     WantedAbandoned,
     WantedEnqueued,
+    WatcherRunTriggered,
 )
 from personalscraper.core.event_bus import (
     _EVENT_CLASS_REGISTRY,
@@ -29,6 +32,8 @@ from personalscraper.core.event_bus import (
 from tests.fixtures.event_samples import EVENT_SAMPLE_FACTORIES
 
 ACQUIRE_EVENT_CLASSES: tuple[type[Event], ...] = (
+    CrossSeedInjected,
+    CrossSeedRejected,
     SeriesFollowed,
     SeriesUnfollowed,
     WantedEnqueued,
@@ -39,6 +44,7 @@ ACQUIRE_EVENT_CLASSES: tuple[type[Event], ...] = (
     SeedObligationBreached,
     SeedObligationSatisfied,
     RatioMeasured,
+    WatcherRunTriggered,
 )
 
 
