@@ -136,8 +136,19 @@ def _run_dry(
             console.print("  [yellow]No results.[/yellow]")
             continue
 
+        # Episode-exactness: mirror the real grab so the preview's Top is the
+        # actual episode, not a fuzzy same-show match.
+        results = outcome.results
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            from personalscraper.acquire.orchestrator import filter_to_episode  # noqa: PLC0415
+
+            results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                console.print("  [yellow]No result matches the exact episode.[/yellow]")
+                continue
+
         profile = QualityProfile()
-        filtered = apply_hard_filters(outcome.results, profile)
+        filtered = apply_hard_filters(results, profile)
         deduped = dedup(filtered)
         console.print(f"  After filter+dedup: {len(deduped)} candidates")
         if deduped:

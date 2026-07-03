@@ -7,9 +7,18 @@ title-based trackers (c411, torr9) never match → every wanted item abandoned.
 title is available.
 """
 
+from dataclasses import dataclass
+
 from personalscraper.acquire.domain import WantedItem
-from personalscraper.acquire.orchestrator import build_search_query
+from personalscraper.acquire.orchestrator import build_search_query, filter_to_episode
 from personalscraper.core.identity import MediaRef
+
+
+@dataclass
+class _Result:
+    """Minimal stand-in for a TrackerResult (only ``title`` is read here)."""
+
+    title: str
 
 
 def _episode(tvdb: int, season: int, episode: int, followed_id: int | None = 1) -> WantedItem:
@@ -84,3 +93,42 @@ class TestBuildSearchQuery:
             episode=None,
         )
         assert build_search_query(item, "Some Show") == "Some Show"
+
+
+class TestFilterToEpisode:
+    """Only releases naming the exact SxxEyy survive (the wrong-episode fix)."""
+
+    def _titles(self, results: list[_Result]) -> list[str]:
+        return [r.title for r in results]
+
+    def test_keeps_exact_episode_only(self) -> None:
+        """S09E05 wanted keeps E05 (+ ranges), drops other episodes + packs."""
+        res = [
+            _Result("Rick.and.Morty.S09E01.MULTi"),
+            _Result("Rick.and.Morty.S09E05.MULTi"),
+            _Result("Rick.and.Morty.S09E05-E06"),
+            _Result("Rick.and.Morty.S09.COMPLETE"),
+        ]
+        assert self._titles(filter_to_episode(res, 9, 5)) == [
+            "Rick.and.Morty.S09E05.MULTi",
+            "Rick.and.Morty.S09E05-E06",
+        ]
+
+    def test_regression_wrong_episode_dropped(self) -> None:
+        """The observed bug: S09E05 want must NOT keep an S09E01 release."""
+        res = [_Result("Rick.and.Morty.S09E01.MULTi.VFF.1080p")]
+        assert filter_to_episode(res, 9, 5) == []
+
+    def test_tolerates_zero_padding(self) -> None:
+        """S9E5 and S09E05 both match; S09E50 does not (boundary)."""
+        res = [_Result("Show.S9E5.x"), _Result("Show.S09E05.y"), _Result("Show.S09E50.z")]
+        assert self._titles(filter_to_episode(res, 9, 5)) == ["Show.S9E5.x", "Show.S09E05.y"]
+
+    def test_season_boundary_no_confusion(self) -> None:
+        """S01E09 must not match S19E09 (leading digit is bounded)."""
+        res = [_Result("Show.S19E09"), _Result("Show.S01E09")]
+        assert self._titles(filter_to_episode(res, 1, 9)) == ["Show.S01E09"]
+
+    def test_empty_when_nothing_matches(self) -> None:
+        """No release names the episode → empty (grab abandons as no_matching_episode)."""
+        assert filter_to_episode([_Result("Show.S09E01"), _Result("Show.S09E02")], 9, 5) == []

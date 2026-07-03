@@ -54,6 +54,7 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -112,6 +113,36 @@ def build_search_query(item: "WantedItem", title: str | None) -> str:
     if media_ref.tmdb_id is not None:
         return str(media_ref.tmdb_id)
     return str(media_ref.imdb_id)
+
+
+def filter_to_episode(
+    results: "list[TrackerResult]",
+    season: int,
+    episode: int,
+) -> "list[TrackerResult]":
+    """Keep only results whose title carries the exact ``SxxEyy`` token.
+
+    A title-based query (``"{title} SxxEyy"``) returns fuzzy matches — other
+    episodes of the season, season packs — because trackers match loosely. Left
+    unfiltered they rank by seeders, so the wrong episode can win (observed:
+    ``S09E05`` wanted → an ``S09E01`` release ranked top). This keeps only
+    releases naming the requested episode, tolerating zero-padding (``S9E5`` /
+    ``S09E05``) and multi-episode spans (``S09E05-E06`` / ``S09E05E06`` still
+    match E05). Season packs (no ``E`` token) are intentionally dropped — an
+    exact-episode want should not pull a whole season.
+
+    Args:
+        results: The raw tracker results for the query.
+        season: Wanted season number.
+        episode: Wanted episode number.
+
+    Returns:
+        The subset whose title names the exact episode (possibly empty).
+    """
+    # (?<![0-9]) / (?![0-9]) bound the numbers so E5 does not match E51 and
+    # S9 does not match S19; 0* absorbs the zero-padding difference.
+    pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
+    return [r for r in results if pattern.search(r.title)]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -270,8 +301,17 @@ class GrabOrchestrator:
             # Clean search, zero hits → no source exists, won't self-heal.
             return self._terminal(media_ref, "no_candidates")
 
+        # --- Episode-exactness (BEFORE hard-filter): the title query returns
+        # fuzzy matches (other episodes, season packs); keep only releases
+        # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
+        results = outcome.results
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                return self._terminal(media_ref, "no_matching_episode")
+
         # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
-        survivors = apply_hard_filters(outcome.results, profile, media_ref)
+        survivors = apply_hard_filters(results, profile, media_ref)
         if not survivors:
             return self._terminal(media_ref, "all_filtered")
 
