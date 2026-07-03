@@ -50,5 +50,29 @@ module.exports = {
       autorestart: false,
       cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
     },
+
+    // ---- Follow → auto-acquisition (Follow D3) ----
+    // detect aired episodes for followed series → enqueue as wanted, then grab
+    // searches the trackers + adds the exact-episode top candidate to qBit.
+    {
+      name: "personalscraper-follow-detect",
+      script: "personalscraper",
+      args: "follow detect",
+      interpreter: "none",
+      cwd: __dirname,
+      autorestart: false,
+      cron_restart: "0 3 * * *", // 03:00 daily — enqueue newly-aired episodes
+    },
+
+    {
+      name: "personalscraper-grab",
+      script: "personalscraper",
+      args: "grab",
+      interpreter: "none",
+      cwd: __dirname,
+      autorestart: false,
+      // 03:20 daily (after detect) + 15:20 to retry backed-off items sooner.
+      cron_restart: "20 3,15 * * *",
+    },
   ],
 };

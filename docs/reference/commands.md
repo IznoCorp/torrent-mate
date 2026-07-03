@@ -94,6 +94,14 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 45. [`watch`](#personalscraper-watch) — poll qBittorrent + trigger pipeline runs
 46. [`watch-now`](#personalscraper-watch-now) — trigger an immediate pipeline run (poke)
 
+### Acquisition — Follow (auto-download, PM2)
+
+47. [`follow add`](#personalscraper-follow) — follow a TV series by provider ID
+48. [`follow list`](#personalscraper-follow) — list followed series
+49. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
+50. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
+51. [`grab`](#personalscraper-grab) — search trackers + add top exact-episode candidate to qBittorrent
+
 ### Make targets + scheduling (appendix)
 
 - `make` targets — test, lint, format, install-dev
@@ -1652,3 +1660,65 @@ sentinel persists and is consumed at the next boot.
     personalscraper watch-now
 
 **Related**: `watch`, `run`
+
+## Acquisition — Follow (auto-download, PM2)
+
+> The follow → detect → grab flow auto-downloads new episodes of series you
+> follow. It is library-aware (episodes already on disk are skipped) and is
+> designed to run under PM2 via `ecosystem.config.js` (`personalscraper-follow-detect`
+>
+> - `personalscraper-grab`). State lives in `acquire.db` (`followed_series`, `wanted`).
+
+## `personalscraper follow`
+
+**Purpose**: Manage the followed-series list and the aired-episode detection.
+Sub-commands:
+
+- `follow add` — follow a TV series by provider ID (idempotent). At least one of
+  `--tvdb` (preferred), `--tmdb`, `--imdb` is required; the canonical title is
+  resolved via the metadata registry (used by `grab` to build the search query).
+- `follow list` — list followed series (id, title, provider IDs, active).
+- `follow remove` — soft-unfollow a series (`active=False`; history preserved).
+- `follow detect` — for each active series, fetch aired episodes (calendar-first)
+  and enqueue the ones not already owned as `wanted`. `--dry-run` previews without
+  writing; `--series` restricts to one followed id/title.
+
+**Side effects**: `network` (metadata providers), `mutate` (`acquire.db`) — except
+`follow detect --dry-run` which is side-effect-free.
+
+**Examples**:
+
+    personalscraper follow add --tvdb 275274        # Rick and Morty
+    personalscraper follow list
+    personalscraper follow detect --dry-run          # preview wanted episodes
+    personalscraper follow detect                    # enqueue them
+
+**Related**: `grab`
+
+## `personalscraper grab`
+
+**Purpose**: Run the grab loop — for each pending `wanted` item, search the
+configured trackers with a title query (`"{series title} SxxEyy}"`, Follow D3),
+keep only results naming the **exact** episode, hard-filter + dedup + rank, then
+add the top candidate to qBittorrent. Items that fail transiently are retried
+next run (backoff cadence); items with no matching release are abandoned.
+
+**Side effects**: `network` (trackers, qBittorrent), `mutate` (`acquire.db` status +
+qBittorrent adds).
+
+**Args**:
+
+- `--dry-run` — search + filter + rank + print the top candidate; **no** add.
+- `-n, --limit N` — process at most N wanted items.
+
+**Examples**:
+
+    personalscraper grab --dry-run                   # preview candidates, no download
+    personalscraper grab                             # search + add to qBittorrent
+    personalscraper grab -n 5                         # cap to 5 wanted items
+
+**Related**: `follow detect`, `watch`
+
+> **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-follow-detect`
+> runs `follow detect` daily at 03:00; `personalscraper-grab` runs `grab` at
+> 03:20 and 15:20 (the second pass retries items past their backoff cooldown).

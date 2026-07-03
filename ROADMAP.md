@@ -66,7 +66,7 @@ d'acquisition** (RP3) et d'un **catalogue d'events** (RP4). On pose ces fondatio
 | #           | Décision                                    | Choix retenu                                                                                                                                                                                                                                                   |
 | ----------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Q1**      | Détection « nouvel épisode » (suivi séries) | **Calendrier-déclencheur** : on poll les dates de diffusion (TVDB/TMDB) → quand l'air date est passée, l'épisode entre dans une file `wanted` → recherche **répétée** sur les trackers jusqu'à le trouver (les trackers sont en retard sur la diffusion).      |
-| **cadence** | Fréquence de recherche des `wanted`         | **Backoff par paliers, configurable** (défaut global + override par série) : 🔥 Hot 0–72 h → ~toutes les 2 h ; 🌤 Warm 3–14 j → 1×/jour ; ❄️ Cold 14–30 j → 1×/semaine ; ⛔ cutoff 30 j → stop + notif Telegram.                                               |
+| **cadence** | Fréquence de recherche des `wanted`         | **Backoff par paliers, configurable** (défaut global + override par série) : 🔥 Hot 0–72 h → ~toutes les 2 h ; 🌤 Warm 3–14 j → 1×/jour ; ❄️ Cold 14–30 j → 1×/semaine ; ⛔ cutoff 30 j → stop + notif Telegram.                                                |
 | **Q2**      | Mesure du ratio par tracker                 | **Cascade** : endpoint API tracker en priorité **→ fallback agrégation qBittorrent locale** (somme up/down par host) si le tracker n'expose pas son ratio. Détection de capacité façon registry.                                                               |
 | **Q3**      | Séquencement trackers + radar freeleech     | **Spike d'étude d'API → torr9 → digitalcore**. Radar freeleech **R1 conditionnel** : seulement si un tracker expose une API d'énumération de fenêtres ; sinon R1 se réduit à la récolte par recherche (déjà shippée).                                          |
 | **Q4**      | Frontière de téléchargement du `.torrent`   | **PersonalScraper fetch + POST** : on télécharge le `.torrent` (auth gérée) puis on POST le fichier à qBittorrent ; **exception magnet** pour les liens sans auth. Le 401 reste observable/routable (vs qBit qui ne sait pas ré-authentifier un jeton expiré). |
@@ -107,7 +107,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **RP6** `[P2, parallèle]` — prédicat « je possède déjà » dans la couche de requête de l'indexer.
 - **RP7** `[P2, parallèle]` — cycle de vie auth tracker + fraîcheur du grab (event d'échec d'auth).
 - **RP9** `[P2, prérequis]` — capacité de poll des dates de diffusion sur un _ensemble_ (après Q1).
-- **RP10** `[P2, prérequis]` — moteur partagé **match-structurel + inject** (RP10a parser/comparateur `.torrent` · RP10b capacité `inject` + protocole `TorrentInjector`). Pose le terrain du **Cross-Seed (X1/X2, vague 5)** ; réutilisable par E2.
+- **RP10** `[DONE — feat/watch-seed (#212)]` — moteur partagé **match-structurel + inject** (RP10a parser/comparateur `.torrent` · RP10b capacité `inject` + protocole `TorrentInjector`). Pose le terrain du **Cross-Seed (X1/X2, vague 5)** ; réutilisable par E2.
 - **Additional Trackers — torr9** `[P2]` — premier tracker, après RP7 (auth).
   - **Status** `[in implementation — feat/torr9, 0.37.0]` : design+plan sur la branche (docs/features/torr9/), API capturée live (recherche JSON+JWT, radar freeleech RSS) — doc docs/reference/torr9-api.md, fixtures docs/reference/_samples/torr9/.
 
@@ -115,10 +115,10 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 
 ### Vague 4 — Acquisition headline + déclencheur de supervision
 
-- **Follow D1** `[P2]` — store + CRUD de la liste suivie.
-- **Follow D2** `[P2]` — détection calendrier-d'abord (RP9) + file `wanted` + cadence backoff + ownership (RP6).
-- **Follow D3** `[P2]` — grab via le cœur partagé (RP5b) : dédup cross-tracker + re-résolution URL (RP7) + fetch (RP1a) + tag « contenu utile » (O1).
-- **Watcher Service** `[P2]` — remplace le cron ; **décommission du cron 3 h dans le même changement** (pas de double-ingestion) ; consomme le contrat de skip seed-pur d'O1 ; **autorité de déclenchement unique** (lock pipeline) — Watcher, cron-remplacement et actions Web UI ne sont pas des writers parallèles.
+- **Follow D1** `[DONE — feat/follow-list]` — store + CRUD de la liste suivie (`personalscraper follow add/list/remove`).
+- **Follow D2** `[DONE — feat/airing + feat/ownership]` — détection calendrier-d'abord (RP9) + file `wanted` + cadence backoff + ownership (RP6) (`personalscraper follow detect`).
+- **Follow D3** `[DONE — feat/grab-title-resolution (#214)]` — grab via le cœur partagé (RP5b). Le blocage restant était la **résolution wanted→titre** : `build_search_query` construit `"{titre} SxxEyy"` (resolver store-backed injecté) au lieu de l'ID numérique, + `filter_to_episode` (épisode-exact avant ranking). Dédup cross-tracker + resolve_source + fetch déjà fournis par RP5b. Validé réel (grab télécharge les bons épisodes des séries suivies) + planifié PM2 (`follow-detect` + `grab`).
+- **Watcher Service** `[DONE — feat/watch-seed (#212)]` — remplace le cron ; décommission launchd + PM2 `personalscraper-watch` ; consomme le contrat de skip seed-pur d'O1 ; autorité de déclenchement unique (lock pipeline).
 
 ### Vague 5 — Politique ratio + reste de l'orchestration
 
@@ -130,7 +130,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **Verify V2** `[P2]` — CLI granulaire (`verify --check nfo_validity`).
 - **Correction name-keyed E2** `[P3]` — re-scrape par nom depuis le download d'origine (re-téléchargé si parti) quand une mauvaise numérotation est constatée dans Plex. Dépend du cœur de grab (RP5b) + trackers.
 - **Additional Trackers — digitalcore** `[P2]` — second tracker (après torr9).
-- **Cross-Seed X1** `[P2]` — `CrossSeedService` (lobe `acquire/`) : per-complétion via **Watcher** + gate `cross_seed` par tracker (RP2) + match structurel strict (RP10a) + inject sur donnée existante + recheck (RP10b) + tag `SEED_PURE` (O1) + `SeedObligation` après recheck (RP3, politique O2). Au-dessus de **RP10**.
+- **Cross-Seed X1** `[DONE — feat/watch-seed (#212)]` — `CrossSeedService` (lobe `acquire/`) : per-complétion via **Watcher** + gate `cross_seed` par tracker (RP2) + match structurel strict (RP10a) + inject sur donnée existante + recheck (RP10b) + tag `SEED_PURE` (O1) + `SeedObligation` après recheck (RP3, politique O2). Au-dessus de **RP10**. Validé réel (inject sur Murder.Mindfully.S01, recheck 100%, obligation c411).
 - **Cross-Seed X2** `[P2]` — sweep back-catalog + throttle (quota/jour, délai, exclusion récents, persisté `acquire.db`).
 
 ### Vague 6 — Surfaces de supervision sur l'acquisition désormais vivante

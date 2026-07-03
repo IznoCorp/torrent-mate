@@ -1,9 +1,9 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: three apps (one daemon + two cron jobs), correct ``interpreter`` /
-``cwd``, proper ``autorestart`` vs ``cron_restart`` segregation, and valid cron
-expressions.
+design: five apps (one daemon + four cron jobs — index-enrich, backfill-ids,
+follow-detect, grab), correct ``interpreter`` / ``cwd``, proper ``autorestart``
+vs ``cron_restart`` segregation, and valid cron expressions.
 
 Test strategy:
     Parse ``ecosystem.config.js`` pragmatically from Python — regex-based
@@ -32,6 +32,8 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-watch",
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
+        "personalscraper-follow-detect",
+        "personalscraper-grab",
     }
 )
 
@@ -181,8 +183,8 @@ def test_ecosystem_parses_as_valid_module_exports() -> None:
     assert len(apps) >= 1, "Expected at least one app in ecosystem.config.js"
 
 
-def test_ecosystem_exactly_three_apps() -> None:
-    """``ecosystem.config.js`` must declare exactly the 3 expected app names."""
+def test_ecosystem_declares_expected_apps() -> None:
+    """``ecosystem.config.js`` must declare exactly the expected app names."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     names = {str(a["name"]) for a in apps}
     assert names == _EXPECTED_APP_NAMES, f"Expected apps {sorted(_EXPECTED_APP_NAMES)}, got {sorted(names)}"
@@ -338,6 +340,31 @@ def test_backfill_app_args_contains_backfill() -> None:
     args = backfill.get("args", "")
     assert isinstance(args, str), f"backfill args must be str, got {type(args)}"
     assert "library-backfill-ids" in args, f"backfill app: args must contain 'library-backfill-ids', got {args!r}"
+
+
+# ---------------------------------------------------------------------------
+# Tests — follow-detect + grab cron specifics (Follow D3 auto-download)
+# ---------------------------------------------------------------------------
+
+
+def test_follow_detect_app_is_valid_cron_job() -> None:
+    """``personalscraper-follow-detect`` runs ``follow detect`` on a valid cron, no autorestart."""
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    app = _get_app_by_name(apps, "personalscraper-follow-detect")
+    assert app.get("args") == "follow detect", f"expected args 'follow detect', got {app.get('args')!r}"
+    assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
+    cron = app.get("cron_restart")
+    assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
+
+
+def test_grab_app_is_valid_cron_job() -> None:
+    """``personalscraper-grab`` runs ``grab`` on a valid cron (twice daily), no autorestart."""
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    app = _get_app_by_name(apps, "personalscraper-grab")
+    assert app.get("args") == "grab", f"expected args 'grab', got {app.get('args')!r}"
+    assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
+    cron = app.get("cron_restart")
+    assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
 
 
 # ---------------------------------------------------------------------------
