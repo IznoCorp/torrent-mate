@@ -1,9 +1,9 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: five apps (one daemon + four cron jobs — index-enrich, backfill-ids,
-follow-detect, grab), correct ``interpreter`` / ``cwd``, proper ``autorestart``
-vs ``cron_restart`` segregation, and valid cron expressions.
+design: six apps (one daemon + five cron jobs — index-enrich, backfill-ids,
+follow-detect, grab, health-check), correct ``interpreter`` / ``cwd``, proper
+``autorestart`` vs ``cron_restart`` segregation, and valid cron expressions.
 
 Test strategy:
     Parse ``ecosystem.config.js`` pragmatically from Python — regex-based
@@ -34,6 +34,7 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-backfill-ids",
         "personalscraper-follow-detect",
         "personalscraper-grab",
+        "personalscraper-health-check",
     }
 )
 
