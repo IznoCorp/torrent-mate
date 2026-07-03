@@ -54,6 +54,7 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -69,6 +70,8 @@ from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from personalscraper.acquire.desired import QualityProfile
     from personalscraper.acquire.domain import WantedItem
     from personalscraper.api.torrent._contracts import TorrentAdder
@@ -79,6 +82,67 @@ if TYPE_CHECKING:
     from personalscraper.core.identity import MediaRef
 
 log = get_logger("acquire.orchestrator")
+
+
+def build_search_query(item: "WantedItem", title: str | None) -> str:
+    """Build a tracker search query from a wanted item + resolved series title.
+
+    This is the Follow D3 title-resolution seam. When the series ``title`` is
+    known (resolved from the followed-series row), an episode query becomes
+    ``"{title} SxxEyy"`` and a movie query becomes ``"{title}"`` — the form the
+    title-based trackers (c411, torr9) actually match. When ``title`` is
+    ``None`` (standalone item with no followed row, or a resolver miss), it
+    falls back to the primary provider ID string — the legacy behavior, which
+    finds nothing on title-based trackers but keeps the query non-empty.
+
+    Args:
+        item: The claimed wanted item (carries ``kind`` + ``season`` +
+            ``episode`` + ``media_ref``).
+        title: The resolved series/movie title, or ``None``.
+
+    Returns:
+        A non-empty query string.
+    """
+    if title:
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            return f"{title} S{item.season:02d}E{item.episode:02d}"
+        return title
+    media_ref = item.media_ref
+    if media_ref.tvdb_id is not None:
+        return str(media_ref.tvdb_id)
+    if media_ref.tmdb_id is not None:
+        return str(media_ref.tmdb_id)
+    return str(media_ref.imdb_id)
+
+
+def filter_to_episode(
+    results: "list[TrackerResult]",
+    season: int,
+    episode: int,
+) -> "list[TrackerResult]":
+    """Keep only results whose title carries the exact ``SxxEyy`` token.
+
+    A title-based query (``"{title} SxxEyy"``) returns fuzzy matches — other
+    episodes of the season, season packs — because trackers match loosely. Left
+    unfiltered they rank by seeders, so the wrong episode can win (observed:
+    ``S09E05`` wanted → an ``S09E01`` release ranked top). This keeps only
+    releases naming the requested episode, tolerating zero-padding (``S9E5`` /
+    ``S09E05``) and multi-episode spans (``S09E05-E06`` / ``S09E05E06`` still
+    match E05). Season packs (no ``E`` token) are intentionally dropped — an
+    exact-episode want should not pull a whole season.
+
+    Args:
+        results: The raw tracker results for the query.
+        season: Wanted season number.
+        episode: Wanted episode number.
+
+    Returns:
+        The subset whose title names the exact episode (possibly empty).
+    """
+    # (?<![0-9]) / (?![0-9]) bound the numbers so E5 does not match E51 and
+    # S9 does not match S19; 0* absorbs the zero-padding difference.
+    pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
+    return [r for r in results if pattern.search(r.title)]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -154,6 +218,7 @@ class GrabOrchestrator:
         torrent_client: TorrentAdder | None,
         event_bus: EventBus,
         ranking: RankingConfig,
+        title_resolver: Callable[[WantedItem], str | None] | None = None,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -169,11 +234,17 @@ class GrabOrchestrator:
             torrent_client: Torrent add capability, or ``None`` (search-only).
             event_bus: In-process event bus.
             ranking: Ranking configuration applied after dedup.
+            title_resolver: Follow D3 seam — resolves a claimed
+                ``WantedItem`` to its series/movie title (from the followed-series
+                row) so the tracker query is ``"{title} SxxEyy"`` rather than the
+                bare provider ID. ``None`` (or a resolver miss) falls back to the
+                ID query (legacy behavior). See :func:`build_search_query`.
         """
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
         self._event_bus = event_bus
         self._ranking = ranking
+        self._title_resolver = title_resolver
 
     def grab(self, item: WantedItem, profile: QualityProfile) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
@@ -208,8 +279,12 @@ class GrabOrchestrator:
         """
         media_ref = item.media_ref
         media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
-        query = self._build_query(media_ref)
-        year: int | None = None  # title/year resolution is a Follow D3 concern
+        # Follow D3: resolve the series/movie title (from the followed row) so the
+        # query is "{title} SxxEyy" the title-based trackers match — not the bare
+        # provider ID. Falls back to the ID string when no title is available.
+        title = self._title_resolver(item) if self._title_resolver is not None else None
+        query = build_search_query(item, title)
+        year: int | None = None
 
         # --- Search (CircuitOpenError is NOT an ApiError → catch separately) ---
         try:
@@ -226,8 +301,17 @@ class GrabOrchestrator:
             # Clean search, zero hits → no source exists, won't self-heal.
             return self._terminal(media_ref, "no_candidates")
 
+        # --- Episode-exactness (BEFORE hard-filter): the title query returns
+        # fuzzy matches (other episodes, season packs); keep only releases
+        # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
+        results = outcome.results
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                return self._terminal(media_ref, "no_matching_episode")
+
         # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
-        survivors = apply_hard_filters(outcome.results, profile, media_ref)
+        survivors = apply_hard_filters(results, profile, media_ref)
         if not survivors:
             return self._terminal(media_ref, "all_filtered")
 
@@ -316,28 +400,6 @@ class GrabOrchestrator:
             category=category,
             tags=(top.provider,),
         )
-
-    @staticmethod
-    def _build_query(media_ref: MediaRef) -> str:
-        """Build a search query string from a :class:`MediaRef`.
-
-        ``WantedItem`` carries no title at RP5b (real title resolution is a
-        Follow D3 concern), so the query is the primary provider ID rendered as
-        a string — pragmatic per the plan. ``MediaRef`` guarantees at least one
-        of ``tvdb_id`` / ``tmdb_id`` / ``imdb_id`` is set, so the result is
-        always non-empty.
-
-        Args:
-            media_ref: The item's provider-ID key (tvdb_id primary).
-
-        Returns:
-            A non-empty query string.
-        """
-        if media_ref.tvdb_id is not None:
-            return str(media_ref.tvdb_id)
-        if media_ref.tmdb_id is not None:
-            return str(media_ref.tmdb_id)
-        return str(media_ref.imdb_id)
 
     def _retryable(
         self,

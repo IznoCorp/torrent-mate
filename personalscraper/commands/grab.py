@@ -107,12 +107,27 @@ def _run_dry(
         console.print("[yellow]No pending wanted items.[/yellow]")
         return
 
+    from personalscraper.acquire.orchestrator import build_search_query  # noqa: PLC0415
+    from personalscraper.core._contracts import CircuitOpenError  # noqa: PLC0415
+
     registry = acquire.tracker_registry
     for item in pending:
         console.print(f"\n[bold]Item:[/bold] {item.media_ref} ({item.kind})")
         media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
-        query = str(item.media_ref.tvdb_id or item.media_ref.tmdb_id or "")
-        outcome = registry.search_candidates(query, media_type, None)
+        # Follow D3: same title resolution as the real grab (see build_search_query)
+        # so the preview reflects the actual query the trackers receive.
+        title = None
+        if item.followed_id is not None:
+            row = store.follow.get(item.followed_id)
+            title = row.title if row is not None else None
+        query = build_search_query(item, title)
+        try:
+            outcome = registry.search_candidates(query, media_type, None)
+        except CircuitOpenError:
+            # A dead tracker's OPEN circuit must not crash the preview (the real
+            # grab already catches this in the orchestrator).
+            console.print("  [yellow]Tracker circuit open — skipped this item.[/yellow]")
+            continue
         console.print(
             f"  Search: {len(outcome.results)} results "
             f"({outcome.trackers_queried} queried, {outcome.trackers_errored} errored)"
@@ -121,8 +136,19 @@ def _run_dry(
             console.print("  [yellow]No results.[/yellow]")
             continue
 
+        # Episode-exactness: mirror the real grab so the preview's Top is the
+        # actual episode, not a fuzzy same-show match.
+        results = outcome.results
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            from personalscraper.acquire.orchestrator import filter_to_episode  # noqa: PLC0415
+
+            results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                console.print("  [yellow]No result matches the exact episode.[/yellow]")
+                continue
+
         profile = QualityProfile()
-        filtered = apply_hard_filters(outcome.results, profile)
+        filtered = apply_hard_filters(results, profile)
         deduped = dedup(filtered)
         console.print(f"  After filter+dedup: {len(deduped)} candidates")
         if deduped:

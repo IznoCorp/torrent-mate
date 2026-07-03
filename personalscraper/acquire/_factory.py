@@ -19,6 +19,7 @@ from personalscraper.core.ownership import NullOwnershipChecker
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.acquire.domain import WantedItem
     from personalscraper.api.torrent.qbittorrent import QBitClient
     from personalscraper.api.torrent.transmission import TransmissionClient
     from personalscraper.api.transport._policy import CircuitPolicy
@@ -133,11 +134,24 @@ def build_acquire_context(
             GrabCore,
         )
 
+        # Follow D3 title resolver: the canonical series/movie title was resolved
+        # + stored on the followed_series row at `follow add`, so the grab query
+        # can be "{title} SxxEyy" (title-based trackers match that, not the bare
+        # provider ID). Standalone items (no followed_id) resolve to None → the
+        # query falls back to the ID. Store-backed keeps acquire/ self-contained
+        # (no metadata-registry import at grab time).
+        def _title_resolver(item: WantedItem) -> str | None:
+            if item.followed_id is None:
+                return None
+            row = store.follow.get(item.followed_id)
+            return row.title if row is not None else None
+
         orchestrator = GrabOrchestrator(
             tracker_registry=tracker_registry,
             torrent_client=torrent_client,
             event_bus=event_bus,
             ranking=config.ranking,
+            title_resolver=_title_resolver,
         )
         service = AcquisitionService(
             store=store,
