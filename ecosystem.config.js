@@ -16,7 +16,7 @@ module.exports = {
 
     {
       name: "personalscraper-watch",
-      script: "personalscraper",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
       args: "watch",
       interpreter: "none",
       cwd: __dirname,
@@ -26,6 +26,9 @@ module.exports = {
       // 30 s grace before SIGKILL — covers 1 s interruptible-sleep slice
       // granularity + context close (acquire, provider_registry) + shutdown log.
       kill_timeout: 30000,
+      // Unbuffered stdout so structured poll logs flush to the PM2 log file in
+      // real time (Python block-buffers stdout when piped, hiding daemon logs).
+      env: { PYTHONUNBUFFERED: "1" },
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
 
@@ -33,7 +36,7 @@ module.exports = {
 
     {
       name: "personalscraper-index-enrich",
-      script: "personalscraper",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
       args: "library-index --mode enrich --budget 1800 --wait-for-lock 0",
       interpreter: "none",
       cwd: __dirname,
@@ -43,7 +46,7 @@ module.exports = {
 
     {
       name: "personalscraper-backfill-ids",
-      script: "personalscraper",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
       args: "library-backfill-ids",
       interpreter: "none",
       cwd: __dirname,
@@ -56,7 +59,7 @@ module.exports = {
     // searches the trackers + adds the exact-episode top candidate to qBit.
     {
       name: "personalscraper-follow-detect",
-      script: "personalscraper",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
       args: "follow detect",
       interpreter: "none",
       cwd: __dirname,
@@ -66,7 +69,7 @@ module.exports = {
 
     {
       name: "personalscraper-grab",
-      script: "personalscraper",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
       args: "grab",
       interpreter: "none",
       cwd: __dirname,
