@@ -29,7 +29,12 @@ from personalscraper.scraper._tvdb_convert import (
 )
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
-from personalscraper.scraper.episode_manager import create_season_dirs, match_episode_files, rename_episodes
+from personalscraper.scraper.episode_manager import (
+    _file_season,
+    create_season_dirs,
+    match_episode_files,
+    rename_episodes,
+)
 from personalscraper.scraper.existing_validator import _infer_year_from_child_names, _local_show_seasons
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.rename_service import (
@@ -793,6 +798,23 @@ class TvServiceMixin:
         # path silently bails out and never reorganizes the show.
         if not season_nums:
             season_nums = sorted(s for s in _local_show_seasons(show_dir) if s > 0)
+        # Season-pack bootstrap: a whole-season single file (e.g. Integrale.S01)
+        # carries a season token but no episode, so neither discovery above sees
+        # it. When season-pack handling is enabled, discover seasons from the
+        # season-only token so the provider episode map — gate 4 of
+        # ``_try_season_pack_match`` — can actually be built for this show.
+        if not season_nums and self.config is not None and self.config.metadata.season_pack_policy.enabled:
+            season_nums = sorted(
+                {
+                    s
+                    for f in show_dir.rglob("*")
+                    if f.is_file()
+                    and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+                    and not is_sample_path(f)
+                    and (s := _file_season(f.name)) is not None
+                    and s > 0
+                }
+            )
         if not season_nums:
             return {}
 
