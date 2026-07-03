@@ -146,4 +146,8 @@ def test_verify_blocks_missing_poster(staging_tree: Path, integration_config: Co
     assert any("NoPosterFilm (2024)" in d and "[blocked]" in d for d in _report.details), (
         f"Expected [blocked] for NoPosterFilm (2024) in report details. Got: {_report.details}"
     )
-    assert _report.error_count >= 1, f"Expected at least 1 error in report. Got error_count={_report.error_count}"
+    # A blocked item is a SKIP (not a run error) — it is excluded from dispatch
+    # and surfaced as a warning, but must not fail the run (watcher_run_failed fix).
+    assert _report.skip_count >= 1, f"Expected the blocked item counted as a skip. Got skip_count={_report.skip_count}"
+    assert _report.error_count == 0, f"A blocked item must not be a run error. Got error_count={_report.error_count}"
+    assert any("NoPosterFilm" in w for w in _report.warnings), "Blocked item must surface as a warning"

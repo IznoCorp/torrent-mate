@@ -116,7 +116,14 @@ class TestToStepReport:
     """Tests for _to_step_report."""
 
     def test_counts(self) -> None:
-        """Should count valid+fixed as success, blocked as error."""
+        """valid+fixed → success; blocked → SKIP (+warning), never an error.
+
+        Regression: a blocked item must NOT count as ``error_count`` — it is
+        content awaiting manual attention, already excluded from dispatch and
+        surfaced as a warning. Counting it as an error made the whole run exit
+        non-zero (and the Watcher log watcher_run_failed) while any item sat
+        blocked.
+        """
         results = [
             VerifyResult(Path("a"), "movie", status="valid", category="films"),
             VerifyResult(Path("b"), "movie", status="fixed", category="films", fixes_applied=["Fixed dir"]),
@@ -124,7 +131,9 @@ class TestToStepReport:
         ]
         report = _to_step_report(results)
         assert report.success_count == 2
-        assert report.error_count == 1
+        assert report.error_count == 0
+        assert report.skip_count == 1
+        assert any("No video" in w for w in report.warnings)
 
 
 # ---------------------------------------------------------------------------

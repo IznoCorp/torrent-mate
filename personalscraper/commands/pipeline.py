@@ -204,7 +204,7 @@ def verify(
                 )
             except KeyError as exc:
                 raise typer.BadParameter(str(exc)) from exc
-        console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.error_count} blocked")
+        console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
         console.print(f"  {len(dispatchable)} ready for dispatch")
         if state["verbose"]:
             for detail in report.details:

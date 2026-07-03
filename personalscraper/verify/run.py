@@ -188,8 +188,15 @@ def _to_step_report(results: list[VerifyResult]) -> StepReport:
     return StepReport(
         name="verify",
         success_count=valid + fixed,
-        skip_count=0,
-        error_count=blocked,
+        # A blocked item is NOT a pipeline error — it is content awaiting manual
+        # attention (e.g. an episode the provider can't match). It is already
+        # excluded from ``dispatchable`` (get_dispatchable keeps only valid/fixed)
+        # and surfaced in ``warnings``, so it is counted as a SKIP, not an error.
+        # Counting it as an error made every run exit non-zero while any item sat
+        # blocked, which in turn made the Watcher log spurious watcher_run_failed
+        # on every tick.
+        skip_count=blocked,
+        error_count=0,
         warnings=warnings,
         details=details,
     )
