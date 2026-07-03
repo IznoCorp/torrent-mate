@@ -5,7 +5,7 @@
   //   torr9 → TORR9_PASSKEY (RSS freeleech radar R1 follow-on)
   tracker: {
     providers: {
-      lacale: { enabled: true, cross_seed: false },
+      lacale: { enabled: false, cross_seed: false }, // deprecated + unreachable (la-cale.space down) — disabled to stop CircuitOpenError crashing grab
       c411: {
         enabled: true,
         cross_seed: false,
@@ -27,7 +27,7 @@
         },
       },
     },
-    priority: ["lacale", "c411", "torr9"],
+    priority: ["c411", "torr9"],
     max_total_results: 50,
     max_per_tracker: 30,
     timeout_per_tracker: 15,
