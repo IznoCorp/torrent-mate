@@ -70,6 +70,28 @@ def _extract_season_episode(name: str) -> tuple[int | None, int | None]:
     return None, None
 
 
+# Already-a-range pattern: a file this feature previously renamed
+# (``S02E01-E151 - Title``). Re-parsing it as a plain ``S02E01`` would collapse
+# the range on the next scrape, so it is re-affirmed as a season pack instead.
+_SE_RANGE_STEM = re.compile(r"^[Ss](\d{1,2})[Ee](\d{1,3})-[Ee](\d{1,4})(?: - (.+))?$")
+
+
+def _extract_season_episode_range(stem: str) -> tuple[int, int, int, str] | None:
+    """Parse a ``SxxE01-Eyy - Title`` stem into ``(season, start, end, title)``.
+
+    Args:
+        stem: Filename without extension.
+
+    Returns:
+        ``(season, episode_start, episode_end, title)`` for an already-ranged
+        season-pack filename, or ``None``. ``title`` is ``""`` when absent.
+    """
+    m = _SE_RANGE_STEM.match(stem)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3)), (m.group(4) or "")
+    return None
+
+
 # Season-only patterns (no episode number) — used ONLY for season-pack
 # detection, never for normal per-episode matching. ``S01`` must NOT be
 # followed by an episode marker (``E\d``) so a real ``S01E01`` never matches
@@ -319,6 +341,28 @@ def match_episode_files(
     max_season = max(available_seasons) if available_seasons else None
 
     for video_path in video_files:
+        # Idempotence: a file already named as a range (S02E01-E151 - Title) is
+        # a season pack this feature placed earlier. Re-affirm it as-is so a
+        # re-scrape does NOT collapse it back to a single S02E01. Independent of
+        # the marker gate — this only preserves an existing valid state.
+        already_range = _extract_season_episode_range(video_path.stem)
+        if already_range is not None:
+            r_season, r_start, r_end, r_title = already_range
+            r_info = api_episodes.get((r_season, r_start), {})
+            matched[video_path] = {
+                "season": r_season,
+                "episode": r_start,
+                "episode_end": r_end,
+                "api_title": r_title or r_info.get("title") or f"Saison {r_season}",
+                "still_path": r_info.get("still_path", ""),
+                "fallback": False,
+                "is_season_pack": True,
+                "covered_episodes": list(range(r_start, r_end + 1)),
+                "covered_episode_infos": [],
+                **_provider_id_fields(r_info),
+            }
+            continue
+
         season, episode = _extract_season_episode(video_path.name)
         if season is None or episode is None:
             # Season-pack path: a genuine whole-season single file (episode

@@ -13,6 +13,7 @@ import pytest
 
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.episode_manager import (
+    _extract_season_episode_range,
     _extract_season_only,
     _file_season,
     _has_season_pack_marker,
@@ -179,7 +180,63 @@ class TestRangeRename:
 
     def test_verify_pattern_accepts_range(self) -> None:
         """The widened verify episode regex accepts the range filename."""
-        pattern = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2})?(?: - .+)?\.\w+$")
+        pattern = re.compile(r"^S\d{2}E\d{2}(?:-E\d{2,})?(?: - .+)?\.\w+$")
         assert pattern.match("S01E01-E02 - Intégrale.mkv")
+        assert pattern.match("S02E01-E151 - Episode 1.mkv")  # 3-digit range end (daily show)
         assert pattern.match("S01E01 - Normal.mkv")  # normal still matches
         assert not pattern.match("S01E01-blah.mkv")  # malformed range rejected
+
+
+# ---------------------------------------------------------------------------
+# Idempotence: an already-ranged file must not collapse on re-scrape
+# ---------------------------------------------------------------------------
+
+
+class TestRangeReaffirmation:
+    """A file already named SxxE01-Eyy is preserved as a range on re-scrape."""
+
+    def test_extract_range_with_title(self) -> None:
+        """Parse season, start, end, and title from a range stem."""
+        assert _extract_season_episode_range("S02E01-E151 - Episode 1") == (2, 1, 151, "Episode 1")
+        assert _extract_season_episode_range("S01E01-E02 - DVD.1") == (1, 1, 2, "DVD.1")
+
+    def test_extract_range_none_for_single(self) -> None:
+        """A normal single-episode stem is not a range."""
+        assert _extract_season_episode_range("S02E01 - Foo") is None
+
+    def test_reaffirm_preserves_range_even_when_disabled(self) -> None:
+        """An already-ranged file stays a range even with markers=None (feature off)."""
+        api = {(2, e): {"title": f"E{e}"} for e in range(1, 152)}
+        f = Path("S02E01-E151 - Episode 1.mkv")
+        matched = match_episode_files([f], api, season_pack_markers=None)
+        assert f in matched
+        assert matched[f]["episode"] == 1
+        assert matched[f]["episode_end"] == 151
+        assert matched[f]["is_season_pack"] is True
+
+    def test_reaffirm_is_rename_noop(self, tmp_path: Path) -> None:
+        """Re-affirming a range file already in Saison XX/ does not rename it."""
+        show_dir = tmp_path / "Show (2006)"
+        (show_dir / "Saison 02").mkdir(parents=True)
+        video = show_dir / "Saison 02" / "S02E01-E151 - Episode 1.mkv"
+        video.write_bytes(b"x")
+        matched = {
+            video: {
+                "season": 2,
+                "episode": 1,
+                "episode_end": 151,
+                "api_title": "Episode 1",
+                "is_season_pack": True,
+            }
+        }
+        rename_episodes(matched, show_dir, NamingPatterns(), dry_run=False)
+        # Same name, same place — no collapse to S02E01.
+        assert video.exists()
+        assert not (show_dir / "Saison 02" / "S02E01 - Episode 1.mkv").exists()
+
+    def test_normal_episode_not_reaffirmed_as_range(self) -> None:
+        """A plain S02E01 file matches normally (no episode_end)."""
+        api = {(2, 1): {"title": "Foo"}}
+        f = Path("S02E01 - Foo.mkv")
+        matched = match_episode_files([f], api, season_pack_markers=None)
+        assert "episode_end" not in matched[f]
