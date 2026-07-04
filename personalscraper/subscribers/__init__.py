@@ -5,7 +5,8 @@ subscription tokens. Each one calls ``close()`` to unsubscribe on teardown.
 See ``docs/features/event-bus/DESIGN.md`` §Subscribers.
 """
 
+from personalscraper.subscribers.redis_stream import RedisEventPublisher
 from personalscraper.subscribers.rich_console import RichConsoleSubscriber
 from personalscraper.subscribers.telegram import TelegramSubscriber
 
-__all__ = ["RichConsoleSubscriber", "TelegramSubscriber"]
+__all__ = ["RedisEventPublisher", "RichConsoleSubscriber", "TelegramSubscriber"]
