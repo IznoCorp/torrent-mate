@@ -189,12 +189,8 @@ def test_web_e2e_smoke_boot_login_ws_event(test_config: Any) -> None:
                 # Assert ws.hello
                 hello_raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
                 hello = json.loads(hello_raw)
-                assert hello["type"] == "ws.hello", (
-                    f"Expected ws.hello, got {hello.get('type')}: {hello}"
-                )
-                assert "build_commit" in hello["data"], (
-                    f"ws.hello missing build_commit: {hello}"
-                )
+                assert hello["type"] == "ws.hello", f"Expected ws.hello, got {hello.get('type')}: {hello}"
+                assert "build_commit" in hello["data"], f"ws.hello missing build_commit: {hello}"
 
                 # XADD a test event through the real Redis client.
                 event = _make_event(scope="e2e_smoke")
@@ -205,15 +201,11 @@ def test_web_e2e_smoke_boot_login_ws_event(test_config: Any) -> None:
                     raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
                     msg = json.loads(raw)
                     if msg.get("type") == "BackfillCompleted":
-                        assert msg["data"]["scope"] == "e2e_smoke", (
-                            f"Event scope mismatch: {msg['data']}"
-                        )
+                        assert msg["data"]["scope"] == "e2e_smoke", f"Event scope mismatch: {msg['data']}"
                         assert "id" in msg, f"Event missing stream id: {msg}"
                         return  # ✅
 
-                raise AssertionError(
-                    "Did not receive BackfillCompleted event on WS after 30 messages"
-                )
+                raise AssertionError("Did not receive BackfillCompleted event on WS after 30 messages")
 
         asyncio.run(_ws_test())
 

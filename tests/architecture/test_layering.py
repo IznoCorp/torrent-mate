@@ -514,7 +514,9 @@ _WEB_FORBIDDEN_PREFIXES = ("personalscraper.web",)
 _ENGINE_PACKAGE_DIRS: list[Path] = sorted(
     p
     for p in _PACKAGE_ROOT.iterdir()
-    if p.is_dir() and not p.name.startswith("_") and not p.name.startswith(".")
+    if p.is_dir()
+    and not p.name.startswith("_")
+    and not p.name.startswith(".")
     and p.name not in ("commands", "web", "static")
 )
 
@@ -531,8 +533,7 @@ def test_engine_does_not_import_web() -> None:
                 continue
             violations.extend(_collect_violations_from_source(source, rel, _WEB_FORBIDDEN_PREFIXES))
     assert not violations, (
-        "Engine packages must not import personalscraper.web (one-way dependency, DESIGN §9):\n"
-        + "\n".join(violations)
+        "Engine packages must not import personalscraper.web (one-way dependency, DESIGN §9):\n" + "\n".join(violations)
     )
 
 
