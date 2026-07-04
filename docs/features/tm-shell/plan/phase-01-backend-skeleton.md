@@ -115,7 +115,7 @@ app = create_app(None, get_settings())"` imports cleanly.
 | Create | `tests/web/test_health.py`  |
 | Create | `tests/web/test_version.py` |
 | Create | `tests/web/test_static.py`  |
-| Create | `tests/web/test_cli.py`     |
+| Create | `tests/web/test_web_cli.py` |
 
 **Work**:
 
@@ -126,9 +126,14 @@ app = create_app(None, get_settings())"` imports cleanly.
    down→`redis: false`.
 3. `test_version.py` — version route returns `version` + `build_commit` keys.
 4. `test_static.py` — 404 on missing SPA; 200 with index when `dev_mode=true`.
-5. `test_cli.py` — `personalscraper web --help` output, boot-refuse when
+5. `test_web_cli.py` — `personalscraper web --help` output, boot-refuse when
    `static/index.html` missing + `dev_mode=false`. MUST patch
    `personalscraper.conf.loader.load_config` (CI has no `config/`).
+
+   **PLAN CORRECTION (1.4)**: Named `test_web_cli.py` instead of
+   `test_cli.py` to avoid collision with the root `tests/conftest.py`
+   `_stub_pipeline_steps` autouse fixture, which scopes to `test_cli.py`
+   and would silently stub pipeline internals inside these tests.
 
 ## Verification
 
