@@ -16,6 +16,22 @@ from personalscraper.config import Settings
 from personalscraper.web.app import create_app
 
 
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter():
+    """Reset the process-global login rate limiter around every web test.
+
+    The limiter in ``personalscraper.web.auth.routes`` is module-level by design
+    (tm-shell §4.4).  Without a reset, repeated failed-login assertions across
+    unrelated tests would accumulate and eventually trip the 429 lockout,
+    causing order-dependent flakes.
+    """
+    from personalscraper.web.auth import routes as auth_routes
+
+    auth_routes._login_limiter.clear()
+    yield
+    auth_routes._login_limiter.clear()
+
+
 @pytest.fixture
 def web_app(test_config):
     """Create a TestClient wrapping ``create_app`` with test config + default settings.

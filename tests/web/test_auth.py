@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from personalscraper.config import Settings
 from personalscraper.web.app import create_app
 from personalscraper.web.auth.passwords import hash_password
+from personalscraper.web.auth.tokens import create_session_token
 
 # ── Test constants ──────────────────────────────────────────────────────────
 TEST_USERNAME = "testuser"
@@ -69,6 +70,31 @@ def auth_client_no_hash(test_config):
         _env_file=None,
         web_password_hash="",
         web_jwt_secret=TEST_SECRET,
+    )
+    app = create_app(cfg, settings)
+    return TestClient(app, base_url="https://testserver")
+
+
+@pytest.fixture
+def auth_client_no_secret(test_config):
+    """Create a TestClient with a valid password hash but **empty** ``web_jwt_secret``.
+
+    Used to verify the empty-JWT-secret failure mode is a clean 401 (login) /
+    401 (guard) rather than the PyJWT ``InvalidKeyError`` 500 it would otherwise
+    be.
+
+    Args:
+        test_config: Synthetic ``Config`` fixture.
+
+    Returns:
+        A ``TestClient`` with ``base_url="https://testserver"`` and no JWT secret.
+    """
+    web_cfg = test_config.web.model_copy(update={"username": TEST_USERNAME})
+    cfg = test_config.model_copy(update={"web": web_cfg})
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        web_password_hash=TEST_HASH,
+        web_jwt_secret="",
     )
     app = create_app(cfg, settings)
     return TestClient(app, base_url="https://testserver")
@@ -252,3 +278,107 @@ class TestGuardOnVersionRoute:
         )
         resp = auth_client.get("/api/version")
         assert resp.status_code == 200
+
+
+class TestEmptyJwtSecret:
+    """An unset ``web_jwt_secret`` fails closed (401), never 500."""
+
+    def test_login_with_empty_secret_returns_401_not_500(self, auth_client_no_secret: TestClient) -> None:
+        """Correct credentials but an empty JWT secret → 401 (not a 500).
+
+        Without the guard, ``create_session_token`` would hit PyJWT's
+        ``InvalidKeyError`` on an empty HMAC key and surface a 500.
+        """
+        resp = auth_client_no_secret.post(
+            "/api/auth/login",
+            json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+        )
+        assert resp.status_code == 401
+
+    def test_me_with_cookie_and_empty_secret_returns_401_not_500(self, auth_client_no_secret: TestClient) -> None:
+        """A structurally valid cookie against an empty-secret app → 401 (not 500).
+
+        ``decode_session_token`` decoding with an empty secret raises
+        ``InvalidKeyError``; the guard must swallow it to 401.
+        """
+        # A real JWT signed with SOME secret; the app under test has none.
+        token = create_session_token(TEST_USERNAME, "some-real-secret", ttl_hours=1)
+        resp = auth_client_no_secret.get("/api/auth/me", headers={"cookie": f"tm_session={token}"})
+        assert resp.status_code == 401
+
+
+class TestConstantWorkOnWrongUsername:
+    """Wrong-username path still runs scrypt (no timing enumeration side-channel)."""
+
+    def test_wrong_username_still_verifies_against_dummy_hash(self, auth_client: TestClient, monkeypatch) -> None:
+        """A username mismatch still calls ``verify_password`` against the dummy hash.
+
+        Regression for the timing side-channel: the old ``or`` short-circuit
+        skipped scrypt entirely on a wrong username, making it distinguishable
+        from a wrong password by response time.
+        """
+        import personalscraper.web.auth.routes as auth_routes
+
+        seen_hashes: list[str] = []
+        real_verify = auth_routes.verify_password
+
+        def _spy(password: str, stored: str) -> bool:
+            seen_hashes.append(stored)
+            return real_verify(password, stored)
+
+        monkeypatch.setattr(auth_routes, "verify_password", _spy)
+
+        resp = auth_client.post(
+            "/api/auth/login",
+            json={"username": "nonexistent", "password": TEST_PASSWORD},
+        )
+        assert resp.status_code == 401
+        # scrypt ran even though the username did not match, against the dummy hash.
+        assert auth_routes._DUMMY_HASH in seen_hashes
+
+
+class TestLoginRateLimit:
+    """Failed-login rate limiting → 429 after the threshold, reset on success."""
+
+    def test_sixth_rapid_failure_returns_429(self, auth_client: TestClient) -> None:
+        """Five failed attempts return 401; the sixth is locked out with 429."""
+        for _ in range(5):
+            resp = auth_client.post(
+                "/api/auth/login",
+                json={"username": TEST_USERNAME, "password": "wrong"},
+            )
+            assert resp.status_code == 401
+        sixth = auth_client.post(
+            "/api/auth/login",
+            json={"username": TEST_USERNAME, "password": "wrong"},
+        )
+        assert sixth.status_code == 429
+        assert sixth.json()["detail"] == "Trop de tentatives — réessayez plus tard."
+
+    def test_successful_login_resets_the_window(self, auth_client: TestClient) -> None:
+        """A success clears the failure window so later failures are 401, not 429."""
+        for _ in range(3):
+            assert (
+                auth_client.post(
+                    "/api/auth/login",
+                    json={"username": TEST_USERNAME, "password": "wrong"},
+                ).status_code
+                == 401
+            )
+        # Success resets the client's failure window.
+        assert (
+            auth_client.post(
+                "/api/auth/login",
+                json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+            ).status_code
+            == 204
+        )
+        # Three more failures must all be 401 — without the reset the last would be 429.
+        for _ in range(3):
+            assert (
+                auth_client.post(
+                    "/api/auth/login",
+                    json={"username": TEST_USERNAME, "password": "wrong"},
+                ).status_code
+                == 401
+            )
