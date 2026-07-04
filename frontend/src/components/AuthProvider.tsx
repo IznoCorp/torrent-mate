@@ -33,6 +33,9 @@ import { useLogout, useMe, type AuthenticatedUser } from "@/hooks/useAuth";
  *   user: The authenticated identity payload, or ``undefined`` when the session
  *     is absent or still loading.
  *   isAuthenticated: ``true`` once the ``me`` query has resolved successfully.
+ *     A 401 (session lapsed) is surfaced by the query erroring, so ``isSuccess``
+ *     flips false and the guard redirects — the ``RouterBridge`` 401 handler
+ *     invalidates ``me`` so a stale success cannot keep this ``true``.
  *   isLoading: ``true`` while the initial ``me`` query is in flight (drives the
  *     guard's spinner so the app never flashes the login page on a warm reload).
  *   logout: End the session (clears the query cache via {@link useLogout}); the

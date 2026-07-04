@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -9,6 +10,7 @@ import {
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError, queryClient } from "@/api/client";
 import { AuthProvider } from "@/components/AuthProvider";
 import { routes } from "@/router";
 
@@ -68,6 +70,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  // The B4/B5 tests exercise the app singleton `queryClient` (the only client
+  // wired with the global 401 policy); drop its state so nothing leaks forward.
+  queryClient.clear();
 });
 
 /**
@@ -176,6 +181,102 @@ describe("router", () => {
       expect(
         screen.queryByRole("heading", { name: /tableau de bord/i }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  // --- B4 / B5: session-expiry 401 handling (app singleton `queryClient`) ----
+
+  /** Render the real routes at `path` behind the *singleton* client (401-wired). */
+  function renderAtWithSingleton(
+    path: string,
+  ): ReturnType<typeof createMemoryRouter> {
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    return router;
+  }
+
+  it("B4 — un 401 en session efface le cache `me` périmé : atterrit sur /login et y reste", async () => {
+    // `me` is valid until the first `/api/health` 401 (session expiring
+    // mid-use); afterwards `me` also 401s, exactly as a lost session behaves.
+    let sessionValid = true;
+    fetchMock.mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(
+          sessionValid
+            ? buildResponse(200, { username: "izno" })
+            : buildResponse(401, { detail: "unauthorized" }),
+        );
+      }
+      if (url.includes("/api/health")) {
+        sessionValid = false;
+        return Promise.resolve(buildResponse(401, { detail: "unauthorized" }));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderAtWithSingleton("/");
+
+    // The stale-success `me` is invalidated on the health 401 → we land on the
+    // login form and STAY there (no bounce back to the dashboard, no loop).
+    expect(
+      await screen.findByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: /tableau de bord/i }),
+      ).not.toBeInTheDocument();
+    });
+    // Settle any pending microtasks, then re-assert we did not ping-pong back.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /tableau de bord/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("B5 — un 401 survenant déjà sur /login préserve le paramètre ?redirect", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(401, { detail: "unauthorized" }));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    const router = renderAtWithSingleton("/login?redirect=/pipeline");
+
+    // Unauthenticated → the login form shows (the `me` 401 is exempt from the
+    // redirect handler, so nothing has navigated yet).
+    expect(
+      await screen.findByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+
+    // A non-`me` query 401s while sitting on /login → the handler must keep us on
+    // /login WITHOUT stripping the redirect target.
+    await act(async () => {
+      await queryClient
+        .fetchQuery({
+          queryKey: ["__probe_401__"],
+          queryFn: () => Promise.reject(new ApiError(401, "expired")),
+          retry: false,
+        })
+        .catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+      expect(router.state.location.search).toBe("?redirect=/pipeline");
     });
   });
 });
