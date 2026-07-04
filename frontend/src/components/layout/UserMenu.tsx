@@ -1,6 +1,8 @@
 import { LogOut } from "lucide-react";
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 
+import { useAuthContext } from "@/components/AuthProvider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,26 +13,42 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLogout } from "@/hooks/useAuth";
 
 /**
  * UserMenu — the account dropdown anchored to the right of the {@link TopBar}.
  *
- * The trigger is an avatar; sub-phase 5.3's `AuthProvider` will feed the real
- * username initial, so 5.2 shows a static "—" fallback. The single action logs
- * out via {@link useLogout} and hard-redirects to `/login` (5.3 refines this
- * into a router-aware navigation preserving the target path).
+ * The trigger is an avatar showing the authenticated user's initial (from the
+ * {@link useAuthContext} session). The single action logs out via the context
+ * `logout` (which clears the query cache) and then navigates to `/login` with
+ * the router — no full page reload.
  *
  * @returns The user menu element.
  */
 export function UserMenu(): ReactElement {
-  const logout = useLogout();
+  const { user, logout } = useAuthContext();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  /** Fire the logout mutation, then leave for the login page. */
-  function handleLogout(): void {
-    logout.mutate();
-    // 5.3 replaces this hard redirect with a router-aware navigation.
-    window.location.assign("/login");
+  const username = user?.username;
+  const initial =
+    username !== undefined && username.length > 0
+      ? username.charAt(0).toUpperCase()
+      : "—";
+
+  /**
+   * End the session then leave for the login page.
+   *
+   * Navigation runs in `finally` so a failed logout request (e.g. the cookie is
+   * already gone) still lands the user on `/login` rather than stranding them in
+   * the shell.
+   */
+  async function handleLogout(): Promise<void> {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      void navigate("/login", { replace: true });
+    }
   }
 
   return (
@@ -43,17 +61,19 @@ export function UserMenu(): ReactElement {
           aria-label="Menu utilisateur"
         >
           <Avatar className="size-8">
-            <AvatarFallback className="text-xs">—</AvatarFallback>
+            <AvatarFallback className="text-xs">{initial}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40">
-        <DropdownMenuLabel>Compte</DropdownMenuLabel>
+        <DropdownMenuLabel>{username ?? "Compte"}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          disabled={logout.isPending}
-          onSelect={handleLogout}
+          disabled={isLoggingOut}
+          onSelect={() => {
+            void handleLogout();
+          }}
         >
           <LogOut className="size-4" aria-hidden="true" />
           Se déconnecter
