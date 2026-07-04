@@ -75,7 +75,7 @@ rsync -a --delete \
 printf '%s\n' "$local_sha" > personalscraper/web/static/BUILD_COMMIT
 
 # ── Reinstall the backend into the prod venv (per-clone isolation) ────────────
-"$VENV/bin/pip" install -e ".[dev]" >/dev/null
+"$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . a échoué (venv cassé ? dépendances manquantes ?)"
 
 # ── Restart the PM2 app (fail-soft if not defined on this box yet) ────────────
 if ! pm2 restart torrentmate-web >/dev/null 2>&1; then
@@ -83,11 +83,22 @@ if ! pm2 restart torrentmate-web >/dev/null 2>&1; then
 fi
 
 # ── Post-check: /api/health is public → expect 200 ────────────────────────────
-code="$(curl --connect-timeout 10 --max-time 30 -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || true)"
-if [ "$code" = "200" ]; then
+# Retry loop: pm2 restart is async — the new process may not be listening yet.
+# Up to 15 attempts × 2 s = 30 s total before declaring failure.
+health_ok=false
+for i in $(seq 1 15); do
+  code="$(curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || true)"
+  if [ "$code" = "200" ]; then
+    health_ok=true
+    break
+  fi
+  [ "$i" -lt 15 ] && sleep 2
+done
+if $health_ok; then
   printf '\n✅ Déployé (prod): %s\n   health %s → 200 · commit tamponné dans personalscraper/web/static/BUILD_COMMIT\n' \
     "$local_sha" "$HEALTH_URL"
 else
-  printf '\n⚠ Déployé (prod): %s — mais health %s a répondu "%s" (attendu 200).\n   Vérifie: pm2 logs torrentmate-web\n' \
+  printf '\n❌ Déployé (prod): %s — mais health %s a répondu "%s" après 15 tentatives (30 s).\n   Vérifie: pm2 logs torrentmate-web\n' \
     "$local_sha" "$HEALTH_URL" "$code" >&2
+  exit 1
 fi
