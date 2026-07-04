@@ -7,11 +7,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
+from personalscraper.web.auth.routes import router as auth_router
+from personalscraper.web.deps import require_session
 from personalscraper.web.routes.health import router as health_router
 from personalscraper.web.routes.version import router as version_router
 from personalscraper.web.static import mount_spa
@@ -38,10 +40,20 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     app.state.config = config
     app.state.settings = settings
 
-    # Health and version routes are unauthenticated in S1. Phase 2 adds the
-    # auth guard perimeter around everything except /api/health.
+    # ── Public routes (no authentication required) ────────────────────
+    # Health is the liveness probe — must stay public.
     app.include_router(health_router)
-    app.include_router(version_router)
+    # Auth router: login is public; logout + /me guard themselves
+    # individually via Depends(require_session).
+    app.include_router(auth_router)
+
+    # ── Guard perimeter — S2–S7 convention mount point ────────────────
+    # Every /api/* router added below inherits Depends(require_session).
+    # Health + auth.login are the ONLY exceptions, mounted above before
+    # the guard.  All future waves mount their routers here.
+    guarded_api = APIRouter(dependencies=[Depends(require_session)])
+    guarded_api.include_router(version_router)
+    app.include_router(guarded_api)
 
     # Mount the built SPA static files with index.html fallback.
     static_dir = Path(__file__).resolve().parent / "static"
