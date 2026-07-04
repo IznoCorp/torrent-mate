@@ -53,58 +53,105 @@ type SuccessBody<T> = T extends {
   : never;
 
 // ---------------------------------------------------------------------------
+// Path/method binding to the generated OpenAPI `paths` (DESIGN §5.3)
+// ---------------------------------------------------------------------------
+
+/** The HTTP verbs openapi-typescript emits as keys on every path item. */
+type HttpMethod =
+  | "get"
+  | "put"
+  | "post"
+  | "delete"
+  | "options"
+  | "head"
+  | "patch"
+  | "trace";
+
+/**
+ * The verbs a path actually **defines** — the operation objects, excluding the
+ * ``verb?: never`` slots openapi-typescript stamps for every absent method.
+ *
+ * A defined verb's value is an operation object; an absent verb's indexed value
+ * collapses to ``undefined`` (optional ``never``). Passing a method a path does
+ * not declare therefore fails the constraint at compile time.
+ */
+type MethodOf<P extends keyof paths> = {
+  [M in HttpMethod]: paths[P][M] extends undefined ? never : M;
+}[HttpMethod];
+
+/** The ``application/json`` request body of an operation, or ``never`` if none. */
+type RequestBodyOf<Op> = Op extends {
+  requestBody: { content: { "application/json": infer B } };
+}
+  ? B
+  : never;
+
+/** The 2xx ``application/json`` response body inferred from an operation. */
+type ResponseBodyOf<Op> = Op extends { responses: infer R }
+  ? SuccessBody<R>
+  : never;
+
+// ---------------------------------------------------------------------------
 // Generic fetch wrapper
 // ---------------------------------------------------------------------------
 
 /**
  * Make a typed HTTP request to the TorrentMate API.
  *
- * Wraps the standard ``fetch`` API with:
+ * The ``path`` and ``method`` are bound to the generated OpenAPI ``paths``
+ * (DESIGN §5.3): a mistyped path or a verb the path does not declare is a
+ * **compile error**, and the resolved response type is inferred from the
+ * operation's 2xx ``application/json`` schema — no manual type parameter and no
+ * ``any`` at any call site. Also wraps the standard ``fetch`` with:
  *
  * - Automatic ``credentials: "include"`` (sends the ``tm_session`` cookie).
- * - Typed request body (validated by the caller via Zod before reaching here).
- * - Typed response: the 200 ``application/json`` payload inferred from
- *   the OpenAPI schema.
- * - An ``ApiError`` thrown on any non-OK status (handle 401 in the app layer).
+ * - ``Content-Type: application/json`` set only when a body is present.
+ * - An ``ApiError`` thrown on any non-OK status (401 handled in the app layer).
+ *
+ * S1 has no parameterized routes, so path/query params are intentionally not
+ * modelled here. S2+ adds them by extending ``init`` with a ``params`` object
+ * derived from ``paths[P][M]["parameters"]`` and interpolating ``path``.
  *
  * Type parameters:
- *   **Responses**: The ``responses`` union from the generated schema.
+ *   **P**: The API path — a key of the generated ``paths``.
+ *   **M**: An HTTP verb the path ``P`` actually declares ({@link MethodOf}).
  *
  * Args:
- *   url: The API path (e.g. ``"/api/health"``).
- *   init: Optional fetch init overrides.  ``body`` is typed to the
- *       operation's ``requestBody`` content shape (``unknown`` if no body).
- *       Omit ``body`` for GET/HEAD requests.
+ *   path: The API path (e.g. ``"/api/health"``), checked against ``paths``.
+ *   init: The request method plus, for body-carrying operations, a ``body``
+ *       typed to that operation's ``requestBody`` JSON shape, and optional
+ *       extra ``headers``.
  */
-export async function apiFetch<
-  Responses extends Record<number | string, unknown>,
->(
-  url: string,
-  init?: { method: string; body?: unknown; headers?: Record<string, string> },
-): Promise<SuccessBody<Responses>> {
+export async function apiFetch<P extends keyof paths, M extends MethodOf<P>>(
+  path: P,
+  init: {
+    method: M;
+    body?: RequestBodyOf<paths[P][M]>;
+    headers?: Record<string, string>;
+  },
+): Promise<ResponseBodyOf<paths[P][M]>> {
   // Build headers — only set Content-Type when there is a body.
   const requestHeaders: Record<string, string> = {};
-  if (init?.body !== undefined) {
+  if (init.body !== undefined) {
     requestHeaders["Content-Type"] = "application/json";
   }
-  if (init?.headers !== undefined) {
+  if (init.headers !== undefined) {
     Object.assign(requestHeaders, init.headers);
   }
 
   // Build the fetch init manually to avoid exactOptionalPropertyTypes
   // conflicts (spreading undefined into RequestInit properties is illegal).
+  // The schema verb keys are lowercase; `fetch` wants the canonical uppercase.
   const fetchInit: RequestInit = {
+    method: init.method.toUpperCase(),
     credentials: "include",
     headers: requestHeaders,
   };
-  if (init?.method !== undefined) {
-    fetchInit.method = init.method;
-  }
-  if (init?.body !== undefined) {
+  if (init.body !== undefined) {
     fetchInit.body = JSON.stringify(init.body);
   }
 
-  const response = await fetch(url, fetchInit);
+  const response = await fetch(path, fetchInit);
 
   if (!response.ok) {
     let detail = response.statusText;
@@ -119,12 +166,15 @@ export async function apiFetch<
     throw new ApiError(response.status, detail);
   }
 
-  // 204 No Content — no body to parse (login / logout).
+  // 204 No Content — no body to parse (login / logout). The cast is forced: the
+  // schema types the body, but a 204 carries none.
   if (response.status === 204) {
-    return undefined as SuccessBody<Responses>;
+    return undefined as ResponseBodyOf<paths[P][M]>;
   }
 
-  return (await response.json()) as SuccessBody<Responses>;
+  // `Response.json()` is untyped (`Promise<any>`); assert the schema-derived
+  // body — the only cast the generated types force on us.
+  return (await response.json()) as ResponseBodyOf<paths[P][M]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -135,43 +185,33 @@ export async function apiFetch<
 export async function login(
   body: paths["/api/auth/login"]["post"]["requestBody"]["content"]["application/json"],
 ): Promise<void> {
-  await apiFetch<
-    paths["/api/auth/login"]["post"]["responses"]
-  >("/api/auth/login", { method: "POST", body });
+  await apiFetch("/api/auth/login", { method: "post", body });
 }
 
 /** Logout: POST /api/auth/logout.  Requires auth. */
 export async function logout(): Promise<void> {
-  await apiFetch<
-    paths["/api/auth/logout"]["post"]["responses"]
-  >("/api/auth/logout", { method: "POST" });
+  await apiFetch("/api/auth/logout", { method: "post" });
 }
 
 /** Get current user: GET /api/auth/me.  Requires auth. */
 export function getMe(): Promise<
   SuccessBody<paths["/api/auth/me"]["get"]["responses"]>
 > {
-  return apiFetch<
-    paths["/api/auth/me"]["get"]["responses"]
-  >("/api/auth/me", { method: "GET" });
+  return apiFetch("/api/auth/me", { method: "get" });
 }
 
 /** Health: GET /api/health.  Public. */
 export function getHealth(): Promise<
   SuccessBody<paths["/api/health"]["get"]["responses"]>
 > {
-  return apiFetch<
-    paths["/api/health"]["get"]["responses"]
-  >("/api/health", { method: "GET" });
+  return apiFetch("/api/health", { method: "get" });
 }
 
 /** Version: GET /api/version.  Requires auth. */
 export function getVersion(): Promise<
   SuccessBody<paths["/api/version"]["get"]["responses"]>
 > {
-  return apiFetch<
-    paths["/api/version"]["get"]["responses"]
-  >("/api/version", { method: "GET" });
+  return apiFetch("/api/version", { method: "get" });
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +242,17 @@ let unauthorizedHandler: UnauthorizedHandler | null = null;
 /** True when ``error`` is an :class:`ApiError` carrying HTTP 401. */
 function isUnauthorized(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401;
+}
+
+/**
+ * True when ``query`` is the ``me`` identity query (``['auth', 'me']``).
+ *
+ * Mirrors ``authKeys.me`` in ``hooks/useAuth.ts`` — kept as a structural check
+ * here to avoid a ``client`` ↔ ``useAuth`` import cycle.
+ */
+function isMeQuery(query: { readonly queryKey: readonly unknown[] }): boolean {
+  const key = query.queryKey;
+  return key.length === 2 && key[0] === "auth" && key[1] === "me";
 }
 
 /** Invoke the currently-registered unauthorized handler, if any. */
@@ -245,8 +296,13 @@ export const queryClient = new QueryClient({
     },
   },
   queryCache: new QueryCache({
-    onError: (error) => {
-      if (isUnauthorized(error)) {
+    onError: (error, query) => {
+      // The `me` query's own 401 is the canonical "not authenticated" signal —
+      // AuthProvider + ProtectedRoute react to its error directly. Routing it
+      // through the redirect handler would, once the handler clears `me` and its
+      // observer refetches, re-enter on the refetch's 401 and loop forever, so
+      // exempt it (pairs with RouterBridge clearing the `me` cache on 401).
+      if (isUnauthorized(error) && !isMeQuery(query)) {
         runUnauthorizedHandler();
       }
     },
