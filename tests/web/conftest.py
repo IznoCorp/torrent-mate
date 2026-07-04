@@ -32,3 +32,23 @@ def web_app(test_config):
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     app = create_app(test_config, settings)
     return TestClient(app)
+
+
+@pytest.fixture
+def web_app_https(test_config):
+    """Create a TestClient with ``base_url="https://testserver"`` for cookie-replay tests.
+
+    The session cookie is set with ``Secure``, so httpx's TestClient on the
+    default ``http://testserver`` will not replay it.  Use this fixture for any
+    test that needs to receive and replay the ``tm_session`` cookie (login →
+    /me round-trip, logout, guard checks on guarded routes).
+
+    Args:
+        test_config: Synthetic ``Config`` fixture from ``tests/fixtures/config.py``.
+
+    Returns:
+        A ``TestClient`` instance with ``base_url="https://testserver"``.
+    """
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    app = create_app(test_config, settings)
+    return TestClient(app, base_url="https://testserver")
