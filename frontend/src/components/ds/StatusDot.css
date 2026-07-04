@@ -1,0 +1,61 @@
+/* StatusDot — ported verbatim from the design-system reference implementation
+   (`components/pipeline/StatusDot.jsx`). Styling stays in CSS (not a JS-injected
+   string) so it is bundled by Vite and kept out of lint-scanned source. All
+   colours/motion resolve to DS token custom properties. */
+.ps-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+.ps-dot__d {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--neutral-signal);
+}
+.ps-dot--idle .ps-dot__d {
+  background: var(--neutral-signal);
+}
+.ps-dot--queued .ps-dot__d {
+  background: var(--info);
+}
+.ps-dot--running .ps-dot__d {
+  background: var(--warning);
+}
+.ps-dot--done .ps-dot__d {
+  background: var(--success);
+}
+.ps-dot--error .ps-dot__d {
+  background: var(--danger);
+}
+.ps-dot--skipped .ps-dot__d {
+  background: var(--neutral-signal);
+  opacity: 0.6;
+}
+.ps-dot--running .ps-dot__d::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--warning);
+  opacity: 0.5;
+  animation: ps-ping 1.3s var(--ease-out) infinite;
+}
+@keyframes ps-ping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  80%,
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+.ps-dot__label {
+  color: var(--foreground);
+}

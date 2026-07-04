@@ -1,0 +1,59 @@
+/* StatPanel — ported verbatim from the design-system reference implementation
+   (`components/pipeline/StatPanel.jsx`). CSS kept out of JS; token references
+   preserved (KPI tile: caption, headline figure, trend delta). */
+.ps-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-4);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ring-inset);
+}
+.ps-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-2xs);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-weight: var(--weight-medium);
+}
+.ps-stat__label svg {
+  width: 13px;
+  height: 13px;
+}
+.ps-stat__value {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.ps-stat__unit {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted-foreground);
+}
+.ps-stat__delta {
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.ps-stat__delta--up {
+  color: var(--success);
+}
+.ps-stat__delta--down {
+  color: var(--danger);
+}
+.ps-stat__delta--flat {
+  color: var(--muted-foreground);
+}

@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
+    "lint:ds": "oxlint -c oxlintrc.json src",
     "test": "vitest"
   },
   "dependencies": {

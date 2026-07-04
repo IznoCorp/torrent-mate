@@ -105,6 +105,49 @@
 **Verification**: `cd frontend && npm run lint` → zero errors; `npm run lint:ds`
 → zero errors; `npm run build` → `dist/` output.
 
+> **Delivered nuances (2026-07-04, actual 4.2 scaffold)**
+>
+> - **shadcn hand-authored, not CLI.** Given the 4.1 bleeding-edge stack (Vite 8,
+>   TS 6, React 19, Tailwind **v4.3.2**), `npx shadcn@latest init` would re-detect
+>   the framework and overwrite the hand-crafted `globals.css` / edit `vite.config.ts`.
+>   Components were hand-copied from the registry (current "new-york" `data-slot`
+>   function-component pattern, React-19-native, no `forwardRef`) into
+>   `src/components/ui/`. Deterministic and lint-clean.
+> - **Tailwind v4 via `@tailwindcss/vite`** (no `tailwind.config`). `globals.css`
+>   = `@import "tailwindcss"` → `@import "./ps/styles.css"` (DS token layer) →
+>   `@theme inline { … }` mapping the DS custom properties into Tailwind's
+>   `--color-*` / `--radius-*` / `--font-*` namespaces (per INTEGRATION.md §B.2 note).
+>   `main.tsx` now imports `./styles/globals.css`; `src/index.css` removed.
+> - **Components delivered:** button, card, input, label, table, dialog,
+>   dropdown-menu, avatar, **sonner**. `form` and the deprecated `toast` block are
+>   **not** shipped: `toast` is superseded by `sonner`, and shadcn `form` wraps
+>   `react-hook-form` while the app uses **TanStack Form** (DESIGN §5.3) — the
+>   login form will be built on TanStack Form in phase 5, not shadcn `form`.
+> - **`sonner` patched:** upstream reads the theme from `next-themes` (not a dep);
+>   pinned `theme="dark"` (DS is dark-first) + DS-var toast surface. `<button>`
+>   `destructive` variant maps `text-destructive-foreground` (DS token) rather than
+>   upstream's raw `text-white`. Zero `any`; one non-blocking `react-refresh`
+>   warning on `button.tsx` (`buttonVariants` co-export — canonical shadcn).
+> - **Fonts vendored.** Geist + Geist Mono **variable** woff2 pulled from the
+>   `geist` npm package v1.7.2 (jsDelivr) into `src/assets/fonts/`; `tokens/fonts.css`
+>   remote Google-Fonts `@import` replaced with local `@font-face` (weight range
+>   `100 900`). Two files cover every weight; bundled by Vite into `dist/assets/`.
+> - **DS primitives** (`StatusDot`, `LogLine`, `StatPanel`) ported to
+>   `src/components/ds/*.tsx` (typed from the `.d.ts` contracts) with a **co-located
+>   `.css`** each — the reference `.jsx` injected CSS strings were moved verbatim to
+>   real stylesheets (token `var(--…)` refs preserved) so styling stays out of
+>   lint-scanned JS and is Vite-bundled on first use. One vitest render test each (3).
+> - **oxlint adaptation.** `_adherence.oxlintrc.json` is ESLint-flavoured; oxlint
+>   1.72 rejects two things: the `x-omelette` DS-metadata key (unknown field) and
+>   the esquery selector rule **`no-restricted-syntax`** (`Rule not found in plugin
+>   'eslint'` — oxlint has no esquery engine). Both removed; the supported
+>   adherence rules (`no-restricted-imports` internal-import guard,
+>   `react/forbid-elements`) + `overrides` are kept, plus `ignorePatterns`
+>   (`dist`, `node_modules`). `lint:ds` = `oxlint -c oxlintrc.json src` exits 0.
+>   **Gap:** the token/prop-contract selectors (raw-hex/px/font + per-component prop
+>   whitelists) cannot run under oxlint — they would need ESLint. Recorded as a
+>   follow-up decision, not silently dropped.
+
 ### 4.3 — OpenAPI export + typed API client generation
 
 **Commit**: `feat(tm-shell): add OpenAPI export and typed frontend API client`

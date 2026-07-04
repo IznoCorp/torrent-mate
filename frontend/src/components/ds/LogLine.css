@@ -1,0 +1,56 @@
+/* LogLine — ported verbatim from the design-system reference implementation
+   (`components/pipeline/LogLine.jsx`). CSS kept out of JS; token references
+   preserved (mono grid row, tabular timestamp, colour-coded level). */
+.ps-log {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0 12px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  padding: 1px 10px;
+  border-radius: var(--radius-sm);
+}
+.ps-log:hover {
+  background: color-mix(in oklch, var(--foreground) 4%, transparent);
+}
+.ps-log__ts {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ps-log__lvl {
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  min-width: 38px;
+}
+.ps-log__msg {
+  color: var(--foreground);
+  min-width: 0;
+  word-break: break-word;
+}
+.ps-log__msg b {
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+}
+.ps-log--debug .ps-log__lvl {
+  color: var(--muted-foreground);
+}
+.ps-log--info .ps-log__lvl {
+  color: var(--info);
+}
+.ps-log--success .ps-log__lvl {
+  color: var(--success);
+}
+.ps-log--warn .ps-log__lvl {
+  color: var(--warning);
+}
+.ps-log--error .ps-log__lvl {
+  color: var(--danger);
+}
+.ps-log--error .ps-log__msg {
+  color: color-mix(in oklch, var(--danger) 55%, var(--foreground));
+}
