@@ -1641,6 +1641,67 @@ that `mutate FS` + `mutate BDD` + `network`
 
 ---
 
+## Web UI — daemon (PM2)
+
+> The TorrentMate web UI daemon runs under PM2 via `ecosystem.config.js` (apps
+> `torrentmate-web` / `torrentmate-web-staging`). Full architecture, auth, WS
+> protocol, and deploy runbook: [web-ui.md](web-ui.md).
+
+## `personalscraper web`
+
+**Purpose**: Boots the TorrentMate web UI daemon — a FastAPI app serving the
+built SPA plus the REST API (`/api/health`, `/api/version`, `/api/auth/*`) and
+the `/ws/events` WebSocket event relay. `personalscraper web` (bare) starts the
+daemon via the group callback; nested admin commands hang off the same group.
+Runs until SIGTERM/SIGINT.
+
+**Side effects**: `network` (binds a TCP port; reads Redis for the event relay)
+
+**Pipeline position**: n/a (daemon — runs independently, observes pipeline events)
+
+**Args**:
+
+- `--host TEXT` : Override `config.web.host` (bind address). Defaults to `config.web.host`.
+- `--port INTEGER` : Override `config.web.port` (e.g. `8711` for the staging clone). Defaults to `config.web.port`.
+
+**Configuration** (in `config/web.json5`): `web.enabled`, `web.host`, `web.port`
+(default 8710), `web.username`, `web.redis_url`, `web.stream_key`,
+`web.stream_maxlen`, `web.session_ttl_hours`, `web.cookie_secure`, `web.dev_mode`.
+Secrets come from the environment: `WEB_PASSWORD_HASH`, `WEB_JWT_SECRET`.
+
+**Examples**:
+
+    personalscraper web
+    personalscraper web --port 8711
+
+**Related**: `web set-password`, `watch`
+
+---
+
+## `personalscraper web set-password`
+
+**Purpose**: Generates the web-UI auth secrets — a scrypt `WEB_PASSWORD_HASH`
+(prompts for the password, never echoing it) and, when absent, a `WEB_JWT_SECRET`.
+Prints the keys for manual copy into `.env`, or writes them atomically with
+`--write` (after confirmation).
+
+**Side effects**: `mutate FS` (only with `--write` — upserts keys into repo-root `.env`)
+
+**Pipeline position**: n/a (admin command)
+
+**Args**:
+
+- `--write` : Atomically write the generated keys into the repo-root `.env` (after confirmation). Without it, the `.env` file is never touched.
+
+**Examples**:
+
+    personalscraper web set-password
+    personalscraper web set-password --write
+
+**Related**: `web`
+
+---
+
 ## `personalscraper watch-now`
 
 **Purpose**: Triggers an immediate pipeline run by writing a sentinel file
