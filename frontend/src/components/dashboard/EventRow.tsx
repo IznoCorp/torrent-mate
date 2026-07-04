@@ -27,15 +27,16 @@ type Severity = "danger" | "warning" | "neutral";
  * {@link LogLine} level colour + code. A feed row is a *completed, historical*
  * event, so ``neutral`` (the vast majority) maps to the static ``idle`` dot
  * rather than the lifecycle ``queued`` — which reads as "pending" and is wrong
- * for a settled event (audit B9). Only ``warning`` keeps the animated ``running``
- * dot, the single amber variant the DS offers, so a warning still draws the eye.
+ * for a settled event (audit B9). ``warning`` maps to the static amber
+ * ``warning`` dot (not the animated ``running`` amber) so it still draws the eye
+ * without pulsing forever on a settled row.
  */
 const SEVERITY_DISPLAY: Record<
   Severity,
   { readonly dot: PipelineStatus; readonly level: LogLevel }
 > = {
   danger: { dot: "error", level: "error" },
-  warning: { dot: "running", level: "warn" },
+  warning: { dot: "warning", level: "warn" },
   neutral: { dot: "idle", level: "info" },
 };
 

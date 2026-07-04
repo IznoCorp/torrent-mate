@@ -26,6 +26,9 @@
 .ps-dot--running .ps-dot__d {
   background: var(--warning);
 }
+.ps-dot--warning .ps-dot__d {
+  background: var(--warning);
+}
 .ps-dot--done .ps-dot__d {
   background: var(--success);
 }

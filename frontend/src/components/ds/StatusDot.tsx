@@ -7,6 +7,7 @@ export type PipelineStatus =
   | "idle"
   | "queued"
   | "running"
+  | "warning"
   | "done"
   | "error"
   | "skipped";
@@ -28,6 +29,7 @@ const LABELS: Record<PipelineStatus, string> = {
   idle: "Idle",
   queued: "Queued",
   running: "Running",
+  warning: "Warning",
   done: "Done",
   error: "Failed",
   skipped: "Skipped",
@@ -36,9 +38,11 @@ const LABELS: Record<PipelineStatus, string> = {
 /**
  * StatusDot — a coloured pulse + label for any pipeline / job state.
  *
- * `running` animates a ping; every state maps to the DS signal palette. Ported
- * from the design-system `StatusDot.jsx` reference (CSS moved to a co-located
- * stylesheet; token references preserved).
+ * `running` animates a ping (an in-flight step drawing the eye); `warning` uses
+ * the same amber signal but STATIC — for a settled/historical warning that must
+ * not pulse forever (audit B9). Every state maps to the DS signal palette.
+ * Ported from the design-system `StatusDot.jsx` reference (CSS moved to a
+ * co-located stylesheet; token references preserved).
  *
  * @returns The status indicator element.
  */

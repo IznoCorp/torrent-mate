@@ -55,4 +55,11 @@ describe("EventRow — variante du StatusDot", () => {
     const dot = renderDot("PipelineStepErrored");
     expect(dot.classList.contains("ps-dot--error")).toBe(true);
   });
+
+  it("rend un point ambre STATIQUE (warning) pour un avertissement, jamais l’animation running", () => {
+    const dot = renderDot("DiskSpaceWarning");
+    expect(dot.classList.contains("ps-dot--warning")).toBe(true);
+    // A settled warning must draw the eye without pulsing forever.
+    expect(dot.classList.contains("ps-dot--running")).toBe(false);
+  });
 });
