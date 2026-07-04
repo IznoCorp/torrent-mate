@@ -1,24 +1,24 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { RouterProvider } from "react-router-dom";
+
+import { queryClient } from "@/api/client";
+import { router } from "@/router";
 
 /**
- * Root application placeholder for TorrentMateUI.
+ * App — the TorrentMateUI root.
  *
- * Renders a French "under construction" screen already dressed in the
- * PersonalScraper design system (dark control-deck surface, signal-amber
- * primary, Geist type) via the DS token layer wired into Tailwind v4. The real
- * shell (navigation, routing, auth flow, dashboard) arrives in phase 5.
+ * Wires the shared TanStack Query client (with its global 401 policy) around the
+ * React Router provider. Sub-phase 5.3 layers an `AuthProvider` between these two
+ * so the shell's auth guard can read the session; 5.2 mounts the router without
+ * a guard (login stays public, the shell reachable at `/`).
  *
- * @returns The placeholder application element.
+ * @returns The application root element.
  */
 export default function App(): ReactElement {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background p-6 text-center font-sans text-foreground">
-      <h1 className="text-2xl font-semibold tracking-tight text-primary">
-        TorrentMate — interface en construction
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Le tableau de bord arrive bientôt.
-      </p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }
