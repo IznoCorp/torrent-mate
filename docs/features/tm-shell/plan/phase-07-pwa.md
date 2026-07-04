@@ -29,8 +29,9 @@
      `"#0b0a08"`, `display: "standalone"`. Icons: 192 + 512 from DS logo,
      maskable + apple-touch-icon variants.
    - `workbox`: `globPatterns` for shell precache only (HTML/JS/CSS/fonts).
-     `/api/*` → NetworkOnly, `/ws/*` → NetworkOnly, navigation → NetworkFirst.
-   - `registerType: 'autoUpdate'`.
+     `/api/*` → NetworkOnly, `/ws/*` → NetworkOnly, navigation → precached
+     `index.html` (see audit correction below).
+   - `registerType: 'prompt'` (see audit correction below).
 2. `index.html` — `<link rel="manifest">`, `<meta name="theme-color">`,
    apple-touch-icon link.
 3. Verify `dist/` output: manifest.webmanifest + sw.js present, sw.js < 50 KB.
@@ -52,9 +53,18 @@ Chrome DevTools Application → SW registered, precache populated.
 - `includeManifestIcons: false` + `globPatterns` `{html,js,css,woff2,svg,png}`
   keep the precache list free of duplicates (11 entries, shell-only).
 - `/api/*` and `/ws/*` are `NetworkOnly` runtime routes **and** in the
-  `navigateFallback` denylist (`[/^\/api\//, /^\/ws\//]`); navigation is
-  `NetworkFirst`. `registerType: 'autoUpdate'` → SW `skipWaiting` +
-  `clientsClaim` + `cleanupOutdatedCaches`.
+  `navigateFallback` denylist (`[/^\/api\//, /^\/ws\//]`); navigations fall
+  through the denylist to the precached `index.html`. SW keeps `skipWaiting`
+  (inside the `SKIP_WAITING` message listener) + `clientsClaim` +
+  `cleanupOutdatedCaches`.
+- **Audit correction (B2/B3, shipped in fix-wave)**: `registerType` is
+  **`'prompt'`**, not `'autoUpdate'`, and the `NetworkFirst` navigation route was
+  **removed**. Under `autoUpdate` the `useRegisterSW` `needRefresh` never fires →
+  the 7.2 update toast + `applyUpdate` were dead code; and the `NetworkFirst`
+  navigation route was unreachable for shell navigations while being the only
+  route that could cache an `/api` navigation. With `'prompt'`, `needRefresh`
+  drives the toast → `updateServiceWorker(true)` (single reload); navigations are
+  served from the precached `index.html`; `/api` + `/ws` stay NetworkOnly.
 - `vite-plugin-pwa/client` + `/react` type refs added to `src/vite-env.d.ts`
   so the 7.2 `virtual:pwa-register/react` import typechecks.
 
@@ -96,10 +106,10 @@ Chrome DevTools → Manifest → installable; redeploy → update toast within
 **Implementation notes (shipped 7.2)**:
 
 - **Build stamp** — `vite.config.ts` bakes `define: { __BUILD_COMMIT__:
-  JSON.stringify(process.env.TM_BUILD_COMMIT ?? 'dev') }`; a global
+JSON.stringify(process.env.TM_BUILD_COMMIT ?? 'dev') }`; a global
   `declare const __BUILD_COMMIT__: string` lives in `src/vite-env.d.ts`.
   **Deploy contract (phase 8)**: the deploy script MUST `export
-  TM_BUILD_COMMIT="$(git rev-parse HEAD)"` before `npm run build`, so the
+TM_BUILD_COMMIT="$(git rev-parse HEAD)"` before `npm run build`, so the
   running bundle knows its own SHA. Unset (local dev, Vitest) → `"dev"`, which
   `shouldForceUpdate` treats as unstamped and never uses to force an update.
 - **`usePwa` (single mount)** — mounted once via `App.tsx`'s `PwaLayer`, a
@@ -117,7 +127,7 @@ Chrome DevTools → Manifest → installable; redeploy → update toast within
   `applyUpdate()` = `updateServiceWorker(true)` (reload). A `firedRef` +
   `reloadedRef` guarantee a single toast and a single reload (no loop).
 - **InstallBanner** — DS card banner: Android/desktop « Installer TorrentMate »
-  → `promptInstall()`; iOS Safari → *Partager → « Sur l'écran d'accueil »*
+  → `promptInstall()`; iOS Safari → _Partager → « Sur l'écran d'accueil »_
   instruction; `X`/Ignorer → `dismissInstall()` (persisted to
   `torrentmate:install_dismissed`). Hidden when installed (display-mode
   standalone) or dismissed.

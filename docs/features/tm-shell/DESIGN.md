@@ -280,13 +280,23 @@ Password hashing uses **stdlib** `hashlib.scrypt` — no extra dep.
 
 - `vite-plugin-pwa` (Workbox): manifest **TorrentMate** (name, theme `#0b0a08`-ish DS
   background, icons generated from DS `logo-icon.svg` incl. maskable + apple-touch),
-  `registerType: 'autoUpdate'`, precache = app shell only; `/api` + `/ws` are
-  NetworkOnly (never cached).
+  `registerType: 'prompt'`, precache = app shell only; navigations fall back to the
+  precached `index.html`; `/api` + `/ws` are NetworkOnly (never cached).
+  > **Correction (tm-shell audit B2/B3)**: originally specced `registerType:
+'autoUpdate'` with a `NetworkFirst` navigation route. Both were confirmed defects
+  > — under `autoUpdate` the `useRegisterSW` `needRefresh` signal never fires, so the
+  > update toast + `applyUpdate` were dead code; and the `NetworkFirst` navigation
+  > route was unreachable for shell navigations **and** was the only route that could
+  > ever cache an `/api` navigation. Shipped as `registerType: 'prompt'` (so
+  > `needRefresh` drives the toast) with the navigation served from the precached
+  > `index.html`; `/api` + `/ws` stay NetworkOnly in every mode. The update _intent_
+  > below (`skipWaiting` + `clients.claim` + cleanup + toast → reload) is preserved.
 - **Update discipline** (all installs converge): SW update checks on load, on
   `visibilitychange`, and every 15 min; additionally `/api/version` is polled and compared
   to the baked `__BUILD_COMMIT__` — any mismatch forces `registration.update()`. New SW →
-  `skipWaiting` + `clients.claim` + old caches deleted → toast « Nouvelle version
-  installée — rechargement… » → auto reload. No stale clients.
+  `needRefresh` → toast « Nouvelle version installée — rechargement… » →
+  `updateServiceWorker(true)` (`skipWaiting` + `clients.claim` + old caches deleted) →
+  single auto reload. No stale clients.
 - **Install proposal**: Android/desktop — capture `beforeinstallprompt`, surface an
   in-app « Installer TorrentMate » button/banner; iOS Safari — detect
   (`navigator.standalone === false` + iOS UA) and show the Partager → « Sur l'écran
