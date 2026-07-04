@@ -1,0 +1,221 @@
+{
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "description": "Login request body.\n\nAttributes:\n    username: The username to authenticate.\n    password: The plaintext password to verify.",
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "TorrentMate",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "description": "Authenticate a user and set a session cookie.\n\nVerifies the supplied credentials against the stored scrypt hash.  On\nsuccess, creates a JWT session token and sets it as an HttpOnly,\nSameSite=Strict cookie.  On failure, returns 401 after a small constant\ndelay (to deter timing-based user enumeration).\n\nArgs:\n    body: The login credentials (username + password).\n    request: The incoming FastAPI request (for app.state access).\n\nReturns:\n    A ``Response`` with status 204 and a ``Set-Cookie`` header on success.\n\nRaises:\n    HTTPException: 401 if the credentials are invalid or the password\n        hash has not been configured.",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "description": "Clear the session cookie (log out).\n\nRequires a valid session (guarded by ``require_session``).\n\nArgs:\n    session: The authenticated session injected by the guard.\n\nReturns:\n    A ``Response`` with status 204 and a cookie-clearing ``Set-Cookie`` header.",
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "Return the authenticated user's identity.\n\nRequires a valid session (guarded by ``require_session``).\n\nArgs:\n    session: The authenticated session injected by the guard.\n\nReturns:\n    A dict with the ``username`` key.",
+        "operationId": "me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Me Api Auth Me Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "description": "Health-check endpoint \u2014 reachable, Redis, and DB presence.\n\nBoth probes are **fail-soft**: they never raise and never block boot.\nA down Redis or missing DB returns ``false`` for that key, not a 5xx.\n\nReturns:\n    A dict with:\n    - **status**: Always ``\"ok\"`` if this handler is reachable.\n    - **redis**: ``True`` if the configured Redis instance responds to PING.\n    - **db**: ``True`` if ``library.db`` exists at the configured data_dir path.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/version": {
+      "get": {
+        "description": "Application version endpoint.\n\nReturns:\n    A dict with ``version`` (the Python package version) and\n    ``build_commit`` (the deployed git SHA, or ``\"dev\"``).",
+        "operationId": "version_api_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Version Api Version Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Version",
+        "tags": [
+          "version"
+        ]
+      }
+    }
+  }
+}

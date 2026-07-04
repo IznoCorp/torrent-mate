@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check format install-dev version update-ytdlp perf-rebaseline
+.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check format install-dev version update-ytdlp perf-rebaseline openapi
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -17,6 +17,7 @@ help:
 	@echo "  make version         - Show current version"
 	@echo "  make update-ytdlp    - Upgrade yt-dlp + run network integration smoke test"
 	@echo "  make perf-rebaseline - Run slow perf tests and write new baseline.json"
+	@echo "  make openapi         - Export OpenAPI schema + regenerate frontend TS types"
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -105,3 +106,10 @@ perf-rebaseline:
 	@echo "Running perf regression tests and updating baseline.json..."
 	PERF_REBASELINE=1 python -m pytest -m slow tests/e2e/perf/test_indexer_perf.py -v
 	@echo "baseline.json updated with fresh measurements."
+
+openapi:
+	@echo "Exporting OpenAPI schema..."
+	python scripts/export-openapi.py
+	@echo "Regenerating frontend TypeScript types..."
+	cd frontend && npm run gen-api
+	@echo "OpenAPI schema and TS types are up to date."
