@@ -140,7 +140,7 @@
 > - **oxlint adaptation.** `_adherence.oxlintrc.json` is ESLint-flavoured; oxlint
 >   1.72 rejects two things: the `x-omelette` DS-metadata key (unknown field) and
 >   the esquery selector rule **`no-restricted-syntax`** (`Rule not found in plugin
->   'eslint'` — oxlint has no esquery engine). Both removed; the supported
+'eslint'` — oxlint has no esquery engine). Both removed; the supported
 >   adherence rules (`no-restricted-imports` internal-import guard,
 >   `react/forbid-elements`) + `overrides` are kept, plus `ignorePatterns`
 >   (`dist`, `node_modules`). `lint:ds` = `oxlint -c oxlintrc.json src` exits 0.
@@ -186,6 +186,32 @@
 
 **Verification**: `make openapi && git diff --exit-code frontend/openapi.json
 frontend/src/api/schema.d.ts` → clean.
+
+> **Delivered nuances (2026-07-04, actual 4.3 scaffold)**
+>
+> - **Split into 2 commits** per Cocktail A: (1) export script + openapi.json +
+>   Makefile `openapi:` target; (2) devDep + gen-api + schema.d.ts + client.ts.
+> - **`openapi-typescript` pinned at 7.13.0.** Peer-deps declare `typescript@^5.x`
+>   but the package works correctly with TS 6 at generation time and the output
+>   is plain `.d.ts`. Installed with `--legacy-peer-deps` to bypass the npm
+>   resolution conflict; `schema.d.ts` passes TS 6 strict type-checking.
+> - **`apiFetch` type-safe without `any`.** Uses the generated `paths` types
+>   directly; `SuccessBody<T>` utility extracts the `200 application/json`
+>   content from openapi-typescript's response shape. `exactOptionalPropertyTypes`
+>   required conditional init construction (no spread of `undefined` into
+>   `RequestInit` properties). `ApiError` uses explicit field declarations
+>   (TS 6 `erasableSyntaxOnly` forbids parameter properties).
+> - **Per-endpoint helpers** (`login`, `logout`, `getMe`, `getHealth`,
+>   `getVersion`) are thin typed wrappers around `apiFetch` so callers don't
+>   need to spell out generics.
+> - **`src/api/schema.d.ts` excluded from ESLint** — the generated
+>   `consistent-indexed-object-style` violations are noise; the file is
+>   regenerated verbatim by `openapi-typescript`.
+> - **`queryClient`** with `staleTime: 5_000` and `retry: 1` — TanStack Query
+>   defaults for the app.
+> - **All quality gates green:** typecheck, lint (0 errors), test (4 files/5
+>   tests), build, `make openapi`, `git diff --exit-code` on both files,
+>   backend lint (ruff + mypy + logging), backend web tests (77 passed).
 
 ### 4.4 — CI frontend job
 
