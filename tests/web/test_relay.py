@@ -236,6 +236,27 @@ def test_read_stream_loop_broadcasts_new_entry() -> None:
     asyncio.run(_run())
 
 
+def test_entry_to_message_resolves_type_from_envelope_only() -> None:
+    """An entry carrying only ``envelope`` still resolves the real event type.
+
+    Regression: the relay previously read the class name from a duplicated
+    top-level ``type`` field, so a minimal manual ``XADD`` (the DESIGN §11
+    manual-test path) that carries just the JSON envelope degraded every event
+    to ``"unknown"`` on the client — breaking the feed's severity classification
+    (no warning amber, no error red). The envelope is the single source of truth.
+    """
+    from personalscraper.web.ws.relay import _entry_to_message
+
+    envelope_only = {"envelope": json.dumps(event_to_envelope(_make_event(scope="live")))}
+    msg = _entry_to_message("1700000000000-0", envelope_only)
+    assert msg["type"] == "BackfillCompleted"
+    assert msg["data"]["scope"] == "live"
+
+    # The redundant top-level field, when present, still works as a fallback.
+    both_fields = _stream_fields(_make_event(scope="both"))
+    assert _entry_to_message("1700000000001-0", both_fields)["type"] == "BackfillCompleted"
+
+
 def test_replay_events_returns_entries_after_last_id() -> None:
     """``replay_events`` returns only entries strictly after ``last_id`` (exclusive)."""
 

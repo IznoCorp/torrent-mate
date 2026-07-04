@@ -103,9 +103,17 @@ async def init_redis_pool(web_config: WebConfig) -> aioredis.Redis:
 def _entry_to_message(entry_id: str, fields: dict[str, str]) -> dict[str, Any]:
     """Convert a raw Redis stream entry into the standard WS message shape.
 
+    The event class name is read from the authoritative ``envelope["_type"]``
+    (the single source of truth written by ``event_to_envelope``). The publisher
+    also mirrors it into a redundant top-level ``type`` field; that field is used
+    only as a fallback so a minimal manual ``XADD`` carrying just the ``envelope``
+    (the DESIGN §11 manual-test path) still resolves the real type instead of
+    degrading to ``"unknown"``.
+
     Args:
         entry_id: The stream entry id (``<ms>-<seq>``).
-        fields: The stream entry field mapping (expects ``envelope`` + ``type``).
+        fields: The stream entry field mapping (expects ``envelope``; an optional
+            redundant ``type`` field is used only as a fallback).
 
     Returns:
         A message dict ``{"id", "type", "data"}``.
@@ -117,9 +125,10 @@ def _entry_to_message(entry_id: str, fields: dict[str, str]) -> dict[str, Any]:
         TypeError: If the decoded envelope is not subscriptable (e.g. ``null``).
     """
     envelope = json.loads(fields.get("envelope", "{}"))
+    event_type = envelope.get("_type") or fields.get("type") or "unknown"
     return {
         "id": entry_id,
-        "type": fields.get("type", "unknown"),
+        "type": event_type,
         "data": envelope["data"],
     }
 
