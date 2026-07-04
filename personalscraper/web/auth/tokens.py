@@ -24,7 +24,15 @@ def create_session_token(username: str, secret: str, ttl_hours: int) -> str:
 
     Returns:
         A signed JWT string.
+
+    Raises:
+        ValueError: If *secret* is empty.  PyJWT raises ``InvalidKeyError`` on
+            an empty HMAC key; we surface a clear ``ValueError`` so the login
+            route can convert it to a 401 lockout (mirrors the empty
+            password-hash guard) instead of leaking a 500.
     """
+    if not secret:
+        raise ValueError("web_jwt_secret is not set")
     now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
         "sub": username,
@@ -43,9 +51,14 @@ def decode_session_token(token: str, secret: str) -> dict[str, Any] | None:
 
     Returns:
         The claims dict on success, or ``None`` if the token is expired,
-        malformed, or signed with the wrong secret. Never raises.
+        malformed, signed with the wrong secret, or the secret itself is
+        invalid (e.g. empty). Never raises.
     """
+    # ``InvalidKeyError`` (raised for an empty secret) is a ``PyJWTError`` but
+    # NOT an ``InvalidTokenError`` in PyJWT 2.x — catching ``PyJWTError`` covers
+    # it.  ``ValueError`` is caught for defence in depth against any non-JWT
+    # value error so this stays a true "never raises" contract.
     try:
         return jwt.decode(token, secret, algorithms=["HS256"])
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+    except (jwt.PyJWTError, jwt.InvalidKeyError, ValueError):
         return None

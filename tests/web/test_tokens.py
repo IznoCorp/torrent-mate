@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from personalscraper.web.auth.tokens import create_session_token, decode_session_token
 
 TEST_SECRET = "test-secret-for-unit-tests"
@@ -70,3 +72,22 @@ class TestCreateAndDecode:
             payload = decode_session_token(token, TEST_SECRET)
             assert payload is not None
             assert payload["sub"] == username
+
+
+class TestEmptySecret:
+    """Empty ``web_jwt_secret`` must fail closed, never raise a 500-shaped error."""
+
+    def test_decode_with_empty_secret_returns_none(self) -> None:
+        """Decoding a valid token with an empty secret returns None, not InvalidKeyError.
+
+        PyJWT raises ``InvalidKeyError`` (a ``PyJWTError`` but NOT an
+        ``InvalidTokenError``) on an empty HMAC key.  The guard must swallow it
+        so the REST/WS auth path returns 401 instead of 500.
+        """
+        token = create_session_token("izno", TEST_SECRET, ttl_hours=1)
+        assert decode_session_token(token, "") is None
+
+    def test_create_with_empty_secret_raises_value_error(self) -> None:
+        """Creating a token with an empty secret raises a clear ValueError."""
+        with pytest.raises(ValueError, match="web_jwt_secret"):
+            create_session_token("izno", "", ttl_hours=1)
