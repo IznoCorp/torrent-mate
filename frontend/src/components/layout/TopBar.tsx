@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import logoIcon from "@/assets/logo-icon.svg";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
-import { useEventStreamContext } from "@/components/EventStreamProvider";
+import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
 import type { ConnectionState } from "@/hooks/useEventStream";
 

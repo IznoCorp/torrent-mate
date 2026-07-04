@@ -2,10 +2,8 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { EventMessage } from "@/api/events";
-import {
-  EventRow,
-  severityForEventType,
-} from "@/components/dashboard/EventRow";
+import { EventRow } from "@/components/dashboard/EventRow";
+import { severityForEventType } from "@/components/dashboard/eventRow.utils";
 
 /** Build an ``EventMessage`` of ``type`` with a stream-id timestamp prefix. */
 function makeEvent(type: string): EventMessage {

@@ -3,7 +3,8 @@ import type { ReactElement } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { queryClient } from "@/api/client";
-import { AuthProvider, useAuthContext } from "@/components/AuthProvider";
+import { AuthProvider } from "@/components/AuthProvider";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { InstallBanner } from "@/components/InstallBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { usePwa } from "@/hooks/usePwa";

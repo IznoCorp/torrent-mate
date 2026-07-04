@@ -15,7 +15,7 @@ import { LoaderCircle } from "lucide-react";
 import type { ReactElement } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
-import { useAuthContext } from "@/components/AuthProvider";
+import { useAuthContext } from "@/hooks/useAuthContext";
 
 /**
  * Guard the nested authenticated routes.

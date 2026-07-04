@@ -1,5 +1,5 @@
 /**
- * Application-wide live-event stream context for TorrentMateUI (tm-shell §5.3).
+ * Application-wide live-event stream provider for TorrentMateUI (tm-shell §5.3).
  *
  * `EventStreamProvider` owns the app's **single** WebSocket by mounting
  * {@link useEventStream} exactly once, and republishes its reactive state to
@@ -13,17 +13,10 @@
  * lifetime tracks the authenticated session.
  */
 
-import {
-  createContext,
-  useContext,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { type ReactElement, type ReactNode } from "react";
 
-import { useEventStream, type EventStreamState } from "@/hooks/useEventStream";
-
-/** Context handle; ``null`` until an {@link EventStreamProvider} is mounted above. */
-const EventStreamContext = createContext<EventStreamState | null>(null);
+import { EventStreamContext } from "@/hooks/useEventStreamContext";
+import { useEventStream } from "@/hooks/useEventStream";
 
 /**
  * Provide the app-wide event-stream context by mounting the WebSocket hook once.
@@ -46,25 +39,4 @@ export function EventStreamProvider({
       {children}
     </EventStreamContext.Provider>
   );
-}
-
-/**
- * Read the app-wide event-stream context.
- *
- * Returns:
- *   The current {@link EventStreamState} (events, connection state, build commit,
- *   last cursor).
- *
- * Raises:
- *   Error: When called outside an {@link EventStreamProvider} subtree (a
- *     programming error — the provider wraps the authenticated shell).
- */
-export function useEventStreamContext(): EventStreamState {
-  const context = useContext(EventStreamContext);
-  if (context === null) {
-    throw new Error(
-      "useEventStreamContext doit être appelé à l’intérieur de <EventStreamProvider>.",
-    );
-  }
-  return context;
 }

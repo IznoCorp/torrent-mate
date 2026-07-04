@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
 import logoIcon from "@/assets/logo-icon.svg";
-import { useAuthContext } from "@/components/AuthProvider";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { LoginForm } from "@/components/LoginForm";
 import {
   Card,

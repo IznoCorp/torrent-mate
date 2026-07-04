@@ -4,7 +4,7 @@ import { EventFeed } from "@/components/dashboard/EventFeed";
 import { HealthCard } from "@/components/dashboard/HealthCard";
 import { RecentEventsTable } from "@/components/dashboard/RecentEventsTable";
 import { VersionCard } from "@/components/dashboard/VersionCard";
-import { useEventStreamContext } from "@/components/EventStreamProvider";
+import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /**
  * Dashboard — the authenticated home page (`/`), the real-time supervision view.

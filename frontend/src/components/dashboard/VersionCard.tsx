@@ -11,7 +11,7 @@
 import type { ReactElement } from "react";
 
 import { StatPanel } from "@/components/ds/StatPanel";
-import { useEventStreamContext } from "@/components/EventStreamProvider";
+import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { useVersion } from "@/hooks/useHealth";
 
 /** Length of the short commit hash rendered on the card. */

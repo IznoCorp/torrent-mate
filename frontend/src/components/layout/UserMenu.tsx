@@ -2,7 +2,7 @@ import { LogOut } from "lucide-react";
 import { useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { useAuthContext } from "@/components/AuthProvider";
+import { useAuthContext } from "@/hooks/useAuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {

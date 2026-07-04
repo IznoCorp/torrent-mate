@@ -19,7 +19,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState, type ReactElement } from "react";
 
 import type { EventMessage } from "@/api/events";
-import { formatEventTime, severityForEventType } from "@/components/dashboard/EventRow";
+import { formatEventTime, severityForEventType } from "@/components/dashboard/eventRow.utils";
 import {
   Table,
   TableBody,
