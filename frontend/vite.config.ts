@@ -16,6 +16,15 @@ import { defineConfig } from 'vitest/config'
 // shell is precached; `/api` and `/ws` are NetworkOnly so live data and the
 // event WebSocket are never served stale from a cache. The DS near-black
 // `--background` (oklch(0.165 0.004 286) → #0e0e10) drives theme/background.
+//
+// `registerType: 'prompt'` (not 'autoUpdate'): under 'autoUpdate' the plugin
+// silently activates the new SW and `useRegisterSW`'s `needRefresh` never fires,
+// so the DESIGN §5.4 «toast → reload» UX is unreachable. With 'prompt' the fresh
+// SW installs and *waits*; `usePwa` observes `needRefresh`, raises the toast, and
+// calls `updateServiceWorker(true)` (posts SKIP_WAITING → single reload). We keep
+// `clientsClaim` + `cleanupOutdatedCaches` explicitly (the plugin only injects
+// them automatically for 'autoUpdate') so an activated SW still claims all
+// clients and prunes stale precaches.
 const dsBackground = '#0e0e10'
 
 export default defineConfig({
@@ -31,10 +40,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // New builds ship a fresh service worker that activates itself
-      // (skipWaiting + clients.claim) without a manual re-register step; the
-      // update-toast/reload UX lands in sub-phase 7.2.
-      registerType: 'autoUpdate',
+      // A fresh service worker installs and *waits*; `usePwa` surfaces the
+      // update toast and activates it (SKIP_WAITING → single reload). Under
+      // 'autoUpdate' the SW would self-activate and `needRefresh` would never
+      // fire, making the toast/reload UX dead code (audit B2).
+      registerType: 'prompt',
       // Icons are already precached via the `png` glob below; skip the manifest
       // auto-inclusion so each icon lands in the precache list exactly once.
       includeManifestIcons: false,
@@ -66,24 +76,28 @@ export default defineConfig({
         // web manifest is injected into the precache by vite-plugin-pwa itself,
         // so it is intentionally left out of these globs to avoid a duplicate.
         globPatterns: ['**/*.{html,js,css,woff2,svg,png}'],
-        // SPA fallback document, with `/api` and `/ws` explicitly excluded so
-        // those requests are never answered by the precached shell.
+        // An activated SW claims every open client immediately and prunes any
+        // precache from a previous build. Set explicitly because the plugin only
+        // auto-injects these for `registerType: 'autoUpdate'` (audit B2).
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // SPA navigations are served the precached `index.html` via the
+        // Workbox NavigationRoute this generates. That route is registered
+        // *first* in the built `sw.js`, so it is the reachable handler for every
+        // shell navigation; `/api` and `/ws` are denied here so navigations to
+        // them fall through to the NetworkOnly routes below instead of being
+        // answered by the shell (audit B3).
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/ws\//],
         runtimeCaching: [
-          {
-            // SPA navigations: always try the network first so a freshly
-            // deployed shell is picked up immediately; fall back to the
-            // last-good cached document only when offline.
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'tm-shell-navigation',
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 16 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
+          // NO navigation NetworkFirst route: the navigateFallback
+          // NavigationRoute above already handles (and shadows) every shell
+          // navigation, so a NetworkFirst navigate route is both unreachable for
+          // shell navigations AND the only route that would ever cache an
+          // `/api` navigation (mode 'navigate', excluded from the denylist above
+          // but NOT from a bare `request.mode === 'navigate'` matcher). Dropping
+          // it makes the NetworkOnly routes below the sole handlers for
+          // `/api` + `/ws` in every request mode (audit B3).
           {
             // REST API is dynamic and auth-guarded: never cached, never stale.
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
