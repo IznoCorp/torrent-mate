@@ -1,8 +1,12 @@
-"""Web daemon command — ``personalscraper web``.
+"""Web daemon command group — ``personalscraper web``.
 
-Serves the TorrentMate web UI (FastAPI + SPA) on the configured host and
+Hosts the TorrentMate web UI (FastAPI + SPA) on the configured host and
 port, alongside the REST API (health, version, auth) and WebSocket event
 relay.  Designed to be managed by PM2 via ``ecosystem.config.js``.
+
+This module exposes a Typer sub-app (``web_app``) so that ``personalscraper
+web`` (bare) boots the daemon via the group callback, while nested commands
+such as ``personalscraper web set-password`` hang off the same group.
 
 Uvicorn installs its own SIGINT/SIGTERM handlers for graceful shutdown
 of the async event loop and open WebSocket connections.  The app context
@@ -19,8 +23,8 @@ import typer
 import uvicorn
 
 from personalscraper import cli as cli_compat
-from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import _build_app_context, handle_cli_errors
+from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.logger import get_logger
 from personalscraper.web.app import create_app
 
@@ -29,8 +33,15 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
+web_app = typer.Typer(
+    name="web",
+    invoke_without_command=True,
+    help="TorrentMate web UI daemon and admin commands.",
+)
 
-@command_with_telemetry("web")
+
+@web_app.callback(invoke_without_command=True)
+@cli_telemetry("web")
 @handle_cli_errors
 def web(ctx: typer.Context) -> None:
     """Start the TorrentMate web UI daemon (FastAPI + uvicorn).
@@ -39,11 +50,21 @@ def web(ctx: typer.Context) -> None:
     (health, version, auth), and the WebSocket event relay.  Refuses to boot
     if the SPA has not been built and ``config.web.dev_mode`` is False.
 
+    When a sub-command is invoked (e.g. ``web set-password``) the callback
+    returns immediately without booting the daemon.
+
     Uvicorn installs its own SIGINT/SIGTERM handlers for graceful shutdown
     of the async event loop and open WebSocket connections.  The app context
     (provider registry, acquire context) is closed in a finally block after
     uvicorn exits.
+
+    Args:
+        ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
     """
+    # Sub-commands (e.g. ``web set-password``) must not boot the daemon.
+    if ctx.invoked_subcommand is not None:
+        return
+
     config: Config = ctx.obj.config
     assert config is not None
 

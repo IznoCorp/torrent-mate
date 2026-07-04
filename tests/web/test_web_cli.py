@@ -12,9 +12,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-# Trigger registration of the ``web`` command on the shared Typer app.
-import personalscraper.commands.web  # noqa: F401,PLC0415
-from personalscraper.cli_app import app as cli_app
+# Import the fully-wired CLI app so the ``web`` sub-app is mounted via
+# ``add_typer`` (matching the trailers/library sub-app test convention).
+from personalscraper.cli import app as cli_app
 from personalscraper.conf.models.web import WebConfig
 
 # Patch targets for the eager config load in the CLI callback.
