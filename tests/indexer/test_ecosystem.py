@@ -35,6 +35,7 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-follow-detect",
         "personalscraper-grab",
         "personalscraper-health-check",
+        "torrentmate-web",
     }
 )
 
