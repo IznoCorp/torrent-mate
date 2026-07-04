@@ -44,13 +44,17 @@ sha="$(git rev-parse HEAD)"
 [ "$branch" != "main" ] && printf 'ℹ staging sert une branche non-main: %s (comportement voulu).\n' "$branch"
 printf '→ build staging : %s @ %s — build du SPA…\n' "$branch" "$sha"
 
-# ── Build: reproducible from source only; bake the served SHA into the bundle ─
+# ── Build: reproducible from source only; bake the served identity into the bundle ─
 # TM_BUILD_COMMIT is read by vite.config.ts (define __BUILD_COMMIT__) so the SPA
-# knows its own commit and detects a staging redeploy (DESIGN §5.4).
+# knows its own identity and detects a staging redeploy (DESIGN §5.4). Bake the
+# EXACT same "branch @ sha" string that is stamped into BUILD_COMMIT below, so the
+# PWA's baked __BUILD_COMMIT__ matches GET /api/version byte-for-byte — otherwise
+# every load compares "sha" (baked) against "branch @ sha" (served) and reports a
+# perpetual phantom update.
 (
   cd frontend
   timeout 600 npm ci --no-audit --no-fund
-  TM_BUILD_COMMIT="$sha" npm run build
+  TM_BUILD_COMMIT="$branch @ $sha" npm run build
 )
 
 # ── Install SPA: mirror the fresh Vite build into the served static dir ───────
