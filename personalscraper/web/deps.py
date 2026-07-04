@@ -50,6 +50,27 @@ def get_app_settings(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
 
 
+def _validate_session_token(token: str, secret: str, expected_username: str) -> Session | None:
+    """Validate a JWT session token against the configured username.
+
+    Shared helper used by both the REST guard (:func:`require_session`) and the
+    WebSocket handshake — avoids duplicating the decode + username-check logic.
+
+    Args:
+        token: The JWT token string from the ``tm_session`` cookie.
+        secret: The HS256 signing secret.
+        expected_username: The expected ``sub`` claim value from config.
+
+    Returns:
+        A ``Session`` if the token is valid and the username matches,
+        or ``None`` otherwise.
+    """
+    payload = decode_session_token(token, secret)
+    if payload is None or payload.get("sub") != expected_username:
+        return None
+    return Session(username=payload["sub"])
+
+
 def require_session(request: Request) -> Session:
     """FastAPI dependency that validates the ``tm_session`` cookie.
 
@@ -76,8 +97,8 @@ def require_session(request: Request) -> Session:
     if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    payload = decode_session_token(token, settings.web_jwt_secret)
-    if payload is None or payload.get("sub") != config.web.username:
+    session = _validate_session_token(token, settings.web_jwt_secret, config.web.username)
+    if session is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    return Session(username=payload["sub"])
+    return session
