@@ -19,7 +19,7 @@
 | 1   | Backend skeleton (web/ package, config, health/version, CLI, PM2)    | phase-01-backend-skeleton.md      | [x]    |
 | 2   | Auth (passwords, JWT, guard, routes, set-password)                   | phase-02-auth.md                  | [x]    |
 | 3   | Event relay (RedisEventPublisher, WS relay, replay, producer wiring) | phase-03-event-relay.md           | [x]    |
-| 4   | Frontend scaffold (Vite/TS/shadcn/DS tokens/OpenAPI client/CI job)   | phase-04-frontend-scaffold.md     | [ ]    |
+| 4   | Frontend scaffold (Vite/TS/shadcn/DS tokens/OpenAPI client/CI job)   | phase-04-frontend-scaffold.md     | [x]    |
 | 5   | App shell + auth flow (login, layout, router, auth guard)            | phase-05-shell-auth-flow.md       | [ ]    |
 | 6   | EventStream + dashboard (useEventStream hook, live feed, cards)      | phase-06-eventstream-dashboard.md | [ ]    |
 | 7   | PWA (manifest, service worker, auto-update, install prompts)         | phase-07-pwa.md                   | [ ]    |
@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 4 (Frontend scaffold).
+Run `/implement:phase` to continue with Phase 5 (App shell + auth flow).
