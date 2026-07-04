@@ -46,11 +46,36 @@ def mount_spa(app: FastAPI, static_dir: Path, dev_mode: bool) -> None:
         if assets_dir.is_dir():
             app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="spa_assets")
 
+        # Resolved once — used inside the closure for path-traversal guard.
+        _resolved_root = static_dir.resolve()
+
         @app.get("/{full_path:path}", include_in_schema=False, response_model=None)
         async def _spa_fallback(request: Request, full_path: str) -> FileResponse | Response:
-            """Catch-all that returns index.html for non-API/non-WS paths."""
+            """Catch-all that returns index.html for non-API/non-WS paths.
+
+            Before falling back to index.html, checks whether a real file
+            exists at ``static_dir / full_path`` (secure: canonicalized and
+            verified to stay inside ``static_dir``).  This lets Vite-emitted
+            PWA root files (sw.js, registerSW.js, workbox-*.js,
+            manifest.webmanifest, *.png) be served verbatim instead of being
+            shadowed by the SPA fallback.
+            """
             if full_path.startswith("api/") or full_path.startswith("ws/"):
                 return Response(status_code=404)
+
+            candidate = (static_dir / full_path).resolve()
+            # Path-traversal guard: reject any path that escapes static_dir.
+            try:
+                candidate.relative_to(_resolved_root)
+            except ValueError:
+                return FileResponse(str(index_html))
+
+            if candidate.is_file():
+                media_type: str | None = None
+                if candidate.suffix == ".webmanifest":
+                    media_type = "application/manifest+json"
+                return FileResponse(str(candidate), media_type=media_type)
+
             return FileResponse(str(index_html))
 
         logger.info("spa_mounted", static_dir=str(static_dir))
