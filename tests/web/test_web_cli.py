@@ -67,8 +67,20 @@ class TestWebDisabled:
 class TestBootRefusal:
     """When the SPA is missing and dev_mode is False, the command exits 1."""
 
-    def test_spa_missing_boot_refused(self, cli_runner: CliRunner, test_config) -> None:
+    def test_spa_missing_boot_refused(self, cli_runner: CliRunner, test_config, tmp_path, monkeypatch) -> None:
         """Missing index.html + dev_mode=False → exit 1 with SPA not built message."""
+        # Create a hermetic static/ dir tree without index.html so the boot
+        # guard fires regardless of whether a real Vite build sits in the
+        # repo.  The guard resolves Path(__file__).parent.parent / "web"/"static",
+        # so we point __file__ at a fake module inside tmp_path.
+        fake_web_py = tmp_path / "personalscraper" / "commands" / "web.py"
+        fake_web_py.parent.mkdir(parents=True, exist_ok=True)
+        fake_web_py.write_text("")
+        (tmp_path / "personalscraper" / "web" / "static").mkdir(parents=True, exist_ok=True)
+        # NO index.html — the guard must fire.
+
+        monkeypatch.setattr("personalscraper.commands.web.__file__", str(fake_web_py))
+
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
