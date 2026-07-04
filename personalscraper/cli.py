@@ -117,6 +117,7 @@ import personalscraper.commands.library  # noqa: E402,F401 — re-exports from l
 import personalscraper.commands.pipeline  # noqa: E402,F401
 import personalscraper.commands.seed  # noqa: E402,F401
 import personalscraper.commands.watch  # noqa: E402,F401
+import personalscraper.commands.web  # noqa: E402,F401
 
 __all__ = [
     "AppCtx",
