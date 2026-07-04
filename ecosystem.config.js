@@ -32,6 +32,23 @@ module.exports = {
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
 
+    // TorrentMate web UI (S1) — port from config/web.json5 (8710).
+    {
+      name: "torrentmate-web",
+      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
+      args: "web",
+      interpreter: "none",
+      cwd: __dirname,
+      autorestart: true,
+      // 30 s grace before SIGKILL — covers uvicorn graceful shutdown
+      // (active WS connections closed, event loop drained) + context
+      // close (provider_registry, acquire) + shutdown log.
+      kill_timeout: 30000,
+      // Unbuffered stdout so structured logs flush to the PM2 log file
+      // in real time.
+      env: { PYTHONUNBUFFERED: "1" },
+    },
+
     // ---- Scheduled jobs (autorestart: false, cron_restart) ----
 
     {
