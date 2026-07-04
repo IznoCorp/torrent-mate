@@ -487,3 +487,65 @@ def test_deleter_core_import_is_not_flagged() -> None:
     finally:
         if probe_path.exists():
             probe_path.unlink()
+
+
+# ---------------------------------------------------------------------------
+# Web layering guard — DESIGN §9 (D5)
+#
+# Engine packages must NEVER import ``personalscraper.web`` — the dependency
+# is one-way: web may import engine packages, but engine packages must never
+# import web.  This prevents async/sync mixing bugs and keeps the web boundary
+# clean (DESIGN §9 mitigation: "architecture test asserts no
+# personalscraper.web import from engine packages").
+#
+# The guard scans every package directory under ``personalscraper/`` except
+# ``web/`` itself (and hidden / dunder dirs).  Two synthetic-source control
+# tests pin the guard non-vacuously: a web import attributed to a core/ path
+# MUST be flagged (positive anchor); a downward core/ import MUST NOT be
+# flagged (negative anchor).
+# ---------------------------------------------------------------------------
+
+_WEB_FORBIDDEN_PREFIXES = ("personalscraper.web",)
+
+# Every package directory under personalscraper/ EXCEPT web/ itself,
+# hidden/dunder dirs (``__pycache__``), and the CLI composition root
+# (``commands/`` — expected to wire web).  ``static/`` is served build
+# output, never Python source.
+_ENGINE_PACKAGE_DIRS: list[Path] = sorted(
+    p
+    for p in _PACKAGE_ROOT.iterdir()
+    if p.is_dir() and not p.name.startswith("_") and not p.name.startswith(".")
+    and p.name not in ("commands", "web", "static")
+)
+
+
+def test_engine_does_not_import_web() -> None:
+    """No engine package imports ``personalscraper.web`` (one-way dependency, DESIGN §9)."""
+    violations: list[str] = []
+    for pkg_dir in _ENGINE_PACKAGE_DIRS:
+        for py_file in sorted(pkg_dir.rglob("*.py")):
+            rel = py_file.relative_to(_REPO_ROOT).as_posix()
+            try:
+                source = py_file.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            violations.extend(_collect_violations_from_source(source, rel, _WEB_FORBIDDEN_PREFIXES))
+    assert not violations, (
+        "Engine packages must not import personalscraper.web (one-way dependency, DESIGN §9):\n"
+        + "\n".join(violations)
+    )
+
+
+def test_engine_web_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic core/ file importing web IS flagged (non-vacuous anchor)."""
+    source = "from personalscraper.web.app import create_app\n"
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL, _WEB_FORBIDDEN_PREFIXES)
+    assert violations, "web layering guard failed to flag a web import from engine (vacuous guard!)"
+    assert "personalscraper.web" in violations[0]
+
+
+def test_engine_core_import_is_not_flagged_by_web_guard() -> None:
+    """NEGATIVE control: a downward import (core/) is NOT flagged by the web guard."""
+    source = "from personalscraper.core.event_bus import Event\n"
+    violations = _collect_violations_from_source(source, _SYNTHETIC_REL, _WEB_FORBIDDEN_PREFIXES)
+    assert violations == [], f"downward core/ import should not be flagged by web guard, got: {violations}"
