@@ -21,6 +21,25 @@ function requestUrl(input: Parameters<typeof fetch>[0]): string {
   return input instanceof URL ? input.href : input.url;
 }
 
+/**
+ * Inert WebSocket stub — the authenticated shell mounts `EventStreamProvider`,
+ * which opens a socket. jsdom's real WebSocket would attempt a live connection;
+ * this no-op keeps the shell smoke test hermetic (the stream's own behaviour is
+ * covered by `useEventStream.test.tsx`).
+ */
+class NoopWebSocket {
+  onopen: (() => void) | null = null;
+  onmessage: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  send(): void {
+    // No-op: the shell smoke test never drives the socket.
+  }
+  close(): void {
+    // No-op: nothing to tear down for the inert stub.
+  }
+}
+
 const fetchMock = vi.fn<typeof fetch>();
 
 beforeEach(() => {
@@ -34,6 +53,7 @@ beforeEach(() => {
     return Promise.resolve(buildResponse(200, {}));
   });
   vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("WebSocket", NoopWebSocket);
 });
 
 afterEach(() => {
