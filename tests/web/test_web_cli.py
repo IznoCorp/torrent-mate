@@ -79,9 +79,7 @@ class TestBootRefusal:
 class TestWebHappyPath:
     """Happy path: config loads, app context built, uvicorn.run called."""
 
-    def test_uvicorn_called_with_config_host_and_port(
-        self, cli_runner: CliRunner, test_config
-    ) -> None:
+    def test_uvicorn_called_with_config_host_and_port(self, cli_runner: CliRunner, test_config) -> None:
         """uvicorn.run is invoked once with the host/port from WebConfig."""
         web_cfg = WebConfig(
             host=test_config.web.host,

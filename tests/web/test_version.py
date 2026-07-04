@@ -11,9 +11,7 @@ from fastapi.testclient import TestClient
 class TestVersionRoute:
     """Version endpoint returns app version and build commit."""
 
-    def test_returns_200_with_version_and_build_commit(
-        self, web_app: TestClient
-    ) -> None:
+    def test_returns_200_with_version_and_build_commit(self, web_app: TestClient) -> None:
         """GET /api/version returns 200 with version + build_commit keys."""
         response = web_app.get("/api/version")
 
