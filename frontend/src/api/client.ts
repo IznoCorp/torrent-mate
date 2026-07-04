@@ -7,7 +7,7 @@
  * app layer (phase 5) — this module just throws on non-OK responses.
  */
 
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { paths } from "./schema";
 
 // ---------------------------------------------------------------------------
@@ -175,15 +175,67 @@ export function getVersion(): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Global 401 policy seam
+// ---------------------------------------------------------------------------
+
+/**
+ * Handler invoked when the API answers ``401 Unauthorized`` on any query or
+ * mutation (except mutations that opt out via {@link SKIP_AUTH_REDIRECT}).
+ *
+ * Deliberately injectable: sub-phase 5.3 (auth guard) replaces the default
+ * hard redirect with a router-aware navigation that preserves the target path
+ * (``?redirect=<current>``) via {@link setUnauthorizedHandler}.
+ */
+export type UnauthorizedHandler = () => void;
+
+/**
+ * Mutation ``meta`` flag opting a mutation out of the global 401 → redirect
+ * policy.  The login mutation sets it: a 401 there means "bad credentials",
+ * which must surface inline on the login form, not trigger a redirect loop.
+ */
+export const SKIP_AUTH_REDIRECT = "skipAuthRedirect";
+
+// Current handler.  Assigned its real default once ``queryClient`` exists (see
+// below) so the default can close over it; swapped at runtime by phase 5.3.
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/** True when ``error`` is an :class:`ApiError` carrying HTTP 401. */
+function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
+/** Invoke the currently-registered unauthorized handler, if any. */
+function runUnauthorizedHandler(): void {
+  unauthorizedHandler?.();
+}
+
+/**
+ * Register a custom unauthorized handler, replacing the default hard redirect.
+ *
+ * Sub-phase 5.3 (auth guard) calls this at app boot to swap in a router-aware
+ * redirect. Idempotent — the last registered handler wins.
+ *
+ * Args:
+ *   handler: The replacement handler invoked on any unhandled 401.
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
+  unauthorizedHandler = handler;
+}
+
+// ---------------------------------------------------------------------------
 // TanStack Query client
 // ---------------------------------------------------------------------------
 
 /**
  * Shared TanStack Query client.
  *
- * - ``staleTime: 5_000`` — data is fresh for 5 seconds; avoids
- *   redundant refetches on focus/remount.
+ * - ``staleTime: 5_000`` — data is fresh for 5 seconds; avoids redundant
+ *   refetches on focus/remount.
  * - ``retry: 1`` — one automatic retry on failure, then surface the error.
+ * - **Global 401 policy**: the query cache and mutation cache both invoke
+ *   {@link runUnauthorizedHandler} on an :class:`ApiError` with status 401.
+ *   Mutations carrying the {@link SKIP_AUTH_REDIRECT} ``meta`` flag (the login
+ *   mutation) are exempt so bad-credential 401s stay on the login form.
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -192,4 +244,28 @@ export const queryClient = new QueryClient({
       retry: 1,
     },
   },
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (isUnauthorized(error)) {
+        runUnauthorizedHandler();
+      }
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _onMutateResult, mutation) => {
+      if (mutation.meta?.[SKIP_AUTH_REDIRECT] === true) {
+        return;
+      }
+      if (isUnauthorized(error)) {
+        runUnauthorizedHandler();
+      }
+    },
+  }),
 });
+
+// Default handler: drop all cached data and hard-redirect to the login page.
+// Assigned here (not at declaration) so it can close over ``queryClient``.
+unauthorizedHandler = () => {
+  queryClient.clear();
+  window.location.assign("/login");
+};
