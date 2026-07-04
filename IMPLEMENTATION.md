@@ -21,7 +21,7 @@
 | 3   | Event relay (RedisEventPublisher, WS relay, replay, producer wiring) | phase-03-event-relay.md           | [x]    |
 | 4   | Frontend scaffold (Vite/TS/shadcn/DS tokens/OpenAPI client/CI job)   | phase-04-frontend-scaffold.md     | [x]    |
 | 5   | App shell + auth flow (login, layout, router, auth guard)            | phase-05-shell-auth-flow.md       | [x]    |
-| 6   | EventStream + dashboard (useEventStream hook, live feed, cards)      | phase-06-eventstream-dashboard.md | [ ]    |
+| 6   | EventStream + dashboard (useEventStream hook, live feed, cards)      | phase-06-eventstream-dashboard.md | [x]    |
 | 7   | PWA (manifest, service worker, auto-update, install prompts)         | phase-07-pwa.md                   | [ ]    |
 | 8   | Deploy rails (scripts, autodeploy, Caddy, staging branch, docs)      | phase-08-deploy-rails.md          | [ ]    |
 
@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 6 (EventStream + dashboard).
+Run `/implement:phase` to continue with Phase 7 (PWA).
