@@ -37,6 +37,33 @@
 **Verification**: `npx tsc --noEmit && npm run lint`; login form renders, bad
 creds → error, valid → redirect.
 
+**As-built notes (5.1)**:
+
+- Shipped as **two commits** (`feat(tm-shell): add auth hooks and 401 redirect
+seam`, then `feat(tm-shell): add login page with form validation`) rather than
+  the single commit above.
+- `useAuth.ts` exports **three hooks** (`useMe`, `useLogin`, `useLogout`) plus a
+  stable `authKeys.me = ['auth','me']`. The composed
+  `{ user, isAuthenticated, isLoading, login, logout }` shape is intentionally
+  deferred to the 5.3 `AuthProvider`, which layers over these hooks.
+- **401 seam** lives in `api/client.ts` as `QueryCache`/`MutationCache` `onError`
+  handlers + an injectable `setUnauthorizedHandler(fn)` and a
+  `SKIP_AUTH_REDIRECT` mutation-`meta` flag (login opts out). 5.3 calls
+  `setUnauthorizedHandler` to make the redirect router-aware.
+- **DS-adherence lint gotcha (applies to 5.2/5.3 too)**: the ported
+  `no-restricted-syntax` rules in `eslint.config.js` restrict the prop shape of
+  any JSX element literally named `Input`/`Button`/`Card`/`Switch`… to the
+  _design-system_ primitives' minimal API. shadcn's same-named components need
+  standard HTML props, so import them under an **alias**
+  (`import { Input as TextField }`, `import { Button as SubmitButton }`) to keep
+  the token/hex/px guards active while passing standard props. `Card`/`Label` and
+  the `Card*` sub-parts are fine unaliased (`className` is allowed / unlisted).
+- **Pending spinner**: `lucide-react`'s `LoaderCircle` with
+  `className="size-4 animate-spin"` (token-safe; no raw px), not a ported DS
+  `Spinner`.
+- Tests use RTL `fireEvent` (no `@testing-library/user-event` dep installed) and
+  must call `cleanup()` in `afterEach` (vitest `globals: false` ⇒ no auto-cleanup).
+
 ### 5.2 — App shell (layout, nav, router, placeholders)
 
 **Commit**: `feat(tm-shell): add mobile-first app shell with navigation and route slots`
