@@ -144,9 +144,18 @@
 >   adherence rules (`no-restricted-imports` internal-import guard,
 >   `react/forbid-elements`) + `overrides` are kept, plus `ignorePatterns`
 >   (`dist`, `node_modules`). `lint:ds` = `oxlint -c oxlintrc.json src` exits 0.
->   **Gap:** the token/prop-contract selectors (raw-hex/px/font + per-component prop
->   whitelists) cannot run under oxlint — they would need ESLint. Recorded as a
->   follow-up decision, not silently dropped.
+> - **Adherence fully enforced (same commit, Jul 4).** The token/prop-contract
+>   selectors from `_adherence.oxlintrc.json` (`no-restricted-syntax`: raw-hex,
+>   raw-px, non-system font-family guards + per-component prop-whitelist and
+>   enum-valued-prop constraints — 27 selectors total) were ported to a new
+>   ESLint config block (`files: ["src/**/*.{ts,tsx}"]`) in `eslint.config.js`.
+>   ESLint's core `no-restricted-syntax` supports esquery natively, so all
+>   selectors run under `npm run lint`. **Px adaptation:** the raw-px selector
+>   uses `(?<!\[)\b` — negative lookbehind for `[` — to avoid false-positives
+>   on Tailwind v4 arbitrary values (`ring-[3px]`, `translate-y-[2px]`). The
+>   raw-hex and font-family selectors are ported verbatim. Negative probe
+>   confirmed: `style={{color:'#ff0000'}}` → `no-restricted-syntax` error. All
+>   gates green (`lint`, `typecheck`, `lint:ds`, `test`).
 
 ### 4.3 — OpenAPI export + typed API client generation
 

@@ -57,4 +57,211 @@ export default tseslint.config(
       ],
     },
   },
+
+  // DS adherence — ported from the design-system _adherence config (oxlint lacks esquery)
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        // Global token guards
+        {
+          selector: "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+          message:
+            "Raw hex color — use a design-system color token via var().",
+        },
+        {
+          // Negative lookbehind for '[' avoids false-positives on Tailwind
+          // arbitrary values like ring-[3px] or translate-y-[2px].
+          selector: "Literal[value=/(?<!\\[)\\b\\d+px\\b(?!\\])/]",
+          message:
+            "Raw px value — use a design-system spacing token via var().",
+        },
+        {
+          selector:
+            "Literal[value=/font-family\\s*:\\s*(?!['\"\\\\\"]?(?:Geist|Geist Mono))/i]",
+          message:
+            "Font not provided by the design system. Available: Geist, Geist Mono.",
+        },
+
+        // <Alert>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Alert'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|icon|title|className|children|key|ref|className|style|children)$/]",
+          message:
+            "<Alert> doesn't accept that prop. Declared props: tone, icon, title, className, children.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:success|warning|danger|info)$/]",
+          message:
+            "<Alert> tone must be one of 'success' | 'warning' | 'danger' | 'info'.",
+        },
+
+        // <Badge>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Badge'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|mono|dot|className|children|key|ref|className|style|children)$/]",
+          message:
+            "<Badge> doesn't accept that prop. Declared props: tone, mono, dot, className, children.",
+        },
+
+        // <Button>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|icon|as|className|children|key|ref|className|style|children)$/]",
+          message:
+            "<Button> doesn't accept that prop. Declared props: variant, size, icon, as, className, children.",
+        },
+
+        // <Card>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:interactive|flush|className|children|key|ref|className|style|children)$/]",
+          message:
+            "<Card> doesn't accept that prop. Declared props: interactive, flush, className, children.",
+        },
+
+        // <DiskUsageBar>
+        {
+          selector:
+            "JSXOpeningElement[name.name='DiskUsageBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|used|total|icon|unit|className|key|ref|className|style|children)$/]",
+          message:
+            "<DiskUsageBar> doesn't accept that prop. Declared props: name, used, total, icon, unit, className.",
+        },
+
+        // <Input>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Input'] > JSXAttribute > JSXIdentifier[name!=/^(?:multiline|mono|invalid|className|key|ref|className|style|children)$/]",
+          message:
+            "<Input> doesn't accept that prop. Declared props: multiline, mono, invalid, className.",
+        },
+
+        // <LogLine>
+        {
+          selector:
+            "JSXOpeningElement[name.name='LogLine'] > JSXAttribute > JSXIdentifier[name!=/^(?:level|time|className|children|key|ref|className|style|children)$/]",
+          message:
+            "<LogLine> doesn't accept that prop. Declared props: level, time, className, children.",
+        },
+
+        // <MediaPoster>
+        {
+          selector:
+            "JSXOpeningElement[name.name='MediaPoster'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|year|kind|quality|src|status|interactive|className|key|ref|className|style|children)$/]",
+          message:
+            "<MediaPoster> doesn't accept that prop. Declared props: title, year, kind, quality, src, status, interactive, className.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='MediaPoster'] > JSXAttribute[name.name='kind'] > Literal[value!=/^(?:movie|tv)$/]",
+          message:
+            "<MediaPoster> kind must be one of 'movie' | 'tv'.",
+        },
+
+        // <PipelineStep>
+        {
+          selector:
+            "JSXOpeningElement[name.name='PipelineStep'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|status|meta|key|ref|className|style|children)$/]",
+          message:
+            "<PipelineStep> doesn't accept that prop. Declared props: name, status, meta.",
+        },
+
+        // <Progress>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Progress'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|max|tone|size|label|valueLabel|className|key|ref|className|style|children)$/]",
+          message:
+            "<Progress> doesn't accept that prop. Declared props: value, max, tone, size, label, valueLabel, className.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Progress'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:primary|success|warning|danger|info)$/]",
+          message:
+            "<Progress> tone must be one of 'primary' | 'success' | 'warning' | 'danger' | 'info'.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Progress'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
+          message:
+            "<Progress> size must be one of 'sm' | 'md' | 'lg'.",
+        },
+
+        // <RatioGauge>
+        {
+          selector:
+            "JSXOpeningElement[name.name='RatioGauge'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|target|size|label|className|key|ref|className|style|children)$/]",
+          message:
+            "<RatioGauge> doesn't accept that prop. Declared props: value, target, size, label, className.",
+        },
+
+        // <Spinner>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Spinner'] > JSXAttribute > JSXIdentifier[name!=/^(?:size|className|key|ref|className|style|children)$/]",
+          message:
+            "<Spinner> doesn't accept that prop. Declared props: size, className.",
+        },
+
+        // <StatPanel>
+        {
+          selector:
+            "JSXOpeningElement[name.name='StatPanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|value|unit|delta|deltaDir|className|key|ref|className|style|children)$/]",
+          message:
+            "<StatPanel> doesn't accept that prop. Declared props: label, icon, value, unit, delta, deltaDir, className.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='StatPanel'] > JSXAttribute[name.name='deltaDir'] > Literal[value!=/^(?:up|down|flat)$/]",
+          message:
+            "<StatPanel> deltaDir must be one of 'up' | 'down' | 'flat'.",
+        },
+
+        // <StatusDot>
+        {
+          selector:
+            "JSXOpeningElement[name.name='StatusDot'] > JSXAttribute > JSXIdentifier[name!=/^(?:status|label|showLabel|className|key|ref|className|style|children)$/]",
+          message:
+            "<StatusDot> doesn't accept that prop. Declared props: status, label, showLabel, className.",
+        },
+
+        // <Switch>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Switch'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|className|key|ref|className|style|children)$/]",
+          message:
+            "<Switch> doesn't accept that prop. Declared props: tone, className.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Switch'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:primary|success)$/]",
+          message:
+            "<Switch> tone must be one of 'primary' | 'success'.",
+        },
+
+        // <TemperatureBadge>
+        {
+          selector:
+            "JSXOpeningElement[name.name='TemperatureBadge'] > JSXAttribute > JSXIdentifier[name!=/^(?:level|label|glyph|className|key|ref|className|style|children)$/]",
+          message:
+            "<TemperatureBadge> doesn't accept that prop. Declared props: level, label, glyph, className.",
+        },
+
+        // <Tooltip>
+        {
+          selector:
+            "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute > JSXIdentifier[name!=/^(?:content|side|kbd|className|children|key|ref|className|style|children)$/]",
+          message:
+            "<Tooltip> doesn't accept that prop. Declared props: content, side, kbd, className, children.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute[name.name='side'] > Literal[value!=/^(?:top|bottom)$/]",
+          message:
+            "<Tooltip> side must be one of 'top' | 'bottom'.",
+        },
+      ],
+    },
+  },
 );
