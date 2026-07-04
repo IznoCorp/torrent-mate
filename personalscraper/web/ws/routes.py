@@ -16,6 +16,7 @@ from personalscraper.web.routes.version import _read_build_commit
 from personalscraper.web.ws.relay import (
     PING_INTERVAL,
     ConnectionRegistry,
+    _ReplayGuard,
     replay_events,
 )
 
@@ -31,16 +32,22 @@ async def ws_events(
 ) -> None:
     """WebSocket endpoint for live event streaming with optional replay.
 
-    **Handshake** — reads the ``tm_session`` cookie, validates the JWT, and
-    closes with custom code ``4401`` if the session is missing or invalid
-    (mirrors the REST guard's 401 but adapted for the WebSocket lifecycle).
+    **Handshake** — accepts the socket FIRST, then reads the ``tm_session``
+    cookie and validates the JWT, closing with custom code ``4401`` if the
+    session is missing or invalid.  Accept-then-close is load-bearing: uvicorn
+    (both ws impls, 0.49) turns a *pre-accept* ``close()`` into an HTTP 403
+    handshake rejection, which the browser surfaces as an opaque 1006 — the
+    client would never see 4401 and its terminal-close logic (stop reconnecting
+    on an expired session) would be dead in production.
 
     **Hello** — sends ``{"type": "ws.hello", "data": {"build_commit": ...}}``
-    immediately after accept, before any replay or live messages.
+    immediately after auth, before any replay or live messages.
 
     **Replay** — if ``?last_id=<stream-id>`` is present, replays all events
     strictly later than *last_id* (XRANGE exclusive) in order before entering
-    live fan-out.
+    live fan-out.  A :class:`_ReplayGuard` forwarder is registered **before**
+    replay so events emitted during the replay window are buffered (not lost)
+    and then flushed exactly once (deduped against the replay high-water id).
 
     **Live** — registers the connection and enters a receive/ping loop:
     client messages are ignored (they serve as pongs); every
@@ -56,6 +63,10 @@ async def ws_events(
     settings = websocket.app.state.settings
     registry: ConnectionRegistry = websocket.app.state.ws_registry
 
+    # Accept FIRST so an auth-failure close is delivered as a real WebSocket
+    # close frame (4401) instead of an HTTP 403 handshake rejection.
+    await websocket.accept()
+
     token = websocket.cookies.get("tm_session")
     if token is None:
         await websocket.close(code=4401)
@@ -66,8 +77,6 @@ async def ws_events(
         await websocket.close(code=4401)
         return
 
-    await websocket.accept()
-
     # ── Hello ─────────────────────────────────────────────────────────
     await websocket.send_json(
         {
@@ -76,16 +85,26 @@ async def ws_events(
         }
     )
 
-    # ── Replay (if client passed ?last_id=) ───────────────────────────
-    redis_pool = websocket.app.state.redis
-    if last_id and redis_pool is not None:
-        messages = await replay_events(redis_pool, config.web.stream_key, last_id)
-        for msg in messages:
-            await websocket.send_json(msg)
-
-    # ── Live fan-out ──────────────────────────────────────────────────
-    registry.add(websocket)
+    # ── Replay + live fan-out ─────────────────────────────────────────
+    # Register the forwarder BEFORE replay so any event XADD'd during the
+    # replay window is captured (buffered) rather than lost in the gap between
+    # the XRANGE read and live registration.
+    forwarder = _ReplayGuard(websocket)
+    registry.add(forwarder)
     try:
+        replay_floor: str | None = None
+        redis_pool = websocket.app.state.redis
+        if last_id and redis_pool is not None:
+            messages = await replay_events(redis_pool, config.web.stream_key, last_id)
+            for msg in messages:
+                await websocket.send_json(msg)
+                # XRANGE returns ascending order → the last id is the high-water.
+                replay_floor = str(msg["id"])
+
+        # Flush events buffered during replay (deduped against replay_floor),
+        # then switch the forwarder to pass-through for live fan-out.
+        await forwarder.open_live(replay_floor)
+
         while True:
             try:
                 # Wait for client messages (pong or anything) — ignored.
@@ -96,4 +115,4 @@ async def ws_events(
     except WebSocketDisconnect:
         pass
     finally:
-        registry.discard(websocket)
+        registry.discard(forwarder)

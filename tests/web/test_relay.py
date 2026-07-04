@@ -255,6 +255,83 @@ def test_replay_events_returns_entries_after_last_id() -> None:
     asyncio.run(_run())
 
 
+def test_read_stream_loop_skips_malformed_entry() -> None:
+    """A malformed XADD entry is skipped (last_id advances) and the next good entry delivered.
+
+    Regression for the poison-pill wedge: previously a per-entry JSON/envelope
+    failure fell through to the outer ``except``, so ``last_id`` never advanced
+    and the SAME bad entry was re-read forever (relay stuck, log spam every 2 s).
+    """
+
+    async def _run() -> None:
+        redis = fakeredis.FakeAsyncRedis(decode_responses=True)
+        registry = ConnectionRegistry()
+        ws = _MockWebSocket()
+        registry.add(ws)
+
+        task = asyncio.create_task(read_stream_loop(redis, registry, STREAM_KEY))
+        await asyncio.sleep(0.3)  # let the loop reach its blocking XREAD at the tail
+
+        # Poison entry: envelope JSON has no "data" key → KeyError on parse.
+        await redis.xadd(STREAM_KEY, {"envelope": json.dumps({"nope": 1}), "type": "Bad"})
+        # Good entry immediately after — must still be delivered.
+        await redis.xadd(STREAM_KEY, _stream_fields(_make_event(scope="after_poison")))
+
+        assert await _await_until(lambda: any(m["data"].get("scope") == "after_poison" for m in ws.messages))
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # The poison entry was skipped (never broadcast); only the good one arrived.
+        assert len(ws.messages) == 1
+        assert ws.messages[0]["data"]["scope"] == "after_poison"
+
+    asyncio.run(_run())
+
+
+def test_replay_events_skips_malformed_entry() -> None:
+    """``replay_events`` skips a malformed entry in the range and returns the good ones."""
+
+    async def _run() -> None:
+        redis = fakeredis.FakeAsyncRedis(decode_responses=True)
+        # Poison: envelope is not valid JSON → ValueError on parse.
+        await redis.xadd(STREAM_KEY, {"envelope": "this-is-not-json", "type": "Bad"})
+        await redis.xadd(STREAM_KEY, _stream_fields(_make_event(scope="good")))
+
+        messages = await replay_events(redis, STREAM_KEY, "0-0")
+        assert [m["data"]["scope"] for m in messages] == ["good"]
+
+    asyncio.run(_run())
+
+
+def test_broadcast_drops_stalled_client(monkeypatch) -> None:
+    """A client whose ``send_json`` hangs is dropped; other clients still receive.
+
+    Regression for the head-of-line stall: one wedged socket must not block
+    fan-out for everyone.  ``BROADCAST_SEND_TIMEOUT`` bounds each send.
+    """
+    monkeypatch.setattr("personalscraper.web.ws.relay.BROADCAST_SEND_TIMEOUT", 0.2)
+
+    async def _run() -> None:
+        registry = ConnectionRegistry()
+        good = _MockWebSocket()
+        stalled = _MockWebSocket()
+
+        async def _hang(_msg: dict[str, Any]) -> None:
+            await asyncio.sleep(10)  # far exceeds the (patched) 0.2 s send timeout
+
+        stalled.send_json = _hang  # type: ignore[method-assign]
+        registry.add(good)
+        registry.add(stalled)
+
+        await registry.broadcast({"type": "live"})
+
+        assert registry.count == 1
+        assert good.messages == [{"type": "live"}]
+
+    asyncio.run(_run())
+
+
 def test_replay_events_empty_when_none_after() -> None:
     """``replay_events`` returns an empty list when nothing follows ``last_id``."""
 
@@ -299,7 +376,15 @@ class TestWsAuth:
     """Handshake authentication for ``/ws/events``."""
 
     def test_no_cookie_closes_4401(self, test_config) -> None:
-        """A WS connect with no ``tm_session`` cookie closes with code 4401."""
+        """A WS connect with no ``tm_session`` cookie closes with code 4401.
+
+        The endpoint now ``accept()``s BEFORE the auth check and closes with
+        4401 afterwards.  Accept-then-close is load-bearing on real servers:
+        uvicorn turns a *pre-accept* close into an HTTP 403 handshake rejection
+        (browser sees 1006, never 4401), so the client's terminal-close /
+        stop-reconnecting logic would be dead.  Post-accept close delivers a
+        real 4401 close frame — which is what this test asserts.
+        """
         app, _cfg = _build_app(test_config)
         server = fakeredis.FakeServer()
         with _patch_redis_pool(lambda: fakeredis.FakeAsyncRedis(server=server, decode_responses=True)):
@@ -310,7 +395,12 @@ class TestWsAuth:
                 assert exc.value.code == 4401
 
     def test_invalid_token_closes_4401(self, test_config) -> None:
-        """A WS connect with a garbage token closes with code 4401."""
+        """A WS connect with a garbage token closes with code 4401.
+
+        As with the no-cookie case, the socket is accepted first so the 4401 is
+        delivered as a real WebSocket close frame rather than a pre-accept HTTP
+        403 (which uvicorn would surface to the browser as an opaque 1006).
+        """
         app, _cfg = _build_app(test_config)
         server = fakeredis.FakeServer()
         with _patch_redis_pool(lambda: fakeredis.FakeAsyncRedis(server=server, decode_responses=True)):
@@ -388,6 +478,82 @@ class TestWsReplay:
                     second = ws.receive_json()
                     assert first["type"] == "BackfillCompleted"
                     assert [first["data"]["scope"], second["data"]["scope"]] == ["replay_1", "replay_2"]
+
+    def test_event_during_replay_window_delivered_exactly_once(self, test_config, monkeypatch) -> None:
+        """An event XADD'd during the replay window reaches the client exactly once.
+
+        Regression for the replay→live gap: the forwarder is registered BEFORE
+        replay, so a live event emitted while replay runs is buffered and
+        flushed afterwards (deduped against the replay high-water id) instead of
+        being lost between the XRANGE read and live registration.
+        """
+        # Shrink the ping interval so that if the fix regresses (event lost) the
+        # loop drains quick pings and fails fast instead of blocking on the 30 s
+        # default; on the happy path the event is flushed before any ping.
+        monkeypatch.setattr("personalscraper.web.ws.routes.PING_INTERVAL", 0.2)
+        app, cfg = _build_app(test_config)
+        server = fakeredis.FakeServer()
+        sync_redis = fakeredis.FakeRedis(server=server, decode_responses=True)
+        # One historical event, reachable only via replay (?last_id=0-0).
+        sync_redis.xadd(cfg.web.stream_key, _stream_fields(_make_event(scope="historical")))
+
+        from personalscraper.web.ws import routes as ws_routes
+
+        real_replay = ws_routes.replay_events
+
+        async def _replay_then_inject(redis_pool: Any, stream_key: str, last_id: str) -> Any:
+            """Run the real replay, then inject a live event mid-window."""
+            result = await real_replay(redis_pool, stream_key, last_id)
+            # Simulate an event landing AFTER the XRANGE read but before the
+            # (previously buggy) live registration.
+            sync_redis.xadd(stream_key, _stream_fields(_make_event(scope="during_replay")))
+            await asyncio.sleep(0.4)  # let read_stream_loop broadcast it to the forwarder
+            return result
+
+        with _patch_redis_pool(lambda: fakeredis.FakeAsyncRedis(server=server, decode_responses=True)):
+            with patch.object(ws_routes, "replay_events", _replay_then_inject):
+                with TestClient(app, base_url="https://testserver") as client:
+                    token = _login(client)
+                    with client.websocket_connect(
+                        "/ws/events?last_id=0-0",
+                        headers={"cookie": f"tm_session={token}"},
+                    ) as ws:
+                        assert ws.receive_json()["type"] == "ws.hello"
+                        scopes: list[str] = []
+                        for _ in range(12):
+                            msg = ws.receive_json()
+                            if msg.get("type") == "BackfillCompleted":
+                                scopes.append(msg["data"]["scope"])
+                            if scopes.count("historical") and scopes.count("during_replay"):
+                                break
+                        assert scopes.count("historical") == 1
+                        assert scopes.count("during_replay") == 1
+
+
+class TestWsKeepAlive:
+    """Server-driven keep-alive ping loop on an idle connection."""
+
+    def test_ping_arrives_and_connection_survives_pong(self, test_config, monkeypatch) -> None:
+        """After idle > PING_INTERVAL a ``ws.ping`` arrives; a pong keeps it alive."""
+        # Shrink the idle interval so the test does not wait the 30 s default.
+        monkeypatch.setattr("personalscraper.web.ws.routes.PING_INTERVAL", 0.2)
+        app, _cfg = _build_app(test_config)
+        server = fakeredis.FakeServer()
+        with _patch_redis_pool(lambda: fakeredis.FakeAsyncRedis(server=server, decode_responses=True)):
+            with TestClient(app, base_url="https://testserver") as client:
+                token = _login(client)
+                with client.websocket_connect(
+                    "/ws/events",
+                    headers={"cookie": f"tm_session={token}"},
+                ) as ws:
+                    assert ws.receive_json()["type"] == "ws.hello"
+                    # Send nothing → a keep-alive ping must arrive after ~0.2 s idle.
+                    ping = _recv_matching(ws, lambda m: m.get("type") == "ws.ping")
+                    assert ping["type"] == "ws.ping"
+                    # Reply pong; the receive/ping loop resets and pings again.
+                    ws.send_text("pong")
+                    ping2 = _recv_matching(ws, lambda m: m.get("type") == "ws.ping")
+                    assert ping2["type"] == "ws.ping"
 
 
 class TestWsDegraded:
