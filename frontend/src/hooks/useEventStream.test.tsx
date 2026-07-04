@@ -99,6 +99,49 @@ describe("useEventStream", () => {
     expect(result.current.events).toHaveLength(0);
   });
 
+  it("ignore un id d’événement <= au dernier appliqué (dedup replay/doublon)", () => {
+    const { result } = renderHook(() => useEventStream());
+
+    act(() => {
+      latestSocket().emitMessage(helloFrame("abc1234"));
+      latestSocket().emitMessage(eventFrame("42-0"));
+      latestSocket().emitMessage(eventFrame("42-0")); // doublon exact
+      latestSocket().emitMessage(eventFrame("41-9")); // curseur plus ancien
+    });
+
+    // Only the first "42-0" was applied; the duplicate and the older id dropped.
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.events[0]?.id).toBe("42-0");
+
+    act(() => {
+      latestSocket().emitMessage(eventFrame("42-1")); // strictement plus récent
+    });
+    expect(result.current.events).toHaveLength(2);
+    expect(result.current.events.at(-1)?.id).toBe("42-1");
+  });
+
+  it("relance la connexion si le socket ne s’ouvre jamais (timeout de connexion)", () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useEventStream());
+
+    const first = latestSocket();
+    // Never call emitOpen — simulate a hung 101 upgrade.
+    expect(result.current.connectionState).toBe("connecting");
+
+    // The 10 s connect-timeout fires → the stuck socket is force-closed.
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(first.closed).toBe(true);
+    expect(result.current.connectionState).toBe("reconnecting");
+
+    // The (jittered ≤ 1 s) backoff elapses → a fresh socket is opened.
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(latestSocket()).not.toBe(first);
+  });
+
   it("borne l’anneau d’événements à EVENTS_CAP", () => {
     const { result } = renderHook(() => useEventStream());
 

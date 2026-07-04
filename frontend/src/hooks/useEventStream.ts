@@ -12,6 +12,9 @@
  *
  * - **Handshake** — on ``ws.hello`` the ``build_commit`` is captured and the state
  *   flips to ``'connected'``. TCP-open alone is not "connected".
+ * - **Connect-timeout** — a hung 101 upgrade never fires ``onopen``; a 10 s timer
+ *   armed at ``connect()`` force-closes it so the reconnect path runs instead of
+ *   the StatusDot stalling on ``'connecting'`` forever.
  * - **Keep-alive** — on ``ws.ping`` the client replies ``pong``. A 45 s watchdog
  *   (re-armed on every frame) force-closes a silent peer so the reconnect path
  *   runs — the server pings every 30 s, so 45 s of silence means a dead link.
@@ -19,6 +22,9 @@
  *   ladder resets on a successful handshake.
  * - **Replay** — each event ``id`` is persisted to ``localStorage`` and passed
  *   back as ``?last_id=`` so the server ``XRANGE``-replays only what was missed.
+ *   A monotonic cursor guard drops any event id at or below the last applied one,
+ *   so a stale ``last_id`` (older than the stream's trim window) or a server-side
+ *   overlap resend can never replay-flood or double-deliver into the ring.
  * - **Auth lost** — a ``4401`` close is terminal: the state goes ``'disconnected'``
  *   and the socket is **not** reconnected (the REST 401 flow owns the redirect).
  * - **Bounded memory** — events are kept in a ring capped at
@@ -37,6 +43,8 @@ export const LAST_EVENT_ID_STORAGE_KEY = "torrentmate:last_event_id";
 
 /** Silence (no frame) beyond this, in ms, force-closes the socket → reconnect. */
 const WATCHDOG_MS = 45_000;
+/** No ``onopen`` within this many ms of ``connect()`` → force-close + reconnect. */
+const CONNECT_TIMEOUT_MS = 10_000;
 /** First reconnect delay, in ms (doubles each attempt up to the ceiling). */
 const BACKOFF_MIN_MS = 1_000;
 /** Reconnect delay ceiling, in ms. */
@@ -89,6 +97,43 @@ function writeLastEventId(id: string): void {
   }
 }
 
+/** Parse a Redis stream id ``"<ms>-<seq>"`` into a numeric ``[ms, seq]`` tuple. */
+function parseStreamId(id: string): [number, number] {
+  const dash = id.indexOf("-");
+  const msPart = dash === -1 ? id : id.slice(0, dash);
+  const seqPart = dash === -1 ? "" : id.slice(dash + 1);
+  const ms = Number(msPart);
+  const seq = Number(seqPart);
+  return [Number.isFinite(ms) ? ms : 0, Number.isFinite(seq) ? seq : 0];
+}
+
+/**
+ * Is stream id ``id`` strictly newer than ``since``?
+ *
+ * The Redis stream cursor is monotonically increasing, so this doubles as the
+ * replay/duplicate guard: an id at or below the last applied one is a stale
+ * replay (or a server-side overlap resend) and must be dropped.
+ *
+ * Args:
+ *   id: The candidate event's stream id.
+ *   since: The last applied stream id, or ``null`` when none applied yet.
+ *
+ * Returns:
+ *   ``true`` when ``id`` is strictly greater than ``since`` (or ``since`` is
+ *   ``null`` / empty).
+ */
+export function isNewerStreamId(id: string, since: string | null): boolean {
+  if (since === null || since === "") {
+    return true;
+  }
+  const [idMs, idSeq] = parseStreamId(id);
+  const [sinceMs, sinceSeq] = parseStreamId(since);
+  if (idMs !== sinceMs) {
+    return idMs > sinceMs;
+  }
+  return idSeq > sinceSeq;
+}
+
 /** Build the ``/ws/events`` URL, appending ``?last_id=`` when a cursor exists. */
 function buildEventsUrl(lastId: string | null): string {
   const scheme = window.location.protocol === "https:" ? "wss" : "ws";
@@ -124,6 +169,11 @@ export function useEventStream(): EventStreamState {
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
+    // Highest stream id applied to the ring so far — the monotonic guard that
+    // drops stale replays and duplicate deliveries. Seeded from the persisted
+    // cursor so a reconnect replay never re-appends already-seen events.
+    let lastAppliedId = readLastEventId();
 
     const clearReconnect = (): void => {
       if (reconnectTimer !== null) {
@@ -136,6 +186,13 @@ export function useEventStream(): EventStreamState {
       if (watchdogTimer !== null) {
         clearTimeout(watchdogTimer);
         watchdogTimer = null;
+      }
+    };
+
+    const clearConnect = (): void => {
+      if (connectTimer !== null) {
+        clearTimeout(connectTimer);
+        connectTimer = null;
       }
     };
 
@@ -174,15 +231,28 @@ export function useEventStream(): EventStreamState {
         return;
       }
       clearWatchdog();
+      clearConnect();
       const ws = new WebSocket(buildEventsUrl(readLastEventId()));
       socket = ws;
+
+      // Connect-timeout: a hung 101 upgrade never fires `onopen`, which would
+      // otherwise strand the state on 'connecting' forever. Force-close so
+      // `onclose` runs the reconnect ladder.
+      connectTimer = setTimeout(() => {
+        if (disposed) {
+          return;
+        }
+        ws.close();
+      }, CONNECT_TIMEOUT_MS);
 
       ws.onopen = (): void => {
         if (disposed) {
           return;
         }
-        // Open ≠ connected: wait for `ws.hello` to confirm the auth handshake.
-        // Arm the watchdog now so a silent-after-open peer still reconnects.
+        // Opened in time — cancel the connect-timeout. Open ≠ connected: wait for
+        // `ws.hello` to confirm the auth handshake. Arm the silence watchdog now
+        // so a silent-after-open peer still reconnects.
+        clearConnect();
         armWatchdog();
       };
 
@@ -218,7 +288,14 @@ export function useEventStream(): EventStreamState {
           return;
         }
 
-        // Domain event: persist the cursor and append into the bounded ring.
+        // Domain event: drop stale replays / duplicate deliveries via the
+        // monotonic cursor guard, then persist the cursor and append into the
+        // bounded ring. React coalesces a synchronous replay burst into a single
+        // re-render, so the appends are effectively batched.
+        if (!isNewerStreamId(msg.id, lastAppliedId)) {
+          return;
+        }
+        lastAppliedId = msg.id;
         writeLastEventId(msg.id);
         setLastEventId(msg.id);
         setEvents((prev) => {
@@ -238,6 +315,7 @@ export function useEventStream(): EventStreamState {
           return;
         }
         clearWatchdog();
+        clearConnect();
         socket = null;
         if (event.code === CLOSE_AUTH_LOST) {
           // Session lost — terminal. The REST 401 flow owns the /login redirect;
@@ -255,6 +333,7 @@ export function useEventStream(): EventStreamState {
       disposed = true;
       clearReconnect();
       clearWatchdog();
+      clearConnect();
       if (socket !== null) {
         // Detach handlers first so the imminent close can't schedule a reconnect.
         socket.onopen = null;
