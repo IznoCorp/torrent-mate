@@ -170,6 +170,68 @@ desktop → sidebar; all slots navigate without errors.
 redirected back; logout → `/login`; manual cookie deletion → 401 on
 next `/me` poll → redirect.
 
+**As-built notes (5.3)**:
+
+- Shipped as **three commits**: `feat(tm-shell): add auth provider and protected
+  routes`, then `feat(tm-shell): wire login redirect flow`, then the tests/docs
+  commit.
+- **Navigation-boundary design** (the plan's trickiest point): `AuthProvider`
+  mounts **above** `RouterProvider` (so its single `me` observer survives route
+  changes) and therefore **cannot** call `useNavigate`. The router-aware 401
+  handler is instead registered by a new pathless **`RouterBridge`** layout route
+  (defined in `router.tsx`, the root of the route tree) that runs *inside* the
+  router: on mount it calls `setUnauthorizedHandler` with a `useNavigate`-based
+  redirect to `/login?redirect=<current>` (current path read from a `useLocation`
+  ref so it is accurate at fire time, not registration time). On `/login` it
+  re-navigates to `/login` without a self-referential `?redirect`.
+- **`api/client.ts` was NOT modified.** The 5.1 injectable seam
+  (`setUnauthorizedHandler` + the default `queryClient.clear()` +
+  `window.location.assign('/login')` fallback) already supported everything 5.3
+  needs; `RouterBridge` simply registers the router-aware replacement, and the
+  hard-`assign` default remains the fallback when no handler is registered
+  (e.g. a 401 fired before the router mounts). This keeps the diff off the
+  generated-client module.
+- **401 handler intentionally does not clear the `me` cache.** Clearing/removing
+  `me` would trigger a refetch (its observer stays mounted in `AuthProvider`
+  above the router), re-hit 401, and loop. The 401 that fires the handler has
+  already invalidated the session — `AuthProvider` reads the unauthenticated
+  state from `me`'s own error, and explicit logout clears the cache via
+  `useLogout`. (Minor, bug-driven deviation from the literal "clears auth state"
+  wording; documented in `RouterBridge`.)
+- **`ProtectedRoute`** is a pathless layout route wrapping `AppShell`
+  (`ProtectedRoute` → `AppShell` → pages). Loading → a centered DS spinner
+  (`LoaderCircle`, `role="status"` + sr-only « Chargement… »); unauthenticated →
+  `<Navigate to="/login?redirect=<pathname+search>" replace>`; authenticated →
+  `<Outlet/>`.
+- **Post-login redirect** is realised by the `Login` page's
+  authenticated-redirect, not by new logic in `LoginForm` (unchanged): a
+  successful login flips `me` → authenticated → `Login` re-renders → `<Navigate>`
+  to the validated `?redirect`. A single `resolveRedirect` guard (module-private
+  in `Login.tsx`) enforces the open-redirect rule — only a single leading `/`;
+  `//host` and `/\host` collapse to `/`.
+- **`UserMenu`** now reads `{ user, logout }` from context: it shows the real
+  username initial (avatar) + username (label), and logout `await`s the context
+  `logout` then `useNavigate('/login', { replace: true })` in a `finally` (so a
+  failed logout still leaves the shell). A local `isLoggingOut` state replaces
+  the old `useLogout().isPending` (the context does not surface pending). No more
+  `window.location.assign`.
+- **`AuthContextValue`** is fully typed (`user`, `isAuthenticated`, `isLoading`,
+  `logout`); `useAuthContext()` throws a French error outside the provider. Zero
+  `any`.
+- **Tests** (RTL, `cleanup()` in `afterEach`, `globals: false`): new
+  `ProtectedRoute.test.tsx` (spinner / authed `<Outlet>` / unauthenticated
+  redirect with preserved `?redirect=%2Fdash`, all via `createMemoryRouter` +
+  mocked `me`); `router.test.tsx` updated to wrap `AuthProvider` + mock an authed
+  `me`, plus new safe-`?redirect` and rejected-`//evil` and
+  unauthenticated-`/`→`/login` cases; `App.test.tsx` updated (authed `me` mock);
+  new `UserMenu.test.tsx` asserting logout → `/api/auth/logout` + navigation to
+  `/login` (the Radix dropdown module is mocked to plain elements because jsdom
+  lacks the pointer-capture APIs Radix needs to open a real menu). 25 tests pass.
+- Two benign `react-refresh/only-export-components` warnings remain
+  (`AuthProvider.tsx` exports the provider + the `useAuthContext` hook;
+  `router.tsx` co-locates `RouterBridge` with the `routes`/`router` exports) —
+  both are plan-mandated structures; `eslint .` exits 0 (no `--max-warnings`).
+
 ## Verification
 
 ```bash

@@ -1,17 +1,52 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "@/App";
 
+/** Build a minimal ``Response``-shaped object the API client can consume. */
+function buildResponse(status: number, body: unknown): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: "",
+    json: () => Promise.resolve(body),
+  } as unknown as Response;
+}
+
+/** Extract the request URL from a `fetch` first argument without stringifying. */
+function requestUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  return input instanceof URL ? input.href : input.url;
+}
+
+const fetchMock = vi.fn<typeof fetch>();
+
+beforeEach(() => {
+  fetchMock.mockReset();
+  // An authenticated session so the shell's guard admits the dashboard route.
+  fetchMock.mockImplementation((input) => {
+    const url = requestUrl(input);
+    if (url.includes("/api/auth/me")) {
+      return Promise.resolve(buildResponse(200, { username: "izno" }));
+    }
+    return Promise.resolve(buildResponse(200, {}));
+  });
+  vi.stubGlobal("fetch", fetchMock);
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe("App", () => {
   it("monte le shell et rend le tableau de bord à la racine", async () => {
     render(<App />);
 
-    // The browser router boots at jsdom's default path ("/") → Dashboard + shell.
+    // The browser router boots at jsdom's default path ("/"); once `me`
+    // resolves authenticated the guard renders the Dashboard inside the shell.
     expect(
       await screen.findByRole("heading", { name: /tableau de bord/i }),
     ).toBeInTheDocument();
