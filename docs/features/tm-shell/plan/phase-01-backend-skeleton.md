@@ -64,7 +64,7 @@ import Settings; print(Settings._SECRET_FIELDS)"` shows both new keys.
    Dev: `httpx`, `fakeredis`. Run `pip install -e ".[dev]"`.
 2. `web/__init__.py` — package docstring, re-export `create_app`.
 3. `web/app.py` — `create_app(config, settings) → FastAPI`: mounts health/version
-   routers, mounts static dir + SPA fallback, calls `init_redis_pool`.
+   routers, mounts static dir + SPA fallback.
 4. `web/deps.py` — `get_web_config(request) → WebConfig`, `get_settings() → Settings`.
 5. `web/routes/health.py` — `GET /api/health`: `{status: "ok", redis: bool, db: bool}`.
 6. `web/routes/version.py` — `GET /api/version`: `{version, build_commit}`.
