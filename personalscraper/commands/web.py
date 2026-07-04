@@ -53,12 +53,30 @@ web_app = typer.Typer(
 @web_app.callback(invoke_without_command=True)
 @cli_telemetry("web")
 @handle_cli_errors
-def web(ctx: typer.Context) -> None:
+def web(
+    ctx: typer.Context,
+    host: str | None = typer.Option(
+        None,
+        "--host",
+        help="Override config.web.host (bind address). Defaults to config.web.host.",
+    ),
+    port: int | None = typer.Option(
+        None,
+        "--port",
+        help="Override config.web.port (e.g. 8711 for the staging clone). Defaults to config.web.port.",
+    ),
+) -> None:
     """Start the TorrentMate web UI daemon (FastAPI + uvicorn).
 
     Serves the built SPA from ``personalscraper/web/static/``, the REST API
     (health, version, auth), and the WebSocket event relay.  Refuses to boot
     if the SPA has not been built and ``config.web.dev_mode`` is False.
+
+    The optional ``--host`` / ``--port`` overrides let a second clone serve on a
+    different address without editing the shared config dir: the staging clone
+    (``~/staging/torrentmate``) runs ``web --port 8711`` under PM2 while
+    ``config.web.port`` stays ``8710`` for prod.  When an override is omitted the
+    corresponding ``config.web`` value is used.
 
     When a sub-command is invoked (e.g. ``web set-password``) the callback
     returns immediately without booting the daemon.
@@ -70,6 +88,10 @@ def web(ctx: typer.Context) -> None:
 
     Args:
         ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
+        host: Optional bind-address override for ``config.web.host``. ``None``
+            falls back to the configured host.
+        port: Optional port override for ``config.web.port`` (e.g. ``8711`` on
+            the staging clone). ``None`` falls back to the configured port.
     """
     # Sub-commands (e.g. ``web set-password``) must not boot the daemon.
     if ctx.invoked_subcommand is not None:
@@ -99,16 +121,22 @@ def web(ctx: typer.Context) -> None:
 
     settings = get_settings()
 
+    # CLI overrides win over config; None → the configured value. Lets the
+    # staging clone bind 8711 (PM2 args "web --port 8711") while sharing the
+    # single config dir where web.port stays 8710 for prod.
+    bind_host = config.web.host if host is None else host
+    bind_port = config.web.port if port is None else port
+
     # Build the AppContext once for process lifetime — no torrent client
     # (the web process never contacts a torrent daemon).
     app_context = _build_app_context(config, settings, build_torrent_client=False)
 
     try:
-        log.info("web_starting", host=config.web.host, port=config.web.port)
+        log.info("web_starting", host=bind_host, port=bind_port)
         uvicorn.run(
             create_app(config, settings),
-            host=config.web.host,
-            port=config.web.port,
+            host=bind_host,
+            port=bind_port,
         )
     finally:
         app_context.provider_registry.close()

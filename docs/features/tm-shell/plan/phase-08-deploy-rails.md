@@ -38,7 +38,7 @@ main`, `pip install -e ".[dev]"`, `pm2 restart torrentmate-web`.
 
 **Verification**: `bash -n scripts/deploy.sh scripts/deploy-staging.sh`.
 
-### 8.2 — Autodeploy poller + Caddy blocks
+### 8.2 — Autodeploy poller + Caddy blocks + PM2 entries
 
 **Commit**: `feat(tm-shell): add autodeploy poller and Caddy reverse-proxy config`
 
@@ -49,22 +49,49 @@ main`, `pip install -e ".[dev]"`, `pm2 restart torrentmate-web`.
 | Create | `scripts/autodeploy-poll.sh`              |
 | Modify | `ecosystem.config.js`                     |
 | Create | `docs/features/tm-shell/caddy-blocks.txt` |
+| Modify | `scripts/deploy-staging.sh` (pre-fix)     |
+| Modify | `personalscraper/commands/web.py`         |
+| Modify | `tests/indexer/test_ecosystem.py`         |
+| Modify | `tests/web/test_web_cli.py`               |
 
 **Work**:
 
-1. `scripts/autodeploy-poll.sh` — 60 s loop:
-   - `git fetch origin`; if `main` advanced → `git pull --ff-only` →
-     `./scripts/deploy.sh`; same for `staging` → `./scripts/deploy-staging.sh`.
-   - Logs each cycle: "checking", "deploying", or "up to date".
-2. `ecosystem.config.js` — add `torrentmate-web-staging` (port 8711,
-   autorestart, kill_timeout 30000, cwd `~/staging/torrentmate`) +
+1. `scripts/autodeploy-poll.sh` — 60 s loop (mirrors KanbanMate):
+   - `git fetch origin <branch>` (timeout-wrapped); if `main` advanced →
+     `git pull --ff-only` → `./scripts/deploy.sh`; if `staging` advanced →
+     `git reset --hard origin/staging` (the staging clone follows the remote
+     staging branch, which may be rebased / force-pushed) → `./scripts/deploy-staging.sh`.
+   - Timestamped French log lines each cycle; `--once` flag; `AUTODEPLOY_INTERVAL`
+     env; per-cycle fail-soft (one failed pass never kills the loop).
+2. `ecosystem.config.js` — add `torrentmate-web-staging` (`web --port 8711`,
+   autorestart, kill_timeout 30000, cwd `~/staging/torrentmate`, own venv) +
    `torrentmate-autodeploy` (runs `autodeploy-poll.sh`, autorestart,
    interpreter `/bin/bash`, restart_delay 60000).
 3. `caddy-blocks.txt` — Caddyfile snippet per DESIGN §6; operator applies
    to `/opt/homebrew/etc/Caddyfile` manually, then `caddy reload`.
 
-**Verification**: `node -e "require('./ecosystem.config.js')"` parses; bash
-syntax check on autodeploy-poll.sh.
+**Plan corrections (applied in 8.2, orchestrator-approved):**
+
+- **Staging baked-commit pre-fix** (carried from 8.1 review): `deploy-staging.sh`
+  baked `TM_BUILD_COMMIT="$sha"` while stamping `"branch @ sha"`, so the PWA
+  reported a perpetual phantom update. Now bakes the identical `"branch @ sha"`.
+- **`web --host/--port` overrides** (the ONE sanctioned source change): the web
+  command gained optional `--host`/`--port` typer options so the staging clone can
+  bind 8711 while sharing the single config dir (where `web.port` stays 8710 for
+  prod). Config-native `local.json5` was unusable because the config dir is shared
+  between clones (`PERSONALSCRAPER_CONFIG` → the same real config). `tests/web/test_web_cli.py`
+  gains one override test.
+- **Prod PM2 entry repointed to the deploy clone**: `torrentmate-web` now runs from
+  `~/deploy/torrentmate` with its own venv (`~/deploy/torrentmate-venv`) and
+  `PERSONALSCRAPER_CONFIG` → the canonical config dir (DESIGN §6, per-clone isolation).
+  The DEV checkout stays runnable ad hoc via `personalscraper web`. One
+  `ecosystem.config.js` file drives all clones' web apps; the pyenv-run daemons/crons
+  keep `cwd: __dirname`. `tests/indexer/test_ecosystem.py` is updated accordingly
+  (expected-apps list + deploy-clone cwd / non-python-interpreter exclusions).
+
+**Verification**: `node -e "require('./ecosystem.config.js')"` parses; `bash -n`
+on `autodeploy-poll.sh` + both deploy scripts; `pytest tests/indexer/test_ecosystem.py
+tests/web`; `make lint`.
 
 ### 8.3 — Documentation deliverables + final gate
 

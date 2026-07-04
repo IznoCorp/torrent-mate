@@ -111,6 +111,35 @@ class TestWebHappyPath:
         assert call_kwargs["host"] == web_cfg.host
         assert call_kwargs["port"] == web_cfg.port
 
+    def test_cli_host_and_port_override_config(self, cli_runner: CliRunner, test_config) -> None:
+        """``web --host 0.0.0.0 --port 8711`` overrides config.web.host/port (staging clone).
+
+        The staging PM2 app shares the single config dir (web.port=8710) but binds
+        8711 via the CLI override, so uvicorn must receive the overridden values.
+        """
+        web_cfg = WebConfig(dev_mode=True)  # Bypass the SPA-missing boot guard.
+        cfg = test_config.model_copy(update={"web": web_cfg})
+
+        mock_ctx = MagicMock()
+        mock_ctx.provider_registry.close = MagicMock()
+        mock_ctx.acquire = None
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_BUILD_CTX, return_value=mock_ctx),
+            patch(_PATCH_UVICORN_RUN) as mock_run,
+        ):
+            result = cli_runner.invoke(cli_app, ["web", "--host", "0.0.0.0", "--port", "8711"])
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args.kwargs
+        assert call_kwargs["host"] == "0.0.0.0"
+        assert call_kwargs["port"] == 8711
+        # The override must NOT mutate the configured value.
+        assert web_cfg.port == 8710
+
 
 class TestSetPassword:
     """``personalscraper web set-password`` — hash generation and .env writing."""

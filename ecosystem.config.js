@@ -32,21 +32,45 @@ module.exports = {
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
 
-    // TorrentMate web UI (S1) — port from config/web.json5 (8710).
+    // TorrentMate web UI — PROD (tm.iznogoudatall.xyz, port 8710 from config/web.json5).
+    // Runs from the deploy clone (~/deploy/torrentmate) with its OWN venv — per-clone
+    // isolation from the dev editable install (avoids the stale-editable-finder incident
+    // class, DESIGN §6). PERSONALSCRAPER_CONFIG points every clone at the single real
+    // config dir. The DEV checkout stays runnable ad hoc via `personalscraper web`.
     {
       name: "torrentmate-web",
-      script: "/Users/izno/.pyenv/versions/3.12.4/bin/personalscraper",
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "web",
       interpreter: "none",
-      cwd: __dirname,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: true,
       // 30 s grace before SIGKILL — covers uvicorn graceful shutdown
       // (active WS connections closed, event loop drained) + context
       // close (provider_registry, acquire) + shutdown log.
       kill_timeout: 30000,
-      // Unbuffered stdout so structured logs flush to the PM2 log file
-      // in real time.
-      env: { PYTHONUNBUFFERED: "1" },
+      // Unbuffered stdout + the single canonical config dir shared by all clones.
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
+    },
+
+    // TorrentMate web UI — STAGING (tm-staging.iznogoudatall.xyz, port 8711).
+    // Runs from the staging clone (~/staging/torrentmate) with its OWN venv. Shares
+    // the SAME real config dir as prod (where web.port=8710), so the port is
+    // overridden on the CLI: `web --port 8711`. S1 is read-only → real data is safe.
+    {
+      name: "torrentmate-web-staging",
+      script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
+      args: "web --port 8711",
+      interpreter: "none",
+      cwd: "/Users/izno/staging/torrentmate",
+      autorestart: true,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
     },
 
     // ---- Continuous deployment (autodeploy poller) ----
