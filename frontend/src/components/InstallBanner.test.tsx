@@ -7,8 +7,6 @@ import type { PwaState } from "@/hooks/usePwa";
 /** Build a full {@link PwaState}, overriding only the fields under test. */
 function buildState(overrides: Partial<PwaState>): PwaState {
   return {
-    needRefresh: false,
-    applyUpdate: () => undefined,
     canInstall: false,
     promptInstall: vi.fn(() => Promise.resolve()),
     isIosInstall: false,

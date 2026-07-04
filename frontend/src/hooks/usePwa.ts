@@ -2,18 +2,19 @@
  * ``usePwa`` — the app's PWA lifecycle hook (tm-shell §5.4).
  *
  * One hook owning the two PWA concerns the DESIGN mandates, mounted **once**
- * (see ``App.tsx``'s ``PwaLayer``) and its state fanned out to the presentational
- * {@link UpdateToast} / {@link InstallBanner}:
+ * (see ``App.tsx``'s ``PwaLayer``). It applies updates itself (toast + reload)
+ * and fans its install state out to the presentational {@link InstallBanner}:
  *
  * **Auto-update (all installs converge, no stale clients).**
- * Wraps ``vite-plugin-pwa``'s ``useRegisterSW``. The service worker is asked to
- * check for a new build on load, on every ``visibilitychange`` back to visible,
- * and every 15 min. Independently, ``GET /api/version`` is polled every 5 min
- * (only while the tab is visible and the session is authenticated) and its
- * ``build_commit`` compared to the baked {@link __BUILD_COMMIT__}; any mismatch
- * forces an extra ``registration.update()``. A fresh SW (7.1 bakes
- * ``skipWaiting`` + ``clients.claim``) flips ``needRefresh`` → the toast informs
- * and {@link PwaState.applyUpdate} reloads onto it (guarded to a single reload).
+ * Wraps ``vite-plugin-pwa``'s ``useRegisterSW`` (``registerType: 'prompt'``). The
+ * service worker is asked to check for a new build on load, on every
+ * ``visibilitychange`` back to visible, and every 15 min. Independently,
+ * ``GET /api/version`` is polled every 5 min (only while the tab is visible and
+ * the session is authenticated) and its ``build_commit`` compared to the baked
+ * {@link __BUILD_COMMIT__}; any mismatch forces an extra ``registration.update()``.
+ * A fresh SW installs and *waits*, flipping ``needRefresh``; the hook then raises
+ * the sonner toast and calls ``updateServiceWorker(true)`` (posts ``SKIP_WAITING``
+ * → single reload onto the new build), guarded to a single reload.
  *
  * **Install proposal.** ``beforeinstallprompt`` is captured (Android/desktop) so
  * an in-app button can trigger the native prompt; iOS Safari (no such event) is
@@ -24,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 import { getVersion } from "@/api/client";
@@ -31,6 +33,9 @@ import { telemetryKeys } from "@/hooks/useHealth";
 
 /** ``localStorage`` key remembering the user dismissed the install prompt. */
 export const INSTALL_DISMISSED_STORAGE_KEY = "torrentmate:install_dismissed";
+
+/** Toast shown as the freshly-installed build activates and the page reloads. */
+const UPDATE_MESSAGE = "Nouvelle version installée — rechargement…";
 
 /** SW update-check cadence, in ms (DESIGN §5.4: every 15 min). */
 const SW_UPDATE_INTERVAL_MS = 15 * 60 * 1000;
@@ -79,12 +84,14 @@ export interface UsePwaOptions {
   readonly bakedCommit?: string;
 }
 
-/** The reactive PWA state consumed by the update/install UI. */
+/**
+ * The reactive PWA state consumed by the install UI.
+ *
+ * The update path is fully internal: on ``needRefresh`` the hook raises the toast
+ * and reloads onto the new SW itself (no field to wire), so only the install
+ * proposal is surfaced here.
+ */
 export interface PwaState {
-  /** ``true`` once a new service worker is installed and waiting. */
-  readonly needRefresh: boolean;
-  /** Activate the waiting SW and reload the page (single-shot, no loop). */
-  readonly applyUpdate: () => void;
   /** ``true`` when the native install prompt is available and not dismissed. */
   readonly canInstall: boolean;
   /** Show the captured native install prompt (Android/desktop). */
@@ -139,10 +146,45 @@ function isStandalone(): boolean {
   return displayStandalone || nav.standalone === true;
 }
 
+/** The ``Navigator`` fields {@link isIosLikeDevice} inspects (kept pure/testable). */
+export interface IosDeviceProbe {
+  /** ``navigator.userAgent``. */
+  readonly userAgent: string;
+  /** ``navigator.platform`` (legacy, still populated by every current browser). */
+  readonly platform?: string;
+  /** ``navigator.maxTouchPoints`` — > 1 on a real touch screen. */
+  readonly maxTouchPoints?: number;
+}
+
+/**
+ * Detect an iOS/iPadOS device from a ``Navigator``-shaped probe.
+ *
+ * iPhones/iPods (and pre-13 iPads) still carry an ``iP(hone|ad|od)`` UA. But
+ * **iPadOS 13+ reports a desktop-Safari Mac UA** (``platform === "MacIntel"``,
+ * no ``iPad`` token), so without a touch-point check every iPad user would miss
+ * the install proposal (audit B10). A Mac UA *with* a touch screen
+ * (``maxTouchPoints > 1``) is therefore treated as an iPad; a genuine Mac
+ * (trackpad, ``maxTouchPoints === 0``) is not.
+ *
+ * Args:
+ *   nav: The navigator probe (userAgent + optional platform/maxTouchPoints).
+ *
+ * Returns:
+ *   ``true`` when the device is an iPhone/iPod or an iPadOS 13+ iPad.
+ */
+export function isIosLikeDevice(nav: IosDeviceProbe): boolean {
+  if (/iP(?:hone|ad|od)/.test(nav.userAgent)) {
+    return true;
+  }
+  const isMac =
+    nav.platform === "MacIntel" || nav.userAgent.includes("Mac");
+  return isMac && (nav.maxTouchPoints ?? 0) > 1;
+}
+
 /** ``true`` for iOS Safari in a normal tab (install = manual Share sheet). */
 function detectIosSafari(): boolean {
   const nav = window.navigator as IosNavigator;
-  if (!/iP(?:hone|ad|od)/.test(nav.userAgent)) {
+  if (!isIosLikeDevice(nav)) {
     return false;
   }
   return !isStandalone();
@@ -217,16 +259,19 @@ export function usePwa(options: UsePwaOptions): PwaState {
     };
   }, []);
 
-  // A single reload only: `updateServiceWorker(true)` reloads on the SW's
-  // `controllerchange`; guard against a double invocation ever looping.
+  // Auto-apply (DESIGN §5.4): when the fresh SW has installed and is waiting
+  // (`registerType: 'prompt'` → `needRefresh` true), inform the user and activate
+  // it. `updateServiceWorker(true)` posts SKIP_WAITING and reloads once on the
+  // SW's `controllerchange`; the ref guards against a double invocation looping.
   const reloadedRef = useRef(false);
-  const applyUpdate = useCallback((): void => {
-    if (reloadedRef.current) {
+  useEffect(() => {
+    if (!needRefresh || reloadedRef.current) {
       return;
     }
     reloadedRef.current = true;
+    toast(UPDATE_MESSAGE);
     void updateServiceWorker(true);
-  }, [updateServiceWorker]);
+  }, [needRefresh, updateServiceWorker]);
 
   // Secondary update trigger: poll `/api/version` and force a SW update check
   // when the served commit no longer matches the one baked into this bundle.
@@ -293,8 +338,6 @@ export function usePwa(options: UsePwaOptions): PwaState {
   }, []);
 
   return {
-    needRefresh,
-    applyUpdate,
     canInstall: canPrompt && !dismissed,
     promptInstall,
     isIosInstall: iosInstall && !dismissed,

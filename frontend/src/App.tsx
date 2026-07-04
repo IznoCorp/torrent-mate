@@ -6,12 +6,11 @@ import { queryClient } from "@/api/client";
 import { AuthProvider, useAuthContext } from "@/components/AuthProvider";
 import { InstallBanner } from "@/components/InstallBanner";
 import { Toaster } from "@/components/ui/sonner";
-import { UpdateToast } from "@/components/UpdateToast";
 import { usePwa } from "@/hooks/usePwa";
 import { router } from "@/router";
 
 /**
- * PwaLayer — mounts the single {@link usePwa} instance and its update/install UI.
+ * PwaLayer — mounts the single {@link usePwa} instance and its install UI.
  *
  * Rendered inside {@link AuthProvider} + the Query client (so it can gate the
  * `/api/version` poll on the session and issue the query) but **outside** the
@@ -19,9 +18,10 @@ import { router } from "@/router";
  * banner are present on every route — including the public login page, where
  * proposing installation is still valuable. Mounting the hook here exactly once
  * keeps a single service-worker registration and a single beforeinstallprompt
- * capture for the whole app.
+ * capture for the whole app. The update toast is raised by `usePwa` itself onto
+ * the shared {@link Toaster} host; this layer only renders the install banner.
  *
- * @returns The PWA overlay layer (toast host, update toast, install banner).
+ * @returns The PWA overlay layer (toast host + install banner).
  */
 function PwaLayer(): ReactElement {
   const { isAuthenticated } = useAuthContext();
@@ -29,7 +29,6 @@ function PwaLayer(): ReactElement {
 
   return (
     <>
-      <UpdateToast state={pwa} />
       <InstallBanner state={pwa} />
       <Toaster position="top-center" />
     </>

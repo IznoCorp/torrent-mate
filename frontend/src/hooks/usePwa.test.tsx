@@ -5,9 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   INSTALL_DISMISSED_STORAGE_KEY,
+  isIosLikeDevice,
   shouldForceUpdate,
   usePwa,
 } from "@/hooks/usePwa";
+
+// `toast` is raised by `usePwa` itself on `needRefresh`; spy on it.
+const toastMock = vi.hoisted(() => vi.fn());
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 // --- Controllable `virtual:pwa-register/react` mock ------------------------
 
@@ -16,6 +21,8 @@ interface MockRegisterState {
   registration: { update: ReturnType<typeof vi.fn> } | null;
   updateServiceWorker: ReturnType<typeof vi.fn>;
   registered: boolean;
+  /** Controllable `needRefresh` value the mocked hook returns. */
+  needRefresh: boolean;
 }
 
 const swMock = vi.hoisted(
@@ -24,6 +31,7 @@ const swMock = vi.hoisted(
       registration: null,
       updateServiceWorker: vi.fn(() => Promise.resolve()),
       registered: false,
+      needRefresh: false,
     },
   }),
 );
@@ -50,7 +58,7 @@ vi.mock("virtual:pwa-register/react", () => ({
       );
     }
     return {
-      needRefresh: [false, (): void => undefined],
+      needRefresh: [swMock.state.needRefresh, (): void => undefined],
       offlineReady: [false, (): void => undefined],
       updateServiceWorker: swMock.state.updateServiceWorker,
     };
@@ -93,7 +101,9 @@ function fireInstallPrompt(prompt: () => Promise<void>): void {
 beforeEach(() => {
   swMock.state.registration = null;
   swMock.state.registered = false;
+  swMock.state.needRefresh = false;
   swMock.state.updateServiceWorker.mockClear();
+  toastMock.mockClear();
   fetchMock.mockReset();
   window.localStorage.clear();
   vi.stubGlobal("fetch", fetchMock);
@@ -115,6 +125,87 @@ describe("shouldForceUpdate", () => {
     expect(shouldForceUpdate("aaa1111", undefined)).toBe(false);
     expect(shouldForceUpdate("aaa1111", "")).toBe(false);
     expect(shouldForceUpdate("aaa1111", "aaa1111")).toBe(false);
+  });
+});
+
+describe("isIosLikeDevice", () => {
+  it("détecte un iPhone via son UA", () => {
+    expect(
+      isIosLikeDevice({
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+      }),
+    ).toBe(true);
+  });
+
+  it("détecte un iPadOS 13+ (UA Mac de bureau + écran tactile)", () => {
+    expect(
+      isIosLikeDevice({
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+        platform: "MacIntel",
+        maxTouchPoints: 5,
+      }),
+    ).toBe(true);
+  });
+
+  it("ne prend pas un Mac de bureau (trackpad, sans tactile) pour un iPad", () => {
+    expect(
+      isIosLikeDevice({
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+        platform: "MacIntel",
+        maxTouchPoints: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("ne détecte ni un PC Windows ni Android", () => {
+    expect(
+      isIosLikeDevice({
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        platform: "Win32",
+        maxTouchPoints: 0,
+      }),
+    ).toBe(false);
+    expect(
+      isIosLikeDevice({
+        userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8)",
+        maxTouchPoints: 5,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("usePwa — auto-application de la mise à jour", () => {
+  it("affiche le toast et applique la mise à jour quand needRefresh devient vrai", async () => {
+    swMock.state.needRefresh = true;
+
+    renderHook(
+      () => usePwa({ versionPollEnabled: false, bakedCommit: "baked11" }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledTimes(1);
+    });
+    expect(toastMock).toHaveBeenCalledWith(
+      "Nouvelle version installée — rechargement…",
+    );
+    // `updateServiceWorker(true)` = skip-waiting + single reload.
+    expect(swMock.state.updateServiceWorker).toHaveBeenCalledTimes(1);
+    expect(swMock.state.updateServiceWorker).toHaveBeenCalledWith(true);
+  });
+
+  it("n’applique aucune mise à jour tant que needRefresh est faux", () => {
+    swMock.state.needRefresh = false;
+
+    renderHook(
+      () => usePwa({ versionPollEnabled: false, bakedCommit: "baked11" }),
+      { wrapper },
+    );
+
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(swMock.state.updateServiceWorker).not.toHaveBeenCalled();
   });
 });
 
