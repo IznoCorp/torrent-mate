@@ -210,6 +210,34 @@ class TestStagingBootstrapE2E:
             f"Second run exit code {result.exit_code} differs from first {first_code}"
         )
 
+    def test_dry_run_never_sends_real_telegram(self, e2e_env, monkeypatch):
+        """Regression: ``run`` inside the test suite must never POST to Telegram.
+
+        Before the ``_neutralize_external_notify_creds`` conftest fixture, this
+        E2E test built a real :class:`TelegramNotifier` from the ambient ``.env``
+        (loaded by ``conftest``) and sent a pipeline report on every ``pytest``
+        run — i.e. every ``git push`` via the pre-push hook (origin of the
+        phantom Telegram reports). Spy on the notifier's ``send`` and assert it
+        is never invoked.
+
+        Args:
+            e2e_env: Fixture providing tmp_path, staging, and config_dir.
+            monkeypatch: Used to spy on ``TelegramNotifier.send``.
+        """
+        import personalscraper.api.notify.telegram as telegram_mod
+
+        sends: list[tuple] = []
+        monkeypatch.setattr(
+            telegram_mod.TelegramNotifier,
+            "send",
+            lambda self, *args, **kwargs: sends.append(args) or True,
+        )
+
+        runner = CliRunner()
+        runner.invoke(app, ["--config", str(e2e_env["config_dir"]), "run", "--dry-run"])
+
+        assert sends == [], f"run --dry-run attempted {len(sends)} real Telegram send(s) in the test suite"
+
     def test_missing_staging_dirs_config_exits_nonzero(self, tmp_path):
         """Config without staging_dirs section fails with a friendly error message.
 

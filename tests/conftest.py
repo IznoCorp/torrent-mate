@@ -85,6 +85,31 @@ _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 
+@pytest.fixture(autouse=True)
+def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force external-notification credentials empty for every test.
+
+    This module calls :func:`load_dotenv` (top of file) so the real ``.env`` —
+    including ``TELEGRAM_BOT_TOKEN`` / ``TELEGRAM_CHAT_ID`` / ``HEALTHCHECK_URL`` —
+    leaks into ``os.environ`` for the whole session. Any test that invokes the
+    real ``run`` command (e.g. the E2E dry-run staging tests) then builds a
+    *real* ``TelegramNotifier`` from :class:`~personalscraper.config.Settings`
+    and POSTs a pipeline report to the operator's chat — firing on every local
+    ``pytest`` run, i.e. every ``git push`` via the pre-push hook.
+
+    Setting these vars to ``""`` makes the corresponding ``Settings`` fields
+    empty (an explicit environment variable overrides the on-disk ``.env`` in
+    pydantic-settings), so ``TelegramNotifier.is_configured`` /
+    ``HealthcheckClient.is_configured`` return ``False`` and no external send is
+    ever attempted. Tests that genuinely exercise the notifier construct it
+    directly with explicit arguments and are unaffected; tests asserting the
+    "configured" branch patch ``is_configured`` themselves, overriding this
+    default.
+    """
+    for _var in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "HEALTHCHECK_URL"):
+        monkeypatch.setenv(_var, "")
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _configure_logging_for_tests(tmp_path_factory: pytest.TempPathFactory) -> None:
     """Configure structlog once per session for caplog interop.
