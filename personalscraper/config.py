@@ -42,6 +42,8 @@ class Settings(BaseSettings):
         telegram_bot_token: Telegram bot token for notifications.
         telegram_chat_id: Telegram chat/user ID for notifications.
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring.
+        web_password_hash: scrypt-hashed password for web UI login.
+        web_jwt_secret: HS256 secret key for JWT session tokens.
     """
 
     model_config = SettingsConfigDict(env_file=str(_ENV_PATH), extra="ignore")
@@ -70,6 +72,10 @@ class Settings(BaseSettings):
     # Monitoring (optional)
     healthcheck_url: str = ""
 
+    # TorrentMate Web UI
+    web_password_hash: str = ""
+    web_jwt_secret: str = ""
+
     # Fields whose values must never appear in repr/str output (tracebacks, logs, etc.).
     _SECRET_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {
@@ -79,6 +85,8 @@ class Settings(BaseSettings):
             "youtube_api_key",
             "telegram_bot_token",
             "healthcheck_url",
+            "web_password_hash",
+            "web_jwt_secret",
         }
     )
 
