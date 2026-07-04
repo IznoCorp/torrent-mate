@@ -1,0 +1,47 @@
+# TorrentMate — Caddy reverse-proxy blocks (DESIGN §6)
+#
+# These two site blocks expose the TorrentMate web UI behind Caddy TLS:
+#   prod    tm.iznogoudatall.xyz          → torrentmate-web          (localhost:8710)
+#   staging tm-staging.iznogoudatall.xyz  → torrentmate-web-staging  (localhost:8711)
+#
+# `import tls_config` reuses the shared (tls_config) snippet already defined at
+# the top of /opt/homebrew/etc/Caddyfile (Cloudflare DNS-01 → Let's Encrypt cert),
+# exactly like the other iznogoudatall.xyz services. WebSocket proxying (/ws/events)
+# is native to Caddy `reverse_proxy` — no extra directive needed.
+#
+# NOTE: the web app enforces its own JWT-cookie auth on every /api/* route and the
+# WS handshake, so no Caddy-level basicauth is required (unlike km-staging).
+
+# ── prod ──────────────────────────────────────────────────────────────────────
+https://tm.iznogoudatall.xyz {
+    import tls_config
+    reverse_proxy localhost:8710
+}
+
+# ── staging ───────────────────────────────────────────────────────────────────
+https://tm-staging.iznogoudatall.xyz {
+    import tls_config
+    reverse_proxy localhost:8711
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# OPERATOR — how to apply (NOT done by any script; manual step)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#   1. Append the two blocks above to /opt/homebrew/etc/Caddyfile
+#         cat docs/features/tm-shell/caddy-blocks.txt >> /opt/homebrew/etc/Caddyfile
+#         # (then delete this operator/DNS commentary from the live Caddyfile)
+#   2. Validate the config before reloading:
+#         caddy validate --config /opt/homebrew/etc/Caddyfile --adapter caddyfile
+#   3. Reload without dropping connections:
+#         caddy reload  --config /opt/homebrew/etc/Caddyfile --adapter caddyfile
+#
+# ── DNS reminder (operator pre-requisite, DESIGN §6 / phase-08 Gate) ────────────
+#
+#   Create DNS records on Cloudflare for iznogoudatall.xyz pointing at IznoServer,
+#   BEFORE the first Let's Encrypt issuance (DNS-01 needs the zone anyway):
+#         tm          A/CNAME → IznoServer
+#         tm-staging  A/CNAME → IznoServer
+#   Verify resolution before reloading Caddy:
+#         dig +short tm.iznogoudatall.xyz
+#         dig +short tm-staging.iznogoudatall.xyz

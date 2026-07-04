@@ -36,8 +36,13 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-grab",
         "personalscraper-health-check",
         "torrentmate-web",
+        "torrentmate-autodeploy",
     }
 )
+
+#: Apps whose ``script`` is NOT the personalscraper Python CLI (so their
+#: ``interpreter`` is not ``"none"``). The autodeploy poller is a bash script.
+_NON_PYTHON_APP_NAMES = frozenset({"torrentmate-autodeploy"})
 
 
 # ---------------------------------------------------------------------------
@@ -197,9 +202,12 @@ def test_ecosystem_declares_expected_apps() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("app_name", sorted(_EXPECTED_APP_NAMES))
+@pytest.mark.parametrize("app_name", sorted(_EXPECTED_APP_NAMES - _NON_PYTHON_APP_NAMES))
 def test_every_app_has_interpreter_none(app_name: str) -> None:
-    """Every app must use ``interpreter: "none"`` (personalscraper is a Python CLI).
+    """Every Python-CLI app must use ``interpreter: "none"`` (personalscraper is a Python CLI).
+
+    The autodeploy poller (a bash script) is excluded — see
+    :func:`test_autodeploy_app_runs_poller_via_bash`.
 
     Args:
         app_name: Name of the app under test.
@@ -367,6 +375,36 @@ def test_grab_app_is_valid_cron_job() -> None:
     assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
     cron = app.get("cron_restart")
     assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
+
+
+# ---------------------------------------------------------------------------
+# Tests — autodeploy poller (torrentmate-autodeploy)
+# ---------------------------------------------------------------------------
+
+
+def test_autodeploy_app_runs_poller_via_bash() -> None:
+    """``torrentmate-autodeploy`` runs the poller under ``/bin/bash``, autorestart, 60 s backoff.
+
+    It is a shell script (not the Python CLI), so its ``interpreter`` is
+    ``/bin/bash`` rather than ``none``; it is a resilient daemon (autorestart,
+    no cron) with a 60 s ``restart_delay`` so a persistent failure cannot
+    hot-loop PM2.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    app = _get_app_by_name(apps, "torrentmate-autodeploy")
+    script = app.get("script", "")
+    assert isinstance(script, str) and script.endswith("scripts/autodeploy-poll.sh"), (
+        f"autodeploy script must be scripts/autodeploy-poll.sh, got {script!r}"
+    )
+    assert app.get("interpreter") == "/bin/bash", (
+        f"autodeploy interpreter must be '/bin/bash', got {app.get('interpreter')!r}"
+    )
+    assert app.get("cwd") == "__dirname", f"autodeploy cwd must be __dirname, got {app.get('cwd')!r}"
+    assert app.get("autorestart") is True, f"autodeploy must have autorestart=true, got {app.get('autorestart')!r}"
+    assert app.get("restart_delay") == 60000, (
+        f"autodeploy restart_delay must be 60000, got {app.get('restart_delay')!r}"
+    )
+    assert "cron_restart" not in app, "autodeploy is a daemon, not a cron job"
 
 
 # ---------------------------------------------------------------------------

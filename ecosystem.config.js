@@ -49,6 +49,22 @@ module.exports = {
       env: { PYTHONUNBUFFERED: "1" },
     },
 
+    // ---- Continuous deployment (autodeploy poller) ----
+    // Watches origin and redeploys a clone when its tracked branch advances:
+    //   main    advances → scripts/deploy.sh          (prod clone ~/deploy/torrentmate)
+    //   staging advances → scripts/deploy-staging.sh  (staging clone ~/staging/torrentmate)
+    // This is a shell script (not the Python CLI), so interpreter is /bin/bash.
+    // 60 s loop (AUTODEPLOY_INTERVAL); restart_delay backs a crashed poller off
+    // by 60 s so a persistent failure does not hot-loop PM2.
+    {
+      name: "torrentmate-autodeploy",
+      script: "./scripts/autodeploy-poll.sh",
+      interpreter: "/bin/bash",
+      cwd: __dirname,
+      autorestart: true,
+      restart_delay: 60000,
+    },
+
     // ---- Scheduled jobs (autorestart: false, cron_restart) ----
 
     {
