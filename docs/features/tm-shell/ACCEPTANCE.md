@@ -163,8 +163,40 @@ are runnable locally now; Part B requires a valid session cookie.
 
 ---
 
+## `/chrome` MCP validation (Phase 8.4)
+
+Recorded live against a real server (real config, real Redis, real `.env`
+KanbanMate-aligned credentials) on `127.0.0.1:8710`, served build `cc9326ba`
+(cookie_secure=false for http localhost; prod sits behind Caddy TLS).
+
+| Check                                                                                         | Result                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------ |
+| Login form renders (DS wordmark, FR copy, logo)                                               | ✅                             |
+| Invalid credentials → « Identifiants invalides » (red, no enumeration)                        | ✅                             |
+| Authenticated dashboard (health cards, version, feed)                                         | ✅ (via minted session cookie) |
+| Health cards **green** — Redis en ligne + Base indexée (no false-alarm red while pending)     | ✅ (B8)                        |
+| Version card `0.40.0` · `commit cc9326b` (monospace)                                          | ✅                             |
+| Live feed receives real XADD events                                                           | ✅                             |
+| Warning event → `WRN` + **static** amber dot (`ps-dot--warning`, never `running`)             | ✅ (B9)                        |
+| Error event → `ERR` + red dot                                                                 | ✅                             |
+| Neutral event → static `idle` dot                                                             | ✅                             |
+| Envelope-only XADD resolves the real event type (not « unknown »)                             | ✅ (envelope `_type` fix)      |
+| Service worker registers + **activated**, workbox precache, controller                        | ✅ (prompt-mode build)         |
+| `/sw.js`, `/manifest.webmanifest` served at static root (correct mime)                        | ✅                             |
+| Install banner « Installer TorrentMate » + dismiss persists across reload                     | ✅                             |
+| Responsive: desktop sidebar `md:flex md:w-56` / mobile bottom-bar `md:hidden` + iOS safe-area | ✅ (breakpoint classes)        |
+| User menu shows login `izno` + « Se déconnecter »                                             | ✅                             |
+| Logout → cookie cleared → `/login?redirect=%2F`                                               | ✅                             |
+
+Deferred to post-deploy (require the prod URL / a real device): manifest icon +
+maskable rendering, the push→autodeploy→update-toast end-to-end, and iOS/iPadOS
+add-to-home-screen sheet. See `docs/reference/runbook-post-merge.md` §7.
+
+---
+
 ## Re-exercise Log
 
-| Date       | Phase / Gate | ACC-01 | ACC-02 | ACC-03 | ACC-04 | ACC-05 | ACC-06 | Operator  |
-| ---------- | ------------ | ------ | ------ | ------ | ------ | ------ | ------ | --------- |
-| 2026-07-05 | Phase 8.3    | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | LounisBou |
+| Date       | Phase / Gate                      | ACC-01 | ACC-02 | ACC-03 | ACC-04 | ACC-05 | ACC-06                   | Operator           |
+| ---------- | --------------------------------- | ------ | ------ | ------ | ------ | ------ | ------------------------ | ------------------ |
+| 2026-07-05 | Phase 8.3                         | ✅     | ✅     | ✅     | ✅     | ✅     | 🟡                       | LounisBou          |
+| 2026-07-05 | Phase 8.4 (guarantor re-exercise) | ✅     | ✅     | ✅     | ✅     | ✅     | 🟡 A+C local, B deferred | Claude (guarantor) |

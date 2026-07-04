@@ -515,3 +515,82 @@ pm2 startup
 # Follow the printed instructions (typically a sudo command).
 pm2 save
 ```
+
+---
+
+## TorrentMate web UI (tm-shell) merge checklist
+
+First written for the TorrentMate S1 merge (`feat/tm-shell`, 0.40.0). Run every
+step after merging any feature that adds/changes the `personalscraper web`
+daemon, the deploy scripts, or the frontend build.
+
+### Step 1 — Secrets on the box (one-time)
+
+```bash
+# Session signing secret (HS256) — generate once, store in .env, NEVER commit.
+python -c "import secrets; print('WEB_JWT_SECRET=' + secrets.token_urlsafe(32))" >> .env
+# Password hash — the interactive helper writes WEB_PASSWORD_HASH into .env.
+personalscraper web set-password
+```
+
+An empty `WEB_JWT_SECRET` makes every login fail **closed** with a warning (never
+a 500) — the daemon boots but refuses auth until the secret is set.
+
+### Step 2 — Deploy clones + venvs (one-time)
+
+```bash
+# Prod clone (tracks main), staging clone (tracks the staging branch).
+git clone <repo> ~/deploy/torrentmate   && python -m venv ~/deploy/torrentmate-venv
+git clone <repo> ~/staging/torrentmate  && python -m venv ~/staging/torrentmate-venv
+# Point PERSONALSCRAPER_CONFIG at the canonical config dir (shared, per ecosystem.config.js).
+```
+
+### Step 3 — Caddy reverse-proxy blocks
+
+```bash
+# Append the two blocks from docs/features/tm-shell/caddy-blocks.txt to the Caddyfile,
+# then validate + reload (tm.iznogoudatall.xyz → 8710, tm-staging → 8711).
+caddy validate --config /opt/homebrew/etc/Caddyfile
+caddy reload  --config /opt/homebrew/etc/Caddyfile
+# Precondition: DNS A records for both hosts resolve to IznoServer (verify with dig).
+```
+
+### Step 4 — PM2 apps
+
+```bash
+pm2 start ~/dev/ecosystem.config.js   # torrentmate-web, torrentmate-web-staging, torrentmate-autodeploy
+pm2 save
+```
+
+### Step 5 — First deploy + smoke
+
+```bash
+./scripts/deploy.sh                     # builds the SPA, stamps BUILD_COMMIT, restarts torrentmate-web
+# ACC re-exercise against the prod URL (health public, version guarded):
+curl -s -o /dev/null -w '%{http_code}\n' --connect-timeout 10 --max-time 30 https://tm.iznogoudatall.xyz/api/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' --connect-timeout 10 --max-time 30 https://tm.iznogoudatall.xyz/api/version  # 401
+```
+
+### Step 6 — Staging branch (post-merge)
+
+```bash
+git checkout main && git pull --ff-only
+git checkout -b staging && git push -u origin staging   # torrentmate-autodeploy follows origin/staging
+```
+
+### Step 7 — `/chrome` MCP validation checklist
+
+Run against the served prod (or local `127.0.0.1:8710`) build. See the recorded
+S1 run in `docs/features/tm-shell/ACCEPTANCE.md` (§`/chrome` MCP validation).
+Confirm: login (valid + invalid → « Identifiants invalides »), dashboard health
+cards green, live feed receives a real XADD event with correct severity dot
+(warning = **static** amber, error = red), install banner + dismiss persistence,
+service worker registers + activates, mobile bottom-tab-bar vs desktop sidebar
+breakpoint, logout → `/login`.
+
+### Rollback
+
+```bash
+pm2 stop torrentmate-web          # prod down; staging + the pipeline are unaffected
+git -C ~/deploy/torrentmate reset --hard <previous-good-sha> && ./scripts/deploy.sh
+```
