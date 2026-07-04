@@ -156,8 +156,14 @@ class TestWebHappyPath:
 class TestSetPassword:
     """``personalscraper web set-password`` — hash generation and .env writing."""
 
-    def test_piped_stdin_prints_hash(self, cli_runner: CliRunner, test_config) -> None:
+    def test_piped_stdin_prints_hash(
+        self,
+        cli_runner: CliRunner,
+        test_config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Piped stdin → prints WEB_PASSWORD_HASH=scrypt$... and WEB_JWT_SECRET=..."""
+        monkeypatch.delenv("WEB_JWT_SECRET", raising=False)
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
@@ -174,11 +180,44 @@ class TestSetPassword:
 
         assert result.exit_code == 0, f"stderr: {result.stderr}"
         assert "WEB_PASSWORD_HASH=scrypt$" in result.output
-        # WEB_JWT_SECRET is generated because the stubbed settings has an empty one.
+        # WEB_JWT_SECRET is generated because we cleared the ambient env var.
         assert "WEB_JWT_SECRET=" in result.output
 
-    def test_printed_hash_verifies(self, cli_runner: CliRunner, test_config) -> None:
+    def test_piped_stdin_jwt_already_present_omits_secret(
+        self,
+        cli_runner: CliRunner,
+        test_config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When WEB_JWT_SECRET is already in the env, it is NOT regenerated."""
+        monkeypatch.setenv("WEB_JWT_SECRET", "existing-secret-value")
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.web.get_settings",
+                return_value=Settings(_env_file=None),  # type: ignore[call-arg]
+            ),
+        ):
+            result = cli_runner.invoke(
+                cli_app,
+                ["web", "set-password"],
+                input="testuser\ntest-password\ntest-password\n",
+            )
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        assert "WEB_PASSWORD_HASH=scrypt$" in result.output
+        # Secret is already present, so no WEB_JWT_SECRET= line should appear.
+        assert "WEB_JWT_SECRET=" not in result.output
+
+    def test_printed_hash_verifies(
+        self,
+        cli_runner: CliRunner,
+        test_config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """The printed scrypt hash verifies against the entered password."""
+        monkeypatch.delenv("WEB_JWT_SECRET", raising=False)
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
@@ -199,8 +238,15 @@ class TestSetPassword:
         hash_value = match.group(1)
         assert verify_password("my-secret-pw", hash_value) is True
 
-    def test_write_flag_upserts_keys_into_tmp_env(self, cli_runner: CliRunner, test_config, tmp_path) -> None:
+    def test_write_flag_upserts_keys_into_tmp_env(
+        self,
+        cli_runner: CliRunner,
+        test_config,
+        tmp_path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """--write against a tmp .env (monkeypatched seam) upserts the keys."""
+        monkeypatch.delenv("WEB_JWT_SECRET", raising=False)
         tmp_env = tmp_path / ".env"
 
         with (
