@@ -93,6 +93,42 @@ Chrome DevTools Application → SW registered, precache populated.
 Chrome DevTools → Manifest → installable; redeploy → update toast within
 15 min or on visibility change.
 
+**Implementation notes (shipped 7.2)**:
+
+- **Build stamp** — `vite.config.ts` bakes `define: { __BUILD_COMMIT__:
+  JSON.stringify(process.env.TM_BUILD_COMMIT ?? 'dev') }`; a global
+  `declare const __BUILD_COMMIT__: string` lives in `src/vite-env.d.ts`.
+  **Deploy contract (phase 8)**: the deploy script MUST `export
+  TM_BUILD_COMMIT="$(git rev-parse HEAD)"` before `npm run build`, so the
+  running bundle knows its own SHA. Unset (local dev, Vitest) → `"dev"`, which
+  `shouldForceUpdate` treats as unstamped and never uses to force an update.
+- **`usePwa` (single mount)** — mounted once via `App.tsx`'s `PwaLayer`, a
+  sibling of `RouterProvider` inside `AuthProvider` (so the update toast +
+  install banner render on every route, login page included, and the version
+  poll can be gated on the session). Wraps `useRegisterSW`: on-load +
+  `visibilitychange` + 15 min `registration.update()`. The `/api/version` poll
+  reuses `telemetryKeys.version` + `getVersion` (5 min, visible-only via the
+  default `refetchIntervalInBackground: false`) and is **`enabled` only when
+  authenticated** — the endpoint is auth-guarded, so polling it logged-out would
+  only yield 401 noise. `shouldForceUpdate(baked, served)` is a pure, unit-tested
+  predicate.
+- **UpdateToast** — behaviour-only (`return null`); on `needRefresh` it raises
+  one sonner toast « Nouvelle version disponible — mise à jour… » then
+  `applyUpdate()` = `updateServiceWorker(true)` (reload). A `firedRef` +
+  `reloadedRef` guarantee a single toast and a single reload (no loop).
+- **InstallBanner** — DS card banner: Android/desktop « Installer TorrentMate »
+  → `promptInstall()`; iOS Safari → *Partager → « Sur l'écran d'accueil »*
+  instruction; `X`/Ignorer → `dismissInstall()` (persisted to
+  `torrentmate:install_dismissed`). Hidden when installed (display-mode
+  standalone) or dismissed.
+- **Mount seam** — the plan named `main.tsx`; the actual mount is `App.tsx`
+  (`PwaLayer`), which is where the providers live (`main.tsx` only calls
+  `createRoot(...).render(<App/>)`). `<Toaster/>` existed in `ui/sonner.tsx` but
+  was never rendered — `PwaLayer` now mounts it (`position="top-center"`).
+- **Testing** — `virtual:pwa-register/react` is a build-only virtual module;
+  Vitest redirects it to an inert `src/test/pwaRegisterMock.ts` via `test.alias`,
+  and `usePwa.test.tsx` overrides it with a controllable `vi.mock`.
+
 ## Verification
 
 ```bash

@@ -3,8 +3,38 @@ import type { ReactElement } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { queryClient } from "@/api/client";
-import { AuthProvider } from "@/components/AuthProvider";
+import { AuthProvider, useAuthContext } from "@/components/AuthProvider";
+import { InstallBanner } from "@/components/InstallBanner";
+import { Toaster } from "@/components/ui/sonner";
+import { UpdateToast } from "@/components/UpdateToast";
+import { usePwa } from "@/hooks/usePwa";
 import { router } from "@/router";
+
+/**
+ * PwaLayer — mounts the single {@link usePwa} instance and its update/install UI.
+ *
+ * Rendered inside {@link AuthProvider} + the Query client (so it can gate the
+ * `/api/version` poll on the session and issue the query) but **outside** the
+ * router, as a sibling of `RouterProvider`, so the update toast and install
+ * banner are present on every route — including the public login page, where
+ * proposing installation is still valuable. Mounting the hook here exactly once
+ * keeps a single service-worker registration and a single beforeinstallprompt
+ * capture for the whole app.
+ *
+ * @returns The PWA overlay layer (toast host, update toast, install banner).
+ */
+function PwaLayer(): ReactElement {
+  const { isAuthenticated } = useAuthContext();
+  const pwa = usePwa({ versionPollEnabled: isAuthenticated });
+
+  return (
+    <>
+      <UpdateToast state={pwa} />
+      <InstallBanner state={pwa} />
+      <Toaster position="top-center" />
+    </>
+  );
+}
 
 /**
  * App — the TorrentMateUI root.
@@ -16,6 +46,9 @@ import { router } from "@/router";
  * never navigates itself — the router-aware pieces (`RouterBridge`, the guard,
  * the login redirect, the user-menu logout) do that from inside the router tree.
  *
+ * {@link PwaLayer} is a router sibling so the PWA update/install UI is visible
+ * on every route, login page included.
+ *
  * @returns The application root element.
  */
 export default function App(): ReactElement {
@@ -23,6 +56,7 @@ export default function App(): ReactElement {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RouterProvider router={router} />
+        <PwaLayer />
       </AuthProvider>
     </QueryClientProvider>
   );
