@@ -67,23 +67,58 @@ dict | None` (catches ExpiredSignatureError → None).
 
 ### 2.3 — `web set-password` CLI
 
-**Commit**: `feat(tm-shell): add web set-password command`
+**Commit 1**: `refactor(tm-shell): convert web command to a typer sub-app`
+**Commit 2**: `feat(tm-shell): add web set-password command`
 
 **Files**:
 
 | Action | Path                              |
 | ------ | --------------------------------- |
 | Modify | `personalscraper/commands/web.py` |
+| Modify | `personalscraper/cli.py`          |
+| Modify | `tests/web/test_web_cli.py`       |
+
+**Plan corrections (applied)**:
+
+- The original plan said `@app.command(name="set-password")`. That is **wrong**
+  for a nested invocation: `personalscraper web set-password` requires `web` to
+  be a Typer **group**, not a flat command. The flat `web` command (from 1.3)
+  was therefore refactored into a sub-app: `web_app = typer.Typer(name="web",
+invoke_without_command=True)` with the daemon boot on
+  `@web_app.callback(invoke_without_command=True)` (bare `personalscraper web`
+  still runs the server; the callback returns early when
+  `ctx.invoked_subcommand is not None`) and `@web_app.command("set-password")`.
+  Mounted in `cli.py` via `app.add_typer(web_app, name="web")` like the other
+  sub-apps (trailers/config/info). Split into two commits per Cocktail A
+  (refactor first, feature second).
+- **Cycle fix (required by the sub-app mount)**: `cli.py` now _from-imports_
+  `web_app` (symbol needed at load time for `add_typer`), so `commands/web.py`
+  must not import `personalscraper.cli` at module level (the info/trailers
+  sub-apps don't either). `get_settings` is now imported directly from
+  `personalscraper.config` (its canonical home — `cli.py` re-exports it from
+  there) instead of `cli_compat.get_settings()`. Same object, no behaviour
+  change, cycle broken.
+- **Test adjustment**: `tests/web/test_web_cli.py` now triggers registration via
+  `from personalscraper.cli import app` (the trailers/library sub-app test
+  convention) so the sub-app is mounted through `add_typer`, replacing the old
+  `import personalscraper.commands.web` + `from personalscraper.cli_app import
+app` pair. Existing assertions unchanged; all stay green.
 
 **Work**:
 
-1. Add `@app.command(name="set-password")` (or via `command_with_telemetry`) to
-   `commands/web.py`. Prompts for username (default: config `web.username`) and
-   password (hidden input via `typer.prompt(..., hide_input=True)`). Generates
-   `WEB_JWT_SECRET` via `secrets.token_urlsafe(32)` if absent from `.env`.
-   Prints the `.env` lines for operator to copy-paste or writes directly
-   (operator-confirmed mode).
-2. Uses `auth/passwords.py` `hash_password` — same format the login route expects.
+1. `@web_app.command("set-password")` prompts for username (default: config
+   `web.username`) and password twice (hidden input via `typer.prompt(...,
+hide_input=True, confirmation_prompt=True)`). Hashes via `auth/passwords.py`
+   `hash_password` — same format the login route expects. Generates
+   `WEB_JWT_SECRET` via `secrets.token_urlsafe(32)` when it is absent/empty in
+   the current environment.
+2. **Default**: prints the `.env` lines (`WEB_PASSWORD_HASH=...`, plus
+   `WEB_JWT_SECRET=...` when generated) for the operator to paste — `.env` is
+   not touched.
+3. **`--write`**: after `typer.confirm`, atomically upserts those keys into the
+   repo-root `.env` (existing lines replaced, everything else preserved, secret
+   values never logged). If the entered username differs from
+   `config.web.username`, prints a reminder to update `config/web.json5`.
 
 ### 2.4 — Auth tests
 
