@@ -166,6 +166,36 @@ jobs:
       #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219
 
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx tsc -b --noEmit
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run lint:ds
+        working-directory: frontend
+      - run: npm run test -- --run
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: make openapi
+      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts
+
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:
     name: coverage-merge
