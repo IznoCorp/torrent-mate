@@ -38,6 +38,26 @@
 **Verification**: `cd frontend && npm run build` → manifest + SW in `dist/`;
 Chrome DevTools Application → SW registered, precache populated.
 
+**Implementation notes (shipped 7.1)**:
+
+- `theme_color` / `background_color` resolve to **`#0e0e10`** — the exact sRGB of
+  the DS `--background` (`oklch(0.165 0.004 286)`), not the `#0b0a08`-ish
+  placeholder. `index.html` `theme-color` meta matches.
+- Icons committed under `frontend/public/` (rendered once from `logo-icon.svg`
+  via `rsvg-convert`, no `sharp`/assets-generator devDep): `pwa-192x192.png`,
+  `pwa-512x512.png` (both `purpose: any`), `pwa-maskable-512x512.png`
+  (`purpose: maskable`, DS-background padded safe zone), `apple-touch-icon.png`
+  (180). The repo-root `*.png` ignore is negated with `!public/*.png` in
+  `frontend/.gitignore` (mirrors the existing `!*.ts`).
+- `includeManifestIcons: false` + `globPatterns` `{html,js,css,woff2,svg,png}`
+  keep the precache list free of duplicates (11 entries, shell-only).
+- `/api/*` and `/ws/*` are `NetworkOnly` runtime routes **and** in the
+  `navigateFallback` denylist (`[/^\/api\//, /^\/ws\//]`); navigation is
+  `NetworkFirst`. `registerType: 'autoUpdate'` → SW `skipWaiting` +
+  `clientsClaim` + `cleanupOutdatedCaches`.
+- `vite-plugin-pwa/client` + `/react` type refs added to `src/vite-env.d.ts`
+  so the 7.2 `virtual:pwa-register/react` import typechecks.
+
 ### 7.2 — Auto-update toast + install prompts
 
 **Commit**: `feat(tm-shell): add PWA auto-update and install prompt UI`
