@@ -46,7 +46,7 @@ def mount_spa(app: FastAPI, static_dir: Path, dev_mode: bool) -> None:
         if assets_dir.is_dir():
             app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="spa_assets")
 
-        @app.get("/{full_path:path}", include_in_schema=False)
+        @app.get("/{full_path:path}", include_in_schema=False, response_model=None)
         async def _spa_fallback(request: Request, full_path: str) -> FileResponse | Response:
             """Catch-all that returns index.html for non-API/non-WS paths."""
             if full_path.startswith("api/") or full_path.startswith("ws/"):
@@ -57,7 +57,7 @@ def mount_spa(app: FastAPI, static_dir: Path, dev_mode: bool) -> None:
     else:
         detail = "SPA not built (dev_mode)" if dev_mode else "SPA not built"
 
-        @app.get("/{full_path:path}", include_in_schema=False)
+        @app.get("/{full_path:path}", include_in_schema=False, response_model=None)
         async def _spa_missing_fallback(request: Request, full_path: str) -> JSONResponse | Response:
             """Catch-all that returns 503 when the SPA is not built."""
             if full_path.startswith("api/") or full_path.startswith("ws/"):
