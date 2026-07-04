@@ -97,6 +97,11 @@ tests/web`; `make lint`.
 
 **Commit**: `docs(tm-shell): add web UI reference doc, CLAUDE.md row, and ACCEPTANCE`
 
+> **⚠ ACC-NN wording note**: ACCEPTANCE (8.3) must use DESIGN §11 corrected wording:
+> `/api/health` → 200 public (DESIGN §4.4 exempts it from the auth guard);
+> `/api/version` → 401 unauthenticated (the guarded-route example).
+> Never claim 401 for health in any ACC criterion.
+
 **Files**:
 
 | Action | Path                                   |
@@ -116,8 +121,11 @@ tests/web`; `make lint`.
    authority, DESIGN §4.6; `X-Requested-With` header rule).
 2. `CLAUDE.md` — add Reference Index row linking to `docs/reference/web-ui.md`.
 3. `.env.example` + `config.example/web.json5` — ensure documented and complete.
-4. `ACCEPTANCE.md` — executable `ACC-NN` criteria from DESIGN §11:
-   - `ACC-01`: web health 401 → login → 200.
+4. `ACCEPTANCE.md` — executable `ACC-NN` criteria from DESIGN §11 (corrected wording:
+   health is 200 public per DESIGN §4.4; 401 applies to guarded routes like
+   `/api/version`, not health):
+   - `ACC-01`: web health 200 public (DESIGN §4.4 exempts /api/health from auth guard);
+     guarded route (/api/version) 401 → login → 200.
    - `ACC-02`: `Set-Cookie: tm_session` HttpOnly SameSite=Strict.
    - `ACC-03`: WS receives XADD event, replays on reconnect with `last_id`.
    - `ACC-04`: `npx tsc --noEmit` exit 0, zero `no-explicit-any` in ESLint.
@@ -147,7 +155,9 @@ make lint && make test                                   # all pass
 bash -n scripts/deploy.sh scripts/deploy-staging.sh scripts/autodeploy-poll.sh
 node -e "require('./ecosystem.config.js')"                # valid PM2
 curl --connect-timeout 10 --max-time 30 -s -o /dev/null -w '%{http_code}' \
-  https://tm.iznogoudatall.xyz/api/health                 # 401 (prod guard active)
+  https://tm.iznogoudatall.xyz/api/health                 # 200 (public, DESIGN §4.4)
+curl --connect-timeout 10 --max-time 30 -s -o /dev/null -w '%{http_code}' \
+  https://tm.iznogoudatall.xyz/api/version                # 401 (prod guard active)
 ```
 
 **Operator steps** (not committed): apply Caddy blocks → `caddy reload`; create

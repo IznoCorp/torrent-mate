@@ -377,8 +377,9 @@ frontend/src/api/schema.d.ts`.
 ## 11. Acceptance criteria (sketch — final ACC as executable commands per convention)
 
 - `personalscraper web` boots; `curl --connect-timeout 10 --max-time 30 -s -o /dev/null
--w '%{http_code}' http://127.0.0.1:8710/api/health` → `401` unauthenticated; `200`
-  with a valid session cookie.
+-w '%{http_code}' http://127.0.0.1:8710/api/health` → `200` (public, unauthenticated —
+  DESIGN §4.4 exempts health from the auth guard); guarded routes (e.g.
+  `/api/version`) → `401` unauthenticated, `200` with a valid session cookie.
 - Login via curl returns `Set-Cookie: tm_session=…; HttpOnly; …SameSite=Strict`.
 - A published test event (XADD) is received on an authenticated `/ws/events` connection;
   reconnecting with `last_id` replays it.
