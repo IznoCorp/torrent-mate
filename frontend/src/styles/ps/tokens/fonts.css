@@ -1,0 +1,19 @@
+/* Webfonts — Geist + Geist Mono, vendored (woff2 variable) for offline /
+   self-hosted (NAS PWA) deploys. Replaces the Google Fonts @import so the app
+   needs no network fetch at runtime. Each upright variable file carries the
+   full weight axis, so two files cover every weight the DS uses.
+   Source: `geist` npm package v1.7.2 (Vercel, SIL OFL 1.1). */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../../assets/fonts/Geist-Variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../../../assets/fonts/GeistMono-Variable.woff2') format('woff2');
+}

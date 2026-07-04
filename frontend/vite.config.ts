@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -10,7 +11,7 @@ import { defineConfig } from 'vitest/config'
 // backend (default 127.0.0.1:8710, see DESIGN §4.3) so the SPA can run under
 // Vite (`npm run dev`) while talking to the real FastAPI process.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
