@@ -251,3 +251,87 @@ def test_grab_dry_run_respects_limit(tmp_path: Path, monkeypatch) -> None:
     assert len(item_lines) == 1, f"Expected 1 item with --limit 1; got {len(item_lines)}:\n{result.output}"
     assert "tvdb_id=111" in result.output or "111" in item_lines[0]
     test_store.close()
+
+
+# ── RedisEventPublisher wiring (F3 / F12 / F29 — tm-shell dispatch C) ──────
+
+
+def test_grab_dry_run_wires_publisher_and_closes(tmp_path: Path, monkeypatch) -> None:
+    """``build_redis_publisher`` is called and its result is closed after grab --dry-run."""
+    from unittest.mock import patch
+
+    from personalscraper.acquire.context import AcquireContext
+    from personalscraper.core.app_context import AppContext
+    from personalscraper.core.event_bus import EventBus
+
+    event_bus = EventBus()
+    mock_acquire = AcquireContext(
+        tracker_registry=MagicMock(),
+        store=None,
+        grab=None,
+    )
+    app_ctx = AppContext(
+        config=MagicMock(),
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=MagicMock(),
+        acquire=mock_acquire,
+    )
+    mock_publisher = MagicMock()
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    with patch(
+        "personalscraper.commands.grab.build_redis_publisher",
+        return_value=mock_publisher,
+    ) as mock_build:
+        result = runner.invoke(app, ["grab", "--dry-run"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_build.assert_called_once()
+    # The event_bus argument must be the same instance we wired.
+    assert mock_build.call_args[0][0] is app_ctx.event_bus
+    mock_publisher.close.assert_called_once()
+
+
+def test_grab_dry_run_no_close_when_publisher_is_none(tmp_path: Path, monkeypatch) -> None:
+    """When ``build_redis_publisher`` returns None, no .close() is attempted."""
+    from unittest.mock import patch
+
+    from personalscraper.acquire.context import AcquireContext
+    from personalscraper.core.app_context import AppContext
+    from personalscraper.core.event_bus import EventBus
+
+    event_bus = EventBus()
+    mock_acquire = AcquireContext(
+        tracker_registry=MagicMock(),
+        store=None,
+        grab=None,
+    )
+    app_ctx = AppContext(
+        config=MagicMock(),
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=MagicMock(),
+        acquire=mock_acquire,
+    )
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    with patch(
+        "personalscraper.commands.grab.build_redis_publisher",
+        return_value=None,
+    ) as mock_build:
+        result = runner.invoke(app, ["grab", "--dry-run"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_build.assert_called_once()
+    # No .close() on a None return — the guard must prevent it.
