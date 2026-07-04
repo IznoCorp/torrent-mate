@@ -97,6 +97,49 @@ seam`, then `feat(tm-shell): add login page with form validation`) rather than
 **Verification**: `npx tsc --noEmit && npm run lint`; mobile → bottom tabs,
 desktop → sidebar; all slots navigate without errors.
 
+**As-built notes (5.2)**:
+
+- **No auth guard** (deferred to 5.3, per scope bound): the layout route mounts
+  **without** `ProtectedRoute`/`AuthProvider`. `/login` stays public and the shell
+  is reachable at `/`. 5.3 wraps the layout route in the guard.
+- Shipped as **two commits**, layout before router (router imports `AppShell`, so
+  the layout must land first for each intermediate commit to build):
+  `feat(tm-shell): add mobile-first app shell layout`, then
+  `feat(tm-shell): add router with S2-S7 placeholder slots`.
+- **Extra files beyond the plan's Files table** (implied by the Work items):
+  `pages/Dashboard.tsx` (index placeholder — real dashboard is phase 6),
+  `pages/ComingSoon.tsx` (shared « À venir » stub, `title` + `wave` props),
+  `pages/NotFound.tsx` (French 404, outside the shell), and
+  `components/layout/nav.ts` — a single source of nav truth (`NAV_ITEMS` +
+  `BOTTOM_TAB_ITEMS`) shared by `Sidebar` and `BottomTabBar`.
+- **`router.tsx`** exports the `routes` (`RouteObject[]`) table alongside the
+  `createBrowserRouter` `router`, so tests build a `createMemoryRouter` over the
+  exact same table.
+- **Wave-tag mapping** for the `ComingSoon` slots: `/pipeline`→S2,
+  `/maintenance`→S3, `/config`→S4, `/scraping`→S5, `/registry`→S6,
+  `/acquisition`→S7.
+- **`main.tsx` unchanged**: it already renders `<App />` in `StrictMode`; all
+  provider wiring (`QueryClientProvider` > `RouterProvider`, client from
+  `api/client`) lives in `App.tsx` (the plan listed `main.tsx` as _Modify_, but no
+  edit was needed).
+- **TopBar `StatusDot`**: WS transport arrives in phase 6, so 5.2 shows a neutral
+  `status="idle"` / label « Hors ligne » placeholder. The tooltip lives on a
+  wrapping `<span title=…>` — the DS-adherence lint whitelist rejects a `title`
+  prop passed directly to `<StatusDot>`.
+- **`UserMenu`**: shadcn `DropdownMenu` + `Avatar` (static « — » fallback until
+  5.3 provides the username initial); « Se déconnecter » →
+  `useLogout().mutate()` + `window.location.assign('/login')` (5.3 refines to a
+  router-aware redirect).
+- **`Sidebar` collapse** persists to `localStorage` (`tm-sidebar-collapsed`) via a
+  typed hook; read/write failures fall back to in-memory state.
+- **Active-state** styling uses NavLink's default `aria-current="page"` (asserted
+  in tests) with DS amber `text-primary`; inactive = `text-muted-foreground`.
+- **Tests** (`router.test.tsx`, `createMemoryRouter` over exported `routes`):
+  shell + Dashboard at `/`, `ComingSoon` + wave tag `S2` at `/pipeline`,
+  bottom-tab active state via `aria-current`, and the French 404 on an unknown
+  path. `App.test.tsx` updated (old « interface en construction » assertion
+  replaced). RTL `cleanup()` in `afterEach` (vitest `globals: false`).
+
 ### 5.3 — Auth guard wiring (ProtectedRoute, AuthProvider)
 
 **Commit**: `feat(tm-shell): wire auth guard and login redirect flow`
