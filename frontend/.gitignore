@@ -10,6 +10,11 @@ pnpm-debug.log*
 # and dist/ stay excluded as directories, so this negation never leaks into them.
 !*.ts
 
+# The repo-root .gitignore also ignores `*.png` (binary media for the Python
+# engine). The committed PWA shell icons under public/ are source assets the
+# manifest + service-worker precache depend on — re-include them.
+!public/*.png
+
 # Dependencies
 node_modules/
 

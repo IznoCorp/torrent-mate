@@ -7,8 +7,10 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="color-scheme" content="dark light" />
-    <!-- Dark-first placeholder; final DS branding + manifest land in 4.2 / phase 6. -->
-    <meta name="theme-color" content="#141210" />
+    <!-- DS near-black --background (oklch(0.165 0.004 286) → #0e0e10). The PWA
+         manifest <link> is injected by vite-plugin-pwa at build time. -->
+    <meta name="theme-color" content="#0e0e10" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>TorrentMate</title>
   </head>
   <body>
