@@ -23,8 +23,12 @@ type Severity = "danger" | "warning" | "neutral";
 /**
  * How each severity renders across the two DS primitives used by a row.
  *
- * ``dot`` drives the {@link StatusDot} colour (danger→red, warning→amber,
- * neutral→info blue); ``level`` drives the {@link LogLine} level colour + code.
+ * ``dot`` drives the {@link StatusDot} colour; ``level`` drives the
+ * {@link LogLine} level colour + code. A feed row is a *completed, historical*
+ * event, so ``neutral`` (the vast majority) maps to the static ``idle`` dot
+ * rather than the lifecycle ``queued`` — which reads as "pending" and is wrong
+ * for a settled event (audit B9). Only ``warning`` keeps the animated ``running``
+ * dot, the single amber variant the DS offers, so a warning still draws the eye.
  */
 const SEVERITY_DISPLAY: Record<
   Severity,
@@ -32,7 +36,7 @@ const SEVERITY_DISPLAY: Record<
 > = {
   danger: { dot: "error", level: "error" },
   warning: { dot: "running", level: "warn" },
-  neutral: { dot: "queued", level: "info" },
+  neutral: { dot: "idle", level: "info" },
 };
 
 /**

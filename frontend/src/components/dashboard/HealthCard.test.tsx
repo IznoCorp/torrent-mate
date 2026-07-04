@@ -74,4 +74,17 @@ describe("HealthCard", () => {
       await screen.findByText("Service dégradé — état de santé indisponible."),
     ).toBeInTheDocument();
   });
+
+  it("affiche un état neutral « vérification » sans bannière pendant la première sonde", () => {
+    // A never-resolving fetch keeps the query pending (no data, no error).
+    fetchMock.mockReturnValue(new Promise<Response>(() => undefined));
+    renderCard();
+
+    // No red alert while the first probe is in flight…
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // …and the neutral "checking" labels are shown instead of "hors ligne".
+    expect(screen.getByText("Redis — vérification…")).toBeInTheDocument();
+    expect(screen.getByText("Base — vérification…")).toBeInTheDocument();
+    expect(screen.queryByText("Redis hors ligne")).not.toBeInTheDocument();
+  });
 });
