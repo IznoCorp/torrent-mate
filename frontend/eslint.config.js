@@ -12,7 +12,7 @@ import tseslint from "typescript-eslint";
 // sub-phase 4.2.
 export default tseslint.config(
   {
-    ignores: ["dist", "node_modules", "coverage"],
+    ignores: ["dist", "node_modules", "coverage", "src/api/schema.d.ts"],
   },
   {
     files: ["**/*.{ts,tsx}"],
