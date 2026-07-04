@@ -18,14 +18,40 @@
 | ------ | ----------------------------- |
 | Create | `frontend/package.json`       |
 | Create | `frontend/tsconfig.json`      |
+| Create | `frontend/tsconfig.app.json`  |
 | Create | `frontend/tsconfig.node.json` |
 | Create | `frontend/vite.config.ts`     |
 | Create | `frontend/eslint.config.js`   |
 | Create | `frontend/index.html`         |
 | Create | `frontend/src/main.tsx`       |
 | Create | `frontend/src/App.tsx`        |
+| Create | `frontend/src/index.css`      |
 | Create | `frontend/src/vite-env.d.ts`  |
+| Create | `frontend/src/test/setup.ts`  |
+| Create | `frontend/src/App.test.tsx`   |
+| Create | `frontend/package-lock.json`  |
 | Create | `frontend/.gitignore`         |
+
+> **Delivered nuances (2026-07-04, actual scaffold)**
+>
+> - Split `tsconfig` follows the current Vite convention: root `tsconfig.json` is a
+>   solution file referencing `tsconfig.app.json` (src, strict) + `tsconfig.node.json`
+>   (`vite.config.ts`). Because the solution config carries `references` (not `include`),
+>   `typecheck` uses **`tsc -b --noEmit`** (build mode follows references); bare
+>   `tsc --noEmit` on a solution config type-checks nothing.
+> - `baseUrl` is **omitted** (TypeScript 6 deprecates it, TS5101); `paths` `@/*` resolves
+>   relative to `tsconfig.app.json`.
+> - `lint:ds` script is **deferred to 4.2** (it wires the DS-adherence oxlint config from
+>   the design-system zip, which does not exist until 4.2). 4.1 ships `lint`/`typecheck`/
+>   `test`/`dev`/`build`/`preview` only.
+> - Extra required deps beyond the phase draft's list (all standard, non-optional):
+>   `@types/react`, `@types/react-dom`, `@types/node`, and `@testing-library/dom` (a
+>   required peer of `@testing-library/react` v16). A minimal `src/index.css`,
+>   `src/test/setup.ts` (jest-dom matcher registration) and a `src/App.test.tsx` vitest
+>   smoke test are added so `npm run test` is meaningful. `package-lock.json` is committed
+>   (`npm ci` in later CI/deploy needs it).
+> - Pinned to the registry `latest` majors on the dev box: Vite 8, React 19, TypeScript 6,
+>   ESLint 10, typescript-eslint 8, Zod 4, Vitest 4 (all peer-compatible).
 
 **Work**:
 
@@ -43,7 +69,9 @@
    `@testing-library/jest-dom` as dev deps. Scripts: `dev`, `build`, `lint`,
    `lint:ds`, `test`, `typecheck`.
 
-**Verification**: `cd frontend && npm ci && npx tsc --noEmit` → exit 0.
+**Verification**: `cd frontend && npm ci && npm run typecheck` (i.e. `tsc -b --noEmit`)
+→ exit 0; `npm run lint` → 0 errors; `npm run test -- --run` → pass; `npm run build`
+→ `dist/` produced.
 
 ### 4.2 — shadcn/ui + Design System tokens + oxlint
 

@@ -1,0 +1,31 @@
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# The repo-root .gitignore ignores `*.ts` (for the Python engine repo). TorrentMateUI
+# is a TypeScript project, so re-include `.ts` sources under frontend/. node_modules/
+# and dist/ stay excluded as directories, so this negation never leaks into them.
+!*.ts
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Test coverage
+coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Local / editor
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
