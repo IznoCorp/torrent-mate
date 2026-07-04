@@ -3,14 +3,8 @@ import { LoaderCircle } from "lucide-react";
 import type { ReactElement } from "react";
 import { z } from "zod";
 
-// shadcn primitives are imported under aliases: the ported DS-adherence lint
-// (eslint.config.js `no-restricted-syntax`) restricts the prop shape of any JSX
-// element literally named `Input`/`Button` to the *design-system* primitives'
-// minimal API. This project uses shadcn's richer, same-named components (they
-// already restyle to DS tokens), so aliasing the JSX element name keeps the
-// token/hex/px guards active while letting the standard HTML props through.
-import { Button as SubmitButton } from "@/components/ui/button";
-import { Input as TextField } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLogin } from "@/hooks/useAuth";
 
@@ -104,7 +98,7 @@ export function LoginForm(): ReactElement {
           return (
             <div className="flex flex-col gap-2">
               <Label htmlFor={field.name}>Nom d’utilisateur</Label>
-              <TextField
+              <Input
                 id={field.name}
                 name={field.name}
                 type="text"
@@ -134,7 +128,7 @@ export function LoginForm(): ReactElement {
           return (
             <div className="flex flex-col gap-2">
               <Label htmlFor={field.name}>Mot de passe</Label>
-              <TextField
+              <Input
                 id={field.name}
                 name={field.name}
                 type="password"
@@ -163,7 +157,7 @@ export function LoginForm(): ReactElement {
         </p>
       )}
 
-      <SubmitButton
+      <Button
         type="submit"
         disabled={loginMutation.isPending}
         className="mt-2 w-full"
@@ -172,7 +166,7 @@ export function LoginForm(): ReactElement {
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
         )}
         {loginMutation.isPending ? "Connexion…" : "Se connecter"}
-      </SubmitButton>
+      </Button>
     </form>
   );
 }

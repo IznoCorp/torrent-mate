@@ -50,14 +50,14 @@ seam`, then `feat(tm-shell): add login page with form validation`) rather than
   handlers + an injectable `setUnauthorizedHandler(fn)` and a
   `SKIP_AUTH_REDIRECT` mutation-`meta` flag (login opts out). 5.3 calls
   `setUnauthorizedHandler` to make the redirect router-aware.
-- **DS-adherence lint gotcha (applies to 5.2/5.3 too)**: the ported
-  `no-restricted-syntax` rules in `eslint.config.js` restrict the prop shape of
-  any JSX element literally named `Input`/`Button`/`Card`/`Switch`… to the
-  _design-system_ primitives' minimal API. shadcn's same-named components need
-  standard HTML props, so import them under an **alias**
-  (`import { Input as TextField }`, `import { Button as SubmitButton }`) to keep
-  the token/hex/px guards active while passing standard props. `Card`/`Label` and
-  the `Card*` sub-parts are fine unaliased (`className` is allowed / unlisted).
+- **DS-adherence lint resolution (resolved 2026-07-04)**: the `no-restricted-syntax`
+  prop-whitelist selectors for `Input`/`Button`/`Card`/`Switch` in
+  `eslint.config.js` were removed (commit below). This project ships shadcn/ui
+  components of the same names (DESIGN-mandated — stock shadcn inherits the theme
+  per DS INTEGRATION.md), so the design-system primitive whitelists only produced
+  false positives. Aliasing workarounds (`TextField`, `SubmitButton`) are no
+  longer needed. The token/hex/px/font-family guards and selectors for the app's
+  own DS primitives (StatusDot, LogLine, StatPanel, …) remain active.
 - **Pending spinner**: `lucide-react`'s `LoaderCircle` with
   `className="size-4 animate-spin"` (token-safe; no raw px), not a ported DS
   `Spinner`.

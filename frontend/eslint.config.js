@@ -58,7 +58,12 @@ export default tseslint.config(
     },
   },
 
-  // DS adherence — ported from the design-system _adherence config (oxlint lacks esquery)
+  // DS adherence — ported from the design-system _adherence config (oxlint lacks esquery).
+  // Input, Button, Card, Switch prop-whitelist selectors removed: this project
+  // ships shadcn/ui components of the same names (DESIGN-mandated — stock shadcn
+  // inherits the theme via DS INTEGRATION.md), so the design-system primitive
+  // whitelists only produce false positives. Only the app's own DS primitives
+  // (StatusDot, LogLine, StatPanel, etc.) are enforced here.
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
@@ -67,8 +72,7 @@ export default tseslint.config(
         // Global token guards
         {
           selector: "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
-          message:
-            "Raw hex color — use a design-system color token via var().",
+          message: "Raw hex color — use a design-system color token via var().",
         },
         {
           // Negative lookbehind for '[' avoids false-positives on Tailwind
@@ -79,7 +83,7 @@ export default tseslint.config(
         },
         {
           selector:
-            "Literal[value=/font-family\\s*:\\s*(?!['\"\\\\\"]?(?:Geist|Geist Mono))/i]",
+            'Literal[value=/font-family\\s*:\\s*(?![\'"\\\\"]?(?:Geist|Geist Mono))/i]',
           message:
             "Font not provided by the design system. Available: Geist, Geist Mono.",
         },
@@ -106,36 +110,12 @@ export default tseslint.config(
             "<Badge> doesn't accept that prop. Declared props: tone, mono, dot, className, children.",
         },
 
-        // <Button>
-        {
-          selector:
-            "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|icon|as|className|children|key|ref|className|style|children)$/]",
-          message:
-            "<Button> doesn't accept that prop. Declared props: variant, size, icon, as, className, children.",
-        },
-
-        // <Card>
-        {
-          selector:
-            "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:interactive|flush|className|children|key|ref|className|style|children)$/]",
-          message:
-            "<Card> doesn't accept that prop. Declared props: interactive, flush, className, children.",
-        },
-
         // <DiskUsageBar>
         {
           selector:
             "JSXOpeningElement[name.name='DiskUsageBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|used|total|icon|unit|className|key|ref|className|style|children)$/]",
           message:
             "<DiskUsageBar> doesn't accept that prop. Declared props: name, used, total, icon, unit, className.",
-        },
-
-        // <Input>
-        {
-          selector:
-            "JSXOpeningElement[name.name='Input'] > JSXAttribute > JSXIdentifier[name!=/^(?:multiline|mono|invalid|className|key|ref|className|style|children)$/]",
-          message:
-            "<Input> doesn't accept that prop. Declared props: multiline, mono, invalid, className.",
         },
 
         // <LogLine>
@@ -156,8 +136,7 @@ export default tseslint.config(
         {
           selector:
             "JSXOpeningElement[name.name='MediaPoster'] > JSXAttribute[name.name='kind'] > Literal[value!=/^(?:movie|tv)$/]",
-          message:
-            "<MediaPoster> kind must be one of 'movie' | 'tv'.",
+          message: "<MediaPoster> kind must be one of 'movie' | 'tv'.",
         },
 
         // <PipelineStep>
@@ -184,8 +163,7 @@ export default tseslint.config(
         {
           selector:
             "JSXOpeningElement[name.name='Progress'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
-          message:
-            "<Progress> size must be one of 'sm' | 'md' | 'lg'.",
+          message: "<Progress> size must be one of 'sm' | 'md' | 'lg'.",
         },
 
         // <RatioGauge>
@@ -226,20 +204,6 @@ export default tseslint.config(
             "<StatusDot> doesn't accept that prop. Declared props: status, label, showLabel, className.",
         },
 
-        // <Switch>
-        {
-          selector:
-            "JSXOpeningElement[name.name='Switch'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|className|key|ref|className|style|children)$/]",
-          message:
-            "<Switch> doesn't accept that prop. Declared props: tone, className.",
-        },
-        {
-          selector:
-            "JSXOpeningElement[name.name='Switch'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:primary|success)$/]",
-          message:
-            "<Switch> tone must be one of 'primary' | 'success'.",
-        },
-
         // <TemperatureBadge>
         {
           selector:
@@ -258,8 +222,7 @@ export default tseslint.config(
         {
           selector:
             "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute[name.name='side'] > Literal[value!=/^(?:top|bottom)$/]",
-          message:
-            "<Tooltip> side must be one of 'top' | 'bottom'.",
+          message: "<Tooltip> side must be one of 'top' | 'bottom'.",
         },
       ],
     },
