@@ -36,6 +36,37 @@ log = get_logger(__name__)
 _SENTINEL = object()
 
 
+def build_redis_publisher(
+    event_bus: EventBus,
+    web_config: "WebConfig",
+) -> "RedisEventPublisher | None":
+    """Construct a :class:`RedisEventPublisher` when ``web.enabled``, else ``None``.
+
+    The ``web.enabled`` gate is checked here so every caller (pipeline, watch
+    daemon, acquisition commands) uses the same guarded pattern.  When
+    ``web.enabled`` is ``False`` or construction raises, ``None`` is returned
+    and a warning is logged — Redis down must never block the caller's boot
+    sequence (fail-soft contract, same as Telegram).
+
+    Args:
+        event_bus: The in-process :class:`EventBus` to subscribe to.
+        web_config: Web server configuration carrying the ``enabled`` flag and
+            Redis connection parameters (``redis_url``, ``stream_key``,
+            ``stream_maxlen``).
+
+    Returns:
+        A new :class:`RedisEventPublisher` already subscribed and draining, or
+        ``None`` when ``web.enabled`` is ``False`` or construction failed.
+    """
+    if not web_config.enabled:
+        return None
+    try:
+        return RedisEventPublisher(event_bus, web_config)
+    except Exception:
+        log.warning("redis_publisher_init_failed", exc_info=True)
+        return None
+
+
 class RedisEventPublisher:
     """Publishes every bus event to a Redis Stream for cross-process consumers.
 

@@ -22,6 +22,7 @@ from personalscraper.cli_helpers import (
 )
 from personalscraper.cli_state import state
 from personalscraper.logger import get_logger
+from personalscraper.subscribers.redis_stream import build_redis_publisher
 
 if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
@@ -52,28 +53,33 @@ def grab(
     settings = cli_compat.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=not dry_run) as app_context:
-        acquire = app_context.acquire
-        if acquire is None:
-            console.print("[red]AcquireContext not available.[/red]")
-            raise typer.Exit(1)
-
-        if dry_run:
-            _run_dry(acquire, console, limit=limit)
-        else:
-            grab_core = acquire.grab
-            if grab_core is None:
-                console.print(
-                    "[red]No torrent client configured — cannot run grab. Check config or use --dry-run.[/red]"
-                )
+        redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+        try:
+            acquire = app_context.acquire
+            if acquire is None:
+                console.print("[red]AcquireContext not available.[/red]")
                 raise typer.Exit(1)
-            summary = grab_core.service.run(limit=limit)
-            console.print(
-                f"[green]Grab complete:[/green] "
-                f"{summary.grabbed} grabbed, "
-                f"{summary.retried} retried, "
-                f"{summary.abandoned} abandoned, "
-                f"{summary.skipped} skipped."
-            )
+
+            if dry_run:
+                _run_dry(acquire, console, limit=limit)
+            else:
+                grab_core = acquire.grab
+                if grab_core is None:
+                    console.print(
+                        "[red]No torrent client configured — cannot run grab. Check config or use --dry-run.[/red]"
+                    )
+                    raise typer.Exit(1)
+                summary = grab_core.service.run(limit=limit)
+                console.print(
+                    f"[green]Grab complete:[/green] "
+                    f"{summary.grabbed} grabbed, "
+                    f"{summary.retried} retried, "
+                    f"{summary.abandoned} abandoned, "
+                    f"{summary.skipped} skipped."
+                )
+        finally:
+            if redis_publisher is not None:
+                redis_publisher.close()
 
 
 def _run_dry(

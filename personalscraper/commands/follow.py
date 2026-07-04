@@ -40,6 +40,7 @@ from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
 from personalscraper.core.identity import MediaRef
 from personalscraper.logger import get_logger
+from personalscraper.subscribers import build_redis_publisher
 
 log = get_logger("cli.follow")
 
@@ -76,48 +77,53 @@ def follow_add(
     settings = cli_compat.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
-        acquire = app_context.acquire
-        if acquire is None or acquire.store is None:
-            console.print("[red]AcquireContext/store not available.[/red]")
-            raise typer.Exit(1)
+        redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+        try:
+            acquire = app_context.acquire
+            if acquire is None or acquire.store is None:
+                console.print("[red]AcquireContext/store not available.[/red]")
+                raise typer.Exit(1)
 
-        store = acquire.store
-        media_ref = MediaRef(tvdb_id=tvdb_id, tmdb_id=tmdb_id, imdb_id=imdb_id)
+            store = acquire.store
+            media_ref = MediaRef(tvdb_id=tvdb_id, tmdb_id=tmdb_id, imdb_id=imdb_id)
 
-        # Resolve title fail-soft — never block a follow.
-        resolved_title = resolve_series_title(
-            media_ref,
-            app_context.provider_registry,
-            fallback_title=title,
-        )
+            # Resolve title fail-soft — never block a follow.
+            resolved_title = resolve_series_title(
+                media_ref,
+                app_context.provider_registry,
+                fallback_title=title,
+            )
 
-        existing = store.follow.find_by_ref(media_ref)
-        if existing is not None and existing.active:
-            console.print(f"[yellow]Already following:[/yellow] {existing.title} (id={existing.id})")
-            return
+            existing = store.follow.find_by_ref(media_ref)
+            if existing is not None and existing.active:
+                console.print(f"[yellow]Already following:[/yellow] {existing.title} (id={existing.id})")
+                return
 
-        if existing is not None and not existing.active:
-            # Reactivate (refollow after remove).
-            assert existing.id is not None
-            store.follow.set_active(existing.id, True)
-            app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=existing.title))
-            console.print(f"[green]Refollowing:[/green] {existing.title} (id={existing.id})")
-            log.info("cli.follow.refollowed", tvdb_id=tvdb_id, title=existing.title)
-            return
+            if existing is not None and not existing.active:
+                # Reactivate (refollow after remove).
+                assert existing.id is not None
+                store.follow.set_active(existing.id, True)
+                app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=existing.title))
+                console.print(f"[green]Refollowing:[/green] {existing.title} (id={existing.id})")
+                log.info("cli.follow.refollowed", tvdb_id=tvdb_id, title=existing.title)
+                return
 
-        # New follow.
-        from personalscraper.acquire.domain import FollowedSeries  # noqa: PLC0415
+            # New follow.
+            from personalscraper.acquire.domain import FollowedSeries  # noqa: PLC0415
 
-        new_series = FollowedSeries(
-            media_ref=media_ref,
-            title=resolved_title,
-            added_at=int(time.time()),
-            active=True,
-        )
-        row_id = store.follow.add(new_series)
-        app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=resolved_title))
-        console.print(f"[green]Now following:[/green] {resolved_title} (id={row_id})")
-        log.info("cli.follow.added", tvdb_id=tvdb_id, title=resolved_title, row_id=row_id)
+            new_series = FollowedSeries(
+                media_ref=media_ref,
+                title=resolved_title,
+                added_at=int(time.time()),
+                active=True,
+            )
+            row_id = store.follow.add(new_series)
+            app_context.event_bus.emit(SeriesFollowed(media_ref=media_ref, title=resolved_title))
+            console.print(f"[green]Now following:[/green] {resolved_title} (id={row_id})")
+            log.info("cli.follow.added", tvdb_id=tvdb_id, title=resolved_title, row_id=row_id)
+        finally:
+            if redis_publisher is not None:
+                redis_publisher.close()
 
 
 @follow_app.command("list")
@@ -189,31 +195,36 @@ def follow_remove(
     settings = cli_compat.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
-        acquire = app_context.acquire
-        if acquire is None or acquire.store is None:
-            console.print("[red]AcquireContext/store not available.[/red]")
-            raise typer.Exit(1)
+        redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+        try:
+            acquire = app_context.acquire
+            if acquire is None or acquire.store is None:
+                console.print("[red]AcquireContext/store not available.[/red]")
+                raise typer.Exit(1)
 
-        store = acquire.store
+            store = acquire.store
 
-        if tvdb_id is not None:
-            series = store.follow.find_by_ref(MediaRef(tvdb_id=tvdb_id))
-        else:
-            series = store.follow.get(followed_id)  # type: ignore[arg-type]
+            if tvdb_id is not None:
+                series = store.follow.find_by_ref(MediaRef(tvdb_id=tvdb_id))
+            else:
+                series = store.follow.get(followed_id)  # type: ignore[arg-type]
 
-        if series is None:
-            console.print("[yellow]Series not found — nothing to remove.[/yellow]")
-            return
+            if series is None:
+                console.print("[yellow]Series not found — nothing to remove.[/yellow]")
+                return
 
-        if not series.active:
-            console.print(f"[yellow]Already inactive:[/yellow] {series.title} (id={series.id})")
-            return
+            if not series.active:
+                console.print(f"[yellow]Already inactive:[/yellow] {series.title} (id={series.id})")
+                return
 
-        assert series.id is not None
-        store.follow.set_active(series.id, False)
-        app_context.event_bus.emit(SeriesUnfollowed(media_ref=series.media_ref))
-        console.print(f"[green]Unfollowed:[/green] {series.title} (id={series.id})")
-        log.info("cli.follow.removed", series_id=series.id, title=series.title)
+            assert series.id is not None
+            store.follow.set_active(series.id, False)
+            app_context.event_bus.emit(SeriesUnfollowed(media_ref=series.media_ref))
+            console.print(f"[green]Unfollowed:[/green] {series.title} (id={series.id})")
+            log.info("cli.follow.removed", series_id=series.id, title=series.title)
+        finally:
+            if redis_publisher is not None:
+                redis_publisher.close()
 
 
 @follow_app.command("detect")
@@ -254,153 +265,158 @@ def follow_detect(
     settings = cli_compat.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
-        acquire = app_context.acquire
-        if acquire is None or acquire.store is None:
-            console.print("[red]AcquireContext/store not available.[/red]")
-            raise typer.Exit(1)
+        redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+        try:
+            acquire = app_context.acquire
+            if acquire is None or acquire.store is None:
+                console.print("[red]AcquireContext/store not available.[/red]")
+                raise typer.Exit(1)
 
-        store = acquire.store
-        ownership = acquire.ownership
-        bus = app_context.event_bus
-        registry = app_context.provider_registry
-        today = date.today()
-        now = int(time.time())
+            store = acquire.store
+            ownership = acquire.ownership
+            bus = app_context.event_bus
+            registry = app_context.provider_registry
+            today = date.today()
+            now = int(time.time())
 
-        active = store.follow.list_active()
-        if not active:
-            console.print("[yellow]No active followed series.[/yellow]")
-            return
-
-        # Optional filter: integer followed_id, else case-insensitive title substring.
-        if series is not None:
-            try:
-                filter_id = int(series)
-                active = [s for s in active if s.id == filter_id]
-            except ValueError:
-                active = [s for s in active if series.lower() in s.title.lower()]
+            active = store.follow.list_active()
             if not active:
-                console.print("[yellow]No matching series.[/yellow]")
+                console.print("[yellow]No active followed series.[/yellow]")
                 return
 
-        # MediaRef is a frozen dataclass → hashable; map each aired episode back
-        # to its followed series by provider-ID key.
-        by_ref = {s.media_ref: s for s in active}
+            # Optional filter: integer followed_id, else case-insensitive title substring.
+            if series is not None:
+                try:
+                    filter_id = int(series)
+                    active = [s for s in active if s.id == filter_id]
+                except ValueError:
+                    active = [s for s in active if series.lower() in s.title.lower()]
+                if not active:
+                    console.print("[yellow]No matching series.[/yellow]")
+                    return
 
-        # ONE poll over the active set — poll_aired is fail-soft per series
-        # internally, so the broad except is purely defensive.
-        try:
-            aired = poll_aired(active, registry, today=today)
-        except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
-            log.warning("cli.follow.detect.poll_failed", error=str(exc))
-            aired = []
+            # MediaRef is a frozen dataclass → hashable; map each aired episode back
+            # to its followed series by provider-ID key.
+            by_ref = {s.media_ref: s for s in active}
 
-        table = Table(title="Follow Detect", show_header=True)
-        table.add_column("Series")
-        table.add_column("Season", justify="right")
-        table.add_column("Episode", justify="right")
-        table.add_column("AirDate")
-        table.add_column("Title")
-        table.add_column("Action")
-
-        enqueued = skipped_owned = skipped_dup = 0
-
-        for ep in aired:
-            fs = by_ref.get(ep.media_ref)
-            if fs is None or fs.id is None:
-                continue
-
-            # Ownership check (fail-soft: error → treat as not-owned).
+            # ONE poll over the active set — poll_aired is fail-soft per series
+            # internally, so the broad except is purely defensive.
             try:
-                owned = ownership.owns(
-                    ep.media_ref,
-                    kind="episode",
-                    season=ep.season,
-                    episode=ep.episode,
-                )
-            except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
-                log.warning("cli.follow.detect.ownership_error", error=str(exc))
-                owned = False
+                aired = poll_aired(active, registry, today=today)
+            except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
+                log.warning("cli.follow.detect.poll_failed", error=str(exc))
+                aired = []
 
-            if owned:
-                table.add_row(
-                    fs.title,
-                    str(ep.season),
-                    str(ep.episode),
-                    str(ep.air_date),
-                    ep.title,
-                    "[yellow]skipped-owned[/yellow]",
-                )
-                skipped_owned += 1
-                continue
+            table = Table(title="Follow Detect", show_header=True)
+            table.add_column("Series")
+            table.add_column("Season", justify="right")
+            table.add_column("Episode", justify="right")
+            table.add_column("AirDate")
+            table.add_column("Title")
+            table.add_column("Action")
 
-            # Dedup against the wanted queue.
-            if (
-                store.wanted.find(
-                    followed_id=fs.id,
-                    kind="episode",
-                    season=ep.season,
-                    episode=ep.episode,
-                )
-                is not None
-            ):
-                table.add_row(
-                    fs.title,
-                    str(ep.season),
-                    str(ep.episode),
-                    str(ep.air_date),
-                    ep.title,
-                    "[dim]skipped-dup[/dim]",
-                )
-                skipped_dup += 1
-                continue
+            enqueued = skipped_owned = skipped_dup = 0
 
-            action = "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
-            table.add_row(
-                fs.title,
-                str(ep.season),
-                str(ep.episode),
-                str(ep.air_date),
-                ep.title,
-                action,
-            )
-            enqueued += 1
+            for ep in aired:
+                fs = by_ref.get(ep.media_ref)
+                if fs is None or fs.id is None:
+                    continue
 
-            if not dry_run:
-                # No ``criteria_json`` set: DESIGN §6's
-                # ``criteria_json = source_criteria(...) or None`` reduces to
-                # ``None`` at D2 since ``FollowedSeries`` has no per-series
-                # source-criteria field yet — the mapping wasn't dropped.
-                store.wanted.add(
-                    WantedItem(
-                        media_ref=ep.media_ref,
+                # Ownership check (fail-soft: error → treat as not-owned).
+                try:
+                    owned = ownership.owns(
+                        ep.media_ref,
                         kind="episode",
-                        status="pending",
-                        enqueued_at=now,
+                        season=ep.season,
+                        episode=ep.episode,
+                    )
+                except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
+                    log.warning("cli.follow.detect.ownership_error", error=str(exc))
+                    owned = False
+
+                if owned:
+                    table.add_row(
+                        fs.title,
+                        str(ep.season),
+                        str(ep.episode),
+                        str(ep.air_date),
+                        ep.title,
+                        "[yellow]skipped-owned[/yellow]",
+                    )
+                    skipped_owned += 1
+                    continue
+
+                # Dedup against the wanted queue.
+                if (
+                    store.wanted.find(
                         followed_id=fs.id,
-                        season=ep.season,
-                        episode=ep.episode,
-                    )
-                )
-                bus.emit(
-                    WantedEnqueued(
-                        media_ref=ep.media_ref,
                         kind="episode",
                         season=ep.season,
                         episode=ep.episode,
                     )
-                )
-                log.info(
-                    "cli.follow.detect.enqueued",
-                    series=fs.title,
-                    season=ep.season,
-                    episode=ep.episode,
-                )
+                    is not None
+                ):
+                    table.add_row(
+                        fs.title,
+                        str(ep.season),
+                        str(ep.episode),
+                        str(ep.air_date),
+                        ep.title,
+                        "[dim]skipped-dup[/dim]",
+                    )
+                    skipped_dup += 1
+                    continue
 
-        console.print(table)
-        console.print(
-            f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
-            + (" [dim](dry-run)[/dim]" if dry_run else "")
-        )
+                action = "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
+                table.add_row(
+                    fs.title,
+                    str(ep.season),
+                    str(ep.episode),
+                    str(ep.air_date),
+                    ep.title,
+                    action,
+                )
+                enqueued += 1
+
+                if not dry_run:
+                    # No ``criteria_json`` set: DESIGN §6's
+                    # ``criteria_json = source_criteria(...) or None`` reduces to
+                    # ``None`` at D2 since ``FollowedSeries`` has no per-series
+                    # source-criteria field yet — the mapping wasn't dropped.
+                    store.wanted.add(
+                        WantedItem(
+                            media_ref=ep.media_ref,
+                            kind="episode",
+                            status="pending",
+                            enqueued_at=now,
+                            followed_id=fs.id,
+                            season=ep.season,
+                            episode=ep.episode,
+                        )
+                    )
+                    bus.emit(
+                        WantedEnqueued(
+                            media_ref=ep.media_ref,
+                            kind="episode",
+                            season=ep.season,
+                            episode=ep.episode,
+                        )
+                    )
+                    log.info(
+                        "cli.follow.detect.enqueued",
+                        series=fs.title,
+                        season=ep.season,
+                        episode=ep.episode,
+                    )
+
+            console.print(table)
+            console.print(
+                f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
+                + (" [dim](dry-run)[/dim]" if dry_run else "")
+            )
+        finally:
+            if redis_publisher is not None:
+                redis_publisher.close()
 
 
 # Register the follow sub-group on the root Typer app (import side-effect, called by cli.py).

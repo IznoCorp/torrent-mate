@@ -34,7 +34,7 @@ from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
-from personalscraper.subscribers.redis_stream import RedisEventPublisher
+from personalscraper.subscribers.redis_stream import build_redis_publisher
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -119,12 +119,11 @@ def watch(ctx: typer.Context) -> None:
     # Redis event publisher for the watcher's own bus events (fail-soft —
     # Redis down must never block the daemon boot).  Pipeline runs spawned
     # as subprocesses wire their own publisher via pipeline.py.
-    redis_publisher: RedisEventPublisher | None = None
-    if config.web.enabled:
-        try:
-            redis_publisher = RedisEventPublisher(app_context.event_bus, config.web)
-        except Exception:
-            log.warning("redis_publisher_init_failed", exc_info=True)
+    redis_publisher = None
+    try:
+        redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+    except Exception:
+        log.warning("redis_publisher_init_failed", exc_info=True)
 
     if app_context.torrent_client is None:
         typer.echo("No active torrent client configured (config.torrent.active is empty).", err=True)

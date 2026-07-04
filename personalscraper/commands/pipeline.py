@@ -542,7 +542,7 @@ def run(
     from personalscraper.pipeline import Pipeline
     from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.debug_log import DebugLogSubscriber
-    from personalscraper.subscribers.redis_stream import RedisEventPublisher
+    from personalscraper.subscribers.redis_stream import build_redis_publisher
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
 
@@ -620,12 +620,7 @@ def run(
             debug_subscriber: DebugLogSubscriber | None = None
             # Redis event publisher (gate on web.enabled, fail-soft — Redis down
             # must never block the pipeline boot).
-            redis_publisher: RedisEventPublisher | None = None
-            if config.web.enabled:
-                try:
-                    redis_publisher = RedisEventPublisher(app_context.event_bus, config.web)
-                except Exception:
-                    _run_log.warning("redis_publisher_init_failed", exc_info=True)
+            redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
             if verbose:
                 debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:
