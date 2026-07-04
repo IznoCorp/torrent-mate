@@ -64,7 +64,21 @@ frame ignored; ring capped; missed ping → reconnect with `last_id` in URL; `44
 → no reconnect; StrictMode double-mount → single surviving socket; unmount closes
 the socket; TopBar StatusDot reflects connecting → connected → reconnecting.
 
-### 6.2 — Dashboard page (live feed, health, version)
+### 6.2 — Dashboard page (live feed, health, version) ✅
+
+**Delivered**: prop-driven `EventFeed` (TanStack Virtual, newest-at-bottom,
+scroll-aware auto-follow + resume toggle, `role="log"` empty state) and
+`RecentEventsTable` (sortable TanStack Table over the last 50 events) both fed
+from `useEventStreamContext().events` by `Dashboard`. `HealthCard` /
+`VersionCard` are `StatPanel` tiles backed by `useHealth` / `useVersion`
+(TanStack Query, 30 s poll / `staleTime` infinity); the health card raises a
+degraded banner on probe error or `redis=false`, the version card compares the
+REST `build_commit` against the live WS handshake commit (phase-7 update-toast
+seam). `EventRow` derives its `HH:MM:SS` timestamp from the Redis stream-id ms
+prefix and maps event-type name → severity across `LogLine` level + `StatusDot`.
+Vitest: `EventFeed` (render/empty/follow-pause), `RecentEventsTable` (sort),
+`HealthCard` (degraded), `Dashboard` (smoke, WS + fetch stubs) — RTL `cleanup`
+each. All gates green (typecheck / lint / lint:ds / vitest 46 / build).
 
 **Commit**: `feat(tm-shell): add dashboard with live feed, health and version cards`
 
