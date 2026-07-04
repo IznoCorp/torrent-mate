@@ -34,6 +34,7 @@ from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
+from personalscraper.subscribers.redis_stream import RedisEventPublisher
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -114,6 +115,16 @@ def watch(ctx: typer.Context) -> None:
     # Build the AppContext once for daemon lifetime — torrent client, provider
     # registry, and acquire store are shared across every poll cycle.
     app_context = _build_app_context(config, settings, build_torrent_client=True)
+
+    # Redis event publisher for the watcher's own bus events (fail-soft —
+    # Redis down must never block the daemon boot).  Pipeline runs spawned
+    # as subprocesses wire their own publisher via pipeline.py.
+    redis_publisher: RedisEventPublisher | None = None
+    if config.web.enabled:
+        try:
+            redis_publisher = RedisEventPublisher(app_context.event_bus, config.web)
+        except Exception:
+            log.warning("redis_publisher_init_failed", exc_info=True)
 
     if app_context.torrent_client is None:
         typer.echo("No active torrent client configured (config.torrent.active is empty).", err=True)
@@ -388,6 +399,8 @@ def watch(ctx: typer.Context) -> None:
     finally:
         if tracked_run is not None:
             log.info("watcher_leaving_tracked_run", pid=tracked_run.pid)
+        if redis_publisher is not None:
+            redis_publisher.close()
         app_context.provider_registry.close()
         if acquire is not None:
             acquire.close()
