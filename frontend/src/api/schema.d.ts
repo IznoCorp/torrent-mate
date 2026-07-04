@@ -159,6 +159,23 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HealthResponse
+         * @description Response model for the health-check endpoint.
+         *
+         *     Attributes:
+         *         status: Always ``"ok"`` if the handler is reachable.
+         *         redis: ``True`` if the configured Redis instance responds to PING.
+         *         db: ``True`` if ``library.db`` exists at the configured data_dir path.
+         */
+        HealthResponse: {
+            /** Db */
+            db: boolean;
+            /** Redis */
+            redis: boolean;
+            /** Status */
+            status: string;
+        };
+        /**
          * LoginRequest
          * @description Login request body.
          *
@@ -184,6 +201,20 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VersionResponse
+         * @description Response model for the version endpoint.
+         *
+         *     Attributes:
+         *         version: The Python package version string.
+         *         build_commit: The deployed git SHA, or ``"dev"``.
+         */
+        VersionResponse: {
+            /** Build Commit */
+            build_commit: string;
+            /** Version */
+            version: string;
         };
     };
     responses: never;
@@ -284,9 +315,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
         };
@@ -306,9 +335,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["VersionResponse"];
                 };
             };
         };

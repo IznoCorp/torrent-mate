@@ -7,6 +7,7 @@ except this health endpoint (DESIGN §4.4: health stays public).
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from pydantic import BaseModel
 
 from personalscraper.logger import get_logger
 
@@ -14,8 +15,22 @@ router = APIRouter(prefix="/api", tags=["health"])
 logger = get_logger(__name__)
 
 
-@router.get("/health")
-def health(request: Request) -> dict[str, object]:
+class HealthResponse(BaseModel):
+    """Response model for the health-check endpoint.
+
+    Attributes:
+        status: Always ``"ok"`` if the handler is reachable.
+        redis: ``True`` if the configured Redis instance responds to PING.
+        db: ``True`` if ``library.db`` exists at the configured data_dir path.
+    """
+
+    status: str
+    redis: bool
+    db: bool
+
+
+@router.get("/health", response_model=HealthResponse)
+def health(request: Request) -> HealthResponse:
     """Health-check endpoint — reachable, Redis, and DB presence.
 
     Both probes are **fail-soft**: they never raise and never block boot.
@@ -51,4 +66,4 @@ def health(request: Request) -> dict[str, object]:
     except Exception:
         logger.warning("db_health_check_failed", data_dir=str(config.paths.data_dir))
 
-    return {"status": "ok", "redis": redis_ok, "db": db_ok}
+    return HealthResponse(status="ok", redis=redis_ok, db=db_ok)

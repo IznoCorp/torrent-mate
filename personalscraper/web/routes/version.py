@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 import personalscraper
 
@@ -24,15 +25,27 @@ def _read_build_commit() -> str:
         return "dev"
 
 
-@router.get("/version")
-def version() -> dict[str, str]:
+class VersionResponse(BaseModel):
+    """Response model for the version endpoint.
+
+    Attributes:
+        version: The Python package version string.
+        build_commit: The deployed git SHA, or ``"dev"``.
+    """
+
+    version: str
+    build_commit: str
+
+
+@router.get("/version", response_model=VersionResponse)
+def version() -> VersionResponse:
     """Application version endpoint.
 
     Returns:
         A dict with ``version`` (the Python package version) and
         ``build_commit`` (the deployed git SHA, or ``"dev"``).
     """
-    return {
-        "version": personalscraper.__version__,
-        "build_commit": _read_build_commit(),
-    }
+    return VersionResponse(
+        version=personalscraper.__version__,
+        build_commit=_read_build_commit(),
+    )

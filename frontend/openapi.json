@@ -14,6 +14,30 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HealthResponse": {
+        "description": "Response model for the health-check endpoint.\n\nAttributes:\n    status: Always ``\"ok\"`` if the handler is reachable.\n    redis: ``True`` if the configured Redis instance responds to PING.\n    db: ``True`` if ``library.db`` exists at the configured data_dir path.",
+        "properties": {
+          "db": {
+            "title": "Db",
+            "type": "boolean"
+          },
+          "redis": {
+            "title": "Redis",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "redis",
+          "db"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "description": "Login request body.\n\nAttributes:\n    username: The username to authenticate.\n    password: The plaintext password to verify.",
         "properties": {
@@ -71,6 +95,25 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionResponse": {
+        "description": "Response model for the version endpoint.\n\nAttributes:\n    version: The Python package version string.\n    build_commit: The deployed git SHA, or ``\"dev\"``.",
+        "properties": {
+          "build_commit": {
+            "title": "Build Commit",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "build_commit"
+        ],
+        "title": "VersionResponse",
         "type": "object"
       }
     }
@@ -176,9 +219,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Health Api Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/HealthResponse"
                 }
               }
             },
@@ -200,11 +241,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Version Api Version Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/VersionResponse"
                 }
               }
             },

@@ -95,6 +95,8 @@ each. All gates green (typecheck / lint / lint:ds / vitest 46 / build).
 
 **Work**:
 
+**Post-6.2 fix (DESIGN §4.6)**: Added typed Pydantic response models (`HealthResponse`, `VersionResponse`) to health/version routes — OpenAPI schemas now narrow to `{status, redis, db}` and `{version, build_commit}` instead of loose `{[key:string]: unknown}`.
+
 1. `EventFeed.tsx` — **TanStack Virtual**: scrollable list of `LogLine`
    rows from `useEventStream().events`. Each row: time (mono), type badge
    via `StatusDot`, summary text. Auto-scroll to bottom (toggle button).
