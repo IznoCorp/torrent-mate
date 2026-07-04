@@ -19,6 +19,14 @@ import { defineConfig } from 'vitest/config'
 const dsBackground = '#0e0e10'
 
 export default defineConfig({
+  // `__BUILD_COMMIT__` is baked into the bundle so the running SPA knows which
+  // git SHA it was built from. The deploy script (phase 8) exports
+  // `TM_BUILD_COMMIT=<sha>` before `npm run build`; without it (local dev,
+  // Vitest) the value is `"dev"`, which `usePwa`/`shouldForceUpdate` read as
+  // "unstamped" and never use to force a service-worker update.
+  define: {
+    __BUILD_COMMIT__: JSON.stringify(process.env.TM_BUILD_COMMIT ?? 'dev'),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -114,5 +122,15 @@ export default defineConfig({
     css: false,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // `virtual:pwa-register/react` is a build-time virtual module with no
+    // real file on disk; under Vitest it is redirected to an inert stub so
+    // tests never pull the Workbox register glue (which needs a service-worker
+    // environment jsdom lacks). Tests that drive the flow override it via
+    // `vi.mock('virtual:pwa-register/react', …)`.
+    alias: {
+      'virtual:pwa-register/react': fileURLToPath(
+        new URL('./src/test/pwaRegisterMock.ts', import.meta.url),
+      ),
+    },
   },
 })
