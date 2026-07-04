@@ -122,15 +122,19 @@ hide_input=True, confirmation_prompt=True)`). Hashes via `auth/passwords.py`
 
 ### 2.4 — Auth tests
 
-**Commit**: `test(tm-shell): add auth flow tests`
+**Commit 1**: `test(tm-shell): add password + token unit tests`
+**Commit 2**: `test(tm-shell): add auth flow integration tests`
+**Commit 3**: `test(tm-shell): add set-password CLI tests`
 
 **Files**:
 
 | Action | Path                          |
 | ------ | ----------------------------- |
-| Create | `tests/web/test_auth.py`      |
 | Create | `tests/web/test_passwords.py` |
 | Create | `tests/web/test_tokens.py`    |
+| Create | `tests/web/test_auth.py`      |
+| Modify | `tests/web/conftest.py`       |
+| Modify | `tests/web/test_web_cli.py`   |
 
 **Work**:
 
@@ -142,6 +146,13 @@ hide_input=True, confirmation_prompt=True)`). Hashes via `auth/passwords.py`
    login 401 bad creds, logout clears cookie, `/me` with/without cookie,
    guard 401 on other routes, cookie SameSite/HttpOnly flags.
 4. Patch `load_config` for CLI test parity.
+5. `conftest.py` — add `web_app_https` fixture (`base_url="https://testserver"`)
+   for cookie-replay tests where the session cookie has `Secure`.
+6. **Plan extension** — add set-password CLI tests to `test_web_cli.py`:
+   piped-stdin invocation via `CliRunner(input=...)` (NEVER interactive);
+   printed hash verified via `verify_password`; `--write` against a
+   monkeypatched tmp `.env` via the `_ENV_PATH` module-level seam
+   (real `.env` never touched).
 
 ## Verification
 

@@ -7,6 +7,7 @@ would silently stub pipeline internals inside these tests.
 
 from __future__ import annotations
 
+import re
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,8 @@ from typer.testing import CliRunner
 # ``add_typer`` (matching the trailers/library sub-app test convention).
 from personalscraper.cli import app as cli_app
 from personalscraper.conf.models.web import WebConfig
+from personalscraper.config import Settings
+from personalscraper.web.auth.passwords import verify_password
 
 # Patch targets for the eager config load in the CLI callback.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
@@ -107,3 +110,80 @@ class TestWebHappyPath:
         call_kwargs = mock_run.call_args.kwargs
         assert call_kwargs["host"] == web_cfg.host
         assert call_kwargs["port"] == web_cfg.port
+
+
+class TestSetPassword:
+    """``personalscraper web set-password`` — hash generation and .env writing."""
+
+    def test_piped_stdin_prints_hash(self, cli_runner: CliRunner, test_config) -> None:
+        """Piped stdin → prints WEB_PASSWORD_HASH=scrypt$... and WEB_JWT_SECRET=..."""
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.web.get_settings",
+                return_value=Settings(_env_file=None),  # type: ignore[call-arg]
+            ),
+        ):
+            result = cli_runner.invoke(
+                cli_app,
+                ["web", "set-password"],
+                input="testuser\ntest-password\ntest-password\n",
+            )
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        assert "WEB_PASSWORD_HASH=scrypt$" in result.output
+        # WEB_JWT_SECRET is generated because the stubbed settings has an empty one.
+        assert "WEB_JWT_SECRET=" in result.output
+
+    def test_printed_hash_verifies(self, cli_runner: CliRunner, test_config) -> None:
+        """The printed scrypt hash verifies against the entered password."""
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.web.get_settings",
+                return_value=Settings(_env_file=None),  # type: ignore[call-arg]
+            ),
+        ):
+            result = cli_runner.invoke(
+                cli_app,
+                ["web", "set-password"],
+                input="testuser\nmy-secret-pw\nmy-secret-pw\n",
+            )
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        match = re.search(r"WEB_PASSWORD_HASH=(scrypt\$[^\s]+)", result.output)
+        assert match is not None, f"No WEB_PASSWORD_HASH line found in: {result.output}"
+        hash_value = match.group(1)
+        assert verify_password("my-secret-pw", hash_value) is True
+
+    def test_write_flag_upserts_keys_into_tmp_env(self, cli_runner: CliRunner, test_config, tmp_path) -> None:
+        """--write against a tmp .env (monkeypatched seam) upserts the keys."""
+        tmp_env = tmp_path / ".env"
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.web.get_settings",
+                return_value=Settings(_env_file=None),  # type: ignore[call-arg]
+            ),
+            patch("personalscraper.commands.web._ENV_PATH", tmp_env),
+        ):
+            result = cli_runner.invoke(
+                cli_app,
+                ["web", "set-password", "--write"],
+                input="testuser\ntest-password\ntest-password\ny\n",
+            )
+
+        assert result.exit_code == 0, f"stderr: {result.stderr}"
+        assert "Updated" in result.output
+        assert tmp_env.exists(), f"Expected {tmp_env} to be created by --write"
+        content = tmp_env.read_text()
+        assert "WEB_PASSWORD_HASH=scrypt$" in content
+        assert "WEB_JWT_SECRET=" in content
+        # The written hash should verify against the entered password.
+        match = re.search(r"WEB_PASSWORD_HASH=(scrypt\$[^\s]+)", content)
+        assert match is not None, f"No WEB_PASSWORD_HASH line found in: {content}"
+        assert verify_password("test-password", match.group(1)) is True
