@@ -1,23 +1,37 @@
 import type { ReactElement } from "react";
 
+import { EventFeed } from "@/components/dashboard/EventFeed";
+import { HealthCard } from "@/components/dashboard/HealthCard";
+import { RecentEventsTable } from "@/components/dashboard/RecentEventsTable";
+import { VersionCard } from "@/components/dashboard/VersionCard";
+import { useEventStreamContext } from "@/components/EventStreamProvider";
+
 /**
- * Dashboard — the authenticated home page (`/`).
+ * Dashboard — the authenticated home page (`/`), the real-time supervision view.
  *
- * Sub-phase 5.2 ships a placeholder that proves the shell mounts a route at the
- * index path. The real dashboard — live event feed (TanStack Virtual), recent-
- * events table, and health/version cards wired to the WebSocket relay — lands in
- * phase 6.
+ * Reads the app's single live-event stream (via {@link useEventStreamContext})
+ * and lays out, mobile-first: health + version cards on top (two columns ≥ md,
+ * stacked below), the virtualized live feed as the main area, and a sortable
+ * recent-events table underneath. Every panel proves one S1 foundation —
+ * TanStack Virtual (feed), TanStack Table (recent events), TanStack Query
+ * (health/version cards) — over the same WebSocket the TopBar's StatusDot reads.
  *
- * @returns The dashboard placeholder element.
+ * @returns The dashboard element.
  */
 export default function Dashboard(): ReactElement {
+  const { events } = useEventStreamContext();
+
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-2">
+    <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Tableau de bord</h1>
-      <p className="text-sm text-muted-foreground">
-        Le tableau de bord temps réel — flux d’événements, cartes santé et
-        version — arrive à la phase 6.
-      </p>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <HealthCard />
+        <VersionCard />
+      </div>
+
+      <EventFeed events={events} />
+      <RecentEventsTable events={events} />
     </section>
   );
 }
