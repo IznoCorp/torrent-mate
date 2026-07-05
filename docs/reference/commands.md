@@ -1641,6 +1641,67 @@ that `mutate FS` + `mutate BDD` + `network`
 
 ---
 
+## Web UI — daemon (PM2)
+
+> The TorrentMate web UI daemon runs under PM2 via `ecosystem.config.js` (apps
+> `torrentmate-web` / `torrentmate-web-staging`). Full architecture, auth, WS
+> protocol, and deploy runbook: [web-ui.md](web-ui.md).
+
+## `personalscraper web`
+
+**Purpose**: Boots the TorrentMate web UI daemon — a FastAPI app serving the
+built SPA plus the REST API (`/api/health`, `/api/version`, `/api/auth/*`) and
+the `/ws/events` WebSocket event relay. `personalscraper web` (bare) starts the
+daemon via the group callback; nested admin commands hang off the same group.
+Runs until SIGTERM/SIGINT.
+
+**Side effects**: `network` (binds a TCP port; reads Redis for the event relay)
+
+**Pipeline position**: n/a (daemon — runs independently, observes pipeline events)
+
+**Args**:
+
+- `--host TEXT` : Override `config.web.host` (bind address). Defaults to `config.web.host`.
+- `--port INTEGER` : Override `config.web.port` (e.g. `8711` for the staging clone). Defaults to `config.web.port`.
+
+**Configuration** (in `config/web.json5`): `web.enabled`, `web.host`, `web.port`
+(default 8710), `web.username`, `web.redis_url`, `web.stream_key`,
+`web.stream_maxlen`, `web.session_ttl_hours`, `web.cookie_secure`, `web.dev_mode`.
+Secrets come from the environment: `WEB_PASSWORD_HASH`, `WEB_JWT_SECRET`.
+
+**Examples**:
+
+    personalscraper web
+    personalscraper web --port 8711
+
+**Related**: `web set-password`, `watch`
+
+---
+
+## `personalscraper web set-password`
+
+**Purpose**: Generates the web-UI auth secrets — a scrypt `WEB_PASSWORD_HASH`
+(prompts for the password, never echoing it) and, when absent, a `WEB_JWT_SECRET`.
+Prints the keys for manual copy into `.env`, or writes them atomically with
+`--write` (after confirmation).
+
+**Side effects**: `mutate FS` (only with `--write` — upserts keys into repo-root `.env`)
+
+**Pipeline position**: n/a (admin command)
+
+**Args**:
+
+- `--write` : Atomically write the generated keys into the repo-root `.env` (after confirmation). Without it, the `.env` file is never touched.
+
+**Examples**:
+
+    personalscraper web set-password
+    personalscraper web set-password --write
+
+**Related**: `web`
+
+---
+
 ## `personalscraper watch-now`
 
 **Purpose**: Triggers an immediate pipeline run by writing a sentinel file
@@ -1690,6 +1751,7 @@ Sub-commands:
 
     personalscraper follow add --tvdb 275274        # Rick and Morty
     personalscraper follow list
+    personalscraper follow remove --id 12            # soft-unfollow (history kept)
     personalscraper follow detect --dry-run          # preview wanted episodes
     personalscraper follow detect                    # enqueue them
 
@@ -1722,3 +1784,57 @@ qBittorrent adds).
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-follow-detect`
 > runs `follow detect` daily at 03:00; `personalscraper-grab` runs `grab` at
 > 03:20 and 15:20 (the second pass retries items past their backoff cooldown).
+
+---
+
+## `personalscraper seed`
+
+**Purpose**: Manually tag torrents already in the client as **seed-pure**
+(`seed-pure`) so the watcher runs a cross-seed for them instead of ingesting them
+into the pipeline (O1). Sub-commands:
+
+- `seed mark` — apply the `seed-pure` tag to a torrent (by info hash).
+- `seed unmark` — remove the `seed-pure` tag from a torrent.
+- `seed list` — list all completed torrents currently tagged `seed-pure`.
+
+**Side effects**: `network` (torrent client), `mutate` (client tags) — `seed list`
+is read-only.
+
+**Args**: `seed mark` / `seed unmark` take a positional `INFO_HASH` (lowercase-hex).
+
+**Examples**:
+
+    personalscraper seed mark a1b2c3d4e5f6...      # tag as seed-pure
+    personalscraper seed list                       # inspect tagged torrents
+    personalscraper seed unmark a1b2c3d4e5f6...    # untag
+
+**Related**: `watch`, `cross-seed`
+
+---
+
+## `personalscraper health-check`
+
+**Purpose**: Proactive local health monitor (runs under PM2 on a cron cadence).
+Checks the things the pipeline's own Telegram/healthcheck alerting does NOT cover
+and sends a single Telegram alert when something is wrong:
+
+1. **Daemon liveness** — `personalscraper-watch` must be PM2 `online` with a real
+   OS pid (a pyenv-shim / crash-loop leaves it `online` with `pid=None`, #216).
+2. **Recent log errors** — `logs/personalscraper.json` scanned for `level=error`
+   within the lookback window (minus known-benign events).
+3. **Stuck pipeline** — `pipeline.lock` held longer than a run should take.
+
+**Side effects**: `network` (best-effort Telegram alert) — all checks are read-only
+and fail-soft.
+
+**Exit code**: `0` healthy, `1` when any anomaly is found (so healthchecks.io / PM2
+surface it too).
+
+**Examples**:
+
+    personalscraper health-check                    # one-shot local health sweep
+
+**Related**: `watch`
+
+> **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-health-check` runs
+> `health-check` hourly (#218).

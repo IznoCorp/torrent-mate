@@ -1,0 +1,282 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ApiError, queryClient } from "@/api/client";
+import { AuthProvider } from "@/components/AuthProvider";
+import { routes } from "@/router";
+
+/** Build a minimal ``Response``-shaped object the API client can consume. */
+function buildResponse(status: number, body: unknown): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: "",
+    json: () => Promise.resolve(body),
+  } as unknown as Response;
+}
+
+/** Extract the request URL from a `fetch` first argument without stringifying. */
+function requestUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  return input instanceof URL ? input.href : input.url;
+}
+
+/**
+ * Inert WebSocket stub — the authenticated shell mounts `EventStreamProvider`,
+ * which opens a socket. jsdom's real WebSocket would attempt a live connection;
+ * this no-op keeps the routing tests hermetic (the stream's own behaviour is
+ * covered by `useEventStream.test.tsx`).
+ */
+class NoopWebSocket {
+  onopen: (() => void) | null = null;
+  onmessage: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  send(): void {
+    // No-op: the routing tests never drive the socket.
+  }
+  close(): void {
+    // No-op: nothing to tear down for the inert stub.
+  }
+}
+
+const fetchMock = vi.fn<typeof fetch>();
+
+beforeEach(() => {
+  fetchMock.mockReset();
+  // Default: an authenticated session so the guard admits the shell routes.
+  fetchMock.mockImplementation((input) => {
+    const url = requestUrl(input);
+    if (url.includes("/api/auth/me")) {
+      return Promise.resolve(buildResponse(200, { username: "izno" }));
+    }
+    return Promise.resolve(buildResponse(200, {}));
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("WebSocket", NoopWebSocket);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  // The B4/B5 tests exercise the app singleton `queryClient` (the only client
+  // wired with the global 401 policy); drop its state so nothing leaks forward.
+  queryClient.clear();
+});
+
+/**
+ * Render the real route table at `path` via a fresh memory router, wrapped in a
+ * retry-free Query provider and the `AuthProvider` the shell's guard reads.
+ */
+function renderAt(path: string): void {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  const router = createMemoryRouter(routes, { initialEntries: [path] });
+  render(
+    <QueryClientProvider client={client}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </QueryClientProvider>,
+  );
+}
+
+describe("router", () => {
+  it("monte le shell et le tableau de bord sur « / »", async () => {
+    renderAt("/");
+
+    // Dashboard page rendered inside the shell (once `me` resolves authed).
+    expect(
+      await screen.findByRole("heading", { name: /tableau de bord/i }),
+    ).toBeInTheDocument();
+    // Shell chrome present: the top bar's user menu and the mobile nav.
+    expect(
+      screen.getByRole("button", { name: /menu utilisateur/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: /navigation principale/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("affiche le placeholder « À venir » (vague S2) sur « /pipeline »", async () => {
+    renderAt("/pipeline");
+
+    expect(await screen.findByText(/à venir/i)).toBeInTheDocument();
+    expect(screen.getByText("S2")).toBeInTheDocument();
+  });
+
+  it("marque l’onglet actif du bottom tab bar via aria-current", async () => {
+    renderAt("/pipeline");
+
+    const bottomBar = await screen.findByRole("navigation", {
+      name: /navigation principale/i,
+    });
+    // Active tab carries aria-current="page"…
+    expect(
+      within(bottomBar).getByRole("link", { name: "Pipeline" }),
+    ).toHaveAttribute("aria-current", "page");
+    // …inactive tabs do not.
+    expect(
+      within(bottomBar).getByRole("link", { name: "Tableau de bord" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("rend la page 404 française sur une route inconnue", async () => {
+    renderAt("/route-inexistante");
+
+    expect(
+      await screen.findByRole("heading", { name: /page introuvable/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("404")).toBeInTheDocument();
+  });
+
+  it("depuis « /login » authentifié, revient à la cible « ?redirect » sûre", async () => {
+    renderAt("/login?redirect=/pipeline");
+
+    // Already authenticated → the login route redirects to the safe target.
+    expect(await screen.findByText(/à venir/i)).toBeInTheDocument();
+    expect(screen.getByText("S2")).toBeInTheDocument();
+  });
+
+  it("rejette un « ?redirect » protocol-relative et retombe sur « / »", async () => {
+    renderAt("/login?redirect=//evil.example/pwned");
+
+    // Open-redirect guard: `//evil` collapses to the app root (Dashboard).
+    expect(
+      await screen.findByRole("heading", { name: /tableau de bord/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("redirige « / » vers « /login » quand la session est absente", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(401, { detail: "unauthorized" }));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderAt("/");
+
+    // Unauthenticated → the guard sends us to the login form (unique submit CTA).
+    expect(
+      await screen.findByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: /tableau de bord/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  // --- B4 / B5: session-expiry 401 handling (app singleton `queryClient`) ----
+
+  /** Render the real routes at `path` behind the *singleton* client (401-wired). */
+  function renderAtWithSingleton(
+    path: string,
+  ): ReturnType<typeof createMemoryRouter> {
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    return router;
+  }
+
+  it("B4 — un 401 en session efface le cache `me` périmé : atterrit sur /login et y reste", async () => {
+    // `me` is valid until the first `/api/health` 401 (session expiring
+    // mid-use); afterwards `me` also 401s, exactly as a lost session behaves.
+    let sessionValid = true;
+    fetchMock.mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(
+          sessionValid
+            ? buildResponse(200, { username: "izno" })
+            : buildResponse(401, { detail: "unauthorized" }),
+        );
+      }
+      if (url.includes("/api/health")) {
+        sessionValid = false;
+        return Promise.resolve(buildResponse(401, { detail: "unauthorized" }));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderAtWithSingleton("/");
+
+    // The stale-success `me` is invalidated on the health 401 → we land on the
+    // login form and STAY there (no bounce back to the dashboard, no loop).
+    expect(
+      await screen.findByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: /tableau de bord/i }),
+      ).not.toBeInTheDocument();
+    });
+    // Settle any pending microtasks, then re-assert we did not ping-pong back.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /tableau de bord/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("B5 — un 401 survenant déjà sur /login préserve le paramètre ?redirect", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(401, { detail: "unauthorized" }));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    const router = renderAtWithSingleton("/login?redirect=/pipeline");
+
+    // Unauthenticated → the login form shows (the `me` 401 is exempt from the
+    // redirect handler, so nothing has navigated yet).
+    expect(
+      await screen.findByRole("button", { name: /se connecter/i }),
+    ).toBeInTheDocument();
+
+    // A non-`me` query 401s while sitting on /login → the handler must keep us on
+    // /login WITHOUT stripping the redirect target.
+    await act(async () => {
+      await queryClient
+        .fetchQuery({
+          queryKey: ["__probe_401__"],
+          queryFn: () => Promise.reject(new ApiError(401, "expired")),
+          retry: false,
+        })
+        .catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+      expect(router.state.location.search).toBe("?redirect=/pipeline");
+    });
+  });
+});

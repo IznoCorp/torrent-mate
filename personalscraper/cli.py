@@ -118,6 +118,13 @@ import personalscraper.commands.pipeline  # noqa: E402,F401
 import personalscraper.commands.seed  # noqa: E402,F401
 import personalscraper.commands.watch  # noqa: E402,F401
 
+# Web is a Typer sub-app (bare ``web`` boots the daemon via its callback;
+# ``web set-password`` hangs off the same group), so it is mounted with
+# add_typer like the other sub-apps rather than registered as a flat command.
+from personalscraper.commands.web import web_app  # noqa: E402
+
+app.add_typer(web_app, name="web")
+
 __all__ = [
     "AppCtx",
     "State",

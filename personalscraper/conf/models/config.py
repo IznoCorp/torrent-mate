@@ -37,6 +37,7 @@ from personalscraper.conf.models.scraper import (
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.conf.models.trailers import TrailersConfig
 from personalscraper.conf.models.watch_seed import CrossSeedConfig, WatchConfig
+from personalscraper.conf.models.web import WebConfig
 
 # ---------------------------------------------------------------------------
 # Type alias re-exported for consumers that import from conf.models
@@ -72,6 +73,7 @@ class Config(_StrictModel):
             Disabled by default (enabled=False).
         watch: Watcher daemon configuration (watch-seed feature).
             Disabled by default (enabled=False).
+        web: TorrentMate web UI server configuration (tm-shell feature).
     """
 
     config_version: int = Field(default=1, description="Schéma version pour migration future.")
@@ -121,6 +123,7 @@ class Config(_StrictModel):
 
     cross_seed: CrossSeedConfig = Field(default_factory=CrossSeedConfig)
     watch: WatchConfig = Field(default_factory=WatchConfig)
+    web: WebConfig = Field(default_factory=WebConfig)
 
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
     torrent: TorrentConfig = Field(default_factory=TorrentConfig)

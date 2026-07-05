@@ -1,0 +1,146 @@
+/* ============================================================
+   PersonalScraper — Color system
+   Dark-first "control deck". Base = shadcn neutral (OKLCH),
+   warmed slightly. Brand primary = signal amber/gold.
+   :root is the DARK theme (product default). .light overrides.
+   ============================================================ */
+
+:root {
+  /* ---- shadcn-compatible surface + text scale (dark) ---- */
+  --background: oklch(0.165 0.004 286);   /* near-black control surface */
+  --foreground: oklch(0.96 0.003 286);    /* primary text */
+
+  --card: oklch(0.196 0.005 286);         /* raised panel */
+  --card-foreground: oklch(0.96 0.003 286);
+  --popover: oklch(0.186 0.005 286);
+  --popover-foreground: oklch(0.96 0.003 286);
+
+  --muted: oklch(0.246 0.006 286);        /* muted fill */
+  --muted-foreground: oklch(0.682 0.012 286); /* secondary text */
+  --accent: oklch(0.268 0.007 286);       /* hover fill */
+  --accent-foreground: oklch(0.96 0.003 286);
+
+  --secondary: oklch(0.255 0.007 286);
+  --secondary-foreground: oklch(0.96 0.003 286);
+
+  --border: oklch(0.279 0.008 286);
+  --input: oklch(0.279 0.008 286);
+  --ring: oklch(0.80 0.155 78);           /* amber focus ring */
+
+  /* ---- brand primary: signal amber / gold (film + energy) ---- */
+  --primary: oklch(0.808 0.158 79);
+  --primary-foreground: oklch(0.24 0.05 70);
+
+  /* ---- destructive (shadcn alias) ---- */
+  --destructive: oklch(0.62 0.21 24);
+  --destructive-foreground: oklch(0.97 0.01 24);
+
+  /* ============================================================
+     Semantic signal palette — pipeline + library health
+     ============================================================ */
+  --success: oklch(0.72 0.165 152);       /* seeding healthy / step done */
+  --success-foreground: oklch(0.18 0.03 152);
+  --success-muted: oklch(0.30 0.06 152);
+
+  --warning: oklch(0.80 0.15 75);         /* needs attention / wanted */
+  --warning-foreground: oklch(0.24 0.05 70);
+  --warning-muted: oklch(0.32 0.06 75);
+
+  --danger: oklch(0.62 0.21 24);          /* error / HnR risk / failed */
+  --danger-foreground: oklch(0.97 0.01 24);
+  --danger-muted: oklch(0.32 0.09 24);
+
+  --info: oklch(0.68 0.135 235);          /* scraping / metadata / info */
+  --info-foreground: oklch(0.18 0.04 235);
+  --info-muted: oklch(0.30 0.06 235);
+
+  --neutral-signal: oklch(0.62 0.01 286); /* idle / skipped / disabled */
+
+  /* ============================================================
+     Thermal cadence — `wanted` episode temperature (roadmap Q1)
+     🔥 Hot  →  🌤 Warm  →  ❄️ Cold  →  ⛔ cutoff
+     ============================================================ */
+  --temp-hot: oklch(0.645 0.205 30);
+  --temp-warm: oklch(0.80 0.15 72);
+  --temp-cold: oklch(0.70 0.125 232);
+  --temp-cutoff: oklch(0.55 0.012 286);
+
+  /* ============================================================
+     Data-viz palette (disks, ratio charts, codecs)
+     ============================================================ */
+  --chart-1: oklch(0.808 0.158 79);       /* amber */
+  --chart-2: oklch(0.70 0.135 232);       /* blue */
+  --chart-3: oklch(0.72 0.165 152);       /* green */
+  --chart-4: oklch(0.70 0.16 320);        /* magenta */
+  --chart-5: oklch(0.74 0.16 50);         /* orange */
+
+  /* ---- sidebar scope (shadcn) ---- */
+  --sidebar: oklch(0.186 0.005 286);
+  --sidebar-foreground: oklch(0.86 0.006 286);
+  --sidebar-primary: oklch(0.808 0.158 79);
+  --sidebar-primary-foreground: oklch(0.24 0.05 70);
+  --sidebar-accent: oklch(0.255 0.007 286);
+  --sidebar-accent-foreground: oklch(0.96 0.003 286);
+  --sidebar-border: oklch(0.255 0.008 286);
+  --sidebar-ring: oklch(0.80 0.155 78);
+}
+
+/* ============================================================
+   Light theme — add class="light" on <html> to opt in.
+   Standard shadcn neutral light, amber primary retained.
+   ============================================================ */
+.light {
+  --background: oklch(0.995 0 0);
+  --foreground: oklch(0.205 0.004 286);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0.004 286);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0.004 286);
+
+  --muted: oklch(0.967 0.002 286);
+  --muted-foreground: oklch(0.52 0.01 286);
+  --accent: oklch(0.96 0.003 286);
+  --accent-foreground: oklch(0.27 0.006 286);
+
+  --secondary: oklch(0.967 0.002 286);
+  --secondary-foreground: oklch(0.27 0.006 286);
+
+  --border: oklch(0.91 0.004 286);
+  --input: oklch(0.91 0.004 286);
+  --ring: oklch(0.74 0.15 72);
+
+  --primary: oklch(0.76 0.155 70);
+  --primary-foreground: oklch(0.99 0.01 90);
+
+  --destructive: oklch(0.58 0.215 25);
+  --destructive-foreground: oklch(0.99 0.01 25);
+
+  --success: oklch(0.60 0.15 152);
+  --success-foreground: oklch(0.99 0.01 152);
+  --success-muted: oklch(0.92 0.05 152);
+  --warning: oklch(0.74 0.15 72);
+  --warning-foreground: oklch(0.27 0.05 70);
+  --warning-muted: oklch(0.93 0.05 75);
+  --danger: oklch(0.58 0.215 25);
+  --danger-foreground: oklch(0.99 0.01 25);
+  --danger-muted: oklch(0.93 0.05 25);
+  --info: oklch(0.58 0.14 235);
+  --info-foreground: oklch(0.99 0.01 235);
+  --info-muted: oklch(0.93 0.04 235);
+  --neutral-signal: oklch(0.62 0.01 286);
+
+  --temp-hot: oklch(0.58 0.205 30);
+  --temp-warm: oklch(0.74 0.15 72);
+  --temp-cold: oklch(0.60 0.13 232);
+  --temp-cutoff: oklch(0.62 0.012 286);
+
+  --sidebar: oklch(0.985 0.002 286);
+  --sidebar-foreground: oklch(0.30 0.006 286);
+  --sidebar-primary: oklch(0.76 0.155 70);
+  --sidebar-primary-foreground: oklch(0.99 0.01 90);
+  --sidebar-accent: oklch(0.96 0.003 286);
+  --sidebar-accent-foreground: oklch(0.27 0.006 286);
+  --sidebar-border: oklch(0.91 0.004 286);
+  --sidebar-ring: oklch(0.74 0.15 72);
+}

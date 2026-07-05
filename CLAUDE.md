@@ -168,6 +168,22 @@ Every `chore(scope): phase N gate` commit MUST pass all of:
 **SemVer bump** (at create-branch): bugfix → Z+1, minor → Y+1, major → X+1
 **Merge**: squash, mode chosen at feature start (manual / auto)
 
+### Working a KanbanMate Ticket (before implementing a roadmap item)
+
+Roadmap items are tracked as **KanbanMate tickets** — e.g. the web-UI waves: S1 `#158`
+(shell + auth + WebSocket), S2 `#181` (pipeline control), S3 `#182` (maintenance
+dashboard), S4 `#183` (visual config editor), … through S7. **To work on / implement a
+ticket, never start coding directly.** Claim it through the kanban skills first, so the
+autonomous KanbanMate daemon stays out of the way, then advance the card column-by-column
+as the work progresses:
+
+1. **Claim + sync** — invoke `/kanban-work <ticket>` (skill `kanban:kanban-work`). This
+   reclaims the ticket from the autonomous daemon and syncs this local session with the board.
+2. **Advance the card** — move it through the KanbanMate columns as work progresses
+   (board/CLI ops via `/kanban`; health sweep via `/kanban-monitor`).
+3. **Then** run the normal implementation flow (`/implement:feature` → phases → PR),
+   keeping the card's column in step with the actual progress.
+
 ### Move Rules (dispatch)
 
 - **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from the staging area.
@@ -217,6 +233,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Feature lifecycle — ACCEPTANCE format, phase-gate vs deployment, deferred-criterion protocol                        | `docs/reference/feature-lifecycle.md`           |
 | Module-size budget tracking, BLOCK-threshold promise status                                                         | `docs/reference/promises.md`                    |
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                   | `docs/reference/runbook-post-merge.md`          |
+| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions      | `docs/reference/web-ui.md`                      |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 

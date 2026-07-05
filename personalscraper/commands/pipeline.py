@@ -542,6 +542,7 @@ def run(
     from personalscraper.pipeline import Pipeline
     from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.debug_log import DebugLogSubscriber
+    from personalscraper.subscribers.redis_stream import build_redis_publisher
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
 
@@ -617,6 +618,9 @@ def run(
             # so verbose log streams work even in cron / CI contexts that
             # suppress Rich / Telegram output.
             debug_subscriber: DebugLogSubscriber | None = None
+            # Redis event publisher (gate on web.enabled, fail-soft — Redis down
+            # must never block the pipeline boot).
+            redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
             if verbose:
                 debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:
@@ -670,6 +674,8 @@ def run(
                         acq_telegram_subscriber.close()
                     if debug_subscriber is not None:
                         debug_subscriber.close()
+                    if redis_publisher is not None:
+                        redis_publisher.close()
             except TrailerStepFailed as exc:
                 # Trailers step failed and --continue-on-trailer-error was not set.
                 # Exit with code 2 (distinct from generic pipeline error exit 1) so

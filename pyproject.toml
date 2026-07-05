@@ -42,6 +42,10 @@ dependencies = [
     "xxhash>=3.4.0",
     "filelock>=3.13.0",
     "rarfile>=4.2",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "redis>=5.0",
+    "PyJWT>=2.8",
 ]
 
 [project.optional-dependencies]
@@ -59,6 +63,8 @@ dev = [
     "pytest-xdist>=3.8.0",
     "responses>=0.25.0",
     "tomli>=2.0.0; python_version < '3.11'",
+    "httpx>=0.27",
+    "fakeredis>=2.23",
 ]
 
 [project.scripts]
@@ -134,7 +140,7 @@ omit = [
 ]
 branch = true
 parallel = true
-concurrency = ["multiprocessing"]
+concurrency = ["multiprocessing", "thread"]
 
 [tool.coverage.report]
 fail_under = 90

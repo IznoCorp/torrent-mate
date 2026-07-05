@@ -1,0 +1,16 @@
+{
+  // TorrentMate web UI server configuration.
+  // See docs/features/tm-shell/DESIGN.md §4.3.
+  web: {
+    enabled: true,
+    host: "127.0.0.1",
+    port: 8710, // staging clone overrides to 8711 via local.json5
+    username: "izno",
+    redis_url: "redis://127.0.0.1:6379/0",
+    stream_key: "personalscraper:events",
+    stream_maxlen: 10000,
+    session_ttl_hours: 720, // 30 days
+    cookie_secure: true,
+    dev_mode: false, // true = allow boot without a built SPA (Vite dev proxy)
+  },
+}

@@ -195,6 +195,28 @@ Prose: use `personalscraper info` to inspect.
     assert "library-index" in result
     assert "run" in result
     assert "info" in result
+    # The literal word "personalscraper" must NOT leak in as a command — a \s+
+    # sub-command separator used to capture the next line's prefix (regression).
+    assert "personalscraper" not in result
+
+
+def test_documented_subcommands_extracted() -> None:
+    """A documented 'personalscraper <group> <sub>' registers group AND leaf.
+
+    Typer reports the leaf name (e.g. ``set-password``), so without capturing the
+    second token every sub-command is a false-positive 'undocumented' finding.
+    """
+    doc = """
+```bash
+personalscraper web set-password --write
+personalscraper follow remove --id 12
+personalscraper seed mark a1b2c3
+```
+"""
+    result = _extract_documented_commands(doc)
+    assert {"web", "set-password", "follow", "remove", "seed", "mark"} <= result
+    # A trailing option (starts with '-') is not mistaken for a sub-command.
+    assert "-" not in result and "write" not in result
 
 
 def test_documented_commands_empty_on_empty_doc() -> None:

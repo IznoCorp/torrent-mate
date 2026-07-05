@@ -497,3 +497,177 @@ def test_follow_remove_already_inactive_no_double_event(tmp_path: Path, monkeypa
         f"m1 DOUBLE-EMIT: second remove on inactive series must NOT emit again; got {len(unfollowed)} events"
     )
     acquire.store.close()  # type: ignore[union-attr]
+
+
+# ---------------------------------------------------------------------------
+# RedisEventPublisher wiring (F3 / F12 / F29 — tm-shell dispatch C)
+# ---------------------------------------------------------------------------
+
+
+_PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
+_PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
+
+
+def test_follow_add_wires_publisher_and_closes(tmp_path: Path, monkeypatch, test_config) -> None:
+    """``build_redis_publisher`` is called and its result is closed after add."""
+    from unittest.mock import patch
+
+    from personalscraper.conf.models.web import WebConfig
+
+    cfg = test_config.model_copy(update={"web": WebConfig(enabled=True)})
+
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    mock_publisher = MagicMock()
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda ref, registry, **kw: "Breaking Bad",
+    )
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(
+            "personalscraper.commands.follow.build_redis_publisher",
+            return_value=mock_publisher,
+        ) as mock_build,
+    ):
+        result = runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_build.assert_called_once()
+    # First arg must be the event_bus; second arg is config.web.
+    assert mock_build.call_args[0][0] is app_ctx.event_bus
+    assert mock_build.call_args[0][1].enabled is True
+    mock_publisher.close.assert_called_once()
+    acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_follow_add_no_close_when_publisher_is_none(tmp_path: Path, monkeypatch, test_config) -> None:
+    """When ``build_redis_publisher`` returns None, no .close() is attempted."""
+    from unittest.mock import patch
+
+    from personalscraper.conf.models.web import WebConfig
+
+    cfg = test_config.model_copy(update={"web": WebConfig(enabled=False)})
+
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda ref, registry, **kw: "Breaking Bad",
+    )
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(
+            "personalscraper.commands.follow.build_redis_publisher",
+            return_value=None,
+        ) as mock_build,
+    ):
+        result = runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_build.assert_called_once()
+    # No .close() on a None return — the ``if redis_publisher is not None``
+    # guard in the finally block must prevent it.
+    acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_follow_remove_wires_publisher_and_closes(tmp_path: Path, monkeypatch, test_config) -> None:
+    """``build_redis_publisher`` is called and its result is closed after remove."""
+    from unittest.mock import patch
+
+    from personalscraper.conf.models.web import WebConfig
+
+    cfg = test_config.model_copy(update={"web": WebConfig(enabled=True)})
+
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    mock_publisher = MagicMock()
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda ref, registry, **kw: "Breaking Bad",
+    )
+
+    # Seed: add a series first so remove has something to remove.
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+    ):
+        runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(
+            "personalscraper.commands.follow.build_redis_publisher",
+            return_value=mock_publisher,
+        ) as mock_build,
+    ):
+        result = runner.invoke(app, ["follow", "remove", "--tvdb", "81189"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_build.assert_called_once()
+    assert mock_build.call_args[0][0] is app_ctx.event_bus
+    assert mock_build.call_args[0][1].enabled is True
+    mock_publisher.close.assert_called_once()
+    acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_follow_detect_wires_publisher_and_closes(tmp_path: Path, monkeypatch, test_config) -> None:
+    """``build_redis_publisher`` is called and its result is closed after detect."""
+    from unittest.mock import patch
+
+    from personalscraper.conf.models.web import WebConfig
+
+    cfg = test_config.model_copy(update={"web": WebConfig(enabled=True)})
+
+    db_path = tmp_path / "acquire.db"
+    event_bus = EventBus()
+    acquire = _acquire_ctx_for(db_path, event_bus)
+    app_ctx = _make_app_context(acquire=acquire, event_bus=event_bus)
+    mock_publisher = MagicMock()
+
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+    monkeypatch.setattr(
+        "personalscraper.commands.follow.resolve_series_title",
+        lambda ref, registry, **kw: "Breaking Bad",
+    )
+
+    # Seed: add a series first so detect has something to poll.
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+    ):
+        runner.invoke(app, ["follow", "add", "--tvdb", "81189"])
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch(
+            "personalscraper.commands.follow.build_redis_publisher",
+            return_value=mock_publisher,
+        ) as mock_build,
+    ):
+        result = runner.invoke(app, ["follow", "detect"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_build.assert_called_once()
+    assert mock_build.call_args[0][0] is app_ctx.event_bus
+    assert mock_build.call_args[0][1].enabled is True
+    mock_publisher.close.assert_called_once()
+    acquire.store.close()  # type: ignore[union-attr]

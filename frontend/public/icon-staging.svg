@@ -1,0 +1,12 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TorrentMate (staging)">
+  <rect width="32" height="32" rx="7" fill="#1A1A1E"></rect>
+  <!-- STAGING liseret: a bold cyan ring around the tile so staging is unmistakable
+       against the amber production brand (mirrors KanbanMate's amber-liseret model). -->
+  <rect x="1.4" y="1.4" width="29.2" height="29.2" rx="5.6" fill="none" stroke="#22D3EE" stroke-width="2.6"></rect>
+  <g style="color:#EDA93C">
+    <rect x="6.5" y="8" width="19" height="2.7" rx="1.35" fill="currentColor"></rect>
+    <rect x="10" y="13.8" width="12" height="2.7" rx="1.35" fill="currentColor" opacity="0.82"></rect>
+    <rect x="13.3" y="19.6" width="5.4" height="2.7" rx="1.35" fill="currentColor" opacity="0.64"></rect>
+    <circle cx="16" cy="26.4" r="1.7" fill="currentColor"></circle>
+  </g>
+</svg>

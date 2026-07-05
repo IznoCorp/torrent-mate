@@ -79,6 +79,7 @@ def _make_watch_config(
         watch=watch_cfg,
         cross_seed=cross_seed_cfg,
         paths=SimpleNamespace(data_dir=tmp_path),
+        web=SimpleNamespace(enabled=False),
     )
 
 
