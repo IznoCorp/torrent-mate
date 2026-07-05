@@ -2,7 +2,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useCallback, useState, type ReactElement } from "react";
 import { NavLink } from "react-router-dom";
 
-import logoIcon from "@/assets/logo-icon.svg";
+import { BRAND_ICON } from "@/lib/env";
 import { NAV_ITEMS } from "@/components/layout/nav";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +68,7 @@ export function Sidebar(): ReactElement {
           collapsed && "justify-center px-0",
         )}
       >
-        <img src={logoIcon} alt="" className="size-7 shrink-0" />
+        <img src={BRAND_ICON} alt="" className="size-7 shrink-0" />
         {!collapsed && (
           <span className="text-sm font-semibold tracking-tight">
             Torrent<span className="text-primary">Mate</span>

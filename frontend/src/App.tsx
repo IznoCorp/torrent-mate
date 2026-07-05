@@ -6,6 +6,7 @@ import { queryClient } from "@/api/client";
 import { AuthProvider } from "@/components/AuthProvider";
 import { useAuthContext } from "@/hooks/useAuthContext";
 import { InstallBanner } from "@/components/InstallBanner";
+import { StagingBanner } from "@/components/StagingBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { usePwa } from "@/hooks/usePwa";
 import { router } from "@/router";
@@ -58,6 +59,7 @@ export default function App(): ReactElement {
         <RouterProvider router={router} />
         <PwaLayer />
       </AuthProvider>
+      <StagingBanner />
     </QueryClientProvider>
   );
 }

@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TorrentMate (staging)">
+  <!-- Maskable: full-bleed DS background (the OS applies its own mask/rounding). -->
+  <rect width="512" height="512" fill="#1A1A1E"></rect>
+  <!-- STAGING cyan liseret, inset inside the maskable safe zone (~10% margin). -->
+  <rect x="70" y="70" width="372" height="372" rx="60" fill="none" stroke="#22D3EE" stroke-width="26"></rect>
+  <!-- Amber funnel, scaled from the 32-unit source and centred within the safe zone. -->
+  <g transform="translate(112,112) scale(9)" style="color:#EDA93C">
+    <rect x="6.5" y="8" width="19" height="2.7" rx="1.35" fill="currentColor"></rect>
+    <rect x="10" y="13.8" width="12" height="2.7" rx="1.35" fill="currentColor" opacity="0.82"></rect>
+    <rect x="13.3" y="19.6" width="5.4" height="2.7" rx="1.35" fill="currentColor" opacity="0.64"></rect>
+    <circle cx="16" cy="26.4" r="1.7" fill="currentColor"></circle>
+  </g>
+</svg>

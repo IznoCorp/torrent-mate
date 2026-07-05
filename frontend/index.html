@@ -10,8 +10,31 @@
     <!-- DS near-black --background (oklch(0.165 0.004 286) → #0e0e10). The PWA
          manifest <link> is injected by vite-plugin-pwa at build time. -->
     <meta name="theme-color" content="#0e0e10" />
+    <link rel="icon" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>TorrentMate</title>
+    <!-- On the staging host, swap ONLY the PWA icons + manifest to the cyan-liseret
+         variant BEFORE install/paint. The NAME stays "TorrentMate" everywhere —
+         prod and staging are told apart by the logo alone. Mirrors StagingBanner's
+         host detection (src/lib/env.ts) and KanbanMate's approach. The manifest
+         <link> is injected by vite-plugin-pwa; this runs after it in the head. -->
+    <script>
+      (function () {
+        try {
+          var h = location.hostname || "";
+          if (!/staging/i.test(h) && location.port !== "8711") return;
+          var setHref = function (sel, href) {
+            var el = document.querySelector(sel);
+            if (el) el.setAttribute("href", href);
+          };
+          setHref('link[rel="manifest"]', "/manifest-staging.webmanifest");
+          setHref('link[rel="apple-touch-icon"]', "/apple-touch-icon-staging.png");
+          setHref('link[rel="icon"]', "/icon-staging.svg");
+        } catch (e) {
+          /* detection best-effort — prod identity stays as the default */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

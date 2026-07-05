@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Link } from "react-router-dom";
 
-import logoIcon from "@/assets/logo-icon.svg";
+import { BRAND_ICON } from "@/lib/env";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -65,7 +65,7 @@ export function TopBar(): ReactElement {
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-sm md:px-6">
       <Link to="/" className="flex items-center gap-2">
-        <img src={logoIcon} alt="" className="size-7" />
+        <img src={BRAND_ICON} alt="" className="size-7" />
         <span className="text-sm font-semibold tracking-tight">
           Torrent<span className="text-primary">Mate</span>
         </span>
