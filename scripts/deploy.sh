@@ -77,9 +77,13 @@ printf '%s\n' "$local_sha" > personalscraper/web/static/BUILD_COMMIT
 # ── Reinstall the backend into the prod venv (per-clone isolation) ────────────
 "$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . a échoué (venv cassé ? dépendances manquantes ?)"
 
-# ── Restart the PM2 app (fail-soft if not defined on this box yet) ────────────
-if ! pm2 restart torrentmate-web >/dev/null 2>&1; then
-  printf 'ℹ pm2 restart torrentmate-web a échoué — app PM2 non définie ? (pm2 start ecosystem.config.js && pm2 save)\n' >&2
+# ── Start-or-restart the PM2 app (fail-soft) ──────────────────────────────────
+# startOrRestart (not restart): the FIRST post-merge autodeploy must START the
+# prod app if it was never launched on this box — a bare `pm2 restart` would
+# fail-soft and leave prod down after the merge. Uses this clone's own tracked
+# ecosystem.config.js (absolute-path entry) and --update-env to pick up .env.
+if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web --update-env >/dev/null 2>&1; then
+  printf 'ℹ pm2 startOrRestart torrentmate-web a échoué — ecosystem.config.js absent ou app mal définie ?\n' >&2
 fi
 
 # ── Post-check: /api/health is public → expect 200 ────────────────────────────

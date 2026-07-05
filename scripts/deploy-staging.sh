@@ -70,9 +70,12 @@ printf '%s @ %s\n' "$branch" "$sha" > personalscraper/web/static/BUILD_COMMIT
 # ── Reinstall the backend into the staging venv (per-clone isolation) ─────────
 "$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . a échoué (venv cassé ? dépendances manquantes ?)"
 
-# ── Restart the staging PM2 app (fail-soft if not defined yet) ────────────────
-if ! pm2 restart torrentmate-web-staging >/dev/null 2>&1; then
-  printf 'ℹ pm2 restart torrentmate-web-staging a échoué — app PM2 non définie ?\n' >&2
+# ── Start-or-restart the staging PM2 app (fail-soft) ──────────────────────────
+# startOrRestart (not restart): the first staging autodeploy must START the app
+# if it was never launched. Uses this clone's own ecosystem.config.js entry and
+# --update-env to pick up .env changes.
+if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web-staging --update-env >/dev/null 2>&1; then
+  printf 'ℹ pm2 startOrRestart torrentmate-web-staging a échoué — ecosystem.config.js absent ou app mal définie ?\n' >&2
 fi
 
 # ── Post-check: /api/health on the staging port → expect 200 ──────────────────
