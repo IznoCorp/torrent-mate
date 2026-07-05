@@ -50,7 +50,9 @@ export default defineConfig({
       includeManifestIcons: false,
       manifest: {
         name: 'TorrentMate',
-        short_name: 'TM',
+        // The installed home-screen icon label uses short_name — keep it the
+        // full brand ("TorrentMate"), never the "TM" abbreviation.
+        short_name: 'TorrentMate',
         description:
           'Pilotage du pipeline TorrentMate : téléchargements, scraping et bibliothèque.',
         lang: 'fr',

@@ -10,6 +10,10 @@
     <!-- DS near-black --background (oklch(0.165 0.004 286) → #0e0e10). The PWA
          manifest <link> is injected by vite-plugin-pwa at build time. -->
     <meta name="theme-color" content="#0e0e10" />
+    <!-- iOS home-screen label: Safari ignores the manifest short_name and uses
+         this meta (falls back to <title>). Keep the full brand, never "TM". -->
+    <meta name="apple-mobile-web-app-title" content="TorrentMate" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="icon" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>TorrentMate</title>
