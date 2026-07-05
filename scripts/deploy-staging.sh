@@ -79,11 +79,22 @@ if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web-staging --upd
 fi
 
 # ── Post-check: /api/health on the staging port → expect 200 ──────────────────
-code="$(curl --connect-timeout 10 --max-time 30 -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || true)"
-if [ "$code" = "200" ]; then
+# Retry loop (mirrors deploy.sh): startOrRestart is async and the app rebuilds
+# the full AppContext (provider registry, …) on boot — the port may not be
+# listening for a few seconds. Up to 15 attempts × 2 s = 30 s before failing.
+health_ok=false
+for i in $(seq 1 15); do
+  code="$(curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w '%{http_code}' "$HEALTH_URL" || true)"
+  if [ "$code" = "200" ]; then
+    health_ok=true
+    break
+  fi
+  [ "$i" -lt 15 ] && sleep 2
+done
+if $health_ok; then
   printf '\n✅ staging déployé : %s @ %s\n   health %s → 200 · UI sur 127.0.0.1:%s (board RÉEL, config canonique)\n' \
     "$branch" "$sha" "$HEALTH_URL" "$PORT"
 else
-  printf '\n⚠ staging déployé : %s @ %s — mais health %s a répondu "%s" (attendu 200).\n   Vérifie: pm2 logs torrentmate-web-staging\n' \
+  printf '\n⚠ staging déployé : %s @ %s — mais health %s a répondu "%s" après 15 tentatives (30 s).\n   Vérifie: pm2 logs torrentmate-web-staging\n' \
     "$branch" "$sha" "$HEALTH_URL" "$code" >&2
 fi
