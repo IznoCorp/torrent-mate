@@ -38,9 +38,18 @@ def cli_runner() -> CliRunner:
 class TestWebHelp:
     """``personalscraper web --help`` prints usage and exits 0."""
 
-    def test_help_exit_zero(self, cli_runner: CliRunner) -> None:
-        """``web --help`` exits 0 and shows the command description."""
-        result = cli_runner.invoke(cli_app, ["web", "--help"])
+    def test_help_exit_zero(self, cli_runner: CliRunner, test_config) -> None:
+        """``web --help`` exits 0 and shows the command description.
+
+        The top-level CLI callback eagerly loads config even for ``--help``, so
+        the load is patched — otherwise CI (no ``config/`` dir) raises
+        ``ConfigLoadError: paths.json5 not found`` and the help exits 1.
+        """
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=test_config.paths.data_dir / "fake.json5"),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = cli_runner.invoke(cli_app, ["web", "--help"])
 
         assert result.exit_code == 0
         assert "TorrentMate" in result.output or "web" in result.output
