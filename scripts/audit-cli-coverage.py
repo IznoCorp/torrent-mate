@@ -143,18 +143,31 @@ def _extract_string_arg(call: ast.Call) -> str | None:
 def _extract_documented_commands(doc_text: str) -> set[str]:
     """Parse *doc_text* and return all command names mentioned after ``personalscraper ``.
 
-    Finds patterns of the form ``personalscraper <cmd>`` (where *cmd* consists
-    of lowercase letters, digits, and hyphens) anywhere in the text — inside
-    code blocks, inline code, or prose.
+    Finds patterns of the form ``personalscraper <cmd>`` and
+    ``personalscraper <group> <subcmd>`` (each token being lowercase letters,
+    digits, and hyphens) anywhere in the text. **Both** the group token and the
+    sub-command token are recorded, so a sub-command documented as
+    ``personalscraper web set-password`` registers ``set-password`` (and
+    ``web``) — otherwise every Typer sub-command (``follow add``, ``seed mark``,
+    ``web set-password``, …) is a false positive, since Typer reports the leaf
+    name (``set-password``), not the group path.
 
     Args:
         doc_text: Raw Markdown text of ``docs/reference/commands.md``.
 
     Returns:
-        Set of command name strings (e.g. ``{"ingest", "library-index", ...}``).
+        Set of command name strings (e.g. ``{"ingest", "web", "set-password", ...}``).
     """
-    pattern = re.compile(r"personalscraper\s+([a-z][a-z0-9-]+)")
-    return {m.group(1) for m in pattern.finditer(doc_text)}
+    # The sub-command separator is [ \t]+ (same line only), NOT \s+: a \s+ would
+    # span the newline and greedily capture the NEXT line's "personalscraper" as a
+    # phantom sub-command, dropping that line's real command.
+    pattern = re.compile(r"personalscraper\s+([a-z][a-z0-9-]+)(?:[ \t]+([a-z][a-z0-9-]+))?")
+    documented: set[str] = set()
+    for m in pattern.finditer(doc_text):
+        documented.add(m.group(1))
+        if m.group(2) is not None:
+            documented.add(m.group(2))
+    return documented
 
 
 # ---------------------------------------------------------------------------

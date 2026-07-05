@@ -29,8 +29,10 @@ curl -s -o /dev/null -w '%{http_code}' \
 # Expected: 401
 ```
 
-**Status**: 🟡 DEFERRED — `/api/version` guarded path re-verified post-deploy (prod URL).
-Local equivalent above is runnable now.
+**Status**: ✅ VERIFIED on the live staging deployment (2026-07-05):
+`https://tm-staging.iznogoudatall.xyz/api/health` → 200 (public),
+`.../api/version` unauth → 401 (guarded). Prod URL re-verified after the first
+`main` autodeploy.
 
 ---
 
@@ -55,9 +57,9 @@ curl -s -o /dev/null -D - \
 # (HttpOnly, SameSite=strict, and Path=/ are present; Secure depends on cookie_secure config.)
 ```
 
-**Status**: 🟡 DEFERRED — full cookie-attribute assertion re-verified post-deploy
-(prod cookie_secure=true). Local equivalent (cookie_secure=false) is runnable now
-and confirms HttpOnly + SameSite=strict + Path=/.
+**Status**: ✅ VERIFIED on the live staging deployment (2026-07-05, real HTTPS):
+`Set-Cookie: tm_session=<jwt>; HttpOnly; Max-Age=2592000; Path=/; SameSite=strict; Secure`
+— the `Secure` flag is present now that it is served over TLS (cookie_secure=true).
 
 ---
 
@@ -121,9 +123,11 @@ curl -s -o /dev/null -w '%{http_code} %{content_type}' \
 # Expected: 200 (content_type is one of: application/javascript, text/javascript)
 ```
 
-**Status**: 🟡 DEFERRED — full manifest icons + maskable validation deferred to
-post-deploy `/chrome` MCP checklist. Local equivalent above confirms both files
-are served with correct content types.
+**Status**: ✅ VERIFIED on the live staging deployment (2026-07-05, real HTTPS):
+`/manifest.webmanifest` → 200 `application/manifest+json`, `/sw.js` → 200
+`text/javascript`; the service worker **registers + activates + controls** over
+HTTPS (`/chrome`), and the staging host swaps to `/manifest-staging.webmanifest`
+with the cyan-liseret icons (prod keeps the amber set).
 
 ---
 
@@ -157,9 +161,12 @@ cd /Users/izno/dev/PersonalScraper/frontend && \
 # and equal-commit no-op).
 ```
 
-**Status**: 🟡 DEFERRED — full push→autodeploy→toast end-to-end deferred to
-post-deploy (requires prod URL + real PWA install on a device). Parts A and C
-are runnable locally now; Part B requires a valid session cookie.
+**Status**: ✅ AUTODEPLOY VERIFIED (2026-07-05): the `torrentmate-autodeploy` PM2
+poller redeployed staging on push three times (`5871d5→bc39ba→f184fe→2cd523`),
+each ending `✅ staging déployé … health → 200`; the served `/api/version`
+build_commit matches the deployed SHA. The toast→reload path is unit-covered
+(`usePwa`, 13 tests) and the SW update runs live over HTTPS. Remaining post-deploy
+step: observe the toast on an OPEN client during the first `main`→prod autodeploy.
 
 ---
 
@@ -200,3 +207,4 @@ add-to-home-screen sheet. See `docs/reference/runbook-post-merge.md` §7.
 | ---------- | --------------------------------- | ------ | ------ | ------ | ------ | ------ | ------------------------ | ------------------ |
 | 2026-07-05 | Phase 8.3                         | ✅     | ✅     | ✅     | ✅     | ✅     | 🟡                       | LounisBou          |
 | 2026-07-05 | Phase 8.4 (guarantor re-exercise) | ✅     | ✅     | ✅     | ✅     | ✅     | 🟡 A+C local, B deferred | Claude (guarantor) |
+| 2026-07-05 | Live staging deploy (real HTTPS)  | ✅     | ✅     | ✅     | ✅     | ✅     | ✅ autodeploy proven ×3  | Claude (guarantor) |

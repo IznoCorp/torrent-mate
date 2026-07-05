@@ -1751,6 +1751,7 @@ Sub-commands:
 
     personalscraper follow add --tvdb 275274        # Rick and Morty
     personalscraper follow list
+    personalscraper follow remove --id 12            # soft-unfollow (history kept)
     personalscraper follow detect --dry-run          # preview wanted episodes
     personalscraper follow detect                    # enqueue them
 
@@ -1783,3 +1784,57 @@ qBittorrent adds).
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-follow-detect`
 > runs `follow detect` daily at 03:00; `personalscraper-grab` runs `grab` at
 > 03:20 and 15:20 (the second pass retries items past their backoff cooldown).
+
+---
+
+## `personalscraper seed`
+
+**Purpose**: Manually tag torrents already in the client as **seed-pure**
+(`seed-pure`) so the watcher runs a cross-seed for them instead of ingesting them
+into the pipeline (O1). Sub-commands:
+
+- `seed mark` — apply the `seed-pure` tag to a torrent (by info hash).
+- `seed unmark` — remove the `seed-pure` tag from a torrent.
+- `seed list` — list all completed torrents currently tagged `seed-pure`.
+
+**Side effects**: `network` (torrent client), `mutate` (client tags) — `seed list`
+is read-only.
+
+**Args**: `seed mark` / `seed unmark` take a positional `INFO_HASH` (lowercase-hex).
+
+**Examples**:
+
+    personalscraper seed mark a1b2c3d4e5f6...      # tag as seed-pure
+    personalscraper seed list                       # inspect tagged torrents
+    personalscraper seed unmark a1b2c3d4e5f6...    # untag
+
+**Related**: `watch`, `cross-seed`
+
+---
+
+## `personalscraper health-check`
+
+**Purpose**: Proactive local health monitor (runs under PM2 on a cron cadence).
+Checks the things the pipeline's own Telegram/healthcheck alerting does NOT cover
+and sends a single Telegram alert when something is wrong:
+
+1. **Daemon liveness** — `personalscraper-watch` must be PM2 `online` with a real
+   OS pid (a pyenv-shim / crash-loop leaves it `online` with `pid=None`, #216).
+2. **Recent log errors** — `logs/personalscraper.json` scanned for `level=error`
+   within the lookback window (minus known-benign events).
+3. **Stuck pipeline** — `pipeline.lock` held longer than a run should take.
+
+**Side effects**: `network` (best-effort Telegram alert) — all checks are read-only
+and fail-soft.
+
+**Exit code**: `0` healthy, `1` when any anomaly is found (so healthchecks.io / PM2
+surface it too).
+
+**Examples**:
+
+    personalscraper health-check                    # one-shot local health sweep
+
+**Related**: `watch`
+
+> **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-health-check` runs
+> `health-check` hourly (#218).
