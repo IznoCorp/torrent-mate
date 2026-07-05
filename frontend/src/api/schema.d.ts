@@ -19,8 +19,9 @@ export interface paths {
          *
          *     Verifies the supplied credentials against the stored scrypt hash.  On
          *     success, creates a JWT session token and sets it as an HttpOnly,
-         *     SameSite=Strict cookie.  On failure, returns 401 after a small constant
-         *     delay (to deter timing-based user enumeration).
+         *     SameSite=Strict cookie and clears the client's failure window.  On failure,
+         *     records the attempt and returns 401 — after too many recent failures the
+         *     client is locked out with 429 (non-blocking, no ``time.sleep``).
          *
          *     Args:
          *         body: The login credentials (username + password).
@@ -30,8 +31,9 @@ export interface paths {
          *         A ``Response`` with status 204 and a ``Set-Cookie`` header on success.
          *
          *     Raises:
-         *         HTTPException: 401 if the credentials are invalid or the password
-         *             hash has not been configured.
+         *         HTTPException: 429 once the client exceeds the failed-attempt threshold;
+         *             401 if the credentials are invalid or the server is not fully
+         *             configured (missing password hash or JWT secret).
          */
         post: operations["login_api_auth_login_post"];
         delete?: never;

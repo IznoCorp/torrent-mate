@@ -126,7 +126,7 @@
   "paths": {
     "/api/auth/login": {
       "post": {
-        "description": "Authenticate a user and set a session cookie.\n\nVerifies the supplied credentials against the stored scrypt hash.  On\nsuccess, creates a JWT session token and sets it as an HttpOnly,\nSameSite=Strict cookie.  On failure, returns 401 after a small constant\ndelay (to deter timing-based user enumeration).\n\nArgs:\n    body: The login credentials (username + password).\n    request: The incoming FastAPI request (for app.state access).\n\nReturns:\n    A ``Response`` with status 204 and a ``Set-Cookie`` header on success.\n\nRaises:\n    HTTPException: 401 if the credentials are invalid or the password\n        hash has not been configured.",
+        "description": "Authenticate a user and set a session cookie.\n\nVerifies the supplied credentials against the stored scrypt hash.  On\nsuccess, creates a JWT session token and sets it as an HttpOnly,\nSameSite=Strict cookie and clears the client's failure window.  On failure,\nrecords the attempt and returns 401 \u2014 after too many recent failures the\nclient is locked out with 429 (non-blocking, no ``time.sleep``).\n\nArgs:\n    body: The login credentials (username + password).\n    request: The incoming FastAPI request (for app.state access).\n\nReturns:\n    A ``Response`` with status 204 and a ``Set-Cookie`` header on success.\n\nRaises:\n    HTTPException: 429 once the client exceeds the failed-attempt threshold;\n        401 if the credentials are invalid or the server is not fully\n        configured (missing password hash or JWT secret).",
         "operationId": "login_api_auth_login_post",
         "requestBody": {
           "content": {
