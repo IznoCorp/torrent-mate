@@ -1,4 +1,4 @@
-# Manuel d'utilisation — PersonalScraper / TorrentMate
+# Manuel d'utilisation — TorrentMate
 
 Ce document explique comment utiliser le pipeline de tri media, ses commandes CLI,
 la répartition sur les disques de stockage, les conventions de nommage, et l'interface
@@ -10,10 +10,10 @@ web **TorrentMate**.
 
 ```
 Torrents terminés  →  staging/  →  Disques de stockage
-                    personalscraper run   (9 étapes séquentielles)
+                    torrentmate run   (9 étapes séquentielles)
 ```
 
-**Pipeline automatisé (PersonalScraper) — ordre d'exécution :**
+**Pipeline automatisé (TorrentMate) — ordre d'exécution :**
 
 1. **ingest** — Copie les torrents terminés depuis qBittorrent vers le dossier d'ingestion (rôle `ingest` dans `staging_dirs`, ex. `097-TEMP/`) ; ignore ce qui est déjà ingéré.
 2. **sort** — Trie les fichiers dans les sous-dossiers catégorie (`001-MOVIES/`, `002-TVSHOWS/`, …) + première sanitisation des noms.
@@ -33,7 +33,7 @@ Torrents terminés  →  staging/  →  Disques de stockage
 
 ## 1. Commandes (CLI)
 
-Point d'entrée : `personalscraper <command>`. Les **flags globaux** se placent **avant** la sous-commande :
+Point d'entrée : `torrentmate <command>`. Les **flags globaux** se placent **avant** la sous-commande :
 `-v/--verbose`, `-q/--quiet`, `--version`, `-c/--config PATH`, `-f/--format rich|plain|json`.
 La plupart des commandes `library-*` acceptent aussi leur propre `-c/--config PATH` **après** la sous-commande.
 
@@ -43,8 +43,8 @@ Chaque étape supporte `--dry-run` (prévisualisation, aucune écriture).
 
 ```bash
 # Pipeline complet (ingest → … → dispatch)
-personalscraper run
-personalscraper run --dry-run              # prévisualiser sans modifier
+torrentmate run
+torrentmate run --dry-run              # prévisualiser sans modifier
 ```
 
 Flags de `run` : `--dry-run`, `-i/--interactive`, `--skip-trailers`, `--continue-on-trailer-error`,
@@ -75,13 +75,13 @@ Les commandes de correction acceptent aussi `--db PATH`.
 **Indexeur / scan :**
 
 ```bash
-personalscraper library-index                    # scan complet dans .data/library.db (défaut : mode full, 2 passes)
-personalscraper library-index --mode quick       # rapide (Merkle + dir-mtime)
-personalscraper library-index --mode full --disk Disk1   # rebuild complet d'un disque
-personalscraper library-index --rebuild          # repart de zéro (quarantaine l'ancienne DB)
-personalscraper library-scan                     # alias visible de `library-index --mode full`
-personalscraper library-init-canonical           # bootstrap canonical_provider depuis les NFO (one-shot)
-personalscraper library-status                   # résumé du dernier scan-run (lecture seule)
+torrentmate library-index                    # scan complet dans .data/library.db (défaut : mode full, 2 passes)
+torrentmate library-index --mode quick       # rapide (Merkle + dir-mtime)
+torrentmate library-index --mode full --disk Disk1   # rebuild complet d'un disque
+torrentmate library-index --rebuild          # repart de zéro (quarantaine l'ancienne DB)
+torrentmate library-scan                     # alias visible de `library-index --mode full`
+torrentmate library-init-canonical           # bootstrap canonical_provider depuis les NFO (one-shot)
+torrentmate library-status                   # résumé du dernier scan-run (lecture seule)
 ```
 
 Flags de `library-index` : `--mode full|quick|incremental|enrich`, `--disk TEXT`, `--budget INT`,
@@ -90,11 +90,11 @@ Flags de `library-index` : `--mode full|quick|incremental|enrich`, `--disk TEXT`
 **Vérification / réparation / réconciliation :**
 
 ```bash
-personalscraper library-verify                   # re-stat les fichiers indexés, enqueue les écarts (--no-enqueue = audit)
-personalscraper library-repair                   # draine la file de réparation (--budget INT, défaut 60)
-personalscraper library-reconcile                # détecte les divergences index ↔ FS (lecture seule par défaut)
-personalscraper library-ghost-audit              # audite les dirents fantômes NTFS/macFUSE (--disk)
-personalscraper library-relink --apply           # relie les media_file sans release_id
+torrentmate library-verify                   # re-stat les fichiers indexés, enqueue les écarts (--no-enqueue = audit)
+torrentmate library-repair                   # draine la file de réparation (--budget INT, défaut 60)
+torrentmate library-reconcile                # détecte les divergences index ↔ FS (lecture seule par défaut)
+torrentmate library-ghost-audit              # audite les dirents fantômes NTFS/macFUSE (--disk)
+torrentmate library-relink --apply           # relie les media_file sans release_id
 ```
 
 `library-reconcile` : `--scope merkle|dispatch_path|enrich|release|season|item|path_missing` (répétable),
@@ -103,27 +103,27 @@ personalscraper library-relink --apply           # relie les media_file sans rel
 **Nettoyage / correction (dry-run par défaut, `--apply`) :**
 
 ```bash
-personalscraper library-clean --apply            # supprime .actors/, dossiers vides, junk (--only actors|empty|junk|release|orphans)
-personalscraper library-fix-canonical-provider --apply  # répare la dérive canonical_provider
-personalscraper library-fix-nfo --apply          # tronque les NFO malformés (URL en fin) — écrit un .nfo.bak
-personalscraper library-fix-orphan-files --apply # relie les media_file orphelins (release_id NULL)
-personalscraper library-fix-season-counts --apply # répare la dérive season.episode_count
-personalscraper library-dedup-titles --apply     # dédoublonne les media_item jumeaux NFD/NFC
-personalscraper library-validate                 # valide conformité NFO/artwork/nommage (--fix --apply, --from-index)
-personalscraper library-gc                        # purge les vieilles lignes index_outbox (--older-than-days, défaut 30)
+torrentmate library-clean --apply            # supprime .actors/, dossiers vides, junk (--only actors|empty|junk|release|orphans)
+torrentmate library-fix-canonical-provider --apply  # répare la dérive canonical_provider
+torrentmate library-fix-nfo --apply          # tronque les NFO malformés (URL en fin) — écrit un .nfo.bak
+torrentmate library-fix-orphan-files --apply # relie les media_file orphelins (release_id NULL)
+torrentmate library-fix-season-counts --apply # répare la dérive season.episode_count
+torrentmate library-dedup-titles --apply     # dédoublonne les media_item jumeaux NFD/NFC
+torrentmate library-validate                 # valide conformité NFO/artwork/nommage (--fix --apply, --from-index)
+torrentmate library-gc                        # purge les vieilles lignes index_outbox (--older-than-days, défaut 30)
 ```
 
 **Analyse / requête :**
 
 ```bash
-personalscraper library-analyze                  # résumé codec/audio/sous-titres (nécessite un enrich préalable)
-personalscraper library-recommend                # recommandations de re-téléchargement → library_recommendations.json
-personalscraper library-rescrape                 # re-scrape ciblé (--only nfo|artwork|episodes)
-personalscraper library-report                   # stats + rapport de santé (lecture seule)
-personalscraper library-doctor                   # contrôles de santé sur la DB live (exit ≠ 0 si WARN/FAIL)
-personalscraper library-search "<query>"         # requête flex-attr (ex: nfo_status:invalid, year:>=2020)
-personalscraper library-show <item_id>           # détail d'un item
-personalscraper library-backfill-ids             # backfill des IDs croisés + notes (TMDB/TVDB/OMDb)
+torrentmate library-analyze                  # résumé codec/audio/sous-titres (nécessite un enrich préalable)
+torrentmate library-recommend                # recommandations de re-téléchargement → library_recommendations.json
+torrentmate library-rescrape                 # re-scrape ciblé (--only nfo|artwork|episodes)
+torrentmate library-report                   # stats + rapport de santé (lecture seule)
+torrentmate library-doctor                   # contrôles de santé sur la DB live (exit ≠ 0 si WARN/FAIL)
+torrentmate library-search "<query>"         # requête flex-attr (ex: nfo_status:invalid, year:>=2020)
+torrentmate library-show <item_id>           # détail d'un item
+torrentmate library-backfill-ids             # backfill des IDs croisés + notes (TMDB/TVDB/OMDb)
 ```
 
 `library-search` : `field:value`, `-field:value`, `year:>=2020` ; `--limit INT` (défaut 50) ; exit 2 sur champ inconnu.
@@ -141,27 +141,27 @@ Pointeurs `.env` : `OMDB_API_KEY` est requis pour le backfill des notes (`librar
 **Suivi de séries — follow → detect → grab :**
 
 ```bash
-personalscraper follow add --tvdb 12345          # suivre une série (idempotent ; --tvdb préféré, sinon --tmdb / --imdb ; --title optionnel)
-personalscraper follow list                       # lister les séries suivies (--all inclut les inactives)
-personalscraper follow remove --tvdb 12345        # soft-unfollow (active=False, historique conservé ; ou --id)
-personalscraper follow detect                     # enqueue les épisodes diffusés-mais-absents comme "wanted" (--dry-run, --series ID|title)
-personalscraper grab                              # cherche sur les trackers "{titre} SxxEyy", filtre l'épisode exact, classe, ajoute le meilleur à qBittorrent
-personalscraper grab --dry-run                     # prévisualiser sans ajouter (-n/--limit N)
+torrentmate follow add --tvdb 12345          # suivre une série (idempotent ; --tvdb préféré, sinon --tmdb / --imdb ; --title optionnel)
+torrentmate follow list                       # lister les séries suivies (--all inclut les inactives)
+torrentmate follow remove --tvdb 12345        # soft-unfollow (active=False, historique conservé ; ou --id)
+torrentmate follow detect                     # enqueue les épisodes diffusés-mais-absents comme "wanted" (--dry-run, --series ID|title)
+torrentmate grab                              # cherche sur les trackers "{titre} SxxEyy", filtre l'épisode exact, classe, ajoute le meilleur à qBittorrent
+torrentmate grab --dry-run                     # prévisualiser sans ajouter (-n/--limit N)
 ```
 
 **Tagging seed-pure** (pour que le watcher fasse du cross-seed au lieu d'ingérer) :
 
 ```bash
-personalscraper seed mark <INFO_HASH>            # applique le tag seed-pure
-personalscraper seed unmark <INFO_HASH>          # retire le tag seed-pure
-personalscraper seed list                         # liste les torrents terminés tagués seed-pure (lecture seule)
+torrentmate seed mark <INFO_HASH>            # applique le tag seed-pure
+torrentmate seed unmark <INFO_HASH>          # retire le tag seed-pure
+torrentmate seed list                         # liste les torrents terminés tagués seed-pure (lecture seule)
 ```
 
 **Cross-seeding :**
 
 ```bash
-personalscraper cross-seed --sweep               # balayage throttlé du back-catalogue
-personalscraper cross-seed --hash <INFO_HASH>    # un seul torrent (spawné par le watcher à la complétion)
+torrentmate cross-seed --sweep               # balayage throttlé du back-catalogue
+torrentmate cross-seed --hash <INFO_HASH>    # un seul torrent (spawné par le watcher à la complétion)
 ```
 
 `--sweep` et `--hash` sont mutuellement exclusifs (exit 2 sur mauvaise combinaison) ; no-op si `cross_seed.enabled=false`.
@@ -169,8 +169,8 @@ personalscraper cross-seed --hash <INFO_HASH>    # un seul torrent (spawné par 
 **Watcher (daemon PM2) :**
 
 ```bash
-personalscraper watch                            # poll qBittorrent chaque cycle, spawne `run --no-console` sur nouvelle complétion ; aucune option CLI
-personalscraper watch-now                         # écrit le sentinel watch.trigger → run immédiat au prochain poll (persiste si daemon down)
+torrentmate watch                            # poll qBittorrent chaque cycle, spawne `run --no-console` sur nouvelle complétion ; aucune option CLI
+torrentmate watch-now                         # écrit le sentinel watch.trigger → run immédiat au prochain poll (persiste si daemon down)
 ```
 
 Config dans `config/watch_seed.json5` : `watch.enabled`, `poll_interval_s`, `debounce_s` (défaut 900s),
@@ -187,10 +187,10 @@ pm2 stop personalscraper-watch
 ### 1.4 Interface web (daemon PM2)
 
 ```bash
-personalscraper web                              # démarre l'app FastAPI TorrentMate (SPA + REST /api/* + /ws/events)
-personalscraper web --host 0.0.0.0 --port 8710   # host/port (défaut : config.web.port = 8710, staging = 8711)
-personalscraper web set-password                 # génère WEB_PASSWORD_HASH (scrypt) + WEB_JWT_SECRET si absent ; affiche les clés
-personalscraper web set-password --write         # upsert atomique dans le .env racine (après confirmation)
+torrentmate web                              # démarre l'app FastAPI TorrentMate (SPA + REST /api/* + /ws/events)
+torrentmate web --host 0.0.0.0 --port 8710   # host/port (défaut : config.web.port = 8710, staging = 8711)
+torrentmate web set-password                 # génère WEB_PASSWORD_HASH (scrypt) + WEB_JWT_SECRET si absent ; affiche les clés
+torrentmate web set-password --write         # upsert atomique dans le .env racine (après confirmation)
 ```
 
 Config dans `config/web.json5` ; secrets `WEB_PASSWORD_HASH` / `WEB_JWT_SECRET` dans l'environnement.
@@ -199,7 +199,7 @@ Voir la section **Interface web** plus bas pour l'usage complet.
 ### 1.5 Santé
 
 ```bash
-personalscraper health-check                     # moniteur local proactif (job PM2 horaire)
+torrentmate health-check                     # moniteur local proactif (job PM2 horaire)
 ```
 
 Vérifie la vivacité du watch-daemon (vrai pid OS, pas le shim pyenv), les lignes de log récentes
@@ -209,20 +209,20 @@ Exit 0 si sain / 1 si anomalie. Lecture seule + fail-soft, sans flag.
 ### 1.6 Meta : info / init-config / trailers
 
 ```bash
-personalscraper info                             # version, chemins de config, statut des disques (respecte --format)
-personalscraper info providers                    # snapshot circuit-breaker par provider (exit 1 sur RegistryConfigError)
-personalscraper init-config                       # bootstrap config/ depuis config.example/ (--example, --output, --yes, --force, --dry-run)
-personalscraper config migrate-category --from <id> --to <id>   # réécrit media_item.category_id lors d'un renommage
+torrentmate info                             # version, chemins de config, statut des disques (respecte --format)
+torrentmate info providers                    # snapshot circuit-breaker par provider (exit 1 sur RegistryConfigError)
+torrentmate init-config                       # bootstrap config/ depuis config.example/ (--example, --output, --yes, --force, --dry-run)
+torrentmate config migrate-category --from <id> --to <id>   # réécrit media_item.category_id lors d'un renommage
 ```
 
 **Trailers** (parent désactivé par défaut ; nécessite `YOUTUBE_API_KEY`). Sous-commandes partageant
 `--disk`, `--category`, `--since YYYY-MM-DD`, `--level show|season|both`, `--season INT` :
 
 ```bash
-personalscraper trailers scan                    # liste les items sans bande-annonce (lecture seule ; --limit, --no-refresh)
-personalscraper trailers download                # télécharge les BA manquantes (TMDB /videos → YouTube → yt-dlp ; placement Plex)
-personalscraper trailers audit                   # audit 4-checks (existence/taille/extension/--deep lisibilité) — exit 0/2/4
-personalscraper trailers purge                   # supprime les BA orphelines (--dry-run, --include-state)
+torrentmate trailers scan                    # liste les items sans bande-annonce (lecture seule ; --limit, --no-refresh)
+torrentmate trailers download                # télécharge les BA manquantes (TMDB /videos → YouTube → yt-dlp ; placement Plex)
+torrentmate trailers audit                   # audit 4-checks (existence/taille/extension/--deep lisibilité) — exit 0/2/4
+torrentmate trailers purge                   # supprime les BA orphelines (--dry-run, --include-state)
 ```
 
 **Prérequis global :** fichier `.env` configuré avec les credentials des services. Voir `.env.example`.
@@ -463,7 +463,7 @@ nom « TorrentMate » reste identique sur les deux.
 
 - **Utilisateur unique** — le nom d'utilisateur est dans `config/web.json5` (`web.username`, défaut `izno`).
 - Le mot de passe est stocké comme hash scrypt dans `WEB_PASSWORD_HASH`, généré par
-  `personalscraper web set-password`. Le secret de session JWT est `WEB_JWT_SECRET`.
+  `torrentmate web set-password`. Le secret de session JWT est `WEB_JWT_SECRET`.
 - La session est un JWT HS256 posé dans le cookie **`tm_session`** (`HttpOnly; SameSite=Strict`,
   `Secure` en prod ; `Max-Age` = `session_ttl_hours * 3600`, défaut 720h = 30 jours).
 - Rate-limit de login : 5 échecs / 60s → `429`. Un `WEB_JWT_SECRET` vide ou un `WEB_PASSWORD_HASH`
@@ -471,8 +471,8 @@ nom « TorrentMate » reste identique sur les deux.
 
 ```bash
 # Configurer le mot de passe (one-time)
-personalscraper web set-password           # affiche WEB_PASSWORD_HASH + WEB_JWT_SECRET
-personalscraper web set-password --write   # écrit directement dans le .env racine
+torrentmate web set-password           # affiche WEB_PASSWORD_HASH + WEB_JWT_SECRET
+torrentmate web set-password --write   # écrit directement dans le .env racine
 ```
 
 ### 4.3 Tableau de bord + flux d'événements live
@@ -518,14 +518,14 @@ web: {
 }
 ```
 
-Secrets `.env` : **`WEB_PASSWORD_HASH`** (`scrypt$N$r$p$salt$hash`, via `personalscraper web set-password`)
+Secrets `.env` : **`WEB_PASSWORD_HASH`** (`scrypt$N$r$p$salt$hash`, via `torrentmate web set-password`)
 et **`WEB_JWT_SECRET`** (`python -c "import secrets; print(secrets.token_urlsafe(32))"`).
 
 ### 4.6 Lancer en local (développement)
 
 ```bash
 # 1. Secrets (one-time)
-personalscraper web set-password
+torrentmate web set-password
 
 # 2. Builder la SPA (npm run build → frontend/dist/, sortie Vite par défaut)
 cd frontend && npm ci && npm run build && cd ..
@@ -533,10 +533,10 @@ cd frontend && npm ci && npm run build && cd ..
 rsync -a --delete frontend/dist/ personalscraper/web/static/
 
 # 3. Lancer le daemon web (foreground)
-personalscraper web
+torrentmate web
 ```
 
-`personalscraper web` refuse de démarrer si `static/index.html` est absent et `web.dev_mode=false`
+`torrentmate web` refuse de démarrer si `static/index.html` est absent et `web.dev_mode=false`
 (évite de servir une app à moitié déployée). Dev frontend avec HMR : `cd frontend && npm run dev`
 (Vite proxie `/api` + `/ws` vers `:8710`). Pour le dev local sans HTTPS, mettre `web.cookie_secure: false`.
 
@@ -567,13 +567,13 @@ propre copie de `.env`, tous deux pointant `PERSONALSCRAPER_CONFIG=/Users/izno/d
 
 ## 5. Scraping des métadonnées
 
-### 5.1 Automatique (recommandé) — `personalscraper scrape`
+### 5.1 Automatique (recommandé) — `torrentmate scrape`
 
 Le scraping est automatisé via les APIs TMDB et TVDB :
 
 ```bash
-personalscraper scrape              # scrape tous les médias (films + séries)
-personalscraper scrape --dry-run    # prévisualiser
+torrentmate scrape              # scrape tous les médias (films + séries)
+torrentmate scrape --dry-run    # prévisualiser
 ```
 
 Produit : fichiers `.nfo` (XML Kodi), posters, fanarts, banners, et renomme les épisodes au format
