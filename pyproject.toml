@@ -68,6 +68,10 @@ dev = [
 ]
 
 [project.scripts]
+# `torrentmate` is the project's public command name; `personalscraper` is kept
+# as a backward-compatible alias (same entry point). The Python package, config
+# paths and PM2 app names remain `personalscraper` until the full code rename.
+torrentmate = "personalscraper.cli:app"
 personalscraper = "personalscraper.cli:app"
 
 [tool.setuptools.dynamic]

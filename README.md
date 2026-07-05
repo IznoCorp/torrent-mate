@@ -1,36 +1,36 @@
-# PersonalScraper
+# TorrentMate
 
-![CI](https://github.com/IznoCorp/personal-scraper/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/IznoCorp/personal-scraper/badge.svg)](https://codecov.io/gh/IznoCorp/personal-scraper)
+![CI](https://github.com/IznoCorp/torrent-mate/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/IznoCorp/torrent-mate/badge.svg)](https://codecov.io/gh/IznoCorp/torrent-mate)
 
 Pipeline d'automatisation media — ingestion, tri, scraping, vérification, dispatch — piloté en ligne de commande ou depuis **TorrentMate**, une web app installable (PWA).
 
 Les torrents terminés sont automatiquement triés, enrichis de métadonnées (TMDB/TVDB), vérifiés, puis déplacés vers les disques de stockage, prêts pour Kodi/Plex.
 
-> `personalscraper` est le **nom de code** du moteur Python (le package et la CLI). **TorrentMate** est l'application (interface web + PWA) construite au-dessus de ce moteur.
+> **TorrentMate** est le nom du projet ; la commande CLI est **`torrentmate`** (l'ancienne commande **`personalscraper`** reste un alias fonctionnel). Le package Python et les apps PM2 conservent encore l'identifiant `personalscraper` en attendant le rename complet du code ([issue #223](https://github.com/IznoCorp/torrent-mate/issues/223)).
 
 ## Pipeline
 
 ```
 qBittorrent  →  staging/  →  Disques de stockage (configurés)
-               personalscraper run
+               torrentmate run
 ```
 
 Ordre d'exécution : ingest → sort → clean → scrape → cleanup → enforce → verify → trailers → dispatch.
 
-| Étape        | Commande                   | Description                                                                             |
-| ------------ | -------------------------- | --------------------------------------------------------------------------------------- |
-| **Ingest**   | `personalscraper ingest`   | Copie les torrents terminés depuis qBittorrent vers le staging                          |
-| **Sort**     | `personalscraper sort`     | Tri dans les dossiers de catégories (`001-MOVIES/`, `002-TVSHOWS/`, …)                  |
-| **Clean**    | `personalscraper clean`    | Nettoyage des noms + dédoublonnage fuzzy (sous-étape de `process`)                      |
-| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (`.nfo`, artwork, rename des épisodes)                            |
-| **Cleanup**  | `personalscraper cleanup`  | Suppression des dossiers vides (sous-étape de `process`)                                |
-| **Enforce**  | `personalscraper enforce`  | Sanitize des noms, validation de structure, suppression des `.DS_Store`                 |
-| **Verify**   | `personalscraper verify`   | Contrôle qualité avant dispatch (NFO valide, poster/landscape, nommage) — lecture seule |
-| **Trailers** | (intégré au pipeline)      | Téléchargement des bandes-annonces via TMDB → YouTube → yt-dlp                          |
-| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage (replace films / merge séries)               |
+| Étape        | Commande               | Description                                                                             |
+| ------------ | ---------------------- | --------------------------------------------------------------------------------------- |
+| **Ingest**   | `torrentmate ingest`   | Copie les torrents terminés depuis qBittorrent vers le staging                          |
+| **Sort**     | `torrentmate sort`     | Tri dans les dossiers de catégories (`001-MOVIES/`, `002-TVSHOWS/`, …)                  |
+| **Clean**    | `torrentmate clean`    | Nettoyage des noms + dédoublonnage fuzzy (sous-étape de `process`)                      |
+| **Scrape**   | `torrentmate scrape`   | Métadonnées TMDB/TVDB (`.nfo`, artwork, rename des épisodes)                            |
+| **Cleanup**  | `torrentmate cleanup`  | Suppression des dossiers vides (sous-étape de `process`)                                |
+| **Enforce**  | `torrentmate enforce`  | Sanitize des noms, validation de structure, suppression des `.DS_Store`                 |
+| **Verify**   | `torrentmate verify`   | Contrôle qualité avant dispatch (NFO valide, poster/landscape, nommage) — lecture seule |
+| **Trailers** | (intégré au pipeline)  | Téléchargement des bandes-annonces via TMDB → YouTube → yt-dlp                          |
+| **Dispatch** | `torrentmate dispatch` | Déplacement vers le bon disque de stockage (replace films / merge séries)               |
 
-Toutes les étapes s'enchaînent avec `personalscraper run` (ajouter `--dry-run` pour prévisualiser sans écriture). Chaque étape individuelle accepte également `--dry-run`.
+Toutes les étapes s'enchaînent avec `torrentmate run` (ajouter `--dry-run` pour prévisualiser sans écriture). Chaque étape individuelle accepte également `--dry-run`.
 
 **Règles de dispatch** (voir [MANUAL.md](MANUAL.md)) :
 
@@ -45,7 +45,7 @@ Toutes les étapes s'enchaînent avec `personalscraper run` (ajouter `--dry-run`
 - **En ligne** :
   - Prod → [https://tm.iznogoudatall.xyz](https://tm.iznogoudatall.xyz)
   - Staging → [https://tm-staging.iznogoudatall.xyz](https://tm-staging.iznogoudatall.xyz) (logo cyan + bandeau, même nom d'app)
-- **Backend** : daemon FastAPI (`personalscraper web`) servant le SPA React, une API REST (`/api/*`) et un flux d'évènements temps réel WebSocket (`/ws/events`).
+- **Backend** : daemon FastAPI (`torrentmate web`) servant le SPA React, une API REST (`/api/*`) et un flux d'évènements temps réel WebSocket (`/ws/events`).
 - **Flux temps réel** : l'`EventBus` du pipeline est relayé au process web via **Redis Streams** (fan-out vers tous les clients WebSocket) — fail-soft si Redis est indisponible.
 - **Auth** : utilisateur unique `izno`, session par cookie JWT (`tm_session`).
 - **Déploiement « push-to-deploy »** : un push sur `main` redéploie la prod, un push sur `staging` redéploie le staging (poller PM2 `torrentmate-autodeploy`), derrière un reverse-proxy **Caddy** (TLS).
@@ -58,8 +58,8 @@ Détails complets : [docs/reference/web-ui.md](docs/reference/web-ui.md).
 
 ```bash
 # 1. Cloner et se placer dans le dépôt
-git clone <votre-repo-url> PersonalScraper
-cd PersonalScraper
+git clone <votre-repo-url> torrent-mate
+cd torrent-mate
 
 # 2. Python 3.12+ (géré via pyenv) + installation editable avec les extras dev
 pyenv local 3.12.4                     # ou toute version 3.12+
@@ -69,7 +69,7 @@ pip install -e ".[dev]"
 ./hooks/install.sh
 
 # 4. Générer config/ depuis le template
-personalscraper init-config
+torrentmate init-config
 
 # 5. Renseigner les secrets dans .env (clés API TMDB/TVDB, credentials qBittorrent,
 #    passkeys trackers, TELEGRAM_*, HEALTHCHECK_URL, WEB_JWT_SECRET, …)
@@ -77,11 +77,11 @@ cp .env.example .env
 $EDITOR .env
 
 # 6. Lancer le pipeline
-personalscraper run --dry-run          # Prévisualiser
-personalscraper run                    # Exécuter
+torrentmate run --dry-run          # Prévisualiser
+torrentmate run                    # Exécuter
 ```
 
-Smoke test : `python -c "import personalscraper"` et `personalscraper --help`.
+Smoke test : `python -c "import personalscraper"` et `torrentmate --help`.
 Gate local complet : `make check` (lint + tests + garde-fous).
 
 ### Interface web TorrentMate
@@ -90,7 +90,7 @@ Prérequis : **Redis** en fonctionnement (`brew install redis && brew services s
 
 ```bash
 # 1. Secrets web (une seule fois) — génère le hash scrypt + le secret JWT
-personalscraper web set-password       # écrit WEB_PASSWORD_HASH / WEB_JWT_SECRET
+torrentmate web set-password       # écrit WEB_PASSWORD_HASH / WEB_JWT_SECRET
 
 # 2. Builder le SPA React (npm run build → frontend/dist/, sortie Vite par défaut)
 cd frontend && npm ci && npm run build && cd ..
@@ -98,7 +98,7 @@ cd frontend && npm ci && npm run build && cd ..
 rsync -a --delete frontend/dist/ personalscraper/web/static/
 
 # 3. Lancer le daemon web (par défaut 127.0.0.1:8710)
-personalscraper web                    # --host / --port pour surcharger
+torrentmate web                    # --host / --port pour surcharger
 ```
 
 Le daemon refuse de démarrer si le SPA n'est pas buildé (`static/index.html` absent) tant que `web.dev_mode` est `false`.
@@ -121,7 +121,7 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées (pré
 ## Structure du projet
 
 ```
-PersonalScraper/          # Racine du dépôt git
+torrent-mate/          # Racine du dépôt git
 ├── personalscraper/      # Package Python (ingest, sorter, process, scraper, enforce,
 │   │                     #   verify, dispatch, indexer, trailers, acquire, commands…)
 │   └── web/              # App FastAPI TorrentMate (REST /api/* + WebSocket /ws/events)
@@ -142,34 +142,34 @@ Les dossiers de staging vivent dans le répertoire défini par `paths.staging_di
 
 ```bash
 # Pipeline complet
-personalscraper run                     # Tout exécuter
-personalscraper run --dry-run           # Prévisualiser
+torrentmate run                     # Tout exécuter
+torrentmate run --dry-run           # Prévisualiser
 
 # Étapes individuelles
-personalscraper ingest --dry-run        # Prévisualiser l'ingestion
-personalscraper sort                    # Trier les fichiers
-personalscraper scrape                  # Scraper les métadonnées
-personalscraper verify                  # Contrôle qualité avant dispatch
-personalscraper dispatch                # Déplacer vers le stockage
+torrentmate ingest --dry-run        # Prévisualiser l'ingestion
+torrentmate sort                    # Trier les fichiers
+torrentmate scrape                  # Scraper les métadonnées
+torrentmate verify                  # Contrôle qualité avant dispatch
+torrentmate dispatch                # Déplacer vers le stockage
 
 # Library (indexeur media)
-personalscraper library-index           # Scanner les disques (--mode full|quick|incremental|enrich)
-personalscraper library-search "QUERY"  # Rechercher dans l'index
-personalscraper library-report          # Stats + rapport de santé
+torrentmate library-index           # Scanner les disques (--mode full|quick|incremental|enrich)
+torrentmate library-search "QUERY"  # Rechercher dans l'index
+torrentmate library-report          # Stats + rapport de santé
 
 # Acquisition
-personalscraper follow add --tvdb 121361 # Suivre une série
-personalscraper follow detect            # Enfiler les épisodes diffusés
-personalscraper grab --dry-run           # Chercher + prévisualiser les grabs
+torrentmate follow add --tvdb 121361 # Suivre une série
+torrentmate follow detect            # Enfiler les épisodes diffusés
+torrentmate grab --dry-run           # Chercher + prévisualiser les grabs
 
 # Interface web + supervision
-personalscraper web                      # Daemon TorrentMate (SPA + API + WebSocket)
-personalscraper web set-password         # Générer le hash scrypt + secret JWT
-personalscraper health-check             # Monitoring local (liveness + logs) → Telegram
-personalscraper info                     # Version, chemins config, état des disques
+torrentmate web                      # Daemon TorrentMate (SPA + API + WebSocket)
+torrentmate web set-password         # Générer le hash scrypt + secret JWT
+torrentmate health-check             # Monitoring local (liveness + logs) → Telegram
+torrentmate info                     # Version, chemins config, état des disques
 
 # Configuration
-personalscraper init-config              # Créer le dossier config/
+torrentmate init-config              # Créer le dossier config/
 
 # Développement
 make test                                # Lancer la suite de tests

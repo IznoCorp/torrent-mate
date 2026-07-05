@@ -1,7 +1,7 @@
 # Installation
 
-Guide d'installation et de configuration de PersonalScraper (moteur de sync)
-et de son interface web **TorrentMate**.
+Guide d'installation et de configuration de **TorrentMate** — le pipeline de
+sync media (moteur `personalscraper`) et son interface web.
 
 > Voir aussi : [README.md](README.md) (vue d'ensemble du projet) | [MANUAL.md](MANUAL.md) (manuel d'utilisation) | [CONFIGURATION.md](CONFIGURATION.md) (variables d'environnement et config JSON5)
 
@@ -63,8 +63,8 @@ Les extras `[dev]` ajoutent : `pytest`, `pytest-cov`, `pytest-xdist`, `ruff`,
 
 ```bash
 # 1. Cloner le dépôt
-git clone <repo-url> PersonalScraper
-cd PersonalScraper
+git clone <repo-url> torrent-mate
+cd torrent-mate
 
 # 2. Installer en mode développement (package + dépendances dev)
 pip install -e ".[dev]"
@@ -78,8 +78,13 @@ make install-dev
 Cela installe :
 
 - Le package `personalscraper` en mode éditable
-- La commande CLI `personalscraper` dans le PATH
+- Les commandes CLI `torrentmate` **et** `personalscraper` (alias) dans le PATH
 - Les outils de dev (pytest, ruff, mypy…)
+
+> **TorrentMate** est le nom du projet ; la commande est **`torrentmate`**
+> (l'ancienne **`personalscraper`** reste un alias fonctionnel). Le package Python
+> et les apps PM2 conservent encore l'identifiant `personalscraper` en attendant le
+> rename complet du code ([issue #223](https://github.com/IznoCorp/torrent-mate/issues/223)).
 
 ### Hooks git (`./hooks/install.sh`)
 
@@ -94,7 +99,7 @@ d'audit de couverture semestriel.
 
 ```bash
 # Crée config/ à partir du template config.example/
-personalscraper init-config
+torrentmate init-config
 ```
 
 > Les disques de stockage se déclarent dans `config/disks.json5` (requis avant que
@@ -130,7 +135,7 @@ les clés API et les options avancées (config JSON5), voir
 
 ### Répertoire de staging
 
-Au premier lancement, PersonalScraper crée automatiquement l'arborescence du
+Au premier lancement, TorrentMate crée automatiquement l'arborescence du
 staging dans `paths.staging_dir` (tel que défini dans votre `config/paths.json5`).
 Aucun `mkdir` manuel n'est nécessaire.
 
@@ -149,7 +154,7 @@ Ce comportement est attendu — il confirme que les répertoires ont bien été 
 python -c "import personalscraper"
 
 # La CLI est accessible
-personalscraper --help
+torrentmate --help
 
 # Suite de tests complète (pytest -v -n auto)
 make test
@@ -158,7 +163,7 @@ make test
 make check
 
 # Prévisualiser le pipeline (sans rien modifier)
-personalscraper run --dry-run
+torrentmate run --dry-run
 ```
 
 ## Scheduling automatique (PM2)
@@ -174,6 +179,11 @@ cron sont en **heure locale** (format 5 champs `min heure jour mois jour-semaine
 # Depuis la racine du dépôt
 pm2 start ecosystem.config.js && pm2 save
 ```
+
+> **Nommage** : le package Python, les apps PM2 `personalscraper-*` et le dossier
+> local `~/dev/PersonalScraper` (cwd des daemons, `PERSONALSCRAPER_CONFIG`) gardent
+> encore l'identifiant `personalscraper` — c'est le nom réel du déploiement en cours.
+> Le rename complet vers `torrentmate` est suivi par l'issue #223.
 
 ### Daemons (`autorestart`, sans cron)
 
@@ -221,7 +231,7 @@ pm2 stop personalscraper-watch
 pm2 restart personalscraper-watch
 
 # Déclencher un run immédiat (poke sans attendre le prochain poll)
-personalscraper watch-now
+torrentmate watch-now
 ```
 
 ### Persistance au boot
@@ -267,7 +277,7 @@ un cookie de session JWT. Deux secrets vivent dans le `.env` :
 
 ```bash
 # Génère le hash scrypt du mot de passe (écrit/affiche les lignes .env)
-personalscraper web set-password
+torrentmate web set-password
 #   → WEB_PASSWORD_HASH=scrypt$N$r$p$salt$hash
 #   → WEB_JWT_SECRET  (sinon : python -c "import secrets; print(secrets.token_urlsafe(32))")
 ```
@@ -291,7 +301,7 @@ cp ~/dev/PersonalScraper/.env ~/deploy/torrentmate/.env
 cd ~/deploy/torrentmate/frontend && npm ci && npm run build
 ```
 
-> `personalscraper web` refuse de démarrer si `static/index.html` est absent et
+> `torrentmate web` refuse de démarrer si `static/index.html` est absent et
 > que `web.dev_mode` est `false` — cela évite de servir une app à moitié
 > déployée.
 

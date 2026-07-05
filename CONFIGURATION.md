@@ -1,6 +1,6 @@
 # Configuration
 
-Guide de configuration — overlays `config/` et credentials `.env` pour PersonalScraper.
+Guide de configuration — overlays `config/` et credentials `.env` pour **TorrentMate**.
 
 > Pour les règles de fusion des overlays (ordre, `ConfigConflictError`, `local.json5`
 > last-wins) et l'appartenance des clés fichier par fichier, voir
@@ -12,7 +12,7 @@ Guide de configuration — overlays `config/` et credentials `.env` pour Persona
 
 - **`config/`** — 19 fichiers JSON5 (chemins, disques, catégories, patterns, seuils,
   providers, torrent, tracker, ranking, notify, trailers, indexeur, acquire, watch,
-  web…). Créé via `personalscraper init-config` depuis `config.example/`.
+  web…). Créé via `torrentmate init-config` depuis `config.example/`.
 - **`.env`** — **uniquement** les credentials (clés API, mots de passe, tokens, secrets
   web). Template : `.env.example`. Le modèle `_StrictModel` (`extra="forbid"`) empêche
   tout secret de se glisser par erreur dans un overlay.
@@ -23,7 +23,7 @@ Guide de configuration — overlays `config/` et credentials `.env` pour Persona
 
 ```bash
 # 1. Créer la configuration (copie config.example/ → config/)
-personalscraper init-config
+torrentmate init-config
 
 # 2. Configurer les credentials
 cp .env.example .env
@@ -502,11 +502,11 @@ Bloc `acquire`.
 
 ## Web UI TorrentMate — `web.json5`
 
-Bloc `web`. Sert l'interface web TorrentMate (`personalscraper web`).
+Bloc `web`. Sert l'interface web TorrentMate (`torrentmate web`).
 
 | Clé                 | Type | Défaut                     | Rôle                                                                                                      |
 | ------------------- | ---- | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `enabled`           | bool | `true`                     | Kill-switch ; si `false`, `personalscraper web` s'arrête aussitôt                                         |
+| `enabled`           | bool | `true`                     | Kill-switch ; si `false`, `torrentmate web` s'arrête aussitôt                                             |
 | `host`              | str  | `127.0.0.1`                | Adresse de bind uvicorn                                                                                   |
 | `port`              | int  | `8710`                     | Port TCP uvicorn (clone staging → `8711` via le flag CLI `web --port 8711` de PM2, `ecosystem.config.js`) |
 | `username`          | str  | `izno`                     | Nom d'utilisateur de connexion (mono-utilisateur)                                                         |
@@ -675,12 +675,12 @@ YOUTUBE_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 | Variable            | Requis                         | Défaut | Génération                                                                                                   |
 | ------------------- | ------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------ |
-| `WEB_PASSWORD_HASH` | Requis pour activer l'auth web | `""`   | Hash scrypt (`scrypt$N$r$p$salt$hash`, **masqué**). Généré par `personalscraper web set-password`            |
+| `WEB_PASSWORD_HASH` | Requis pour activer l'auth web | `""`   | Hash scrypt (`scrypt$N$r$p$salt$hash`, **masqué**). Généré par `torrentmate web set-password`                |
 | `WEB_JWT_SECRET`    | Requis pour activer l'auth web | `""`   | Secret HS256 des JWT de session (**masqué**). `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 
 ```bash
 # Générer le hash de mot de passe (écrit WEB_PASSWORD_HASH pour vous)
-personalscraper web set-password
+torrentmate web set-password
 
 # Générer le secret JWT
 python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -782,7 +782,7 @@ WEB_JWT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Le fichier `.env` doit être à la racine du projet.
 
 ```bash
-ls -la "/path/to/PersonalScraper/.env"
+ls -la "/path/to/torrent-mate/.env"
 ```
 
 ### Les clés API ne fonctionnent pas
