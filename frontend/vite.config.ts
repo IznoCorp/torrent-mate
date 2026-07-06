@@ -48,29 +48,29 @@ export default defineConfig({
       // Icons are already precached via the `png` glob below; skip the manifest
       // auto-inclusion so each icon lands in the precache list exactly once.
       includeManifestIcons: false,
+      // Manifest mirrors the design-system app-icons set
+      // (.claude/skills/design-system/assets/app-icons/manifest.webmanifest).
       manifest: {
         name: 'TorrentMate',
         // The installed home-screen icon label uses short_name — keep it the
         // full brand ("TorrentMate"), never the "TM" abbreviation.
         short_name: 'TorrentMate',
         description:
-          'Pilotage du pipeline TorrentMate : téléchargements, scraping et bibliothèque.',
+          'Interface de supervision du pipeline média self-hosted TorrentMate.',
         lang: 'fr',
+        dir: 'ltr',
         start_url: '/',
         scope: '/',
         display: 'standalone',
+        orientation: 'portrait',
+        categories: ['utilities', 'productivity'],
         theme_color: dsBackground,
         background_color: dsBackground,
         icons: [
-          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          {
-            src: '/pwa-maskable-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-          { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: '/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
