@@ -127,6 +127,232 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pipeline/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pipeline History
+         * @description Return paginated pipeline run history.
+         *
+         *     Opens a fresh read-only connection to the indexer database on every
+         *     request.  The database uses WAL mode so concurrent reads are safe.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         limit: Maximum number of runs to return (default 50).
+         *         offset: Number of runs to skip (default 0).
+         *         sort: Sort order — one of ``started_at``, ``-started_at``,
+         *             ``duration``, ``-duration`` (default ``-started_at``).
+         *
+         *     Returns:
+         *         A ``HistoryResponse`` with the requested page of run summaries.
+         *
+         *     Raises:
+         *         HTTPException: 400 if *sort* is not one of the allowed values.
+         */
+        get: operations["pipeline_history_api_pipeline_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/history/{run_uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pipeline History Detail
+         * @description Return the full detail for a single pipeline run.
+         *
+         *     Parses the ``steps_json`` column into per-step timing records.
+         *
+         *     Args:
+         *         run_uid: The unique run identifier.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A ``RunDetail`` with step timings parsed from ``steps_json``.
+         *
+         *     Raises:
+         *         HTTPException: 404 if no run with the given *run_uid* exists.
+         */
+        get: operations["pipeline_history_detail_api_pipeline_history__run_uid__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/kill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pipeline Kill
+         * @description Kill the running pipeline subprocess with SIGTERM.
+         *
+         *     Reads the PID from ``pipeline.lock``, sends ``SIGTERM``, and clears
+         *     the pause sentinel.  The run process releases the lock and finalizes
+         *     its history row as ``killed`` on its way out.
+         *
+         *     Returns the current pipeline status (fail-soft: if the lock is absent
+         *     or unreadable, returns the idle status without error).
+         */
+        post: operations["pipeline_kill_api_pipeline_kill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pipeline Pause
+         * @description Create the ``pipeline.pause`` sentinel to pause the running pipeline.
+         *
+         *     No-op if no pipeline is currently running (the sentinel is still
+         *     created — it will be honoured on the next run, which is harmless since
+         *     a fresh run clears it).
+         *
+         *     Returns the current pipeline status.
+         */
+        post: operations["pipeline_pause_api_pipeline_pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pipeline Resume
+         * @description Remove the ``pipeline.pause`` sentinel to resume a paused pipeline.
+         *
+         *     Returns the current pipeline status.
+         */
+        post: operations["pipeline_resume_api_pipeline_resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pipeline Run
+         * @description Launch a new pipeline run as a detached subprocess.
+         *
+         *     Returns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock
+         *     is already held by another process.
+         */
+        post: operations["pipeline_run_api_pipeline_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pipeline Status
+         * @description Return the live pipeline status.
+         *
+         *     Reads the lock, pause sentinel, watcher sentinel, and the latest
+         *     ``pipeline_run`` database row to compose a full status snapshot.
+         *     This is the only route in the group that does **not** require the
+         *     ``X-Requested-With`` header (it is a read-only GET).
+         *
+         *     Returns:
+         *         A ``StatusResponse`` with the current pipeline state and metadata.
+         */
+        get: operations["pipeline_status_api_pipeline_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/watcher": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pipeline Watcher
+         * @description Enable or pause the directory watcher daemon.
+         *
+         *     When *enabled* is ``True`` the ``watcher.paused`` sentinel is removed
+         *     (watcher runs).  When ``False`` the sentinel is created (watcher pauses).
+         *     This is independent of the pipeline run itself — pausing the watcher
+         *     only prevents the daemon from auto-starting new runs.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         body: The watcher toggle payload with ``enabled: bool``.
+         *
+         *     Returns:
+         *         The watcher state reflecting the requested change.
+         */
+        post: operations["pipeline_watcher_api_pipeline_watcher_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/version": {
         parameters: {
             query?: never;
@@ -178,6 +404,20 @@ export interface components {
             status: string;
         };
         /**
+         * HistoryResponse
+         * @description Paginated response for the run-history list endpoint.
+         *
+         *     Attributes:
+         *         runs: List of run summaries for the current page.
+         *         total: Total number of runs in the database (for pagination).
+         */
+        HistoryResponse: {
+            /** Runs */
+            runs: components["schemas"]["RunSummary"][];
+            /** Total */
+            total: number;
+        };
+        /**
          * LoginRequest
          * @description Login request body.
          *
@@ -190,6 +430,170 @@ export interface components {
             password: string;
             /** Username */
             username: string;
+        };
+        /**
+         * PipelineOutcome
+         * @description Final outcome of a completed (or killed) pipeline run.
+         *
+         *     Used in the ``pipeline_run.outcome`` column and the ``StatusResponse``
+         *     for active runs.
+         *
+         *     Attributes:
+         *         success: The run completed without errors.
+         *         error: The run terminated with an unhandled error.
+         *         killed: The run was killed via the ``/api/pipeline/kill`` endpoint.
+         *         running: The run is still in progress.
+         *         paused: The run is paused at a step boundary.
+         * @enum {string}
+         */
+        PipelineOutcome: "success" | "error" | "killed" | "running" | "paused";
+        /**
+         * PipelineState
+         * @description Current run-state of the pipeline process.
+         *
+         *     Attributes:
+         *         idle: No pipeline run is in progress.
+         *         running: A pipeline run is actively executing.
+         *         paused: A pipeline run is in progress but paused at a step boundary.
+         * @enum {string}
+         */
+        PipelineState: "idle" | "running" | "paused";
+        /**
+         * RunDetail
+         * @description Full detail for a single pipeline run, including step timings.
+         *
+         *     Attributes:
+         *         run_uid: Unique run identifier.
+         *         trigger: What triggered the run.
+         *         dry_run: Whether this was a dry run.
+         *         started_at: ISO 8601 UTC timestamp of run start.
+         *         ended_at: ISO 8601 UTC timestamp of run end, or ``None``.
+         *         outcome: Final outcome, or ``None``.
+         *         duration_s: Wall-clock duration in seconds, or ``None``.
+         *         steps: Per-step timing records parsed from ``steps_json``.
+         *         error: Error message if the run failed, or ``None``.
+         */
+        RunDetail: {
+            /** Dry Run */
+            dry_run: boolean;
+            /** Duration S */
+            duration_s?: number | null;
+            /** Ended At */
+            ended_at?: string | null;
+            /** Error */
+            error?: string | null;
+            outcome?: components["schemas"]["PipelineOutcome"] | null;
+            /** Run Uid */
+            run_uid: string;
+            /** Started At */
+            started_at: string;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["StepTiming"][];
+            /** Trigger */
+            trigger: string;
+        };
+        /**
+         * RunRequest
+         * @description Request body for ``POST /api/pipeline/run``.
+         *
+         *     Attributes:
+         *         dry_run: If ``True``, the pipeline performs a dry run without
+         *             mutating the filesystem.
+         */
+        RunRequest: {
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+        };
+        /**
+         * RunSummary
+         * @description Summary row for the pipeline run-history list endpoint.
+         *
+         *     Attributes:
+         *         run_uid: Unique run identifier (uuid4 hex).
+         *         trigger: What triggered the run (``"cli"``, ``"web"``, ``"watcher"``, etc.).
+         *         dry_run: Whether this was a dry run.
+         *         started_at: ISO 8601 UTC timestamp of run start.
+         *         ended_at: ISO 8601 UTC timestamp of run end, or ``None`` if still
+         *             running.
+         *         outcome: Final outcome, or ``None`` if still in progress.
+         *         duration_s: Wall-clock duration in seconds (``ended_at - started_at``),
+         *             or ``None`` if either timestamp is missing.
+         */
+        RunSummary: {
+            /** Dry Run */
+            dry_run: boolean;
+            /** Duration S */
+            duration_s?: number | null;
+            /** Ended At */
+            ended_at?: string | null;
+            outcome?: components["schemas"]["PipelineOutcome"] | null;
+            /** Run Uid */
+            run_uid: string;
+            /** Started At */
+            started_at: string;
+            /** Trigger */
+            trigger: string;
+        };
+        /**
+         * StatusResponse
+         * @description Response body for ``GET /api/pipeline/status``.
+         *
+         *     Reflects the live state of the pipeline engine, the pause sentinel,
+         *     the watcher sentinel, and the latest run metadata.
+         *
+         *     Attributes:
+         *         state: The current pipeline run-state.
+         *         run_uid: The unique identifier of the latest or active run, or
+         *             ``None`` when idle.
+         *         step: The human-readable name of the current step, or ``None``
+         *             when idle.
+         *         paused: Whether the pipeline is currently paused at a step boundary.
+         *         watcher_enabled: Whether the directory watcher is currently active.
+         *         pid: The OS process ID of the running pipeline subprocess, or
+         *             ``None`` when idle.
+         */
+        StatusResponse: {
+            /** Paused */
+            paused: boolean;
+            /** Pid */
+            pid?: number | null;
+            /** Run Uid */
+            run_uid?: string | null;
+            state: components["schemas"]["PipelineState"];
+            /** Step */
+            step?: string | null;
+            /** Watcher Enabled */
+            watcher_enabled: boolean;
+        };
+        /**
+         * StepTiming
+         * @description Timing record for a single pipeline step within a run.
+         *
+         *     Attributes:
+         *         name: Human-readable step name (e.g. ``"ingest"``, ``"sort"``).
+         *         status: Step status (``"done"``, ``"running"``, ``"error"``, etc.).
+         *         started_at: ISO 8601 UTC timestamp of step start, or ``None``.
+         *         ended_at: ISO 8601 UTC timestamp of step end, or ``None``.
+         *         elapsed_s: Step duration in seconds, or ``None`` if either timestamp
+         *             is missing.
+         */
+        StepTiming: {
+            /** Elapsed S */
+            elapsed_s?: number | null;
+            /** Ended At */
+            ended_at?: string | null;
+            /** Name */
+            name: string;
+            /** Started At */
+            started_at?: string | null;
+            /** Status */
+            status: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -217,6 +621,29 @@ export interface components {
             build_commit: string;
             /** Version */
             version: string;
+        };
+        /**
+         * WatcherRequest
+         * @description Request body for ``POST /api/pipeline/watcher``.
+         *
+         *     Attributes:
+         *         enabled: If ``True``, enable the directory watcher; if ``False``,
+         *             pause it.
+         */
+        WatcherRequest: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /**
+         * WatcherResponse
+         * @description Response body for ``POST /api/pipeline/watcher``.
+         *
+         *     Attributes:
+         *         watcher_enabled: Whether the directory watcher is now enabled.
+         */
+        WatcherResponse: {
+            /** Watcher Enabled */
+            watcher_enabled: boolean;
         };
     };
     responses: never;
@@ -318,6 +745,216 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    pipeline_history_api_pipeline_history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pipeline_history_detail_api_pipeline_history__run_uid__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pipeline_kill_api_pipeline_kill_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+        };
+    };
+    pipeline_pause_api_pipeline_pause_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+        };
+    };
+    pipeline_resume_api_pipeline_resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+        };
+    };
+    pipeline_run_api_pipeline_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pipeline_status_api_pipeline_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+        };
+    };
+    pipeline_watcher_api_pipeline_watcher_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatcherRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatcherResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

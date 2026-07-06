@@ -215,6 +215,84 @@ export function getVersion(): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Pipeline endpoints
+// ---------------------------------------------------------------------------
+
+/** Shared header required by every mutating pipeline endpoint (Phases 2-3). */
+const PIPELINE_HEADERS: Record<string, string> = {
+  "X-Requested-With": "TorrentMate",
+};
+
+/**
+ * Response shape for ``POST /api/pipeline/run``.
+ *
+ * The OpenAPI schema models the 200 body as a bare dict (``unknown``); this
+ * narrows it to the documented ``{run_uid}`` shape the backend returns.
+ */
+interface RunResponse {
+  run_uid: string;
+}
+
+/** Launch a pipeline run: POST /api/pipeline/run.  Requires ``X-Requested-With``. */
+export async function runPipeline(
+  body: RequestBodyOf<paths["/api/pipeline/run"]["post"]>,
+): Promise<RunResponse> {
+  return apiFetch("/api/pipeline/run", {
+    method: "post",
+    body,
+    headers: PIPELINE_HEADERS,
+  }) as Promise<RunResponse>;
+}
+
+/** Pause the running pipeline: POST /api/pipeline/pause.  Requires ``X-Requested-With``. */
+export function pausePipeline(): Promise<
+  SuccessBody<paths["/api/pipeline/pause"]["post"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/pause", {
+    method: "post",
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Resume a paused pipeline: POST /api/pipeline/resume.  Requires ``X-Requested-With``. */
+export function resumePipeline(): Promise<
+  SuccessBody<paths["/api/pipeline/resume"]["post"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/resume", {
+    method: "post",
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Kill the running pipeline: POST /api/pipeline/kill.  Requires ``X-Requested-With``. */
+export function killPipeline(): Promise<
+  SuccessBody<paths["/api/pipeline/kill"]["post"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/kill", {
+    method: "post",
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Enable or pause the directory watcher: POST /api/pipeline/watcher.  Requires ``X-Requested-With``. */
+export function setWatcher(
+  body: RequestBodyOf<paths["/api/pipeline/watcher"]["post"]>,
+): Promise<SuccessBody<paths["/api/pipeline/watcher"]["post"]["responses"]>> {
+  return apiFetch("/api/pipeline/watcher", {
+    method: "post",
+    body,
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Get the live pipeline status: GET /api/pipeline/status.  Public read — no ``X-Requested-With``. */
+export function getPipelineStatus(): Promise<
+  SuccessBody<paths["/api/pipeline/status"]["get"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/status", { method: "get" });
+}
+
+// ---------------------------------------------------------------------------
 // Global 401 policy seam
 // ---------------------------------------------------------------------------
 

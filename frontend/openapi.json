@@ -38,6 +38,28 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HistoryResponse": {
+        "description": "Paginated response for the run-history list endpoint.\n\nAttributes:\n    runs: List of run summaries for the current page.\n    total: Total number of runs in the database (for pagination).",
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "runs",
+          "total"
+        ],
+        "title": "HistoryResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "description": "Login request body.\n\nAttributes:\n    username: The username to authenticate.\n    password: The plaintext password to verify.",
         "properties": {
@@ -55,6 +77,289 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "PipelineOutcome": {
+        "description": "Final outcome of a completed (or killed) pipeline run.\n\nUsed in the ``pipeline_run.outcome`` column and the ``StatusResponse``\nfor active runs.\n\nAttributes:\n    success: The run completed without errors.\n    error: The run terminated with an unhandled error.\n    killed: The run was killed via the ``/api/pipeline/kill`` endpoint.\n    running: The run is still in progress.\n    paused: The run is paused at a step boundary.",
+        "enum": [
+          "success",
+          "error",
+          "killed",
+          "running",
+          "paused"
+        ],
+        "title": "PipelineOutcome",
+        "type": "string"
+      },
+      "PipelineState": {
+        "description": "Current run-state of the pipeline process.\n\nAttributes:\n    idle: No pipeline run is in progress.\n    running: A pipeline run is actively executing.\n    paused: A pipeline run is in progress but paused at a step boundary.",
+        "enum": [
+          "idle",
+          "running",
+          "paused"
+        ],
+        "title": "PipelineState",
+        "type": "string"
+      },
+      "RunDetail": {
+        "description": "Full detail for a single pipeline run, including step timings.\n\nAttributes:\n    run_uid: Unique run identifier.\n    trigger: What triggered the run.\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None``.\n    outcome: Final outcome, or ``None``.\n    duration_s: Wall-clock duration in seconds, or ``None``.\n    steps: Per-step timing records parsed from ``steps_json``.\n    error: Error message if the run failed, or ``None``.",
+        "properties": {
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_uid": {
+            "title": "Run Uid",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StepTiming"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_uid",
+          "trigger",
+          "dry_run",
+          "started_at"
+        ],
+        "title": "RunDetail",
+        "type": "object"
+      },
+      "RunRequest": {
+        "description": "Request body for ``POST /api/pipeline/run``.\n\nAttributes:\n    dry_run: If ``True``, the pipeline performs a dry run without\n        mutating the filesystem.",
+        "properties": {
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          }
+        },
+        "title": "RunRequest",
+        "type": "object"
+      },
+      "RunSummary": {
+        "description": "Summary row for the pipeline run-history list endpoint.\n\nAttributes:\n    run_uid: Unique run identifier (uuid4 hex).\n    trigger: What triggered the run (``\"cli\"``, ``\"web\"``, ``\"watcher\"``, etc.).\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None`` if still\n        running.\n    outcome: Final outcome, or ``None`` if still in progress.\n    duration_s: Wall-clock duration in seconds (``ended_at - started_at``),\n        or ``None`` if either timestamp is missing.",
+        "properties": {
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_uid": {
+            "title": "Run Uid",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_uid",
+          "trigger",
+          "dry_run",
+          "started_at"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "StatusResponse": {
+        "description": "Response body for ``GET /api/pipeline/status``.\n\nReflects the live state of the pipeline engine, the pause sentinel,\nthe watcher sentinel, and the latest run metadata.\n\nAttributes:\n    state: The current pipeline run-state.\n    run_uid: The unique identifier of the latest or active run, or\n        ``None`` when idle.\n    step: The human-readable name of the current step, or ``None``\n        when idle.\n    paused: Whether the pipeline is currently paused at a step boundary.\n    watcher_enabled: Whether the directory watcher is currently active.\n    pid: The OS process ID of the running pipeline subprocess, or\n        ``None`` when idle.",
+        "properties": {
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pid"
+          },
+          "run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Uid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PipelineState"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "watcher_enabled": {
+            "title": "Watcher Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "state",
+          "paused",
+          "watcher_enabled"
+        ],
+        "title": "StatusResponse",
+        "type": "object"
+      },
+      "StepTiming": {
+        "description": "Timing record for a single pipeline step within a run.\n\nAttributes:\n    name: Human-readable step name (e.g. ``\"ingest\"``, ``\"sort\"``).\n    status: Step status (``\"done\"``, ``\"running\"``, ``\"error\"``, etc.).\n    started_at: ISO 8601 UTC timestamp of step start, or ``None``.\n    ended_at: ISO 8601 UTC timestamp of step end, or ``None``.\n    elapsed_s: Step duration in seconds, or ``None`` if either timestamp\n        is missing.",
+        "properties": {
+          "elapsed_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed S"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "StepTiming",
         "type": "object"
       },
       "ValidationError": {
@@ -114,6 +419,34 @@
           "build_commit"
         ],
         "title": "VersionResponse",
+        "type": "object"
+      },
+      "WatcherRequest": {
+        "description": "Request body for ``POST /api/pipeline/watcher``.\n\nAttributes:\n    enabled: If ``True``, enable the directory watcher; if ``False``,\n        pause it.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "WatcherRequest",
+        "type": "object"
+      },
+      "WatcherResponse": {
+        "description": "Response body for ``POST /api/pipeline/watcher``.\n\nAttributes:\n    watcher_enabled: Whether the directory watcher is now enabled.",
+        "properties": {
+          "watcher_enabled": {
+            "title": "Watcher Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "watcher_enabled"
+        ],
+        "title": "WatcherResponse",
         "type": "object"
       }
     }
@@ -229,6 +562,283 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/pipeline/history": {
+      "get": {
+        "description": "Return paginated pipeline run history.\n\nOpens a fresh read-only connection to the indexer database on every\nrequest.  The database uses WAL mode so concurrent reads are safe.\n\nArgs:\n    request: The incoming FastAPI request.\n    limit: Maximum number of runs to return (default 50).\n    offset: Number of runs to skip (default 0).\n    sort: Sort order \u2014 one of ``started_at``, ``-started_at``,\n        ``duration``, ``-duration`` (default ``-started_at``).\n\nReturns:\n    A ``HistoryResponse`` with the requested page of run summaries.\n\nRaises:\n    HTTPException: 400 if *sort* is not one of the allowed values.",
+        "operationId": "pipeline_history_api_pipeline_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-started_at",
+              "title": "Sort",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pipeline History",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/history/{run_uid}": {
+      "get": {
+        "description": "Return the full detail for a single pipeline run.\n\nParses the ``steps_json`` column into per-step timing records.\n\nArgs:\n    run_uid: The unique run identifier.\n    request: The incoming FastAPI request.\n\nReturns:\n    A ``RunDetail`` with step timings parsed from ``steps_json``.\n\nRaises:\n    HTTPException: 404 if no run with the given *run_uid* exists.",
+        "operationId": "pipeline_history_detail_api_pipeline_history__run_uid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_uid",
+            "required": true,
+            "schema": {
+              "title": "Run Uid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pipeline History Detail",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/kill": {
+      "post": {
+        "description": "Kill the running pipeline subprocess with SIGTERM.\n\nReads the PID from ``pipeline.lock``, sends ``SIGTERM``, and clears\nthe pause sentinel.  The run process releases the lock and finalizes\nits history row as ``killed`` on its way out.\n\nReturns the current pipeline status (fail-soft: if the lock is absent\nor unreadable, returns the idle status without error).",
+        "operationId": "pipeline_kill_api_pipeline_kill_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline Kill",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/pause": {
+      "post": {
+        "description": "Create the ``pipeline.pause`` sentinel to pause the running pipeline.\n\nNo-op if no pipeline is currently running (the sentinel is still\ncreated \u2014 it will be honoured on the next run, which is harmless since\na fresh run clears it).\n\nReturns the current pipeline status.",
+        "operationId": "pipeline_pause_api_pipeline_pause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline Pause",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/resume": {
+      "post": {
+        "description": "Remove the ``pipeline.pause`` sentinel to resume a paused pipeline.\n\nReturns the current pipeline status.",
+        "operationId": "pipeline_resume_api_pipeline_resume_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline Resume",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/run": {
+      "post": {
+        "description": "Launch a new pipeline run as a detached subprocess.\n\nReturns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock\nis already held by another process.",
+        "operationId": "pipeline_run_api_pipeline_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pipeline Run",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/status": {
+      "get": {
+        "description": "Return the live pipeline status.\n\nReads the lock, pause sentinel, watcher sentinel, and the latest\n``pipeline_run`` database row to compose a full status snapshot.\nThis is the only route in the group that does **not** require the\n``X-Requested-With`` header (it is a read-only GET).\n\nReturns:\n    A ``StatusResponse`` with the current pipeline state and metadata.",
+        "operationId": "pipeline_status_api_pipeline_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline Status",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/watcher": {
+      "post": {
+        "description": "Enable or pause the directory watcher daemon.\n\nWhen *enabled* is ``True`` the ``watcher.paused`` sentinel is removed\n(watcher runs).  When ``False`` the sentinel is created (watcher pauses).\nThis is independent of the pipeline run itself \u2014 pausing the watcher\nonly prevents the daemon from auto-starting new runs.\n\nArgs:\n    request: The incoming FastAPI request.\n    body: The watcher toggle payload with ``enabled: bool``.\n\nReturns:\n    The watcher state reflecting the requested change.",
+        "operationId": "pipeline_watcher_api_pipeline_watcher_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatcherRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatcherResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pipeline Watcher",
+        "tags": [
+          "pipeline"
         ]
       }
     },
