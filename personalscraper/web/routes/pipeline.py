@@ -22,6 +22,7 @@ from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import (
@@ -89,6 +90,7 @@ def _build_status(data_dir: Path, db_path: Path) -> StatusResponse:
         # Query the latest pipeline_run row for run_uid + current step.
         try:
             conn = sqlite3.connect(str(db_path))
+            _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT run_uid, steps_json FROM pipeline_run ORDER BY started_at DESC LIMIT 1"
@@ -393,6 +395,7 @@ def pipeline_history(
 
     try:
         with closing(sqlite3.connect(str(db_path))) as conn:
+            _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             total_row = conn.execute("SELECT COUNT(*) FROM pipeline_run").fetchone()
             total = total_row[0] if total_row else 0
@@ -439,6 +442,7 @@ def pipeline_history_detail(
 
     try:
         with closing(sqlite3.connect(str(db_path))) as conn:
+            _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT run_uid, trigger, dry_run, started_at, ended_at, "

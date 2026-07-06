@@ -25,6 +25,10 @@ _ALLOWLIST: frozenset[str] = frozenset(
         # Runtime config path override — not a user-facing credential
         # but a bootstrap hook for dev/testing (conf/loader.py:56).
         "PERSONALSCRAPER_CONFIG",
+        # Internal: the web /run route sets this in the spawned run's
+        # environment so its run_uid matches the pipeline_run history row.
+        # Not user config — never set manually in .env.
+        "PERSONALSCRAPER_RUN_UID",
     }
 )
 

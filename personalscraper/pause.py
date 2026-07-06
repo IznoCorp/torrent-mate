@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 from personalscraper.core.event_bus import EventBus
-from personalscraper.logger import get_logger
 
 
 class PauseController:
@@ -73,7 +72,6 @@ class PauseController:
         self._event_bus = event_bus
         self._poll_interval = poll_interval
         self._shutdown_check: Callable[[], None] = shutdown_check if shutdown_check is not None else lambda: None
-        self._log = get_logger("pause")
 
     def checkpoint(self) -> None:
         """Block at a step boundary if the pause sentinel is present.
@@ -102,7 +100,6 @@ class PauseController:
         # is already available.
         from personalscraper.pipeline_events import PipelinePaused
 
-        self._log.info("pipeline_paused", pause_file=str(self._pause_file))
         self._event_bus.emit(PipelinePaused())
 
         while self._pause_file.exists():
@@ -111,7 +108,6 @@ class PauseController:
 
         from personalscraper.pipeline_events import PipelineResumed
 
-        self._log.info("pipeline_resumed")
         self._event_bus.emit(PipelineResumed())
 
     def is_paused(self) -> bool:
