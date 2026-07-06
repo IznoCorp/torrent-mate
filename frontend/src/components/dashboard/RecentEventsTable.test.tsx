@@ -29,13 +29,29 @@ describe("RecentEventsTable", () => {
     expect(firstDataRowType()).toContain("Charlie");
   });
 
-  it("réordonne par type quand on clique l’en-tête « Type »", () => {
+  it("réordonne par événement quand on clique l’en-tête « Événement »", () => {
     render(<RecentEventsTable events={events} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Type" }));
+    fireEvent.click(screen.getByRole("button", { name: "Événement" }));
 
-    // Ascending by type → Alpha first.
+    // Ascending by event name → Alpha first.
     expect(firstDataRowType()).toContain("Alpha");
+  });
+
+  it("rend un badge de niveau par sévérité dans la colonne « Niveau »", () => {
+    render(
+      <RecentEventsTable
+        events={[
+          makeEvent(1_000, "PipelineStepErrored"),
+          makeEvent(2_000, "DiskSpaceWarning"),
+          makeEvent(3_000, "PipelineStepStarted"),
+        ]}
+      />,
+    );
+    // The severity → level badge text: error / warn / info.
+    expect(screen.getByText("error")).toBeInTheDocument();
+    expect(screen.getByText("warn")).toBeInTheDocument();
+    expect(screen.getByText("info")).toBeInTheDocument();
   });
 
   it("affiche un état vide sans événement", () => {
