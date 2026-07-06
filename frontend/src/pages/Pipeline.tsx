@@ -7,39 +7,25 @@
  * and {@link RunLogFeed}.
  */
 
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
-import { getPipelineStatus } from "@/api/client";
-import type { components } from "@/api/schema";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
-
-/** The status shape from GET /api/pipeline/status. */
-type StatusResponse = components["schemas"]["StatusResponse"];
-
-/** Default status used while the first query is in flight. */
-const DEFAULT_STATUS: StatusResponse = {
-  state: "idle",
-  paused: false,
-  watcher_enabled: false,
-};
+import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 
 /**
  * Pipeline — the authenticated pipeline supervision route (``/pipeline``).
+ *
+ * Delegates the status poll and live-event invalidation to
+ * {@link usePipelineStatus}; the returned snapshot feeds the control bar,
+ * stepper, and log feed without any inline query wiring.
  *
  * Returns:
  *   The pipeline page element.
  */
 export default function Pipeline(): ReactElement {
-  const { data: status } = useQuery({
-    queryKey: ["pipeline", "status"],
-    queryFn: getPipelineStatus,
-    refetchInterval: 5_000,
-  });
-
-  const liveStatus = status ?? DEFAULT_STATUS;
+  const { snapshot: liveStatus } = usePipelineStatus();
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
