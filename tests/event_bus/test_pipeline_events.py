@@ -124,15 +124,17 @@ def test_event_registry_has_all_v1_events() -> None:
     ``RatioMeasured`` (→ 33). The ``tracker-auth`` Phase 1 adds
     ``TrackerAuthFailed`` (→ 34). The ``watch-seed`` Phase 5 adds
     ``CrossSeedInjected`` and ``CrossSeedRejected`` (→ 36). The
-    ``watch-seed`` Phase 7 adds ``WatcherRunTriggered`` (→ 37).
+    ``watch-seed`` Phase 7 adds ``WatcherRunTriggered`` (→ 37). The
+    ``pipe-control`` S2 Phase 1 adds ``PipelinePaused`` and
+    ``PipelineResumed`` for the cooperative step-boundary pause (→ 39).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 37, (
-        f"Expected 37 events (36 existing + 1 watch-seed WatcherRunTriggered event), "
+    assert len(_EVENT_CLASS_REGISTRY) == 39, (
+        f"Expected 39 events (37 existing + 2 pipe-control PipelinePaused/PipelineResumed), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

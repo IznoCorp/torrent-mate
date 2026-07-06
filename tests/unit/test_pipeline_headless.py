@@ -6,6 +6,8 @@ subscriber attached to ``ctx.app.event_bus`` before ``Pipeline.run`` fires.
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.api.metadata.registry import ProviderRegistry
@@ -24,7 +26,7 @@ def _stub_app() -> AppContext:
     ingest_entry.id = 97
     ingest_entry.role = "ingest"
     config.staging_dirs = [ingest_entry]
-    config.paths.data_dir = MagicMock()
+    config.paths.data_dir = Path(tempfile.mkdtemp())  # real empty dir: PauseController reads data_dir/'pipeline.pause'
     config.trailers.pipeline.skip = True
     config.trailers.pipeline.continue_on_error = True
     config.trailers.enabled = False

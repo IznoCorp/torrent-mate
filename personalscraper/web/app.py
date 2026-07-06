@@ -117,6 +117,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     # the guard.  All future waves mount their routers here.
     guarded_api = APIRouter(dependencies=[Depends(require_session)])
     guarded_api.include_router(version_router)
+    from personalscraper.web.routes.pipeline import router as pipeline_router
+
+    guarded_api.include_router(pipeline_router)
     app.include_router(guarded_api)
 
     # Mount the built SPA static files with index.html fallback.

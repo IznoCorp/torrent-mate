@@ -71,6 +71,24 @@ def _validate_session_token(token: str, secret: str, expected_username: str) -> 
     return Session(username=payload["sub"])
 
 
+def require_x_requested_with(request: Request) -> None:
+    """FastAPI dependency that validates the ``X-Requested-With`` header.
+
+    Every mutating ``POST`` under ``/api/*`` must carry
+    ``X-Requested-With: TorrentMate`` as a CSRF defence (tm-shell §4.6).
+    GET routes and the WebSocket upgrade are exempt — only mutating
+    endpoints depend on this guard.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Raises:
+        HTTPException: 400 if the header is missing or has the wrong value.
+    """
+    if request.headers.get("X-Requested-With") != "TorrentMate":
+        raise HTTPException(status_code=400, detail="Missing X-Requested-With header")
+
+
 def require_session(request: Request) -> Session:
     """FastAPI dependency that validates the ``tm_session`` cookie.
 

@@ -157,13 +157,13 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 33 production event classes, almost all
+The v1 catalog defines exactly 39 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
-`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 33`).
+`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 39`).
 
-> **Exception — `VerifyItemDone`.** Unlike the other 32 classes,
+> **Exception — `VerifyItemDone`.** Unlike the other 38 classes,
 > `VerifyItemDone` is **not** in the eager-import list of
 > `personalscraper.events.__init__`. It self-registers only when the verify
 > step is loaded — `personalscraper.verify.run` does
@@ -181,6 +181,8 @@ self-register before any envelope round-trip. The count is pinned by
 | `StepStarted`                | `personalscraper.pipeline_events`               | `step: str`                                                                                                                     | `Pipeline._run_step` around each step                                                              |
 | `StepCompleted`              | `personalscraper.pipeline_events`               | `step: str`, `report: StepReport`, `elapsed_s: float`                                                                           | `Pipeline._run_step` on success                                                                    |
 | `StepErrored`                | `personalscraper.pipeline_events`               | `step: str`, `error_class: str`, `error_message: str`                                                                           | `Pipeline._run_step` on exception                                                                  |
+| `PipelinePaused`             | `personalscraper.pipeline_events`               | _(no fields)_                                                                                                                   | `PauseController.checkpoint` when the `pipeline.pause` sentinel is present (between steps)         |
+| `PipelineResumed`            | `personalscraper.pipeline_events`               | _(no fields)_                                                                                                                   | `PauseController.checkpoint` when the `pipeline.pause` sentinel clears                             |
 | `ItemProgressed`             | `personalscraper.pipeline_events`               | `step: str`, `item: str`, `status: str`, `details: dict`                                                                        | Every step's per-item lifecycle (ingest, sort, dispatch…)                                          |
 | `ItemDispatched`             | `personalscraper.dispatch.events`               | `item: str`, `target_disk: Path`, `category_id: str`, `action: Literal["moved","merged","replaced"]`                            | `dispatch._movie.dispatch_movie` + `dispatch._tv.dispatch_tvshow` after a successful real transfer |
 | `CircuitBreakerOpened`       | `personalscraper.core.circuit`                  | `breaker: str`, `failure_count: int`, `last_error_class: str`, `last_error_message: str`                                        | `CircuitBreaker.record_failure` on transition                                                      |

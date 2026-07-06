@@ -25,6 +25,7 @@ import ComingSoon from "@/pages/ComingSoon";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/NotFound";
+import Pipeline from "@/pages/Pipeline";
 
 /** The full route table (shared by the browser router and memory-router tests). */
 export const routes: RouteObject[] = [
@@ -41,7 +42,7 @@ export const routes: RouteObject[] = [
               { index: true, element: <Dashboard /> },
               {
                 path: "pipeline",
-                element: <ComingSoon title="Pipeline" wave="S2" />,
+                element: <Pipeline />,
               },
               {
                 path: "maintenance",

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.core.event_bus import EventBus
@@ -17,7 +19,9 @@ class TestIngestProgress:
     def _make_config() -> MagicMock:
         config = MagicMock()
         config.paths.staging_dir = MagicMock()
-        config.paths.data_dir = MagicMock()
+        config.paths.data_dir = Path(
+            tempfile.mkdtemp()
+        )  # real empty dir: PauseController reads data_dir/'pipeline.pause'
         config.thresholds.min_free_space_staging_gb = 1
         config.thresholds.min_free_space_gb = 10
         config.ingest.min_ratio = 0.0

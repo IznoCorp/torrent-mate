@@ -558,6 +558,37 @@ class DeletedItemRow:
 
 
 @dataclass(frozen=True, kw_only=True)
+class PipelineRunRow:
+    """Row type for the ``pipeline_run`` table.
+
+    Args:
+        id: Primary key (auto-assigned by SQLite on insert; 0 = unset).
+        run_uid: Unique run identifier (UUID string).
+        trigger: How the run was triggered (``'cli'``, ``'web'``, ``'cron'``).
+        dry_run: 1 if this was a dry run, 0 otherwise.
+        started_at: Pipeline start time as a julian-day float
+            (``time.monotonic()`` reference for sub-second precision).
+        ended_at: Pipeline end time; ``None`` while running.
+        outcome: ``'success'``, ``'error'``, or ``'killed'``; ``None`` while running.
+        steps_json: JSON array of per-step timing records; ``None`` until the
+            first step completes.
+        error: Last error message; ``None`` if no error occurred.
+        pid: OS process ID of the pipeline process; ``None`` if not yet written.
+    """
+
+    id: int
+    run_uid: str
+    trigger: str
+    dry_run: int
+    started_at: float
+    ended_at: float | None
+    outcome: str | None
+    steps_json: str | None
+    error: str | None
+    pid: int | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class SchemaVersionRow:
     """Row type for the ``schema_version`` singleton table.
 

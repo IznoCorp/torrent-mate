@@ -215,6 +215,173 @@ export function getVersion(): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Pipeline endpoints
+// ---------------------------------------------------------------------------
+
+/** Shared header required by every mutating pipeline endpoint (Phases 2-3). */
+const PIPELINE_HEADERS: Record<string, string> = {
+  "X-Requested-With": "TorrentMate",
+};
+
+/**
+ * Response shape for ``POST /api/pipeline/run``.
+ *
+ * The OpenAPI schema models the 200 body as a bare dict (``unknown``); this
+ * narrows it to the documented ``{run_uid}`` shape the backend returns.
+ */
+interface RunResponse {
+  run_uid: string;
+}
+
+/** Launch a pipeline run: POST /api/pipeline/run.  Requires ``X-Requested-With``. */
+export async function runPipeline(
+  body: RequestBodyOf<paths["/api/pipeline/run"]["post"]>,
+): Promise<RunResponse> {
+  return apiFetch("/api/pipeline/run", {
+    method: "post",
+    body,
+    headers: PIPELINE_HEADERS,
+  }) as Promise<RunResponse>;
+}
+
+/** Pause the running pipeline: POST /api/pipeline/pause.  Requires ``X-Requested-With``. */
+export function pausePipeline(): Promise<
+  SuccessBody<paths["/api/pipeline/pause"]["post"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/pause", {
+    method: "post",
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Resume a paused pipeline: POST /api/pipeline/resume.  Requires ``X-Requested-With``. */
+export function resumePipeline(): Promise<
+  SuccessBody<paths["/api/pipeline/resume"]["post"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/resume", {
+    method: "post",
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Kill the running pipeline: POST /api/pipeline/kill.  Requires ``X-Requested-With``. */
+export function killPipeline(): Promise<
+  SuccessBody<paths["/api/pipeline/kill"]["post"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/kill", {
+    method: "post",
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Enable or pause the directory watcher: POST /api/pipeline/watcher.  Requires ``X-Requested-With``. */
+export function setWatcher(
+  body: RequestBodyOf<paths["/api/pipeline/watcher"]["post"]>,
+): Promise<SuccessBody<paths["/api/pipeline/watcher"]["post"]["responses"]>> {
+  return apiFetch("/api/pipeline/watcher", {
+    method: "post",
+    body,
+    headers: PIPELINE_HEADERS,
+  });
+}
+
+/** Get the live pipeline status: GET /api/pipeline/status.  Public read — no ``X-Requested-With``. */
+export function getPipelineStatus(): Promise<
+  SuccessBody<paths["/api/pipeline/status"]["get"]["responses"]>
+> {
+  return apiFetch("/api/pipeline/status", { method: "get" });
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline history endpoints (S2 Phase 5)
+// ---------------------------------------------------------------------------
+
+/** Response type for ``GET /api/pipeline/history``. */
+export type HistoryResponse = SuccessBody<
+  paths["/api/pipeline/history"]["get"]["responses"]
+>;
+
+/** Response type for ``GET /api/pipeline/history/{run_uid}``. */
+export type RunDetail = SuccessBody<
+  paths["/api/pipeline/history/{run_uid}"]["get"]["responses"]
+>;
+
+/** Query parameters accepted by ``GET /api/pipeline/history``. */
+export interface HistoryParams {
+  readonly limit?: number;
+  readonly offset?: number;
+  readonly sort?: string;
+}
+
+/**
+ * Fetch a single page of pipeline run history.
+ *
+ * Sends ``GET /api/pipeline/history`` with optional query params. Read-only —
+ * no ``X-Requested-With`` header.
+ *
+ * Args:
+ *   params: Optional pagination/sort query parameters.
+ *
+ * Returns:
+ *   A {@link HistoryResponse} with the page of {@link RunSummary} items.
+ */
+export async function getPipelineHistory(
+  params: HistoryParams = {},
+): Promise<HistoryResponse> {
+  const sp = new URLSearchParams();
+  if (params.limit !== undefined) sp.set("limit", String(params.limit));
+  if (params.offset !== undefined) sp.set("offset", String(params.offset));
+  if (params.sort !== undefined) sp.set("sort", params.sort);
+  const qs = sp.toString();
+  const url = `/api/pipeline/history${qs ? `?${qs}` : ""}`;
+  const response = await fetch(url, { method: "GET", credentials: "include" });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const json = (await response.json()) as { detail?: string };
+      if (typeof json.detail === "string") detail = json.detail;
+    } catch {
+      // Body is not JSON or is empty — keep statusText.
+    }
+    throw new ApiError(response.status, detail);
+  }
+  return (await response.json()) as HistoryResponse;
+}
+
+/**
+ * Fetch full detail for a single pipeline run.
+ *
+ * Sends ``GET /api/pipeline/history/{run_uid}``. Read-only — no
+ * ``X-Requested-With`` header.
+ *
+ * Args:
+ *   runUid: The unique run identifier (uuid4 hex).
+ *
+ * Returns:
+ *   A {@link RunDetail} with step timings parsed from ``steps_json``.
+ *
+ * Raises:
+ *   ApiError: 404 if no run with the given ``runUid`` exists.
+ */
+export async function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
+  const response = await fetch(
+    `/api/pipeline/history/${encodeURIComponent(runUid)}`,
+    { method: "GET", credentials: "include" },
+  );
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const json = (await response.json()) as { detail?: string };
+      if (typeof json.detail === "string") detail = json.detail;
+    } catch {
+      // Body is not JSON or is empty — keep statusText.
+    }
+    throw new ApiError(response.status, detail);
+  }
+  return (await response.json()) as RunDetail;
+}
+
+// ---------------------------------------------------------------------------
 // Global 401 policy seam
 // ---------------------------------------------------------------------------
 
