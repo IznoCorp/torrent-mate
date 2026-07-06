@@ -19,7 +19,12 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState, type ReactElement } from "react";
 
 import type { EventMessage } from "@/api/events";
-import { formatEventTime, severityForEventType } from "@/components/dashboard/eventRow.utils";
+import {
+  formatEventTime,
+  severityForEventType,
+  type Severity,
+} from "@/components/dashboard/eventRow.utils";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -34,6 +39,16 @@ export const RECENT_LIMIT = 50;
 /** Max characters of the payload summary before it is ellipsized. */
 const SUMMARY_MAX_CHARS = 80;
 
+/** Maps a severity bucket to its DS Badge tone + log level for the "Niveau" column. */
+const SEVERITY_BADGE: Record<
+  Severity,
+  { readonly tone: BadgeProps["tone"]; readonly level: string }
+> = {
+  danger: { tone: "danger", level: "error" },
+  warning: { tone: "warning", level: "warn" },
+  neutral: { tone: "neutral", level: "info" },
+};
+
 /** A flattened, table-friendly projection of one event. */
 interface EventRowData {
   readonly id: string;
@@ -41,6 +56,8 @@ interface EventRowData {
   readonly time: number;
   readonly type: string;
   readonly summary: string;
+  /** Severity bucket driving the "Niveau" badge (and its sort). */
+  readonly severity: Severity;
 }
 
 /** Project an {@link EventMessage} into its sortable table-row shape. */
@@ -56,10 +73,11 @@ function toRowData(event: EventMessage): EventRowData {
       json.length <= SUMMARY_MAX_CHARS
         ? json
         : `${json.slice(0, SUMMARY_MAX_CHARS)}…`,
+    severity: severityForEventType(event.type),
   };
 }
 
-/** The three column definitions, typed against {@link EventRowData}. */
+/** The column definitions, typed against {@link EventRowData}. */
 const columns: ColumnDef<EventRowData>[] = [
   {
     accessorKey: "time",
@@ -72,32 +90,31 @@ const columns: ColumnDef<EventRowData>[] = [
   },
   {
     accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => {
-      const severity = severityForEventType(row.original.type);
-      return (
-        <span
-          className={
-            severity === "danger"
-              ? "text-danger"
-              : severity === "warning"
-                ? "text-warning"
-                : "text-foreground"
-          }
-        >
-          {row.original.type}
-        </span>
-      );
-    },
+    header: "Événement",
+    cell: ({ row }) => (
+      <span className="font-mono">{row.original.type}</span>
+    ),
   },
   {
     accessorKey: "summary",
-    header: "Résumé",
+    header: "Détail",
     cell: ({ row }) => (
       <span className="font-mono text-xs text-muted-foreground">
         {row.original.summary}
       </span>
     ),
+  },
+  {
+    accessorKey: "severity",
+    header: "Niveau",
+    cell: ({ row }) => {
+      const { tone, level } = SEVERITY_BADGE[row.original.severity];
+      return (
+        <Badge tone={tone} dot>
+          {level}
+        </Badge>
+      );
+    },
   },
 ];
 

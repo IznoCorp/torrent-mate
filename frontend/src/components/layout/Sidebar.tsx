@@ -1,9 +1,8 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useCallback, useState, type ReactElement } from "react";
-import { NavLink } from "react-router-dom";
 
 import { BRAND_ICON } from "@/lib/env";
-import { NAV_ITEMS } from "@/components/layout/nav";
+import { NavSections } from "@/components/layout/NavSections";
 import { cn } from "@/lib/utils";
 
 /** localStorage key persisting the sidebar collapsed/expanded preference. */
@@ -45,10 +44,11 @@ function useSidebarCollapsed(): readonly [boolean, () => void] {
 /**
  * Sidebar — the desktop navigation rail (visible only ≥ md).
  *
- * Renders every entry in {@link NAV_ITEMS}. The active entry is highlighted in
- * DS amber (`text-primary`) over a subtle accent surface; inactive entries are
- * dimmed. A footer toggle collapses the rail to an icon strip, persisting the
- * choice across reloads via localStorage.
+ * Renders the grouped {@link NavSections} (Supervision / Système /
+ * Configuration). The active entry is highlighted in DS amber (`text-primary`)
+ * over a subtle accent surface; inactive entries are dimmed and disabled stubs
+ * are greyed. A footer toggle collapses the rail to an icon strip, persisting
+ * the choice across reloads via localStorage.
  *
  * @returns The sidebar element.
  */
@@ -76,34 +76,7 @@ export function Sidebar(): ReactElement {
         )}
       </div>
 
-      <nav
-        aria-label="Navigation latérale"
-        className="flex flex-1 flex-col gap-1 p-2"
-      >
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-primary"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
-                  collapsed && "justify-center px-0",
-                )
-              }
-            >
-              <Icon className="size-5 shrink-0" aria-hidden="true" />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </NavLink>
-          );
-        })}
-      </nav>
+      <NavSections ariaLabel="Navigation latérale" collapsed={collapsed} />
 
       <div className="border-t border-sidebar-border p-2">
         <button

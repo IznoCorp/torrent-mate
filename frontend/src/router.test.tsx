@@ -132,7 +132,7 @@ describe("router", () => {
     ).toHaveAttribute("aria-current", "page");
     // …inactive tabs do not.
     expect(
-      within(bottomBar).getByRole("link", { name: "Tableau de bord" }),
+      within(bottomBar).getByRole("link", { name: "Maintenance" }),
     ).not.toHaveAttribute("aria-current");
   });
 

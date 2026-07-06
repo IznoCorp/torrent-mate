@@ -7,11 +7,14 @@ import { cn } from "@/lib/utils";
 /**
  * BottomTabBar — the mobile navigation surface (visible only < md).
  *
- * A fixed bottom bar with the four primary destinations (dashboard, pipeline,
- * maintenance, config). The active tab is highlighted in DS amber
- * (`text-primary`); inactive tabs are dimmed (`text-muted-foreground`). Bottom
- * padding folds in `env(safe-area-inset-bottom)` for the home-indicator gap on
- * standalone PWAs. `NavLink` also stamps `aria-current="page"` on the active tab.
+ * A fixed bottom bar with the four primary destinations (Pipeline · Scraping ·
+ * Acquisition · Maintenance) — the design-system reference TabBar set, which
+ * excludes the dashboard and the disabled stubs. The active tab is highlighted
+ * in DS amber (`text-primary`); inactive tabs are dimmed
+ * (`text-muted-foreground`). Each tab is a ≥ 44 px touch target (`min-h-11`).
+ * Bottom padding folds in `env(safe-area-inset-bottom)` for the home-indicator
+ * gap on standalone PWAs. `NavLink` also stamps `aria-current="page"` on the
+ * active tab.
  *
  * @returns The bottom tab bar element.
  */
@@ -30,7 +33,7 @@ export function BottomTabBar(): ReactElement {
             end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
+                "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground",
               )
             }

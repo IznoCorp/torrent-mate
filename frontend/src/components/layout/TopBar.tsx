@@ -1,3 +1,4 @@
+import { Menu } from "lucide-react";
 import type { ReactElement } from "react";
 import { Link } from "react-router-dom";
 
@@ -6,6 +7,12 @@ import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
 import type { ConnectionState } from "@/hooks/useEventStream";
+
+/** Props for {@link TopBar}. */
+interface TopBarProps {
+  /** Opens the mobile navigation Sheet (fired by the hamburger, < md only). */
+  readonly onOpenNav: () => void;
+}
 
 /**
  * How each live-stream connection state renders in the header StatusDot.
@@ -47,7 +54,8 @@ const CONNECTION_DISPLAY: Record<
 /**
  * TopBar — the shell's sticky header.
  *
- * Left: the TorrentMate logo mark + wordmark (a link home). Right: a
+ * Left: a hamburger button (< md only) opening the mobile navigation Sheet,
+ * then the TorrentMate logo mark + wordmark (a link home). Right: a
  * {@link StatusDot} reporting the real-time (WebSocket) connection state — read
  * from the shared {@link useEventStreamContext} — and the {@link UserMenu}. The
  * dot is wrapped in a `title`-bearing span (a French tooltip) because
@@ -56,14 +64,25 @@ const CONNECTION_DISPLAY: Record<
  * The top padding folds in `env(safe-area-inset-top)` so the bar clears the
  * status bar / notch when the PWA runs standalone.
  *
+ * Args:
+ *   onOpenNav: Opens the mobile navigation Sheet (owned by {@link AppShell}).
+ *
  * @returns The top bar element.
  */
-export function TopBar(): ReactElement {
+export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
   const { connectionState } = useEventStreamContext();
   const display = CONNECTION_DISPLAY[connectionState];
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-sm md:px-6">
+      <button
+        type="button"
+        onClick={onOpenNav}
+        aria-label="Ouvrir le menu de navigation"
+        className="-ml-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+      >
+        <Menu className="size-5" aria-hidden="true" />
+      </button>
       <Link to="/" className="flex items-center gap-2">
         <img src={BRAND_ICON} alt="" className="size-7" />
         <span className="text-sm font-semibold tracking-tight">
