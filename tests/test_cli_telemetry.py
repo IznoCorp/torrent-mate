@@ -17,6 +17,10 @@ Tests pin :
 2. Complete event fires after clean return.
 3. Failed event fires + re-raises on exception.
 4. Sanitisation of ``ctx`` kwarg (not logged).
+5. ``typer.Exit`` (deliberate control flow) does NOT fire ``cli.failed`` —
+   regression for the health-check self-perpetuating alert loop, where
+   ``typer.Exit(1)`` was misreported as a failure and then picked up by
+   health-check's own log scanner as a fresh anomaly on the next run.
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ from __future__ import annotations
 import logging
 
 import pytest
+import typer
 
 from personalscraper.cli_telemetry import cli_telemetry
 
@@ -77,6 +82,29 @@ def test_cli_telemetry_emits_failed_on_exception_and_reraises(caplog: pytest.Log
 
     failed_records = [r for r in caplog.records if "cli.failed.test-fail" in r.getMessage()]
     assert len(failed_records) == 1, f"Expected 1 cli.failed.test-fail record, got {len(failed_records)}"
+
+
+def test_cli_telemetry_does_not_emit_failed_on_typer_exit(caplog: pytest.LogCaptureFixture) -> None:
+    """``typer.Exit`` is deliberate control flow, not a failure — no cli.failed event.
+
+    Regression for the health-check self-perpetuating alert loop: before the
+    fix, ``raise typer.Exit(1)`` (used by health-check to signal "anomalies
+    found" for cron/healthchecks.io) was caught by the generic ``except
+    Exception`` and logged as ``cli.failed.health-check``. health-check's own
+    log scanner then picked up that self-generated error line on its next
+    run and re-triggered indefinitely, even with no real anomaly left.
+    """
+
+    @cli_telemetry("test-exit")
+    def wrapped(ctx: object) -> None:
+        raise typer.Exit(1)
+
+    with caplog.at_level(logging.ERROR, logger="cli.telemetry"):
+        with pytest.raises(typer.Exit):
+            wrapped(None)
+
+    failed_records = [r for r in caplog.records if "cli.failed.test-exit" in r.getMessage()]
+    assert failed_records == [], f"typer.Exit must not emit cli.failed, got {[r.getMessage() for r in failed_records]}"
 
 
 def test_cli_telemetry_decorator_preserves_function_name() -> None:
