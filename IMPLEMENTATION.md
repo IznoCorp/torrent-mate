@@ -9,11 +9,18 @@
 **PR merge**: auto
 **PR**: _(created after last phase)_
 **Design**: docs/features/pipe-control/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/pipe-control/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                    | File                         | Status |
+| --- | -------------------------------------------------------- | ---------------------------- | ------ |
+| 1   | Engine — pause checkpoint + run-history                  | phase-01-engine.md           | [ ]    |
+| 2   | Web controls — run/pause/resume/kill/watcher/status      | phase-02-web-controls.md     | [ ]    |
+| 3   | Web history — history + detail routes                    | phase-03-web-history.md      | [ ]    |
+| 4   | Frontend control screen — Pipeline page + stepper + logs | phase-04-frontend-control.md | [ ]    |
+| 5   | Frontend history — run-history table + detail            | phase-05-frontend-history.md | [ ]    |
+| 6   | Deploy rails + docs + ACCEPTANCE                         | phase-06-deploy-docs.md      | [ ]    |
 
 ## Review cycles
 
@@ -21,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
