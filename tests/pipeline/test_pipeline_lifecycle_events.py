@@ -10,6 +10,8 @@ The bus is the sole emit substrate. This module locks the emit contract:
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -40,7 +42,7 @@ def _stub_app() -> AppContext:
     ingest_entry.id = 97
     ingest_entry.role = "ingest"
     config.staging_dirs = [ingest_entry]
-    config.paths.data_dir = MagicMock()
+    config.paths.data_dir = Path(tempfile.mkdtemp())  # real empty dir: PauseController reads data_dir/'pipeline.pause'
     settings = MagicMock()
     return AppContext(
         config=config,

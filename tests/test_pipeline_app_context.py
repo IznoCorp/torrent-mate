@@ -14,6 +14,8 @@ binding in a ``try/finally`` clause — including when a step raises.
 from __future__ import annotations
 
 import inspect
+import tempfile
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import UUID
@@ -42,7 +44,7 @@ def _stub_app() -> AppContext:
     ingest_entry.id = 97
     ingest_entry.role = "ingest"
     config.staging_dirs = [ingest_entry]
-    config.paths.data_dir = MagicMock()
+    config.paths.data_dir = Path(tempfile.mkdtemp())  # real empty dir: PauseController reads data_dir/'pipeline.pause'
     settings = MagicMock()
     acquire = AcquireContext(tracker_registry=MagicMock())
     return AppContext(
