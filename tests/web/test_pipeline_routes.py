@@ -607,3 +607,91 @@ class TestGuards:
 
         resp = client.get("/api/pipeline/status")
         assert resp.status_code == 401
+
+
+# ── Real create_app() wiring (sub-phase 2.3) ──────────────────────────────
+
+
+class TestPipelineRoutesViaCreateApp:
+    """Pipeline routes reachable through the real ``create_app()`` factory.
+
+    The pipeline router is wired into the ``guarded_api`` block which
+    sits BEFORE ``mount_spa`` — the SPA catch-all must NOT shadow
+    ``/api/pipeline/*``.  These tests verify that invariant.
+    """
+
+    @pytest.fixture
+    def real_app_client(self, test_config) -> TestClient:
+        """Build an authenticated ``TestClient`` through ``create_app()``.
+
+        Args:
+            test_config: Synthetic ``Config`` fixture (function-scoped,
+                so each test gets a fresh ``tmp_path``).
+
+        Returns:
+            Authenticated ``TestClient`` ready for guarded route assertions.
+        """
+        pwd = "test"
+        cfg = test_config.model_copy(
+            update={
+                "web": test_config.web.model_copy(update={"username": "admin"}),
+            },
+        )
+        settings = Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            web_password_hash=hash_password(pwd),
+            web_jwt_secret="pipe-control-wiring-secret",
+        )
+        from personalscraper.web.app import create_app
+
+        app = create_app(cfg, settings)
+        client = TestClient(app, base_url="https://testserver")
+        resp = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": pwd},
+        )
+        assert resp.status_code == 204, f"Login failed: {resp.status_code}"
+        return client
+
+    def test_status_not_shadowed_by_spa(
+        self,
+        real_app_client: TestClient,
+    ) -> None:
+        """GET /api/pipeline/status → 200, NOT 404 from SPA catch-all.
+
+        This is the KEY wiring assertion: the pipeline router lives inside
+        ``guarded_api`` which is included BEFORE ``mount_spa``, so the
+        SPA's catch-all ``GET /{full_path:path}`` never shadows it.
+        """
+        resp = real_app_client.get("/api/pipeline/status")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}. SPA catch-all may be shadowing the pipeline router."
+        )
+        data = resp.json()
+        assert data["state"] == "idle"
+        assert "run_uid" in data
+        assert "paused" in data
+        assert "watcher_enabled" in data
+
+    def test_401_without_session(self, test_config) -> None:
+        """Unauthenticated request through ``create_app`` → 401."""
+        from personalscraper.web.app import create_app
+
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        app = create_app(test_config, settings)
+        client = TestClient(app)
+        resp = client.get("/api/pipeline/status")
+        assert resp.status_code == 401
+
+    def test_400_without_xrw_on_mutating_route(
+        self,
+        real_app_client: TestClient,
+    ) -> None:
+        """POST /api/pipeline/run without ``X-Requested-With`` → 400."""
+        resp = real_app_client.post(
+            "/api/pipeline/run",
+            json={"dry_run": False},
+            # No X-Requested-With header.
+        )
+        assert resp.status_code == 400
+        assert "X-Requested-With" in resp.json()["detail"]

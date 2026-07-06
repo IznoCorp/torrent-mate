@@ -335,7 +335,15 @@ class Pipeline:
         # ``PipelineStarted`` emit). Setting the ContextVar before ``try:``
         # would leak the binding into the calling task on any of those
         # exception paths.
-        self._run_id = uuid4()
+        _env_uid = os.environ.get("PERSONALSCRAPER_RUN_UID")
+        if _env_uid:
+            try:
+                self._run_id = UUID(hex=_env_uid)
+            except (ValueError, TypeError):
+                self._log.debug("run_id_env_parse_failed", env_value=_env_uid)
+                self._run_id = uuid4()
+        else:
+            self._run_id = uuid4()
         # Reset shutdown signal at the top of every run; dry-runs are
         # observational and intentionally skip the SIGINT install so
         # they never alter process-wide signal state.
