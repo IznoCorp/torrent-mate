@@ -123,7 +123,7 @@ receive `401`.
 never a `500`.
 
 **CSRF posture** — same-origin SPA + `SameSite=Strict` + JSON-only bodies.
-S2+ mutating routes will additionally require `X-Requested-With: TorrentMateUI`.
+S2+ mutating routes will additionally require `X-Requested-With: TorrentMate`.
 
 ## WebSocket Protocol
 
@@ -420,7 +420,7 @@ These conventions are recorded now and are **binding on every future wave**:
    `401` everywhere unauthenticated. `429` on login rate-limit.
 
 5. **CSRF for mutating routes**: all S2+ mutating routes must require
-   `X-Requested-With: TorrentMateUI` in addition to the session cookie.
+   `X-Requested-With: TorrentMate` in addition to the session cookie.
 
 6. **Guard mount point**: in `create_app`, a `guarded_api` router carries
    `Depends(require_session)`. All future `/api/*` routers mount inside it —
@@ -429,3 +429,59 @@ These conventions are recorded now and are **binding on every future wave**:
 7. **Frontend data layer**: TanStack Query client with typed `fetcher<Path>`
    built on the generated OpenAPI types, `credentials: 'include'` for cookie
    auth, global `401` handler → redirect `/login`.
+
+## Pipeline control (S2 — `pipe-control`)
+
+S2 turns the `/pipeline` screen into the operator control deck. All mutating
+routes require the session cookie **and** `X-Requested-With: TorrentMate`; every
+write goes through the same `pipeline.lock` as the Watcher (single trigger
+authority — no parallel writer; the EventBus stays observe-only).
+
+### REST endpoints (`/api/pipeline`)
+
+| Method | Path                | Guard         | Semantics                                                                                       |
+| ------ | ------------------- | ------------- | ----------------------------------------------------------------------------------------------- |
+| POST   | `/run`              | session + XRW | Spawn `personalscraper run --no-console --trigger-reason=web [--dry-run]` (detached). `409` if the lock is held. Returns `202 {run_uid}`. The `run_uid` is injected to the subprocess via `PERSONALSCRAPER_RUN_UID`, so it matches the run's history row. |
+| POST   | `/pause`            | session + XRW | Create the `pipeline.pause` sentinel. The engine pauses at the next step boundary.              |
+| POST   | `/resume`           | session + XRW | Remove the `pipeline.pause` sentinel.                                                            |
+| POST   | `/kill`             | session + XRW | SIGTERM the run pid (read from the lock file); clear the pause sentinel; the run finalizes its history row as `killed`. |
+| POST   | `/watcher`          | session + XRW | `{enabled}` — `false` writes the `watcher.paused` sentinel (the watch loop no-ops); `true` removes it. Distinct from pausing a running pipeline. |
+| GET    | `/status`           | session       | `{state, run_uid?, step?, paused, watcher_enabled, pid?}`. `state ∈ idle|running|paused` from the lock + sentinels + latest `pipeline_run` row. |
+| GET    | `/history`          | session       | `?limit&offset&sort` (`started_at`, `-started_at`, `duration`, `-duration`) → `{runs: RunSummary[], total}`. |
+| GET    | `/history/{run_uid}`| session       | One run with per-step timings → `RunDetail`; `404` if unknown.                                   |
+
+### Pause mechanics — two distinct levers
+
+- **Pause pipeline**: the engine calls a cooperative checkpoint **between the 9
+  steps**; if the `pipeline.pause` sentinel (in `paths.data_dir`) exists it polls
+  until the sentinel clears or SIGTERM arrives. Granularity is the step boundary —
+  an in-flight step is never interrupted by pause (only Kill stops mid-step).
+  Emits `PipelinePaused` / `PipelineResumed` (relayed to the WS like all events).
+- **Pause watcher**: the `watcher.paused` sentinel stops the daemon from
+  *auto-starting* new runs. It does not touch a run already in progress.
+
+### Run-history store — `pipeline_run` table
+
+The indexer DB gains a `pipeline_run` table (migration `011`). Each run writes its
+own record (fail-soft — a history-write error never aborts the run):
+
+| Column        | Type      | Notes                                             |
+| ------------- | --------- | ------------------------------------------------- |
+| `id`          | INTEGER PK|                                                   |
+| `run_uid`     | TEXT UNIQUE| the run's `uuid4().hex`                           |
+| `trigger`     | TEXT      | `web` | `completion` | `safety_net` | `manual`         |
+| `dry_run`     | INTEGER   |                                                   |
+| `started_at`  | REAL      | epoch seconds                                     |
+| `ended_at`    | REAL NULL |                                                   |
+| `outcome`     | TEXT NULL | `success` \| `error` \| `killed` \| `running` \| `paused` |
+| `steps_json`  | TEXT      | per-step `{name, started_at, ended_at, status}`   |
+| `error`       | TEXT NULL |                                                   |
+| `pid`         | INTEGER NULL|                                                 |
+
+### Frontend
+
+`/pipeline` (route was the `ComingSoon` stub) renders the control bar
+(`PipelineControls`: Démarrer + dry-run dialog, Pause/Reprendre, Kill confirm,
+Watcher switch), the `PipelineStepper` (9 steps, live via the WS-fed
+`usePipelineStatus` hook), the `RunLogFeed` (S1 event stream scoped to the run),
+and the `RunHistoryTable` + `RunDetail` — all on the design system.

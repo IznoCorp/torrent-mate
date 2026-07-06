@@ -1838,3 +1838,43 @@ surface it too).
 
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-health-check` runs
 > `health-check` hourly (#218).
+
+## Pipeline control flags & sentinels (S2 — `pipe-control`)
+
+The web UI drives pipeline runs through the same CLI, so these are usable
+manually too.
+
+### `personalscraper run --trigger-reason <who>`
+
+Records **who started the run** in the `pipeline_run` history table. Values:
+
+| Value        | Meaning                                                     |
+| ------------ | ----------------------------------------------------------- |
+| `web`        | started via the web UI `POST /api/pipeline/run`             |
+| `completion` | Watcher fired on newly completed torrents                   |
+| `safety_net` | Watcher safety-net (no successful run for too long)         |
+| `manual`     | a manually-labelled run                                     |
+| `""` (empty) | default — unlabelled                                        |
+
+Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`.
+
+The web route also injects `PERSONALSCRAPER_RUN_UID=<hex>` into the subprocess
+environment so the `run_uid` returned by `POST /api/pipeline/run` equals the
+run's history row (`run()` honours the env var, falling back to a fresh
+`uuid4()` when it is absent/malformed).
+
+### Sentinel files (in `paths.data_dir`)
+
+| File             | Effect                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| `pipeline.pause` | While present, a running pipeline pauses **at the next step boundary** and polls until it is removed (or SIGTERM). Create/remove it manually to pause/resume a run without the web UI. |
+| `watcher.paused` | While present, the Watcher daemon no-ops (does not auto-start runs). Distinct from pausing a run in progress. |
+| `pipeline.lock`  | Single trigger authority — holds the running pipeline's pid; `POST /api/pipeline/kill` reads it to SIGTERM the run. |
+
+Manual example — pause the current run, then resume:
+
+```bash
+DATA=$(python3 -c 'from personalscraper.conf.loader import load_config;print(load_config().paths.data_dir)')
+touch  "$DATA/pipeline.pause"   # pause at the next step boundary
+rm -f  "$DATA/pipeline.pause"   # resume
+```
