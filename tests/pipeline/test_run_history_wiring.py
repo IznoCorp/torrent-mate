@@ -106,7 +106,11 @@ def _stub_app() -> AppContext:
     ingest_entry.id = 97
     ingest_entry.role = "ingest"
     config.staging_dirs = [ingest_entry]
-    config.paths.data_dir = MagicMock()
+    # A REAL empty dir — not a MagicMock: PauseController builds
+    # ``data_dir / "pipeline.pause"`` and calls ``.exists()`` on it. A MagicMock
+    # path makes ``.exists()`` truthy, so ``checkpoint()`` loops forever thinking
+    # the pipeline is paused. An empty real dir has no sentinel → immediate no-op.
+    config.paths.data_dir = Path(tempfile.mkdtemp())
     settings = MagicMock()
     return AppContext(
         config=config,
@@ -176,7 +180,7 @@ class TestHistoryWriterInsert:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
             _run_with_writer(pipeline, _step_registry(), writer)
@@ -201,7 +205,7 @@ class TestHistoryWriterInsert:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
             _run_with_writer(pipeline, _step_registry(), writer, trigger_reason="cron")
@@ -217,7 +221,7 @@ class TestHistoryWriterInsert:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
             _run_with_writer(pipeline, _step_registry(), writer, dry_run=True)
@@ -251,7 +255,7 @@ class TestHistoryWriterUpdateStep:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
             _run_with_writer(pipeline, _step_registry(), writer)
@@ -273,7 +277,7 @@ class TestHistoryWriterUpdateStep:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
             registry = _step_registry(raise_on="scrape")
 
@@ -302,7 +306,7 @@ class TestHistoryWriterFinalize:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
             _run_with_writer(pipeline, _step_registry(), writer)
@@ -320,7 +324,7 @@ class TestHistoryWriterFinalize:
             _create_db(db_path)
 
             app = _stub_app()
-            writer = PipelineRunWriter(db_path, event_bus=app.event_bus)
+            writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
             # Request shutdown BEFORE running — the first step boundary will
@@ -362,7 +366,6 @@ class TestHistoryWriterEdgeCases:
         app = _stub_app()
         writer = PipelineRunWriter(
             db_path=Path("/nonexistent/path/library.db"),
-            event_bus=app.event_bus,
         )
         pipeline = Pipeline(app)
 

@@ -15,7 +15,7 @@ Usage inside ``Pipeline.run()``::
 
     from personalscraper.pipeline_history import PipelineRunWriter
 
-    writer = PipelineRunWriter(db_path, event_bus=event_bus)
+    writer = PipelineRunWriter(db_path)
     writer.insert(run_uid, trigger="web", dry_run=False, pid=os.getpid())
     # ... after each step ...
     writer.update_step(run_uid, "ingest", started_at, ended_at, "success")
@@ -29,13 +29,9 @@ import json
 import sqlite3
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
-
-if TYPE_CHECKING:
-    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("pipeline_history")
 
@@ -49,19 +45,15 @@ class PipelineRunWriter:
 
     Args:
         db_path: Path to the indexer SQLite database (``library.db``).
-        event_bus: Optional :class:`EventBus` for emitting lifecycle events;
-            stored for future use but not currently emitted by this writer.
     """
 
-    def __init__(self, db_path: Path, event_bus: EventBus | None = None) -> None:
-        """Store the DB path and optional event bus.
+    def __init__(self, db_path: Path) -> None:
+        """Store the DB path.
 
         Args:
             db_path: Path to the indexer SQLite database.
-            event_bus: Optional event bus reference.
         """
         self._db_path = db_path
-        self._event_bus = event_bus
 
     # ------------------------------------------------------------------
     # Public API

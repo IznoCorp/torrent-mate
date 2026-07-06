@@ -667,7 +667,6 @@ def run(
 
                 history_writer = PipelineRunWriter(
                     db_path=config.indexer.db_path,
-                    event_bus=app_context.event_bus,
                 )
             except Exception:
                 _run_log.warning(

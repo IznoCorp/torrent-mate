@@ -26,6 +26,8 @@ from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
+    PipelinePaused,
+    PipelineResumed,
     PipelineStarted,
     StepCompleted,
     StepErrored,
@@ -91,6 +93,18 @@ def _make_real_pipeline_report() -> PipelineReport:
 def make_pipeline_started() -> PipelineStarted:
     """Realistic :class:`PipelineStarted` factory."""
     return PipelineStarted(report=_make_real_pipeline_report())
+
+
+@register_factory(PipelinePaused)
+def make_pipeline_paused() -> PipelinePaused:
+    """Realistic :class:`PipelinePaused` factory."""
+    return PipelinePaused()
+
+
+@register_factory(PipelineResumed)
+def make_pipeline_resumed() -> PipelineResumed:
+    """Realistic :class:`PipelineResumed` factory."""
+    return PipelineResumed()
 
 
 @register_factory(PipelineEnded)
