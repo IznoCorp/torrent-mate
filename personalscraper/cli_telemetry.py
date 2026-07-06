@@ -6,7 +6,9 @@ Emits three structlog events per command invocation:
 * ``cli.complete.<cmd>`` — on clean return, with the exit code (or 0).
 * ``cli.failed.<cmd>``   — on unhandled exception, with error message and
   type, then re-raises so the outer exception handler (e.g.
-  ``handle_cli_errors``) can still act.
+  ``handle_cli_errors``) can still act. ``typer.Exit`` is NOT considered a
+  failure — it is deliberate control flow (e.g. a command signaling a
+  non-zero exit code for cron/healthchecks.io) and is re-raised silently.
 
 Usage::
 
@@ -25,6 +27,8 @@ from __future__ import annotations
 import functools
 from collections.abc import Callable
 from typing import Any
+
+import typer
 
 from personalscraper.logger import get_logger
 
@@ -63,6 +67,11 @@ def cli_telemetry(cmd_name: str) -> Callable[[Callable[..., Any]], Callable[...,
                 ret = fn(*args, **kwargs)
                 _log.info("cli.complete." + cmd_name, exit_code=ret if ret is not None else 0)
                 return ret
+            except typer.Exit:
+                # Deliberate control flow (e.g. health-check signaling
+                # "anomalies found" via a non-zero exit code), not a crash —
+                # re-raise silently so it isn't misreported as cli.failed.
+                raise
             except Exception as exc:
                 _log.error(
                     "cli.failed." + cmd_name,

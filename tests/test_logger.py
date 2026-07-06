@@ -1,6 +1,7 @@
 """Tests for personalscraper.logger — structured logging and log cleanup."""
 
 import json
+import logging
 import time
 
 from personalscraper.logger import cleanup_old_logs, configure_logging, get_logger
@@ -33,6 +34,31 @@ def test_log_writes_json_file(tmp_path, monkeypatch):
     assert data["key"] == "value"
     assert "timestamp" in data
     assert data["level"] == "info"
+
+
+def test_configure_logging_silences_enzyme_error_noise(tmp_path, monkeypatch):
+    """Enzyme's mislabeled logger.error() calls must not reach personalscraper.json.
+
+    Regression: enzyme's EBML parser calls ``logger.error()`` for a benign,
+    expected condition (an unrecognised/vendor EBML element id while parsing
+    an MKV — parsing continues normally). Left unsilenced, this floods the
+    JSON log with level="error" lines that health-check's log scanner treats
+    as real anomalies, triggering false-positive alerts during library scans.
+    """
+    import personalscraper.logger as logger_mod
+
+    logs_dir = tmp_path / "logs"
+    monkeypatch.setattr(logger_mod, "LOGS_DIR", logs_dir)
+    configure_logging()
+
+    logging.getLogger("enzyme").error("Element with id 0x22b59d is not in the specs")
+
+    log_file = logs_dir / "personalscraper.json"
+    assert log_file.exists()
+    lines = log_file.read_text().strip().split("\n")
+    assert not any("is not in the specs" in line for line in lines), (
+        f"enzyme's error-level noise leaked into the log: {lines}"
+    )
 
 
 def test_cleanup_old_logs_deletes_old_files(tmp_path):

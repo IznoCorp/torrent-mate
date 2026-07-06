@@ -147,6 +147,15 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
                 "qbittorrentapi": {"level": "DEBUG" if verbose else "INFO"},
                 "httpcore": {"level": "DEBUG" if verbose else "WARNING"},
                 "httpx": {"level": "DEBUG" if verbose else "WARNING"},
+                # enzyme mislabels a benign condition (an unrecognised/vendor
+                # EBML element id while parsing an MKV — parsing continues
+                # normally) as logger.error(), its only call above WARNING.
+                # Left unsilenced, this floods personalscraper.json with
+                # level="error" lines that health-check's log scanner treats
+                # as real anomalies. extract_via_enzyme() already reports its
+                # own failures via our structured logger, so silencing enzyme
+                # entirely loses no diagnostic signal.
+                "enzyme": {"level": "CRITICAL"},
             },
         }
     )
