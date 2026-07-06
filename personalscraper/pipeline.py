@@ -12,12 +12,13 @@ independent sub-steps, each with its own error isolation.
 from __future__ import annotations
 
 import dataclasses
+import os
 import signal
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from types import FrameType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from personalscraper.conf.models.config import Config
@@ -38,6 +39,9 @@ from personalscraper.pipeline_events import (
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
 from personalscraper.reports import STEP_REPORT_CONTRACT
+
+if TYPE_CHECKING:
+    from personalscraper.pipeline_history import PipelineRunWriter
 
 
 class _CriticalStepError(Exception):
@@ -104,6 +108,11 @@ class Pipeline:
         self.skip_trailers: bool = False
         self.continue_on_trailer_error: bool = False
         self._pause: PauseController | None = None
+        # Run-history writer state (pipe-control sub-phase 1.3b).
+        # Initialized in ``run()`` when a ``history_writer`` is injected;
+        # read by ``_run_step`` for per-step timing records.
+        self._run_uid: str | None = None
+        self._history_writer: PipelineRunWriter | None = None
         # Per-run UUID, regenerated at the start of every ``run`` call.
         self._run_id: UUID = uuid4()
         # SIGINT / programmatic shutdown signal — checked at each step
@@ -268,6 +277,8 @@ class Pipeline:
         skip_trailers: bool = False,
         continue_on_trailer_error: bool = False,
         no_post_maintenance: bool = False,
+        trigger_reason: str = "cli",
+        history_writer: PipelineRunWriter | None = None,
     ) -> PipelineReport:
         """Execute all pipeline phases sequentially with gates.
 
@@ -293,6 +304,14 @@ class Pipeline:
             no_post_maintenance: When True, skip post-dispatch index
                 maintenance (scan/relink/fix) even when the config toggle
                 is enabled. Defaults to ``False``.
+            trigger_reason: How this run was triggered (``'cli'``,
+                ``'web'``, ``'cron'``). Stored in the ``pipeline_run``
+                history row. Defaults to ``'cli'``.
+            history_writer: Optional :class:`PipelineRunWriter` for
+                recording per-step timings and run outcome into the
+                ``pipeline_run`` table. When ``None`` (the default), run
+                history is not written. This is an injected dependency —
+                the caller (CLI / web handler) owns the DB path.
 
         Returns:
             PipelineReport with 9 StepReports (ingest, sort, clean,
@@ -345,11 +364,26 @@ class Pipeline:
         }
 
         token = current_correlation_id.set(str(self._run_id))
+        run_outcome = "success"  # pipe-control sub-phase 1.3b
         try:
             # Bootstrap staging tree on first run (idempotent, no-op if already exists)
             ensure_staging_tree(self.config)
 
             self._app.event_bus.emit(PipelineStarted(report=report))
+
+            # Run-history insert (pipe-control sub-phase 1.3b):
+            # record the run start in ``pipeline_run`` before any step
+            # work begins.  The writer is injected by the caller (CLI /
+            # web handler) — the pipeline never resolves a DB path itself.
+            self._run_uid = self._run_id.hex
+            self._history_writer = history_writer
+            if self._history_writer is not None:
+                self._history_writer.insert(
+                    self._run_uid,
+                    trigger_reason,
+                    dry_run,
+                    os.getpid(),
+                )
 
             # Recover from previous interrupted run (best-effort, never blocks pipeline)
             if not self.dry_run:
@@ -473,11 +507,17 @@ class Pipeline:
             # Operator-requested shutdown honored at a step boundary.
             # The remaining steps are skipped; the finally below still
             # emits ``PipelineEnded`` so subscribers see a clean pair.
+            run_outcome = "killed"
             self._log.warning(
                 "pipeline_interrupted",
                 reason=str(exc),
                 completed_steps=list(report.steps.keys()),
             )
+        except Exception:
+            # Unhandled exception during pipeline body — record error
+            # outcome so the finally block's history writer sees it.
+            run_outcome = "error"
+            raise
         finally:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
@@ -493,6 +533,13 @@ class Pipeline:
                     # failure to emit the lifecycle event is observability
                     # rot, not a run-level failure.
                     self._log.warning("pipeline_ended_emit_failed", exc_info=True)
+                # Run-history finalize (pipe-control sub-phase 1.3b):
+                # record the run outcome after ``PipelineEnded`` so
+                # subscribers see a complete lifecycle before the DB row
+                # is finalized.
+                if self._history_writer is not None:
+                    assert self._run_uid is not None  # set at top of run()
+                    self._history_writer.finalize(self._run_uid, run_outcome)
             finally:
                 current_correlation_id.reset(token)
                 self._restore_sigint_handler(previous_sigint)
@@ -666,6 +713,17 @@ class Pipeline:
                     error_message=str(exc),
                 ),
             )
+            # Run-history step record (pipe-control sub-phase 1.3b):
+            # capture the step failure with elapsed wall-clock time.
+            if self._history_writer is not None:
+                assert self._run_uid is not None  # set at top of run()
+                self._history_writer.update_step(
+                    self._run_uid,
+                    name,
+                    t0,
+                    time.monotonic(),
+                    "error",
+                )
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
                 name=name,
@@ -681,6 +739,17 @@ class Pipeline:
             self._app.event_bus.emit(
                 StepCompleted(step=name, report=step_report, elapsed_s=elapsed),
             )
+            # Run-history step record (pipe-control sub-phase 1.3b):
+            # capture the step completion with elapsed wall-clock time.
+            if self._history_writer is not None:
+                assert self._run_uid is not None  # set at top of run()
+                self._history_writer.update_step(
+                    self._run_uid,
+                    name,
+                    t0,
+                    t0 + elapsed,
+                    "success",
+                )
 
         ok = step_report.success_count
         skip = step_report.skip_count

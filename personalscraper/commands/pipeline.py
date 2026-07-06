@@ -654,6 +654,25 @@ def run(
 
                 app_context.event_bus.emit(WatcherRunTriggered(reason=trigger_reason))
 
+            # Build run-history writer (pipe-control sub-phase 1.3b).
+            # The writer is an injected dependency — the CLI owns the DB
+            # path resolution.  Fail-soft: if construction fails (missing
+            # library.db, permission error, etc.) the pipeline runs without
+            # history recording.
+            history_writer: PipelineRunWriter | None = None
+            try:
+                from personalscraper.pipeline_history import PipelineRunWriter  # noqa: PLC0415
+
+                history_writer = PipelineRunWriter(
+                    db_path=config.indexer.db_path,
+                    event_bus=app_context.event_bus,
+                )
+            except Exception:
+                _run_log.warning(
+                    "pipeline_history_writer_init_failed",
+                    exc_info=True,
+                )
+
             pipeline = Pipeline(app_context)
             try:
                 try:
@@ -664,6 +683,8 @@ def run(
                         skip_trailers=effective_skip_trailers,
                         continue_on_trailer_error=effective_continue_on_trailer_error,
                         no_post_maintenance=no_post_maintenance,
+                        trigger_reason=trigger_reason or "cli",
+                        history_writer=history_writer,
                     )
                 finally:
                     if rich_subscriber is not None:
