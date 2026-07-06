@@ -27,6 +27,7 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
+from personalscraper.pause import PauseController
 from personalscraper.pipeline_events import (
     PipelineEnded,
     PipelineStarted,
@@ -102,6 +103,7 @@ class Pipeline:
         self._steps = DEFAULT_STEPS
         self.skip_trailers: bool = False
         self.continue_on_trailer_error: bool = False
+        self._pause: PauseController | None = None
         # Per-run UUID, regenerated at the start of every ``run`` call.
         self._run_id: UUID = uuid4()
         # SIGINT / programmatic shutdown signal — checked at each step
@@ -320,6 +322,17 @@ class Pipeline:
         # they never alter process-wide signal state.
         self._shutdown_requested = False
         self._shutdown_reason = None
+        # Wire the pause controller's shutdown gate to the pipeline's own
+        # ``_check_shutdown_requested`` so that a SIGINT / programmatic
+        # shutdown during a pause raises ``_PipelineInterrupted`` and the
+        # run's ``finally`` block can emit ``PipelineEnded`` cleanly.
+        self._pause = PauseController(
+            pause_file=self.config.paths.data_dir / "pipeline.pause",
+            event_bus=self._app.event_bus,
+            shutdown_check=lambda: self._check_shutdown_requested(
+                boundary="during_pause",
+            ),
+        )
         previous_sigint = None if self.dry_run else self._install_sigint_handler()
         report = PipelineReport(started_at=datetime.now())
         extras: dict[str, Any] = {
@@ -613,6 +626,13 @@ class Pipeline:
         # any emit or work so the interrupted step never produces an
         # asymmetric StepStarted/StepCompleted pair.
         self._check_shutdown_requested(boundary=f"before_{name}")
+
+        # Pause checkpoint (pipe-control sub-phase 1.2): if the
+        # ``pipeline.pause`` sentinel exists, block until it is cleared
+        # or a shutdown is signalled. MUST run BEFORE ``StepStarted`` so
+        # a paused step never appears in the bus history as "started".
+        if self._pause is not None:
+            self._pause.checkpoint()
 
         # Bus is the sole emit path (Phase 3.7b).
         # No companion ``log.info("step_started", step=name)`` — the

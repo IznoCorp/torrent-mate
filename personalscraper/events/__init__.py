@@ -63,6 +63,8 @@ from personalscraper.indexer.events import (
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
+    PipelinePaused,
+    PipelineResumed,
     PipelineStarted,
     StepCompleted,
     StepErrored,
@@ -91,6 +93,8 @@ __all__ = [
     "LibraryScanCompleted",
     "LockedCapabilityUnresolved",
     "PipelineEnded",
+    "PipelinePaused",
+    "PipelineResumed",
     "PipelineStarted",
     "ProviderExhaustedEvent",
     "ProviderFallbackTriggered",

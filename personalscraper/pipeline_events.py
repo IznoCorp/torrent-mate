@@ -1,13 +1,15 @@
 """Pipeline-level event catalog.
 
-Six events flow through the bus around every pipeline run:
+Eight events flow through the bus around every pipeline run:
 
 - :class:`PipelineStarted` / :class:`PipelineEnded` — outer lifecycle.
 - :class:`StepStarted` / :class:`StepCompleted` / :class:`StepErrored` —
   per-step lifecycle around each of the 9 pipeline steps.
 - :class:`ItemProgressed` — per-item progress notification.
+- :class:`PipelinePaused` / :class:`PipelineResumed` — pause checkpoint
+  lifecycle (between steps, sentinel-driven).
 
-All six are frozen dataclasses inheriting from
+All eight are frozen dataclasses inheriting from
 :class:`personalscraper.core.event_bus.Event`. ``kw_only=True`` is declared
 explicitly on every subclass — dataclass machinery does NOT inherit it
 transitively, and without it the base's defaulted fields (``timestamp``,
@@ -124,9 +126,37 @@ class ItemProgressed(Event):
     details: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, kw_only=True)
+class PipelinePaused(Event):
+    """Emitted when the pipeline pauses at a step boundary.
+
+    The pause is cooperative: the engine blocks at the next
+    :meth:`PauseController.checkpoint` call (between steps) until the
+    ``pipeline.pause`` sentinel file is cleared.
+
+    No extra fields — the event itself is the signal. Consumers (web UI,
+    log subscribers) react to its presence.
+    """
+
+
+@dataclass(frozen=True, kw_only=True)
+class PipelineResumed(Event):
+    """Emitted when the pipeline resumes after a pause.
+
+    Fired once the ``pipeline.pause`` sentinel is cleared and the
+    engine proceeds to the next step. Pairs with
+    :class:`PipelinePaused` — every pause that entered the wait loop
+    emits exactly one ``PipelineResumed`` when it exits.
+
+    No extra fields — the event itself is the signal.
+    """
+
+
 __all__ = [
     "ItemProgressed",
     "PipelineEnded",
+    "PipelinePaused",
+    "PipelineResumed",
     "PipelineStarted",
     "StepCompleted",
     "StepErrored",
