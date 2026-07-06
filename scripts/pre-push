@@ -13,6 +13,17 @@
 
 set -euo pipefail
 
+# Git invokes hooks with GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE set in the
+# environment so a hook's own git commands target the right repo by default.
+# That leaks into pytest: tests that build a synthetic "isolated" git repo in
+# a tmp_path (tests/scripts/test_phase_gate.py and friends) run `git -C
+# <tmp_path> commit` expecting it to touch only the tmp repo, but GIT_DIR /
+# GIT_WORK_TREE override -C and silently redirect the commit into the REAL
+# repo this hook is running in instead — clobbering whatever branch is
+# checked out (observed: it overwrote a checked-out branch's history with the
+# test's synthetic "chore: init" commits). Unset before running anything.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
