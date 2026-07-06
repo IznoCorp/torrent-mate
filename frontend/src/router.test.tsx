@@ -113,11 +113,11 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("affiche le placeholder « À venir » (vague S2) sur « /pipeline »", async () => {
-    renderAt("/pipeline");
+  it("affiche le placeholder « À venir » (vague S3) sur « /maintenance »", async () => {
+    renderAt("/maintenance");
 
     expect(await screen.findByText(/à venir/i)).toBeInTheDocument();
-    expect(screen.getByText("S2")).toBeInTheDocument();
+    expect(screen.getByText("S3")).toBeInTheDocument();
   });
 
   it("marque l’onglet actif du bottom tab bar via aria-current", async () => {
@@ -149,8 +149,9 @@ describe("router", () => {
     renderAt("/login?redirect=/pipeline");
 
     // Already authenticated → the login route redirects to the safe target.
-    expect(await screen.findByText(/à venir/i)).toBeInTheDocument();
-    expect(screen.getByText("S2")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Pipeline" }),
+    ).toBeInTheDocument();
   });
 
   it("rejette un « ?redirect » protocol-relative et retombe sur « / »", async () => {
