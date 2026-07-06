@@ -13,6 +13,8 @@ import type { ReactElement } from "react";
 import { getPipelineStatus } from "@/api/client";
 import type { components } from "@/api/schema";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
+import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
+import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 
 /** The status shape from GET /api/pipeline/status. */
 type StatusResponse = components["schemas"]["StatusResponse"];
@@ -45,18 +47,9 @@ export default function Pipeline(): ReactElement {
 
       <PipelineControls status={liveStatus} />
 
-      {/*
-       * Placeholder — sub-phase 4.2 replaces this with PipelineStepper + RunLogFeed
-       * so the page compiles now while the feed components are still being built.
-       */}
-      <section
-        aria-label="État du pipeline"
-        className="flex flex-col gap-4 rounded-lg border border-border p-6"
-      >
-        <p className="text-sm text-muted-foreground">
-          PipelineStepper + RunLogFeed — livré en sous-phase 4.2.
-        </p>
-      </section>
+      <PipelineStepper currentStep={liveStatus.step ?? null} />
+
+      <RunLogFeed runUid={liveStatus.run_uid ?? null} />
     </section>
   );
 }
