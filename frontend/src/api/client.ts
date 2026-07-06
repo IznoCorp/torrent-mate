@@ -293,6 +293,95 @@ export function getPipelineStatus(): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Pipeline history endpoints (S2 Phase 5)
+// ---------------------------------------------------------------------------
+
+/** Response type for ``GET /api/pipeline/history``. */
+export type HistoryResponse = SuccessBody<
+  paths["/api/pipeline/history"]["get"]["responses"]
+>;
+
+/** Response type for ``GET /api/pipeline/history/{run_uid}``. */
+export type RunDetail = SuccessBody<
+  paths["/api/pipeline/history/{run_uid}"]["get"]["responses"]
+>;
+
+/** Query parameters accepted by ``GET /api/pipeline/history``. */
+export interface HistoryParams {
+  readonly limit?: number;
+  readonly offset?: number;
+  readonly sort?: string;
+}
+
+/**
+ * Fetch a single page of pipeline run history.
+ *
+ * Sends ``GET /api/pipeline/history`` with optional query params. Read-only —
+ * no ``X-Requested-With`` header.
+ *
+ * Args:
+ *   params: Optional pagination/sort query parameters.
+ *
+ * Returns:
+ *   A {@link HistoryResponse} with the page of {@link RunSummary} items.
+ */
+export async function getPipelineHistory(
+  params: HistoryParams = {},
+): Promise<HistoryResponse> {
+  const sp = new URLSearchParams();
+  if (params.limit !== undefined) sp.set("limit", String(params.limit));
+  if (params.offset !== undefined) sp.set("offset", String(params.offset));
+  if (params.sort !== undefined) sp.set("sort", params.sort);
+  const qs = sp.toString();
+  const url = `/api/pipeline/history${qs ? `?${qs}` : ""}`;
+  const response = await fetch(url, { method: "GET", credentials: "include" });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const json = (await response.json()) as { detail?: string };
+      if (typeof json.detail === "string") detail = json.detail;
+    } catch {
+      // Body is not JSON or is empty — keep statusText.
+    }
+    throw new ApiError(response.status, detail);
+  }
+  return (await response.json()) as HistoryResponse;
+}
+
+/**
+ * Fetch full detail for a single pipeline run.
+ *
+ * Sends ``GET /api/pipeline/history/{run_uid}``. Read-only — no
+ * ``X-Requested-With`` header.
+ *
+ * Args:
+ *   runUid: The unique run identifier (uuid4 hex).
+ *
+ * Returns:
+ *   A {@link RunDetail} with step timings parsed from ``steps_json``.
+ *
+ * Raises:
+ *   ApiError: 404 if no run with the given ``runUid`` exists.
+ */
+export async function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
+  const response = await fetch(
+    `/api/pipeline/history/${encodeURIComponent(runUid)}`,
+    { method: "GET", credentials: "include" },
+  );
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const json = (await response.json()) as { detail?: string };
+      if (typeof json.detail === "string") detail = json.detail;
+    } catch {
+      // Body is not JSON or is empty — keep statusText.
+    }
+    throw new ApiError(response.status, detail);
+  }
+  return (await response.json()) as RunDetail;
+}
+
+// ---------------------------------------------------------------------------
 // Global 401 policy seam
 // ---------------------------------------------------------------------------
 
