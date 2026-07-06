@@ -56,7 +56,7 @@ function renderTopBar(): void {
       <AuthProvider>
         <MemoryRouter>
           <EventStreamProvider>
-            <TopBar />
+            <TopBar onOpenNav={() => undefined} />
           </EventStreamProvider>
         </MemoryRouter>
       </AuthProvider>
