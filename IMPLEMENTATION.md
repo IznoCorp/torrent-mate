@@ -19,7 +19,7 @@
 | 2   | Web controls — run/pause/resume/kill/watcher/status      | phase-02-web-controls.md     | [x]    |
 | 3   | Web history — history + detail routes                    | phase-03-web-history.md      | [x]    |
 | 4   | Frontend control screen — Pipeline page + stepper + logs | phase-04-frontend-control.md | [x]    |
-| 5   | Frontend history — run-history table + detail            | phase-05-frontend-history.md | [ ]    |
+| 5   | Frontend history — run-history table + detail            | phase-05-frontend-history.md | [x]    |
 | 6   | Deploy rails + docs + ACCEPTANCE                         | phase-06-deploy-docs.md      | [ ]    |
 
 ## Review cycles
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 5 (frontend history).
+Run `/implement:phase` to continue with Phase 6 (deploy + docs + ACCEPTANCE).
