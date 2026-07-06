@@ -695,3 +695,422 @@ class TestPipelineRoutesViaCreateApp:
         )
         assert resp.status_code == 400
         assert "X-Requested-With" in resp.json()["detail"]
+
+
+# ── GET /history + /history/{run_uid} ────────────────────────────────────────
+
+
+class TestHistoryRoutes:
+    """``GET /api/pipeline/history`` and ``/history/{run_uid}`` routes."""
+
+    # Pre-canned timestamps so tests can assert deterministic sort order.
+    _T0 = 1750000000.0  # 2025-06-15T12:26:40+00:00
+    _T1 = _T0 + 1000.0  # later run
+    _T2 = _T0 + 2000.0  # still running (no ended_at)
+
+    @pytest.fixture
+    def history_db(self, tmp_path: Path) -> Path:
+        """Create a temp library.db with ``pipeline_run`` table + 3 test rows.
+
+        Args:
+            tmp_path: Pytest temporary directory.
+
+        Returns:
+            Absolute path to the populated database file.
+        """
+        db_path = tmp_path / "history_test.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            """
+            CREATE TABLE pipeline_run (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_uid    TEXT    UNIQUE NOT NULL,
+                trigger    TEXT    NOT NULL,
+                dry_run    INTEGER NOT NULL DEFAULT 0,
+                started_at REAL    NOT NULL,
+                ended_at   REAL,
+                outcome    TEXT,
+                steps_json TEXT,
+                error      TEXT,
+                pid        INTEGER
+            )
+            """
+        )
+
+        now = self._T0
+        rows = [
+            (
+                "aaa111",
+                "cli",
+                0,
+                now,
+                now + 120.5,
+                "success",
+                json.dumps(
+                    [
+                        {
+                            "name": "ingest",
+                            "status": "done",
+                            "started_at": now,
+                            "ended_at": now + 60.0,
+                        },
+                        {
+                            "name": "sort",
+                            "status": "done",
+                            "started_at": now + 60.0,
+                            "ended_at": now + 120.5,
+                        },
+                    ]
+                ),
+                None,
+                12345,
+            ),
+            (
+                "bbb222",
+                "web",
+                1,
+                now + 1000.0,
+                now + 1000.0 + 60.0,
+                "error",
+                json.dumps(
+                    [
+                        {
+                            "name": "ingest",
+                            "status": "error",
+                            "started_at": now + 1000.0,
+                            "ended_at": now + 1000.0 + 60.0,
+                        }
+                    ]
+                ),
+                "Something went wrong",
+                12346,
+            ),
+            (
+                "ccc333",
+                "watcher",
+                0,
+                now + 2000.0,
+                None,
+                None,
+                json.dumps(
+                    [
+                        {
+                            "name": "ingest",
+                            "status": "running",
+                            "started_at": now + 2000.0,
+                            "ended_at": None,
+                        }
+                    ]
+                ),
+                None,
+                12347,
+            ),
+        ]
+        conn.executemany(
+            "INSERT INTO pipeline_run "
+            "(run_uid, trigger, dry_run, started_at, ended_at, outcome, "
+            "steps_json, error, pid) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        conn.commit()
+        conn.close()
+        return db_path
+
+    @pytest.fixture
+    def history_client(
+        self,
+        test_config,
+        pipeline_data_dir: Path,
+        history_db: Path,
+    ) -> TestClient:
+        """Build an authenticated ``TestClient`` pointing at *history_db*.
+
+        Args:
+            test_config: Synthetic ``Config`` fixture.
+            pipeline_data_dir: Temp ``.data/`` directory.
+            history_db: Path to the pre-populated test database.
+
+        Returns:
+            Authenticated ``TestClient`` with history routes served.
+        """
+        cfg = test_config.model_copy(
+            update={
+                "paths": test_config.paths.model_copy(update={"data_dir": pipeline_data_dir}),
+                "indexer": test_config.indexer.model_copy(update={"db_path": history_db}),
+            },
+        )
+        web_cfg = cfg.web.model_copy(update={"username": TEST_USERNAME})
+        cfg = cfg.model_copy(update={"web": web_cfg})
+
+        settings = Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            web_password_hash=TEST_HASH,
+            web_jwt_secret=TEST_SECRET,
+        )
+
+        app = FastAPI()
+        app.state.config = cfg
+        app.state.settings = settings
+
+        from personalscraper.web.auth.routes import router as auth_router
+
+        app.include_router(auth_router)
+        from personalscraper.web.routes.pipeline import router as pipeline_router
+
+        app.include_router(pipeline_router)
+
+        client = TestClient(app, base_url="https://testserver")
+        resp = client.post(
+            "/api/auth/login",
+            json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+        )
+        assert resp.status_code == 204
+        return client
+
+    # ── /history list ────────────────────────────────────────────────────
+
+    def test_history_returns_all_runs_with_total(self, history_client: TestClient) -> None:
+        """Default query returns all 3 runs + ``total: 3``."""
+        resp = history_client.get("/api/pipeline/history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 3
+        assert len(data["runs"]) == 3
+        for run in data["runs"]:
+            assert "run_uid" in run
+            assert "trigger" in run
+            assert "dry_run" in run
+            assert "started_at" in run
+            assert "duration_s" in run
+            assert "outcome" in run
+
+    def test_history_pagination_limit(self, history_client: TestClient) -> None:
+        """``limit=1`` returns 1 run but ``total`` stays 3."""
+        resp = history_client.get("/api/pipeline/history", params={"limit": 1})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 3
+        assert len(data["runs"]) == 1
+
+    def test_history_pagination_offset(self, history_client: TestClient) -> None:
+        """``offset=2`` skips the first 2 rows."""
+        resp = history_client.get("/api/pipeline/history", params={"offset": 2, "sort": "started_at"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 3
+        assert len(data["runs"]) == 1
+        assert data["runs"][0]["run_uid"] == "ccc333"
+
+    def test_history_sort_started_at_asc(self, history_client: TestClient) -> None:
+        """``sort=started_at`` → oldest first."""
+        resp = history_client.get("/api/pipeline/history", params={"sort": "started_at"})
+        assert resp.status_code == 200
+        uids = [r["run_uid"] for r in resp.json()["runs"]]
+        assert uids == ["aaa111", "bbb222", "ccc333"]
+
+    def test_history_sort_started_at_desc(self, history_client: TestClient) -> None:
+        """``sort=-started_at`` (default) → newest first."""
+        resp = history_client.get("/api/pipeline/history", params={"sort": "-started_at"})
+        assert resp.status_code == 200
+        uids = [r["run_uid"] for r in resp.json()["runs"]]
+        assert uids == ["ccc333", "bbb222", "aaa111"]
+
+    def test_history_sort_duration_asc(self, history_client: TestClient) -> None:
+        """``sort=duration`` sorts by elapsed time, NULLs last."""
+        resp = history_client.get("/api/pipeline/history", params={"sort": "duration"})
+        assert resp.status_code == 200
+        uids = [r["run_uid"] for r in resp.json()["runs"]]
+        # bbb222: 60s, aaa111: 120.5s, ccc333: still running (NULL → last)
+        assert uids == ["bbb222", "aaa111", "ccc333"]
+
+    def test_history_sort_duration_desc(self, history_client: TestClient) -> None:
+        """``sort=-duration`` sorts by elapsed time descending, NULLs last."""
+        resp = history_client.get("/api/pipeline/history", params={"sort": "-duration"})
+        assert resp.status_code == 200
+        uids = [r["run_uid"] for r in resp.json()["runs"]]
+        # aaa111: 120.5s, bbb222: 60s, ccc333: NULL → last
+        assert uids == ["aaa111", "bbb222", "ccc333"]
+
+    def test_history_invalid_sort_returns_400(self, history_client: TestClient) -> None:
+        """An unrecognized sort value → 400."""
+        resp = history_client.get("/api/pipeline/history", params={"sort": "invalid"})
+        assert resp.status_code == 400
+        assert "Invalid sort" in resp.json()["detail"]
+
+    # ── empty DB ─────────────────────────────────────────────────────────
+
+    def test_history_empty_db_returns_zero(
+        self,
+        test_config,
+        pipeline_data_dir: Path,
+        tmp_path: Path,
+    ) -> None:
+        """A DB with the table but zero rows → ``{runs: [], total: 0}``."""
+        empty_db = tmp_path / "empty_history.db"
+        conn = sqlite3.connect(str(empty_db))
+        conn.execute(
+            """
+            CREATE TABLE pipeline_run (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_uid    TEXT    UNIQUE NOT NULL,
+                trigger    TEXT    NOT NULL,
+                dry_run    INTEGER NOT NULL DEFAULT 0,
+                started_at REAL    NOT NULL,
+                ended_at   REAL,
+                outcome    TEXT,
+                steps_json TEXT,
+                error      TEXT,
+                pid        INTEGER
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        cfg = test_config.model_copy(
+            update={
+                "paths": test_config.paths.model_copy(update={"data_dir": pipeline_data_dir}),
+                "indexer": test_config.indexer.model_copy(update={"db_path": empty_db}),
+            },
+        )
+        web_cfg = cfg.web.model_copy(update={"username": TEST_USERNAME})
+        cfg = cfg.model_copy(update={"web": web_cfg})
+
+        settings = Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            web_password_hash=TEST_HASH,
+            web_jwt_secret=TEST_SECRET,
+        )
+
+        app = FastAPI()
+        app.state.config = cfg
+        app.state.settings = settings
+
+        from personalscraper.web.auth.routes import router as auth_router
+
+        app.include_router(auth_router)
+        from personalscraper.web.routes.pipeline import router as pipeline_router
+
+        app.include_router(pipeline_router)
+
+        client = TestClient(app, base_url="https://testserver")
+        resp = client.post(
+            "/api/auth/login",
+            json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+        )
+        assert resp.status_code == 204
+
+        resp = client.get("/api/pipeline/history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {"runs": [], "total": 0}
+
+    # ── /history/{run_uid} detail ────────────────────────────────────────
+
+    def test_history_detail_returns_run(self, history_client: TestClient) -> None:
+        """GET /history/{run_uid} returns a full ``RunDetail``."""
+        resp = history_client.get("/api/pipeline/history/aaa111")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["run_uid"] == "aaa111"
+        assert data["trigger"] == "cli"
+        assert data["dry_run"] is False
+        assert data["outcome"] == "success"
+        assert data["duration_s"] == pytest.approx(120.5)
+        assert data["error"] is None
+        assert len(data["steps"]) == 2
+        assert data["steps"][0]["name"] == "ingest"
+        assert data["steps"][0]["status"] == "done"
+        assert data["steps"][0]["elapsed_s"] == pytest.approx(60.0)
+        assert data["steps"][1]["name"] == "sort"
+        assert data["steps"][1]["status"] == "done"
+
+    def test_history_detail_dry_run(self, history_client: TestClient) -> None:
+        """A dry-run row has ``dry_run: true``."""
+        resp = history_client.get("/api/pipeline/history/bbb222")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["dry_run"] is True
+        assert data["outcome"] == "error"
+        assert data["error"] == "Something went wrong"
+        assert len(data["steps"]) == 1
+
+    def test_history_detail_still_running(self, history_client: TestClient) -> None:
+        """A running run has no ``ended_at``, ``outcome``, or ``duration_s``."""
+        resp = history_client.get("/api/pipeline/history/ccc333")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ended_at"] is None
+        assert data["outcome"] is None
+        assert data["duration_s"] is None
+        assert len(data["steps"]) == 1
+        assert data["steps"][0]["status"] == "running"
+        assert data["steps"][0]["ended_at"] is None
+        assert data["steps"][0]["elapsed_s"] is None
+
+    def test_history_detail_404_unknown_uid(self, history_client: TestClient) -> None:
+        """A non-existent ``run_uid`` → 404."""
+        resp = history_client.get("/api/pipeline/history/nonexistent")
+        assert resp.status_code == 404
+        assert "not found" in resp.json()["detail"]
+
+    # ── auth guard ───────────────────────────────────────────────────────
+
+    def test_history_401_without_session(
+        self,
+        test_config,
+        pipeline_data_dir: Path,
+        history_db: Path,
+    ) -> None:
+        """A request without a session cookie → 401."""
+        cfg = test_config.model_copy(
+            update={
+                "paths": test_config.paths.model_copy(update={"data_dir": pipeline_data_dir}),
+                "indexer": test_config.indexer.model_copy(update={"db_path": history_db}),
+            },
+        )
+        settings = Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            web_password_hash=TEST_HASH,
+            web_jwt_secret=TEST_SECRET,
+        )
+        app = FastAPI()
+        app.state.config = cfg
+        app.state.settings = settings
+        from personalscraper.web.routes.pipeline import router as pipeline_router
+
+        app.include_router(pipeline_router)
+        client = TestClient(app, base_url="https://testserver")
+
+        resp = client.get("/api/pipeline/history")
+        assert resp.status_code == 401
+
+    def test_history_detail_401_without_session(
+        self,
+        test_config,
+        pipeline_data_dir: Path,
+        history_db: Path,
+    ) -> None:
+        """Detail route also returns 401 without a session."""
+        cfg = test_config.model_copy(
+            update={
+                "paths": test_config.paths.model_copy(update={"data_dir": pipeline_data_dir}),
+                "indexer": test_config.indexer.model_copy(update={"db_path": history_db}),
+            },
+        )
+        settings = Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            web_password_hash=TEST_HASH,
+            web_jwt_secret=TEST_SECRET,
+        )
+        app = FastAPI()
+        app.state.config = cfg
+        app.state.settings = settings
+        from personalscraper.web.routes.pipeline import router as pipeline_router
+
+        app.include_router(pipeline_router)
+        client = TestClient(app, base_url="https://testserver")
+
+        resp = client.get("/api/pipeline/history/aaa111")
+        assert resp.status_code == 401

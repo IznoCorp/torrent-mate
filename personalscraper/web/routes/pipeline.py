@@ -14,6 +14,8 @@ import sqlite3
 import subprocess
 import sys
 import uuid
+from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
 
@@ -28,10 +30,15 @@ from personalscraper.web.deps import (
     require_x_requested_with,
 )
 from personalscraper.web.models.pipeline import (
+    HistoryResponse,
+    PipelineOutcome,
     PipelineState,
+    RunDetail,
     RunRequest,
     RunResponse,
+    RunSummary,
     StatusResponse,
+    StepTiming,
     WatcherRequest,
     WatcherResponse,
 )
@@ -292,3 +299,201 @@ def pipeline_status(
         A ``StatusResponse`` with the current pipeline state and metadata.
     """
     return _build_status(_data_dir(request), _db_path(request))
+
+
+# ── History route helpers ────────────────────────────────────────────────────
+
+_ALLOWED_SORTS = frozenset({"started_at", "-started_at", "duration", "-duration"})
+
+_SORT_COLUMN_MAP: dict[str, str] = {
+    "started_at": "started_at ASC",
+    "-started_at": "started_at DESC",
+    "duration": ("CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END, (ended_at - started_at) ASC"),
+    "-duration": ("CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END, (ended_at - started_at) DESC"),
+}
+
+
+def _row_to_run_summary(row: sqlite3.Row) -> RunSummary:
+    """Map a ``pipeline_run`` row to a :class:`RunSummary`.
+
+    Converts ``started_at`` / ``ended_at`` (REAL unix timestamps) to ISO 8601
+    UTC strings and computes ``duration_s`` as their difference when both are
+    set.  The ``outcome`` column is parsed into :class:`PipelineOutcome`; an
+    unrecognized value is silently mapped to ``None``.
+
+    Args:
+        row: A ``sqlite3.Row`` from the ``pipeline_run`` table.
+
+    Returns:
+        A populated ``RunSummary``.
+    """
+    started_at = datetime.fromtimestamp(row["started_at"], tz=timezone.utc).isoformat()
+    ended_at: str | None = None
+    duration_s: float | None = None
+
+    if row["ended_at"] is not None:
+        ended_at = datetime.fromtimestamp(row["ended_at"], tz=timezone.utc).isoformat()
+        duration_s = row["ended_at"] - row["started_at"]
+
+    outcome: PipelineOutcome | None = None
+    if row["outcome"] is not None:
+        try:
+            outcome = PipelineOutcome(row["outcome"])
+        except ValueError:
+            pass
+
+    return RunSummary(
+        run_uid=row["run_uid"],
+        trigger=row["trigger"],
+        dry_run=bool(row["dry_run"]),
+        started_at=started_at,
+        ended_at=ended_at,
+        outcome=outcome,
+        duration_s=duration_s,
+    )
+
+
+# ── GET /history ─────────────────────────────────────────────────────────────
+
+
+@router.get("/history")
+def pipeline_history(
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    sort: str = "-started_at",
+    _session: Session = Depends(require_session),
+) -> HistoryResponse:
+    """Return paginated pipeline run history.
+
+    Opens a fresh read-only connection to the indexer database on every
+    request.  The database uses WAL mode so concurrent reads are safe.
+
+    Args:
+        request: The incoming FastAPI request.
+        limit: Maximum number of runs to return (default 50).
+        offset: Number of runs to skip (default 0).
+        sort: Sort order — one of ``started_at``, ``-started_at``,
+            ``duration``, ``-duration`` (default ``-started_at``).
+
+    Returns:
+        A ``HistoryResponse`` with the requested page of run summaries.
+
+    Raises:
+        HTTPException: 400 if *sort* is not one of the allowed values.
+    """
+    if sort not in _ALLOWED_SORTS:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Invalid sort '{sort}'. Allowed: {', '.join(sorted(_ALLOWED_SORTS))}"),
+        )
+
+    db_path = _db_path(request)
+    order_clause = _SORT_COLUMN_MAP[sort]
+
+    try:
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            conn.row_factory = sqlite3.Row
+            total_row = conn.execute("SELECT COUNT(*) FROM pipeline_run").fetchone()
+            total = total_row[0] if total_row else 0
+
+            rows = conn.execute(
+                f"SELECT run_uid, trigger, dry_run, started_at, ended_at, "
+                f"outcome FROM pipeline_run "
+                f"ORDER BY {order_clause} LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+
+            runs = [_row_to_run_summary(row) for row in rows]
+    except sqlite3.OperationalError:
+        # DB file missing or corrupt — return empty history.
+        return HistoryResponse(runs=[], total=0)
+
+    return HistoryResponse(runs=runs, total=total)
+
+
+# ── GET /history/{run_uid} ───────────────────────────────────────────────────
+
+
+@router.get("/history/{run_uid}")
+def pipeline_history_detail(
+    run_uid: str,
+    request: Request,
+    _session: Session = Depends(require_session),
+) -> RunDetail:
+    """Return the full detail for a single pipeline run.
+
+    Parses the ``steps_json`` column into per-step timing records.
+
+    Args:
+        run_uid: The unique run identifier.
+        request: The incoming FastAPI request.
+
+    Returns:
+        A ``RunDetail`` with step timings parsed from ``steps_json``.
+
+    Raises:
+        HTTPException: 404 if no run with the given *run_uid* exists.
+    """
+    db_path = _db_path(request)
+
+    try:
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT run_uid, trigger, dry_run, started_at, ended_at, "
+                "outcome, steps_json, error FROM pipeline_run "
+                "WHERE run_uid = ?",
+                (run_uid,),
+            ).fetchone()
+    except sqlite3.OperationalError:
+        raise HTTPException(status_code=404, detail=f"Run '{run_uid}' not found")
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Run '{run_uid}' not found")
+
+    summary = _row_to_run_summary(row)
+
+    steps: list[StepTiming] = []
+    if row["steps_json"]:
+        try:
+            raw_steps = json.loads(row["steps_json"])
+            if isinstance(raw_steps, list):
+                for s in raw_steps:
+                    s_start = s.get("started_at")
+                    s_end = s.get("ended_at")
+
+                    step_started_at: str | None = None
+                    step_ended_at: str | None = None
+                    step_elapsed: float | None = None
+
+                    if s_start is not None:
+                        step_started_at = datetime.fromtimestamp(float(s_start), tz=timezone.utc).isoformat()
+                    if s_end is not None:
+                        step_ended_at = datetime.fromtimestamp(float(s_end), tz=timezone.utc).isoformat()
+                    if s_start is not None and s_end is not None:
+                        step_elapsed = float(s_end) - float(s_start)
+
+                    steps.append(
+                        StepTiming(
+                            name=str(s.get("name", "")),
+                            status=str(s.get("status", "")),
+                            started_at=step_started_at,
+                            ended_at=step_ended_at,
+                            elapsed_s=step_elapsed,
+                        )
+                    )
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+    return RunDetail(
+        run_uid=summary.run_uid,
+        trigger=summary.trigger,
+        dry_run=summary.dry_run,
+        started_at=summary.started_at,
+        ended_at=summary.ended_at,
+        outcome=summary.outcome,
+        duration_s=summary.duration_s,
+        steps=steps,
+        error=row["error"],
+    )

@@ -112,3 +112,84 @@ class WatcherResponse(BaseModel):
     """
 
     watcher_enabled: bool
+
+
+class RunSummary(BaseModel):
+    """Summary row for the pipeline run-history list endpoint.
+
+    Attributes:
+        run_uid: Unique run identifier (uuid4 hex).
+        trigger: What triggered the run (``"cli"``, ``"web"``, ``"watcher"``, etc.).
+        dry_run: Whether this was a dry run.
+        started_at: ISO 8601 UTC timestamp of run start.
+        ended_at: ISO 8601 UTC timestamp of run end, or ``None`` if still
+            running.
+        outcome: Final outcome, or ``None`` if still in progress.
+        duration_s: Wall-clock duration in seconds (``ended_at - started_at``),
+            or ``None`` if either timestamp is missing.
+    """
+
+    run_uid: str
+    trigger: str
+    dry_run: bool
+    started_at: str
+    ended_at: str | None = None
+    outcome: PipelineOutcome | None = None
+    duration_s: float | None = None
+
+
+class StepTiming(BaseModel):
+    """Timing record for a single pipeline step within a run.
+
+    Attributes:
+        name: Human-readable step name (e.g. ``"ingest"``, ``"sort"``).
+        status: Step status (``"done"``, ``"running"``, ``"error"``, etc.).
+        started_at: ISO 8601 UTC timestamp of step start, or ``None``.
+        ended_at: ISO 8601 UTC timestamp of step end, or ``None``.
+        elapsed_s: Step duration in seconds, or ``None`` if either timestamp
+            is missing.
+    """
+
+    name: str
+    status: str
+    started_at: str | None = None
+    ended_at: str | None = None
+    elapsed_s: float | None = None
+
+
+class RunDetail(BaseModel):
+    """Full detail for a single pipeline run, including step timings.
+
+    Attributes:
+        run_uid: Unique run identifier.
+        trigger: What triggered the run.
+        dry_run: Whether this was a dry run.
+        started_at: ISO 8601 UTC timestamp of run start.
+        ended_at: ISO 8601 UTC timestamp of run end, or ``None``.
+        outcome: Final outcome, or ``None``.
+        duration_s: Wall-clock duration in seconds, or ``None``.
+        steps: Per-step timing records parsed from ``steps_json``.
+        error: Error message if the run failed, or ``None``.
+    """
+
+    run_uid: str
+    trigger: str
+    dry_run: bool
+    started_at: str
+    ended_at: str | None = None
+    outcome: PipelineOutcome | None = None
+    duration_s: float | None = None
+    steps: list[StepTiming] = []
+    error: str | None = None
+
+
+class HistoryResponse(BaseModel):
+    """Paginated response for the run-history list endpoint.
+
+    Attributes:
+        runs: List of run summaries for the current page.
+        total: Total number of runs in the database (for pagination).
+    """
+
+    runs: list[RunSummary]
+    total: int
