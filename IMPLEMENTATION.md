@@ -16,7 +16,7 @@
 | #   | Phase                                                    | File                         | Status |
 | --- | -------------------------------------------------------- | ---------------------------- | ------ |
 | 1   | Engine — pause checkpoint + run-history                  | phase-01-engine.md           | [x]    |
-| 2   | Web controls — run/pause/resume/kill/watcher/status      | phase-02-web-controls.md     | [ ]    |
+| 2   | Web controls — run/pause/resume/kill/watcher/status      | phase-02-web-controls.md     | [x]    |
 | 3   | Web history — history + detail routes                    | phase-03-web-history.md      | [ ]    |
 | 4   | Frontend control screen — Pipeline page + stepper + logs | phase-04-frontend-control.md | [ ]    |
 | 5   | Frontend history — run-history table + detail            | phase-05-frontend-history.md | [ ]    |
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 2 (web controls).
+Run `/implement:phase` to continue with Phase 3 (web history).
