@@ -462,6 +462,8 @@ def process(
 def _validate_trigger_reason(value: str) -> str:
     """Validate the ``--trigger-reason`` value against the allowed set.
 
+    Allowed values: ``""``, ``completion``, ``safety_net``, ``manual``, ``web``.
+
     Args:
         value: Raw string from the CLI option.
 
@@ -471,8 +473,8 @@ def _validate_trigger_reason(value: str) -> str:
     Raises:
         typer.BadParameter: If *value* is not one of the allowed reasons.
     """
-    if value not in ("", "completion", "safety_net", "manual"):
-        raise typer.BadParameter(f"Must be one of: completion, safety_net, manual (got '{value}')")
+    if value not in ("", "completion", "safety_net", "manual", "web"):
+        raise typer.BadParameter(f"Must be one of: completion, safety_net, manual, web (got '{value}')")
     return value
 
 
