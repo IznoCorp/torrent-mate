@@ -510,6 +510,17 @@ class Pipeline:
                 self._app.event_bus.emit(
                     StepCompleted(step="dispatch", report=dispatch_report, elapsed_s=0.0),
                 )
+                # Run-history: record the synthesized (skipped) dispatch so
+                # history has all 9 steps (pipe-control sub-phase 1.3b).
+                if self._history_writer is not None and self._run_uid is not None:
+                    _dispatch_ts = time.time()
+                    self._history_writer.update_step(
+                        self._run_uid,
+                        "dispatch",
+                        _dispatch_ts,
+                        _dispatch_ts,
+                        "skipped",
+                    )
 
         except _PipelineInterrupted as exc:
             # Operator-requested shutdown honored at a step boundary.

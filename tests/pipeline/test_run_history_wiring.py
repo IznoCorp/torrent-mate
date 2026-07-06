@@ -27,7 +27,7 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.models import StepReport
-from personalscraper.pipeline import Pipeline
+from personalscraper.pipeline import Pipeline, _PipelineInterrupted
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.pipeline_protocol import StepContext
 
@@ -241,8 +241,9 @@ class TestHistoryWriterInsert:
 
         _run_with_writer(pipeline, _step_registry(), None)  # type: ignore[arg-type]
 
-        # Pipeline completed without error and _run_uid was never set.
-        assert pipeline._run_uid is None
+        # Pipeline completed without error; _run_uid is always set once
+        # run() starts (set unconditionally before the writer check).
+        assert pipeline._run_uid is not None
 
 
 class TestHistoryWriterUpdateStep:
@@ -267,7 +268,11 @@ class TestHistoryWriterUpdateStep:
             step_names = [s["name"] for s in steps]
             assert step_names == list(NINE_STEP_NAMES)
             for s in steps:
-                assert s["status"] == "success"
+                if s["name"] == "dispatch":
+                    # No verified items → dispatch is synthesized as "skipped".
+                    assert s["status"] == "skipped"
+                else:
+                    assert s["status"] == "success"
                 assert s["started_at"] <= s["ended_at"]
 
     def test_error_step_recorded_as_error(self) -> None:
@@ -290,10 +295,12 @@ class TestHistoryWriterUpdateStep:
             assert len(steps) == 9
             scrape_entry = next(s for s in steps if s["name"] == "scrape")
             assert scrape_entry["status"] == "error"
-            # All other steps are success.
+            # All other steps are success, except dispatch (synthesized as "skipped").
             for s in steps:
-                if s["name"] != "scrape":
+                if s["name"] not in ("scrape", "dispatch"):
                     assert s["status"] == "success"
+                elif s["name"] == "dispatch":
+                    assert s["status"] == "skipped"
 
 
 class TestHistoryWriterFinalize:
@@ -318,7 +325,14 @@ class TestHistoryWriterFinalize:
             assert row["error"] is None
 
     def test_finalize_on_interrupted_run(self) -> None:
-        """A pipeline interrupted via ``request_shutdown`` is finalized as 'killed'."""
+        """A pipeline interrupted mid-run is finalized as 'killed'.
+
+        Simulates a mid-run kill by patching ``_check_shutdown_requested``
+        to raise ``_PipelineInterrupted`` at the ``before_sort`` boundary,
+        which fires after ingest completes.  A pre-run ``request_shutdown``
+        call is NOT sufficient — ``run()`` resets ``_shutdown_requested``
+        at its start, so the flag would be clobbered.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "library.db"
             _create_db(db_path)
@@ -327,15 +341,16 @@ class TestHistoryWriterFinalize:
             writer = PipelineRunWriter(db_path)
             pipeline = Pipeline(app)
 
-            # Request shutdown BEFORE running — the first step boundary will
-            # raise ``_PipelineInterrupted``.
-            pipeline.request_shutdown("test_kill")
+            def _kill_at_sort(self: object, boundary: str) -> None:
+                if boundary == "before_sort":
+                    raise _PipelineInterrupted("test_kill")
 
             with (
                 patch("personalscraper.pipeline.ensure_staging_tree"),
                 patch.object(Pipeline, "_check_temp_empty_gate"),
                 patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
                 patch("personalscraper.pipeline.apply_step_overrides", return_value=_step_registry()),
+                patch.object(Pipeline, "_check_shutdown_requested", _kill_at_sort),
             ):
                 pipeline.run(
                     trigger_reason="test",
@@ -358,8 +373,8 @@ class TestHistoryWriterEdgeCases:
 
         _run_with_writer(pipeline, _step_registry(), None)  # type: ignore[arg-type]
 
-        # Run completed without error.
-        assert pipeline._run_uid is None
+        # Run completed without error; _run_uid is always set once run() starts.
+        assert pipeline._run_uid is not None
 
     def test_writer_failure_does_not_abort_pipeline(self) -> None:
         """If the writer's DB is missing, the run still completes (fail-soft)."""
