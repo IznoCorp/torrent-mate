@@ -24,6 +24,7 @@ Category mapping (from module to registry category):
 
 from __future__ import annotations
 
+import json
 from typing import Literal
 
 from pydantic import BaseModel
@@ -108,6 +109,25 @@ class MaintenanceAction(BaseModel):
     long_running: bool
     dry_run: Literal["unsupported", "supported"]
     options: list[ActionOption]
+
+
+def canonical_options_json(options: dict[str, object]) -> str:
+    """Serialize validated options to canonical JSON (sorted keys, no spaces).
+
+    The canonical form is what ``POST /api/maintenance/run`` stores in the
+    ``options_json`` column of ``pipeline_run`` and what the 428
+    precondition compares by string equality.
+
+    Args:
+        options: A dictionary of validated key-value pairs representing
+            CLI flags/arguments for a maintenance action.
+
+    Returns:
+        A canonical JSON string with keys sorted alphabetically and no
+        whitespace between tokens, suitable for deterministic string
+        comparison.
+    """
+    return json.dumps(options, sort_keys=True, separators=(",", ":"))
 
 
 # ---------------------------------------------------------------------------

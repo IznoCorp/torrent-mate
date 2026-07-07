@@ -10,6 +10,6 @@ See ``docs/features/maint-dash/DESIGN.md`` §4 for the risk taxonomy and
 registry ground truth.
 """
 
-from personalscraper.web.maintenance.registry import REGISTRY, ActionOption, MaintenanceAction
+from personalscraper.web.maintenance.registry import REGISTRY, ActionOption, MaintenanceAction, canonical_options_json
 
-__all__ = ["ActionOption", "MaintenanceAction", "REGISTRY"]
+__all__ = ["ActionOption", "MaintenanceAction", "REGISTRY", "canonical_options_json"]
