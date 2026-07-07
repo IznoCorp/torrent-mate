@@ -18,7 +18,7 @@
 | 1   | DB + Registry              | phase-01-db-registry.md            | [x]    |
 | 2   | Panels Backend             | phase-02-panels-backend.md         | [x]    |
 | 3   | Actions Backend            | phase-03-actions-backend.md        | [x]    |
-| 4   | History Unification        | phase-04-history-unification.md    | [ ]    |
+| 4   | History Unification        | phase-04-history-unification.md    | [x]    |
 | 5   | Frontend                   | phase-05-frontend.md               | [ ]    |
 | 6   | Deploy + Docs + ACCEPTANCE | phase-06-deploy-docs-acceptance.md | [ ]    |
 
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 4 (History Unification) is next — run `/implement:phase`.
+Phase 5 (Frontend) is next — run `/implement:phase`.
