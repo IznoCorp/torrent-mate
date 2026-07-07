@@ -354,17 +354,6 @@ class TestIndexHealthRoute:
         self._seed_db(db_path)
         return db_path
 
-    @pytest.mark.skip(
-        reason=(
-            "BLOCKED by source bug: GET /api/maintenance/index-health opens the DB with "
-            "mode=ro then calls _apply_pragmas() which executes PRAGMA journal_mode=WAL — "
-            "a write operation that raises sqlite3.OperationalError on a read-only connection. "
-            "The except clause returns _empty_health(), so a seeded DB always yields items=0. "
-            "Fix: skip write pragmas on read-only connections, or open the DB in a way that "
-            "permits pragma changes. Sub-phase 2.3 is tests-only; the source fix belongs in "
-            "the route module (sub-phase 2.2 scope)."
-        )
-    )
     def test_index_health(self, test_config, tmp_path: Path, seeded_db_path: Path) -> None:
         """200 — seeded DB returns correct item/movie/show/file counts.
 

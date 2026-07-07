@@ -18,6 +18,7 @@ import os
 import shutil
 import sqlite3
 import time
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
@@ -359,10 +360,11 @@ def get_index_health(
 ) -> IndexHealthResponse:
     """Return an aggregate health snapshot of the indexer database.
 
-    Opens a read-only WAL connection to ``library.db`` and runs a single
-    batch of lightweight aggregate queries.  No filesystem walk is
-    performed.  When the database file is missing or unreadable, a zeroed
-    response is returned (fail-soft, no 500).
+    Opens a regular connection to ``library.db`` (mirroring the pipeline
+    history route) and runs a single batch of lightweight aggregate
+    queries.  No filesystem walk is performed.  When the database file is
+    missing or unreadable, a zeroed response is returned (fail-soft, no
+    500).
 
     Query summary:
 
@@ -386,101 +388,102 @@ def get_index_health(
         return _empty_health()
 
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        conn.isolation_level = None
-        _apply_pragmas(conn)
-        conn.row_factory = sqlite3.Row
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            _apply_pragmas(conn)
+            conn.row_factory = sqlite3.Row
+
+            # ── Media item counts ─────────────────────────────────────────
+            items_row = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()
+            items = items_row[0] if items_row else 0
+
+            movies_row = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()
+            movies = movies_row[0] if movies_row else 0
+
+            shows_row = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()
+            shows = shows_row[0] if shows_row else 0
+
+            # ── Media file counts (non-deleted only) ──────────────────────
+            files_row = conn.execute("SELECT COUNT(*) FROM media_file WHERE deleted_at IS NULL").fetchone()
+            files = files_row[0] if files_row else 0
+
+            size_row = conn.execute(
+                "SELECT COALESCE(SUM(size_bytes), 0) FROM media_file WHERE deleted_at IS NULL"
+            ).fetchone()
+            size_bytes = size_row[0] if size_row else 0
+            size_gb = round(size_bytes / (1024**3), 2)
+
+            # ── NFO status breakdown ──────────────────────────────────────
+            nfo_valid = conn.execute("SELECT COUNT(*) FROM media_item WHERE nfo_status = 'valid'").fetchone()[0]
+
+            nfo_invalid = conn.execute("SELECT COUNT(*) FROM media_item WHERE nfo_status = 'invalid'").fetchone()[0]
+
+            nfo_missing = conn.execute(
+                "SELECT COUNT(*) FROM media_item WHERE nfo_status = 'missing' OR nfo_status IS NULL"
+            ).fetchone()[0]
+
+            nfo = NfoStats(valid=nfo_valid, invalid=nfo_invalid, missing=nfo_missing)
+
+            # ── Repair queue ──────────────────────────────────────────────
+            rep_row = conn.execute(
+                "SELECT COUNT(*), MIN(enqueued_at) FROM repair_queue WHERE status = 'pending'"
+            ).fetchone()
+            repair_pending: int = rep_row[0] if rep_row else 0
+            repair_oldest_age: float | None = None
+            if rep_row and rep_row[1] is not None:
+                repair_oldest_age = round(time.time() - rep_row[1], 1)
+
+            # ── Outbox (table may not exist in pre-migration DBs) ─────────
+            try:
+                out_row = conn.execute(
+                    "SELECT COUNT(*), MIN(created_at) FROM index_outbox WHERE status = 'pending'"
+                ).fetchone()
+                outbox_pending: int = out_row[0] if out_row else 0
+                outbox_oldest_age: float | None = None
+                if out_row and out_row[1] is not None:
+                    outbox_oldest_age = round(time.time() - out_row[1], 1)
+            except sqlite3.OperationalError:
+                outbox_pending = 0
+                outbox_oldest_age = None
+
+            # ── Last scan ─────────────────────────────────────────────────
+            scan_row = conn.execute(
+                "SELECT id, mode, status, started_at, finished_at FROM scan_run ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+
+            last_scan_id: int | None = None
+            last_scan_mode: str | None = None
+            last_scan_status: str | None = None
+            last_scan_started_at: str | None = None
+            last_scan_finished_at: str | None = None
+            last_scan_stuck = False
+
+            if scan_row is not None:
+                last_scan_id = scan_row["id"]
+                last_scan_mode = scan_row["mode"]
+                last_scan_status = scan_row["status"]
+                if scan_row["started_at"] is not None:
+                    last_scan_started_at = datetime.fromtimestamp(scan_row["started_at"], tz=timezone.utc).isoformat()
+                    # Stuck detection: running + started > 1 h ago (mirrors
+                    # doctor.py _check_no_stuck_scan_run threshold).
+                    if (
+                        scan_row["status"] == "running"
+                        and (time.time() - scan_row["started_at"]) > _STUCK_SCAN_THRESHOLD_S
+                    ):
+                        last_scan_stuck = True
+                if scan_row["finished_at"] is not None:
+                    last_scan_finished_at = datetime.fromtimestamp(scan_row["finished_at"], tz=timezone.utc).isoformat()
+
+            # ── Soft-deleted files ────────────────────────────────────────
+            soft_deleted = conn.execute("SELECT COUNT(*) FROM media_file WHERE deleted_at IS NOT NULL").fetchone()[0]
+
+            # ── Canonical NULL ────────────────────────────────────────────
+            canonical_null = conn.execute(
+                "SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL"
+            ).fetchone()[0]
+
     except sqlite3.OperationalError:
         logger.warning("index_health_db_open_failed", path=str(db_path))
         return _empty_health()
-
-    try:
-        # ── Media item counts ─────────────────────────────────────────
-        items_row = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()
-        items = items_row[0] if items_row else 0
-
-        movies_row = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()
-        movies = movies_row[0] if movies_row else 0
-
-        shows_row = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()
-        shows = shows_row[0] if shows_row else 0
-
-        # ── Media file counts (non-deleted only) ──────────────────────
-        files_row = conn.execute("SELECT COUNT(*) FROM media_file WHERE deleted_at IS NULL").fetchone()
-        files = files_row[0] if files_row else 0
-
-        size_row = conn.execute(
-            "SELECT COALESCE(SUM(size_bytes), 0) FROM media_file WHERE deleted_at IS NULL"
-        ).fetchone()
-        size_bytes = size_row[0] if size_row else 0
-        size_gb = round(size_bytes / (1024**3), 2)
-
-        # ── NFO status breakdown ──────────────────────────────────────
-        nfo_valid = conn.execute("SELECT COUNT(*) FROM media_item WHERE nfo_status = 'valid'").fetchone()[0]
-
-        nfo_invalid = conn.execute("SELECT COUNT(*) FROM media_item WHERE nfo_status = 'invalid'").fetchone()[0]
-
-        nfo_missing = conn.execute(
-            "SELECT COUNT(*) FROM media_item WHERE nfo_status = 'missing' OR nfo_status IS NULL"
-        ).fetchone()[0]
-
-        nfo = NfoStats(valid=nfo_valid, invalid=nfo_invalid, missing=nfo_missing)
-
-        # ── Repair queue ──────────────────────────────────────────────
-        rep_row = conn.execute(
-            "SELECT COUNT(*), MIN(enqueued_at) FROM repair_queue WHERE status = 'pending'"
-        ).fetchone()
-        repair_pending: int = rep_row[0] if rep_row else 0
-        repair_oldest_age: float | None = None
-        if rep_row and rep_row[1] is not None:
-            repair_oldest_age = round(time.time() - rep_row[1], 1)
-
-        # ── Outbox (table may not exist in pre-migration DBs) ─────────
-        try:
-            out_row = conn.execute(
-                "SELECT COUNT(*), MIN(created_at) FROM index_outbox WHERE status = 'pending'"
-            ).fetchone()
-            outbox_pending: int = out_row[0] if out_row else 0
-            outbox_oldest_age: float | None = None
-            if out_row and out_row[1] is not None:
-                outbox_oldest_age = round(time.time() - out_row[1], 1)
-        except sqlite3.OperationalError:
-            outbox_pending = 0
-            outbox_oldest_age = None
-
-        # ── Last scan ─────────────────────────────────────────────────
-        scan_row = conn.execute(
-            "SELECT id, mode, status, started_at, finished_at FROM scan_run ORDER BY started_at DESC LIMIT 1"
-        ).fetchone()
-
-        last_scan_id: int | None = None
-        last_scan_mode: str | None = None
-        last_scan_status: str | None = None
-        last_scan_started_at: str | None = None
-        last_scan_finished_at: str | None = None
-        last_scan_stuck = False
-
-        if scan_row is not None:
-            last_scan_id = scan_row["id"]
-            last_scan_mode = scan_row["mode"]
-            last_scan_status = scan_row["status"]
-            if scan_row["started_at"] is not None:
-                last_scan_started_at = datetime.fromtimestamp(scan_row["started_at"], tz=timezone.utc).isoformat()
-                # Stuck detection: running + started > 1 h ago (mirrors
-                # doctor.py _check_no_stuck_scan_run threshold).
-                if scan_row["status"] == "running" and (time.time() - scan_row["started_at"]) > _STUCK_SCAN_THRESHOLD_S:
-                    last_scan_stuck = True
-            if scan_row["finished_at"] is not None:
-                last_scan_finished_at = datetime.fromtimestamp(scan_row["finished_at"], tz=timezone.utc).isoformat()
-
-        # ── Soft-deleted files ────────────────────────────────────────
-        soft_deleted = conn.execute("SELECT COUNT(*) FROM media_file WHERE deleted_at IS NOT NULL").fetchone()[0]
-
-        # ── Canonical NULL ────────────────────────────────────────────
-        canonical_null = conn.execute("SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL").fetchone()[0]
-
-    finally:
-        conn.close()
 
     return IndexHealthResponse(
         items=items,
