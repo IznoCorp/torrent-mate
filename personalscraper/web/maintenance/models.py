@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from personalscraper.web.maintenance.registry import MaintenanceAction
+
 
 class DiskInfo(BaseModel):
     """A single configured storage disk with its mount and capacity data.
@@ -205,3 +207,22 @@ class IndexHealthResponse(BaseModel):
 
     soft_deleted: int = 0
     canonical_null: int = 0
+
+
+class ActionsResponse(BaseModel):
+    """Top-level response for the maintenance actions catalog.
+
+    Serves the ``GET /api/maintenance/actions`` endpoint. Returns the full
+    read-only :data:`REGISTRY` (25 entries across 6 categories) together
+    with per-category counts for the web UI grouping chips.
+
+    Attributes:
+        actions: The full maintenance action registry (25 entries across
+            the query, scan, repair, clean, analyze, and fix categories).
+        category_counts: Count of actions per category for UI grouping chips
+            (e.g. ``{"query": 5, "scan": 4, "repair": 2, "clean": 2,
+            "analyze": 4, "fix": 8}``).
+    """
+
+    actions: list[MaintenanceAction]
+    category_counts: dict[str, int]

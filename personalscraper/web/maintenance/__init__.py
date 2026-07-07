@@ -15,6 +15,7 @@ registry ground truth.
 """
 
 from personalscraper.web.maintenance.models import (  # noqa: F401
+    ActionsResponse,
     DiskInfo,
     DisksResponse,
     IndexHealthResponse,
@@ -28,6 +29,7 @@ from personalscraper.web.maintenance.registry import REGISTRY, ActionOption, Mai
 
 __all__ = [
     "ActionOption",
+    "ActionsResponse",
     "DiskInfo",
     "DisksResponse",
     "IndexHealthResponse",

@@ -36,6 +36,7 @@ from personalscraper.web.deps import (
     require_session,
 )
 from personalscraper.web.maintenance.models import (
+    ActionsResponse,
     DiskInfo,
     DisksResponse,
     IndexHealthResponse,
@@ -505,3 +506,29 @@ def get_index_health(
         soft_deleted=soft_deleted,
         canonical_null=canonical_null,
     )
+
+
+# ── GET /actions ────────────────────────────────────────────────────────────
+
+
+@router.get("/actions", response_model=ActionsResponse)
+def get_actions(
+    _session: Session = Depends(require_session),
+) -> ActionsResponse:
+    """Return the full maintenance action registry with category counts.
+
+    The registry is defined at module level in
+    :mod:`personalscraper.web.maintenance.registry` and is read-only at
+    runtime — no database or filesystem access is needed.
+
+    Returns:
+        An :class:`ActionsResponse` with all 25 registered actions and
+        per-category counts for UI grouping chips.
+    """
+    from personalscraper.web.maintenance.registry import REGISTRY
+
+    category_counts: dict[str, int] = {}
+    for action in REGISTRY:
+        category_counts[action.category] = category_counts.get(action.category, 0) + 1
+
+    return ActionsResponse(actions=REGISTRY, category_counts=category_counts)
