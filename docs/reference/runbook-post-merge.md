@@ -594,3 +594,87 @@ breakpoint, logout → `/login`.
 pm2 stop torrentmate-web          # prod down; staging + the pipeline are unaffected
 git -C ~/deploy/torrentmate reset --hard <previous-good-sha> && ./scripts/deploy.sh
 ```
+
+---
+
+## Config editor (config-editor, 0.43.0)
+
+**When**: after `git pull` on the production host (IznoServer), before
+exercising the `/config` page in production. The PM2 ecosystem config was
+updated with two new environment variables that must be picked up.
+
+### Step 1 — Restart both web daemons with updated env
+
+The `ecosystem.config.js` at the repo root gained `PERSONALSCRAPER_WEB_ROLE`
+(staging block) and `PERSONALSCRAPER_PM2_NAME` (prod block). A plain
+`pm2 restart` does **not** reload environment variables — the `--update-env`
+flag is required, or delete + re-add the app so PM2 reads the updated config.
+
+```bash
+# Option A: restart with --update-env (picks up env changes from ecosystem file).
+pm2 restart torrentmate-web --update-env
+pm2 restart torrentmate-web-staging --update-env
+
+# Option B (if the ecosystem file itself changed structurally): delete + re-add.
+# pm2 delete torrentmate-web torrentmate-web-staging
+# pm2 start ecosystem.config.js --only torrentmate-web,torrentmate-web-staging
+pm2 save
+```
+
+### Step 2 — Verify staging is read-only (403 on writes)
+
+Confirm that writes are blocked on the staging clone:
+
+```bash
+# Login to staging to get a session cookie.
+STAGING_COOKIE=$(curl -s -c - --connect-timeout 10 --max-time 30 \
+  -X POST "https://tm-staging.iznogoudatall.xyz/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: TorrentMate" \
+  -d '{"username":"izno","password":"<password>"}' | grep tm_session | awk '{print $NF}')
+
+# Attempt a write — must return 403.
+curl -s -o /dev/null -w '%{http_code}\n' --connect-timeout 10 --max-time 30 \
+  -X PUT "https://tm-staging.iznogoudatall.xyz/api/config/files/paths.json5" \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: TorrentMate" \
+  -b "tm_session=$STAGING_COOKIE" \
+  -d '{"values":{"staging_dir":"/tmp"},"base_sha256":"0000"}'
+# Expected: 403
+```
+
+### Step 3 — Verify prod restart endpoint is reachable
+
+```bash
+# Login to prod.
+PROD_COOKIE=$(curl -s -c - --connect-timeout 10 --max-time 30 \
+  -X POST "https://tm.iznogoudatall.xyz/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: TorrentMate" \
+  -d '{"username":"izno","password":"<password>"}' | grep tm_session | awk '{print $NF}')
+
+# Check status — PERSONALSCRAPER_PM2_NAME should be set.
+curl -s --connect-timeout 10 --max-time 30 \
+  "https://tm.iznogoudatall.xyz/api/config/status" \
+  -H "X-Requested-With: TorrentMate" \
+  -b "tm_session=$PROD_COOKIE" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['role']=='prod', 'Expected prod role'"
+# Expected: exit 0 (role is "prod", read_only is false)
+
+# The restart endpoint should return 202 (not 404 — PM2_NAME is set).
+curl -s -o /dev/null -w '%{http_code}\n' --connect-timeout 10 --max-time 30 \
+  -X POST "https://tm.iznogoudatall.xyz/api/config/restart-web" \
+  -H "X-Requested-With: TorrentMate" \
+  -b "tm_session=$PROD_COOKIE"
+# Expected: 202
+```
+
+### Rollback
+
+```bash
+# If the restart endpoint misbehaves, unset PERSONALSCRAPER_PM2_NAME to disable it.
+pm2 stop torrentmate-web
+# Edit ecosystem.config.js — remove PERSONALSCRAPER_PM2_NAME from the prod env block.
+pm2 delete torrentmate-web
+pm2 start ecosystem.config.js --only torrentmate-web
+pm2 save
+```
