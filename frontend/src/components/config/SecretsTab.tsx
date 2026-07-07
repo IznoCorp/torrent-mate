@@ -32,7 +32,9 @@ export interface SecretsTabProps {
  * Returns:
  *   The secrets editor element.
  */
-export function SecretsTab({ readOnly = false }: SecretsTabProps): ReactElement {
+export function SecretsTab({
+  readOnly = false,
+}: SecretsTabProps): ReactElement {
   const secrets = useConfigSecrets();
   const putSecrets = usePutConfigSecrets();
 
@@ -135,9 +137,7 @@ export function SecretsTab({ readOnly = false }: SecretsTabProps): ReactElement 
             <Input
               type="password"
               autoComplete="off"
-              placeholder={
-                entry.is_set ? "•••• (défini)" : "non défini"
-              }
+              placeholder={entry.is_set ? "•••• (défini)" : "non défini"}
               disabled={readOnly}
               value={draft(entry.key)}
               onChange={(e) => {
@@ -156,7 +156,7 @@ export function SecretsTab({ readOnly = false }: SecretsTabProps): ReactElement 
             void handleSave();
           }}
         >
-          {putSecrets.isPending ? "Enregistrement…" : "Enregistrer"}
+          {putSecrets.isPending ? "Enregistrement…" : "Enregistrer les secrets"}
         </Button>
 
         {saved && (
