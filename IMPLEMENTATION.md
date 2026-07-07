@@ -15,7 +15,7 @@
 
 | #   | Phase                      | File                               | Status |
 | --- | -------------------------- | ---------------------------------- | ------ |
-| 1   | DB + Registry              | phase-01-db-registry.md            | [ ]    |
+| 1   | DB + Registry              | phase-01-db-registry.md            | [x]    |
 | 2   | Panels Backend             | phase-02-panels-backend.md         | [ ]    |
 | 3   | Actions Backend            | phase-03-actions-backend.md        | [ ]    |
 | 4   | History Unification        | phase-04-history-unification.md    | [ ]    |
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Phase 2 (Panels Backend) is next — run `/implement:phase`.
