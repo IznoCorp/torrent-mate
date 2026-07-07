@@ -17,13 +17,17 @@ from __future__ import annotations
 import os
 import shutil
 import sqlite3
+import subprocess
+import sys
 import time
+import uuid
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
@@ -34,8 +38,11 @@ from personalscraper.logger import get_logger
 from personalscraper.web.deps import (
     Session,
     require_session,
+    require_x_requested_with,
 )
 from personalscraper.web.maintenance.models import (
+    ActionRunRequest,
+    ActionRunResponse,
     ActionsResponse,
     DiskInfo,
     DisksResponse,
@@ -45,6 +52,11 @@ from personalscraper.web.maintenance.models import (
     NfoStats,
     Sentinels,
     TmpOrphan,
+)
+from personalscraper.web.maintenance.registry import (
+    REGISTRY,
+    MaintenanceAction,
+    canonical_options_json,
 )
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
@@ -508,6 +520,227 @@ def get_index_health(
     )
 
 
+# ── POST /actions/{action_id}/run helpers ──────────────────────────────────────
+
+
+def _validate_options(action: MaintenanceAction, body_options: dict[str, object]) -> None:
+    """Validate *body_options* against the action's registered :class:`ActionOption` entries.
+
+    No coercion is performed — every value must already match the declared type.
+    Unknown keys, missing required options, type mismatches, and enum values outside the
+    declared set are all rejected with 422.
+
+    Args:
+        action: The maintenance action from :data:`REGISTRY`.
+        body_options: The ``options`` dict from the :class:`ActionRunRequest` body.
+
+    Raises:
+        HTTPException: 422 with a ``detail`` message describing the first validation failure.
+    """
+    registered = {opt.name: opt for opt in action.options}
+
+    # Unknown keys.
+    for key in body_options:
+        if key not in registered:
+            raise HTTPException(status_code=422, detail=f"Unknown option: {key!r}")
+
+    # Missing required options.
+    for opt in action.options:
+        if opt.required and opt.name not in body_options:
+            raise HTTPException(status_code=422, detail=f"Missing required option: {opt.name!r}")
+
+    # Type / enum validation for each provided key.
+    for key, value in body_options.items():
+        opt = registered[key]
+
+        if opt.type == "bool":
+            if not isinstance(value, bool):
+                raise HTTPException(status_code=422, detail=f"Option {key!r} must be a boolean")
+        elif opt.type == "int":
+            # bool is a subclass of int — reject it explicitly.
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise HTTPException(status_code=422, detail=f"Option {key!r} must be an integer")
+        elif opt.type == "str":
+            if not isinstance(value, str):
+                raise HTTPException(status_code=422, detail=f"Option {key!r} must be a string")
+        elif opt.type == "enum":
+            if not isinstance(value, str):
+                raise HTTPException(status_code=422, detail=f"Option {key!r} must be a string")
+            if opt.enum_values and value not in opt.enum_values:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(f"Option {key!r}: {value!r} is not a valid value. Allowed: {', '.join(opt.enum_values)}"),
+                )
+
+
+def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> None:
+    """Spawn the maintenance runner as a detached subprocess.
+
+    The runner module (``personalscraper.web.maintenance.runner`` — delivered in
+    sub-phase 3.3) reads its configuration from the environment variables set here.
+    It is responsible for acquiring the pipeline lock, executing the CLI command,
+    updating the ``pipeline_run`` row, and releasing the lock.
+
+    Args:
+        run_uid: The unique run identifier (``uuid4().hex``).
+        action_id: The maintenance action id (e.g. ``"library-index"``).
+        options_json: Canonical JSON string of validated options (produced by
+            :func:`canonical_options_json`).
+        dry_run: ``True`` when this is a dry run.
+    """
+    env = {
+        **os.environ,
+        "PERSONALSCRAPER_RUN_UID": run_uid,
+        "PERSONALSCRAPER_MAINT_COMMAND": action_id,
+        "PERSONALSCRAPER_MAINT_OPTIONS_JSON": options_json,
+        "PERSONALSCRAPER_MAINT_DRY_RUN": "1" if dry_run else "0",
+    }
+    logger.info(
+        "maintenance_run_spawned",
+        run_uid=run_uid,
+        action_id=action_id,
+        dry_run=dry_run,
+    )
+    subprocess.Popen(
+        [sys.executable, "-m", "personalscraper.web.maintenance.runner"],
+        start_new_session=True,
+        env=env,
+    )
+
+
+# ── POST /actions/{action_id}/run ──────────────────────────────────────────────
+
+
+@router.post("/actions/{action_id}/run")
+def action_run(
+    action_id: str,
+    body: ActionRunRequest,
+    request: Request,
+    _session: Session = Depends(require_session),
+    _xrw: None = Depends(require_x_requested_with),
+) -> JSONResponse:
+    """Launch a maintenance action as a detached subprocess.
+
+    Mirror of ``POST /api/pipeline/run`` — validates the action id, options, and
+    preconditions (pipeline lock, concurrent maintenance run, dry-run-first for
+    destructive actions), then spawns a runner subprocess and returns ``202``
+    with the ``run_uid``.
+
+    Args:
+        action_id: The kebab-case action id (e.g. ``"library-index"``).
+        body: The request payload with ``options`` and ``dry_run``.
+        request: The incoming FastAPI request (for ``app.state`` access).
+
+    Returns:
+        ``202`` with :class:`ActionRunResponse` (``{"run_uid": "..."}``).
+
+    Raises:
+        404: *action_id* is not in the :data:`REGISTRY`.
+        422: Invalid or missing options, or dry-run requested for an action
+            that does not support it.
+        409: The pipeline lock is held, or a maintenance action is already running.
+        428: A destructive action was requested without a recent successful
+            dry run (same options, within the last 30 minutes).
+    """
+    # 1. Lookup action in REGISTRY.
+    registry_index: dict[str, MaintenanceAction] = {a.id: a for a in REGISTRY}
+    action = registry_index.get(action_id)
+    if action is None:
+        raise HTTPException(status_code=404, detail=f"Unknown action: {action_id!r}")
+
+    # 2. Validate options.
+    if action.dry_run == "unsupported" and body.dry_run:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Action {action_id!r} does not support dry-run",
+        )
+    _validate_options(action, body.options)
+
+    data_dir = _data_dir(request)
+    options_json = canonical_options_json(body.options)
+
+    # 3. Lock + concurrent maintenance guard (write / destructive only).
+    #    When the lock is held we check whether it belongs to a maintenance runner
+    #    (via the pipeline_run table) so we can return a more specific 409 detail.
+    #    When the lock is NOT held but a running maintenance row still exists, the
+    #    runner crashed without finalizing its row — treat as stale and allow the
+    #    new run through (os.kill(pid, 0) check is inside is_lock_held).
+    if action.risk in ("write", "destructive"):
+        lock_held = is_lock_held(data_dir / "pipeline.lock")
+        if lock_held:
+            db_path = _db_path(request)
+            is_maintenance = False
+            if db_path.exists():
+                try:
+                    with closing(sqlite3.connect(str(db_path))) as conn:
+                        _apply_pragmas(conn)
+                        row = conn.execute(
+                            "SELECT 1 FROM pipeline_run WHERE kind='maintenance' AND outcome='running' LIMIT 1"
+                        ).fetchone()
+                        if row is not None:
+                            is_maintenance = True
+                except sqlite3.OperationalError:
+                    logger.debug("lock_check_db_unavailable", path=str(db_path))
+            if is_maintenance:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A maintenance action is already running",
+                )
+            raise HTTPException(status_code=409, detail="Pipeline lock held")
+
+        # Lock not held — check for stale maintenance rows (crashed runner).
+        db_path = _db_path(request)
+        if db_path.exists():
+            try:
+                with closing(sqlite3.connect(str(db_path))) as conn:
+                    _apply_pragmas(conn)
+                    row = conn.execute(
+                        "SELECT 1 FROM pipeline_run WHERE kind='maintenance' AND outcome='running' LIMIT 1"
+                    ).fetchone()
+                    if row is not None:
+                        logger.info(
+                            "maintenance_stale_row_ignored",
+                            action_id=action_id,
+                        )
+            except sqlite3.OperationalError:
+                logger.debug("stale_check_db_unavailable", path=str(db_path))
+
+    # 4. 428 dry-run-first guard — destructive actions only.
+    if action.risk == "destructive" and not body.dry_run:
+        db_path = _db_path(request)
+        has_recent_dry_run = False
+        if db_path.exists():
+            try:
+                with closing(sqlite3.connect(str(db_path))) as conn:
+                    _apply_pragmas(conn)
+                    cutoff = time.time() - 1800
+                    row = conn.execute(
+                        "SELECT 1 FROM pipeline_run "
+                        "WHERE kind='maintenance' AND command=? AND options_json=? "
+                        "AND dry_run=1 AND outcome='success' AND ended_at >= ? "
+                        "LIMIT 1",
+                        (action_id, options_json, cutoff),
+                    ).fetchone()
+                    if row is not None:
+                        has_recent_dry_run = True
+            except sqlite3.OperationalError:
+                logger.debug("dry_run_check_db_unavailable", path=str(db_path))
+        if not has_recent_dry_run:
+            raise HTTPException(
+                status_code=428,
+                detail=(
+                    "A fresh successful dry-run (within 30 minutes, same options) "
+                    "is required before applying this destructive action"
+                ),
+            )
+
+    # 5. Spawn runner.
+    run_uid = uuid.uuid4().hex
+    _spawn_runner(run_uid, action_id, options_json, body.dry_run)
+
+    return JSONResponse(status_code=202, content=ActionRunResponse(run_uid=run_uid).model_dump())
+
+
 # ── GET /actions ────────────────────────────────────────────────────────────
 
 
@@ -525,8 +758,6 @@ def get_actions(
         An :class:`ActionsResponse` with all 25 registered actions and
         per-category counts for UI grouping chips.
     """
-    from personalscraper.web.maintenance.registry import REGISTRY
-
     category_counts: dict[str, int] = {}
     for action in REGISTRY:
         category_counts[action.category] = category_counts.get(action.category, 0) + 1

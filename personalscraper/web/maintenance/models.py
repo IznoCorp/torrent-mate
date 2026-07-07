@@ -226,3 +226,39 @@ class ActionsResponse(BaseModel):
 
     actions: list[MaintenanceAction]
     category_counts: dict[str, int]
+
+
+class ActionRunRequest(BaseModel):
+    """Request body for ``POST /api/maintenance/actions/{action_id}/run``.
+
+    Mirrors the S2 :class:`~personalscraper.web.models.pipeline.RunRequest`
+    pattern: a flat payload with optional options and a safety-default
+    ``dry_run``.
+
+    Attributes:
+        options: Key-value pairs of CLI flags or arguments for the
+            maintenance action.  Each key is validated against the
+            action's registered :class:`ActionOption` entries in the
+            :data:`REGISTRY`.  Defaults to an empty dict.
+        dry_run: When ``True`` (the default), the action performs a dry
+            run without mutating the filesystem or database.  Only
+            meaningful when the action's ``dry_run`` capability is
+            ``"supported"``.
+    """
+
+    options: dict[str, object] = {}
+    dry_run: bool = True
+
+
+class ActionRunResponse(BaseModel):
+    """Response body returned after a successful ``POST .../run``.
+
+    Mirrors the S2 :class:`~personalscraper.web.models.pipeline.RunResponse`
+    pattern: a single ``run_uid`` the client can poll for status.
+
+    Attributes:
+        run_uid: The unique hex identifier of the newly launched
+            maintenance run (a ``uuid4().hex``).
+    """
+
+    run_uid: str
