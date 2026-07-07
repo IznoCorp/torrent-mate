@@ -98,6 +98,287 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/config/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Files
+         * @description Return metadata for every file in the config overlays array.
+         *
+         *     Lists the master config.json5, each declared overlay, and local.json5
+         *     (if present).  For each file computes the SHA-256 digest, filesystem
+         *     stat info, and shadowed keys (keys overridden by local.json5).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`FilesResponse` with one :class:`FileInfo` per file.
+         */
+        get: operations["get_files_api_config_files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/config/files/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get File
+         * @description Return the parsed contents of a single config file.
+         *
+         *     Args:
+         *         name: Config file basename (e.g. ``"paths.json5"``).
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`FileContent` with parsed values, SHA-256, and shadowed keys.
+         *
+         *     Raises:
+         *         404: If *name* is not a declared overlay, ``local.json5``, or
+         *             ``config.json5``.
+         */
+        get: operations["get_file_api_config_files__name__get"];
+        /**
+         * Put File
+         * @description Validate and atomically write a config overlay file.
+         *
+         *     Order:
+         *     1. Role check — 403 if staging (read-only).
+         *     2. Existence check — 404 if *name* is not a writable file
+         *        (overlays + local.json5; master is read-only through this endpoint).
+         *     3. SHA-256 precondition — 412 if *body.base_sha256* ≠ current
+         *        on-disk digest (empty string for a non-existent local.json5).
+         *     4. Validate candidate via
+         *        :func:`~personalscraper.conf.loader.validate_candidate` — 422
+         *        with Pydantic error loc paths on failure (no backup created).
+         *     5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to
+         *        10 most recent per file name.
+         *     6. Atomic write via temp file + ``os.replace`` + ``fsync``,
+         *        serialized with a module-level ``threading.Lock``.
+         *     7. Return 200 with warnings and restart-required flag.
+         *
+         *     Args:
+         *         name: Config file basename (e.g. ``"paths.json5"``).
+         *         body: Request payload with ``values`` and ``base_sha256``.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`PutFileResponse` with warnings and restart_required flag.
+         *
+         *     Raises:
+         *         403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+         *         404: If *name* is not a writable config file.
+         *         412: If *body.base_sha256* does not match the current on-disk file
+         *             digest.
+         *         422: If the candidate values fail Pydantic validation.
+         */
+        put: operations["put_file_api_config_files__name__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/config/restart-web": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart Web
+         * @description Schedule a PM2 restart of the web process.
+         *
+         *     The restart is handed off to a detached subprocess that sleeps 0.5 s
+         *     (so the 202 response flushes first), then runs ``pm2 restart`` on the
+         *     name configured in ``PERSONALSCRAPER_PM2_NAME``.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         202 with :class:`RestartResponse` ``{"status": "scheduled"}``.
+         *
+         *     Raises:
+         *         403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+         *         404: If ``PERSONALSCRAPER_PM2_NAME`` is not set in the environment.
+         */
+        post: operations["restart_web_api_config_restart_web_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/config/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Schema
+         * @description Return the JSON Schema, key ownership, and restart-impact map.
+         *
+         *     Computes the JSON Schema from ``Config.model_json_schema()``, derives
+         *     key ownership from the overlays array in master config.json5, and
+         *     returns the static RESTART_IMPACT map.
+         *
+         *     The result is cached on ``request.app.state`` (lazy, first access).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`ConfigSchemaResponse` with schema, ownership, and restart
+         *         impact data.
+         */
+        get: operations["get_schema_api_config_schema_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/config/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Secrets
+         * @description Return the secret key catalog with ``is_set`` flags.
+         *
+         *     Parses ``.env.example`` at the project root to enumerate known keys
+         *     and their descriptions, then checks ``.env`` for which keys currently
+         *     have a non-empty value.  Secret values are **never** included in the
+         *     response.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`SecretsResponse` with one :class:`SecretEntry` per key.
+         */
+        get: operations["get_secrets_api_config_secrets_get"];
+        /**
+         * Put Secrets
+         * @description Write secret values to ``.env`` via atomic upsert.
+         *
+         *     Only keys declared in ``.env.example`` are accepted.  Secret values are
+         *     **never** logged.
+         *
+         *     Args:
+         *         body: Mapping of ``{KEY: value, ...}`` to upsert into ``.env``.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`PutFileResponse` with ``restart_required=True``.
+         *
+         *     Raises:
+         *         403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+         *         422: If any key in *body* is not in the catalog.  Values are
+         *             **never** echoed in the error detail.
+         */
+        put: operations["put_secrets_api_config_secrets_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/config/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Status
+         * @description Return deployment status: role, read-only flag, and stale file detection.
+         *
+         *     Compares current on-disk SHA-256 digests against the boot-time snapshot
+         *     (captured lazily on first access).  A file is *stale* when its current
+         *     digest differs from boot time.  *restart_required* is ``True`` when any
+         *     stale file exists.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`ConfigStatusResponse` with role, read_only, restart_required,
+         *         and stale_files.
+         */
+        get: operations["get_status_api_config_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/config/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate File
+         * @description Validate a candidate config file without writing to disk.
+         *
+         *     Calls :func:`~personalscraper.conf.loader.validate_candidate` with a
+         *     single-file replacement.  On success returns warnings; on failure
+         *     returns 422 with Pydantic error loc paths.
+         *
+         *     Args:
+         *         body: The validation request with ``file_name`` and ``values``.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`ValidateResponse` with any warnings from the validator.
+         *
+         *     Raises:
+         *         404: If *body.file_name* is not a known overlay or ``local.json5``.
+         *         422: If the candidate values fail Pydantic validation, with detail
+         *             carrying the error loc paths extracted from the underlying
+         *             :class:`pydantic.ValidationError`.
+         */
+        post: operations["validate_file_api_config_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -654,6 +935,52 @@ export interface components {
             };
         };
         /**
+         * ConfigSchemaResponse
+         * @description Response body for ``GET /api/config/schema``.
+         *
+         *     Attributes:
+         *         json_schema: JSON Schema for the merged config (generated via
+         *             ``Config.model_json_schema()``).
+         *         ownership: Mapping of each top-level key to the file that owns it.
+         *         restart_impact: Mapping of each top-level key to whether changing
+         *             it requires a web process restart.
+         */
+        ConfigSchemaResponse: {
+            /** Json Schema */
+            json_schema: {
+                [key: string]: unknown;
+            };
+            /** Ownership */
+            ownership: {
+                [key: string]: string;
+            };
+            /** Restart Impact */
+            restart_impact: {
+                [key: string]: boolean;
+            };
+        };
+        /**
+         * ConfigStatusResponse
+         * @description Response body for ``GET /api/config/status``.
+         *
+         *     Attributes:
+         *         role: Deployment role (``"prod"`` or ``"staging"``).
+         *         read_only: Whether the web process is in read-only mode.
+         *         restart_required: Whether ``stale_files`` is non-empty.
+         *         stale_files: Config filenames whose on-disk SHA-256 differs from the
+         *             boot-time snapshot.
+         */
+        ConfigStatusResponse: {
+            /** Read Only */
+            read_only: boolean;
+            /** Restart Required */
+            restart_required: boolean;
+            /** Role */
+            role: string;
+            /** Stale Files */
+            stale_files: string[];
+        };
+        /**
          * DiskInfo
          * @description A single configured storage disk with its mount and capacity data.
          *
@@ -693,6 +1020,66 @@ export interface components {
         DisksResponse: {
             /** Disks */
             disks: components["schemas"]["DiskInfo"][];
+        };
+        /**
+         * FileContent
+         * @description Response body for ``GET /api/config/files/{name}``.
+         *
+         *     Attributes:
+         *         name: Config file basename.
+         *         values: Parsed JSON5 contents keyed by top-level key.
+         *         sha256: Hex digest of the file contents on disk.
+         *         shadowed_keys: Keys in this file overridden by ``local.json5``.
+         */
+        FileContent: {
+            /** Name */
+            name: string;
+            /** Sha256 */
+            sha256: string;
+            /** Shadowed Keys */
+            shadowed_keys: string[];
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * FileInfo
+         * @description Metadata for a single config file listed in ``GET /api/config/files``.
+         *
+         *     Attributes:
+         *         name: Config file basename (e.g. ``"master.json5"``).
+         *         owned_keys: Top-level keys owned by this file.
+         *         sha256: Hex digest of the file contents on disk.
+         *         mtime: Last modification time as a Unix timestamp (float).
+         *         size: File size in bytes.
+         *         shadowed_keys: Keys owned by this file that are overridden by
+         *             ``local.json5``.
+         */
+        FileInfo: {
+            /** Mtime */
+            mtime: number;
+            /** Name */
+            name: string;
+            /** Owned Keys */
+            owned_keys: string[];
+            /** Sha256 */
+            sha256: string;
+            /** Shadowed Keys */
+            shadowed_keys: string[];
+            /** Size */
+            size: number;
+        };
+        /**
+         * FilesResponse
+         * @description Response body for ``GET /api/config/files``.
+         *
+         *     Attributes:
+         *         files: Metadata for every file in the config overlays array.
+         */
+        FilesResponse: {
+            /** Files */
+            files: components["schemas"]["FileInfo"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1008,6 +1395,50 @@ export interface components {
          */
         PipelineState: "idle" | "running" | "paused";
         /**
+         * PutFileRequest
+         * @description Request body for ``PUT /api/config/files/{name}``.
+         *
+         *     Attributes:
+         *         values: Key-value pairs to write into the config file.
+         *         base_sha256: Expected SHA-256 digest of the file before the write
+         *             (used for optimistic concurrency control — 412 if mismatched).
+         */
+        PutFileRequest: {
+            /** Base Sha256 */
+            base_sha256: string;
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * PutFileResponse
+         * @description Response body for ``PUT /api/config/files/{name}``.
+         *
+         *     Attributes:
+         *         warnings: Validation warnings from ``validate_candidate()``.
+         *         restart_required: Whether the changes affect a key flagged in the
+         *             restart-impact map.
+         */
+        PutFileResponse: {
+            /** Restart Required */
+            restart_required: boolean;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * RestartResponse
+         * @description Response body for ``POST /api/config/restart-web``.
+         *
+         *     Attributes:
+         *         status: Always ``"scheduled"`` — the restart has been handed off to
+         *             the process manager.
+         */
+        RestartResponse: {
+            /** Status */
+            status: string;
+        };
+        /**
          * RunDetail
          * @description Full detail for a single pipeline run, including step timings.
          *
@@ -1123,6 +1554,45 @@ export interface components {
             trigger: string;
         };
         /**
+         * SecretEntry
+         * @description A single secret key catalogued from ``.env.example``.
+         *
+         *     Attributes:
+         *         key: Environment variable name (e.g. ``"TMDB_API_KEY"``).
+         *         description: Human-readable description from the catalog comment.
+         *         is_set: Whether the key has a value in ``.env``.
+         */
+        SecretEntry: {
+            /** Description */
+            description: string;
+            /** Is Set */
+            is_set: boolean;
+            /** Key */
+            key: string;
+        };
+        /**
+         * SecretsPutRequest
+         * @description Request body for ``PUT /api/config/secrets``.
+         *
+         *     Wraps a flat ``{KEY: value, ...}`` mapping. Keys must exist in the
+         *     secret catalog (``.env.example``). Values are the new secret strings.
+         */
+        SecretsPutRequest: {
+            [key: string]: string;
+        };
+        /**
+         * SecretsResponse
+         * @description Response body for ``GET /api/config/secrets``.
+         *
+         *     Attributes:
+         *         secrets: All secret entries from the catalog. Values are never
+         *             included.
+         */
+        SecretsResponse: {
+            /** Secrets */
+            secrets: components["schemas"]["SecretEntry"][];
+        };
+        /**
          * Sentinels
          * @description State of the pause and watcher-paused sentinel files.
          *
@@ -1228,6 +1698,33 @@ export interface components {
             path: string;
             /** Prefix */
             prefix: string;
+        };
+        /**
+         * ValidateRequest
+         * @description Request body for ``POST /api/config/validate``.
+         *
+         *     Attributes:
+         *         file_name: Config file basename to validate against.
+         *         values: Candidate key-value pairs to validate.
+         */
+        ValidateRequest: {
+            /** File Name */
+            file_name: string;
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ValidateResponse
+         * @description Response body (200) for ``POST /api/config/validate``.
+         *
+         *     Attributes:
+         *         warnings: Validation warnings returned by ``validate_candidate()``.
+         */
+        ValidateResponse: {
+            /** Warnings */
+            warnings: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -1359,6 +1856,238 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    get_files_api_config_files_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilesResponse"];
+                };
+            };
+        };
+    };
+    get_file_api_config_files__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileContent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_file_api_config_files__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutFileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PutFileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restart_web_api_config_restart_web_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartResponse"];
+                };
+            };
+        };
+    };
+    get_schema_api_config_schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigSchemaResponse"];
+                };
+            };
+        };
+    };
+    get_secrets_api_config_secrets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretsResponse"];
+                };
+            };
+        };
+    };
+    put_secrets_api_config_secrets_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretsPutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PutFileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_status_api_config_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigStatusResponse"];
+                };
+            };
+        };
+    };
+    validate_file_api_config_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

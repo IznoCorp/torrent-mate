@@ -115,6 +115,71 @@
         "title": "ActionsResponse",
         "type": "object"
       },
+      "ConfigSchemaResponse": {
+        "additionalProperties": false,
+        "description": "Response body for ``GET /api/config/schema``.\n\nAttributes:\n    json_schema: JSON Schema for the merged config (generated via\n        ``Config.model_json_schema()``).\n    ownership: Mapping of each top-level key to the file that owns it.\n    restart_impact: Mapping of each top-level key to whether changing\n        it requires a web process restart.",
+        "properties": {
+          "json_schema": {
+            "additionalProperties": true,
+            "title": "Json Schema",
+            "type": "object"
+          },
+          "ownership": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Ownership",
+            "type": "object"
+          },
+          "restart_impact": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Restart Impact",
+            "type": "object"
+          }
+        },
+        "required": [
+          "json_schema",
+          "ownership",
+          "restart_impact"
+        ],
+        "title": "ConfigSchemaResponse",
+        "type": "object"
+      },
+      "ConfigStatusResponse": {
+        "additionalProperties": false,
+        "description": "Response body for ``GET /api/config/status``.\n\nAttributes:\n    role: Deployment role (``\"prod\"`` or ``\"staging\"``).\n    read_only: Whether the web process is in read-only mode.\n    restart_required: Whether ``stale_files`` is non-empty.\n    stale_files: Config filenames whose on-disk SHA-256 differs from the\n        boot-time snapshot.",
+        "properties": {
+          "read_only": {
+            "title": "Read Only",
+            "type": "boolean"
+          },
+          "restart_required": {
+            "title": "Restart Required",
+            "type": "boolean"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "stale_files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stale Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "role",
+          "read_only",
+          "restart_required",
+          "stale_files"
+        ],
+        "title": "ConfigStatusResponse",
+        "type": "object"
+      },
       "DiskInfo": {
         "description": "A single configured storage disk with its mount and capacity data.\n\nAttributes:\n    id: The disk identifier as declared in ``config/disks.json5``\n        (e.g. ``\"disk_1\"``, ``\"disk_2\"``).\n    label: Human-readable disk label configured by the operator.\n    mounted: ``True`` if the disk mount path currently exists and is\n        accessible on the filesystem.\n    free_gb: Free space in gibibytes, rounded to one decimal.\n    total_gb: Total capacity in gibibytes, derived from\n        ``shutil.disk_usage(path).total`` at query time.\n    used_pct: Percentage of capacity currently in use, rounded to one\n        decimal (``(1 - free_gb / total_gb) * 100``).",
         "properties": {
@@ -169,6 +234,104 @@
           "disks"
         ],
         "title": "DisksResponse",
+        "type": "object"
+      },
+      "FileContent": {
+        "additionalProperties": false,
+        "description": "Response body for ``GET /api/config/files/{name}``.\n\nAttributes:\n    name: Config file basename.\n    values: Parsed JSON5 contents keyed by top-level key.\n    sha256: Hex digest of the file contents on disk.\n    shadowed_keys: Keys in this file overridden by ``local.json5``.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "shadowed_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Shadowed Keys",
+            "type": "array"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "values",
+          "sha256",
+          "shadowed_keys"
+        ],
+        "title": "FileContent",
+        "type": "object"
+      },
+      "FileInfo": {
+        "additionalProperties": false,
+        "description": "Metadata for a single config file listed in ``GET /api/config/files``.\n\nAttributes:\n    name: Config file basename (e.g. ``\"master.json5\"``).\n    owned_keys: Top-level keys owned by this file.\n    sha256: Hex digest of the file contents on disk.\n    mtime: Last modification time as a Unix timestamp (float).\n    size: File size in bytes.\n    shadowed_keys: Keys owned by this file that are overridden by\n        ``local.json5``.",
+        "properties": {
+          "mtime": {
+            "title": "Mtime",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owned_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Owned Keys",
+            "type": "array"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "shadowed_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Shadowed Keys",
+            "type": "array"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "owned_keys",
+          "sha256",
+          "mtime",
+          "size",
+          "shadowed_keys"
+        ],
+        "title": "FileInfo",
+        "type": "object"
+      },
+      "FilesResponse": {
+        "additionalProperties": false,
+        "description": "Response body for ``GET /api/config/files``.\n\nAttributes:\n    files: Metadata for every file in the config overlays array.",
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileInfo"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "FilesResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -591,6 +754,65 @@
         "title": "PipelineState",
         "type": "string"
       },
+      "PutFileRequest": {
+        "additionalProperties": false,
+        "description": "Request body for ``PUT /api/config/files/{name}``.\n\nAttributes:\n    values: Key-value pairs to write into the config file.\n    base_sha256: Expected SHA-256 digest of the file before the write\n        (used for optimistic concurrency control \u2014 412 if mismatched).",
+        "properties": {
+          "base_sha256": {
+            "title": "Base Sha256",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values",
+          "base_sha256"
+        ],
+        "title": "PutFileRequest",
+        "type": "object"
+      },
+      "PutFileResponse": {
+        "additionalProperties": false,
+        "description": "Response body for ``PUT /api/config/files/{name}``.\n\nAttributes:\n    warnings: Validation warnings from ``validate_candidate()``.\n    restart_required: Whether the changes affect a key flagged in the\n        restart-impact map.",
+        "properties": {
+          "restart_required": {
+            "title": "Restart Required",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "warnings",
+          "restart_required"
+        ],
+        "title": "PutFileResponse",
+        "type": "object"
+      },
+      "RestartResponse": {
+        "additionalProperties": false,
+        "description": "Response body for ``POST /api/config/restart-web``.\n\nAttributes:\n    status: Always ``\"scheduled\"`` \u2014 the restart has been handed off to\n        the process manager.",
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "RestartResponse",
+        "type": "object"
+      },
       "RunDetail": {
         "description": "Full detail for a single pipeline run, including step timings.\n\nAttributes:\n    run_uid: Unique run identifier.\n    trigger: What triggered the run.\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None``.\n    outcome: Final outcome, or ``None``.\n    duration_s: Wall-clock duration in seconds, or ``None``.\n    steps: Per-step timing records parsed from ``steps_json``.\n    error: Error message if the run failed, or ``None``.\n    kind: Run kind discriminator. ``\"pipeline\"`` for media pipeline runs,\n        ``\"maintenance\"`` for maintenance action runs.  Defaults to\n        ``\"pipeline\"``.\n    command: CLI command name for maintenance runs (e.g.\n        ``\"library-clean\"``), or ``None`` for pipeline runs.\n    options_json: JSON-serialized CLI options for maintenance runs, or\n        ``None`` for pipeline runs.\n    output_tail: Tail of the subprocess stdout/stderr for maintenance\n        runs (last ~2000 characters), or ``None`` for pipeline runs.",
         "properties": {
@@ -798,6 +1020,57 @@
         "title": "RunSummary",
         "type": "object"
       },
+      "SecretEntry": {
+        "additionalProperties": false,
+        "description": "A single secret key catalogued from ``.env.example``.\n\nAttributes:\n    key: Environment variable name (e.g. ``\"TMDB_API_KEY\"``).\n    description: Human-readable description from the catalog comment.\n    is_set: Whether the key has a value in ``.env``.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "is_set": {
+            "title": "Is Set",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "description",
+          "is_set"
+        ],
+        "title": "SecretEntry",
+        "type": "object"
+      },
+      "SecretsPutRequest": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "Request body for ``PUT /api/config/secrets``.\n\nWraps a flat ``{KEY: value, ...}`` mapping. Keys must exist in the\nsecret catalog (``.env.example``). Values are the new secret strings.",
+        "title": "SecretsPutRequest",
+        "type": "object"
+      },
+      "SecretsResponse": {
+        "additionalProperties": false,
+        "description": "Response body for ``GET /api/config/secrets``.\n\nAttributes:\n    secrets: All secret entries from the catalog. Values are never\n        included.",
+        "properties": {
+          "secrets": {
+            "items": {
+              "$ref": "#/components/schemas/SecretEntry"
+            },
+            "title": "Secrets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "secrets"
+        ],
+        "title": "SecretsResponse",
+        "type": "object"
+      },
       "Sentinels": {
         "description": "State of the pause and watcher-paused sentinel files.\n\nThese are not traditional locks \u2014 they signal the pipeline engine to\npause at the next step boundary or to disable the directory watcher.\n\nAttributes:\n    pause: ``True`` when ``data_dir/pipeline.pause`` exists.\n    pause_age_s: Age of the pause sentinel in seconds, or ``None`` when\n        it does not exist.\n    watcher_paused: ``True`` when ``data_dir/watcher.paused`` exists.\n    watcher_paused_age_s: Age of the watcher-paused sentinel in seconds,\n        or ``None`` when it does not exist.",
         "properties": {
@@ -967,6 +1240,45 @@
           "age_s"
         ],
         "title": "TmpOrphan",
+        "type": "object"
+      },
+      "ValidateRequest": {
+        "additionalProperties": false,
+        "description": "Request body for ``POST /api/config/validate``.\n\nAttributes:\n    file_name: Config file basename to validate against.\n    values: Candidate key-value pairs to validate.",
+        "properties": {
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "file_name",
+          "values"
+        ],
+        "title": "ValidateRequest",
+        "type": "object"
+      },
+      "ValidateResponse": {
+        "additionalProperties": false,
+        "description": "Response body (200) for ``POST /api/config/validate``.\n\nAttributes:\n    warnings: Validation warnings returned by ``validate_candidate()``.",
+        "properties": {
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "warnings"
+        ],
+        "title": "ValidateResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -1147,6 +1459,292 @@
         "summary": "Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/config/files": {
+      "get": {
+        "description": "Return metadata for every file in the config overlays array.\n\nLists the master config.json5, each declared overlay, and local.json5\n(if present).  For each file computes the SHA-256 digest, filesystem\nstat info, and shadowed keys (keys overridden by local.json5).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`FilesResponse` with one :class:`FileInfo` per file.",
+        "operationId": "get_files_api_config_files_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Files",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/config/files/{name}": {
+      "get": {
+        "description": "Return the parsed contents of a single config file.\n\nArgs:\n    name: Config file basename (e.g. ``\"paths.json5\"``).\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`FileContent` with parsed values, SHA-256, and shadowed keys.\n\nRaises:\n    404: If *name* is not a declared overlay, ``local.json5``, or\n        ``config.json5``.",
+        "operationId": "get_file_api_config_files__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileContent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get File",
+        "tags": [
+          "config"
+        ]
+      },
+      "put": {
+        "description": "Validate and atomically write a config overlay file.\n\nOrder:\n1. Role check \u2014 403 if staging (read-only).\n2. Existence check \u2014 404 if *name* is not a writable file\n   (overlays + local.json5; master is read-only through this endpoint).\n3. SHA-256 precondition \u2014 412 if *body.base_sha256* \u2260 current\n   on-disk digest (empty string for a non-existent local.json5).\n4. Validate candidate via\n   :func:`~personalscraper.conf.loader.validate_candidate` \u2014 422\n   with Pydantic error loc paths on failure (no backup created).\n5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to\n   10 most recent per file name.\n6. Atomic write via temp file + ``os.replace`` + ``fsync``,\n   serialized with a module-level ``threading.Lock``.\n7. Return 200 with warnings and restart-required flag.\n\nArgs:\n    name: Config file basename (e.g. ``\"paths.json5\"``).\n    body: Request payload with ``values`` and ``base_sha256``.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`PutFileResponse` with warnings and restart_required flag.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    404: If *name* is not a writable config file.\n    412: If *body.base_sha256* does not match the current on-disk file\n        digest.\n    422: If the candidate values fail Pydantic validation.",
+        "operationId": "put_file_api_config_files__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutFileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put File",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/config/restart-web": {
+      "post": {
+        "description": "Schedule a PM2 restart of the web process.\n\nThe restart is handed off to a detached subprocess that sleeps 0.5 s\n(so the 202 response flushes first), then runs ``pm2 restart`` on the\nname configured in ``PERSONALSCRAPER_PM2_NAME``.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    202 with :class:`RestartResponse` ``{\"status\": \"scheduled\"}``.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    404: If ``PERSONALSCRAPER_PM2_NAME`` is not set in the environment.",
+        "operationId": "restart_web_api_config_restart_web_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Restart Web",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/config/schema": {
+      "get": {
+        "description": "Return the JSON Schema, key ownership, and restart-impact map.\n\nComputes the JSON Schema from ``Config.model_json_schema()``, derives\nkey ownership from the overlays array in master config.json5, and\nreturns the static RESTART_IMPACT map.\n\nThe result is cached on ``request.app.state`` (lazy, first access).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`ConfigSchemaResponse` with schema, ownership, and restart\n    impact data.",
+        "operationId": "get_schema_api_config_schema_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigSchemaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Schema",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/config/secrets": {
+      "get": {
+        "description": "Return the secret key catalog with ``is_set`` flags.\n\nParses ``.env.example`` at the project root to enumerate known keys\nand their descriptions, then checks ``.env`` for which keys currently\nhave a non-empty value.  Secret values are **never** included in the\nresponse.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`SecretsResponse` with one :class:`SecretEntry` per key.",
+        "operationId": "get_secrets_api_config_secrets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Secrets",
+        "tags": [
+          "config"
+        ]
+      },
+      "put": {
+        "description": "Write secret values to ``.env`` via atomic upsert.\n\nOnly keys declared in ``.env.example`` are accepted.  Secret values are\n**never** logged.\n\nArgs:\n    body: Mapping of ``{KEY: value, ...}`` to upsert into ``.env``.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`PutFileResponse` with ``restart_required=True``.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    422: If any key in *body* is not in the catalog.  Values are\n        **never** echoed in the error detail.",
+        "operationId": "put_secrets_api_config_secrets_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretsPutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutFileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Secrets",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/config/status": {
+      "get": {
+        "description": "Return deployment status: role, read-only flag, and stale file detection.\n\nCompares current on-disk SHA-256 digests against the boot-time snapshot\n(captured lazily on first access).  A file is *stale* when its current\ndigest differs from boot time.  *restart_required* is ``True`` when any\nstale file exists.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`ConfigStatusResponse` with role, read_only, restart_required,\n    and stale_files.",
+        "operationId": "get_status_api_config_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Status",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/config/validate": {
+      "post": {
+        "description": "Validate a candidate config file without writing to disk.\n\nCalls :func:`~personalscraper.conf.loader.validate_candidate` with a\nsingle-file replacement.  On success returns warnings; on failure\nreturns 422 with Pydantic error loc paths.\n\nArgs:\n    body: The validation request with ``file_name`` and ``values``.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`ValidateResponse` with any warnings from the validator.\n\nRaises:\n    404: If *body.file_name* is not a known overlay or ``local.json5``.\n    422: If the candidate values fail Pydantic validation, with detail\n        carrying the error loc paths extracted from the underlying\n        :class:`pydantic.ValidationError`.",
+        "operationId": "validate_file_api_config_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate File",
+        "tags": [
+          "config"
         ]
       }
     },
