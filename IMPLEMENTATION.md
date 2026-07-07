@@ -18,7 +18,7 @@
 | 1   | Config validation seam + envfile extraction | phase-01-conf-seam.md         | [x]    |
 | 2   | Backend config API routes                   | phase-02-backend-routes.md    | [x]    |
 | 3   | Frontend SchemaForm + /config page          | phase-03-frontend-editor.md   | [x]    |
-| 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [ ]    |
+| 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [x]    |
 
 ## Review cycles
 
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 4 — integration gates + docs + acceptance (phase-04-integration-gates.md).
+All phases complete — run /implement:feature-pr.
