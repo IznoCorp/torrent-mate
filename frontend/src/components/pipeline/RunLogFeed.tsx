@@ -3,8 +3,11 @@
  *
  * Reads the application-wide event stream from {@link useEventStreamContext} and
  * filters to the active run (best-effort via ``data.run_uid``). Each matching
- * event is rendered as a design-system {@link LogLine}. The feed auto-scrolls to
- * the newest event; a "revenir en bas" button appears when the operator scrolls up.
+ * event is rendered as a design-system {@link LogLine}: a human-readable
+ * ``data.line`` (maintenance ``run_log`` envelopes carry one output line per
+ * event) is surfaced verbatim, otherwise the raw JSON payload is dumped. The
+ * feed auto-scrolls to the newest event; a "revenir en bas" button appears when
+ * the operator scrolls up.
  */
 
 import {
@@ -180,13 +183,20 @@ export function RunLogFeed({ runUid }: RunLogFeedProps): ReactElement {
               const severity = severityForEventType(event.type);
               const level = SEVERITY_LEVEL[severity];
               const time = formatEventTime(event.id);
+              // Prefer a human-readable ``data.line`` (maintenance ``run_log``
+              // envelopes carry one output line per event) over the raw JSON
+              // payload; fall back to the JSON dump for structured pipeline
+              // events that have no ``line`` field. Backward-compatible: events
+              // without a string ``line`` render exactly as before.
+              const line =
+                typeof event.data.line === "string" ? event.data.line : null;
 
               return (
                 <LogLine key={event.id} level={level} time={time}>
                   <span className="font-medium">{event.type}</span>
                   {" — "}
                   <span className="text-muted-foreground">
-                    {JSON.stringify(event.data)}
+                    {line ?? JSON.stringify(event.data)}
                   </span>
                 </LogLine>
               );

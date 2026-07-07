@@ -13,7 +13,10 @@ import { ActionForm } from "@/components/maintenance/ActionForm";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import { ApiError } from "@/api/client";
-import type { MaintenanceAction } from "@/api/client";
+import type { MaintenanceAction, RunDetail } from "@/api/client";
+import type { EventMessage } from "@/api/events";
+import type { EventStreamState } from "@/hooks/useEventStream";
+import { EventStreamContext } from "@/hooks/useEventStreamContext";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -50,8 +53,47 @@ function makeAction(
   };
 }
 
+/** Build a complete {@link RunDetail} for a maintenance run, with overrides. */
+function makeRunDetail(overrides: Partial<RunDetail> = {}): RunDetail {
+  return {
+    run_uid: "uid-1",
+    trigger: "web",
+    dry_run: false,
+    started_at: "2026-07-06T10:00:00Z",
+    ended_at: null,
+    outcome: "running",
+    duration_s: null,
+    steps: [],
+    error: null,
+    kind: "maintenance",
+    command: "library-test",
+    options_json: null,
+    output_tail: null,
+    ...overrides,
+  };
+}
+
+/** Build an ``EventMessage`` with a stream-id timestamp prefix. */
+function makeEvent(
+  ms: number,
+  type: string,
+  data?: Record<string, unknown>,
+): EventMessage {
+  return { id: `${String(ms)}-0`, type, data: data ?? {} };
+}
+
+/** A connected event-stream state carrying the given events. */
+function makeStreamState(events: EventMessage[]): EventStreamState {
+  return {
+    events,
+    connectionState: "connected",
+    buildCommit: "abc1234",
+    lastEventId: events[events.length - 1]?.id ?? null,
+  };
+}
+
 // ---------------------------------------------------------------------------
-// Mock the client module (only runMaintenanceAction)
+// Mock the client module (runMaintenanceAction + getPipelineRunDetail)
 // ---------------------------------------------------------------------------
 
 vi.mock("@/api/client", async () => {
@@ -60,6 +102,7 @@ vi.mock("@/api/client", async () => {
   return {
     ...actual,
     runMaintenanceAction: vi.fn(),
+    getPipelineRunDetail: vi.fn(),
   };
 });
 
@@ -68,17 +111,27 @@ async function mockRun() {
   return mod.runMaintenanceAction as ReturnType<typeof vi.fn>;
 }
 
-function renderForm(action: MaintenanceAction): void {
+async function mockDetail() {
+  const mod = await import("@/api/client");
+  return mod.getPipelineRunDetail as ReturnType<typeof vi.fn>;
+}
+
+function renderForm(
+  action: MaintenanceAction,
+  events: EventMessage[] = [],
+): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <Dialog open>
-        <DialogContent>
-          <ActionForm action={action} onClose={vi.fn()} />
-        </DialogContent>
-      </Dialog>
+      <EventStreamContext.Provider value={makeStreamState(events)}>
+        <Dialog open>
+          <DialogContent>
+            <ActionForm action={action} onClose={vi.fn()} />
+          </DialogContent>
+        </Dialog>
+      </EventStreamContext.Provider>
     </QueryClientProvider>
   );
   render(tree);
@@ -88,8 +141,18 @@ function renderForm(action: MaintenanceAction): void {
 // Tests
 // ---------------------------------------------------------------------------
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  // jsdom does not implement scrollTo — RunLogFeed auto-scrolls, so stub it.
+  Object.defineProperty(Element.prototype, "scrollTo", {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+  // Default: the polled run detail reports a still-running run (no output tail),
+  // so the durable fallback stays hidden unless a test overrides the outcome.
+  const detail = await mockDetail();
+  detail.mockResolvedValue(makeRunDetail());
 });
 
 afterEach(cleanup);
@@ -242,5 +305,83 @@ describe("ActionForm — destructive dry-run-first flow", () => {
       expect(screen.getByText("Lancez un dry-run récent.")).toBeInTheDocument();
     });
     expect(apply()).toBeDisabled();
+  });
+});
+
+describe("ActionForm — run output feed", () => {
+  it("affiche la zone de sortie (badge + run_uid + journal) après un 202", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-42" });
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+
+    // Status badge + run_uid + the reused RunLogFeed journal all appear.
+    expect(await screen.findByText("Exécution démarrée")).toBeInTheDocument();
+    expect(screen.getByText("uid-42")).toBeInTheDocument();
+    expect(screen.getByText(/Journal d.exécution/)).toBeInTheDocument();
+  });
+
+  it("surface les lignes live diffusées par la WS pour ce run_uid", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-live" });
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }), [
+      makeEvent(1_700_000_000_000, "maintenance.run_log", {
+        run_uid: "uid-live",
+        line: "Nettoyage du disque en cours",
+        seq: 1,
+      }),
+      makeEvent(1_700_000_001_000, "maintenance.run_log", {
+        run_uid: "autre-run",
+        line: "Ligne d'un autre run",
+        seq: 1,
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+
+    // The line for this run appears; the one scoped to another run does not.
+    expect(
+      await screen.findByText("Nettoyage du disque en cours"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Ligne d'un autre run")).not.toBeInTheDocument();
+  });
+
+  it("affiche l'output_tail durable une fois le run terminé", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-done" });
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({
+        run_uid: "uid-done",
+        outcome: "success",
+        ended_at: "2026-07-06T10:05:00Z",
+        output_tail: "Ligne finale A\nLigne finale B",
+      }),
+    );
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+
+    // The durable fallback renders the captured tail once the run is terminal.
+    expect(await screen.findByText("Sortie capturée")).toBeInTheDocument();
+    expect(screen.getByText("Ligne finale A")).toBeInTheDocument();
+    expect(screen.getByText("Ligne finale B")).toBeInTheDocument();
+  });
+
+  it("masque la zone de sortie via « Fermer la sortie »", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-close" });
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+    expect(await screen.findByText("uid-close")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Fermer la sortie" }));
+    expect(screen.queryByText("uid-close")).not.toBeInTheDocument();
   });
 });

@@ -12,18 +12,24 @@
  *   option values before the "Appliquer" button unlocks; editing any field (or a
  *   ``428`` from the backend) re-locks it.
  *
- * On a ``202`` the dialog stays open and shows the returned ``run_uid`` — the
- * live output feed is added in sub-phase 5.3.
+ * On a ``202`` the dialog stays open and renders {@link RunOutput}: a status
+ * badge, the run ``run_uid``, the live {@link RunLogFeed} (streamed over the
+ * app-wide WebSocket, scoped to this run) and — once the run reaches a terminal
+ * outcome — the durable ``output_tail`` captured by the backend.
  */
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 
 import {
   ApiError,
+  getPipelineRunDetail,
   runMaintenanceAction,
   type MaintenanceAction,
 } from "@/api/client";
+import { LogLine } from "@/components/ds/LogLine";
+import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DialogDescription,
@@ -84,6 +90,116 @@ function initialValue(option: ActionOption): FieldValue {
     return option.default === true;
   }
   return option.default != null ? String(option.default) : "";
+}
+
+/**
+ * Is the given outcome terminal (the run has finished and will not change)?
+ *
+ * Args:
+ *   outcome: The run outcome string, or null/undefined while still running.
+ *
+ * Returns:
+ *   ``true`` for ``success``/``error``/``killed`` — the poll should stop.
+ */
+function isTerminalOutcome(outcome: string | null | undefined): boolean {
+  return outcome === "success" || outcome === "error" || outcome === "killed";
+}
+
+// ---------------------------------------------------------------------------
+// RunOutput
+// ---------------------------------------------------------------------------
+
+/** Props for {@link RunOutput}. */
+interface RunOutputProps {
+  /** The launched run's unique identifier. */
+  readonly runUid: string;
+  /** Whether the launched run was a dry-run (drives the status badge). */
+  readonly dryRun: boolean;
+  /** Called when the operator dismisses the output area (the run stays in history). */
+  readonly onDismiss: () => void;
+}
+
+/** Poll cadence, in ms, for the durable run-detail fallback while running. */
+const RUN_DETAIL_POLL_MS = 3_000;
+
+/**
+ * RunOutput — the post-submit output area for a spawned maintenance run.
+ *
+ * Rendered inside the {@link ActionForm} dialog after a successful ``202``:
+ *
+ * - A status {@link Badge} (``Dry-run démarré`` / ``Exécution démarrée``) plus
+ *   the run ``run_uid``.
+ * - The live {@link RunLogFeed}, scoped to this ``run_uid`` — the maintenance
+ *   runner streams one ``maintenance.run_log`` envelope per output line through
+ *   the same app-wide WebSocket relay S2 uses, so no WS-side change is needed.
+ * - A durable fallback: once the run reaches a terminal outcome, the captured
+ *   ``output_tail`` (polled from ``GET /api/pipeline/history/{run_uid}``) is
+ *   rendered as a {@link LogLine} list — this survives a page reload, whereas
+ *   the live feed only covers the current session.
+ *
+ * Args:
+ *   runUid: The launched run's identifier.
+ *   dryRun: Whether the run was a dry-run.
+ *   onDismiss: Dismiss callback for the output area.
+ *
+ * Returns:
+ *   The run-output element.
+ */
+function RunOutput({
+  runUid,
+  dryRun,
+  onDismiss,
+}: RunOutputProps): ReactElement {
+  // Poll the durable run detail; stop once the run reaches a terminal outcome.
+  const { data } = useQuery({
+    queryKey: ["pipeline", "history", runUid] as const,
+    queryFn: () => getPipelineRunDetail(runUid),
+    refetchInterval: (query) =>
+      isTerminalOutcome(query.state.data?.outcome) ? false : RUN_DETAIL_POLL_MS,
+  });
+
+  const outputTail = data?.output_tail;
+  const showTail =
+    isTerminalOutcome(data?.outcome) &&
+    typeof outputTail === "string" &&
+    outputTail !== "";
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-muted p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Badge tone={dryRun ? "info" : "success"} dot>
+            {dryRun ? "Dry-run démarré" : "Exécution démarrée"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            run_uid : <span className="font-mono">{runUid}</span>
+          </span>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onDismiss}>
+          Fermer la sortie
+        </Button>
+      </div>
+
+      {/* Live logs over the app-wide WS stream, scoped to this run. */}
+      <RunLogFeed runUid={runUid} />
+
+      {/* Durable fallback once the run has finished (survives a reload). */}
+      {showTail && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-muted-foreground">
+            Sortie capturée
+          </p>
+          <div className="max-h-48 overflow-auto rounded-md border border-border bg-card p-2">
+            {outputTail.split("\n").map((textLine, index) => (
+              <LogLine key={`tail-${String(index)}`} level="info">
+                {textLine}
+              </LogLine>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -278,16 +394,15 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
         </div>
       )}
 
-      {/* Run-started block (5.3 replaces this with the live feed) */}
+      {/* Live output area for the spawned run (status + WS feed + fallback). */}
       {runResult != null && (
-        <div className="rounded-md border border-border bg-muted p-3 text-sm">
-          <p className="font-medium">
-            {runResult.dryRun ? "Dry-run démarré" : "Exécution démarrée"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            run_uid : <span className="font-mono">{runResult.runUid}</span>
-          </p>
-        </div>
+        <RunOutput
+          runUid={runResult.runUid}
+          dryRun={runResult.dryRun}
+          onDismiss={() => {
+            setRunResult(null);
+          }}
+        />
       )}
 
       {/* Action buttons — layout depends on risk. */}

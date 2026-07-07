@@ -68,7 +68,11 @@ Form state includes `dryRun: boolean` defaulting to `true` for supported actions
 **Files:**
 
 - Modify: `frontend/src/components/maintenance/ActionForm.tsx` (add post-submit output panel)
-- Modify: `frontend/src/components/pipeline/RunLogFeed.tsx` (verify reuse, add kind-aware title)
+- Modify: `frontend/src/components/pipeline/RunLogFeed.tsx` (verify reuse; minimal
+  backward-compatible addition — surface a human-readable `data.line` for
+  `maintenance.run_log` envelopes instead of the raw JSON dump. The "kind-aware
+  title" idea was dropped: the title is already run-scoped and changing it would
+  break the existing `/Journal d.exécution/` assertion for no user benefit.)
 
 **`RunOutput` panel** (rendered inside `ActionForm` dialog after a successful `POST .../run`):
 
