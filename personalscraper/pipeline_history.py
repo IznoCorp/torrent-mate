@@ -220,8 +220,7 @@ class PipelineRunWriter:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
             conn.execute(
-                "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, "
-                "output_tail = ? WHERE run_uid = ?",
+                "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, output_tail = ? WHERE run_uid = ?",
                 (ended_at, outcome, error, output_tail, run_uid),
             )
             conn.commit()
