@@ -76,15 +76,38 @@ class ActionRunRequest(BaseModel):
 - `PERSONALSCRAPER_MAINT_COMMAND`: e.g. `library-clean`.
 - `PERSONALSCRAPER_MAINT_OPTIONS_JSON`: canonical options.
 - `PERSONALSCRAPER_MAINT_DRY_RUN`: `"1"` or `"0"`.
-- `PERSONALSCRAPER_MAINT_KIND`: `"maintenance"` (hardcoded by spawner).
+
+**NOTE (plan corrected 2026-07-07):** `PERSONALSCRAPER_MAINT_KIND` was removed —
+the spawner does NOT pass it. `kind="maintenance"` is hardcoded in the runner.
+The four vars above are the canonical env contract (match :func:`_spawn_runner`).
 
 Lifecycle:
 
-1. Insert `pipeline_run` row: `kind='maintenance'`, `command=<cmd>`, `options_json=<opts>`, `dry_run=<bool>`, `outcome='running'`, `pid=os.getpid()`, `started_at=time.time()`, `trigger='web'`, `run_uid=<env>`.
-2. Build CLI args from validated options: `["personalscraper", "<cli-name>", "--flag1", "val1", ...]`. Map `dry_run` flag: `"--dry-run"` if `PERSONALSCRAPER_MAINT_DRY_RUN=1` and registry says `dry_run='supported'`.
-3. `subprocess.Popen(cmd, stdout=PIPE, stderr=STDOUT, text=True, bufsize=1)` — line-buffered.
-4. For each stdout line: (a) append to in-memory ring buffer (last 64 KiB = `output_tail`), (b) publish to Redis stream `torrentmate:events` with `{"type": "run_log", "run_uid": ..., "line": ...}` (same envelope as S2 relay). Fail-soft: Redis errors are logged but never abort the command.
-5. On subprocess exit: update row → `outcome='success'|'error'` (exit code 0 → success), `ended_at=time.time()`, `error=last_stderr_tail` on failure, `output_tail=ring_buffer`.
+1. Insert `pipeline_run` row: `kind='maintenance'` (hardcoded), `command=<cmd>`,
+   `options_json=<opts>`, `dry_run=<bool>`, `outcome='running'`,
+   `pid=os.getpid()`, `started_at=time.time()`, `trigger='web'`,
+   `run_uid=<env>`. The `PipelineRunWriter` was extended additively in the same
+   sub-phase (`kind`, `command`, `options_json` defaulted so S2 callers unchanged).
+2. Build CLI args from validated options: `[sys.executable, "-m", "personalscraper",
+<command-id>]` + per-option mapping (required → positional, bool True →
+   `--<name>`, str/int/enum → `--<name> value`). Dry-run mapping per command-id
+   (module-level table in runner.py): 8 "flag"-style (`--dry-run` appended when
+   `DRY_RUN=1`), 8 "apply"-style (`--apply` appended only when `DRY_RUN=0`
+   because the default is already dry-run). **Out-of-scope finding:** this table
+   belongs in the registry alongside `dry_run` / `options` but registry changes
+   are deferred.
+3. `subprocess.Popen(cmd, stdout=PIPE, stderr=STDOUT, text=True, bufsize=1)` —
+   line-buffered.
+4. For each stdout line: (a) append to in-memory ring buffer (last 64 KiB =
+   `output_tail`), (b) publish to Redis stream (key from `config.web.stream_key`)
+   with envelope `{"_type": "maintenance.run_log", "data": {"run_uid", "line",
+"seq"}}` — same `{"_type", "data"}` shape as :func:`event_to_envelope` so the
+   WS relay forwards it verbatim. No `Event` subclass was added to the core catalog
+   (the envelope is crafted as a plain dict). Fail-soft: Redis errors are logged
+   once, never abort the command.
+5. On subprocess exit: update row → `outcome='success'|'error'` (exit code 0 →
+   success), `ended_at=time.time()`, `error=<tail of output on failure>`,
+   `output_tail=<ring buffer>`. Exit with subprocess rc.
 
 **Test** (`test_runner.py`): mock `subprocess.Popen`, verify row lifecycle (insert → running outcome → final outcome), verify `output_tail` truncation at 64 KiB, verify Redis publish called per line (or skipped gracefully on Redis failure).
 
