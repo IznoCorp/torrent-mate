@@ -585,3 +585,218 @@ enforces dry-run-first: after a successful dry-run the Apply button unlocks;
 editing any option or receiving a backend `428` re-locks it. Once launched, the
 **RunOutput** panel shows the live log via the WS-fed `RunLogFeed` (reused from
 S2) with `output_tail` as the durable fallback from the history detail endpoint.
+
+## Config editor (S4 — `config-editor`)
+
+S4 exposes the 19-file split config overlay layout (18 overlays + master) as a
+visual web editor with schema-driven forms, optimistic concurrency control,
+atomic writes, and a PM2 restart trigger. Route contract:
+`docs/features/config-editor/DESIGN.md` §4.2; plan directory:
+`docs/features/config-editor/plan/`.
+
+S4 is **read-only on staging** — `PERSONALSCRAPER_WEB_ROLE=staging` makes every
+write endpoint return `403`, keeping the staging clone safe against the real
+config directory (superseding the S1-era "read-only by construction" assumption).
+
+### REST endpoints (`/api/config`)
+
+Nine endpoints, all guarded by the standard session cookie. Write endpoints
+additionally require `X-Requested-With: TorrentMate`.
+
+| Method | Path            | Guard         | Status codes                      | Notes                                                                                                                                                                                                      |
+| ------ | --------------- | ------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/schema`       | session       | `200`                             | `ConfigSchemaResponse` — JSON Schema from `Config.model_json_schema()`, key ownership map (derived from overlays array), and the static `RESTART_IMPACT` dict. Cached on `app.state` (lazy, first access). |
+| GET    | `/files`        | session       | `200`                             | `FilesResponse` — one `FileInfo` per file (master + overlays + `local.json5` if present), each with `sha256`, `mtime`, `size`, `owned_keys`, and `shadowed_keys` (keys overridden by `local.json5`).       |
+| GET    | `/files/{name}` | session       | `200`, `404`                      | `FileContent` — parsed JSON5 values, SHA-256, shadowed keys. `404` when `name` is not a declared overlay, `local.json5`, or `config.json5`.                                                                |
+| GET    | `/status`       | session       | `200`                             | `ConfigStatusResponse` — `role` (`"prod"` / `"staging"`), `read_only`, `restart_required`, `stale_files` (SHA-256 diff vs boot-time snapshot).                                                             |
+| POST   | `/validate`     | session + XRW | `200`, `404`, `422`               | `ValidateResponse` — dry-run validation via `validate_candidate()`; `422` detail carries Pydantic `loc`/`msg`/`type` entries. `404` when `file_name` is unknown.                                           |
+| PUT    | `/files/{name}` | session + XRW | `200`, `403`, `404`, `412`, `422` | `PutFileResponse` — validate → backup → atomic write. `403` on staging; `404` unknown/missing file; `412` SHA-256 precondition mismatch; `422` Pydantic validation failure.                                |
+| GET    | `/secrets`      | session       | `200`                             | `SecretsResponse` — catalog from `.env.example` with `is_set` flags. Secret **values are never included**.                                                                                                 |
+| PUT    | `/secrets`      | session + XRW | `200`, `403`, `404`, `422`        | `PutFileResponse` — atomic upsert into `.env` via `write_env_keys()`. `403` on staging; `404` `.env.example` missing; `422` unknown keys (key names in detail, **values never echoed**).                   |
+| POST   | `/restart-web`  | session + XRW | `202`, `403`, `404`               | `RestartResponse {"status": "scheduled"}` — spawns a detached `sleep 0.5 && pm2 restart <name>` subprocess. `403` on staging; `404` when `PERSONALSCRAPER_PM2_NAME` is unset.                              |
+
+### Validate-before-write pipeline
+
+Both `POST /validate` (dry-run) and `PUT /files/{name}` (pre-write gate) call
+`validate_candidate()` in `personalscraper/conf/loader.py`. The function:
+
+1. Reads the on-disk overlay files from the config directory.
+2. Substitutes the candidate dict for the targeted file **in memory** (no
+   filesystem mutation during validation).
+3. Runs the full merge pipeline (`merge_overlays()`) followed by Pydantic
+   `Config.model_validate()`.
+4. Returns `(validated_config, warnings)` on success; raises
+   `ConfigValidationError` (with the underlying `pydantic.ValidationError` as
+   `__cause__`) on failure.
+
+The route handler extracts Pydantic `loc`/`msg`/`type` entries from the
+`ValidationError` and returns them as a `422` JSON array — the frontend maps
+them to form fields via `flattenLocToPath()` (dot-joined path convention).
+
+### Atomic write + backups
+
+`PUT /files/{name}` serialises writes through a module-level `threading.Lock`
+(routes are sync handlers in the FastAPI threadpool, so `threading.Lock` is the
+correct primitive). The write sequence:
+
+1. **Backup**: if the file exists, copy it to
+   `config/.backups/{name}.{utc_microsecond}.json5` (microsecond timestamps
+   prevent collisions when saves land within the same second).
+2. **Prune**: keep the 10 most recent backups per file name; older ones are
+   deleted.
+3. **Atomic write**: write the new content to a `tempfile.mkstemp` in the config
+   directory, `flush()` + `fsync()`, then `os.replace()` onto the target path
+   (atomic on the same filesystem). On any failure the temp file is unlinked.
+4. **Header comment**: every rewritten file gets a generated first line:
+   `// Written by TorrentMate config editor <ISO-8601-utc> — hand-written comments are not preserved.`
+
+### Restart-impact classification
+
+`RESTART_IMPACT` (module-level dict in `personalscraper/web/routes/config.py`)
+maps each top-level config key to whether changing it requires a web process
+restart:
+
+| Impact  | Keys                                                                                                                                                                                                                                                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `True`  | `web`, `paths`, `indexer`                                                                                                                                                                                                                                                                                                             |
+| `False` | `acquire`, `anime_rule`, `categories`, `category_rules`, `config_version`, `cross_seed`, `custom_categories`, `disks`, `fuzzy_match`, `genre_mapping`, `ingest`, `library`, `metadata`, `notify`, `process_clean`, `providers`, `ranking`, `scraper`, `sort`, `staging_dirs`, `thresholds`, `torrent`, `tracker`, `trailers`, `watch` |
+
+Unknown keys default to `True` (fail-safe: if a key is not in the map, assume a
+restart is needed). An architecture test (phase-gate 4.5) asserts that every
+`Config.model_fields` key has an entry in `RESTART_IMPACT`, so the dict can
+never silently miss a newly-added config key.
+
+### Role gating
+
+The `PERSONALSCRAPER_WEB_ROLE` environment variable gates all write endpoints:
+
+- **Unset or `"prod"`**: writes are allowed (normal operation).
+- **`"staging"`**: `PUT /files/{name}`, `PUT /secrets`, and
+  `POST /restart-web` all return `403 {"detail": "read-only"}`. Read endpoints
+  (`GET /schema`, `GET /files`, `GET /files/{name}`, `GET /status`,
+  `GET /secrets`) remain available — the editor is fully explorable but
+  non-mutating.
+
+The `PERSONALSCRAPER_PM2_NAME` environment variable enables the restart
+endpoint:
+
+- **Set** (e.g. `"torrentmate-web"`): `POST /restart-web` spawns a detached
+  subprocess that sleeps 0.5 s (so the `202` response flushes first), then runs
+  `pm2 restart <name>`. The subprocess runs in a new session (`start_new_session=True`)
+  with stdout/stderr to `DEVNULL`.
+- **Unset**: `POST /restart-web` returns `404 {"detail": "restart not configured"}`.
+
+Both variables are set per-PM2-app in `ecosystem.config.js` — not in `.env`.
+
+### Secrets editor
+
+The secrets subsystem (`personalscraper/conf/envfile.py`) provides two shared
+utilities consumed by the API routes:
+
+- **`read_env_catalog(env_example_path)`** — parses `.env.example` into a
+  `{KEY: description}` catalog. Keys match `^[A-Z][A-Z0-9_]*=`. Descriptions
+  are the contiguous `#` comment lines above each key (section-rule lines
+  starting with `# ──` are excluded; a blank line resets the accumulator).
+- **`write_env_keys(keys, env_path)`** — atomically upserts `{KEY: value}`
+  pairs into `.env`. Existing lines with matching keys are replaced in place;
+  all other lines (comments, blanks, unrelated keys) are preserved. New keys
+  are appended. Atomic via same-directory temp file + `os.replace`.
+
+The API enforces:
+
+- **Write-only**: `GET /secrets` returns `is_set` flags only — values are never
+  read from `.env` or included in the response.
+- **Catalog guard**: `PUT /secrets` rejects keys not declared in `.env.example`
+  with `422 {"unknown_keys": [...]}`. Values are **never** echoed in the error
+  detail. The route logs `config_secrets_write` with sorted key names only (no
+  values).
+- **`.env.example` catalog** (as of 0.43.0): `QBIT_USERNAME`, `QBIT_PASSWORD`,
+  `TMDB_API_KEY`, `TVDB_API_KEY`, `TRAKT_CLIENT_ID`, `TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_CHAT_ID`, `HEALTHCHECK_URL`, `YOUTUBE_API_KEY`,
+  `YOUTUBE_COOKIES_FILE`, `YOUTUBE_COOKIES_FROM_BROWSER`, `OMDB_API_KEY`,
+  `WEB_PASSWORD_HASH`, `WEB_JWT_SECRET`. (`PERSONALSCRAPER_WEB_ROLE` and
+  `PERSONALSCRAPER_PM2_NAME` are PM2-only env vars — they are documented in
+  `.env.example` as comments but not in the catalog because they are set per
+  PM2 app, not in `.env`.)
+
+### Frontend
+
+`/config` (route `/config`, page component `frontend/src/pages/Config.tsx`)
+renders a two-panel layout with a secrets section below. Components live under
+`frontend/src/components/config/`.
+
+**FileList** (`FileList.tsx`) — left sidebar listing every config file as a
+selectable row. Each row shows:
+
+- The file basename.
+- Owned keys as muted chips.
+- Badges: `restart` (amber — any owned key has `restart_impact=true`), `stale`
+  (info — file is in `status.stale_files`), `shadowed` (neutral — file has keys
+  overridden by `local.json5`).
+- A dirty dot (amber circle) when the file has unsaved local edits.
+
+**SchemaForm** (`SchemaForm.tsx`) — recursive JSON Schema → shadcn form control
+renderer. Dispatches on schema `type`:
+
+- `string` → `<Input type="text">`.
+- `integer` / `number` → `<Input type="number">`.
+- `boolean` → `<Switch>`.
+- `string` + `enum` → `<Select>`.
+- `array` of primitives → inline list editor with add/remove.
+- `array` of objects (`$ref` or inline) → card list (each card a recursive
+  `SchemaForm`).
+- `object` with `properties` → collapsible `<details>` section.
+- `object` with `additionalProperties` → key/value row editor.
+- Unresolvable `$ref` / complex unions → JSON `<textarea>` fallback with
+  `JSON.parse` validation on blur (invalid JSON → inline error, `onChange` is
+  NOT called). This is the editor for `local.json5` (free-form, no schema).
+
+The schema for the selected file is derived by intersecting the root JSON Schema
+properties with the file's `owned_keys`, and intersecting `required` with the
+same set.
+
+**Save flow** (in `Config.tsx`):
+
+1. `PUT /files/{name}` with `{values, base_sha256}`.
+2. `200` → success toast, dirty state cleared for that file, queries
+   invalidated.
+3. `412` → **conflict dialog** with a « Recharger » button that discards local
+   edits and re-fetches the file (fresh SHA-256).
+4. `422` → validation errors mapped to form fields via `flattenLocToPath()`
+   (Pydantic `loc` arrays like `["paths", 0, "data_dir"]` become dot-joined
+   paths like `"paths.0.data_dir"`, matching the `errors` prop convention).
+   Errors are displayed inline below the offending field.
+
+**SecretsTab** (`SecretsTab.tsx`) — renders every secret key from the catalog
+with:
+
+- A masked `<Input type="password">` (placeholder shows `•••• (défini)` when
+  `is_set`, `non défini` otherwise).
+- An `is_set` chip: green « défini » / neutral « non défini ».
+- The description from `.env.example` as muted help text.
+- Only keys the user actually typed into are sent on save — the component never
+  pre-fills from the server, so existing secrets cannot be accidentally cleared.
+
+**Restart banner** — when `status.restart_required` is `true`, a banner shows
+the list of `stale_files` and a « Redémarrer le daemon » button. Clicking opens
+a confirmation dialog; confirming calls `POST /restart-web`. The button is
+hidden when `readOnly` is `true` (staging).
+
+**Staging banner** — when `status.role === "staging"`, a `<StagingBanner />` is
+shown (reused from the dashboard) plus a read-only warning below it. All
+save/validate/restart buttons are disabled.
+
+### Known limits
+
+- **JSON5 comments are not preserved** on rewritten files. The web editor writes
+  standard JSON5 (via the `json5` library) with a generated header comment. Hand-written
+  inline comments in config files are lost on the first web edit. This matches the
+  `init-config` precedent (template files carry comments; runtime config files
+  are machine-maintained). Operators who rely on inline comments should keep
+  notes in `config.example/` (the tracked template) or version-control their
+  `config/` directory.
+- **Git-tracked config files get dirty on web edits**. If `config/` is under
+  version control, every web edit produces a modified working tree. This is
+  accepted as an audit trail (D4 decision in DESIGN.md §Appendix) — the
+  `config/.backups/` directory provides an additional recovery layer independent
+  of git.
