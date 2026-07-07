@@ -35,6 +35,7 @@ from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.deps import (
     Session,
     require_session,
@@ -67,6 +68,11 @@ _TMP_ORPHAN_PREFIXES = ("_tmp_dispatch_", "_tmp_ingest_")
 _MAX_ORPHANS = 100
 _MAX_SCAN_DEPTH = 2
 _STUCK_SCAN_THRESHOLD_S = 3600  # 1 hour
+
+#: 428 detail returned when a destructive apply lacks a fresh dry-run.
+_DRY_RUN_FIRST_DETAIL = (
+    "A fresh successful dry-run (within 30 minutes, same options) is required before applying this destructive action"
+)
 
 
 def _data_dir(request: Request) -> Path:
@@ -332,14 +338,21 @@ def get_locks(
 # ── GET /index-health helpers ─────────────────────────────────────────────
 
 
-def _empty_health() -> IndexHealthResponse:
+def _empty_health(*, degraded: bool = False, error: str | None = None) -> IndexHealthResponse:
     """Return a zeroed :class:`IndexHealthResponse` for fail-soft paths.
 
-    Used when the database file is missing, unreadable, or corrupted.
+    Used when the database file is missing (``degraded=False`` — a legitimately
+    empty library) or present-but-broken (``degraded=True`` — a query failed on
+    a missing / mis-migrated table, Finding D).
+
+    Args:
+        degraded: ``True`` when the DB file exists but a query failed, so the
+            zeroed counts must not be read as a pristine empty library.
+        error: Optional error message describing the query failure.
 
     Returns:
         A default :class:`IndexHealthResponse` with all counts set to
-        zero / ``None``.
+        zero / ``None`` and the ``degraded`` / ``error`` fields set.
     """
     return IndexHealthResponse(
         items=0,
@@ -360,6 +373,8 @@ def _empty_health() -> IndexHealthResponse:
         last_scan_stuck=False,
         soft_deleted=0,
         canonical_null=0,
+        degraded=degraded,
+        error=error,
     )
 
 
@@ -494,9 +509,12 @@ def get_index_health(
                 "SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL"
             ).fetchone()[0]
 
-    except sqlite3.OperationalError:
-        logger.warning("index_health_db_open_failed", path=str(db_path))
-        return _empty_health()
+    except sqlite3.OperationalError as exc:
+        # The file exists but a query failed (missing / mis-migrated table, or
+        # a locked DB). Surface this as ``degraded`` rather than masquerading a
+        # broken DB as a pristine empty library (Finding D). Logged at ERROR.
+        logger.error("index_health_db_query_failed", path=str(db_path), error=str(exc), exc_info=True)
+        return _empty_health(degraded=True, error=str(exc))
 
     return IndexHealthResponse(
         items=items,
@@ -573,13 +591,171 @@ def _validate_options(action: MaintenanceAction, body_options: dict[str, object]
                 )
 
 
-def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> None:
+def _guard_no_running_maintenance(conn: sqlite3.Connection, action_id: str) -> None:
+    """Raise 409 when a maintenance action with a live pid is already running.
+
+    Queries ``pipeline_run`` for rows with ``kind='maintenance'`` and
+    ``outcome='running'`` and checks liveness via ``os.kill(pid, 0)``. Rows with
+    a dead or NULL pid are stale (crashed runner / pre-pid migration) and are
+    ignored — we never mutate them here.
+
+    Args:
+        conn: An open connection (inside the reserve transaction).
+        action_id: The action being launched (for log context).
+
+    Raises:
+        HTTPException: 409 when a live maintenance runner is found.
+    """
+    rows = conn.execute(
+        "SELECT run_uid, pid FROM pipeline_run WHERE kind='maintenance' AND outcome='running'"
+    ).fetchall()
+    for row in rows:
+        run_uid_db = row["run_uid"]
+        pid_db = row["pid"]
+        if pid_db is None:
+            # NULL pid → stale row (pre-pid-migration or a runner that crashed
+            # before claiming its pid).
+            logger.info("maintenance_stale_row_ignored", run_uid=run_uid_db, pid=None, action_id=action_id)
+            continue
+        try:
+            os.kill(pid_db, 0)
+        except ProcessLookupError:
+            # Dead process → stale row (crashed runner).
+            logger.info("maintenance_stale_row_ignored", run_uid=run_uid_db, pid=pid_db, action_id=action_id)
+            continue
+        except PermissionError:
+            # Process exists but owned by another user → treat as alive.
+            raise HTTPException(status_code=409, detail="A maintenance action is already running")
+        else:
+            raise HTTPException(status_code=409, detail="A maintenance action is already running")
+
+
+def _guard_recent_dry_run(conn: sqlite3.Connection, action_id: str, options_json: str) -> None:
+    """Raise 428 unless a fresh successful dry-run (same options) exists.
+
+    Args:
+        conn: An open connection (inside the reserve transaction).
+        action_id: The destructive action being applied.
+        options_json: Canonical options JSON compared by string equality.
+
+    Raises:
+        HTTPException: 428 when no matching dry-run row exists within 30 minutes.
+    """
+    cutoff = time.time() - 1800
+    row = conn.execute(
+        "SELECT 1 FROM pipeline_run "
+        "WHERE kind='maintenance' AND command=? AND options_json=? "
+        "AND dry_run=1 AND outcome='success' AND ended_at >= ? LIMIT 1",
+        (action_id, options_json, cutoff),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=428, detail=_DRY_RUN_FIRST_DETAIL)
+
+
+def _reserve_run_row(
+    db_path: Path,
+    *,
+    run_uid: str,
+    action: MaintenanceAction,
+    command: str,
+    options_json: str,
+    dry_run: bool,
+) -> None:
+    """Atomically guard concurrency + dry-run-first and reserve the run row.
+
+    Opens one connection under ``BEGIN IMMEDIATE`` so the "no maintenance action
+    is already running" check and the ``pipeline_run`` INSERT are a single
+    serialised transaction: a second concurrent destructive POST blocks on the
+    write lock, then observes the freshly-inserted running row (409), closing the
+    check→insert TOCTOU race (Finding C). The row is reserved with a placeholder
+    pid of the web process (guaranteed alive) — the caller updates it to the
+    spawned runner's pid right after spawn.
+
+    Guard order (preserved from the original route): 409 concurrency → 428
+    dry-run-first → INSERT. The pipeline-lock 409 is checked by the caller before
+    this helper (filesystem, no DB).
+
+    On a DB read error while verifying concurrency, a ``destructive`` action is
+    fail-CLOSED (409) — the only concurrency protection must never be dropped
+    silently (Finding E). ``write`` / ``ro`` actions stay permissive.
+
+    Args:
+        db_path: Absolute path to ``library.db``.
+        run_uid: The unique run identifier reserved by the caller.
+        action: The resolved maintenance action.
+        command: The action id (stored in the ``command`` column).
+        options_json: Canonical options JSON (stored + compared for 428).
+        dry_run: ``True`` for a dry run.
+
+    Raises:
+        HTTPException: 409 (already running / cannot verify) or 428 (no fresh
+            dry run). The transaction is rolled back before raising.
+    """
+    destructive = action.risk == "destructive"
+    check_concurrency = action.risk in ("write", "destructive")
+
+    if not db_path.exists():
+        # No DB yet (fresh install / test) — nothing to verify and no row to
+        # reserve. A destructive apply still requires a prior dry-run, which
+        # cannot exist without a DB → 428 (preserves the original semantics).
+        if destructive and not dry_run:
+            raise HTTPException(status_code=428, detail=_DRY_RUN_FIRST_DETAIL)
+        return
+
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    try:
+        _apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            if check_concurrency:
+                _guard_no_running_maintenance(conn, command)
+            if destructive and not dry_run:
+                _guard_recent_dry_run(conn, command, options_json)
+            conn.execute(
+                "INSERT INTO pipeline_run "
+                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
+                "kind, command, options_json) "
+                "VALUES (?, 'web', ?, ?, 'running', '[]', ?, 'maintenance', ?, ?)",
+                (run_uid, 1 if dry_run else 0, time.time(), os.getpid(), command, options_json),
+            )
+            conn.execute("COMMIT")
+        except HTTPException:
+            _safe_rollback(conn)
+            raise
+        except sqlite3.OperationalError as exc:
+            _safe_rollback(conn)
+            logger.warning("maintenance_reserve_db_error", command=command, error=str(exc))
+            if destructive:
+                # Fail-CLOSED: cannot verify no destructive action is running.
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot verify no maintenance action is running",
+                ) from exc
+            # write / ro — permissive: proceed to spawn without a reserved row.
+    finally:
+        conn.close()
+
+
+def _safe_rollback(conn: sqlite3.Connection) -> None:
+    """Roll back *conn* best-effort, ignoring "no transaction active" errors.
+
+    Args:
+        conn: The connection to roll back.
+    """
+    try:
+        conn.execute("ROLLBACK")
+    except sqlite3.OperationalError:
+        pass
+
+
+def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
     """Spawn the maintenance runner as a detached subprocess.
 
-    The runner module (``personalscraper.web.maintenance.runner`` — delivered in
-    sub-phase 3.3) reads its configuration from the environment variables set here.
-    It is responsible for acquiring the pipeline lock, executing the CLI command,
-    updating the ``pipeline_run`` row, and releasing the lock.
+    The runner module (``personalscraper.web.maintenance.runner``) reads its
+    configuration from the environment variables set here. It is responsible for
+    executing the CLI command, streaming output, and finalizing the
+    ``pipeline_run`` row (reserved by the caller before this spawn).
 
     Args:
         run_uid: The unique run identifier (``uuid4().hex``).
@@ -587,6 +763,9 @@ def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool
         options_json: Canonical JSON string of validated options (produced by
             :func:`canonical_options_json`).
         dry_run: ``True`` when this is a dry run.
+
+    Returns:
+        The pid of the spawned runner process.
     """
     env = {
         **os.environ,
@@ -601,11 +780,12 @@ def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool
         action_id=action_id,
         dry_run=dry_run,
     )
-    subprocess.Popen(
+    proc = subprocess.Popen(
         [sys.executable, "-m", "personalscraper.web.maintenance.runner"],
         start_new_session=True,
         env=env,
     )
+    return proc.pid
 
 
 # ── POST /actions/{action_id}/run ──────────────────────────────────────────────
@@ -657,108 +837,42 @@ def action_run(
     _validate_options(action, body.options)
 
     data_dir = _data_dir(request)
+    db_path = _db_path(request)
     options_json = canonical_options_json(body.options)
-
-    # 3. Lock + concurrent maintenance guard (write / destructive only).
-    #    Two independent checks:
-    #    (a) pipeline.lock — if held by a live process → 409 "Pipeline lock held"
-    #        (unchanged semantics, uses is_lock_held which does its own os.kill).
-    #    (b) pipeline_run.pid — if ANY row with kind='maintenance' +
-    #        outcome='running' has a live pid (os.kill(pid, 0) succeeds) →
-    #        409 "A maintenance action is already running".  Rows with a dead
-    #        or NULL pid are stale (crashed runner / pre-pid migration) and are
-    #        silently ignored — we do NOT mutate them here.
-    #    The pid-based check is separate from the lock check because a
-    #    maintenance action may be genuinely running without holding the
-    #    pipeline lock (e.g. a read-only action, or a write CLI that doesn't
-    #    take the lock).
-    if action.risk in ("write", "destructive"):
-        # (a) Pipeline lock.
-        lock_held = is_lock_held(data_dir / "pipeline.lock")
-        if lock_held:
-            raise HTTPException(status_code=409, detail="Pipeline lock held")
-
-        # (b) Concurrent maintenance runner — liveness via pipeline_run.pid.
-        db_path = _db_path(request)
-        if db_path.exists():
-            try:
-                with closing(sqlite3.connect(str(db_path))) as conn:
-                    _apply_pragmas(conn)
-                    conn.row_factory = sqlite3.Row
-                    rows = conn.execute(
-                        "SELECT run_uid, pid FROM pipeline_run WHERE kind='maintenance' AND outcome='running'"
-                    ).fetchall()
-                    for row in rows:
-                        run_uid_db = row["run_uid"]
-                        pid_db = row["pid"]
-                        if pid_db is not None:
-                            try:
-                                os.kill(pid_db, 0)
-                                # Process is alive — a maintenance action is
-                                # genuinely running.
-                                raise HTTPException(
-                                    status_code=409,
-                                    detail="A maintenance action is already running",
-                                )
-                            except ProcessLookupError:
-                                # Dead process → stale row (crashed runner).
-                                logger.info(
-                                    "maintenance_stale_row_ignored",
-                                    run_uid=run_uid_db,
-                                    pid=pid_db,
-                                    action_id=action_id,
-                                )
-                            except PermissionError:
-                                # Process exists but owned by another user →
-                                # treat as alive.
-                                raise HTTPException(
-                                    status_code=409,
-                                    detail="A maintenance action is already running",
-                                )
-                        else:
-                            # NULL pid → stale row (pre-pid-migration or
-                            # runner crash before inserting its pid).
-                            logger.info(
-                                "maintenance_stale_row_ignored",
-                                run_uid=run_uid_db,
-                                pid=None,
-                                action_id=action_id,
-                            )
-            except sqlite3.OperationalError:
-                logger.debug("concurrent_check_db_unavailable", path=str(db_path))
-
-    # 4. 428 dry-run-first guard — destructive actions only.
-    if action.risk == "destructive" and not body.dry_run:
-        db_path = _db_path(request)
-        has_recent_dry_run = False
-        if db_path.exists():
-            try:
-                with closing(sqlite3.connect(str(db_path))) as conn:
-                    _apply_pragmas(conn)
-                    cutoff = time.time() - 1800
-                    row = conn.execute(
-                        "SELECT 1 FROM pipeline_run "
-                        "WHERE kind='maintenance' AND command=? AND options_json=? "
-                        "AND dry_run=1 AND outcome='success' AND ended_at >= ? "
-                        "LIMIT 1",
-                        (action_id, options_json, cutoff),
-                    ).fetchone()
-                    if row is not None:
-                        has_recent_dry_run = True
-            except sqlite3.OperationalError:
-                logger.debug("dry_run_check_db_unavailable", path=str(db_path))
-        if not has_recent_dry_run:
-            raise HTTPException(
-                status_code=428,
-                detail=(
-                    "A fresh successful dry-run (within 30 minutes, same options) "
-                    "is required before applying this destructive action"
-                ),
-            )
-
-    # 5. Spawn runner.
     run_uid = uuid.uuid4().hex
-    _spawn_runner(run_uid, action_id, options_json, body.dry_run)
+
+    # 3. Pipeline-lock 409 (write / destructive only). Independent of the
+    #    concurrent-maintenance check because a maintenance action may run
+    #    without holding the pipeline lock (e.g. a read-only action).
+    if action.risk in ("write", "destructive") and is_lock_held(data_dir / "pipeline.lock"):
+        raise HTTPException(status_code=409, detail="Pipeline lock held")
+
+    # 4. Atomic concurrency-409 + 428 dry-run-first + reserve the running row
+    #    under BEGIN IMMEDIATE (Finding C: closes the check→insert race so the
+    #    row exists the instant 202 is returned and a second concurrent POST
+    #    sees it; Finding E: destructive fails CLOSED if concurrency cannot be
+    #    verified).
+    _reserve_run_row(
+        db_path,
+        run_uid=run_uid,
+        action=action,
+        command=action_id,
+        options_json=options_json,
+        dry_run=body.dry_run,
+    )
+
+    # 5. Spawn the runner and claim the reserved row with its pid, so a runner
+    #    that dies before finalizing leaves a dead-pid (stale) row rather than a
+    #    live-pid (permanently blocking) one. A spawn failure finalizes the
+    #    reserved row 'error' so it never stays 'running'.
+    try:
+        pid = _spawn_runner(run_uid, action_id, options_json, body.dry_run)
+    except (OSError, ValueError) as exc:
+        PipelineRunWriter(db_path).finalize(run_uid, "error", error=str(exc))
+        logger.error("maintenance_spawn_failed", run_uid=run_uid, action_id=action_id, error=str(exc))
+        raise HTTPException(status_code=500, detail="Failed to spawn maintenance runner") from exc
+    if isinstance(pid, int):
+        PipelineRunWriter(db_path).update_pid(run_uid, pid)
 
     return JSONResponse(status_code=202, content=ActionRunResponse(run_uid=run_uid).model_dump())
 

@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 from .test_maintenance_panels import (
     _build_app,
     _build_authenticated_client,
+    _login,
 )
 
 NOW = int(time.time())
@@ -68,11 +69,56 @@ def _create_library_db(db_path: Path) -> sqlite3.Connection:
         "  outcome TEXT,"
         "  steps_json TEXT,"
         "  error TEXT,"
-        "  pid INTEGER"
+        "  pid INTEGER,"
+        "  output_tail TEXT"
         ")"
     )
     conn.commit()
     return conn
+
+
+def _query_row(db_path: Path, run_uid: str) -> dict | None:
+    """Return the ``pipeline_run`` row for *run_uid* as a dict, or ``None``.
+
+    Args:
+        db_path: Path to the SQLite database.
+        run_uid: The run identifier to look up.
+
+    Returns:
+        The row as a dict, or ``None`` when no such row exists.
+    """
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
+    conn.close()
+    return dict(row) if row is not None else None
+
+
+def _authenticated_client_with_history(test_config, tmp_path: Path, db_path: Path) -> TestClient:
+    """Build an authenticated client whose app also serves the pipeline routes.
+
+    Needed to exercise ``GET /api/pipeline/history/{run_uid}`` against a row
+    reserved by ``POST /api/maintenance/actions/{id}/run`` (Finding C-c).
+
+    Args:
+        test_config: Synthetic ``Config`` fixture.
+        tmp_path: Pytest temporary directory.
+        db_path: Path to the seeded ``library.db``.
+
+    Returns:
+        An authenticated ``TestClient`` serving auth + maintenance + pipeline.
+    """
+    from personalscraper.web.routes.pipeline import router as pipeline_router
+
+    app, _settings = _build_app(
+        test_config,
+        tmp_path,
+        indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+    )
+    app.include_router(pipeline_router)
+    client = TestClient(app, base_url="https://testserver")
+    _login(client)
+    return client
 
 
 def _seed_running_maintenance(conn: sqlite3.Connection, *, pid: int | None = None) -> None:
@@ -546,3 +592,178 @@ class TestActionRun:
         env = call_kwargs.get("env", {})
         assert env["PERSONALSCRAPER_MAINT_OPTIONS_JSON"] == CANONICAL_CLEAN_EMPTY
         assert env["PERSONALSCRAPER_MAINT_DRY_RUN"] == "1"
+
+
+class TestActionRunRowReservation:
+    """Finding C — the run row is reserved synchronously + atomically before 202."""
+
+    def test_run_reserves_row_before_202(self, test_config, tmp_path: Path) -> None:
+        """The pipeline_run row exists (outcome='running') the instant 202 is returned.
+
+        Even when the runner is never spawned (patched), the 202 ``run_uid`` maps
+        to a present, finalizable row — so a runner that exit-2's before doing
+        anything is never invisible to the operator (Finding C).
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner"):
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        assert resp.status_code == 202
+        run_uid = resp.json()["run_uid"]
+
+        row = _query_row(db_path, run_uid)
+        assert row is not None
+        assert row["outcome"] == "running"
+        assert row["kind"] == "maintenance"
+        assert row["command"] == WRITE_ACTION_ID
+        assert row["pid"] is not None
+
+        # The row is finalizable — simulate a runner exit-2 before any work.
+        from personalscraper.pipeline_history import PipelineRunWriter
+
+        PipelineRunWriter(db_path).finalize(run_uid, "error", error="runner exit 2")
+        finalized = _query_row(db_path, run_uid)
+        assert finalized is not None
+        assert finalized["outcome"] == "error"
+
+    def test_second_concurrent_post_returns_409(self, test_config, tmp_path: Path) -> None:
+        """Two destructive-class POSTs in quick succession → the second gets 409.
+
+        The first POST reserves a running row (live placeholder pid). The second
+        POST's atomic concurrency check observes it → 409, closing the TOCTOU
+        race where both would previously pass the guard and spawn (Finding C).
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner"):
+            first = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+            assert first.status_code == 202
+
+            second = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        assert second.status_code == 409
+        assert "already running" in second.json()["detail"]
+
+    def test_reserved_run_queryable_via_history_detail(self, test_config, tmp_path: Path) -> None:
+        """The 202 ``run_uid`` is immediately queryable via GET /api/pipeline/history/{uid}."""
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        conn.close()
+
+        client = _authenticated_client_with_history(test_config, tmp_path, db_path)
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner"):
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        assert resp.status_code == 202
+        run_uid = resp.json()["run_uid"]
+
+        detail = client.get(f"/api/pipeline/history/{run_uid}")
+        assert detail.status_code == 200
+        data = detail.json()
+        assert data["run_uid"] == run_uid
+        assert data["kind"] == "maintenance"
+        assert data["command"] == WRITE_ACTION_ID
+
+
+class TestActionRunConcurrencyFailClosed:
+    """Finding E — the concurrency guard fails CLOSED for destructive actions on DB error."""
+
+    @staticmethod
+    def _db_without_pipeline_run(db_path: Path) -> None:
+        """Create a DB file that exists but lacks the ``pipeline_run`` table."""
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE unrelated (x INTEGER)")
+        conn.commit()
+        conn.close()
+
+    def test_destructive_concurrency_db_error_returns_409(self, test_config, tmp_path: Path) -> None:
+        """A destructive action whose concurrency check errors → 409 (fail-closed).
+
+        With the ``pipeline_run`` table missing, the concurrency SELECT raises
+        ``OperationalError``. For a destructive action this must NOT silently drop
+        the only concurrency protection — it returns 409 "cannot verify".
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        self._db_without_pipeline_run(db_path)
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        resp = client.post(
+            f"/api/maintenance/actions/{DESTRUCTIVE_ACTION_ID}/run",
+            json={"options": {"only": "empty"}, "dry_run": True},
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+        assert resp.status_code == 409
+        assert "verify" in resp.json()["detail"].lower()
+
+    def test_write_concurrency_db_error_stays_permissive_202(self, test_config, tmp_path: Path) -> None:
+        """A write action whose concurrency check errors stays permissive → 202.
+
+        Finding E scopes the fail-closed behaviour to destructive actions only;
+        write / ro actions remain permissive when the guard cannot be verified.
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        self._db_without_pipeline_run(db_path)
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn:
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
+        assert mock_spawn.called

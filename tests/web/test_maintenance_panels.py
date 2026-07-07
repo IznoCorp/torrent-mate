@@ -428,6 +428,39 @@ class TestIndexHealthRoute:
         assert data["nfo"]["valid"] == 0
         assert data["nfo"]["invalid"] == 0
         assert data["nfo"]["missing"] == 0
+        # A genuinely missing DB is an empty library, NOT a degraded one.
+        assert data["degraded"] is False
+        assert data["error"] is None
+
+    def test_index_health_degraded_on_broken_db(self, test_config, tmp_path: Path) -> None:
+        """200 with ``degraded=True`` when the DB exists but a query fails (Finding D).
+
+        A DB file that has ``pipeline_run`` but no ``media_item`` table must NOT
+        be reported as a pristine empty library — the first aggregate query
+        raises ``OperationalError`` and the response is flagged ``degraded``.
+        """
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path))
+        # Present but mis-migrated: a table exists, but not media_item.
+        conn.execute("CREATE TABLE pipeline_run (id INTEGER PRIMARY KEY, run_uid TEXT)")
+        conn.commit()
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        resp = client.get("/api/maintenance/index-health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["degraded"] is True
+        assert data["error"] is not None
+        # Counts are still zeroed, but the degraded flag distinguishes this
+        # from a genuinely empty library.
+        assert data["items"] == 0
 
     def test_index_health_unauthenticated(self, test_config, tmp_path: Path) -> None:
         """401 — no session cookie."""
