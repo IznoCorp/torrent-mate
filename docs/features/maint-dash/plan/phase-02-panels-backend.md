@@ -53,10 +53,11 @@ class IndexHealthResponse(BaseModel):
     nfo: NfoStats
     repair_queue_pending: int; repair_queue_oldest_age_s: float | None
     outbox_pending: int; outbox_oldest_age_s: float | None
-    last_scan_run_uid: str | None; last_scan_mode: str | None
+    last_scan_id: int | None; last_scan_mode: str | None
     last_scan_status: str | None; last_scan_started_at: str | None
-    last_scan_ended_at: str | None; last_scan_stuck: bool
-    soft_deleted: int; canonical_null: int
+    last_scan_finished_at: str | None; last_scan_stuck: bool
+    soft_deleted: int  # count of soft-deleted media_file rows (deleted_at IS NOT NULL)
+    canonical_null: int  # count of media_item rows where canonical_provider IS NULL
 ```
 
 ### 2.2 — Maintenance routes module (`feat(maint-dash): add GET /api/maintenance/disks, /locks, /index-health routes`)
@@ -68,18 +69,18 @@ class IndexHealthResponse(BaseModel):
 
 **Route contracts** (all sync `def`, Pydantic response_model, `Depends(require_session)`):
 
-- `GET /api/maintenance/disks` → `DisksResponse`: Iterates `config.disks`, calls `get_disk_status(config=disk_config)` from `personalscraper.dispatch.disk_scanner` for each. Computes `total_gb` from `disk_config.size_gb` (or `shutil.disk_usage` at mount path), `used_pct = round((1 - free_gb / total_gb) * 100, 1)`.
+- `GET /api/maintenance/disks` → `DisksResponse`: Iterates `config.disks`, calls `get_disk_status(config=disk_config)` from `personalscraper.dispatch.disk_scanner` for each. Computes `total_gb` from `shutil.disk_usage(path).total` (DiskConfig has no `size_gb` field), `used_pct = round((1 - free_gb / total_gb) * 100, 1)`.
 
 - `GET /api/maintenance/locks` → `LocksResponse`: Checks `data_dir/pipeline.lock` (held + PID liveness via `os.kill(pid, 0)` → `pid_alive`; stale = file exists but PID dead). Checks `data_dir/pipeline.pause` and `data_dir/watcher.paused` sentinels with age (`time.time() - mtime`). **Bounded tmp-orphan sweep**: `os.scandir` on staging category dirs + disk roots at depth ≤ 2, match prefixes `_tmp_dispatch_*`, `_tmp_ingest_*`, cap at 100 entries.
 
 - `GET /api/maintenance/index-health` → `IndexHealthResponse`: Single cheap WAL read-only `SELECT` aggregate query over `library.db`. Do NOT walk the filesystem. Queries:
   - Counts: `SELECT COUNT(*) FROM media_item` + category breakdowns + `media_file` count + sum `size_bytes`.
   - NFO: `SELECT COUNT(*) FROM media_item WHERE ...` grouped by `nfo_status`.
-  - Repair queue: `SELECT COUNT(*), MIN(julianday('now')-julianday(created_at))*86400 FROM repair_queue WHERE status='pending'`.
+  - Repair queue: `SELECT COUNT(*), MIN(julianday('now')-julianday(enqueued_at))*86400 FROM repair_queue WHERE status='pending'`.
   - Outbox: same pattern on `outbox` table (if exists, else 0).
   - Last scan: `SELECT * FROM scan_run ORDER BY started_at DESC LIMIT 1`.
-  - Soft-deleted: `SELECT COUNT(*) FROM media_item WHERE deleted_at IS NOT NULL`.
-  - Canonical NULL: `SELECT COUNT(*) FROM media_item WHERE canonical_title IS NULL`.
+  - Soft-deleted: `SELECT COUNT(*) FROM media_file WHERE deleted_at IS NOT NULL`.
+  - Canonical NULL: `SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL`.
 
 **Mount in `app.py`**: After `guarded_api.include_router(pipeline_router)`:
 
