@@ -373,6 +373,27 @@ class TestUnifiedHistoryDetail:
         resp = unified_history_client.get("/api/pipeline/history/nonexistent")
         assert resp.status_code == 404
 
+    def test_detail_db_error_is_not_404(self, test_config, tmp_path: Path) -> None:
+        """An operational DB error surfaces as 500, NOT a bogus 404 (Finding F).
+
+        An un-migrated / broken DB (here: the ``pipeline_run`` table is absent)
+        must not masquerade every run as "not found" — the detail route
+        distinguishes a genuinely absent row (404) from a query failure (500).
+        """
+        broken_db = tmp_path / "broken.db"
+        conn = sqlite3.connect(str(broken_db))
+        conn.execute("CREATE TABLE unrelated (x INTEGER)")
+        conn.commit()
+        conn.close()
+
+        data_dir = tmp_path / ".data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        client = _make_client(test_config, broken_db, data_dir)
+
+        resp = client.get("/api/pipeline/history/any-run-uid")
+        assert resp.status_code != 404
+        assert resp.status_code == 500
+
 
 # ── Guards ────────────────────────────────────────────────────────────────────
 

@@ -453,7 +453,9 @@ def pipeline_history_detail(
         A ``RunDetail`` with step timings parsed from ``steps_json``.
 
     Raises:
-        HTTPException: 404 if no run with the given *run_uid* exists.
+        HTTPException: 404 if no run with the given *run_uid* exists; 500 if the
+            database read fails (un-migrated / locked DB) — a genuine operational
+            error must not masquerade as "run not found".
     """
     db_path = _db_path(request)
 
@@ -467,8 +469,12 @@ def pipeline_history_detail(
                 "FROM pipeline_run WHERE run_uid = ?",
                 (run_uid,),
             ).fetchone()
-    except sqlite3.OperationalError:
-        raise HTTPException(status_code=404, detail=f"Run '{run_uid}' not found")
+    except sqlite3.OperationalError as exc:
+        # A DB error (missing / un-migrated table, locked DB) is NOT "not
+        # found" — surface it as a 500 so a broken DB is never reported as a
+        # bogus 404 for every run (Finding F). Logged at ERROR.
+        logger.error("pipeline_history_detail_db_error", run_uid=run_uid, error=str(exc), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error reading run '{run_uid}'") from exc
 
     if row is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_uid}' not found")
