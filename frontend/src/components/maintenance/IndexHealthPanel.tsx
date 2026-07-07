@@ -145,8 +145,7 @@ export function IndexHealthPanel(): ReactElement {
     });
 
   const nfo = data?.nfo;
-  const nfoCheck: CheckVerdict | null =
-    nfo != null ? nfoVerdict(nfo) : null;
+  const nfoCheck: CheckVerdict | null = nfo != null ? nfoVerdict(nfo) : null;
 
   const scanCheck: CheckVerdict = scanVerdict(
     data?.last_scan_status,
@@ -195,10 +194,7 @@ export function IndexHealthPanel(): ReactElement {
   /** Render a single check row with its StatusDot. */
   function renderCheck(v: CheckVerdict): ReactElement {
     return (
-      <div
-        key={v.label}
-        className="flex items-center justify-between gap-2"
-      >
+      <div key={v.label} className="flex items-center justify-between gap-2">
         <StatusDot status={v.status} label={v.label} />
         {v.detail != null && (
           <span className="text-xs text-muted-foreground">{v.detail}</span>
@@ -223,6 +219,19 @@ export function IndexHealthPanel(): ReactElement {
           <p className="text-sm text-muted-foreground">
             Erreur lors du chargement.
           </p>
+        )}
+
+        {!isLoading && !isError && data != null && data.degraded && (
+          <div
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            role="alert"
+          >
+            Lecture de l'index dégradée — les compteurs ci-dessous peuvent être
+            incomplets ou nuls.
+            {data.error != null && (
+              <span className="block text-muted-foreground">{data.error}</span>
+            )}
+          </div>
         )}
 
         {!isLoading && !isError && data != null && (

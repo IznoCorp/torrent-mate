@@ -354,7 +354,9 @@ export interface paths {
          *         A ``RunDetail`` with step timings parsed from ``steps_json``.
          *
          *     Raises:
-         *         HTTPException: 404 if no run with the given *run_uid* exists.
+         *         HTTPException: 404 if no run with the given *run_uid* exists; 500 if the
+         *             database read fails (un-migrated / locked DB) — a genuine operational
+         *             error must not masquerade as "run not found".
          */
         get: operations["pipeline_history_detail_api_pipeline_history__run_uid__get"];
         put?: never;
@@ -754,10 +756,13 @@ export interface components {
          *             (based on ``created_at``), or ``None`` when the outbox is empty.
          *         last_scan_id: Primary-key ``id`` of the most recent ``scan_run`` row,
          *             or ``None`` when no scan has ever been recorded.
-         *         last_scan_mode: Scan mode of the most recent scan (``"quick"``,
-         *             ``"full"``, ``"incremental"``, or ``"full-disk"``), or ``None``.
-         *         last_scan_status: Final status of the most recent scan
-         *             (``"done"``, ``"error"``, etc.), or ``None``.
+         *         last_scan_mode: Scan mode of the most recent scan — one of
+         *             ``"quick"``, ``"incremental"``, ``"enrich"``, ``"full"``,
+         *             ``"verify"``, ``"repair"`` (the ``scan_run.mode`` CHECK
+         *             constraint), or ``None``.
+         *         last_scan_status: Final status of the most recent scan — one of
+         *             ``"running"``, ``"ok"``, ``"failed"``, ``"aborted"`` (the
+         *             ``scan_run.status`` CHECK constraint), or ``None``.
          *         last_scan_started_at: ISO 8601 UTC timestamp of when the most recent
          *             scan started, or ``None``.
          *         last_scan_finished_at: ISO 8601 UTC timestamp of when the most
@@ -769,6 +774,12 @@ export interface components {
          *             ``deleted_at IS NOT NULL``).
          *         canonical_null: Count of ``media_item`` rows where
          *             ``canonical_provider IS NULL``.
+         *         degraded: ``True`` when the database file exists but a health query
+         *             failed (e.g. a missing / mis-migrated table). In that case the
+         *             counts are zeroed but this flag distinguishes a broken DB from a
+         *             genuinely empty library. Defaults to ``False``.
+         *         error: Optional error message describing the query failure when
+         *             ``degraded`` is ``True``; ``None`` otherwise.
          */
         IndexHealthResponse: {
             /**
@@ -776,6 +787,13 @@ export interface components {
              * @default 0
              */
             canonical_null: number;
+            /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
+            /** Error */
+            error?: string | null;
             /** Files */
             files: number;
             /** Items */

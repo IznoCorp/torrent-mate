@@ -231,12 +231,28 @@
         "type": "object"
       },
       "IndexHealthResponse": {
-        "description": "Aggregate health snapshot of the indexer database (``library.db``).\n\nAll fields are derived from a single read-only WAL query over the\ndatabase; no filesystem walk is performed.\n\nAttributes:\n    items: Total number of rows in ``media_item``.\n    movies: Number of media items with a movie category.\n    shows: Number of media items with a TV-show category.\n    files: Total number of rows in ``media_file``.\n    size_gb: Sum of ``media_file.size_bytes`` converted to gibibytes,\n        rounded to two decimals.\n    nfo: Aggregate NFO status counts (valid / invalid / missing).\n    repair_queue_pending: Number of ``repair_queue`` rows with\n        ``status = 'pending'``.\n    repair_queue_oldest_age_s: Age in seconds of the oldest pending\n        repair-queue entry (based on ``enqueued_at``), or ``None`` when\n        the queue is empty.\n    outbox_pending: Number of ``outbox`` rows awaiting processing, or 0\n        when the outbox table does not exist.\n    outbox_oldest_age_s: Age in seconds of the oldest outbox entry\n        (based on ``created_at``), or ``None`` when the outbox is empty.\n    last_scan_id: Primary-key ``id`` of the most recent ``scan_run`` row,\n        or ``None`` when no scan has ever been recorded.\n    last_scan_mode: Scan mode of the most recent scan (``\"quick\"``,\n        ``\"full\"``, ``\"incremental\"``, or ``\"full-disk\"``), or ``None``.\n    last_scan_status: Final status of the most recent scan\n        (``\"done\"``, ``\"error\"``, etc.), or ``None``.\n    last_scan_started_at: ISO 8601 UTC timestamp of when the most recent\n        scan started, or ``None``.\n    last_scan_finished_at: ISO 8601 UTC timestamp of when the most\n        recent scan finished, or ``None``.\n    last_scan_stuck: ``True`` when the most recent scan started more than\n        a configurable threshold ago and hasn't finished \u2014 typically\n        indicating a hung or killed scan process.\n    soft_deleted: Count of soft-deleted ``media_file`` rows (where\n        ``deleted_at IS NOT NULL``).\n    canonical_null: Count of ``media_item`` rows where\n        ``canonical_provider IS NULL``.",
+        "description": "Aggregate health snapshot of the indexer database (``library.db``).\n\nAll fields are derived from a single read-only WAL query over the\ndatabase; no filesystem walk is performed.\n\nAttributes:\n    items: Total number of rows in ``media_item``.\n    movies: Number of media items with a movie category.\n    shows: Number of media items with a TV-show category.\n    files: Total number of rows in ``media_file``.\n    size_gb: Sum of ``media_file.size_bytes`` converted to gibibytes,\n        rounded to two decimals.\n    nfo: Aggregate NFO status counts (valid / invalid / missing).\n    repair_queue_pending: Number of ``repair_queue`` rows with\n        ``status = 'pending'``.\n    repair_queue_oldest_age_s: Age in seconds of the oldest pending\n        repair-queue entry (based on ``enqueued_at``), or ``None`` when\n        the queue is empty.\n    outbox_pending: Number of ``outbox`` rows awaiting processing, or 0\n        when the outbox table does not exist.\n    outbox_oldest_age_s: Age in seconds of the oldest outbox entry\n        (based on ``created_at``), or ``None`` when the outbox is empty.\n    last_scan_id: Primary-key ``id`` of the most recent ``scan_run`` row,\n        or ``None`` when no scan has ever been recorded.\n    last_scan_mode: Scan mode of the most recent scan \u2014 one of\n        ``\"quick\"``, ``\"incremental\"``, ``\"enrich\"``, ``\"full\"``,\n        ``\"verify\"``, ``\"repair\"`` (the ``scan_run.mode`` CHECK\n        constraint), or ``None``.\n    last_scan_status: Final status of the most recent scan \u2014 one of\n        ``\"running\"``, ``\"ok\"``, ``\"failed\"``, ``\"aborted\"`` (the\n        ``scan_run.status`` CHECK constraint), or ``None``.\n    last_scan_started_at: ISO 8601 UTC timestamp of when the most recent\n        scan started, or ``None``.\n    last_scan_finished_at: ISO 8601 UTC timestamp of when the most\n        recent scan finished, or ``None``.\n    last_scan_stuck: ``True`` when the most recent scan started more than\n        a configurable threshold ago and hasn't finished \u2014 typically\n        indicating a hung or killed scan process.\n    soft_deleted: Count of soft-deleted ``media_file`` rows (where\n        ``deleted_at IS NOT NULL``).\n    canonical_null: Count of ``media_item`` rows where\n        ``canonical_provider IS NULL``.\n    degraded: ``True`` when the database file exists but a health query\n        failed (e.g. a missing / mis-migrated table). In that case the\n        counts are zeroed but this flag distinguishes a broken DB from a\n        genuinely empty library. Defaults to ``False``.\n    error: Optional error message describing the query failure when\n        ``degraded`` is ``True``; ``None`` otherwise.",
         "properties": {
           "canonical_null": {
             "default": 0,
             "title": "Canonical Null",
             "type": "integer"
+          },
+          "degraded": {
+            "default": false,
+            "title": "Degraded",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
           },
           "files": {
             "title": "Files",
@@ -1371,7 +1387,7 @@
     },
     "/api/pipeline/history/{run_uid}": {
       "get": {
-        "description": "Return the full detail for a single pipeline run.\n\nParses the ``steps_json`` column into per-step timing records.\n\nArgs:\n    run_uid: The unique run identifier.\n    request: The incoming FastAPI request.\n\nReturns:\n    A ``RunDetail`` with step timings parsed from ``steps_json``.\n\nRaises:\n    HTTPException: 404 if no run with the given *run_uid* exists.",
+        "description": "Return the full detail for a single pipeline run.\n\nParses the ``steps_json`` column into per-step timing records.\n\nArgs:\n    run_uid: The unique run identifier.\n    request: The incoming FastAPI request.\n\nReturns:\n    A ``RunDetail`` with step timings parsed from ``steps_json``.\n\nRaises:\n    HTTPException: 404 if no run with the given *run_uid* exists; 500 if the\n        database read fails (un-migrated / locked DB) \u2014 a genuine operational\n        error must not masquerade as \"run not found\".",
         "operationId": "pipeline_history_detail_api_pipeline_history__run_uid__get",
         "parameters": [
           {
