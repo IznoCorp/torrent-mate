@@ -514,3 +514,35 @@ class TestActionRun:
             assert call_args[0][1] == WRITE_ACTION_ID  # action_id
             assert call_args[0][2] == CANONICAL_BUDGET  # options_json
             assert call_args[0][3] is True  # dry_run
+
+    # ── Spawn env contract test ─────────────────────────────────────────────
+
+    def test_spawn_runner_sets_canonical_env(self) -> None:
+        """``_spawn_runner`` passes env with canonical options_json and matching dry_run.
+
+        Calls ``_spawn_runner`` directly with ``subprocess.Popen`` patched so we can
+        inspect the ``env`` dict that the child process receives.  Verifies:
+
+        * ``PERSONALSCRAPER_MAINT_OPTIONS_JSON`` is the exact canonical string.
+        * ``PERSONALSCRAPER_MAINT_DRY_RUN`` matches the ``dry_run`` argument.
+        """
+        from personalscraper.web.routes.maintenance import _spawn_runner
+
+        with patch("personalscraper.web.routes.maintenance.subprocess.Popen") as mock_popen:
+            _spawn_runner("abc123def456abc123def456ab", WRITE_ACTION_ID, CANONICAL_BUDGET, dry_run=False)
+
+        call_kwargs = mock_popen.call_args[1]
+        env = call_kwargs.get("env", {})
+        assert env["PERSONALSCRAPER_MAINT_OPTIONS_JSON"] == CANONICAL_BUDGET
+        assert env["PERSONALSCRAPER_MAINT_DRY_RUN"] == "0"
+        assert env["PERSONALSCRAPER_MAINT_COMMAND"] == WRITE_ACTION_ID
+        assert env["PERSONALSCRAPER_RUN_UID"] == "abc123def456abc123def456ab"
+
+        # Also verify the dry_run=True path.
+        with patch("personalscraper.web.routes.maintenance.subprocess.Popen") as mock_popen:
+            _spawn_runner("xyz9876543210xyz9876543210", DESTRUCTIVE_ACTION_ID, CANONICAL_CLEAN_EMPTY, dry_run=True)
+
+        call_kwargs = mock_popen.call_args[1]
+        env = call_kwargs.get("env", {})
+        assert env["PERSONALSCRAPER_MAINT_OPTIONS_JSON"] == CANONICAL_CLEAN_EMPTY
+        assert env["PERSONALSCRAPER_MAINT_DRY_RUN"] == "1"

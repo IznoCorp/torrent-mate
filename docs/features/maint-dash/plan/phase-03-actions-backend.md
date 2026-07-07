@@ -115,7 +115,13 @@ Lifecycle:
 
 **Files:**
 
-- Modify: `tests/unit/web/routes/test_maintenance_actions_run.py` (extend)
-- Create: `tests/unit/web/maintenance/test_runner_lifecycle.py`
+- Modify: `tests/web/test_maintenance_actions_run.py` (extend — 1 test: `_spawn_runner` env contract)
+- Create: `tests/unit/web/maintenance/test_runner_lifecycle.py` (4 tests)
 
-**Test cases**: (1) RO action spawns and completes without lock. (2) Write action acquires lock via CLI. (3) `output_tail` captured in completed row. (4) Canonical `options_json` round-trips (store → read → deserialize matches input). (5) Redis publish failure doesn't crash runner.
+**Test cases**:
+(1) Lifecycle success — real child exits 0, `pipeline_run` row has `kind='maintenance'`, canonical `options_json` round-trips, `outcome='success'`, `ended_at` set, `output_tail` captured, `pid` set.
+(2) ~~Write action acquires lock via CLI~~ **RE-SCOPED (2026-07-07):** Lock acquisition is each `library-*` CLI's own responsibility (covered by its own tests); the runner only passes through argv/env. The re-scoped assertion is: `_build_argv` returns `[sys.executable, "-m", "personalscraper", <command-id>, ...]` so the real CLI module is invoked and its lock semantics apply unchanged. This is already verified by the existing `test_base_argv_starts_with_executable_and_module` unit test in `test_runner.py` — no separate integration test needed.
+(3) `output_tail` captured in completed row (covered by lifecycle success + error tests).
+(4) Canonical `options_json` round-trips — `canonical_options_json(input) → row.options_json → json.loads == input`.
+(5) Redis publish failure doesn't crash runner (`test_lifecycle_redis_down` — fail-soft verified end-to-end with `ConnectionError` on every `xadd`).
+(6) `_spawn_runner` env contract — `PERSONALSCRAPER_MAINT_OPTIONS_JSON` is the canonical serialization (exact string), `PERSONALSCRAPER_MAINT_DRY_RUN` matches the body.
