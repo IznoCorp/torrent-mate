@@ -79,6 +79,7 @@ class PipelineRunWriter:
         kind: str = "pipeline",
         command: str | None = None,
         options_json: str | None = None,
+        if_absent: bool = False,
     ) -> None:
         """Insert a new row into ``pipeline_run`` with ``outcome="running"``.
 
@@ -95,14 +96,20 @@ class PipelineRunWriter:
                 pipeline runs).
             options_json: Canonical JSON of the action options (``None`` for
                 pipeline runs).
+            if_absent: When ``True`` use ``INSERT OR IGNORE`` so a row already
+                present (e.g. reserved synchronously by the maintenance POST
+                handler before the runner started) is not duplicated and the
+                ``run_uid`` UNIQUE constraint never raises. S2 callers keep the
+                default (plain ``INSERT``).
         """
         started_at = time.time()
         dry_run_int = 1 if dry_run else 0
+        verb = "INSERT OR IGNORE INTO" if if_absent else "INSERT INTO"
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
             conn.execute(
-                "INSERT INTO pipeline_run "
+                f"{verb} pipeline_run "
                 "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
                 "kind, command, options_json) "
                 "VALUES (?, ?, ?, ?, 'running', '[]', ?, ?, ?, ?)",
@@ -118,6 +125,40 @@ class PipelineRunWriter:
                 pid=pid,
                 kind=kind,
                 command=command,
+                exc_info=True,
+            )
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def update_pid(self, run_uid: str, pid: int) -> None:
+        """Set the ``pid`` column for an existing run row (idempotent).
+
+        Used by the maintenance flow to claim ownership of a row: the POST
+        handler reserves the row with a placeholder pid, then updates it to the
+        spawned runner's pid; the runner also refreshes it to its own pid at
+        startup. When the row is absent the ``UPDATE`` affects zero rows, which
+        is harmless. Fail-soft — never raises.
+
+        Args:
+            run_uid: Unique run identifier.
+            pid: OS process ID to store in the row.
+        """
+        try:
+            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            apply_pragmas(conn)
+            conn.execute(
+                "UPDATE pipeline_run SET pid = ? WHERE run_uid = ?",
+                (pid, run_uid),
+            )
+            conn.commit()
+        except Exception:
+            log.warning(
+                "pipeline_history.update_pid_failed",
+                run_uid=run_uid,
+                pid=pid,
                 exc_info=True,
             )
         finally:

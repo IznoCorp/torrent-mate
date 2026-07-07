@@ -262,6 +262,63 @@ class TestBuildArgv:
         assert "--dry-run" not in argv_false
         assert "--apply" not in argv_false
 
+    # ── Finding B — library-validate apply requires --fix ──────────────────
+
+    def test_library_validate_apply_emits_fix_and_apply(self) -> None:
+        """library-validate apply run emits BOTH --fix and --apply (Finding B).
+
+        The CLI enforces ``--apply requires --fix``; without --fix the apply
+        run exits 1, so a dashboard apply of library-validate always failed.
+        """
+        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+
+        action = _resolve_action("library-validate")
+        apply_argv = _build_argv(action, "{}", dry_run=False)
+        assert "--fix" in apply_argv
+        assert "--apply" in apply_argv
+
+    def test_library_validate_dry_run_emits_neither_flag(self) -> None:
+        """library-validate dry-run (the bare validation report) emits neither flag."""
+        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+
+        action = _resolve_action("library-validate")
+        dry_argv = _build_argv(action, "{}", dry_run=True)
+        assert "--fix" not in dry_argv
+        assert "--apply" not in dry_argv
+
+    def test_other_apply_command_does_not_get_fix(self) -> None:
+        """A non-validate apply-style command (library-clean) gets --apply but NOT --fix."""
+        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+
+        action = _resolve_action("library-clean")
+        apply_argv = _build_argv(action, "{}", dry_run=False)
+        assert "--apply" in apply_argv
+        assert "--fix" not in apply_argv
+
+    # ── Finding H — positional flag-injection hardening ────────────────────
+
+    def test_required_positional_placed_after_double_dash(self) -> None:
+        """A required value beginning with '-' is passed after ``--`` (Finding H).
+
+        The ``--`` sentinel prevents click from reparsing a positional value
+        like ``--config=/x`` as an option.
+        """
+        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+
+        action = _resolve_action("library-search")  # query is a required positional
+        argv = _build_argv(action, json.dumps({"query": "--config=/x"}), dry_run=False)
+        assert "--" in argv
+        assert "--config=/x" in argv
+        assert argv.index("--") < argv.index("--config=/x")
+
+    def test_no_double_dash_when_no_positionals(self) -> None:
+        """Commands without required positionals get no bare ``--`` sentinel."""
+        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+
+        action = _resolve_action("library-clean")  # no required positionals
+        argv = _build_argv(action, "{}", dry_run=True)
+        assert "--" not in argv
+
 
 # ---------------------------------------------------------------------------
 # Tests — ring buffer
@@ -560,3 +617,99 @@ class TestRunnerLifecycle:
         row = _select_row(db_path, self.RUN_UID)
         assert row["outcome"] == "error"
         assert "spawn failed" in row["error"]
+
+
+# ---------------------------------------------------------------------------
+# Tests — Finding A: the row is never left 'running' on failure / SIGTERM
+# ---------------------------------------------------------------------------
+
+
+class TestRunnerFinalizeGuards:
+    """Finding A — insert→stream→finalize is guarded; the row never stays 'running'."""
+
+    RUN_UID = "guard-uid-000111"
+    COMMAND = "library-gc"
+    OPTIONS_JSON = json.dumps({"older-than-days": 30}, sort_keys=True, separators=(",", ":"))
+
+    @pytest.fixture(autouse=True)
+    def _env_setup_teardown(self) -> None:
+        """Set mandatory env vars before each test and clean up after."""
+        _set_runner_env(self.RUN_UID, self.COMMAND, self.OPTIONS_JSON, dry_run=False)
+        yield
+        _clear_runner_env()
+
+    def test_stream_exception_finalizes_error_not_running(self, tmp_path: Path) -> None:
+        """An exception raised mid-stream finalizes the row 'error', never 'running'."""
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        mock_config = _make_mock_config(tmp_path)
+        db_path = mock_config.indexer.db_path
+        mock_proc = _fake_popen(["l1\n", "l2\n", "l3\n"], returncode=0)
+
+        original_append = runner_mod._RingBuffer.append
+        state = {"n": 0}
+
+        def boom(self: runner_mod._RingBuffer, line: str) -> None:
+            state["n"] += 1
+            if state["n"] == 2:
+                raise RuntimeError("mid-stream boom")
+            original_append(self, line)
+
+        with (
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch.object(runner_mod._RingBuffer, "append", boom),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            runner_mod.main()
+
+        assert exc_info.value.code == 1
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "error"
+        assert row["outcome"] != "running"
+        assert row["ended_at"] is not None
+
+    def test_sigterm_handler_registered_and_finalizes_killed(self, tmp_path: Path) -> None:
+        """The runner installs a SIGTERM handler that kills the child + finalizes 'killed'."""
+        import signal as _signal
+
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        mock_config = _make_mock_config(tmp_path)
+        db_path = mock_config.indexer.db_path
+        mock_proc = _fake_popen(["out\n"], returncode=0)
+
+        captured: dict[int, object] = {}
+
+        def fake_signal(sig: int, handler: object) -> None:
+            captured[sig] = handler
+
+        with (
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.web.maintenance.runner.signal.signal", fake_signal),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            runner_mod.main()
+
+        # main() completes normally, but the SIGTERM handler was registered.
+        assert exc_info.value.code == 0
+        assert _signal.SIGTERM in captured
+        handler = captured[_signal.SIGTERM]
+        assert callable(handler)
+
+        # Invoke the captured handler to simulate a SIGTERM delivery.
+        with (
+            patch("personalscraper.web.maintenance.runner.os._exit") as mock_exit,
+            patch("personalscraper.web.maintenance.runner._kill_child_group") as mock_kill,
+        ):
+            handler(_signal.SIGTERM, None)
+
+        mock_kill.assert_called_once()
+        mock_exit.assert_called_once_with(143)
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "killed"

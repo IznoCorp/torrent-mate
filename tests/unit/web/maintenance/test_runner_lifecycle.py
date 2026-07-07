@@ -233,6 +233,38 @@ class TestRunnerLifecycleIntegration:
         assert row["output_tail"] is not None
         assert "before crash" in row["output_tail"]
 
+    # ── Lifecycle: non-UTF-8 output (Finding A) ────────────────────────────
+
+    def test_lifecycle_non_utf8_output(self, tmp_path: Path) -> None:
+        """A non-UTF-8 byte in the child output does not crash the runner.
+
+        The library has NFD / NTFS-via-macFUSE filenames that produce non-UTF-8
+        bytes on stdout. ``errors='replace'`` decodes them to the replacement
+        char so the streaming loop never raises ``UnicodeDecodeError``; the row
+        finalizes with a real outcome (success), never left 'running'.
+        """
+        mock_config = _make_mock_config(tmp_path)
+        db_path = mock_config.indexer.db_path
+        child_code = r"import sys; sys.stdout.buffer.write(b'good\xff\xfebad\n'); sys.stdout.flush()"
+        argv = self._trivial_argv(child_code)
+
+        with (
+            patch("personalscraper.web.maintenance.runner._build_argv", return_value=argv),
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from personalscraper.web.maintenance.runner import main
+
+            main()
+
+        assert exc_info.value.code == 0
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] != "running"
+        assert row["outcome"] == "success"
+        assert row["output_tail"] is not None
+
     # ── Lifecycle: Redis down (fail-soft) ──────────────────────────────────
 
     def test_lifecycle_redis_down(self, tmp_path: Path) -> None:

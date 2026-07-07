@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 from collections import deque
+from types import FrameType
 from typing import Any
 
 from personalscraper.conf.loader import load_config
@@ -54,6 +56,12 @@ OUTCOME_SUCCESS = "success"
 
 #: Outcome string used for CLI non-zero exit.
 OUTCOME_ERROR = "error"
+
+#: Outcome string used when the runner is killed via SIGTERM.
+OUTCOME_KILLED = "killed"
+
+#: Exit code used after a SIGTERM-initiated shutdown (128 + SIGTERM).
+_SIGTERM_EXIT_CODE = 143
 
 # ---------------------------------------------------------------------------
 # Dry-run style table
@@ -195,8 +203,11 @@ def _build_argv(
 
     argv: list[str] = [sys.executable, "-m", "personalscraper", action.id]
 
-    # Positional (required) options first — registry convention: required ⇒
-    # positional argument (no --flag prefix).
+    # Collect positional (required) values — registry convention: required ⇒
+    # positional argument (no --flag prefix). They are appended LAST, after a
+    # ``--`` separator (Finding H), so a value that starts with ``-`` can never
+    # be reparsed as a flag by click.
+    positionals: list[str] = []
     for opt in action.options:
         if not opt.required:
             continue
@@ -208,7 +219,7 @@ def _build_argv(
                 option=opt.name,
             )
             sys.exit(2)
-        argv.append(str(value))
+        positionals.append(str(value))
 
     # Optional flags.
     for opt in action.options:
@@ -231,7 +242,17 @@ def _build_argv(
         if style == "flag" and dry_run:
             argv.append("--dry-run")
         elif style == "apply" and not dry_run:
+            # library-validate enforces ``--apply requires --fix`` (Finding B):
+            # an apply run must emit BOTH flags, otherwise the CLI exits 1. The
+            # bare (dry-run) invocation stays the validation report.
+            if action.id == "library-validate":
+                argv.append("--fix")
             argv.append("--apply")
+
+    # ── Positional separator (Finding H) ─────────────────────────────────
+    if positionals:
+        argv.append("--")
+        argv.extend(positionals)
 
     return argv
 
@@ -374,6 +395,33 @@ def _get_redis(web_config: Any) -> Any | None:
 
 
 # ---------------------------------------------------------------------------
+# Child process termination
+# ---------------------------------------------------------------------------
+
+
+def _kill_child_group(proc: subprocess.Popen[str]) -> None:
+    """Best-effort terminate the child's whole process group with ``SIGTERM``.
+
+    The CLI child is spawned with ``start_new_session=True`` so it is its own
+    process-group leader; killing the group also reaps any grandchildren (e.g.
+    a destructive ``--apply`` command that itself spawned helpers). A killed
+    runner must never orphan a live destructive child.
+
+    Args:
+        proc: The child :class:`subprocess.Popen` handle.
+    """
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except Exception:
+        # getpgid/killpg can fail (already-dead child, or a mocked pid in
+        # tests) — fall back to terminating the process directly.
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -383,10 +431,18 @@ def main() -> None:
 
     This is the single entry point invoked by
     ``python -m personalscraper.web.maintenance.runner``. It reads env vars,
-    writes the ``pipeline_run`` row, spawns the CLI subprocess, streams
+    ensures the ``pipeline_run`` row exists (the POST handler reserves it
+    first — see :func:`personalscraper.web.routes.maintenance.action_run`),
+    claims it with this process's pid, spawns the CLI subprocess, streams
     output to Redis and a ring buffer, then finalizes the row.
 
-    Exit codes: 0 on CLI success, 1 on CLI error, 2 on misconfiguration.
+    The insert→stream→finalize region is fully guarded: any exception (config
+    failure aside) finalizes the row with an outcome so it is **never** left
+    ``'running'`` (Finding A). A ``SIGTERM`` (sent by the web ``kill`` control)
+    terminates the child process group and finalizes the row ``'killed'``.
+
+    Exit codes: 0 on CLI success, 1 on CLI error, 2 on misconfiguration,
+    143 on SIGTERM.
     """
     # 1. Read env.
     run_uid, command, options_json, dry_run = _read_mandatory_env()
@@ -417,7 +473,12 @@ def main() -> None:
     # 4. Build CLI argv.
     argv = _build_argv(action, options_json, dry_run)
 
-    # 5. Insert pipeline_run row.
+    # 5. Ensure the pipeline_run row exists (idempotent) and claim its pid.
+    #    The POST handler reserves the row synchronously before spawning us, so
+    #    ``if_absent=True`` makes this a no-op in the normal flow while still
+    #    creating the row for a direct invocation. ``update_pid`` then claims
+    #    the row with this process's pid so a crashed runner leaves a dead-pid
+    #    (stale) row rather than a live-pid (blocking) one.
     writer = PipelineRunWriter(db_path)
     writer.insert(
         run_uid,
@@ -427,9 +488,29 @@ def main() -> None:
         kind="maintenance",
         command=command,
         options_json=options_json,
+        if_absent=True,
     )
+    writer.update_pid(run_uid, os.getpid())
 
-    # 6. Spawn subprocess.
+    # 6. Stream buffers + SIGTERM handler. The child is stored in a mutable
+    #    holder so the handler (installed before the spawn) can reach it.
+    ring = _RingBuffer()
+    child: dict[str, subprocess.Popen[str]] = {}
+
+    def _on_sigterm(_signum: int, _frame: FrameType | None) -> None:
+        """Terminate the child group and finalize the row ``'killed'``."""
+        proc_ref = child.get("proc")
+        if proc_ref is not None:
+            _kill_child_group(proc_ref)
+        writer.finalize(run_uid, OUTCOME_KILLED, output_tail=ring.to_str())
+        log.warning("maintenance_runner_killed", run_uid=run_uid, command=command)
+        # os._exit bypasses the streaming try/except below so the 'killed'
+        # outcome is not overwritten by an 'error' finalize.
+        os._exit(_SIGTERM_EXIT_CODE)
+
+    signal.signal(signal.SIGTERM, _on_sigterm)
+
+    # 7. Spawn subprocess.
     log.info(
         "maintenance_runner_starting",
         run_uid=run_uid,
@@ -444,9 +525,12 @@ def main() -> None:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            errors="replace",
             bufsize=1,
+            start_new_session=True,
         )
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
+        # OSError → exec failure; ValueError → embedded null byte in an arg.
         log.error(
             "maintenance_runner_spawn_failed",
             run_uid=run_uid,
@@ -456,22 +540,40 @@ def main() -> None:
         writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
         sys.exit(2)
 
-    # 7. Stream output — ring buffer + Redis.
-    ring = _RingBuffer()
+    child["proc"] = proc
+
+    # 8. Stream output — ring buffer + Redis. Any failure here finalizes the
+    #    row 'error' so it is never left 'running'.
     redis = _get_redis(web_config)
     stream_key = web_config.stream_key
     stream_maxlen = web_config.stream_maxlen
     seq = 0
 
-    assert proc.stdout is not None
-    for line in proc.stdout:
-        ring.append(line)
-        _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
-        seq += 1
+    try:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            ring.append(line)
+            _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
+            seq += 1
+        rc = proc.wait()
+    except Exception as exc:
+        _kill_child_group(proc)
+        output_tail = ring.to_str()
+        writer.finalize(
+            run_uid,
+            OUTCOME_ERROR,
+            error=str(exc) or type(exc).__name__,
+            output_tail=output_tail,
+        )
+        log.error(
+            "maintenance_runner_stream_failed",
+            run_uid=run_uid,
+            command=command,
+            exc_info=True,
+        )
+        sys.exit(1)
 
-    rc = proc.wait()
-
-    # 8. Finalize.
+    # 9. Finalize.
     output_tail = ring.to_str()
     if rc == 0:
         writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
