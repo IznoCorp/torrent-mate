@@ -253,35 +253,64 @@ describe("ActionForm — required validation", () => {
 });
 
 describe("ActionForm — destructive dry-run-first flow", () => {
-  it("verrouille Appliquer jusqu'à un dry-run réussi, re-verrouille à l'édition puis sur 428", async () => {
+  /** A destructive action with one string option, for the gate tests. */
+  function destructiveAction(): MaintenanceAction {
+    return makeAction({
+      risk: "destructive",
+      dry_run: "supported",
+      options: [
+        makeOption({
+          name: "target",
+          type: "str",
+          label: "Cible",
+          help: "chemin",
+        }),
+      ],
+    });
+  }
+
+  const apply = (): HTMLElement =>
+    screen.getByRole("button", { name: "Appliquer" });
+
+  it("laisse Appliquer verrouillé sur le 202 du dry-run (pas d'unlock au spawn)", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "dry-1" });
+    // The polled dry-run is still running — the gate must NOT unlock yet.
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({ run_uid: "dry-1", outcome: "running" }),
+    );
+
+    renderForm(destructiveAction());
+
+    expect(apply()).toBeDisabled();
+
+    // The 202 spawn is accepted (the output area appears) but Apply STAYS
+    // disabled: the unlock is gated on the polled outcome, not the 202.
+    fireEvent.click(screen.getByRole("button", { name: "Dry-run" }));
+    expect(await screen.findByText("Dry-run démarré")).toBeInTheDocument();
+    expect(apply()).toBeDisabled();
+  });
+
+  it("déverrouille Appliquer sur un dry-run POLLÉ à success, re-verrouille à l'édition puis sur 428", async () => {
     const run = await mockRun();
     run
       .mockResolvedValueOnce({ run_uid: "dry-1" })
       .mockResolvedValueOnce({ run_uid: "dry-2" })
       .mockRejectedValueOnce(new ApiError(428, "Lancez un dry-run récent."));
-
-    renderForm(
-      makeAction({
-        risk: "destructive",
-        dry_run: "supported",
-        options: [
-          makeOption({
-            name: "target",
-            type: "str",
-            label: "Cible",
-            help: "chemin",
-          }),
-        ],
-      }),
+    // The polled dry-run detail reaches outcome === "success" — this is what
+    // now unlocks Apply (a {run_uid} 202 alone no longer does).
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({ outcome: "success", ended_at: "2026-07-06T10:05:00Z" }),
     );
 
-    const apply = (): HTMLElement =>
-      screen.getByRole("button", { name: "Appliquer" });
+    renderForm(destructiveAction());
 
     // 1. Disabled initially.
     expect(apply()).toBeDisabled();
 
-    // 2. A successful dry-run enables it.
+    // 2. A dry-run whose POLLED detail reaches success enables it.
     fireEvent.click(screen.getByRole("button", { name: "Dry-run" }));
     await waitFor(() => {
       expect(apply()).not.toBeDisabled();
@@ -293,7 +322,7 @@ describe("ActionForm — destructive dry-run-first flow", () => {
     });
     expect(apply()).toBeDisabled();
 
-    // Re-run the dry-run for the new value to re-enable.
+    // Re-run the dry-run for the new value; its polled success re-enables.
     fireEvent.click(screen.getByRole("button", { name: "Dry-run" }));
     await waitFor(() => {
       expect(apply()).not.toBeDisabled();
@@ -303,6 +332,35 @@ describe("ActionForm — destructive dry-run-first flow", () => {
     fireEvent.click(apply());
     await waitFor(() => {
       expect(screen.getByText("Lancez un dry-run récent.")).toBeInTheDocument();
+    });
+    expect(apply()).toBeDisabled();
+  });
+
+  it("laisse Appliquer verrouillé si le dry-run POLLÉ échoue (error)", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "dry-err" });
+    // The launched dry-run ends in error — Apply must NOT unlock. Key
+    // regression: a failed dry-run must never leave the destructive Apply
+    // enabled (the pre-fix code unlocked on the 202 regardless of outcome).
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({
+        run_uid: "dry-err",
+        outcome: "error",
+        ended_at: "2026-07-06T10:05:00Z",
+      }),
+    );
+
+    renderForm(destructiveAction());
+
+    expect(apply()).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dry-run" }));
+    // The dry-run spawns (output area appears); its polled outcome is error, so
+    // the gate stays locked.
+    expect(await screen.findByText("Dry-run démarré")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(detail).toHaveBeenCalled();
     });
     expect(apply()).toBeDisabled();
   });

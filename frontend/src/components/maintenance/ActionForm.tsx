@@ -8,9 +8,11 @@
  * - ``ro`` actions run immediately (``dry_run: false``, no toggle).
  * - ``write`` actions expose a dry-run switch (default on) whose state drives the
  *   submit label.
- * - ``destructive`` actions require a successful dry-run for the *current*
- *   option values before the "Appliquer" button unlocks; editing any field (or a
- *   ``428`` from the backend) re-locks it.
+ * - ``destructive`` actions require the launched dry-run to actually reach
+ *   ``outcome === "success"`` — polled from run history, *not* merely the
+ *   ``202`` spawn — for the *current* option values before the "Appliquer"
+ *   button unlocks; editing any field, a failed/killed dry-run, or a ``428``
+ *   from the backend re-locks it.
  *
  * On a ``202`` the dialog stays open and renders {@link RunOutput}: a status
  * badge, the run ``run_uid``, the live {@link RunLogFeed} (streamed over the
@@ -19,7 +21,7 @@
  */
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 
 import {
   ApiError,
@@ -229,6 +231,13 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
   const [dryRunEnabled, setDryRunEnabled] = useState(true);
   // Canonical options string for which a dry-run succeeded (destructive gate).
   const [dryRunOkFor, setDryRunOkFor] = useState<string | null>(null);
+  // The dry-run being tracked for the destructive gate: its run_uid plus the
+  // canonical options captured at launch. Set on the dry-run's 202 (spawn), then
+  // polled — the gate only unlocks once this run reaches outcome === "success".
+  const [dryRunTracking, setDryRunTracking] = useState<{
+    runUid: string;
+    canonical: string;
+  } | null>(null);
   // The launched run's uid + mode after a successful 202.
   const [runResult, setRunResult] = useState<{
     runUid: string;
@@ -268,6 +277,36 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
 
   const canonical = JSON.stringify(buildOptions());
 
+  // Poll the tracked dry-run so the destructive gate reacts to its REAL outcome
+  // rather than the 202 spawn. Reuses the same ``["pipeline", "history", uid]``
+  // queryKey as RunOutput, so React Query dedupes to a single fetch while both
+  // observe the same run; the poll stops once the run reaches a terminal outcome.
+  const trackedUid = dryRunTracking?.runUid ?? null;
+  const { data: trackedDetail } = useQuery({
+    queryKey: ["pipeline", "history", trackedUid] as const,
+    queryFn: () => getPipelineRunDetail(trackedUid ?? ""),
+    enabled: trackedUid !== null,
+    refetchInterval: (query) =>
+      isTerminalOutcome(query.state.data?.outcome) ? false : RUN_DETAIL_POLL_MS,
+  });
+
+  // Drive the destructive gate off the POLLED dry-run outcome (not the 202):
+  // unlock only when the tracked dry-run reaches ``success`` AND its captured
+  // options still equal the current form values; re-lock when it ends in
+  // ``error``/``killed``. Editing a field re-locks via the ``applyDisabled``
+  // canonical comparison below; a backend ``428`` re-locks in ``onError``.
+  useEffect(() => {
+    if (dryRunTracking === null) return;
+    const outcome = trackedDetail?.outcome;
+    if (outcome === "success") {
+      if (dryRunTracking.canonical === canonical) {
+        setDryRunOkFor(dryRunTracking.canonical);
+      }
+    } else if (outcome === "error" || outcome === "killed") {
+      setDryRunOkFor(null);
+    }
+  }, [trackedDetail, dryRunTracking, canonical]);
+
   const mutation = useMutation<{ run_uid: string }, Error, RunVars>({
     mutationFn: (vars) =>
       runMaintenanceAction(action.id, {
@@ -277,15 +316,24 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
     onSuccess: (data, vars) => {
       setErrorDetail(null);
       setRunResult({ runUid: data.run_uid, dryRun: vars.dryRun });
+      // Destructive gate: record the launched dry-run so the poll above can
+      // track its real outcome. Do NOT unlock here — a 202 only means "spawn
+      // accepted", not "dry-run succeeded" (finding G). Re-lock until the poll
+      // observes ``success``.
       if (action.risk === "destructive" && vars.dryRun) {
-        setDryRunOkFor(vars.canonical);
+        setDryRunTracking({ runUid: data.run_uid, canonical: vars.canonical });
+        setDryRunOkFor(null);
       }
     },
     onError: (error) => {
       if (error instanceof ApiError) {
         setErrorDetail(error.detail);
-        // A 428 means the recent-dry-run precondition is not satisfied — re-lock.
-        if (error.status === 428) setDryRunOkFor(null);
+        // A 428 means the recent-dry-run precondition is not satisfied — re-lock
+        // and forget the tracked dry-run so the poll cannot re-unlock Apply.
+        if (error.status === 428) {
+          setDryRunOkFor(null);
+          setDryRunTracking(null);
+        }
       } else {
         setErrorDetail("Erreur inattendue.");
       }
