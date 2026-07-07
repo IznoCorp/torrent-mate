@@ -7,7 +7,7 @@
  * action catalog.
  */
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import {
   Card,
@@ -19,6 +19,8 @@ import {
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
+import { RunDetail } from "@/components/pipeline/RunDetail";
+import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 
 /**
  * Maintenance — the authenticated maintenance dashboard route (``/maintenance``).
@@ -31,6 +33,8 @@ import { LocksPanel } from "@/components/maintenance/LocksPanel";
  *   The maintenance page element.
  */
 export default function Maintenance(): ReactElement {
+  const [selectedRun, setSelectedRun] = useState<string | null>(null);
+
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Maintenance</h1>
@@ -42,21 +46,18 @@ export default function Maintenance(): ReactElement {
         <IndexHealthPanel />
       </div>
 
-      {/* Run-history panel (full-width below the monitoring grid) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Historique des exécutions</CardTitle>
-          <CardDescription>
-            Exécutions pipeline et maintenance — filtres et détail à venir (5.2)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Panneau d'historique — sera connecté au composant RunHistoryTable en
-            5.2 avec les filtres par type (pipeline / maintenance).
-          </p>
-        </CardContent>
-      </Card>
+      {/* Run-history panel (reuses S2 RunHistoryTable; kind filter chips → 5.2) */}
+      <RunHistoryTable onSelect={setSelectedRun} />
+
+      {/* Inline detail view when a history row is selected */}
+      {selectedRun !== null && (
+        <RunDetail
+          runUid={selectedRun}
+          onClose={() => {
+            setSelectedRun(null);
+          }}
+        />
+      )}
 
       {/* Actions placeholder (5.2: ActionCatalog + ActionForm) */}
       <Card>
