@@ -101,7 +101,7 @@ def test_migration_006_idempotent_on_fresh_db(tmp_path: Path) -> None:
 
     rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], f"Fresh DB, expected [1..11], got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], f"Fresh DB, expected [1..12], got {versions}"
 
     # Run apply_migrations a second time — must be a complete no-op.
     apply_migrations(conn, _MIGRATIONS_DIR)
