@@ -7,7 +7,7 @@
 **Version bump**: 0.41.0 → 0.42.0 (minor)
 **Branch**: feat/maint-dash
 **PR merge**: auto
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/228
 **Design**: docs/features/maint-dash/DESIGN.md
 **Master plan**: docs/features/maint-dash/plan/INDEX.md
 
