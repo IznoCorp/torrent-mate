@@ -178,22 +178,16 @@ def load_config_dir(config_dir: Path) -> Config:
     # ``init-config`` always places ``config/`` at the repo root, so
     # ``config_dir.parent`` is the project root by construction.
     #
-    # We expose the root through a module-level attribute on
-    # ``paths_model`` (saved + restored in finally) instead of pydantic's
-    # ``model_validate(context=...)`` because field_validators on nested
-    # sub-models (PathConfig, IndexerConfig.db_path) cannot reach the
-    # outer validation context cleanly. Validators in those models read
-    # the attribute at call time so this assignment is honoured (a
-    # ``from … import _PROJECT_ROOT`` would value-bind None and silently
-    # fall back to CWD — see indexer.py for the call-time lookup).
-    # Single-threaded CLI startup means no concurrent mutation is
-    # possible; if a future caller validates two configs in parallel,
-    # promote ``_PROJECT_ROOT`` to a ContextVar.
+    # The root is exposed as a ContextVar on ``paths_model`` so validators on
+    # nested sub-models (PathConfig, IndexerConfig.db_path) can reach it without
+    # threading ``context=`` through every field_validator.  ContextVar gives
+    # each thread/async task its own value, so parallel config validation (e.g.
+    # from the FastAPI threadpool) cannot cross-contaminate — the promotion
+    # anticipated by the original comment is now done.
     import personalscraper.conf.models.paths as paths_model
 
     project_root = config_dir.parent.resolve()
-    prev_root = paths_model._PROJECT_ROOT
-    paths_model._PROJECT_ROOT = project_root
+    token = paths_model._PROJECT_ROOT.set(project_root)
 
     # Validate through pydantic.
     try:
@@ -201,7 +195,7 @@ def load_config_dir(config_dir: Path) -> Config:
     except Exception as exc:
         raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
     finally:
-        paths_model._PROJECT_ROOT = prev_root
+        paths_model._PROJECT_ROOT.reset(token)
 
     # Emit non-blocking warnings.
     for warning in collect_warnings(config):
