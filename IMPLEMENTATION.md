@@ -15,7 +15,7 @@
 
 | #   | Phase                                       | File                          | Status |
 | --- | ------------------------------------------- | ----------------------------- | ------ |
-| 1   | Config validation seam + envfile extraction | phase-01-conf-seam.md         | [ ]    |
+| 1   | Config validation seam + envfile extraction | phase-01-conf-seam.md         | [x]    |
 | 2   | Backend config API routes                   | phase-02-backend-routes.md    | [ ]    |
 | 3   | Frontend SchemaForm + /config page          | phase-03-frontend-editor.md   | [ ]    |
 | 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [ ]    |
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start phase 1 (config validation seam + envfile extraction).
+Phase 2 — backend config API routes (phase-02-backend-routes.md).
