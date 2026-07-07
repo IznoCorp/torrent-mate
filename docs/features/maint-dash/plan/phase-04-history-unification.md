@@ -17,7 +17,7 @@
 **Files:**
 
 - Modify: `personalscraper/web/models/pipeline.py` (add fields to `RunSummary`, `RunDetail`)
-- Create: `tests/unit/web/models/test_pipeline_maintenance_models.py`
+- Create: `tests/web/test_pipeline_maintenance_models.py`
 
 **Changes to `RunSummary`**: add three fields:
 
