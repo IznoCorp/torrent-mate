@@ -39,6 +39,10 @@
 
 - Create: `frontend/src/components/maintenance/ActionCatalog.tsx`
 - Create: `frontend/src/components/maintenance/ActionForm.tsx`
+- Create: `frontend/src/components/ui/select.tsx` (shadcn wrapper) + add scoped `@radix-ui/react-select` dep
+- Modify: `frontend/src/api/client.ts` (add `getActions` + parameterized `runMaintenanceAction` helpers + type aliases)
+- Modify: `frontend/src/hooks/useMaintenanceKeys.ts` (add `actions` query key)
+- Modify: `frontend/src/pages/Maintenance.tsx` (replace the placeholder with `<ActionCatalog />`)
 
 **`ActionCatalog`**: `useQuery` on `GET /api/maintenance/actions` (refetchInterval: 0 — static). Groups actions by `category` with collapsible sections. Each action card shows: `title` (FR), `description` (FR), badges for `risk` (`ro`=grey, `write`=yellow, `destructive`=red) and `long_running` (clock icon). Click opens `ActionForm` in a `<Dialog>` (shadcn).
 
@@ -48,7 +52,8 @@
 - `int` → `<Input type="number">`
 - `bool` → `<Switch>` (existing DS component)
 - `enum` → `<Select>` with `enum_values` as options
-  Each field shows `label` (FR) + `help` tooltip.
+  Each field shows `label` (FR) + `help` rendered **inline** under the control
+  (no tooltip primitive is added — see the S3 dependency policy).
 
 **Dry-run UX** (for `dry_run='supported'` actions):
 
