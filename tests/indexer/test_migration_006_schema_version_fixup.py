@@ -78,10 +78,10 @@ def test_migration_006_backfills_row_3_when_missing(tmp_path: Path) -> None:
     # Phase 3 — verify backfill + new rows.
     rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], f"After 006-011, expected [1..11], got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], f"After 006-012, expected [1..12], got {versions}"
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 11, f"user_version must be 11, got {user_version}"
+    assert user_version == 12, f"user_version must be 12, got {user_version}"
 
     conn.close()
 

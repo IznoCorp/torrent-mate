@@ -107,15 +107,15 @@ def _user_version(conn: sqlite3.Connection) -> int:
 class TestApplyMigrations001:
     """apply_migrations applies all migrations to a fresh database correctly.
 
-    With migrations 001-011 present, the final schema version is 11.
+    With migrations 001-012 present, the final schema version is 12.
     """
 
     def test_user_version_matches_latest(self, tmp_path: Path) -> None:
-        """After applying every migration, PRAGMA user_version equals the latest version (11)."""
+        """After applying every migration, PRAGMA user_version equals the latest version (12)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 11
+        assert _user_version(conn) == 12
 
     def test_all_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all expected tables exist."""

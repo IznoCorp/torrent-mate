@@ -573,7 +573,7 @@ def test_migration_007_canonicalises_existing_titles(tmp_path: Path) -> None:
     assert row[0] == "Test", f"Expected canonicalised 'Test', got {row[0]!r}"
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 11
+    assert user_version == 12
 
     conn.close()
 
@@ -610,7 +610,7 @@ def test_migration_007_dedups_post_canonicalisation(tmp_path: Path) -> None:
     assert row[2] == 200  # date_modified merged to max
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 11
+    assert user_version == 12
 
     conn.close()
 
