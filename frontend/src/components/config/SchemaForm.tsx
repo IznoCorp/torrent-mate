@@ -131,8 +131,9 @@ function isRefPath(value: string): boolean {
  */
 function refName(ref: string): string | null {
   const parts = ref.split("/");
-  return parts.length === 4 && parts[0] === "#" && parts[1] === "$defs"
-    ? (parts[3] ?? null)
+  // "#/$defs/Name" → ["#", "$defs", "Name"]
+  return parts.length === 3 && parts[0] === "#" && parts[1] === "$defs"
+    ? (parts[2] ?? null)
     : null;
 }
 
@@ -803,9 +804,9 @@ function ObjectArrayField({
               <SchemaForm
                 schema={resolvedItems}
                 rootSchema={rootSchema}
-                values={isObject(item) ? item : {}}
+                values={{ [String(i)]: isObject(item) ? item : {} }}
                 onChange={(newItem) => {
-                  replaceAt(i, newItem);
+                  replaceAt(i, newItem[String(i)]);
                 }}
                 errors={errors}
                 readOnly={readOnly}
@@ -912,9 +913,9 @@ function AdditionalPropertiesField({
                 <SchemaForm
                   schema={addSchema}
                   rootSchema={rootSchema}
-                  values={isObject(v) ? v : {}}
+                  values={{ [k]: isObject(v) ? v : {} }}
                   onChange={(newV) => {
-                    setEntry(k, newV);
+                    setEntry(k, newV[k]);
                   }}
                   errors={errors}
                   readOnly={readOnly}
