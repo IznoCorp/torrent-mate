@@ -20,7 +20,7 @@
 | 3   | Actions Backend            | phase-03-actions-backend.md        | [x]    |
 | 4   | History Unification        | phase-04-history-unification.md    | [x]    |
 | 5   | Frontend                   | phase-05-frontend.md               | [x]    |
-| 6   | Deploy + Docs + ACCEPTANCE | phase-06-deploy-docs-acceptance.md | [ ]    |
+| 6   | Deploy + Docs + ACCEPTANCE | phase-06-deploy-docs-acceptance.md | [x]    |
 
 ## Review cycles
 
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 6 (Deploy + Docs + ACCEPTANCE) is next — run `/implement:phase`.
+All phases complete — run /implement:feature-pr (push + PR + CI). ACC-01..09 to be exercised on staging pre-merge (6.1 operational).
