@@ -13,11 +13,11 @@ Reference patterns: `personalscraper/web/routes/maintenance.py` (S3 route struct
 
 ## Sub-phases
 
-### 2.1 — Response models (`personalscraper/web/routes/config_models.py`)
+### 2.1 — Response models (`personalscraper/web/models/config.py`)
 
 **Files**:
 
-- Create: `personalscraper/web/routes/config_models.py`
+- Create: `personalscraper/web/models/config.py`
 
 **Models** (Pydantic v2, `extra="forbid"`):
 
