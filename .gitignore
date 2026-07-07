@@ -133,7 +133,9 @@ docs/pipeline-runs/
 .data/media_index.json
 
 # V15: personal config (paths + preferences, no secrets but gitignored for privacy)
-config/
+# Root-anchored: only the repo-root config/ dir — NOT nested dirs like
+# frontend/src/components/config/ (config-editor S4).
+/config/
 config.json5
 config.json5.v15.bak
 # TMDB keywords cache
