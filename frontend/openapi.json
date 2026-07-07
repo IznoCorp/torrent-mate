@@ -1,6 +1,176 @@
 {
   "components": {
     "schemas": {
+      "ActionOption": {
+        "description": "A single targeting option for a maintenance action.\n\nModels one CLI flag or positional argument. The ``type`` field drives\nthe form control rendered in the web UI (text input, number input,\ncheckbox, or dropdown). Enum values are the valid choices for a\n``select`` / dropdown control.\n\nAttributes:\n    name: CLI-facing name (flag name without leading dashes, or\n        positional arg name). Used as the JSON key in ``options_json``.\n    type: Form-control type \u2014 ``\"str\"`` for text, ``\"int\"`` for number,\n        ``\"bool\"`` for checkbox, ``\"enum\"`` for dropdown.\n    enum_values: Valid choices when ``type=\"enum\"``. ``None`` otherwise.\n    default: Default value matching the CLI default. ``None`` when the\n        CLI has no default (optional flags) or when the value is a\n        required positional.\n    required: ``True`` for mandatory positional arguments (e.g.\n        ``library-search``'s ``query``). ``False`` for optional flags.\n    label: French label for the web UI form field.\n    help: French help text / placeholder for the web UI form field.",
+        "properties": {
+          "default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "enum_values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enum Values"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "enum": [
+              "str",
+              "int",
+              "bool",
+              "enum"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "label",
+          "help"
+        ],
+        "title": "ActionOption",
+        "type": "object"
+      },
+      "ActionRunRequest": {
+        "description": "Request body for ``POST /api/maintenance/actions/{action_id}/run``.\n\nMirrors the S2 :class:`~personalscraper.web.models.pipeline.RunRequest`\npattern: a flat payload with optional options and a safety-default\n``dry_run``.\n\nAttributes:\n    options: Key-value pairs of CLI flags or arguments for the\n        maintenance action.  Each key is validated against the\n        action's registered :class:`ActionOption` entries in the\n        :data:`REGISTRY`.  Defaults to an empty dict.\n    dry_run: When ``True`` (the default), the action performs a dry\n        run without mutating the filesystem or database.  Only\n        meaningful when the action's ``dry_run`` capability is\n        ``\"supported\"``.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "options": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "title": "ActionRunRequest",
+        "type": "object"
+      },
+      "ActionsResponse": {
+        "description": "Top-level response for the maintenance actions catalog.\n\nServes the ``GET /api/maintenance/actions`` endpoint. Returns the full\nread-only :data:`REGISTRY` (25 entries across 6 categories) together\nwith per-category counts for the web UI grouping chips.\n\nAttributes:\n    actions: The full maintenance action registry (25 entries across\n        the query, scan, repair, clean, analyze, and fix categories).\n    category_counts: Count of actions per category for UI grouping chips\n        (e.g. ``{\"query\": 5, \"scan\": 4, \"repair\": 2, \"clean\": 2,\n        \"analyze\": 4, \"fix\": 8}``).",
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/MaintenanceAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "category_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Category Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "actions",
+          "category_counts"
+        ],
+        "title": "ActionsResponse",
+        "type": "object"
+      },
+      "DiskInfo": {
+        "description": "A single configured storage disk with its mount and capacity data.\n\nAttributes:\n    id: The disk identifier as declared in ``config/disks.json5``\n        (e.g. ``\"disk_1\"``, ``\"disk_2\"``).\n    label: Human-readable disk label configured by the operator.\n    mounted: ``True`` if the disk mount path currently exists and is\n        accessible on the filesystem.\n    free_gb: Free space in gibibytes, rounded to one decimal.\n    total_gb: Total capacity in gibibytes, derived from\n        ``shutil.disk_usage(path).total`` at query time.\n    used_pct: Percentage of capacity currently in use, rounded to one\n        decimal (``(1 - free_gb / total_gb) * 100``).",
+        "properties": {
+          "free_gb": {
+            "title": "Free Gb",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "mounted": {
+            "title": "Mounted",
+            "type": "boolean"
+          },
+          "total_gb": {
+            "title": "Total Gb",
+            "type": "number"
+          },
+          "used_pct": {
+            "title": "Used Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "mounted",
+          "free_gb",
+          "total_gb",
+          "used_pct"
+        ],
+        "title": "DiskInfo",
+        "type": "object"
+      },
+      "DisksResponse": {
+        "description": "Top-level response for the disks monitoring panel.\n\nAttributes:\n    disks: List of disk info entries, one per configured disk.",
+        "properties": {
+          "disks": {
+            "items": {
+              "$ref": "#/components/schemas/DiskInfo"
+            },
+            "title": "Disks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "disks"
+        ],
+        "title": "DisksResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -60,6 +230,217 @@
         "title": "HistoryResponse",
         "type": "object"
       },
+      "IndexHealthResponse": {
+        "description": "Aggregate health snapshot of the indexer database (``library.db``).\n\nAll fields are derived from a single read-only WAL query over the\ndatabase; no filesystem walk is performed.\n\nAttributes:\n    items: Total number of rows in ``media_item``.\n    movies: Number of media items with a movie category.\n    shows: Number of media items with a TV-show category.\n    files: Total number of rows in ``media_file``.\n    size_gb: Sum of ``media_file.size_bytes`` converted to gibibytes,\n        rounded to two decimals.\n    nfo: Aggregate NFO status counts (valid / invalid / missing).\n    repair_queue_pending: Number of ``repair_queue`` rows with\n        ``status = 'pending'``.\n    repair_queue_oldest_age_s: Age in seconds of the oldest pending\n        repair-queue entry (based on ``enqueued_at``), or ``None`` when\n        the queue is empty.\n    outbox_pending: Number of ``outbox`` rows awaiting processing, or 0\n        when the outbox table does not exist.\n    outbox_oldest_age_s: Age in seconds of the oldest outbox entry\n        (based on ``created_at``), or ``None`` when the outbox is empty.\n    last_scan_id: Primary-key ``id`` of the most recent ``scan_run`` row,\n        or ``None`` when no scan has ever been recorded.\n    last_scan_mode: Scan mode of the most recent scan (``\"quick\"``,\n        ``\"full\"``, ``\"incremental\"``, or ``\"full-disk\"``), or ``None``.\n    last_scan_status: Final status of the most recent scan\n        (``\"done\"``, ``\"error\"``, etc.), or ``None``.\n    last_scan_started_at: ISO 8601 UTC timestamp of when the most recent\n        scan started, or ``None``.\n    last_scan_finished_at: ISO 8601 UTC timestamp of when the most\n        recent scan finished, or ``None``.\n    last_scan_stuck: ``True`` when the most recent scan started more than\n        a configurable threshold ago and hasn't finished \u2014 typically\n        indicating a hung or killed scan process.\n    soft_deleted: Count of soft-deleted ``media_file`` rows (where\n        ``deleted_at IS NOT NULL``).\n    canonical_null: Count of ``media_item`` rows where\n        ``canonical_provider IS NULL``.",
+        "properties": {
+          "canonical_null": {
+            "default": 0,
+            "title": "Canonical Null",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "last_scan_finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scan Finished At"
+          },
+          "last_scan_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scan Id"
+          },
+          "last_scan_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scan Mode"
+          },
+          "last_scan_started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scan Started At"
+          },
+          "last_scan_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scan Status"
+          },
+          "last_scan_stuck": {
+            "default": false,
+            "title": "Last Scan Stuck",
+            "type": "boolean"
+          },
+          "movies": {
+            "title": "Movies",
+            "type": "integer"
+          },
+          "nfo": {
+            "$ref": "#/components/schemas/NfoStats"
+          },
+          "outbox_oldest_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbox Oldest Age S"
+          },
+          "outbox_pending": {
+            "title": "Outbox Pending",
+            "type": "integer"
+          },
+          "repair_queue_oldest_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repair Queue Oldest Age S"
+          },
+          "repair_queue_pending": {
+            "title": "Repair Queue Pending",
+            "type": "integer"
+          },
+          "shows": {
+            "title": "Shows",
+            "type": "integer"
+          },
+          "size_gb": {
+            "title": "Size Gb",
+            "type": "number"
+          },
+          "soft_deleted": {
+            "default": 0,
+            "title": "Soft Deleted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "movies",
+          "shows",
+          "files",
+          "size_gb",
+          "nfo",
+          "repair_queue_pending",
+          "outbox_pending"
+        ],
+        "title": "IndexHealthResponse",
+        "type": "object"
+      },
+      "LockState": {
+        "description": "State of a single filesystem lock file.\n\nAttributes:\n    held: ``True`` when the lock file exists on disk.\n    pid: The process ID read from the lock file, or ``None`` when the\n        lock is not held or the PID couldn't be parsed.\n    pid_alive: ``True`` when the PID reported in the lock file\n        corresponds to a live process (checked via ``os.kill(pid, 0)``).\n    stale: ``True`` when the lock file exists but the PID inside it is\n        no longer alive \u2014 the lock should be cleaned up.\n    age_s: Age of the lock file in seconds (``time.time() - mtime``),\n        or ``None`` when the lock is not held.",
+        "properties": {
+          "age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age S"
+          },
+          "held": {
+            "title": "Held",
+            "type": "boolean"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pid"
+          },
+          "pid_alive": {
+            "default": false,
+            "title": "Pid Alive",
+            "type": "boolean"
+          },
+          "stale": {
+            "default": false,
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "held"
+        ],
+        "title": "LockState",
+        "type": "object"
+      },
+      "LocksResponse": {
+        "description": "Top-level response for the locks and orphans monitoring panel.\n\nAttributes:\n    pipeline_lock: State of the main ``pipeline.lock`` file.\n    sentinels: State of the pause and watcher-paused sentinels.\n    tmp_orphans: List of temporary orphan files or directories found\n        during a bounded sweep (capped at 100 entries).",
+        "properties": {
+          "pipeline_lock": {
+            "$ref": "#/components/schemas/LockState"
+          },
+          "sentinels": {
+            "$ref": "#/components/schemas/Sentinels"
+          },
+          "tmp_orphans": {
+            "items": {
+              "$ref": "#/components/schemas/TmpOrphan"
+            },
+            "title": "Tmp Orphans",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pipeline_lock",
+          "sentinels",
+          "tmp_orphans"
+        ],
+        "title": "LocksResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "description": "Login request body.\n\nAttributes:\n    username: The username to authenticate.\n    password: The plaintext password to verify.",
         "properties": {
@@ -77,6 +458,99 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "MaintenanceAction": {
+        "description": "A single maintenance action backed by a ``library-*`` CLI command.\n\nEach entry in :data:`REGISTRY` maps 1:1 to a Typer-registered\n``library-*`` command. The web UI reads the registry to render the\naction panels and the ``POST /api/maintenance/run`` endpoint uses it\nto validate incoming requests and build the subprocess invocation.\n\nAttributes:\n    id: Kebab-case CLI command name (e.g. ``\"library-index\"``).\n    title: Short French label for the web UI action card / button.\n    description: One-line French description of what the command does.\n    category: UI grouping \u2014 ``\"query\"`` (read-only info), ``\"scan\"``\n        (indexer scans), ``\"repair\"`` (repair-queue based fixes),\n        ``\"clean\"`` (filesystem cleanup), ``\"analyze\"`` (insights),\n        ``\"fix\"`` (targeted DB/filesystem repairs).\n    risk: Write-impact classification \u2014 ``\"ro\"`` (read-only, safe to\n        run anytime), ``\"write\"`` (mutates DB or filesystem but is\n        reversible / non-destructive), ``\"destructive\"`` (deletes files,\n        drops rows, or truncates data \u2014 needs confirmation UI).\n    long_running: ``True`` when the command walks disks, makes network\n        calls, or processes the full library. The web UI uses this to\n        route execution through the S2 subprocess + lock path and show\n        a progress indicator.\n    dry_run: ``\"supported\"`` when the CLI exposes ``--dry-run`` or an\n        ``--apply`` flag whose absence means dry-run. ``\"unsupported\"``\n        otherwise. The web UI sends ``dry_run`` separately; this field\n        tells it whether to show the toggle.\n    options: Curated list of high-value targeting flags/arguments.\n        Plumbing flags (``--config``, ``--db``, ``--wait-for-lock``,\n        ``--confirm-bulk-change``, ``--list-checks``, ``--export``,\n        ``--backfill-streams``, ``--rebuild``, ``--no-enqueue``,\n        ``--interactive``, ``--read-only``, ``--enqueue-repairs``,\n        ``--clean-fk-orphans``, ``--purge-unrecoverable``,\n        ``--purge-release-orphans``, ``--from-index``, ``--fix``) are\n        excluded \u2014 the web layer handles them separately or they are\n        irrelevant outside a terminal.",
+        "properties": {
+          "category": {
+            "enum": [
+              "query",
+              "scan",
+              "repair",
+              "clean",
+              "analyze",
+              "fix"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "dry_run": {
+            "enum": [
+              "unsupported",
+              "supported"
+            ],
+            "title": "Dry Run",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "long_running": {
+            "title": "Long Running",
+            "type": "boolean"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ActionOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "risk": {
+            "enum": [
+              "ro",
+              "write",
+              "destructive"
+            ],
+            "title": "Risk",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "category",
+          "risk",
+          "long_running",
+          "dry_run",
+          "options"
+        ],
+        "title": "MaintenanceAction",
+        "type": "object"
+      },
+      "NfoStats": {
+        "description": "Aggregate NFO file status counts across the indexed library.\n\nAttributes:\n    valid: Number of media items with a valid NFO file.\n    invalid: Number of media items with a structurally invalid NFO file.\n    missing: Number of media items without any NFO file.",
+        "properties": {
+          "invalid": {
+            "title": "Invalid",
+            "type": "integer"
+          },
+          "missing": {
+            "title": "Missing",
+            "type": "integer"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "valid",
+          "invalid",
+          "missing"
+        ],
+        "title": "NfoStats",
         "type": "object"
       },
       "PipelineOutcome": {
@@ -102,8 +576,19 @@
         "type": "string"
       },
       "RunDetail": {
-        "description": "Full detail for a single pipeline run, including step timings.\n\nAttributes:\n    run_uid: Unique run identifier.\n    trigger: What triggered the run.\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None``.\n    outcome: Final outcome, or ``None``.\n    duration_s: Wall-clock duration in seconds, or ``None``.\n    steps: Per-step timing records parsed from ``steps_json``.\n    error: Error message if the run failed, or ``None``.",
+        "description": "Full detail for a single pipeline run, including step timings.\n\nAttributes:\n    run_uid: Unique run identifier.\n    trigger: What triggered the run.\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None``.\n    outcome: Final outcome, or ``None``.\n    duration_s: Wall-clock duration in seconds, or ``None``.\n    steps: Per-step timing records parsed from ``steps_json``.\n    error: Error message if the run failed, or ``None``.\n    kind: Run kind discriminator. ``\"pipeline\"`` for media pipeline runs,\n        ``\"maintenance\"`` for maintenance action runs.  Defaults to\n        ``\"pipeline\"``.\n    command: CLI command name for maintenance runs (e.g.\n        ``\"library-clean\"``), or ``None`` for pipeline runs.\n    options_json: JSON-serialized CLI options for maintenance runs, or\n        ``None`` for pipeline runs.\n    output_tail: Tail of the subprocess stdout/stderr for maintenance\n        runs (last ~2000 characters), or ``None`` for pipeline runs.",
         "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
           "dry_run": {
             "title": "Dry Run",
             "type": "boolean"
@@ -141,6 +626,22 @@
             ],
             "title": "Error"
           },
+          "kind": {
+            "default": "pipeline",
+            "title": "Kind",
+            "type": "string"
+          },
+          "options_json": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options Json"
+          },
           "outcome": {
             "anyOf": [
               {
@@ -150,6 +651,17 @@
                 "type": "null"
               }
             ]
+          },
+          "output_tail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tail"
           },
           "run_uid": {
             "title": "Run Uid",
@@ -194,8 +706,19 @@
         "type": "object"
       },
       "RunSummary": {
-        "description": "Summary row for the pipeline run-history list endpoint.\n\nAttributes:\n    run_uid: Unique run identifier (uuid4 hex).\n    trigger: What triggered the run (``\"cli\"``, ``\"web\"``, ``\"watcher\"``, etc.).\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None`` if still\n        running.\n    outcome: Final outcome, or ``None`` if still in progress.\n    duration_s: Wall-clock duration in seconds (``ended_at - started_at``),\n        or ``None`` if either timestamp is missing.",
+        "description": "Summary row for the pipeline run-history list endpoint.\n\nAttributes:\n    run_uid: Unique run identifier (uuid4 hex).\n    trigger: What triggered the run (``\"cli\"``, ``\"web\"``, ``\"watcher\"``, etc.).\n    dry_run: Whether this was a dry run.\n    started_at: ISO 8601 UTC timestamp of run start.\n    ended_at: ISO 8601 UTC timestamp of run end, or ``None`` if still\n        running.\n    outcome: Final outcome, or ``None`` if still in progress.\n    duration_s: Wall-clock duration in seconds (``ended_at - started_at``),\n        or ``None`` if either timestamp is missing.\n    kind: Run kind discriminator. ``\"pipeline\"`` for media pipeline runs\n        (ingest\u2192sort\u2192scrape\u2192dispatch), ``\"maintenance\"`` for maintenance\n        action runs (e.g. ``library-clean``).  Defaults to ``\"pipeline\"``.\n    command: CLI command name for maintenance runs (e.g.\n        ``\"library-clean\"``, ``\"library-rescrape\"``), or ``None`` for\n        pipeline runs.",
         "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
           "dry_run": {
             "title": "Dry Run",
             "type": "boolean"
@@ -221,6 +744,11 @@
               }
             ],
             "title": "Ended At"
+          },
+          "kind": {
+            "default": "pipeline",
+            "title": "Kind",
+            "type": "string"
           },
           "outcome": {
             "anyOf": [
@@ -252,6 +780,45 @@
           "started_at"
         ],
         "title": "RunSummary",
+        "type": "object"
+      },
+      "Sentinels": {
+        "description": "State of the pause and watcher-paused sentinel files.\n\nThese are not traditional locks \u2014 they signal the pipeline engine to\npause at the next step boundary or to disable the directory watcher.\n\nAttributes:\n    pause: ``True`` when ``data_dir/pipeline.pause`` exists.\n    pause_age_s: Age of the pause sentinel in seconds, or ``None`` when\n        it does not exist.\n    watcher_paused: ``True`` when ``data_dir/watcher.paused`` exists.\n    watcher_paused_age_s: Age of the watcher-paused sentinel in seconds,\n        or ``None`` when it does not exist.",
+        "properties": {
+          "pause": {
+            "default": false,
+            "title": "Pause",
+            "type": "boolean"
+          },
+          "pause_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Age S"
+          },
+          "watcher_paused": {
+            "default": false,
+            "title": "Watcher Paused",
+            "type": "boolean"
+          },
+          "watcher_paused_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watcher Paused Age S"
+          }
+        },
+        "title": "Sentinels",
         "type": "object"
       },
       "StatusResponse": {
@@ -360,6 +927,30 @@
           "status"
         ],
         "title": "StepTiming",
+        "type": "object"
+      },
+      "TmpOrphan": {
+        "description": "A single temporary orphan entry found during a bounded filesystem sweep.\n\nMatched by prefix (``_tmp_dispatch_*``, ``_tmp_ingest_*``) and reported\nup to a hard cap of 100 entries.\n\nAttributes:\n    path: Absolute or relative path to the orphan entry.\n    prefix: The matched prefix (``\"_tmp_dispatch_\"`` or\n        ``\"_tmp_ingest_\"``).\n    age_s: Age of the orphan entry in seconds (``time.time() - mtime``).",
+        "properties": {
+          "age_s": {
+            "title": "Age S",
+            "type": "number"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "prefix",
+          "age_s"
+        ],
+        "title": "TmpOrphan",
         "type": "object"
       },
       "ValidationError": {
@@ -565,9 +1156,148 @@
         ]
       }
     },
+    "/api/maintenance/actions": {
+      "get": {
+        "description": "Return the full maintenance action registry with category counts.\n\nThe registry is defined at module level in\n:mod:`personalscraper.web.maintenance.registry` and is read-only at\nruntime \u2014 no database or filesystem access is needed.\n\nReturns:\n    An :class:`ActionsResponse` with all 25 registered actions and\n    per-category counts for UI grouping chips.",
+        "operationId": "get_actions_api_maintenance_actions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Actions",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/actions/{action_id}/run": {
+      "post": {
+        "description": "Launch a maintenance action as a detached subprocess.\n\nMirror of ``POST /api/pipeline/run`` \u2014 validates the action id, options, and\npreconditions (pipeline lock, concurrent maintenance run, dry-run-first for\ndestructive actions), then spawns a runner subprocess and returns ``202``\nwith the ``run_uid``.\n\nArgs:\n    action_id: The kebab-case action id (e.g. ``\"library-index\"``).\n    body: The request payload with ``options`` and ``dry_run``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ActionRunResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: *action_id* is not in the :data:`REGISTRY`.\n    422: Invalid or missing options, or dry-run requested for an action\n        that does not support it.\n    409: The pipeline lock is held, or a maintenance action is already running.\n    428: A destructive action was requested without a recent successful\n        dry run (same options, within the last 30 minutes).",
+        "operationId": "action_run_api_maintenance_actions__action_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "title": "Action Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Action Run",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/disks": {
+      "get": {
+        "description": "Return mount status and capacity for every configured storage disk.\n\nIterates ``config.disks``, calling :func:`get_disk_status` for each.\nTotal capacity is derived from ``shutil.disk_usage`` at query time\n(DiskConfig does not carry a ``size_gb`` field).\n\nReturns:\n    A :class:`DisksResponse` with one entry per configured disk.",
+        "operationId": "get_disks_api_maintenance_disks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisksResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Disks",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/index-health": {
+      "get": {
+        "description": "Return an aggregate health snapshot of the indexer database.\n\nOpens a regular connection to ``library.db`` (mirroring the pipeline\nhistory route) and runs a single batch of lightweight aggregate\nqueries.  No filesystem walk is performed.  When the database file is\nmissing or unreadable, a zeroed response is returned (fail-soft, no\n500).\n\nQuery summary:\n\n* ``media_item`` total + movie/show breakdown (``kind`` column).\n* ``media_file`` count + ``size_bytes`` sum (non-deleted only).\n* NFO status breakdown (``valid`` / ``invalid`` / ``missing``).\n* ``repair_queue`` pending count + oldest ``enqueued_at`` age.\n* ``index_outbox`` pending count + oldest ``created_at`` age\n  (table-missing \u2192 0 / ``None``, fail-soft).\n* ``scan_run`` latest row with stuck detection (> 1 h running).\n* Soft-deleted ``media_file`` rows (``deleted_at IS NOT NULL``).\n* ``media_item`` rows with ``canonical_provider IS NULL``.\n\nReturns:\n    A :class:`IndexHealthResponse` with per-table counts, NFO stats,\n    queue backlogs, and the most recent scan run metadata.",
+        "operationId": "get_index_health_api_maintenance_index_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Index Health",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/locks": {
+      "get": {
+        "description": "Return pipeline lock state, sentinels, and bounded tmp-orphan sweep.\n\nReads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused``\nfrom the configured ``data_dir``, then performs a bounded filesystem\nsweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries\nacross staging and disk roots (capped at 100 entries, depth \u2264 2).\n\nReturns:\n    A :class:`LocksResponse` with lock, sentinel, and orphan data.",
+        "operationId": "get_locks_api_maintenance_locks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocksResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Locks",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
     "/api/pipeline/history": {
       "get": {
-        "description": "Return paginated pipeline run history.\n\nOpens a fresh read-only connection to the indexer database on every\nrequest.  The database uses WAL mode so concurrent reads are safe.\n\nArgs:\n    request: The incoming FastAPI request.\n    limit: Maximum number of runs to return (default 50).\n    offset: Number of runs to skip (default 0).\n    sort: Sort order \u2014 one of ``started_at``, ``-started_at``,\n        ``duration``, ``-duration`` (default ``-started_at``).\n\nReturns:\n    A ``HistoryResponse`` with the requested page of run summaries.\n\nRaises:\n    HTTPException: 400 if *sort* is not one of the allowed values.",
+        "description": "Return paginated pipeline run history.\n\nOpens a fresh read-only connection to the indexer database on every\nrequest.  The database uses WAL mode so concurrent reads are safe.\n\nArgs:\n    request: The incoming FastAPI request.\n    limit: Maximum number of runs to return (default 50).\n    offset: Number of runs to skip (default 0).\n    sort: Sort order \u2014 one of ``started_at``, ``-started_at``,\n        ``duration``, ``-duration`` (default ``-started_at``).\n    kind: Run kind filter \u2014 one of ``\"pipeline\"``, ``\"maintenance\"``,\n        or ``\"all\"`` (default ``\"all\"``).\n\nReturns:\n    A ``HistoryResponse`` with the requested page of run summaries.\n    ``total`` reflects the filtered count, not the full table.\n\nRaises:\n    HTTPException: 400 if *sort* or *kind* is not one of the\n        allowed values.",
         "operationId": "pipeline_history_api_pipeline_history_get",
         "parameters": [
           {
@@ -597,6 +1327,16 @@
             "schema": {
               "default": "-started_at",
               "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "title": "Kind",
               "type": "string"
             }
           }
