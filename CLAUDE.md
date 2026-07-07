@@ -227,7 +227,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                       | `docs/reference/<provider>-api.md`              |
 | Provider naming conventions — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry)          | `docs/archive/features/registry/DESIGN.md` §5.3 |
 | Insights layer — analytics, reporting, recommendations over the indexer DB                                          | `docs/reference/insights.md`                    |
-| Maintenance ops — disk cleaning + targeted re-scrape repairs                                                        | `docs/reference/maintenance.md`                 |
+| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner (S3 maint-dash)         | `docs/reference/maintenance.md`                 |
 | ffprobe stream extraction, codec/language → Kodi NFO mapping                                                        | `docs/reference/ffprobe-api.md`                 |
 | Config split layout, JSON5 overlay composition, per-file key ownership                                              | `docs/reference/config-overlay-layout.md`       |
 | Feature lifecycle — ACCEPTANCE format, phase-gate vs deployment, deferred-criterion protocol                        | `docs/reference/feature-lifecycle.md`           |

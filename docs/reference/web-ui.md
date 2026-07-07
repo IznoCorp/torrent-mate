@@ -439,16 +439,16 @@ authority — no parallel writer; the EventBus stays observe-only).
 
 ### REST endpoints (`/api/pipeline`)
 
-| Method | Path                | Guard         | Semantics                                                                                       |
-| ------ | ------------------- | ------------- | ----------------------------------------------------------------------------------------------- |
-| POST   | `/run`              | session + XRW | Spawn `personalscraper run --no-console --trigger-reason=web [--dry-run]` (detached). `409` if the lock is held. Returns `202 {run_uid}`. The `run_uid` is injected to the subprocess via `PERSONALSCRAPER_RUN_UID`, so it matches the run's history row. |
-| POST   | `/pause`            | session + XRW | Create the `pipeline.pause` sentinel. The engine pauses at the next step boundary.              |
-| POST   | `/resume`           | session + XRW | Remove the `pipeline.pause` sentinel.                                                            |
-| POST   | `/kill`             | session + XRW | SIGTERM the run pid (read from the lock file); clear the pause sentinel; the run finalizes its history row as `killed`. |
-| POST   | `/watcher`          | session + XRW | `{enabled}` — `false` writes the `watcher.paused` sentinel (the watch loop no-ops); `true` removes it. Distinct from pausing a running pipeline. |
-| GET    | `/status`           | session       | `{state, run_uid?, step?, paused, watcher_enabled, pid?}`. `state ∈ idle|running|paused` from the lock + sentinels + latest `pipeline_run` row. |
-| GET    | `/history`          | session       | `?limit&offset&sort` (`started_at`, `-started_at`, `duration`, `-duration`) → `{runs: RunSummary[], total}`. |
-| GET    | `/history/{run_uid}`| session       | One run with per-step timings → `RunDetail`; `404` if unknown.                                   |
+| Method | Path                 | Guard         | Semantics                                                                                                                                                                                                                                                 |
+| ------ | -------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/run`               | session + XRW | Spawn `personalscraper run --no-console --trigger-reason=web [--dry-run]` (detached). `409` if the lock is held. Returns `202 {run_uid}`. The `run_uid` is injected to the subprocess via `PERSONALSCRAPER_RUN_UID`, so it matches the run's history row. |
+| POST   | `/pause`             | session + XRW | Create the `pipeline.pause` sentinel. The engine pauses at the next step boundary.                                                                                                                                                                        |
+| POST   | `/resume`            | session + XRW | Remove the `pipeline.pause` sentinel.                                                                                                                                                                                                                     |
+| POST   | `/kill`              | session + XRW | SIGTERM the run pid (read from the lock file); clear the pause sentinel; the run finalizes its history row as `killed`.                                                                                                                                   |
+| POST   | `/watcher`           | session + XRW | `{enabled}` — `false` writes the `watcher.paused` sentinel (the watch loop no-ops); `true` removes it. Distinct from pausing a running pipeline.                                                                                                          |
+| GET    | `/status`            | session       | `{state, run_uid?, step?, paused, watcher_enabled, pid?}`. State: `idle`, `running`, or `paused` — derived from the lock file, sentinel files, and the latest `pipeline_run` row.                                                                         |
+| GET    | `/history`           | session       | `?limit&offset&sort` (`started_at`, `-started_at`, `duration`, `-duration`) → `{runs: RunSummary[], total}`.                                                                                                                                              |
+| GET    | `/history/{run_uid}` | session       | One run with per-step timings → `RunDetail`; `404` if unknown.                                                                                                                                                                                            |
 
 ### Pause mechanics — two distinct levers
 
@@ -458,25 +458,25 @@ authority — no parallel writer; the EventBus stays observe-only).
   an in-flight step is never interrupted by pause (only Kill stops mid-step).
   Emits `PipelinePaused` / `PipelineResumed` (relayed to the WS like all events).
 - **Pause watcher**: the `watcher.paused` sentinel stops the daemon from
-  *auto-starting* new runs. It does not touch a run already in progress.
+  _auto-starting_ new runs. It does not touch a run already in progress.
 
 ### Run-history store — `pipeline_run` table
 
 The indexer DB gains a `pipeline_run` table (migration `011`). Each run writes its
 own record (fail-soft — a history-write error never aborts the run):
 
-| Column        | Type      | Notes                                             |
-| ------------- | --------- | ------------------------------------------------- |
-| `id`          | INTEGER PK|                                                   |
-| `run_uid`     | TEXT UNIQUE| the run's `uuid4().hex`                           |
-| `trigger`     | TEXT      | `web` | `completion` | `safety_net` | `manual`         |
-| `dry_run`     | INTEGER   |                                                   |
-| `started_at`  | REAL      | epoch seconds                                     |
-| `ended_at`    | REAL NULL |                                                   |
-| `outcome`     | TEXT NULL | `success` \| `error` \| `killed` \| `running` \| `paused` |
-| `steps_json`  | TEXT      | per-step `{name, started_at, ended_at, status}`   |
-| `error`       | TEXT NULL |                                                   |
-| `pid`         | INTEGER NULL|                                                 |
+| Column       | Type         | Notes                                                     |
+| ------------ | ------------ | --------------------------------------------------------- |
+| `id`         | INTEGER PK   |                                                           |
+| `run_uid`    | TEXT UNIQUE  | the run's `uuid4().hex`                                   |
+| `trigger`    | TEXT         | `web`                                                     | `completion` | `safety_net` | `manual` |
+| `dry_run`    | INTEGER      |                                                           |
+| `started_at` | REAL         | epoch seconds                                             |
+| `ended_at`   | REAL NULL    |                                                           |
+| `outcome`    | TEXT NULL    | `success` \| `error` \| `killed` \| `running` \| `paused` |
+| `steps_json` | TEXT         | per-step `{name, started_at, ended_at, status}`           |
+| `error`      | TEXT NULL    |                                                           |
+| `pid`        | INTEGER NULL |                                                           |
 
 ### Frontend
 
@@ -485,3 +485,103 @@ own record (fail-soft — a history-write error never aborts the run):
 Watcher switch), the `PipelineStepper` (9 steps, live via the WS-fed
 `usePipelineStatus` hook), the `RunLogFeed` (S1 event stream scoped to the run),
 and the `RunHistoryTable` + `RunDetail` — all on the design system.
+
+## Maintenance dashboard (S3 — `maint-dash`)
+
+S3 exposes the ~20 `library-*` Typer CLI commands as a catalog of web-UI
+maintenance actions, backed by a registry-driven form generator and a detached
+subprocess runner. All read endpoints are `GET` with the standard session guard;
+the single write endpoint (`POST …/run`) additionally requires
+`X-Requested-With: TorrentMate`. Route contract: `docs/features/maint-dash/DESIGN.md` §4.
+
+### REST endpoints (`/api/maintenance`)
+
+| Method | Path                                       | Guard         | Notes                                                                                                                                                                                                                                                                                      |
+| ------ | ------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/maintenance/disks`                   | session       | `DisksResponse` — per-disk capacity, free space, mount state, category counts.                                                                                                                                                                                                             |
+| GET    | `/api/maintenance/locks`                   | session       | `LocksResponse` — pipeline lock status, in-flight maintenance run info.                                                                                                                                                                                                                    |
+| GET    | `/api/maintenance/index-health`            | session       | `IndexHealthResponse` — DB table sizes, `repair_queue` depth, scan-run staleness.                                                                                                                                                                                                          |
+| GET    | `/api/maintenance/actions`                 | session       | `ActionsResponse` — the full action catalog (25 entries) with `category_counts`.                                                                                                                                                                                                           |
+| POST   | `/api/maintenance/actions/{action_id}/run` | session + XRW | `202 {run_uid}`. Body: `{options: {...}, dry_run: bool}`. Errors: `404` unknown action, `422` invalid options, `409` pipeline lock held or another maintenance action running (pid-liveness via `os.kill`), `428` destructive apply without a fresh (<30 min) matching successful dry-run. |
+
+### Extended run-history — `?kind=` filter
+
+S2's `/api/pipeline/history` gains a `?kind=` query parameter:
+
+| Value           | Behavior                                              |
+| --------------- | ----------------------------------------------------- |
+| `pipeline`      | Returns only pipeline runs (`kind='pipeline'`).       |
+| `maintenance`   | Returns only maintenance runs (`kind='maintenance'`). |
+| `all` (default) | Returns both. Invalid values → `400`.                 |
+
+`GET /api/pipeline/history/{run_uid}` now also returns `kind`, `command`,
+`options_json`, and `output_tail`. The `RunSummary` and `RunDetail` Pydantic
+models gained `kind` + `command` (RunDetail also `options_json` + `output_tail`).
+
+**Unified store.** Migration `012` adds `kind` (`'pipeline' | 'maintenance'`,
+default `'pipeline'`), `command`, `options_json`, and `output_tail` columns to
+the `pipeline_run` table. Pipeline and maintenance runs share one table — the
+frontend `RunHistoryTable` on `/maintenance` filters via `?kind=maintenance`.
+
+### Action registry & runner
+
+**Registry** (`personalscraper/web/maintenance/registry.py`). `REGISTRY` holds 25
+`MaintenanceAction` entries — one per `library-*` Typer command. Each entry:
+
+| Field          | Type                                       | Notes                                                 |
+| -------------- | ------------------------------------------ | ----------------------------------------------------- |
+| `id`           | `str`                                      | Matches the CLI command name.                         |
+| `title`        | `str` (FR)                                 | Human-readable label.                                 |
+| `description`  | `str` (FR)                                 | One-line summary of what the action does.             |
+| `category`     | `query\|scan\|repair\|clean\|analyze\|fix` | Drives the grouped catalog UI.                        |
+| `risk`         | `ro\|write\|destructive`                   | Drives the risk badge and dry-run gating.             |
+| `long_running` | `bool`                                     | Shown in the UI before launch.                        |
+| `dry_run`      | `supported\|unsupported`                   | Whether the CLI accepts `--dry-run`.                  |
+| `options`      | `list[ActionOption]`                       | Curated, typed form fields generated by the frontend. |
+
+A test asserts `set(REGISTRY.keys()) == set(registered library-* commands)`, so
+the registry can never drift from the CLI surface.
+
+**Runner** (`personalscraper/web/maintenance/runner.py`). The POST handler spawns
+a detached subprocess:
+
+```
+python -m personalscraper.web.maintenance.runner
+```
+
+with environment variables `PERSONALSCRAPER_RUN_UID`,
+`PERSONALSCRAPER_MAINT_COMMAND`, `PERSONALSCRAPER_MAINT_OPTIONS_JSON` (canonical
+form), and `PERSONALSCRAPER_MAINT_DRY_RUN`. The runner:
+
+1. Inserts a `pipeline_run` row with `kind='maintenance'`.
+2. Runs the real `library-*` CLI as a child process.
+3. Streams each output line to the Redis stream as a `maintenance.run_log`
+   envelope (keyed by `run_uid` — relayed to the WebSocket with no protocol
+   change).
+4. Keeps a 64 KiB `output_tail` ring buffer.
+5. Finalizes the row (`success` / `error`) with `output_tail` persisted.
+
+**Dry-run-first UX.** Destructive/write actions require a successful dry-run before
+the Apply button unlocks. The backend enforces this with a `428` when the last
+matching dry-run is older than 30 minutes or absent. Editing any option
+re-locks Apply (the previous dry-run is invalidated). The runner has a
+per-command `_DRY_RUN_STYLE` table handling the two CLI conventions (`--dry-run`
+vs `--apply` absence = dry-run).
+
+### Frontend
+
+`/maintenance` (replaces the S1 `ComingSoon` stub) renders four panels:
+
+- **DisksPanel** — per-disk space gauges, mount state, category breakdown.
+- **LocksPanel** — pipeline lock status + in-flight maintenance run PID/uptime.
+- **IndexHealthPanel** — DB table sizes, repair-queue depth, last scan age.
+- **RunHistoryTable** — reused from S2, filtered to `?kind=maintenance` with
+  kind chips.
+
+Below the panels, the **ActionCatalog** groups actions by category with risk
+badges (`ro` / `write` / `destructive`). Selecting an action opens the
+**ActionForm** — fields are generated from the action's `options` list. The flow
+enforces dry-run-first: after a successful dry-run the Apply button unlocks;
+editing any option or receiving a backend `428` re-locks it. Once launched, the
+**RunOutput** panel shows the live log via the WS-fed `RunLogFeed` (reused from
+S2) with `output_tail` as the durable fallback from the history detail endpoint.

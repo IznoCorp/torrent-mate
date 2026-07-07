@@ -285,3 +285,98 @@ See `docs/reference/commands.md` for the full command catalog,
 `docs/reference/indexer.md` for the repair-queue / outbox layers, and
 `docs/reference/scraping.md` for the NFO/artwork/confidence components reused by
 the rescraper.
+
+---
+
+## Web-UI maintenance actions (S3)
+
+The TorrentMate web UI exposes all ~20 `library-*` CLI commands as a catalog of
+maintenance actions (`docs/reference/web-ui.md` § Maintenance dashboard (S3)).
+This section describes how they are wired — the registry, the runner, and the
+safety guarantees — from the backend perspective.
+
+### Registry — CLI → web-form mapping
+
+`personalscraper/web/maintenance/registry.py` holds a `REGISTRY` dict of 25
+`MaintenanceAction` entries, one per registered `library-*` Typer command. Each
+entry carries an `id` (matching the CLI name), a French `title` and
+`description`, a `category` (`query` / `scan` / `repair` / `clean` / `analyze` /
+`fix`), a `risk` level (`ro` / `write` / `destructive`), a `long_running` flag,
+a `dry_run` capability (`supported` / `unsupported`), and a curated `options`
+list of `ActionOption` typed fields (text, number, select, bool).
+
+The result is a **registry-driven form generator**: the frontend reads
+`GET /api/maintenance/actions` (which returns the full catalog + per-category
+counts) and renders one form per action purely from its `options` list, with no
+per-action frontend code needed. A test asserts that the set of registry keys
+equals the set of registered `library-*` commands, guaranteeing the catalog
+stays in sync with the CLI surface.
+
+### Runner — detached subprocess model
+
+When the operator submits an action form, `POST /api/maintenance/actions/{action_id}/run`
+spawns a **detached subprocess** that survives the web process restart:
+
+```
+python -m personalscraper.web.maintenance.runner
+```
+
+Environment variables carry the payload: `PERSONALSCRAPER_RUN_UID` (uuid4 hex),
+`PERSONALSCRAPER_MAINT_COMMAND` (the `library-*` command name),
+`PERSONALSCRAPER_MAINT_OPTIONS_JSON` (the canonical form of the submitted options),
+and `PERSONALSCRAPER_MAINT_DRY_RUN` (`"1"` or `"0"`).
+
+The runner lifecycle:
+
+1. **Inserts a `pipeline_run` row** with `kind='maintenance'`, `command`, and
+   `options_json` (this is the same table that S2's pipeline history uses —
+   migration `012` added the `kind`, `command`, `options_json`, and `output_tail`
+   columns).
+2. **Runs the real `library-*` CLI** as a child process (the same code path as
+   the terminal command, not a re-implementation).
+3. **Streams output** — each stdout/stderr line is pushed to the Redis stream as
+   a `maintenance.run_log` envelope keyed by `run_uid`. The existing S1
+   WebSocket relay forwards it to connected clients; no protocol change is
+   needed.
+4. **Keeps a 64 KiB `output_tail`** ring buffer.
+5. **Finalizes the row** — sets `ended_at`, `outcome` (`success` / `error`), and
+   `output_tail` (the last 64 KiB of output, persisted for durable access after
+   the WebSocket stream ends).
+
+The unified `pipeline_run` table means the frontend's `RunHistoryTable`
+(reused from S2 on the `/maintenance` page) filters by `?kind=maintenance`.
+`GET /api/pipeline/history?kind=pipeline|maintenance|all` and
+`GET /api/pipeline/history/{run_uid}` (now returning `kind`, `command`,
+`options_json`, `output_tail` in the detail view) serve both pipeline and
+maintenance history from the same endpoints.
+
+### Safety guarantees
+
+**Pipeline lock.** The POST handler acquires the same `pipeline.lock` as the
+Watcher and S2's `/api/pipeline/run`. A `409` is returned when the lock is held
+— no two writers can run concurrently, regardless of whether they are a pipeline
+run, a maintenance action, or a watcher-triggered run.
+
+**Single maintenance action.** Even when the pipeline lock is free, only one
+maintenance action may run at a time. The handler checks for an in-flight
+maintenance run by reading the latest `pipeline_run` row with
+`kind='maintenance'` and `outcome='running'`, then verifying its PID is still
+alive via `os.kill(pid, 0)`. A second concurrent action returns `409`.
+
+**Dry-run-first for destructive actions.** Actions with `risk='destructive'`
+(or, more broadly, those whose `dry_run` is `'supported'` and are being
+submitted with `dry_run: false`) require a **matching successful dry-run** (same
+`action_id` and `options_json`, `outcome='success'`, `dry_run=1`) no older than
+30 minutes. Absent or stale → `428 Precondition Required`. The frontend
+enforces this synchronously: the Apply button is disabled until a matching
+dry-run completes, and any edit to the form options re-locks it.
+
+**CLI convention bridging.** Some `library-*` commands expose `--dry-run`,
+others use `--apply` (where absence = dry-run). The runner's per-command
+`_DRY_RUN_STYLE` table encodes the convention so the subprocess is invoked
+correctly regardless.
+
+These guarantees mean that the web UI is as safe as the terminal: every action
+can be previewed, destructive actions are gated on a verified preview, and the
+same lock that serialises Watcher-driven pipeline runs also serialises
+maintenance actions.
