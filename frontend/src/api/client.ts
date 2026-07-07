@@ -311,6 +311,7 @@ export interface HistoryParams {
   readonly limit?: number;
   readonly offset?: number;
   readonly sort?: string;
+  readonly kind?: string;
 }
 
 /**
@@ -332,6 +333,7 @@ export async function getPipelineHistory(
   if (params.limit !== undefined) sp.set("limit", String(params.limit));
   if (params.offset !== undefined) sp.set("offset", String(params.offset));
   if (params.sort !== undefined) sp.set("sort", params.sort);
+  if (params.kind !== undefined) sp.set("kind", params.kind);
   const qs = sp.toString();
   const url = `/api/pipeline/history${qs ? `?${qs}` : ""}`;
   const response = await fetch(url, { method: "GET", credentials: "include" });
@@ -379,6 +381,40 @@ export async function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
     throw new ApiError(response.status, detail);
   }
   return (await response.json()) as RunDetail;
+}
+
+// ---------------------------------------------------------------------------
+// Maintenance endpoints (S3 — maint-dash)
+// ---------------------------------------------------------------------------
+
+/** Response type for ``GET /api/maintenance/disks``. */
+export type DisksResponse = SuccessBody<
+  paths["/api/maintenance/disks"]["get"]["responses"]
+>;
+
+/** Response type for ``GET /api/maintenance/locks``. */
+export type LocksResponse = SuccessBody<
+  paths["/api/maintenance/locks"]["get"]["responses"]
+>;
+
+/** Response type for ``GET /api/maintenance/index-health``. */
+export type IndexHealthResponse = SuccessBody<
+  paths["/api/maintenance/index-health"]["get"]["responses"]
+>;
+
+/** Fetch disk mount status and capacity: GET /api/maintenance/disks. */
+export function getDisks(): Promise<DisksResponse> {
+  return apiFetch("/api/maintenance/disks", { method: "get" });
+}
+
+/** Fetch pipeline lock state, sentinels, and tmp-orphans: GET /api/maintenance/locks. */
+export function getLocks(): Promise<LocksResponse> {
+  return apiFetch("/api/maintenance/locks", { method: "get" });
+}
+
+/** Fetch aggregate index health snapshot: GET /api/maintenance/index-health. */
+export function getIndexHealth(): Promise<IndexHealthResponse> {
+  return apiFetch("/api/maintenance/index-health", { method: "get" });
 }
 
 // ---------------------------------------------------------------------------

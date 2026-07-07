@@ -24,6 +24,7 @@ import { RouterBridge } from "@/components/RouterBridge";
 import ComingSoon from "@/pages/ComingSoon";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
+import Maintenance from "@/pages/Maintenance";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
 
@@ -46,7 +47,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "maintenance",
-                element: <ComingSoon title="Maintenance" wave="S3" />,
+                element: <Maintenance />,
               },
               {
                 path: "config",
