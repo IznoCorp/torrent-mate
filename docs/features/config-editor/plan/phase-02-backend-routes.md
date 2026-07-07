@@ -127,8 +127,10 @@ class RestartResponse(BaseModel):
 **Files**:
 
 - Modify: `personalscraper/web/app.py` — `guarded_api.include_router(config_router)` after maintenance router
-- Create: `tests/unit/web/routes/test_config.py` — route tests with mocked config dir, tmp paths
-- Create: `tests/unit/web/routes/test_config_restart_impact.py` — architecture test
+- Modify: `personalscraper/web/routes/config.py` — `RESTART_IMPACT` map (created in sub-phase 2.2; §2.4 adds missing keys `config_version`/`cross_seed`/`process_clean`/`sort`/`watch` and removes stale `watch_seed`)
+- Create: `tests/web/test_config_routes_read.py` — read endpoint tests with standalone mini-app (sub-phase 2.2)
+- Create: `tests/web/test_config_routes_write.py` — write endpoint tests with standalone mini-app (sub-phase 2.3)
+- Create: `tests/web/test_config_restart_impact.py` — architecture test + auth guard tests using real `create_app` factory
 
 **Restart-impact static map** (in `config.py`):
 
@@ -136,13 +138,15 @@ class RestartResponse(BaseModel):
 RESTART_IMPACT: dict[str, bool] = {
     "web": True, "paths": True, "indexer": True,
     # All others → False ("effective next run"):
-    "disks": False, "categories": False, "custom_categories": False,
-    "category_rules": False, "anime_rule": False, "genre_mapping": False,
-    "staging_dirs": False, "library": False, "scraper": False,
-    "ingest": False, "fuzzy_match": False, "trailers": False,
-    "thresholds": False, "metadata": False, "providers": False,
-    "torrent": False, "tracker": False, "ranking": False,
-    "notify": False, "acquire": False, "watch_seed": False,
+    "acquire": False, "anime_rule": False, "categories": False,
+    "category_rules": False, "config_version": False, "cross_seed": False,
+    "custom_categories": False, "disks": False, "fuzzy_match": False,
+    "genre_mapping": False, "ingest": False, "library": False,
+    "metadata": False, "notify": False, "process_clean": False,
+    "providers": False, "ranking": False, "scraper": False,
+    "sort": False, "staging_dirs": False, "thresholds": False,
+    "torrent": False, "tracker": False, "trailers": False,
+    "watch": False,
 }
 ```
 
