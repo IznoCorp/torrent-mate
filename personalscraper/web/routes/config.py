@@ -1,13 +1,21 @@
-"""Config editor API read endpoints (config-editor feature).
+"""Config editor API read and write endpoints (config-editor feature).
 
-Four read-only GET endpoints under ``/api/config/*`` serving the visual
-config editor data contract defined in
-``docs/features/config-editor/plan/phase-02-backend-routes.md`` §2.2:
+Nine endpoints under ``/api/config/*`` serving the visual config editor
+data contract defined in
+``docs/features/config-editor/plan/phase-02-backend-routes.md`` §2.2–2.3:
 
+Read endpoints (sub-phase 2.2):
 - ``GET /schema`` → :class:`ConfigSchemaResponse`
 - ``GET /files`` → :class:`FilesResponse`
 - ``GET /files/{name}`` → :class:`FileContent`
 - ``GET /status`` → :class:`ConfigStatusResponse`
+
+Write endpoints (sub-phase 2.3):
+- ``POST /validate`` → :class:`ValidateResponse`
+- ``PUT /files/{name}`` → :class:`PutFileResponse`
+- ``GET /secrets`` → :class:`SecretsResponse`
+- ``PUT /secrets`` → :class:`PutFileResponse`
+- ``POST /restart-web`` → :class:`RestartResponse`
 
 All routes are guarded by ``require_session`` inherited from the parent
 ``guarded_api`` router (registration in app.py, sub-phase 2.4).  Auth
@@ -17,34 +25,54 @@ dependencies are NOT added here — they are wired at registration time
 **Config directory resolution**: The config directory is resolved at request
 time via :func:`personalscraper.conf.loader.resolve_config_path`, which reads
 the ``PERSONALSCRAPER_CONFIG`` environment variable (or falls back to
-``./config/``).  Storing the config dir on ``app.state`` at ``create_app``
-time is out of scope for this sub-phase; the env-var-driven resolution is
-deterministic per process.
+``./config/``).
 """
 
 from __future__ import annotations
 
+import contextlib
+import datetime
 import hashlib
 import os
+import shlex
+import subprocess
+import tempfile
+import threading
+from datetime import timezone
 from pathlib import Path
 from typing import cast
 
-from fastapi import APIRouter, HTTPException, Request
+import json5
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import ValidationError as PydanticValidationError
 
+from personalscraper.conf.envfile import read_env_catalog, write_env_keys
 from personalscraper.conf.loader import (
     _LOCAL_FILENAME,
     _MASTER_FILENAME,
+    ConfigLoadError,
+    ConfigValidationError,
     _load_json5_file,
     resolve_config_path,
+    validate_candidate,
 )
 from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
+from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.config import (
     ConfigSchemaResponse,
     ConfigStatusResponse,
     FileContent,
     FileInfo,
     FilesResponse,
+    PutFileRequest,
+    PutFileResponse,
+    RestartResponse,
+    SecretEntry,
+    SecretsPutRequest,
+    SecretsResponse,
+    ValidateRequest,
+    ValidateResponse,
 )
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -80,6 +108,11 @@ RESTART_IMPACT: dict[str, bool] = {
     "acquire": False,
     "watch_seed": False,
 }
+
+#: Module-level lock serializing config file writes.  Routes are sync
+#: handlers running in the threadpool, so ``threading.Lock`` (not
+#: ``asyncio.Lock``) is the correct primitive.
+_write_lock = threading.Lock()
 
 
 def restart_required_for(key: str) -> bool:
@@ -472,3 +505,345 @@ def get_status(request: Request) -> ConfigStatusResponse:
         restart_required=restart_required,
         stale_files=sorted(stale_files),
     )
+
+
+# ── Writable file names (write endpoints only) ─────────────────────────────
+
+
+def _writable_file_names(config_dir: Path) -> set[str]:
+    """Return the set of config file names that can be written to via PUT.
+
+    Only overlay files and ``local.json5`` are writable — ``config.json5``
+    (master) is read-only through the write endpoints.
+
+    Args:
+        config_dir: Absolute path to the config directory.
+
+    Returns:
+        Set of basenames that can be targeted by ``PUT /files/{name}``.
+    """
+    names: set[str] = {_LOCAL_FILENAME}
+    master_path = config_dir / _MASTER_FILENAME
+    if master_path.is_file():
+        master = _load_json5_file(master_path)
+        names.update(master.get("overlays", []))
+    return names
+
+
+# ── Shared staging guard ───────────────────────────────────────────────────
+
+
+def _is_staging() -> bool:
+    """Return ``True`` if the web process is in read-only staging mode.
+
+    Reads the ``PERSONALSCRAPER_WEB_ROLE`` environment variable, defaulting
+    to ``"prod"``.
+
+    Returns:
+        ``True`` when the role is ``"staging"``.
+    """
+    return os.environ.get("PERSONALSCRAPER_WEB_ROLE", "prod") == "staging"
+
+
+# ── POST /validate ─────────────────────────────────────────────────────────
+
+
+@router.post("/validate", response_model=ValidateResponse)
+def validate_file(
+    body: ValidateRequest,
+    request: Request,
+    _xrw: None = Depends(require_x_requested_with),
+) -> ValidateResponse:
+    """Validate a candidate config file without writing to disk.
+
+    Calls :func:`~personalscraper.conf.loader.validate_candidate` with a
+    single-file replacement.  On success returns warnings; on failure
+    returns 422 with Pydantic error loc paths.
+
+    Args:
+        body: The validation request with ``file_name`` and ``values``.
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`ValidateResponse` with any warnings from the validator.
+
+    Raises:
+        404: If *body.file_name* is not a known overlay or ``local.json5``.
+        422: If the candidate values fail Pydantic validation, with detail
+            carrying the error loc paths extracted from the underlying
+            :class:`pydantic.ValidationError`.
+    """
+    config_dir = _config_dir()
+
+    try:
+        _, warnings = validate_candidate(config_dir, {body.file_name: body.values})
+    except ConfigLoadError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown config file: {body.file_name!r}",
+        )
+    except ConfigValidationError as exc:
+        cause = exc.__cause__
+        if cause is not None and isinstance(cause, PydanticValidationError):
+            detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in cause.errors()]
+            raise HTTPException(status_code=422, detail=detail)
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    return ValidateResponse(warnings=warnings)
+
+
+# ── PUT /files/{name} ──────────────────────────────────────────────────────
+
+
+@router.put("/files/{name}", response_model=PutFileResponse)
+def put_file(
+    name: str,
+    body: PutFileRequest,
+    request: Request,
+    _xrw: None = Depends(require_x_requested_with),
+) -> PutFileResponse:
+    """Validate and atomically write a config overlay file.
+
+    Order:
+    1. Role check — 403 if staging (read-only).
+    2. Existence check — 404 if *name* is not a writable file
+       (overlays + local.json5; master is read-only through this endpoint).
+    3. SHA-256 precondition — 412 if *body.base_sha256* ≠ current
+       on-disk digest (empty string for a non-existent local.json5).
+    4. Validate candidate via
+       :func:`~personalscraper.conf.loader.validate_candidate` — 422
+       with Pydantic error loc paths on failure (no backup created).
+    5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to
+       10 most recent per file name.
+    6. Atomic write via temp file + ``os.replace`` + ``fsync``,
+       serialized with a module-level ``threading.Lock``.
+    7. Return 200 with warnings and restart-required flag.
+
+    Args:
+        name: Config file basename (e.g. ``"paths.json5"``).
+        body: Request payload with ``values`` and ``base_sha256``.
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`PutFileResponse` with warnings and restart_required flag.
+
+    Raises:
+        403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+        404: If *name* is not a writable config file.
+        412: If *body.base_sha256* does not match the current on-disk file
+            digest.
+        422: If the candidate values fail Pydantic validation.
+    """
+    if _is_staging():
+        raise HTTPException(status_code=403, detail="read-only")
+
+    config_dir = _config_dir()
+    writable_names = _writable_file_names(config_dir)
+    if name not in writable_names:
+        raise HTTPException(status_code=404, detail=f"Unknown config file: {name!r}")
+
+    file_path = config_dir / name
+
+    # ── SHA-256 precondition ──
+    if file_path.is_file():
+        current_sha256 = _sha256(file_path)
+    else:
+        # local.json5 may not exist yet — empty string matches empty base.
+        current_sha256 = ""
+
+    if body.base_sha256 != current_sha256:
+        raise HTTPException(status_code=412, detail="file modified since last read")
+
+    # ── Validate candidate (before any filesystem mutation) ──
+    try:
+        _, warnings = validate_candidate(config_dir, {name: body.values})
+    except ConfigLoadError:
+        raise HTTPException(status_code=404, detail=f"Unknown config file: {name!r}")
+    except ConfigValidationError as exc:
+        cause = exc.__cause__
+        if cause is not None and isinstance(cause, PydanticValidationError):
+            detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in cause.errors()]
+            raise HTTPException(status_code=422, detail=detail)
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    # ── Serialized write section ──
+    with _write_lock:
+        # Backup existing file.
+        if file_path.is_file():
+            backup_dir = config_dir / ".backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            # Microsecond granularity: second-level timestamps collide (and
+            # silently overwrite) when saves land within the same second.
+            ts = datetime.datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            backup_path = backup_dir / f"{name}.{ts}.json5"
+            backup_path.write_bytes(file_path.read_bytes())
+
+            # Prune to 10 most recent backups per file name.
+            backups = sorted(backup_dir.glob(f"{name}.*.json5"))
+            if len(backups) > 10:
+                for old in backups[:-10]:
+                    old.unlink()
+
+        # Atomic write with header comment.
+        header = (
+            f"// Written by TorrentMate config editor "
+            f"{datetime.datetime.now(timezone.utc).isoformat()} "
+            f"— hand-written comments are not preserved.\n"
+        )
+        content = header + json5.dumps(body.values, indent=2) + "\n"
+
+        fd, tmp_name = tempfile.mkstemp(dir=str(config_dir), prefix=f".{name}.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(content)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp_name, str(file_path))
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_name)
+            raise
+
+    # ── Compute restart_required ──
+    restart_required_flag = any(restart_required_for(k) for k in body.values)
+
+    return PutFileResponse(warnings=warnings, restart_required=restart_required_flag)
+
+
+# ── GET /secrets ───────────────────────────────────────────────────────────
+
+
+@router.get("/secrets", response_model=SecretsResponse)
+def get_secrets(request: Request) -> SecretsResponse:
+    """Return the secret key catalog with ``is_set`` flags.
+
+    Parses ``.env.example`` at the project root to enumerate known keys
+    and their descriptions, then checks ``.env`` for which keys currently
+    have a non-empty value.  Secret values are **never** included in the
+    response.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`SecretsResponse` with one :class:`SecretEntry` per key.
+    """
+    config_dir = _config_dir()
+    repo_root = config_dir.parent
+
+    env_example_path = repo_root / ".env.example"
+    if not env_example_path.is_file():
+        return SecretsResponse(secrets=[])
+
+    catalog = read_env_catalog(env_example_path)
+
+    # Parse .env for is_set flags — values are never read or returned.
+    env_path = repo_root / ".env"
+    env_set: set[str] = set()
+    if env_path.is_file():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "=" in stripped:
+                key, _, value = stripped.partition("=")
+                if value:
+                    env_set.add(key)
+
+    secrets = [SecretEntry(key=key, description=desc, is_set=key in env_set) for key, desc in catalog.items()]
+    return SecretsResponse(secrets=secrets)
+
+
+# ── PUT /secrets ───────────────────────────────────────────────────────────
+
+
+@router.put("/secrets", response_model=PutFileResponse)
+def put_secrets(
+    body: SecretsPutRequest,
+    request: Request,
+    _xrw: None = Depends(require_x_requested_with),
+) -> PutFileResponse:
+    """Write secret values to ``.env`` via atomic upsert.
+
+    Only keys declared in ``.env.example`` are accepted.  Secret values are
+    **never** logged.
+
+    Args:
+        body: Mapping of ``{KEY: value, ...}`` to upsert into ``.env``.
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`PutFileResponse` with ``restart_required=True``.
+
+    Raises:
+        403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+        422: If any key in *body* is not in the catalog.  Values are
+            **never** echoed in the error detail.
+    """
+    if _is_staging():
+        raise HTTPException(status_code=403, detail="read-only")
+
+    config_dir = _config_dir()
+    repo_root = config_dir.parent
+
+    env_example_path = repo_root / ".env.example"
+    if not env_example_path.is_file():
+        raise HTTPException(status_code=404, detail=".env.example not found")
+
+    catalog = read_env_catalog(env_example_path)
+
+    # Reject unknown keys — NEVER echo the value.
+    unknown_keys = sorted(set(body.root.keys()) - set(catalog.keys()))
+    if unknown_keys:
+        raise HTTPException(
+            status_code=422,
+            detail={"unknown_keys": unknown_keys},
+        )
+
+    env_path = repo_root / ".env"
+    logger.info("config_secrets_write", keys=sorted(body.root.keys()))
+    write_env_keys(body.root, env_path)
+
+    return PutFileResponse(warnings=[], restart_required=True)
+
+
+# ── POST /restart-web ──────────────────────────────────────────────────────
+
+
+@router.post("/restart-web", response_model=RestartResponse, status_code=202)
+def restart_web(
+    request: Request,
+    _xrw: None = Depends(require_x_requested_with),
+) -> RestartResponse:
+    """Schedule a PM2 restart of the web process.
+
+    The restart is handed off to a detached subprocess that sleeps 0.5 s
+    (so the 202 response flushes first), then runs ``pm2 restart`` on the
+    name configured in ``PERSONALSCRAPER_PM2_NAME``.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        202 with :class:`RestartResponse` ``{"status": "scheduled"}``.
+
+    Raises:
+        403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+        404: If ``PERSONALSCRAPER_PM2_NAME`` is not set in the environment.
+    """
+    if _is_staging():
+        raise HTTPException(status_code=403, detail="read-only")
+
+    pm2_name = os.environ.get("PERSONALSCRAPER_PM2_NAME")
+    if not pm2_name:
+        raise HTTPException(status_code=404, detail="restart not configured")
+
+    subprocess.Popen(
+        ["sh", "-c", f"sleep 0.5 && pm2 restart {shlex.quote(pm2_name)}"],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    logger.info("config_restart_scheduled", pm2_name=pm2_name)
+    return RestartResponse(status="scheduled")
