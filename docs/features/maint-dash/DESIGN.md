@@ -37,7 +37,7 @@ maintenance deck** for the library:
      outbox lag, last scan run, soft-deleted, canonical NULLs).
   4. **Run history** — the S2 history table, **unified**: pipeline runs _and_ maintenance action
      runs in one filterable list.
-- **Actions catalog** — ALL `library-*` CLI commands (24 at time of writing) exposed as web
+- **Actions catalog** — ALL `library-*` CLI commands (25 at time of writing) exposed as web
   actions through a **typed backend registry** (curated options per command — no free-form flags).
   Write/long-running actions spawn as detached subprocesses recorded in `pipeline_run`
   (`kind='maintenance'`), same rails as S2.
@@ -65,7 +65,7 @@ diagnosis (`library-doctor`, 10 checks).
      spawn     │              registry │ validate options              │ SELECT (WAL ro)
             ┌──▼───────────────────┐ ┌─▼──────────────────────────┐ ┌──▼──────────────────┐
             │ runner (python -m    │ │ web/maintenance/registry.py│ │ indexer DB           │
-            │ …maintenance.runner) │ │ 24 typed action entries    │ │ pipeline_run (+kind, │
+            │ …maintenance.runner) │ │ 25 typed action entries    │ │ pipeline_run (+kind, │
             │ row lifecycle + CLI  │ └────────────────────────────┘ │  command, options,   │
             │ subprocess + stdout  │                                │  output_tail) mig.012│
             │ → Redis stream       │                                └──────────────────────┘
@@ -92,7 +92,7 @@ equality reliable) — no extra hash column.
 
 A thin generic wrapper executed as `python -m personalscraper.web.maintenance.runner`, spawned
 detached by the POST handler (S2 spawn pattern: `subprocess.Popen(..., start_new_session=True)`,
-`PERSONALSCRAPER_RUN_UID` env). It owns the run row lifecycle so the 24 CLI commands stay
+`PERSONALSCRAPER_RUN_UID` env). It owns the run row lifecycle so the 25 CLI commands stay
 **untouched**:
 
 1. Insert `pipeline_run` row (`kind='maintenance'`, `command`, `options_json`, `dry_run`,
@@ -136,11 +136,11 @@ class MaintenanceAction(BaseModel):
 Initial classification (**to be re-verified command-by-command against the CLI signatures during
 phase 1** — the CLI is ground truth, the table below is the design intent):
 
-| risk                                                | commands                                                                                                                                                                                      |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ro`                                                | library-status, library-search, library-show, library-analyze, library-recommend, library-report, library-doctor, library-ghost-audit                                                         |
-| `write` (DB-state)                                  | library-index, library-scan, library-init-canonical, library-verify, library-repair, library-reconcile, library-relink, library-gc, library-fix-canonical-provider, library-fix-season-counts |
-| `destructive` (deletes/rewrites user files or rows) | library-clean, library-validate (apply), library-rescrape, library-fix-nfo, library-fix-orphan-files, library-dedup-titles                                                                    |
+| risk                                                | commands                                                                                                                                                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ro`                                                | library-status, library-search, library-show, library-analyze, library-recommend, library-report, library-doctor, library-ghost-audit                                                                               |
+| `write` (DB-state)                                  | library-index, library-scan, library-init-canonical, library-backfill-ids, library-verify, library-repair, library-reconcile, library-relink, library-gc, library-fix-canonical-provider, library-fix-season-counts |
+| `destructive` (deletes/rewrites user files or rows) | library-clean, library-validate (apply), library-rescrape, library-fix-nfo, library-fix-orphan-files, library-dedup-titles                                                                                          |
 
 Curated options per command = the high-value targeting flags only (`--disk`, `--category`,
 `--mode`, `--budget`, `--only`, `--scope`, `--limit`, query strings…) + the dry-run/apply toggle
@@ -197,7 +197,7 @@ without the lock**).
 
 ## 6. Testing
 
-- **Unit**: registry integrity (24 entries, ids unique, options well-formed — a test asserting the
+- **Unit**: registry integrity (25 entries, ids unique, options well-formed — a test asserting the
   registry covers exactly the CLI's registered `library-*` commands, so a future 25th command
   fails loudly); options validation; canonical `options_json` serialization; dry-run-first
   precondition query (fresh/stale/mismatched); lock rules; runner row lifecycle (mock subprocess).
@@ -242,7 +242,7 @@ without the lock**).
 - ACC-01 `curl … GET /api/maintenance/disks` → 200, `.disks[0].free_gb` numeric.
 - ACC-02 `curl … GET /api/maintenance/locks` → 200, `.pipeline_lock.held == false` (idle).
 - ACC-03 `curl … GET /api/maintenance/index-health` → 200, `.items > 0`.
-- ACC-04 `curl … GET /api/maintenance/actions | jq '.actions | length'` → 24.
+- ACC-04 `curl … GET /api/maintenance/actions | jq '.actions | length'` → 25.
 - ACC-05 `curl … POST /api/maintenance/actions/library-status/run` → 202 + history row
   `kind='maintenance'`, `command='library-status'`, outcome success.
 - ACC-06 destructive apply without prior dry-run → 428; after dry-run → 202.
