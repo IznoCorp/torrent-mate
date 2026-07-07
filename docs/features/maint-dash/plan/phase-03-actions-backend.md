@@ -48,7 +48,7 @@ class ActionRunRequest(BaseModel):
 1. Lookup `action_id` in `REGISTRY` → 404 if unknown.
 2. Validate `options` against `action.options` (unknown key → 422, missing required → 422, bad enum → 422, type mismatch → 422). Build canonical `options_json` via `canonical_options_json`.
 3. **Lock check** (write + destructive actions only): if `is_lock_held(data_dir / "pipeline.lock")` → 409. RO actions skip.
-4. **Single concurrent maintenance run check** (write/destructive): query `SELECT 1 FROM pipeline_run WHERE kind='maintenance' AND outcome='running'` → 409 if found.
+4. **Single concurrent maintenance run check** (write/destructive): query `SELECT run_uid, pid FROM pipeline_run WHERE kind='maintenance' AND outcome='running'`. For each row, check liveness via `os.kill(pid, 0)` (the same idiom as :func:`is_lock_held`). A row is **alive** iff `pid IS NOT NULL` AND `os.kill(pid, 0)` succeeds (`ProcessLookupError` → dead; `PermissionError` → alive, owned by another user). Any alive row → 409 `"A maintenance action is already running"`. Dead-or-NULL-pid rows are stale (crashed runner) → silently ignored (no mutation). This guard is **independent** of the pipeline-lock check — a maintenance action may be genuinely running without holding the pipeline lock (e.g. an RO long-running action, or a write CLI that doesn't take the lock).
 5. **428 dry-run-first** (destructive + `dry_run=false` only): query `SELECT 1 FROM pipeline_run WHERE kind='maintenance' AND command=? AND options_json=? AND dry_run=1 AND outcome='success' AND ended_at > ?` (30 min window). No row → 428 with detail saying which precondition failed.
 6. Spawn runner (3.3). Return `202 {"run_uid": "..."}`.
 

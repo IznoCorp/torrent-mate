@@ -67,24 +67,28 @@ def _create_library_db(db_path: Path) -> sqlite3.Connection:
         "  ended_at REAL,"
         "  outcome TEXT,"
         "  steps_json TEXT,"
-        "  error TEXT"
+        "  error TEXT,"
+        "  pid INTEGER"
         ")"
     )
     conn.commit()
     return conn
 
 
-def _seed_running_maintenance(conn: sqlite3.Connection) -> None:
+def _seed_running_maintenance(conn: sqlite3.Connection, *, pid: int | None = None) -> None:
     """Insert a running maintenance ``pipeline_run`` row into *conn*.
 
     Args:
         conn: An open connection to a database with the ``pipeline_run`` table.
+        pid: Optional PID to store in the row.  When ``None`` the column is
+            left NULL (simulating a pre-pid-migration row or a runner that
+            crashed before inserting its pid).
     """
     conn.execute(
         "INSERT INTO pipeline_run (run_uid, kind, command, trigger, dry_run, "
-        "  options_json, started_at, outcome) "
-        "VALUES (?, 'maintenance', ?, 'web', 0, '{}', ?, 'running')",
-        ("deadc0de1234", WRITE_ACTION_ID, float(NOW)),
+        "  options_json, started_at, outcome, pid) "
+        "VALUES (?, 'maintenance', ?, 'web', 0, '{}', ?, 'running', ?)",
+        ("deadc0de1234", WRITE_ACTION_ID, float(NOW), pid),
     )
     conn.commit()
 
@@ -199,20 +203,26 @@ class TestActionRun:
         assert resp.json()["detail"] == "Pipeline lock held"
 
     def test_running_maintenance_live_pid_returns_409(self, test_config, tmp_path: Path) -> None:
-        """409 — lock held AND a running maintenance row → maintenance detail.
+        """409 — a maintenance row with a LIVE pid blocks a second run.
 
-        The lock guard detects the running maintenance row in ``pipeline_run``
-        and returns the more specific ``"A maintenance action is already
-        running"`` detail instead of the generic ``"Pipeline lock held"``.
+        The concurrent-maintenance guard queries ``pipeline_run`` for rows with
+        ``kind='maintenance' AND outcome='running'`` and checks liveness via
+        ``os.kill(pid, 0)``.  A row with ``pid=os.getpid()`` (the test process
+        itself) is alive → 409 ``"A maintenance action is already running"``.
+
+        Unlike the pipeline-lock 409, this check fires even when
+        ``pipeline.lock`` is NOT held, because a maintenance action may be
+        genuinely running without holding the pipeline lock (e.g. a read-only
+        action, or a write CLI that doesn't take the lock).
         """
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
-        (data_dir / "pipeline.lock").write_text(str(os.getpid()))
+        # Do NOT create pipeline.lock — the pid-based guard is independent.
 
-        # Seed a DB with a running maintenance row.
+        # Seed a DB with a running maintenance row whose pid IS alive.
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
-        _seed_running_maintenance(conn)
+        _seed_running_maintenance(conn, pid=os.getpid())
         conn.close()
 
         client = _build_authenticated_client(
@@ -230,20 +240,50 @@ class TestActionRun:
         assert resp.json()["detail"] == "A maintenance action is already running"
 
     def test_running_maintenance_dead_pid_returns_202(self, test_config, tmp_path: Path) -> None:
-        """202 — running maintenance row but lock NOT held → stale row ignored.
+        """202 — running maintenance row with a DEAD pid → stale, ignored.
 
-        The lock guard treats any running maintenance row as stale when the
-        pipeline lock is not held by a live process (crashed runner).  The
-        new run is allowed through.
+        The concurrent-maintenance guard queries ``pipeline_run`` for rows with
+        ``kind='maintenance' AND outcome='running'``.  A row whose ``pid`` is
+        not NULL but ``os.kill(pid, 0)`` raises ``ProcessLookupError`` is stale
+        (crashed runner) — the guard logs it and allows the new run through.
+        We use ``pid=99999`` which is extremely unlikely to be a live process.
         """
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
-        # Do NOT create pipeline.lock — simulates a crashed runner that released
-        # its lock but didn't finalize its pipeline_run row.
+        # Do NOT create pipeline.lock.
 
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
-        _seed_running_maintenance(conn)
+        _seed_running_maintenance(conn, pid=99999)  # dead PID
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn:
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+            assert resp.status_code == 202
+            assert mock_spawn.called
+
+    def test_running_maintenance_null_pid_returns_202(self, test_config, tmp_path: Path) -> None:
+        """202 — running maintenance row with NULL pid → stale, ignored.
+
+        A row with ``pid IS NULL`` is treated as stale (pre-pid-migration or
+        runner crash before inserting its pid).  The new run is allowed through.
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_running_maintenance(conn, pid=None)  # NULL pid
         conn.close()
 
         client = _build_authenticated_client(

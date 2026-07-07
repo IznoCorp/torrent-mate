@@ -660,50 +660,72 @@ def action_run(
     options_json = canonical_options_json(body.options)
 
     # 3. Lock + concurrent maintenance guard (write / destructive only).
-    #    When the lock is held we check whether it belongs to a maintenance runner
-    #    (via the pipeline_run table) so we can return a more specific 409 detail.
-    #    When the lock is NOT held but a running maintenance row still exists, the
-    #    runner crashed without finalizing its row — treat as stale and allow the
-    #    new run through (os.kill(pid, 0) check is inside is_lock_held).
+    #    Two independent checks:
+    #    (a) pipeline.lock — if held by a live process → 409 "Pipeline lock held"
+    #        (unchanged semantics, uses is_lock_held which does its own os.kill).
+    #    (b) pipeline_run.pid — if ANY row with kind='maintenance' +
+    #        outcome='running' has a live pid (os.kill(pid, 0) succeeds) →
+    #        409 "A maintenance action is already running".  Rows with a dead
+    #        or NULL pid are stale (crashed runner / pre-pid migration) and are
+    #        silently ignored — we do NOT mutate them here.
+    #    The pid-based check is separate from the lock check because a
+    #    maintenance action may be genuinely running without holding the
+    #    pipeline lock (e.g. a read-only action, or a write CLI that doesn't
+    #    take the lock).
     if action.risk in ("write", "destructive"):
+        # (a) Pipeline lock.
         lock_held = is_lock_held(data_dir / "pipeline.lock")
         if lock_held:
-            db_path = _db_path(request)
-            is_maintenance = False
-            if db_path.exists():
-                try:
-                    with closing(sqlite3.connect(str(db_path))) as conn:
-                        _apply_pragmas(conn)
-                        row = conn.execute(
-                            "SELECT 1 FROM pipeline_run WHERE kind='maintenance' AND outcome='running' LIMIT 1"
-                        ).fetchone()
-                        if row is not None:
-                            is_maintenance = True
-                except sqlite3.OperationalError:
-                    logger.debug("lock_check_db_unavailable", path=str(db_path))
-            if is_maintenance:
-                raise HTTPException(
-                    status_code=409,
-                    detail="A maintenance action is already running",
-                )
             raise HTTPException(status_code=409, detail="Pipeline lock held")
 
-        # Lock not held — check for stale maintenance rows (crashed runner).
+        # (b) Concurrent maintenance runner — liveness via pipeline_run.pid.
         db_path = _db_path(request)
         if db_path.exists():
             try:
                 with closing(sqlite3.connect(str(db_path))) as conn:
                     _apply_pragmas(conn)
-                    row = conn.execute(
-                        "SELECT 1 FROM pipeline_run WHERE kind='maintenance' AND outcome='running' LIMIT 1"
-                    ).fetchone()
-                    if row is not None:
-                        logger.info(
-                            "maintenance_stale_row_ignored",
-                            action_id=action_id,
-                        )
+                    conn.row_factory = sqlite3.Row
+                    rows = conn.execute(
+                        "SELECT run_uid, pid FROM pipeline_run WHERE kind='maintenance' AND outcome='running'"
+                    ).fetchall()
+                    for row in rows:
+                        run_uid_db = row["run_uid"]
+                        pid_db = row["pid"]
+                        if pid_db is not None:
+                            try:
+                                os.kill(pid_db, 0)
+                                # Process is alive — a maintenance action is
+                                # genuinely running.
+                                raise HTTPException(
+                                    status_code=409,
+                                    detail="A maintenance action is already running",
+                                )
+                            except ProcessLookupError:
+                                # Dead process → stale row (crashed runner).
+                                logger.info(
+                                    "maintenance_stale_row_ignored",
+                                    run_uid=run_uid_db,
+                                    pid=pid_db,
+                                    action_id=action_id,
+                                )
+                            except PermissionError:
+                                # Process exists but owned by another user →
+                                # treat as alive.
+                                raise HTTPException(
+                                    status_code=409,
+                                    detail="A maintenance action is already running",
+                                )
+                        else:
+                            # NULL pid → stale row (pre-pid-migration or
+                            # runner crash before inserting its pid).
+                            logger.info(
+                                "maintenance_stale_row_ignored",
+                                run_uid=run_uid_db,
+                                pid=None,
+                                action_id=action_id,
+                            )
             except sqlite3.OperationalError:
-                logger.debug("stale_check_db_unavailable", path=str(db_path))
+                logger.debug("concurrent_check_db_unavailable", path=str(db_path))
 
     # 4. 428 dry-run-first guard — destructive actions only.
     if action.risk == "destructive" and not body.dry_run:
