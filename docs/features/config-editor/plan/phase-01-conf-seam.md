@@ -47,6 +47,7 @@ finally:
 **Files**:
 
 - Modify: `personalscraper/conf/loader.py` — new function + export in `__all__`
+- Create: `tests/conf/test_validate_candidate.py` — 11 tests (accept/reject/isolation/mutation)
 
 **Signature**:
 
