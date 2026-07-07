@@ -19,7 +19,7 @@
 | 2   | Panels Backend             | phase-02-panels-backend.md         | [x]    |
 | 3   | Actions Backend            | phase-03-actions-backend.md        | [x]    |
 | 4   | History Unification        | phase-04-history-unification.md    | [x]    |
-| 5   | Frontend                   | phase-05-frontend.md               | [ ]    |
+| 5   | Frontend                   | phase-05-frontend.md               | [x]    |
 | 6   | Deploy + Docs + ACCEPTANCE | phase-06-deploy-docs-acceptance.md | [ ]    |
 
 ## Review cycles
@@ -28,4 +28,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 5 (Frontend) is next — run `/implement:phase`.
+Phase 6 (Deploy + Docs + ACCEPTANCE) is next — run `/implement:phase`.
