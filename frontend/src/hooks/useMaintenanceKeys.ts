@@ -8,4 +8,5 @@ export const maintenanceKeys = {
   disks: ["maintenance", "disks"] as const,
   locks: ["maintenance", "locks"] as const,
   indexHealth: ["maintenance", "index-health"] as const,
+  actions: ["maintenance", "actions"] as const,
 };

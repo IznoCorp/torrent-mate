@@ -113,11 +113,14 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("affiche le placeholder « À venir » (vague S3) sur « /maintenance »", async () => {
+  it("monte la page Maintenance (vague S3) sur « /maintenance »", async () => {
     renderAt("/maintenance");
 
-    expect(await screen.findByText(/à venir/i)).toBeInTheDocument();
-    expect(screen.getByText("S3")).toBeInTheDocument();
+    // S3 replaced the ComingSoon placeholder with the real dashboard: assert
+    // the page heading (the h1, not the bottom-nav link) mounts.
+    expect(
+      await screen.findByRole("heading", { name: "Maintenance" }),
+    ).toBeInTheDocument();
   });
 
   it("marque l’onglet actif du bottom tab bar via aria-current", async () => {

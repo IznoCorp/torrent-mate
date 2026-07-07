@@ -8,7 +8,7 @@
  */
 
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import type { paths } from "./schema";
+import type { components, paths } from "./schema";
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -402,6 +402,20 @@ export type IndexHealthResponse = SuccessBody<
   paths["/api/maintenance/index-health"]["get"]["responses"]
 >;
 
+/** Response type for ``GET /api/maintenance/actions``. */
+export type ActionsResponse = SuccessBody<
+  paths["/api/maintenance/actions"]["get"]["responses"]
+>;
+
+/** A single maintenance action entry from the registry. */
+export type MaintenanceAction = components["schemas"]["MaintenanceAction"];
+
+/** A single targeting option for a maintenance action. */
+export type ActionOption = components["schemas"]["ActionOption"];
+
+/** Request body for ``POST /api/maintenance/actions/{action_id}/run``. */
+export type ActionRunRequest = components["schemas"]["ActionRunRequest"];
+
 /** Fetch disk mount status and capacity: GET /api/maintenance/disks. */
 export function getDisks(): Promise<DisksResponse> {
   return apiFetch("/api/maintenance/disks", { method: "get" });
@@ -415,6 +429,59 @@ export function getLocks(): Promise<LocksResponse> {
 /** Fetch aggregate index health snapshot: GET /api/maintenance/index-health. */
 export function getIndexHealth(): Promise<IndexHealthResponse> {
   return apiFetch("/api/maintenance/index-health", { method: "get" });
+}
+
+/** Fetch the static maintenance action registry: GET /api/maintenance/actions. */
+export function getActions(): Promise<ActionsResponse> {
+  return apiFetch("/api/maintenance/actions", { method: "get" });
+}
+
+/**
+ * Launch a maintenance action as a detached subprocess.
+ *
+ * Sends ``POST /api/maintenance/actions/{action_id}/run`` with the
+ * ``X-Requested-With`` header (mirroring the mutating pipeline endpoints) and
+ * ``credentials: "include"``. The ``action_id`` is a path parameter, so the URL
+ * is interpolated here rather than routed through {@link apiFetch} (which binds
+ * to literal ``paths`` keys); this mirrors {@link getPipelineRunDetail}.
+ *
+ * Args:
+ *   actionId: The kebab-case action id (e.g. ``"library-index"``).
+ *   body: The request payload with ``options`` and ``dry_run``.
+ *
+ * Returns:
+ *   The ``202`` body narrowed to ``{run_uid}`` (the schema models it as a bare
+ *   dict).
+ *
+ * Raises:
+ *   ApiError: 404 (unknown action), 409 (lock held / already running),
+ *     422 (invalid options), or 428 (destructive action without a recent
+ *     successful dry-run). The ``detail`` carries the backend message.
+ */
+export async function runMaintenanceAction(
+  actionId: string,
+  body: ActionRunRequest,
+): Promise<RunResponse> {
+  const response = await fetch(
+    `/api/maintenance/actions/${encodeURIComponent(actionId)}/run`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { ...PIPELINE_HEADERS, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const json = (await response.json()) as { detail?: string };
+      if (typeof json.detail === "string") detail = json.detail;
+    } catch {
+      // Body is not JSON or is empty — keep statusText.
+    }
+    throw new ApiError(response.status, detail);
+  }
+  return (await response.json()) as RunResponse;
 }
 
 // ---------------------------------------------------------------------------

@@ -3,19 +3,13 @@
  *
  * Replaces the former {@link ComingSoon} stub at ``/maintenance``. The page
  * renders a responsive grid of monitoring panels: disks, locks, index health,
- * and run history, plus an "Actions" placeholder slot reserved for the 5.2
- * action catalog.
+ * and run history, plus the {@link ActionCatalog} of maintenance commands with
+ * generated run forms.
  */
 
 import { useState, type ReactElement } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ActionCatalog } from "@/components/maintenance/ActionCatalog";
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
@@ -26,8 +20,8 @@ import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
  * Maintenance — the authenticated maintenance dashboard route (``/maintenance``).
  *
  * Lays out four monitoring panels in a responsive grid (1 col mobile, 2 tablet,
- * 4 desktop) plus a placeholder "Actions" section reserved for the 5.2 action
- * catalog and action-run form.
+ * 4 desktop) plus the {@link ActionCatalog} of maintenance commands with
+ * generated, dry-run-first run forms.
  *
  * Returns:
  *   The maintenance page element.
@@ -59,18 +53,8 @@ export default function Maintenance(): ReactElement {
         />
       )}
 
-      {/* Actions placeholder (5.2: ActionCatalog + ActionForm) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Actions</CardTitle>
-          <CardDescription>
-            Catalogue des commandes de maintenance
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">À venir — vague 5.2.</p>
-        </CardContent>
-      </Card>
+      {/* Action catalog + generated forms (5.2) */}
+      <ActionCatalog />
     </section>
   );
 }
