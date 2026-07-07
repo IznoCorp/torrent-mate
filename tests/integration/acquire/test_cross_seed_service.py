@@ -688,7 +688,11 @@ def _build_service(
         config=config,
         event_bus=event_bus,
         clock=clock if clock is not None else _time_module.monotonic,
-        sleep=sleep if sleep is not None else _time_module.sleep,
+        # Default to a no-op sleep so sweep tests that don't inject their own
+        # fake sleep don't burn real wall-clock on ``min_delay_between_searches_s``
+        # (two sweep tests were spending 60s + 30s of real time.sleep). Tests
+        # that assert sleep behaviour still pass an explicit ``sleep=`` capture.
+        sleep=sleep if sleep is not None else (lambda _s: None),
     )
 
 
