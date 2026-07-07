@@ -21,6 +21,17 @@ Usage inside ``Pipeline.run()``::
     writer.update_step(run_uid, "ingest", started_at, ended_at, "success")
     # ... at end ...
     writer.finalize(run_uid, "success")
+
+Maintenance actions (S3 maint-dash) supply ``kind``, ``command``,
+``options_json``, and ``output_tail`` — all defaulted so existing S2 callers
+are unaffected::
+
+    writer = PipelineRunWriter(db_path)
+    writer.insert(run_uid, trigger="web", dry_run=False, pid=os.getpid(),
+                  kind="maintenance", command="library-clean",
+                  options_json='{"only":"actors"}')
+    # ...
+    writer.finalize(run_uid, "success", output_tail="...[last 64 KiB]...")
 """
 
 from __future__ import annotations
@@ -59,14 +70,31 @@ class PipelineRunWriter:
     # Public API
     # ------------------------------------------------------------------
 
-    def insert(self, run_uid: str, trigger: str, dry_run: bool, pid: int) -> None:
+    def insert(
+        self,
+        run_uid: str,
+        trigger: str,
+        dry_run: bool,
+        pid: int,
+        kind: str = "pipeline",
+        command: str | None = None,
+        options_json: str | None = None,
+    ) -> None:
         """Insert a new row into ``pipeline_run`` with ``outcome="running"``.
+
+        The *kind*, *command*, and *options_json* parameters are additive
+        (migration 012) and defaulted so existing S2 callers are unchanged.
 
         Args:
             run_uid: Unique run identifier (UUID string).
             trigger: How the run was triggered (``'cli'``, ``'web'``, ``'cron'``).
             dry_run: ``True`` if this is a dry run.
             pid: OS process ID of the pipeline process.
+            kind: Run kind discriminator (``'pipeline'`` or ``'maintenance'``).
+            command: CLI command name for maintenance actions (``None`` for
+                pipeline runs).
+            options_json: Canonical JSON of the action options (``None`` for
+                pipeline runs).
         """
         started_at = time.time()
         dry_run_int = 1 if dry_run else 0
@@ -75,9 +103,10 @@ class PipelineRunWriter:
             apply_pragmas(conn)
             conn.execute(
                 "INSERT INTO pipeline_run "
-                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid) "
-                "VALUES (?, ?, ?, ?, 'running', '[]', ?)",
-                (run_uid, trigger, dry_run_int, started_at, pid),
+                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
+                "kind, command, options_json) "
+                "VALUES (?, ?, ?, ?, 'running', '[]', ?, ?, ?, ?)",
+                (run_uid, trigger, dry_run_int, started_at, pid, kind, command, options_json),
             )
             conn.commit()
         except Exception:
@@ -87,6 +116,8 @@ class PipelineRunWriter:
                 trigger=trigger,
                 dry_run=dry_run,
                 pid=pid,
+                kind=kind,
+                command=command,
                 exc_info=True,
             )
         finally:
@@ -170,21 +201,28 @@ class PipelineRunWriter:
         run_uid: str,
         outcome: str,
         error: str | None = None,
+        output_tail: str | None = None,
     ) -> None:
         """Finalize a pipeline run by setting ``ended_at`` and ``outcome``.
+
+        The *output_tail* parameter is additive (migration 012) and stores the
+        last 64 KiB of command output for maintenance actions.
 
         Args:
             run_uid: Unique run identifier.
             outcome: Final outcome (``'success'``, ``'error'``, or ``'killed'``).
             error: Optional error message when ``outcome`` is ``'error'``.
+            output_tail: Optional tail of the command output (last 64 KiB) for
+                maintenance actions.
         """
         ended_at = time.time()
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
             conn.execute(
-                "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ? WHERE run_uid = ?",
-                (ended_at, outcome, error, run_uid),
+                "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, "
+                "output_tail = ? WHERE run_uid = ?",
+                (ended_at, outcome, error, output_tail, run_uid),
             )
             conn.commit()
         except Exception:
