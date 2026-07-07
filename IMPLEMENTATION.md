@@ -7,7 +7,7 @@
 **Version bump**: 0.42.0 → 0.43.0 (minor)
 **Branch**: feat/config-editor
 **PR merge**: auto
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/230
 **Design**: docs/features/config-editor/DESIGN.md
 **Master plan**: docs/features/config-editor/plan/INDEX.md
 
