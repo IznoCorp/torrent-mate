@@ -1,5 +1,10 @@
 # Phase 03 — Frontend SchemaForm + /config Page
 
+> **Orchestrator re-ordering (2026-07-08)**: Sub-phase 3.3 (data-layer shard) was
+> built BEFORE 3.2 (Config page) because the page depends on these hooks. The
+> nav/router swap portion of 3.3 remains deferred — only the data layer (client
+> wrappers + hooks + tests) was shipped in this pass.
+
 ## Gate
 
 - [ ] Phase 02 merged — all 9 `/api/config/*` endpoints live, OpenAPI spec updated (Phase 4 regenerates it formally; this phase regenerates locally for typed client work)
