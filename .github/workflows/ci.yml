@@ -133,7 +133,10 @@ jobs:
       - env:
           TMDB_API_KEY: dummy
           TVDB_API_KEY: dummy
-        run: python -m pytest tests/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
+        # TEMP DIAGNOSTIC (config-editor): -v instead of -q to identify which
+        # tests are in flight when the runner receives its shutdown signal
+        # (5 consecutive kills at 91-94%). REVERT before merge.
+        run: python -m pytest tests/ -v --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
       # Rename to non-dotfile so upload-artifact@v4 picks it up
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
