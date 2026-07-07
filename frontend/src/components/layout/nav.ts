@@ -32,7 +32,7 @@ export interface NavItem {
   readonly icon: LucideIcon;
   /**
    * When `true` the entry is a non-interactive stub whose wave has not shipped
-   * yet (Registre → S6, Config → S4). It renders greyed and unclickable — never
+   * yet (Registre → S6). It renders greyed and unclickable — never
    * a `NavLink` — with its {@link wave} tag shown as a hint chip.
    */
   readonly disabled?: boolean;
@@ -54,7 +54,7 @@ export interface NavSection {
  * - **Supervision** — the live-supervision surfaces (dashboard + the pipeline,
  *   scraping and acquisition views).
  * - **Système** — operational maintenance.
- * - **Configuration** — Registre (S6) and Config (S4), both disabled stubs
+ * - **Configuration** — Registre (S6), a disabled stub
  *   until their wave ships.
  *
  * Every path here has a matching route in the router table (DESIGN §5.2): the
@@ -79,7 +79,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     title: "Configuration",
     items: [
       { to: "/registry", label: "Registre", icon: Plug, disabled: true, wave: "S6" },
-      { to: "/config", label: "Config", icon: Settings, disabled: true, wave: "S4" },
+      { to: "/config", label: "Config", icon: Settings },
     ],
   },
 ];

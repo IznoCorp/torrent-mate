@@ -34,16 +34,18 @@ describe("nav model", () => {
     expect(byTitle.Configuration).toEqual(["/registry", "/config"]);
   });
 
-  it("marque Registre (S6) et Config (S4) comme désactivés avec leur tag de vague", () => {
+  it("marque Registre (S6) comme désactivé avec son tag de vague", () => {
     const disabled = NAV_ITEMS.filter((item) => item.disabled);
     expect(disabled.map((item) => [item.to, item.wave])).toEqual([
       ["/registry", "S6"],
-      ["/config", "S4"],
     ]);
-    // Every other entry stays interactive.
+    // Config is now active (not disabled).
+    const configItem = NAV_ITEMS.find((item) => item.to === "/config");
+    expect(configItem?.disabled).toBeUndefined();
+    // Every other entry stays interactive (including /config now).
     expect(
       NAV_ITEMS.filter((item) => item.disabled !== true).map((item) => item.to),
-    ).toEqual(["/", "/pipeline", "/scraping", "/acquisition", "/maintenance"]);
+    ).toEqual(["/", "/pipeline", "/scraping", "/acquisition", "/maintenance", "/config"]);
   });
 
   it("dérive NAV_ITEMS de la projection à plat des sections", () => {
