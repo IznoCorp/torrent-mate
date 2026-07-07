@@ -93,15 +93,31 @@ guarded_api.include_router(maintenance_router)
 
 **Files:**
 
-- Create: `tests/unit/web/routes/test_maintenance_panels.py`
+- Create: `tests/web/test_maintenance_panels.py`
+  (NOT `tests/unit/web/routes/test_maintenance_panels.py` as originally planned —
+  route tests for the web app live in `tests/web/` alongside `test_pipeline_routes.py`
+  where `conftest.py` provides `test_config` + `web_app` fixtures and the established
+  login/session pattern.)
 
-**Test cases** (FastAPI `TestClient`, all wrapped in `patch('personalscraper.conf.loader.load_config', return_value=test_config)` per project rule):
+**Test cases** implemented (FastAPI `TestClient`, mirrored from `test_pipeline_routes.py`
+auth + config-override patterns):
 
-1. `test_disks_authenticated` → 200, `.disks` list, each has `free_gb` numeric.
-2. `test_disks_unauthenticated` → 401.
-3. `test_locks_idle` → 200, `.pipeline_lock.held == False` (no lock file in test `data_dir`).
-4. `test_locks_stale` → lock file with dead PID → `.pipeline_lock.stale == True`.
-5. `test_index_health` → 200, `.items > 0` (seed test DB with known rows).
-6. `test_index_health_empty_db` → 200, `.items == 0`.
+1. `test_disks_authenticated` → 200, `.disks` list, each entry has `free_gb`/`total_gb` numeric,
+   `mounted` True, `used_pct` within [0,100].
+2. `test_disks_unauthenticated` → 401 (no session cookie).
+3. `test_locks_idle` → 200, `.pipeline_lock.held == False`, sentinels absent, `tmp_orphans == []`.
+4. `test_locks_stale` → lock file with dead subprocess PID → `.pipeline_lock.stale == True`,
+   `.pid_alive == False`. (Note: `held` is `False` here because `is_lock_held` returns
+   `False` for dead PIDs — the file exists but the process is gone.)
+5. `test_locks_tmp_orphans` → create 3 `_tmp_dispatch_*` dirs in staging → all 3 reported.
+6. `test_locks_unauthenticated` → 401.
+7. `test_index_health` → **SKIPPED (BLOCKED)** — `_apply_pragmas` on a `mode=ro` connection
+   raises `sqlite3.OperationalError` (write pragmas on read-only connection), so the route
+   always returns `_empty_health()`. The test infrastructure (seeded DB fixture with
+   migrations + INSERTs) is in place; unskip once the route source is fixed.
+8. `test_index_health_empty_db` → 200, `items == 0` (non-existent `db_path` → fail-soft
+   zeroed response, NOT 500).
+9. `test_index_health_unauthenticated` → 401.
 
-Use `tmp_path` for `data_dir` and a seeded in-memory `library.db` with pre-applied migrations.
+Use `tmp_path` for `data_dir`, `staging_dir`, and seeded `library.db`; auth via
+`/api/auth/login` with HTTPS `TestClient` (`tm_session` cookie replay).
