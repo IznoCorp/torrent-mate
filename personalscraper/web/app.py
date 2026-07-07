@@ -120,6 +120,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     from personalscraper.web.routes.pipeline import router as pipeline_router
 
     guarded_api.include_router(pipeline_router)
+    from personalscraper.web.routes.maintenance import router as maintenance_router
+
+    guarded_api.include_router(maintenance_router)
     app.include_router(guarded_api)
 
     # Mount the built SPA static files with index.html fallback.

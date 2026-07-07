@@ -127,6 +127,12 @@ class RunSummary(BaseModel):
         outcome: Final outcome, or ``None`` if still in progress.
         duration_s: Wall-clock duration in seconds (``ended_at - started_at``),
             or ``None`` if either timestamp is missing.
+        kind: Run kind discriminator. ``"pipeline"`` for media pipeline runs
+            (ingest→sort→scrape→dispatch), ``"maintenance"`` for maintenance
+            action runs (e.g. ``library-clean``).  Defaults to ``"pipeline"``.
+        command: CLI command name for maintenance runs (e.g.
+            ``"library-clean"``, ``"library-rescrape"``), or ``None`` for
+            pipeline runs.
     """
 
     run_uid: str
@@ -136,6 +142,8 @@ class RunSummary(BaseModel):
     ended_at: str | None = None
     outcome: PipelineOutcome | None = None
     duration_s: float | None = None
+    kind: str = "pipeline"
+    command: str | None = None
 
 
 class StepTiming(BaseModel):
@@ -170,6 +178,15 @@ class RunDetail(BaseModel):
         duration_s: Wall-clock duration in seconds, or ``None``.
         steps: Per-step timing records parsed from ``steps_json``.
         error: Error message if the run failed, or ``None``.
+        kind: Run kind discriminator. ``"pipeline"`` for media pipeline runs,
+            ``"maintenance"`` for maintenance action runs.  Defaults to
+            ``"pipeline"``.
+        command: CLI command name for maintenance runs (e.g.
+            ``"library-clean"``), or ``None`` for pipeline runs.
+        options_json: JSON-serialized CLI options for maintenance runs, or
+            ``None`` for pipeline runs.
+        output_tail: Tail of the subprocess stdout/stderr for maintenance
+            runs (last ~2000 characters), or ``None`` for pipeline runs.
     """
 
     run_uid: str
@@ -181,6 +198,10 @@ class RunDetail(BaseModel):
     duration_s: float | None = None
     steps: list[StepTiming] = []
     error: str | None = None
+    kind: str = "pipeline"
+    command: str | None = None
+    options_json: str | None = None
+    output_tail: str | None = None
 
 
 class HistoryResponse(BaseModel):

@@ -24,6 +24,7 @@ function makeRun(
 ): HistoryResponse["runs"][number] {
   return {
     run_uid: "abc123",
+    kind: "pipeline",
     trigger: "web",
     dry_run: false,
     started_at: "2026-07-06T10:00:00Z",
@@ -159,7 +160,9 @@ describe("RunHistoryTable", () => {
 
     // Should re-fetch with a duration-based sort param (asc or desc).
     expect(getHistory).toHaveBeenLastCalledWith(
-      expect.objectContaining({ sort: expect.stringMatching(/^-?duration$/) as unknown as string }),
+      expect.objectContaining({
+        sort: expect.stringMatching(/^-?duration$/) as unknown as string,
+      }),
     );
   });
 

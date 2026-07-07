@@ -306,6 +306,7 @@ def pipeline_status(
 # ── History route helpers ────────────────────────────────────────────────────
 
 _ALLOWED_SORTS = frozenset({"started_at", "-started_at", "duration", "-duration"})
+_ALLOWED_KINDS = frozenset({"pipeline", "maintenance", "all"})
 
 _SORT_COLUMN_MAP: dict[str, str] = {
     "started_at": "started_at ASC",
@@ -352,6 +353,8 @@ def _row_to_run_summary(row: sqlite3.Row) -> RunSummary:
         ended_at=ended_at,
         outcome=outcome,
         duration_s=duration_s,
+        kind=row["kind"] if row["kind"] is not None else "pipeline",
+        command=row["command"],
     )
 
 
@@ -364,6 +367,7 @@ def pipeline_history(
     limit: int = 50,
     offset: int = 0,
     sort: str = "-started_at",
+    kind: str = "all",
     _session: Session = Depends(require_session),
 ) -> HistoryResponse:
     """Return paginated pipeline run history.
@@ -377,17 +381,26 @@ def pipeline_history(
         offset: Number of runs to skip (default 0).
         sort: Sort order — one of ``started_at``, ``-started_at``,
             ``duration``, ``-duration`` (default ``-started_at``).
+        kind: Run kind filter — one of ``"pipeline"``, ``"maintenance"``,
+            or ``"all"`` (default ``"all"``).
 
     Returns:
         A ``HistoryResponse`` with the requested page of run summaries.
+        ``total`` reflects the filtered count, not the full table.
 
     Raises:
-        HTTPException: 400 if *sort* is not one of the allowed values.
+        HTTPException: 400 if *sort* or *kind* is not one of the
+            allowed values.
     """
     if sort not in _ALLOWED_SORTS:
         raise HTTPException(
             status_code=400,
             detail=(f"Invalid sort '{sort}'. Allowed: {', '.join(sorted(_ALLOWED_SORTS))}"),
+        )
+    if kind not in _ALLOWED_KINDS:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Invalid kind '{kind}'. Allowed: {', '.join(sorted(_ALLOWED_KINDS))}"),
         )
 
     db_path = _db_path(request)
@@ -397,14 +410,18 @@ def pipeline_history(
         with closing(sqlite3.connect(str(db_path))) as conn:
             _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
-            total_row = conn.execute("SELECT COUNT(*) FROM pipeline_run").fetchone()
+            total_row = conn.execute(
+                "SELECT COUNT(*) FROM pipeline_run WHERE (? = 'all' OR kind = ?)",
+                (kind, kind),
+            ).fetchone()
             total = total_row[0] if total_row else 0
 
             rows = conn.execute(
                 f"SELECT run_uid, trigger, dry_run, started_at, ended_at, "
-                f"outcome FROM pipeline_run "
+                f"outcome, kind, command FROM pipeline_run "
+                f"WHERE (? = 'all' OR kind = ?) "
                 f"ORDER BY {order_clause} LIMIT ? OFFSET ?",
-                (limit, offset),
+                (kind, kind, limit, offset),
             ).fetchall()
 
             runs = [_row_to_run_summary(row) for row in rows]
@@ -436,7 +453,9 @@ def pipeline_history_detail(
         A ``RunDetail`` with step timings parsed from ``steps_json``.
 
     Raises:
-        HTTPException: 404 if no run with the given *run_uid* exists.
+        HTTPException: 404 if no run with the given *run_uid* exists; 500 if the
+            database read fails (un-migrated / locked DB) — a genuine operational
+            error must not masquerade as "run not found".
     """
     db_path = _db_path(request)
 
@@ -446,12 +465,16 @@ def pipeline_history_detail(
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT run_uid, trigger, dry_run, started_at, ended_at, "
-                "outcome, steps_json, error FROM pipeline_run "
-                "WHERE run_uid = ?",
+                "outcome, steps_json, error, kind, command, options_json, output_tail "
+                "FROM pipeline_run WHERE run_uid = ?",
                 (run_uid,),
             ).fetchone()
-    except sqlite3.OperationalError:
-        raise HTTPException(status_code=404, detail=f"Run '{run_uid}' not found")
+    except sqlite3.OperationalError as exc:
+        # A DB error (missing / un-migrated table, locked DB) is NOT "not
+        # found" — surface it as a 500 so a broken DB is never reported as a
+        # bogus 404 for every run (Finding F). Logged at ERROR.
+        logger.error("pipeline_history_detail_db_error", run_uid=run_uid, error=str(exc), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error reading run '{run_uid}'") from exc
 
     if row is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_uid}' not found")
@@ -500,4 +523,8 @@ def pipeline_history_detail(
         duration_s=summary.duration_s,
         steps=steps,
         error=row["error"],
+        kind=row["kind"] if row["kind"] is not None else "pipeline",
+        command=row["command"],
+        options_json=row["options_json"],
+        output_tail=row["output_tail"],
     )

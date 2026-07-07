@@ -15,6 +15,7 @@ import type { RunDetail as RunDetailType } from "@/api/client";
 function makeDetail(overrides: Partial<RunDetailType> = {}): RunDetailType {
   return {
     run_uid: "abc123-run-uid",
+    kind: "pipeline",
     trigger: "web",
     dry_run: false,
     started_at: "2026-07-06T10:00:00Z",

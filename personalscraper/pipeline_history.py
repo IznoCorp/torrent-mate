@@ -21,6 +21,17 @@ Usage inside ``Pipeline.run()``::
     writer.update_step(run_uid, "ingest", started_at, ended_at, "success")
     # ... at end ...
     writer.finalize(run_uid, "success")
+
+Maintenance actions (S3 maint-dash) supply ``kind``, ``command``,
+``options_json``, and ``output_tail`` — all defaulted so existing S2 callers
+are unaffected::
+
+    writer = PipelineRunWriter(db_path)
+    writer.insert(run_uid, trigger="web", dry_run=False, pid=os.getpid(),
+                  kind="maintenance", command="library-clean",
+                  options_json='{"only":"actors"}')
+    # ...
+    writer.finalize(run_uid, "success", output_tail="...[last 64 KiB]...")
 """
 
 from __future__ import annotations
@@ -59,25 +70,50 @@ class PipelineRunWriter:
     # Public API
     # ------------------------------------------------------------------
 
-    def insert(self, run_uid: str, trigger: str, dry_run: bool, pid: int) -> None:
+    def insert(
+        self,
+        run_uid: str,
+        trigger: str,
+        dry_run: bool,
+        pid: int,
+        kind: str = "pipeline",
+        command: str | None = None,
+        options_json: str | None = None,
+        if_absent: bool = False,
+    ) -> None:
         """Insert a new row into ``pipeline_run`` with ``outcome="running"``.
+
+        The *kind*, *command*, and *options_json* parameters are additive
+        (migration 012) and defaulted so existing S2 callers are unchanged.
 
         Args:
             run_uid: Unique run identifier (UUID string).
             trigger: How the run was triggered (``'cli'``, ``'web'``, ``'cron'``).
             dry_run: ``True`` if this is a dry run.
             pid: OS process ID of the pipeline process.
+            kind: Run kind discriminator (``'pipeline'`` or ``'maintenance'``).
+            command: CLI command name for maintenance actions (``None`` for
+                pipeline runs).
+            options_json: Canonical JSON of the action options (``None`` for
+                pipeline runs).
+            if_absent: When ``True`` use ``INSERT OR IGNORE`` so a row already
+                present (e.g. reserved synchronously by the maintenance POST
+                handler before the runner started) is not duplicated and the
+                ``run_uid`` UNIQUE constraint never raises. S2 callers keep the
+                default (plain ``INSERT``).
         """
         started_at = time.time()
         dry_run_int = 1 if dry_run else 0
+        verb = "INSERT OR IGNORE INTO" if if_absent else "INSERT INTO"
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
             conn.execute(
-                "INSERT INTO pipeline_run "
-                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid) "
-                "VALUES (?, ?, ?, ?, 'running', '[]', ?)",
-                (run_uid, trigger, dry_run_int, started_at, pid),
+                f"{verb} pipeline_run "
+                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
+                "kind, command, options_json) "
+                "VALUES (?, ?, ?, ?, 'running', '[]', ?, ?, ?, ?)",
+                (run_uid, trigger, dry_run_int, started_at, pid, kind, command, options_json),
             )
             conn.commit()
         except Exception:
@@ -86,6 +122,42 @@ class PipelineRunWriter:
                 run_uid=run_uid,
                 trigger=trigger,
                 dry_run=dry_run,
+                pid=pid,
+                kind=kind,
+                command=command,
+                exc_info=True,
+            )
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def update_pid(self, run_uid: str, pid: int) -> None:
+        """Set the ``pid`` column for an existing run row (idempotent).
+
+        Used by the maintenance flow to claim ownership of a row: the POST
+        handler reserves the row with a placeholder pid, then updates it to the
+        spawned runner's pid; the runner also refreshes it to its own pid at
+        startup. When the row is absent the ``UPDATE`` affects zero rows, which
+        is harmless. Fail-soft — never raises.
+
+        Args:
+            run_uid: Unique run identifier.
+            pid: OS process ID to store in the row.
+        """
+        try:
+            conn = sqlite3.connect(str(self._db_path), isolation_level=None)
+            apply_pragmas(conn)
+            conn.execute(
+                "UPDATE pipeline_run SET pid = ? WHERE run_uid = ?",
+                (pid, run_uid),
+            )
+            conn.commit()
+        except Exception:
+            log.warning(
+                "pipeline_history.update_pid_failed",
+                run_uid=run_uid,
                 pid=pid,
                 exc_info=True,
             )
@@ -170,21 +242,27 @@ class PipelineRunWriter:
         run_uid: str,
         outcome: str,
         error: str | None = None,
+        output_tail: str | None = None,
     ) -> None:
         """Finalize a pipeline run by setting ``ended_at`` and ``outcome``.
+
+        The *output_tail* parameter is additive (migration 012) and stores the
+        last 64 KiB of command output for maintenance actions.
 
         Args:
             run_uid: Unique run identifier.
             outcome: Final outcome (``'success'``, ``'error'``, or ``'killed'``).
             error: Optional error message when ``outcome`` is ``'error'``.
+            output_tail: Optional tail of the command output (last 64 KiB) for
+                maintenance actions.
         """
         ended_at = time.time()
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
             conn.execute(
-                "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ? WHERE run_uid = ?",
-                (ended_at, outcome, error, run_uid),
+                "UPDATE pipeline_run SET ended_at = ?, outcome = ?, error = ?, output_tail = ? WHERE run_uid = ?",
+                (ended_at, outcome, error, output_tail, run_uid),
             )
             conn.commit()
         except Exception:

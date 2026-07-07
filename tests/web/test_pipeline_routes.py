@@ -732,7 +732,11 @@ class TestHistoryRoutes:
                 outcome    TEXT,
                 steps_json TEXT,
                 error      TEXT,
-                pid        INTEGER
+                pid        INTEGER,
+                kind         TEXT    NOT NULL DEFAULT 'pipeline',
+                command      TEXT,
+                options_json TEXT,
+                output_tail  TEXT
             )
             """
         )
@@ -764,6 +768,10 @@ class TestHistoryRoutes:
                 ),
                 None,
                 12345,
+                "pipeline",
+                None,
+                None,
+                None,
             ),
             (
                 "bbb222",
@@ -784,6 +792,10 @@ class TestHistoryRoutes:
                 ),
                 "Something went wrong",
                 12346,
+                "pipeline",
+                None,
+                None,
+                None,
             ),
             (
                 "ccc333",
@@ -804,13 +816,17 @@ class TestHistoryRoutes:
                 ),
                 None,
                 12347,
+                "pipeline",
+                None,
+                None,
+                None,
             ),
         ]
         conn.executemany(
             "INSERT INTO pipeline_run "
             "(run_uid, trigger, dry_run, started_at, ended_at, outcome, "
-            "steps_json, error, pid) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "steps_json, error, pid, kind, command, options_json, output_tail) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
         conn.commit()
@@ -961,7 +977,11 @@ class TestHistoryRoutes:
                 outcome    TEXT,
                 steps_json TEXT,
                 error      TEXT,
-                pid        INTEGER
+                pid        INTEGER,
+                kind         TEXT    NOT NULL DEFAULT 'pipeline',
+                command      TEXT,
+                options_json TEXT,
+                output_tail  TEXT
             )
             """
         )

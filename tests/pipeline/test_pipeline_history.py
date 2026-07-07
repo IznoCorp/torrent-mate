@@ -23,16 +23,20 @@ from personalscraper.pipeline_history import PipelineRunWriter
 
 PIPELINE_RUN_DDL = """
 CREATE TABLE pipeline_run (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_uid    TEXT    UNIQUE NOT NULL,
-    trigger    TEXT    NOT NULL,
-    dry_run    INTEGER NOT NULL DEFAULT 0,
-    started_at REAL    NOT NULL,
-    ended_at   REAL,
-    outcome    TEXT,
-    steps_json TEXT,
-    error      TEXT,
-    pid        INTEGER
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_uid      TEXT    UNIQUE NOT NULL,
+    trigger      TEXT    NOT NULL,
+    dry_run      INTEGER NOT NULL DEFAULT 0,
+    started_at   REAL    NOT NULL,
+    ended_at     REAL,
+    outcome      TEXT,
+    steps_json   TEXT,
+    error        TEXT,
+    pid          INTEGER,
+    kind         TEXT    NOT NULL DEFAULT 'pipeline',
+    command      TEXT    NULL,
+    options_json TEXT    NULL,
+    output_tail  TEXT    NULL
 )
 """
 

@@ -573,7 +573,7 @@ def test_migration_007_canonicalises_existing_titles(tmp_path: Path) -> None:
     assert row[0] == "Test", f"Expected canonicalised 'Test', got {row[0]!r}"
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 11
+    assert user_version == 12
 
     conn.close()
 
@@ -610,7 +610,7 @@ def test_migration_007_dedups_post_canonicalisation(tmp_path: Path) -> None:
     assert row[2] == 200  # date_modified merged to max
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 11
+    assert user_version == 12
 
     conn.close()
 
@@ -621,18 +621,18 @@ def test_migration_007_idempotent(tmp_path: Path) -> None:
     conn = sqlite3.connect(str(db_path), isolation_level=None)
     conn.execute("PRAGMA foreign_keys=ON")
 
-    apply_migrations(conn, _MIGRATIONS_DIR)  # fresh 001–010
+    apply_migrations(conn, _MIGRATIONS_DIR)  # fresh 001–012
 
     user_v1 = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_v1 == 11
+    assert user_v1 == 12
 
     # Second apply — must be no-op.
     apply_migrations(conn, _MIGRATIONS_DIR)
     user_v2 = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_v2 == 11
+    assert user_v2 == 12
 
     versions = [r[0] for r in conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], f"Got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], f"Got {versions}"
 
     conn.close()
 

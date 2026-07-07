@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+from personalscraper.conf.loader import ConfigNotFoundError
 from tests.commands._e2e_helpers import assert_no_python_traceback, run_cli
 from tests.fixtures.settings_stub import make_typed_settings_stub
 
@@ -140,6 +141,7 @@ def test_info_providers_uses_config_override_with_real_bad_config(tmp_path: Path
 def test_top_level_config_override_malformed_dir_exits_with_friendly_error(
     tmp_path: Path,
     monkeypatch: "pytest.MonkeyPatch",
+    real_loader,
 ) -> None:
     """``personalscraper --config <bad_dir> info`` exits non-zero via load_config.
 
@@ -162,13 +164,21 @@ def test_top_level_config_override_malformed_dir_exits_with_friendly_error(
     # the autouse patches resolve_config_path → fake path and load_config
     # → returns test_config unconditionally, hiding the very failure-path
     # this test exercises.
-    import importlib  # noqa: PLC0415
-
-    from personalscraper.conf import loader as _loader  # noqa: PLC0415
-
-    fresh = importlib.reload(_loader)
-    monkeypatch.setattr("personalscraper.conf.loader.resolve_config_path", fresh.resolve_config_path)
-    monkeypatch.setattr("personalscraper.conf.loader.load_config", fresh.load_config)
+    #
+    # IMPORTANT: we use ``real_loader`` (pristine callables captured at
+    # module import time in conftest.py) instead of ``importlib.reload()``.
+    # ``reload()`` rebinds every class in the loader module, poisoning
+    # class-object identity for other tests on the same xdist worker
+    # (``pytest.raises(OldClass)`` misses ``NewClass`` raised by the
+    # reloaded function).
+    monkeypatch.setattr(
+        "personalscraper.conf.loader.resolve_config_path",
+        real_loader.resolve_config_path,
+    )
+    monkeypatch.setattr(
+        "personalscraper.conf.loader.load_config",
+        real_loader.load_config,
+    )
 
     # Directory exists but is empty — ``config.json5`` missing.
     empty_dir = tmp_path / "empty-config-dir"
@@ -181,3 +191,13 @@ def test_top_level_config_override_malformed_dir_exits_with_friendly_error(
     assert_no_python_traceback(result)
     # The CLI maps ConfigNotFoundError → "Config error: ..." on stderr.
     assert "Config error" in result.stderr or "Config error" in result.output
+
+    # Identity guard: ``importlib.reload()`` is forbidden because it
+    # splits exception-class identity across the xdist worker.  If this
+    # module ever reintroduces ``reload()``, the re-import below returns a
+    # NEW ``ConfigNotFoundError`` distinct from the one imported at module
+    # top — and this assertion catches the poisoning before it reaches
+    # production CI.
+    from personalscraper.conf.loader import ConfigNotFoundError as _CNFE2  # noqa: PLC0415
+
+    assert _CNFE2 is ConfigNotFoundError, "loader module was reloaded — ConfigNotFoundError identity split detected"
