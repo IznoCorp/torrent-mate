@@ -713,3 +713,34 @@ class TestRunnerFinalizeGuards:
         row = _select_row(db_path, self.RUN_UID)
         assert row is not None
         assert row["outcome"] == "killed"
+
+    def test_main_does_not_leak_sigterm_handler_into_worker(self, tmp_path: Path) -> None:
+        """Regression: an in-process ``main()`` must not leave a ``SIGTERM`` handler installed.
+
+        ``main()`` registers a handler that calls ``os._exit``; leaked into a
+        pytest-xdist worker it fires when xdist / the CI runner later sends the
+        worker ``SIGTERM`` at shutdown, killing it abruptly (green locally, but
+        it cancels the whole ``test`` job on Linux CI: "runner received a
+        shutdown signal"). The dir-level autouse ``conftest`` fixture neutralizes
+        ``signal.signal`` so the worker's disposition survives — this asserts it.
+        """
+        import signal as _signal
+
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        before = _signal.getsignal(_signal.SIGTERM)
+        with (
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            pytest.raises(SystemExit),
+        ):
+            runner_mod.main()
+
+        after = _signal.getsignal(_signal.SIGTERM)
+        assert after == before, (
+            "main() leaked a SIGTERM handler into the worker — the conftest signal.signal neutralization is not active"
+        )
