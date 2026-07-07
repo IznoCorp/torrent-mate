@@ -67,7 +67,7 @@ SQL change: replace `SELECT COUNT(*) FROM pipeline_run` with `SELECT COUNT(*) FR
 
 **Files:**
 
-- Create: `tests/unit/web/routes/test_pipeline_history_unified.py`
+- Create: `tests/web/test_pipeline_history_unified.py` (tests/web/ convention, not tests/unit/web/routes/)
 
 **Test cases** (FastAPI TestClient, seed pipeline_run with both kinds):
 
