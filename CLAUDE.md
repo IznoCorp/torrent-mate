@@ -196,6 +196,23 @@ as the work progresses:
 - Storage/staging paths may contain spaces (e.g. `/Volumes/<disk>/<staging-dir>/`) — always quote paths in shell commands.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`.
 
+### Web-UI Environments (ENV-SEP) & Binding Invariants
+
+Three checkouts on this host (full topology + deploy runbook: `docs/reference/web-ui.md`):
+
+- **dev** = `~/dev/PersonalScraper` (this checkout) — feature branches, NO PM2 daemons.
+- **prod** = `~/deploy/torrentmate` (tracks `main`, autodeploy) — `torrentmate-web` on **8710** + watch + crons.
+- **staging** = `~/staging/torrentmate` (tracks the `staging` branch, autodeploy) — `torrentmate-web-staging` on **8711**, read-only role (`PERSONALSCRAPER_WEB_ROLE=staging` → 403 on writes).
+- Shared between all three: `library.db`, `.data/`, `config/`, storage disks. **NEVER start a local server on 8710/8711** (Caddy routes `tm.`/`tm-staging.` there) — test the frontend via `tm-staging.iznogoudatall.xyz`.
+
+Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.md` + `maintenance.md`):
+
+- Every mutating web endpoint is staging-guarded (`require_not_staging`) and typed (Pydantic `response_model` → OpenAPI → `schema.d.ts`; any route change ⇒ `make openapi` + commit the regenerated files).
+- The web auth perimeter is the **single** `guarded_api` dependency (web-ui.md §6) — never add per-route `Depends(require_session)`.
+- Write/destructive maintenance actions hold `pipeline.lock` for their runner's whole lifetime (maintenance.md §Pipeline lock).
+- `pipeline_run` timestamps (run-level AND per-step `steps_json`) are Unix-epoch `time.time()`.
+- `GET /api/version` serves the **boot-cached** BUILD_COMMIT; `scripts/deploy.sh` hard-asserts the running process serves the deployed sha.
+
 ### Language
 
 The user communicates in French or English. Code comments are in English only. Respond in French when the user writes in French.
