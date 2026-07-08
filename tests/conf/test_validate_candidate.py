@@ -2,7 +2,7 @@
 
 import hashlib
 import os
-from concurrent.futures import ThreadPoolExecutor
+import threading
 from pathlib import Path
 
 import pytest
@@ -272,30 +272,91 @@ class TestValidateCandidate:
     # -- ContextVar isolation (threading) -----------------------------------
 
     def test_concurrent_calls_no_cross_contamination(self, tmp_path: Path) -> None:
-        """Two concurrent validate_candidate calls must not cross-contaminate.
+        """Two concurrent validate_candidate calls must not cross-contaminate ContextVar.
 
-        Distinct config dirs must not cross-contaminate via the ContextVar.
+        Uses RELATIVE data_dir values so path resolution depends on
+        ``_PROJECT_ROOT`` ContextVar.  If ``_PROJECT_ROOT`` were a plain module
+        global, concurrent threads would cross-contaminate and resolve data_dir
+        under the wrong project root (or CWD).
         """
 
-        def _validate(cfg_dir: Path, label: str) -> str:
-            config, _ = validate_candidate(
-                cfg_dir,
-                replaced={"categories.json5": {"categories": {"movies": {"folder_name": label}}}},
+        def _write_config(cfg_dir: Path, data_dir_rel: str, folder_name: str) -> None:
+            """Write a config dir whose paths.json5 uses a RELATIVE data_dir."""
+            cfg_dir.mkdir(parents=True)
+            (cfg_dir / "config.json5").write_text(
+                f"""{{
+                    config_version: 1,
+                    overlays: ["categories.json5"],
+                    paths: {{
+                        torrent_complete_dir: "/tmp/complete",
+                        staging_dir: "/tmp/staging",
+                        data_dir: "{data_dir_rel}",
+                    }},
+                    disks: [
+                        {{
+                            id: "disk_a",
+                            path: "/tmp/disk_a",
+                            categories: ["movies", "tv_shows"],
+                        }},
+                    ],
+                    staging_dirs: [
+                        {{ id: 1, name: "movies", file_type: "movie" }},
+                        {{ id: 2, name: "tvshows", file_type: "tvshow" }},
+                        {{ id: 3, name: "ebooks", file_type: "ebook" }},
+                        {{ id: 4, name: "audio", file_type: "audio" }},
+                        {{ id: 5, name: "apps", file_type: "app" }},
+                        {{ id: 6, name: "android", file_type: "app" }},
+                        {{ id: 97, name: "temp", file_type: null, role: "ingest" }},
+                        {{ id: 98, name: "autres", file_type: "other" }},
+                    ],
+                }}""",
+                encoding="utf-8",
             )
-            return config.category("movies").folder_name
+            (cfg_dir / "categories.json5").write_text(
+                f"""{{
+                    categories: {{
+                        movies: {{ folder_name: "{folder_name}" }},
+                    }},
+                }}""",
+                encoding="utf-8",
+            )
 
-        cfg_a = _build_config_dir(tmp_path / "a", tmp_path / "a")
-        cfg_b = _build_config_dir(tmp_path / "b", tmp_path / "b")
+        root_a = tmp_path / "project_a"
+        root_b = tmp_path / "project_b"
+        cfg_a = root_a / "config"
+        cfg_b = root_b / "config"
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            fut_a = pool.submit(_validate, cfg_a, "ThreadA")
-            fut_b = pool.submit(_validate, cfg_b, "ThreadB")
+        _write_config(cfg_a, ".data-a", "ProjectA")
+        _write_config(cfg_b, ".data-b", "ProjectB")
 
-            result_a = fut_a.result()
-            result_b = fut_b.result()
+        barrier = threading.Barrier(2)
+        results_a: list[Path] = []
+        results_b: list[Path] = []
 
-        assert result_a == "ThreadA", f"Expected 'ThreadA', got '{result_a}'"
-        assert result_b == "ThreadB", f"Expected 'ThreadB', got '{result_b}'"
+        def _validate_loop(cfg_dir: Path, results: list[Path]) -> None:
+            barrier.wait()  # synchronise start to force overlap
+            for _ in range(20):
+                config, _ = validate_candidate(
+                    cfg_dir,
+                    replaced={"categories.json5": {"categories": {"movies": {"folder_name": "Test"}}}},
+                )
+                results.append(config.paths.data_dir)
+
+        t_a = threading.Thread(target=_validate_loop, args=(cfg_a, results_a))
+        t_b = threading.Thread(target=_validate_loop, args=(cfg_b, results_b))
+
+        t_a.start()
+        t_b.start()
+        t_a.join()
+        t_b.join()
+
+        expected_a = (root_a / ".data-a").resolve()
+        expected_b = (root_b / ".data-b").resolve()
+
+        for i, path in enumerate(results_a):
+            assert path == expected_a, f"Iteration {i}: expected {expected_a}, got {path} (cross-contamination?)"
+        for i, path in enumerate(results_b):
+            assert path == expected_b, f"Iteration {i}: expected {expected_b}, got {path} (cross-contamination?)"
 
     # -- ConfigConflictError propagation ------------------------------------
 
