@@ -104,6 +104,16 @@ def watch(ctx: typer.Context) -> None:
     if not config.watch.enabled:
         typer.echo("Watch daemon is disabled (config.watch.enabled=false).")
         log.info("watcher_disabled")
+        # Do NOT return immediately: under PM2 `autorestart: true` an instant
+        # exit crash-loops the daemon (start → exit → restart every
+        # restart_delay). Idle instead — stay alive, do no work (no app context,
+        # no torrent poll), and honour SIGTERM/SIGINT so `pm2 stop`/`restart`
+        # (e.g. after re-enabling in config) shuts down gracefully.
+        signal.signal(signal.SIGTERM, _on_signal)
+        signal.signal(signal.SIGINT, _on_signal)
+        while not _shutdown_requested:
+            _interruptible_sleep(config.watch.poll_interval_s)
+        log.info("watcher_disabled_shutdown")
         return
 
     settings = cli_compat.get_settings()
