@@ -182,7 +182,7 @@ async def read_stream_loop(
             # Reserved for transport errors (Redis unreachable) — NOT per-entry
             # decode failures, which are handled above without wedging the loop.
             if not warned_down:
-                logger.warning("redis_stream_read_failed", stream_key=stream_key)
+                logger.warning("redis_stream_read_failed", stream_key=stream_key, exc_info=True)
                 warned_down = True
             await asyncio.sleep(2)
 
