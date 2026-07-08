@@ -649,4 +649,114 @@ describe("Config", () => {
       screen.getByText(/écrasée par local.json5 — modification sans effet/i),
     ).toBeInTheDocument();
   });
+
+  // ---- 16. 409 (ConfigLoadError) → toast carries the backend detail -----------
+  it("affiche le détail backend dans le toast sur une erreur 409", async () => {
+    const putAsync = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiError(409, "Overlay file not found: missing.json5"),
+      );
+    mocks.usePutConfigFile.mockReturnValue({
+      mutateAsync: putAsync,
+      isPending: false,
+    });
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    fireEvent.click(screen.getByText("master.json5"));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByDisplayValue("3"), {
+      target: { value: "5" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Overlay file not found: missing.json5",
+      );
+    });
+  });
+
+  // ---- 17. 422 plain-string detail (ConfigConflictError) → toast carries detail
+  it("affiche le détail backend dans le toast sur une 422 non-parseable", async () => {
+    const putAsync = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiError(
+          422,
+          "ConfigConflictError: key 'api_key' belongs to secrets.json5",
+        ),
+      );
+    mocks.usePutConfigFile.mockReturnValue({
+      mutateAsync: putAsync,
+      isPending: false,
+    });
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    fireEvent.click(screen.getByText("master.json5"));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByDisplayValue("3"), {
+      target: { value: "5" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    // extractValidationErrors returns null for a plain-string detail, so we
+    // hit the fall-through toast — which must now surface err.detail.
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "ConfigConflictError: key 'api_key' belongs to secrets.json5",
+      );
+    });
+  });
+
+  // ---- 18. 403 (read-only) → toast carries backend detail ------------------
+  it("affiche le détail backend dans le toast sur une erreur 403", async () => {
+    const putAsync = vi.fn().mockRejectedValue(new ApiError(403, "read-only"));
+    mocks.usePutConfigFile.mockReturnValue({
+      mutateAsync: putAsync,
+      isPending: false,
+    });
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    fireEvent.click(screen.getByText("master.json5"));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByDisplayValue("3"), {
+      target: { value: "5" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("read-only");
+    });
+  });
 });

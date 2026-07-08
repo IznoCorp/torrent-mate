@@ -269,7 +269,11 @@ export default function Config(): ReactElement {
           }
         }
       }
-      toast.error("Échec de l'enregistrement.");
+      toast.error(
+        err instanceof ApiError && err.detail
+          ? err.detail
+          : "Échec de l'enregistrement.",
+      );
     }
   }, [selectedFile, dirtyValues, fileQ.data?.sha256, putFile]);
 
@@ -315,7 +319,11 @@ export default function Config(): ReactElement {
           return;
         }
       }
-      toast.error("Échec de la validation.");
+      toast.error(
+        err instanceof ApiError && err.detail
+          ? err.detail
+          : "Échec de la validation.",
+      );
     }
   }, [selectedFile, dirtyValues, currentValues, validate]);
 
