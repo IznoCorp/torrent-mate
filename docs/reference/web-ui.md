@@ -318,8 +318,9 @@ from the dev editable install.
 
 Both clones share the **real config directory** via
 `PERSONALSCRAPER_CONFIG=/Users/izno/dev/PersonalScraper/config` in the PM2
-environment. S1 is read-only, so staging against real data is safe (KanbanMate
-"no test board" rule).
+environment. Staging safety is enforced by the `require_not_staging` guard
+(403) on every mutating route, because prod and staging share the real config
+and data directories.
 
 Each clone has its own venv at `~/deploy/torrentmate-venv` /
 `~/staging/torrentmate-venv` (overridable via `TM_VENV` / `TM_STAGING_VENV`).
@@ -675,14 +676,26 @@ never silently miss a newly-added config key.
 
 ### Role gating
 
-The `PERSONALSCRAPER_WEB_ROLE` environment variable gates all write endpoints:
+The `PERSONALSCRAPER_WEB_ROLE` environment variable gates every mutating POST
+endpoint across all waves via a single shared `require_not_staging` FastAPI
+dependency in `personalscraper/web/deps.py`:
 
 - **Unset or `"prod"`**: writes are allowed (normal operation).
-- **`"staging"`**: `PUT /files/{name}`, `PUT /secrets`, and
-  `POST /restart-web` all return `403 {"detail": "read-only"}`. Read endpoints
-  (`GET /schema`, `GET /files`, `GET /files/{name}`, `GET /status`,
-  `GET /secrets`) remain available — the editor is fully explorable but
-  non-mutating.
+- **`"staging"`**: every `POST` route under `/api/pipeline/*` (S2: `/run`,
+  `/pause`, `/resume`, `/kill`, `/watcher`), `/api/maintenance/*`
+  (S3: `/actions/{id}/run`), and `/api/config/*` (S4: `PUT /files/{name}`,
+  `PUT /secrets`, `POST /restart-web`) returns `403 {"detail": "read-only"}`.
+  Read endpoints (`GET /schema`, `GET /files`, `GET /files/{name}`,
+  `GET /status`, `GET /secrets`, `GET /pipeline/status`,
+  `GET /pipeline/history`, `GET /maintenance/*`) remain available — the
+  web UI is fully explorable but non-mutating.
+
+**Why a single global guard matters.** Prod and staging share the same
+`config/` directory (and therefore the same `data_dir`, `library.db`,
+and storage disks). Without it, a POST to the staging app's
+`/api/pipeline/run`, `/api/pipeline/kill`, or
+`/api/maintenance/actions/library-clean/run` would mutate or delete real
+production data.
 
 The `PERSONALSCRAPER_PM2_NAME` environment variable enables the restart
 endpoint:
