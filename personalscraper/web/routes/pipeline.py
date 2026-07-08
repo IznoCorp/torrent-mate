@@ -3,6 +3,11 @@
 Six routes under ``/api/pipeline/*`` guarded by ``require_session`` and
 (for mutating POSTs) ``X-Requested-With: TorrentMate``.  See
 docs/features/pipe-control/DESIGN.md §4 for the full route contract.
+
+The ``require_session`` guard is inherited from the parent ``guarded_api``
+router (registration in app.py) — auth dependencies are NOT added per-route,
+per ``docs/reference/web-ui.md`` §6 (the single authority for this
+convention; R14/R24).
 """
 
 from __future__ import annotations
@@ -25,9 +30,7 @@ from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import (
-    Session,
     require_not_staging,
-    require_session,
     require_x_requested_with,
 )
 from personalscraper.web.models.pipeline import (
@@ -87,14 +90,21 @@ def _build_status(data_dir: Path, db_path: Path) -> StatusResponse:
         except (ValueError, OSError):
             pid = None
 
-        # Query the latest pipeline_run row for run_uid + current step.
+        # Query the most recent RUNNING pipeline_run row for run_uid + current
+        # step (R29): the lock holder is the run still marked 'running'. The
+        # bare latest row may be an unrelated finished run — or, now that
+        # write/destructive maintenance actions hold the lock (R11), a
+        # maintenance row — started after the actual lock holder.
+        # ``with closing(...)`` releases the SQLite handle deterministically
+        # instead of relying on refcount finalization (R19).
         try:
-            conn = sqlite3.connect(str(db_path))
-            _apply_pragmas(conn)
-            conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT run_uid, steps_json FROM pipeline_run ORDER BY started_at DESC LIMIT 1"
-            ).fetchone()
+            with closing(sqlite3.connect(str(db_path))) as conn:
+                _apply_pragmas(conn)
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT run_uid, steps_json FROM pipeline_run "
+                    "WHERE outcome = 'running' ORDER BY started_at DESC LIMIT 1"
+                ).fetchone()
             if row is not None:
                 run_uid = row["run_uid"]
                 steps_raw = row["steps_json"]
@@ -147,7 +157,6 @@ def _db_path(request: Request) -> Path:
 def pipeline_run(
     request: Request,
     body: RunRequest,
-    _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
 ) -> RunResponse:
@@ -184,7 +193,6 @@ def pipeline_run(
 @router.post("/pause")
 def pipeline_pause(
     request: Request,
-    _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
@@ -205,7 +213,6 @@ def pipeline_pause(
 @router.post("/resume")
 def pipeline_resume(
     request: Request,
-    _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
@@ -222,7 +229,6 @@ def pipeline_resume(
 @router.post("/kill")
 def pipeline_kill(
     request: Request,
-    _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
@@ -262,7 +268,6 @@ def pipeline_kill(
 def pipeline_watcher(
     request: Request,
     body: WatcherRequest,
-    _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
 ) -> WatcherResponse:
@@ -293,7 +298,6 @@ def pipeline_watcher(
 @router.get("/status")
 def pipeline_status(
     request: Request,
-    _session: Session = Depends(require_session),
 ) -> StatusResponse:
     """Return the live pipeline status.
 
@@ -373,7 +377,6 @@ def pipeline_history(
     offset: int = 0,
     sort: str = "-started_at",
     kind: str = "all",
-    _session: Session = Depends(require_session),
 ) -> HistoryResponse:
     """Return paginated pipeline run history.
 
@@ -444,7 +447,6 @@ def pipeline_history(
 def pipeline_history_detail(
     run_uid: str,
     request: Request,
-    _session: Session = Depends(require_session),
 ) -> RunDetail:
     """Return the full detail for a single pipeline run.
 

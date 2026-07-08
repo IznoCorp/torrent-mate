@@ -15,11 +15,25 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.web.auth.passwords import hash_password
+from personalscraper.web.deps import require_session
+
+
+def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
+    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14).
+
+    Handlers no longer carry a per-route ``Depends(require_session)`` — the
+    guard lives on the parent router only (web-ui.md §6), so test apps must
+    reproduce the same perimeter to exercise auth.
+    """
+    guarded_api = APIRouter(dependencies=[Depends(require_session)])
+    guarded_api.include_router(router)
+    app.include_router(guarded_api)
+
 
 TEST_USERNAME = "testuser"
 TEST_PASSWORD = "test-password"
@@ -93,7 +107,7 @@ def pipeline_client(
     # Pipeline control routes — the subject under test.
     from personalscraper.web.routes.pipeline import router as pipeline_router
 
-    app.include_router(pipeline_router)
+    _mount_guarded(app, pipeline_router)
 
     client = TestClient(app, base_url="https://testserver")
     resp = client.post(
@@ -483,6 +497,95 @@ class TestStatusRoute:
         assert resp.status_code == 200
         assert resp.json()["watcher_enabled"] is False
 
+    def test_status_returns_running_row_not_latest_row(
+        self,
+        pipeline_client: TestClient,
+        pipeline_data_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """R29 — the reported run is the one still ``'running'``, not the newest row.
+
+        The lock holder is the run still marked ``'running'``; a finished (or
+        maintenance) row started later must not shadow it. Seeds a REAL DB with
+        an older running row and a newer finished row and asserts the running
+        one is reported.
+        """
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.is_lock_held",
+            lambda _lock_file: True,
+        )
+        (pipeline_data_dir / "pipeline.lock").write_text("88888")
+
+        db = tmp_path / "status-r29.db"
+        seed = sqlite3.connect(str(db))
+        seed.execute("CREATE TABLE pipeline_run (run_uid TEXT, outcome TEXT, started_at REAL, steps_json TEXT)")
+        seed.execute(
+            "INSERT INTO pipeline_run VALUES ('running-run', 'running', 100.0, ?)",
+            (json.dumps([{"name": "scrape", "started_at": 100.0, "ended_at": None, "status": "running"}]),),
+        )
+        seed.execute("INSERT INTO pipeline_run VALUES ('newer-finished', 'success', 200.0, '[]')")
+        seed.commit()
+        seed.close()
+
+        real_connect = sqlite3.connect
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.sqlite3.connect",
+            lambda _p: real_connect(str(db)),
+        )
+
+        resp = pipeline_client.get("/api/pipeline/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["run_uid"] == "running-run"
+        assert data["step"] == "scrape"
+
+    def test_status_closes_db_connection(
+        self,
+        pipeline_client: TestClient,
+        pipeline_data_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """R19 — the SQLite handle is closed deterministically, not by refcount.
+
+        The tracking list below keeps a strong reference to every connection the
+        route opens, so CPython refcount finalization can never close it — only
+        an explicit ``close()`` (the ``with closing(...)`` fix) can.
+        """
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.is_lock_held",
+            lambda _lock_file: True,
+        )
+        (pipeline_data_dir / "pipeline.lock").write_text("88888")
+
+        db = tmp_path / "status-r19.db"
+        seed = sqlite3.connect(str(db))
+        seed.execute("CREATE TABLE pipeline_run (run_uid TEXT, outcome TEXT, started_at REAL, steps_json TEXT)")
+        seed.execute("INSERT INTO pipeline_run VALUES ('r1', 'running', 100.0, '[]')")
+        seed.commit()
+        seed.close()
+
+        opened: list[sqlite3.Connection] = []
+        real_connect = sqlite3.connect
+
+        def tracking_connect(_p: str) -> sqlite3.Connection:
+            conn = real_connect(str(db))
+            opened.append(conn)
+            return conn
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.sqlite3.connect",
+            tracking_connect,
+        )
+
+        resp = pipeline_client.get("/api/pipeline/status")
+        assert resp.status_code == 200
+        assert opened, "the route must have opened a connection"
+        for conn in opened:
+            with pytest.raises(sqlite3.ProgrammingError):
+                conn.execute("SELECT 1")
+
     def test_status_db_error_fail_soft(
         self,
         pipeline_client: TestClient,
@@ -602,7 +705,7 @@ class TestGuards:
         app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
         client = TestClient(app, base_url="https://testserver")
 
         resp = client.get("/api/pipeline/status")
@@ -874,7 +977,7 @@ class TestHistoryRoutes:
         app.include_router(auth_router)
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
 
         client = TestClient(app, base_url="https://testserver")
         resp = client.post(
@@ -1012,7 +1115,7 @@ class TestHistoryRoutes:
         app.include_router(auth_router)
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
 
         client = TestClient(app, base_url="https://testserver")
         resp = client.post(
@@ -1100,7 +1203,7 @@ class TestHistoryRoutes:
         app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
         client = TestClient(app, base_url="https://testserver")
 
         resp = client.get("/api/pipeline/history")
@@ -1129,7 +1232,7 @@ class TestHistoryRoutes:
         app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
         client = TestClient(app, base_url="https://testserver")
 
         resp = client.get("/api/pipeline/history/aaa111")

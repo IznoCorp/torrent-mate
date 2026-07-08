@@ -24,6 +24,7 @@ from .test_maintenance_panels import (
     _build_app,
     _build_authenticated_client,
     _login,
+    _mount_guarded,
 )
 
 NOW = int(time.time())
@@ -116,7 +117,7 @@ def _authenticated_client_with_history(test_config, tmp_path: Path, db_path: Pat
         tmp_path,
         indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
     )
-    app.include_router(pipeline_router)
+    _mount_guarded(app, pipeline_router)
     client = TestClient(app, base_url="https://testserver")
     _login(client)
     return client
