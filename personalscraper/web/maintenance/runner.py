@@ -448,8 +448,8 @@ def _terminate_quietly(proc: subprocess.Popen[str]) -> None:
     """
     try:
         proc.terminate()
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("maintenance_runner_terminate_failed", error=str(exc))
 
 
 # ---------------------------------------------------------------------------

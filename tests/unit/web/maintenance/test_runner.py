@@ -820,3 +820,18 @@ class TestKillChildGroup:
 
         mock_killpg.assert_called_once_with(4242, _signal.SIGTERM)
         proc.terminate.assert_not_called()
+
+    def test_terminate_quietly_logs_warning_on_failure(self) -> None:
+        """When proc.terminate() raises, a warning is logged (best-effort cleanup)."""
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        proc = MagicMock()
+        proc.terminate.side_effect = OSError("no such process")
+
+        with patch.object(runner_mod.log, "warning") as mock_warning:
+            runner_mod._terminate_quietly(proc)
+
+        mock_warning.assert_called_once()
+        args, kwargs = mock_warning.call_args
+        assert args[0] == "maintenance_runner_terminate_failed"
+        assert kwargs["error"] == "no such process"
