@@ -241,7 +241,8 @@ describe("RunHistoryTable", () => {
 
     await screen.findByText("Date");
 
-    const callArgs = getHistory.mock.calls[0]?.[0];
+    const callArgs = getHistory.mock.calls[0]?.[0] as
+      Record<string, unknown> | undefined;
     expect(callArgs).toBeDefined();
     expect(callArgs).not.toHaveProperty("kind");
   });

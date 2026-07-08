@@ -164,7 +164,7 @@ function isStepId(name: string): name is StepId {
 export function PipelineStepper(props: PipelineStepperProps): ReactElement {
   // Empty steps array (not omitted) → nothing to render (defense-in-depth).
   // Distinguishes `steps=[]` from `steps` omitted (LIVE all-queued).
-  if (props.steps != null && props.steps.length === 0) {
+  if (props.steps?.length === 0) {
     return (
       <div className="py-2 text-xs text-muted-foreground">Aucune étape</div>
     );
