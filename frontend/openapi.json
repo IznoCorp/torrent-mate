@@ -90,6 +90,20 @@
         "title": "ActionRunRequest",
         "type": "object"
       },
+      "ActionRunResponse": {
+        "description": "Response body returned after a successful ``POST .../run``.\n\nMirrors the S2 :class:`~personalscraper.web.models.pipeline.RunResponse`\npattern: a single ``run_uid`` the client can poll for status.\n\nAttributes:\n    run_uid: The unique hex identifier of the newly launched\n        maintenance run (a ``uuid4().hex``).",
+        "properties": {
+          "run_uid": {
+            "title": "Run Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_uid"
+        ],
+        "title": "ActionRunResponse",
+        "type": "object"
+      },
       "ActionsResponse": {
         "description": "Top-level response for the maintenance actions catalog.\n\nServes the ``GET /api/maintenance/actions`` endpoint. Returns the full\nread-only :data:`REGISTRY` (25 entries across 6 categories) together\nwith per-category counts for the web UI grouping chips.\n\nAttributes:\n    actions: The full maintenance action registry (25 entries across\n        the query, scan, repair, clean, analyze, and fix categories).\n    category_counts: Count of actions per category for UI grouping chips\n        (e.g. ``{\"query\": 5, \"scan\": 4, \"repair\": 2, \"clean\": 2,\n        \"analyze\": 4, \"fix\": 8}``).",
         "properties": {
@@ -946,6 +960,20 @@
           }
         },
         "title": "RunRequest",
+        "type": "object"
+      },
+      "RunResponse": {
+        "description": "Response body returned after a successful ``POST /api/pipeline/run``.\n\nAttributes:\n    run_uid: The unique identifier of the newly launched pipeline run.",
+        "properties": {
+          "run_uid": {
+            "title": "Run Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_uid"
+        ],
+        "title": "RunResponse",
         "type": "object"
       },
       "RunSummary": {
@@ -1823,10 +1851,12 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ActionRunResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -2112,10 +2142,12 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
               }
             },
             "description": "Successful Response"
