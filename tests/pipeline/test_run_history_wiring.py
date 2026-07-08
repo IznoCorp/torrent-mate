@@ -394,3 +394,43 @@ class TestHistoryWriterEdgeCases:
 
         # Run completed without error (the writer logged warnings internally).
         assert pipeline._run_uid is not None
+
+
+class TestHistoryWriterOutputTail:
+    """finalize() must persist the captured log tail (universal run journal).
+
+    Regression contract (2026-07-08 "silent run"): pipeline runs — web, cli,
+    and safety_net all route through ``Pipeline.run`` — finalized without
+    ``output_tail``, so the UI run journal had no durable log to show.
+    """
+
+    def test_finalize_persists_output_tail_from_provider(self) -> None:
+        """The tail returned by ``output_tail_provider`` lands in the row."""
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "library.db"
+            _create_db(db_path)
+
+            app = _stub_app()
+            writer = PipelineRunWriter(db_path)
+            pipeline = Pipeline(app)
+
+            with (
+                patch("personalscraper.pipeline.ensure_staging_tree"),
+                patch.object(Pipeline, "_check_temp_empty_gate"),
+                patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
+                patch("personalscraper.pipeline.apply_step_overrides", return_value=_step_registry()),
+            ):
+                pipeline.run(
+                    trigger_reason="test",
+                    history_writer=writer,
+                    output_tail_provider=lambda: "captured tail line",
+                )
+
+            conn = sqlite3.connect(str(db_path), isolation_level=None)
+            apply_pragmas(conn)
+            tail = conn.execute(
+                "SELECT output_tail FROM pipeline_run WHERE run_uid = ?",
+                (pipeline._run_uid,),
+            ).fetchone()[0]
+            conn.close()
+            assert tail == "captured tail line"

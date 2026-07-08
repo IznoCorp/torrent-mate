@@ -113,6 +113,9 @@ class Pipeline:
         # read by ``_run_step`` for per-step timing records.
         self._run_uid: str | None = None
         self._history_writer: PipelineRunWriter | None = None
+        # Zero-arg callable returning the captured log tail for the
+        # ``output_tail`` column; injected per-run alongside the writer.
+        self._output_tail_provider: Callable[[], str | None] | None = None
         # Per-run UUID, regenerated at the start of every ``run`` call.
         self._run_id: UUID = uuid4()
         # SIGINT / programmatic shutdown signal — checked at each step
@@ -279,6 +282,7 @@ class Pipeline:
         no_post_maintenance: bool = False,
         trigger_reason: str = "cli",
         history_writer: PipelineRunWriter | None = None,
+        output_tail_provider: Callable[[], str | None] | None = None,
     ) -> PipelineReport:
         """Execute all pipeline phases sequentially with gates.
 
@@ -312,6 +316,14 @@ class Pipeline:
                 ``pipeline_run`` table. When ``None`` (the default), run
                 history is not written. This is an injected dependency —
                 the caller (CLI / web handler) owns the DB path.
+            output_tail_provider: Optional zero-arg callable returning the
+                captured log tail (last 64 KiB) to persist as
+                ``pipeline_run.output_tail`` at finalize time. The CLI
+                installs a :class:`~personalscraper.run_journal.LogTailHandler`
+                and passes its ``tail`` method here, so every trigger path
+                (cli / web / safety_net) gets a durable journal. Fail-soft:
+                a provider error is logged and the row is finalized without
+                a tail.
 
         Returns:
             PipelineReport with 9 StepReports (ingest, sort, clean,
@@ -385,6 +397,7 @@ class Pipeline:
             # web handler) — the pipeline never resolves a DB path itself.
             self._run_uid = self._run_id.hex
             self._history_writer = history_writer
+            self._output_tail_provider = output_tail_provider
             if self._history_writer is not None:
                 self._history_writer.insert(
                     self._run_uid,
@@ -558,7 +571,15 @@ class Pipeline:
                 # is finalized.
                 if self._history_writer is not None:
                     assert self._run_uid is not None  # set at top of run()
-                    self._history_writer.finalize(self._run_uid, run_outcome)
+                    output_tail: str | None = None
+                    if self._output_tail_provider is not None:
+                        try:
+                            output_tail = self._output_tail_provider()
+                        except Exception:
+                            # Fail-soft: a tail-capture error must never
+                            # prevent the row from being finalized.
+                            self._log.warning("output_tail_provider_failed", exc_info=True)
+                    self._history_writer.finalize(self._run_uid, run_outcome, output_tail=output_tail)
             finally:
                 current_correlation_id.reset(token)
                 self._restore_sigint_handler(previous_sigint)

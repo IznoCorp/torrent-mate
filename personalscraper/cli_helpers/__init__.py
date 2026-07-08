@@ -16,6 +16,9 @@ from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.logger import get_logger
+from personalscraper.subscribers.redis_stream import build_redis_publisher
+
+log = get_logger("cli_helpers")
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -219,6 +222,7 @@ def per_step_boundary(
     settings: "Settings",
     *,
     build_torrent_client: bool = False,
+    stream_events: bool = False,
 ) -> Iterator[AppContext]:
     """Context manager wrapping the per-step CLI boundary.
 
@@ -237,15 +241,33 @@ def per_step_boundary(
             the torrent-consuming subcommands (``ingest``, ``torrents_list``)
             pass True; the rest leave it False so they never contact the
             torrent daemon at boot (review #1/#2/#5).
+        stream_events: When ``True``, wire the fail-soft Redis event
+            publisher on the step bus so the run feeds the web UI live log
+            feed (universal run journal). Only the pipeline step commands
+            opt in; other consumers keep a publisher-free boundary.
 
     Yields:
         The fresh :class:`AppContext` bound for this invocation.
     """
     app_context = _build_app_context(config, settings, build_torrent_client=build_torrent_client)
     token = current_correlation_id.set(str(uuid4()))
+    # Stream step events to the web UI live feed exactly like a full
+    # ``personalscraper run`` (universal run journal, 2026-07-08). Opt-in:
+    # only the pipeline step commands pass ``stream_events=True`` — the many
+    # other boundary consumers (library-*, grab, seed, …) keep a clean stdout
+    # (several of their tests parse strict JSON output, and the publisher's
+    # fail-soft warnings would pollute it when Redis is absent). The builder
+    # is gated on ``web.enabled`` and fail-soft — Redis down never blocks a
+    # step command.
+    redis_publisher = build_redis_publisher(app_context.event_bus, config.web) if stream_events else None
     try:
         yield app_context
     finally:
+        if redis_publisher is not None:
+            try:
+                redis_publisher.close()
+            except Exception:  # noqa: BLE001 — teardown must never mask the step outcome
+                log.warning("per_step_boundary_publisher_close_failed", exc_info=True)
         current_correlation_id.reset(token)
         app_context.provider_registry.close()
         if app_context.acquire is not None:

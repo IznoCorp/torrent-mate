@@ -15,6 +15,7 @@ from personalscraper.cli_helpers import (
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
+from personalscraper.run_journal import LogTailHandler, cli_step_journal
 
 
 def _run_help() -> str:
@@ -48,23 +49,25 @@ def ingest(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        staging_dir = config.paths.staging_dir
-        ingest_dir = staging_path(config, find_ingest_dir(config))
-        with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
-            report = cli_compat.run_ingest(
-                settings,
-                dry_run=dry_run,
-                ingest_dir=ingest_dir,
-                staging_dir=staging_dir,
-                config=config,
-                event_bus=app_context.event_bus,
-                torrent_client=app_context.torrent_client,
+        with cli_step_journal(config, command="ingest", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            staging_dir = config.paths.staging_dir
+            ingest_dir = staging_path(config, find_ingest_dir(config))
+            with per_step_boundary(config, settings, build_torrent_client=True, stream_events=True) as app_context:
+                report = cli_compat.run_ingest(
+                    settings,
+                    dry_run=dry_run,
+                    ingest_dir=ingest_dir,
+                    staging_dir=staging_dir,
+                    config=config,
+                    event_bus=app_context.event_bus,
+                    torrent_client=app_context.torrent_client,
+                )
+            console.print(
+                f"[bold]Ingest:[/bold] {report.success_count} OK, "
+                f"{report.skip_count} skipped, {report.error_count} errors"
             )
-        console.print(
-            f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-        )
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -84,22 +87,24 @@ def sort(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        with per_step_boundary(config, settings) as app_context:
-            report = run_sort(
-                settings,
-                staging_dir=config.paths.staging_dir,
-                dry_run=dry_run,
-                config=config,
-                event_bus=app_context.event_bus,
+        with cli_step_journal(config, command="sort", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
+                report = run_sort(
+                    settings,
+                    staging_dir=config.paths.staging_dir,
+                    dry_run=dry_run,
+                    config=config,
+                    event_bus=app_context.event_bus,
+                )
+            console.print(
+                f"[bold]Sort:[/bold] {report.success_count} OK, "
+                f"{report.skip_count} skipped, {report.error_count} errors"
             )
-        console.print(
-            f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-        )
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -123,25 +128,27 @@ def scrape(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        with per_step_boundary(config, settings) as app_context:
-            report = run_scrape(
-                settings,
-                config=config,
-                dry_run=dry_run,
-                interactive=interactive,
-                movies_only=movies_only,
-                tvshows_only=tvshows_only,
-                event_bus=app_context.event_bus,
-                registry=app_context.provider_registry,
+        with cli_step_journal(config, command="scrape", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
+                report = run_scrape(
+                    settings,
+                    config=config,
+                    dry_run=dry_run,
+                    interactive=interactive,
+                    movies_only=movies_only,
+                    tvshows_only=tvshows_only,
+                    event_bus=app_context.event_bus,
+                    registry=app_context.provider_registry,
+                )
+            console.print(
+                f"[bold]Scrape:[/bold] {report.success_count} OK, "
+                f"{report.skip_count} skipped, {report.error_count} errors"
             )
-        console.print(
-            f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-        )
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -189,26 +196,27 @@ def verify(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        with per_step_boundary(config, settings) as app_context:
-            try:
-                report, dispatchable = run_verify(
-                    settings,
-                    config,
-                    dry_run=dry_run,
-                    movies_only=movies_only,
-                    tvshows_only=tvshows_only,
-                    only=only,
-                    event_bus=app_context.event_bus,
-                )
-            except KeyError as exc:
-                raise typer.BadParameter(str(exc)) from exc
-        console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
-        console.print(f"  {len(dispatchable)} ready for dispatch")
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+        with cli_step_journal(config, command="verify", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
+                try:
+                    report, dispatchable = run_verify(
+                        settings,
+                        config,
+                        dry_run=dry_run,
+                        movies_only=movies_only,
+                        tvshows_only=tvshows_only,
+                        only=only,
+                        event_bus=app_context.event_bus,
+                    )
+                except KeyError as exc:
+                    raise typer.BadParameter(str(exc)) from exc
+            console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
+            console.print(f"  {len(dispatchable)} ready for dispatch")
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -254,17 +262,18 @@ def enforce(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        with per_step_boundary(config, settings) as app_context:
-            try:
-                report = run_enforce(settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
-            except KeyError as exc:
-                raise typer.BadParameter(str(exc)) from exc
-        console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+        with cli_step_journal(config, command="enforce", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
+                try:
+                    report = run_enforce(settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
+                except KeyError as exc:
+                    raise typer.BadParameter(str(exc)) from exc
+            console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -289,33 +298,36 @@ def dispatch(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        with per_step_boundary(config, settings) as app_context:
-            report, results = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
+        with cli_step_journal(config, command="dispatch", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
+                report, results = run_dispatch(
+                    settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus
+                )
 
-        # Collect touched disks from DispatchResult objects (index-sync DESIGN).
-        from personalscraper.dispatch.post_maintenance import collect_touched_disks
+            # Collect touched disks from DispatchResult objects (index-sync DESIGN).
+            from personalscraper.dispatch.post_maintenance import collect_touched_disks
 
-        touched_disks = collect_touched_disks(results)
+            touched_disks = collect_touched_disks(results)
 
-        # Resolve post-maintenance enablement: flag > config > default(true).
-        maintenance_enabled = not no_post_maintenance
-        if maintenance_enabled:
-            maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
+            # Resolve post-maintenance enablement: flag > config > default(true).
+            maintenance_enabled = not no_post_maintenance
+            if maintenance_enabled:
+                maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
 
-        if touched_disks and not dry_run:
-            from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
+            if touched_disks and not dry_run:
+                from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
 
-            run_post_dispatch_maintenance(config, touched_disks, enabled=maintenance_enabled)
+                run_post_dispatch_maintenance(config, touched_disks, enabled=maintenance_enabled)
 
-        console.print(
-            f"[bold]Dispatch:[/bold] {report.success_count} OK, "
-            f"{report.skip_count} skipped, {report.error_count} errors"
-        )
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+            console.print(
+                f"[bold]Dispatch:[/bold] {report.success_count} OK, "
+                f"{report.skip_count} skipped, {report.error_count} errors"
+            )
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -342,27 +354,29 @@ def clean(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        try:
-            with per_step_boundary(config, settings) as app_context:
-                report = run_clean(
-                    settings,
-                    config=config,
-                    dry_run=dry_run,
-                    event_bus=app_context.event_bus,
-                )
-        except Exception as exc:
-            console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
-            get_logger("pipeline").exception("clean_command_failed", error=str(exc))
-            raise typer.Exit(1) from exc
+        with cli_step_journal(config, command="clean", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            try:
+                with per_step_boundary(config, settings, stream_events=True) as app_context:
+                    report = run_clean(
+                        settings,
+                        config=config,
+                        dry_run=dry_run,
+                        event_bus=app_context.event_bus,
+                    )
+            except Exception as exc:
+                console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
+                get_logger("pipeline").exception("clean_command_failed", error=str(exc))
+                raise typer.Exit(1) from exc
 
-        console.print(
-            f"[bold]Clean:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
-        )
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+            console.print(
+                f"[bold]Clean:[/bold] {report.success_count} OK, "
+                f"{report.skip_count} skipped, {report.error_count} errors"
+            )
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -391,25 +405,26 @@ def cleanup(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        try:
-            with per_step_boundary(config, settings) as app_context:
-                report = run_cleanup(
-                    settings,
-                    config=config,
-                    dry_run=dry_run,
-                    event_bus=app_context.event_bus,
-                )
-        except Exception as exc:
-            console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
-            get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
-            raise typer.Exit(1) from exc
+        with cli_step_journal(config, command="cleanup", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            try:
+                with per_step_boundary(config, settings, stream_events=True) as app_context:
+                    report = run_cleanup(
+                        settings,
+                        config=config,
+                        dry_run=dry_run,
+                        event_bus=app_context.event_bus,
+                    )
+            except Exception as exc:
+                console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
+                get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
+                raise typer.Exit(1) from exc
 
-        console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
-        if state["verbose"]:
-            for detail in report.details:
-                console.print(f"  {detail}")
+            console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -430,31 +445,32 @@ def process(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
-        _bootstrap_staging(ctx)
-        settings = cli_compat.get_settings()
-        try:
-            with per_step_boundary(config, settings) as app_context:
-                clean, scrape, cleanup = run_process(
-                    settings,
-                    dry_run=dry_run,
-                    interactive=interactive,
-                    config=config,
-                    event_bus=app_context.event_bus,
-                    registry=app_context.provider_registry,
-                )
-        except Exception as exc:
-            console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
-            get_logger("pipeline").exception("process_command_failed", error=str(exc))
-            raise typer.Exit(1) from exc
+        with cli_step_journal(config, command="process", dry_run=dry_run):
+            _bootstrap_staging(ctx)
+            settings = cli_compat.get_settings()
+            try:
+                with per_step_boundary(config, settings, stream_events=True) as app_context:
+                    clean, scrape, cleanup = run_process(
+                        settings,
+                        dry_run=dry_run,
+                        interactive=interactive,
+                        config=config,
+                        event_bus=app_context.event_bus,
+                        registry=app_context.provider_registry,
+                    )
+            except Exception as exc:
+                console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
+                get_logger("pipeline").exception("process_command_failed", error=str(exc))
+                raise typer.Exit(1) from exc
 
-        for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
-            console.print(
-                f"[bold]{label}:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
+            for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
+                console.print(
+                    f"[bold]{label}:[/bold] {report.success_count} OK, "
+                    f"{report.skip_count} skipped, {report.error_count} errors"
+                )
+                if state["verbose"]:
+                    for detail in report.details:
+                        console.print(f"  {detail}")
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
@@ -674,6 +690,13 @@ def run(
                     exc_info=True,
                 )
 
+            # Capture the log tail for the durable run journal (universal run
+            # journal, 2026-07-08): every trigger path — cli, web-spawned,
+            # safety_net — routes through this command, so installing the
+            # handler here gives all of them an ``output_tail``.
+            tail_handler = LogTailHandler()
+            tail_handler.install()
+
             pipeline = Pipeline(app_context)
             try:
                 try:
@@ -686,8 +709,10 @@ def run(
                         no_post_maintenance=no_post_maintenance,
                         trigger_reason=trigger_reason or "cli",
                         history_writer=history_writer,
+                        output_tail_provider=tail_handler.tail,
                     )
                 finally:
+                    tail_handler.uninstall()
                     if rich_subscriber is not None:
                         rich_subscriber.close()
                     if telegram_subscriber is not None:
@@ -754,6 +779,7 @@ def torrents_list(ctx: typer.Context) -> None:
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured
     # (DESIGN D9) — exit 2 so monitoring tools can branch on the code.
+    # No stream_events: a listing command is not a journaled pipeline step.
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         client = app_context.torrent_client
         if client is None:

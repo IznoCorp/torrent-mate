@@ -238,3 +238,34 @@ describe("RunDetail", () => {
     expect(screen.queryByText("Dispatch")).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Journal durable (output_tail) — universal run journal 2026-07-08
+// ---------------------------------------------------------------------------
+
+describe("RunDetail — journal durable (output_tail)", () => {
+  it("affiche le journal durable quand output_tail est présent", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({ output_tail: "ligne de log A\nligne de log B" }),
+    );
+    renderDetail("abc123-run-uid");
+
+    await screen.findByText("abc123-r…");
+
+    expect(screen.getByText("Journal")).toBeInTheDocument();
+    expect(
+      screen.getByText(/ligne de log A/, { collapseWhitespace: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("masque la section journal quand output_tail est absent", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(makeDetail({ output_tail: null }));
+    renderDetail("abc123-run-uid");
+
+    await screen.findByText("abc123-r…");
+
+    expect(screen.queryByText("Journal")).not.toBeInTheDocument();
+  });
+});

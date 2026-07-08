@@ -558,6 +558,22 @@ default `'pipeline'`), `command`, `options_json`, and `output_tail` columns to
 the `pipeline_run` table. Pipeline and maintenance runs share one table — the
 frontend `RunHistoryTable` on `/maintenance` filters via `?kind=maintenance`.
 
+**Universal run journal (0.44.0).** Every pipeline invocation path writes the
+journal, not just web-launched runs:
+
+- `personalscraper run` (all triggers — `cli`, `web`, `safety_net`) installs a
+  `LogTailHandler` (64 KiB ring buffer on the root logger) and passes it to
+  `Pipeline.run(output_tail_provider=…)`, so `finalize` persists `output_tail`.
+- Direct CLI step commands (`ingest`, `sort`, `scrape`, `verify`, `enforce`,
+  `dispatch`, `clean`, `cleanup`, `process`) are wrapped by
+  `personalscraper/run_journal.py: cli_step_journal` — a fail-soft context
+  manager inserting a `pipeline_run` row (`trigger='cli'`, `kind='pipeline'`,
+  `command=<step>`) and finalizing it with the captured `output_tail`.
+- `per_step_boundary` builds the fail-soft Redis event publisher, so step
+  commands stream their events to the live `RunLogFeed` like full runs.
+- `RunDetail` (frontend) renders the durable `output_tail` as a "Journal"
+  section for finished runs of both kinds — no more silent runs in the UI.
+
 ### Action registry & runner
 
 **Registry** (`personalscraper/web/maintenance/registry.py`). `REGISTRY` holds 25
