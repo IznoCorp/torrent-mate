@@ -20,6 +20,7 @@
 | 3   | Frontend SchemaForm + /config page          | phase-03-frontend-editor.md   | [x]    |
 | 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [x]    |
 | 5   | PR fixes cycle 1                            | phase-05-pr-fixes-cycle-1.md  | [x]    |
+| 6   | PR fixes cycle 2                            | phase-06-pr-fixes-cycle-2.md  | [ ]    |
 
 ## Review cycles
 
@@ -37,6 +38,19 @@ Open item for operator: `process_clean` and `sort` exist only as model defaults 
 file owns them → invisible to the editor); adding them to config.example is a config-surface
 decision deferred to the operator.
 
+### Cycle 2 (fixes applied phase 5; new fixes in phase 6)
+
+Adversarial re-review of the phase-5 fix commits (code-reviewer + silent-failure-hunter):
+all 19 cycle-1 findings VERIFIED RESOLVED. 4 retained (2 new, introduced by the fixes;
+2 residual): F1 second-order .env injection (str.splitlines splits on 8 more separators than
+the \r\n guard), NEW-01 unguarded/unlogged restart-log open (new 500 mode), NEW-02 string-detail
+422/409/403 saves drop the backend reason, NEW-04 SecretsTab blanket catch. 2 minor (FD leak,
+CWE-377 temp log) folded into 6.1. No design contradiction. Fix phase: 06.
+**Open item for operator**: NEW-03 — a failed async pm2 restart (202 answered before spawn) is
+not surfaced to the caller; phase 6 logs it at warning + documents the semantics, but the
+"poll /status after 202" health-recheck enhancement is left for the operator's decision (it
+extends the DESIGN's write-only+restart-badge model).
+
 ## Next action
 
-Push phase 5, poll CI, then re-review (cycle 2).
+Execute phase 6 (PR fixes cycle 2) via /implement:phase, push, CI, then re-review (cycle 3).
