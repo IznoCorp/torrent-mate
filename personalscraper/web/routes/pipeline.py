@@ -27,6 +27,7 @@ from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import (
     Session,
+    require_not_staging,
     require_session,
     require_x_requested_with,
 )
@@ -149,6 +150,7 @@ def pipeline_run(
     body: RunRequest,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> JSONResponse:
     """Launch a new pipeline run as a detached subprocess.
 
@@ -185,6 +187,7 @@ def pipeline_pause(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
     """Create the ``pipeline.pause`` sentinel to pause the running pipeline.
 
@@ -205,6 +208,7 @@ def pipeline_resume(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
     """Remove the ``pipeline.pause`` sentinel to resume a paused pipeline.
 
@@ -221,6 +225,7 @@ def pipeline_kill(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
     """Kill the running pipeline subprocess with SIGTERM.
 
@@ -260,6 +265,7 @@ def pipeline_watcher(
     body: WatcherRequest,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> WatcherResponse:
     """Enable or pause the directory watcher daemon.
 

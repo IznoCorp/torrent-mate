@@ -6,6 +6,7 @@ They read from ``request.app.state``, which is populated by ``create_app``.
 
 from __future__ import annotations
 
+import os
 from typing import cast
 
 from fastapi import HTTPException, Request
@@ -87,6 +88,37 @@ def require_x_requested_with(request: Request) -> None:
     """
     if request.headers.get("X-Requested-With") != "TorrentMate":
         raise HTTPException(status_code=400, detail="Missing X-Requested-With header")
+
+
+def is_staging_role() -> bool:
+    """Single source of truth for the staging role check.
+
+    Reads the ``PERSONALSCRAPER_WEB_ROLE`` environment variable, defaulting
+    to ``"prod"``.  Used by :func:`require_not_staging` and by the config
+    editor's ``_is_staging`` helper (which delegates here).
+
+    Returns:
+        ``True`` when the web process is running in read-only staging mode.
+    """
+    return os.environ.get("PERSONALSCRAPER_WEB_ROLE", "prod") == "staging"
+
+
+def require_not_staging() -> None:
+    """FastAPI dependency: 403 read-only on the staging clone.
+
+    Because the prod and staging web processes share the same ``config/``
+    directory (and therefore the same ``data_dir``, ``library.db``, and
+    storage disks), every mutating ``POST`` under ``/api/*`` must be
+    blocked on the staging instance.  This dependency is the single guard
+    applied to all write routes in pipeline (S2), maintenance (S3), and
+    config (S4).
+
+    Raises:
+        HTTPException: 403 with detail ``"read-only"`` when
+            ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+    """
+    if is_staging_role():
+        raise HTTPException(status_code=403, detail="read-only")
 
 
 def require_session(request: Request) -> Session:

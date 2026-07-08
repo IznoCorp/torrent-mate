@@ -38,6 +38,7 @@ from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.deps import (
     Session,
+    require_not_staging,
     require_session,
     require_x_requested_with,
 )
@@ -798,6 +799,7 @@ def action_run(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> JSONResponse:
     """Launch a maintenance action as a detached subprocess.
 
