@@ -92,6 +92,36 @@ type ResponseBodyOf<Op> = Op extends { responses: infer R }
   : never;
 
 // ---------------------------------------------------------------------------
+// Error detail normalisation
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract a human-readable detail string from a JSON error response body.
+ *
+ * FastAPI 422 responses carry ``detail`` as an **array** of
+ * ``{loc, msg, type}`` objects rather than a plain string.  Other
+ * endpoints (or non-Pydantic errors) return a string.  This helper
+ * normalises both shapes so every :class:`ApiError` carries a string
+ * that downstream code can reliably ``JSON.parse`` when needed.
+ *
+ * Args:
+ *   body: The parsed JSON body (``unknown`` — no ``any``).
+ *   fallback: Value to return when ``body`` is not an object or has no
+ *       ``detail`` key (typically ``response.statusText``).
+ *
+ * Returns:
+ *   A string suitable for ``ApiError.detail``.
+ */
+function extractDetail(body: unknown, fallback: string): string {
+  if (body !== null && typeof body === "object" && "detail" in body) {
+    const detail: unknown = (body as Record<string, unknown>).detail;
+    if (typeof detail === "string") return detail;
+    return JSON.stringify(detail);
+  }
+  return fallback;
+}
+
+// ---------------------------------------------------------------------------
 // Generic fetch wrapper
 // ---------------------------------------------------------------------------
 
@@ -156,10 +186,8 @@ export async function apiFetch<P extends keyof paths, M extends MethodOf<P>>(
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      const json = (await response.json()) as { detail?: string };
-      if (typeof json.detail === "string") {
-        detail = json.detail;
-      }
+      const body: unknown = await response.json();
+      detail = extractDetail(body, response.statusText);
     } catch {
       // Body is not JSON or is empty — keep statusText.
     }
@@ -340,8 +368,8 @@ export async function getPipelineHistory(
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      const json = (await response.json()) as { detail?: string };
-      if (typeof json.detail === "string") detail = json.detail;
+      const body: unknown = await response.json();
+      detail = extractDetail(body, response.statusText);
     } catch {
       // Body is not JSON or is empty — keep statusText.
     }
@@ -373,8 +401,8 @@ export async function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      const json = (await response.json()) as { detail?: string };
-      if (typeof json.detail === "string") detail = json.detail;
+      const body: unknown = await response.json();
+      detail = extractDetail(body, response.statusText);
     } catch {
       // Body is not JSON or is empty — keep statusText.
     }
@@ -474,8 +502,8 @@ export async function runMaintenanceAction(
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      const json = (await response.json()) as { detail?: string };
-      if (typeof json.detail === "string") detail = json.detail;
+      const body: unknown = await response.json();
+      detail = extractDetail(body, response.statusText);
     } catch {
       // Body is not JSON or is empty — keep statusText.
     }
@@ -570,8 +598,8 @@ export async function getConfigFile(name: string): Promise<FileContent> {
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      const json = (await response.json()) as { detail?: string };
-      if (typeof json.detail === "string") detail = json.detail;
+      const body: unknown = await response.json();
+      detail = extractDetail(body, response.statusText);
     } catch {
       // Body is not JSON or is empty — keep statusText.
     }
@@ -624,8 +652,8 @@ export async function putConfigFile(
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      const json = (await response.json()) as { detail?: string };
-      if (typeof json.detail === "string") detail = json.detail;
+      const body: unknown = await response.json();
+      detail = extractDetail(body, response.statusText);
     } catch {
       // Body is not JSON or is empty — keep statusText.
     }
