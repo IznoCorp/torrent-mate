@@ -110,4 +110,36 @@ describe("IndexHealthPanel", () => {
     expect(alert).toHaveTextContent(/dégradée/i);
     expect(alert).toHaveTextContent("no such table: media_item");
   });
+
+  it("un dernier scan 'ok' affiche un point vert, pas rouge (U1)", async () => {
+    // scan_run.status success value is 'ok' (indexer/schema.py) — the panel
+    // used to match 'done' and painted a red dot next to a healthy scan.
+    const fn = await mockGetIndexHealth();
+    fn.mockResolvedValue(makeHealth({ last_scan_status: "ok" }));
+    renderPanel();
+
+    const label = await screen.findByText("Dernier scan");
+    const dot = label.closest(".ps-dot");
+    expect(dot).not.toBeNull();
+    expect(dot?.className).toContain("ps-dot--done");
+    expect(dot?.className).not.toContain("ps-dot--error");
+  });
+
+  it("un dernier scan 'failed' affiche un point rouge avec le statut brut", async () => {
+    const fn = await mockGetIndexHealth();
+    fn.mockResolvedValue(makeHealth({ last_scan_status: "failed" }));
+    renderPanel();
+
+    const label = await screen.findByText("Dernier scan");
+    expect(label.closest(".ps-dot")?.className).toContain("ps-dot--error");
+    expect(screen.getByText("failed")).toBeInTheDocument();
+  });
+
+  it("affiche la taille en To au-delà de 1024 Go (U1)", async () => {
+    const fn = await mockGetIndexHealth();
+    fn.mockResolvedValue(makeHealth({ size_gb: 20658.0 }));
+    renderPanel();
+
+    expect(await screen.findByText("20.2 To")).toBeInTheDocument();
+  });
 });
