@@ -135,6 +135,11 @@ CE-* (comment-analyzer). Every code-bug fix ships its failing-first regression t
    "Validation échouée — N erreur(s)" listing the unmatched messages. Test with a model-level
    error (`loc: []`).
 
+   **Contract chosen (2026-07-08)**: the simpler "always-toast" contract — every 422 save
+   failure fires `toast.error("Validation échouée")`, even when all errors are mapped to
+   fields. When unmatched errors exist (`loc: []` → path `""` after flattening), the
+   first unmatched message is appended: `"Validation échouée — 1 erreur(s) : <msg>"`.
+
 **Commit**: `fix(config-editor): transport 422 detail arrays to the form + unmatched-error toast`
 
 ### 5.7 — Frontend UX honesty (R4 frontend, R10, R7)
