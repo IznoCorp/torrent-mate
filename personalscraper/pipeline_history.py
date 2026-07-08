@@ -184,8 +184,10 @@ class PipelineRunWriter:
         Args:
             run_uid: Unique run identifier.
             step_name: Name of the pipeline step (e.g. ``'ingest'``).
-            started_at: Monotonic timestamp when the step started.
-            ended_at: Monotonic timestamp when the step completed.
+            started_at: Unix-epoch timestamp (``time.time()``) when the step
+                started.
+            ended_at: Unix-epoch timestamp (``time.time()``-based) when the
+                step completed.
             status: Step outcome (``'success'`` or ``'error'``).
         """
         entry = {

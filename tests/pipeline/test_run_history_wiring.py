@@ -306,6 +306,43 @@ class TestHistoryWriterUpdateStep:
                 elif s["name"] == "dispatch":
                     assert s["status"] == "skipped"
 
+    def test_step_timestamps_are_epoch_not_monotonic(self) -> None:
+        """R12 — steps_json timestamps are Unix-epoch, never ``time.monotonic()``.
+
+        The renderer (``GET /api/pipeline/history/{run_uid}``) decodes each
+        step's ``started_at``/``ended_at`` with ``datetime.fromtimestamp``, so
+        a monotonic value (seconds since boot) displays as ~1970. Every entry
+        — success, error AND the synthesized skipped dispatch — must carry an
+        epoch timestamp (> 2020-01-01), consistent with the run-level columns.
+        """
+        import time as _time
+
+        epoch_2020 = 1577836800.0  # 2020-01-01T00:00:00Z
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "library.db"
+            _create_db(db_path)
+
+            app = _stub_app()
+            writer = PipelineRunWriter(db_path)
+            pipeline = Pipeline(app)
+            # One erroring step so BOTH update_step call sites are exercised.
+            registry = _step_registry(raise_on="scrape")
+
+            before = _time.time()
+            _run_with_writer(pipeline, registry, writer)
+            after = _time.time()
+
+            row = _fetch_row(db_path, pipeline._run_uid)
+            assert row is not None
+            steps = json.loads(row["steps_json"])
+            assert len(steps) == 9
+            for s in steps:
+                assert s["started_at"] > epoch_2020, f"step {s['name']!r} started_at={s['started_at']} is not epoch"
+                assert before <= s["started_at"] <= after
+                assert before <= s["ended_at"] <= after
+                assert s["started_at"] <= s["ended_at"]
+
 
 class TestHistoryWriterFinalize:
     """After ``PipelineEnded``, ``ended_at`` is set and ``outcome`` reflects the run."""

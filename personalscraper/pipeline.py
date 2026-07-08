@@ -728,6 +728,10 @@ class Pipeline:
         self._app.event_bus.emit(StepStarted(step=name))
 
         t0 = time.monotonic()
+        # Epoch clock for persisted step timestamps (R12): steps_json readers
+        # (GET /history/{run_uid}) render with datetime.fromtimestamp, so the
+        # stored values MUST be time.time(). t0 stays monotonic for elapsed.
+        step_started_at = time.time()
         extra = None
         crashed = False
 
@@ -760,8 +764,8 @@ class Pipeline:
                 self._history_writer.update_step(
                     self._run_uid,
                     name,
-                    t0,
-                    time.monotonic(),
+                    step_started_at,
+                    step_started_at + (time.monotonic() - t0),
                     "error",
                 )
             error_msg = f"{type(exc).__name__}: {exc}"
@@ -786,8 +790,8 @@ class Pipeline:
                 self._history_writer.update_step(
                     self._run_uid,
                     name,
-                    t0,
-                    t0 + elapsed,
+                    step_started_at,
+                    step_started_at + elapsed,
                     "success",
                 )
 
