@@ -13,7 +13,9 @@ Read endpoints (sub-phase 2.2):
 Write endpoints (sub-phase 2.3):
 - ``POST /validate`` → :class:`ValidateResponse`
 - ``PUT /files/{name}`` → :class:`PutFileResponse`
-- ``GET /secrets`` → :class:`SecretsResponse`
+- ``GET /secrets`` → :class:`SecretsResponse` (read, but implemented in the
+  write sub-phase — grouped here because it shares the secrets catalog with
+  ``PUT /secrets``)
 - ``PUT /secrets`` → :class:`PutFileResponse`
 - ``POST /restart-web`` → :class:`RestartResponse`
 
@@ -23,9 +25,11 @@ dependencies are NOT added here — they are wired at registration time
 (mirroring maintenance.py).
 
 **Config directory resolution**: The config directory is resolved at request
-time via :func:`personalscraper.conf.loader.resolve_config_path`, which reads
-the ``PERSONALSCRAPER_CONFIG`` environment variable (or falls back to
-``./config/``).
+time via :func:`personalscraper.conf.loader.resolve_config_path`, a 4-level
+fallback chain: (1) ``--config`` CLI override (highest priority), (2)
+``PERSONALSCRAPER_CONFIG`` environment variable, (3) ``./config/`` relative to
+the current working directory, (4) ``<pkg_root>/config/`` — the config
+directory alongside the package, used when CWD is not the repo root.
 """
 
 from __future__ import annotations

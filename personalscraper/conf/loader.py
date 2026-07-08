@@ -271,7 +271,7 @@ def validate_candidate(
     config_dir: Path,
     replaced: dict[str, dict[str, Any]],
 ) -> tuple[Config, list[str]]:
-    """Validate a candidate config without touching the filesystem.
+    """Validate a candidate config without writing to the filesystem.
 
     Reads overlay files from *config_dir*, substitutes the values in
     *replaced* (mapping overlay filenames → replacement dicts) in memory,
