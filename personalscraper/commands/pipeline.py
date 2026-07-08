@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from typing import TYPE_CHECKING
+
 import typer
 
 from personalscraper import cli as cli_compat
@@ -15,7 +18,46 @@ from personalscraper.cli_helpers import (
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.run_journal import LogTailHandler, cli_step_journal
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
+
+
+def _journal_lock_conflict(config: Config, *, dry_run: bool) -> None:
+    """R9: leave a terminal ``pipeline_run`` row when a run loses the lock race.
+
+    The web ``POST /api/pipeline/run`` returns a ``run_uid`` in its 202 *before*
+    the spawned ``personalscraper run`` subprocess acquires ``pipeline.lock``. If
+    that subprocess loses the race it exits here without writing any row, so
+    ``GET /api/pipeline/history/{run_uid}`` would 404 forever (orphan run_uid).
+
+    When a web run_uid was injected via ``PERSONALSCRAPER_RUN_UID``, write a
+    terminal ``error`` row for it so the identifier always resolves. Fail-soft:
+    journaling a lock conflict must never change the exit behaviour.
+
+    Args:
+        config: The active configuration (for ``indexer.db_path``).
+        dry_run: Whether the losing run was a dry run (recorded on the row).
+    """
+    run_uid = os.environ.get("PERSONALSCRAPER_RUN_UID")
+    if not run_uid:
+        return
+    db_path = config.indexer.db_path
+    if db_path is None:
+        return
+    log = get_logger("pipeline")
+    try:
+        writer = PipelineRunWriter(db_path)
+        writer.insert(run_uid, trigger="web", dry_run=dry_run, pid=os.getpid(), if_absent=True)
+        writer.finalize(
+            run_uid,
+            "error",
+            error="Could not acquire pipeline.lock — another run is already active.",
+        )
+    except Exception:
+        log.warning("pipeline_lock_conflict_row_write_failed", run_uid=run_uid, exc_info=True)
 
 
 def _run_help() -> str:
@@ -571,6 +613,7 @@ def run(
 
     if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
+        _journal_lock_conflict(config, dry_run=dry_run)
         raise typer.Exit(1)
 
     try:
