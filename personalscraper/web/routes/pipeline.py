@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
@@ -144,14 +143,14 @@ def _db_path(request: Request) -> Path:
     return cast(Path, request.app.state.config.indexer.db_path)
 
 
-@router.post("/run")
+@router.post("/run", response_model=RunResponse, status_code=202)
 def pipeline_run(
     request: Request,
     body: RunRequest,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
-) -> JSONResponse:
+) -> RunResponse:
     """Launch a new pipeline run as a detached subprocess.
 
     Returns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock
@@ -179,7 +178,7 @@ def pipeline_run(
         start_new_session=True,
         env={**os.environ, "PERSONALSCRAPER_RUN_UID": run_uid},
     )
-    return JSONResponse(status_code=202, content=RunResponse(run_uid=run_uid).model_dump())
+    return RunResponse(run_uid=run_uid)
 
 
 @router.post("/pause")
