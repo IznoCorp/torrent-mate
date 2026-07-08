@@ -21,17 +21,12 @@
 // real library.db / .data / disks. What differs is the CODE (which branch) and process
 // ownership. The daemons/crons run from the prod clone binary + cwd, with the config dir
 // passed explicitly (the prod clone has no full config/ of its own).
-
-const PROD_CLONE = "/Users/izno/deploy/torrentmate";
-const PROD_BIN = "/Users/izno/deploy/torrentmate-venv/bin/personalscraper";
-const REAL_CONFIG = "/Users/izno/dev/PersonalScraper/config";
-
-// Shared env for every prod daemon/cron: unbuffered stdout (real-time PM2 logs) +
-// the single canonical config dir.
-const PROD_JOB_ENV = {
-  PYTHONUNBUFFERED: "1",
-  PERSONALSCRAPER_CONFIG: REAL_CONFIG,
-};
+//
+// NOTE: paths are written as inline literals (not JS consts) so the regex drift-guard in
+// tests/indexer/test_ecosystem.py can parse them. Keep the three canonical strings in sync:
+//   prod clone : /Users/izno/deploy/torrentmate
+//   prod binary: /Users/izno/deploy/torrentmate-venv/bin/personalscraper
+//   config dir : /Users/izno/dev/PersonalScraper/config
 
 module.exports = {
   apps: [
@@ -40,17 +35,20 @@ module.exports = {
     // The watcher daemon — PROD. Runs from the prod clone (main), NOT the dev checkout.
     {
       name: "personalscraper-watch",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "watch",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: true,
       restart_delay: 5000,
       max_restarts: 10,
       // 30 s grace before SIGKILL — covers 1 s interruptible-sleep slice
       // granularity + context close (acquire, provider_registry) + shutdown log.
       kill_timeout: 30000,
-      env: PROD_JOB_ENV,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
 
@@ -61,10 +59,10 @@ module.exports = {
     // config dir. The DEV checkout stays runnable ad hoc via `personalscraper web`.
     {
       name: "torrentmate-web",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "web",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: true,
       // 30 s grace before SIGKILL — covers uvicorn graceful shutdown
       // (active WS connections closed, event loop drained) + context
@@ -75,7 +73,7 @@ module.exports = {
       // target this app; unset it to disable the endpoint (404 + hidden button).
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: REAL_CONFIG,
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
         PERSONALSCRAPER_PM2_NAME: "torrentmate-web",
       },
     },
@@ -96,7 +94,7 @@ module.exports = {
       kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: REAL_CONFIG,
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
         PERSONALSCRAPER_WEB_ROLE: "staging",
       },
     },
@@ -113,35 +111,41 @@ module.exports = {
       name: "torrentmate-autodeploy",
       script: "./scripts/autodeploy-poll.sh",
       interpreter: "/bin/bash",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: true,
       restart_delay: 60000,
     },
 
     // ---- Scheduled jobs (autorestart: false, cron_restart) ----
     // All run from the PROD clone binary + cwd, with the canonical config dir passed
-    // explicitly (PROD_JOB_ENV). Decoupled from the dev checkout branch.
+    // explicitly. Decoupled from the dev checkout branch.
 
     {
       name: "personalscraper-index-enrich",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "library-index --mode enrich --budget 1800 --wait-for-lock 0",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: false,
       cron_restart: "30 4 * * 0", // Sundays 04:30 local — off-peak
-      env: PROD_JOB_ENV,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
     },
 
     {
       name: "personalscraper-backfill-ids",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "library-backfill-ids",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: false,
       cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
-      env: PROD_JOB_ENV,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
     },
 
     // ---- Follow → auto-acquisition (Follow D3) ----
@@ -149,25 +153,31 @@ module.exports = {
     // searches the trackers + adds the exact-episode top candidate to qBit.
     {
       name: "personalscraper-follow-detect",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "follow detect",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: false,
       cron_restart: "0 3 * * *", // 03:00 daily — enqueue newly-aired episodes
-      env: PROD_JOB_ENV,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
     },
 
     {
       name: "personalscraper-grab",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "grab",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: false,
       // 03:20 daily (after detect) + 15:20 to retry backed-off items sooner.
       cron_restart: "20 3,15 * * *",
-      env: PROD_JOB_ENV,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
     },
 
     // ---- Proactive health monitor ----
@@ -175,13 +185,16 @@ module.exports = {
     // pipeline's own event alerting does not cover (dead watcher, stuck lock).
     {
       name: "personalscraper-health-check",
-      script: PROD_BIN,
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "health-check",
       interpreter: "none",
-      cwd: PROD_CLONE,
+      cwd: "/Users/izno/deploy/torrentmate",
       autorestart: false,
       cron_restart: "15 * * * *", // hourly at :15
-      env: PROD_JOB_ENV,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
     },
   ],
 };

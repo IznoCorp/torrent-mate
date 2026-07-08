@@ -1,9 +1,10 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: six apps (one daemon + five cron jobs — index-enrich, backfill-ids,
-follow-detect, grab, health-check), correct ``interpreter`` / ``cwd``, proper
-``autorestart`` vs ``cron_restart`` segregation, and valid cron expressions.
+design: the nine apps (watch daemon + five cron jobs + prod/staging web + autodeploy),
+correct ``interpreter`` / ``script`` / ``cwd``, proper ``autorestart`` vs
+``cron_restart`` segregation, valid cron expressions, and the ENV-SEP invariant that
+every daemon/cron runs from the PROD clone — never the dev checkout.
 
 Test strategy:
     Parse ``ecosystem.config.js`` pragmatically from Python — regex-based
@@ -45,9 +46,25 @@ _EXPECTED_APP_NAMES = frozenset(
 #: ``interpreter`` is not ``"none"``). The autodeploy poller is a bash script.
 _NON_PYTHON_APP_NAMES = frozenset({"torrentmate-autodeploy"})
 
-#: Web apps that run from a per-clone deploy checkout (their ``cwd`` is a literal
-#: absolute clone path, not ``__dirname``). See the deploy model in DESIGN §6.
-_DEPLOY_CLONE_APP_NAMES = frozenset({"torrentmate-web", "torrentmate-web-staging"})
+#: ENV-SEP canonical paths — every daemon/cron runs from the PROD clone, decoupled
+#: from the dev checkout (so a cron never executes an in-flight feature branch).
+_PROD_CLONE = "/Users/izno/deploy/torrentmate"
+_PROD_BIN = "/Users/izno/deploy/torrentmate-venv/bin/personalscraper"
+_CANONICAL_CONFIG = "/Users/izno/dev/PersonalScraper/config"
+
+#: Python daemon/cron apps — all run the prod-clone venv binary from the prod-clone
+#: cwd with the canonical config dir passed explicitly (ENV-SEP). The web apps run
+#: from their OWN clones (tested in :func:`test_web_apps_run_from_their_deploy_clones`).
+_PROD_PYTHON_APP_NAMES = frozenset(
+    {
+        "personalscraper-watch",
+        "personalscraper-index-enrich",
+        "personalscraper-backfill-ids",
+        "personalscraper-follow-detect",
+        "personalscraper-grab",
+        "personalscraper-health-check",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -222,19 +239,45 @@ def test_every_app_has_interpreter_none(app_name: str) -> None:
     assert app.get("interpreter") == "none", f"{app_name}: interpreter must be 'none', got {app.get('interpreter')!r}"
 
 
-@pytest.mark.parametrize("app_name", sorted(_EXPECTED_APP_NAMES - _DEPLOY_CLONE_APP_NAMES))
-def test_every_app_has_cwd_dirname(app_name: str) -> None:
-    """Every repo-run app must use ``cwd: __dirname`` (run from the dev checkout).
+@pytest.mark.parametrize("app_name", sorted(_PROD_PYTHON_APP_NAMES))
+def test_python_daemons_run_from_prod_clone(app_name: str) -> None:
+    """ENV-SEP: every python daemon/cron runs the PROD clone's venv binary + cwd.
 
-    The per-clone web apps (prod/staging) run from their deploy checkouts and are
-    excluded — see :func:`test_web_apps_run_from_their_deploy_clones`.
+    The crons/watch used to run from the dev checkout via the pyenv editable install
+    (``cwd: __dirname``), so they executed whatever feature branch dev happened to be
+    on — a version-skew hazard against the shared ``library.db``. They now run the prod
+    clone binary + cwd with the canonical config dir passed explicitly.
 
     Args:
         app_name: Name of the app under test.
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     app = _get_app_by_name(apps, app_name)
-    assert app.get("cwd") == "__dirname", f"{app_name}: cwd must be __dirname, got {app.get('cwd')!r}"
+    assert app.get("script") == _PROD_BIN, (
+        f"{app_name}: script must be the prod-clone venv binary, got {app.get('script')!r}"
+    )
+    assert app.get("cwd") == _PROD_CLONE, f"{app_name}: cwd must be the prod clone, got {app.get('cwd')!r}"
+    assert app.get("PERSONALSCRAPER_CONFIG") == _CANONICAL_CONFIG, (
+        f"{app_name}: PERSONALSCRAPER_CONFIG must be the canonical config dir, "
+        f"got {app.get('PERSONALSCRAPER_CONFIG')!r}"
+    )
+
+
+def test_no_app_runs_from_the_dev_checkout() -> None:
+    """ENV-SEP invariant: no PM2 app runs from the dev checkout.
+
+    Guards against a regression that re-binds any app to the pyenv editable binary
+    (``~/.pyenv/.../personalscraper``) or ``cwd: __dirname`` / the dev checkout path —
+    which would execute an in-flight feature branch against the shared ``library.db``.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    for app in apps:
+        name = app["name"]
+        cwd = str(app.get("cwd", ""))
+        script = str(app.get("script", ""))
+        assert cwd != "__dirname", f"{name}: cwd must not be __dirname (the dev checkout)"
+        assert "/dev/PersonalScraper" not in cwd, f"{name}: cwd must not be under the dev checkout, got {cwd!r}"
+        assert ".pyenv" not in script, f"{name}: script must not be the pyenv editable binary, got {script!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -407,7 +450,9 @@ def test_autodeploy_app_runs_poller_via_bash() -> None:
     assert app.get("interpreter") == "/bin/bash", (
         f"autodeploy interpreter must be '/bin/bash', got {app.get('interpreter')!r}"
     )
-    assert app.get("cwd") == "__dirname", f"autodeploy cwd must be __dirname, got {app.get('cwd')!r}"
+    assert app.get("cwd") == _PROD_CLONE, (
+        f"autodeploy cwd must be the prod clone ({_PROD_CLONE}), got {app.get('cwd')!r}"
+    )
     assert app.get("autorestart") is True, f"autodeploy must have autorestart=true, got {app.get('autorestart')!r}"
     assert app.get("restart_delay") == 60000, (
         f"autodeploy restart_delay must be 60000, got {app.get('restart_delay')!r}"
