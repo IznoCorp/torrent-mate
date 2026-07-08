@@ -22,7 +22,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
-import Config from "@/pages/Config";
+import Config, { restartPollConfig } from "@/pages/Config";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
@@ -122,6 +122,7 @@ const mocks = {
   usePutConfigSecrets: vi.fn(),
   useRestartWeb: vi.fn(),
   useValidateConfig: vi.fn(),
+  getConfigStatus: vi.fn(),
 };
 
 vi.mock("@/hooks/useConfig", () => ({
@@ -134,6 +135,13 @@ vi.mock("@/hooks/useConfig", () => ({
   usePutConfigSecrets: () => mocks.usePutConfigSecrets(),
   useRestartWeb: () => mocks.useRestartWeb(),
   useValidateConfig: () => mocks.useValidateConfig(),
+}));
+
+// Partial mock: keep ApiError (a real class used with `instanceof`) but stub the
+// restart-outcome poll's status fetch.
+vi.mock("@/api/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/client")>()),
+  getConfigStatus: () => mocks.getConfigStatus(),
 }));
 
 // Silence sonner toasts in tests.
@@ -169,6 +177,8 @@ function setDefaultMocks(): void {
   mocks.useValidateConfig.mockReturnValue(idleMutation());
   // useConfigFile: default to loading (no file selected).
   mocks.useConfigFile.mockReturnValue(loading);
+  // Default restart-poll status: not restart_required (poll resolves benignly).
+  mocks.getConfigStatus.mockResolvedValue(defaultStatus);
 }
 
 /** Render the Config page wrapped in providers. */
@@ -192,11 +202,16 @@ function renderConfig(): void {
 
 beforeEach(() => {
   setDefaultMocks();
+  // Shrink the restart-outcome poll window so real-timer tests are fast.
+  restartPollConfig.attempts = 3;
+  restartPollConfig.intervalMs = 5;
 });
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  restartPollConfig.attempts = 10;
+  restartPollConfig.intervalMs = 2000;
 });
 
 // ---------------------------------------------------------------------------
@@ -513,36 +528,63 @@ describe("Config", () => {
     expect(screen.getByText(/non configuré sur ce daemon/)).toBeInTheDocument();
   });
 
-  // ---- 12. Restart click flow: confirm → POST → success toast ------------
-  it("affiche un toast de succès après un redémarrage confirmé", async () => {
+  // ---- 12. Restart click flow: confirm → POST → scheduled + polled-success -
+  it("programme le restart puis confirme son succès via le poll /status", async () => {
     const restartAsync = vi.fn().mockResolvedValue({ status: "scheduled" });
     mocks.useRestartWeb.mockReturnValue({
       mutateAsync: restartAsync,
       isPending: false,
     });
     mocks.useConfigStatus.mockReturnValue(success(restartRequiredStatus));
+    // The poll sees the daemon come back with restart no longer required.
+    mocks.getConfigStatus.mockResolvedValue({
+      ...restartRequiredStatus,
+      restart_required: false,
+      stale_files: [],
+    });
     renderConfig();
 
-    // Click "Redémarrer le daemon" button.
     fireEvent.click(
       screen.getByRole("button", { name: /redémarrer le daemon/i }),
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Redémarrer" }));
 
-    // Confirmation dialog should appear.
-    await waitFor(() => {
-      expect(screen.getByText(/redémarrer le daemon \?/i)).toBeInTheDocument();
-    });
-
-    // Click the destructive "Redémarrer" button.
-    fireEvent.click(screen.getByRole("button", { name: "Redémarrer" }));
-
+    // Scheduled toast fires immediately (before the poll).
     await waitFor(() => {
       expect(restartAsync).toHaveBeenCalledTimes(1);
-    });
-
-    await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith(
         "Redémarrage programmé — la connexion va se couper puis se rétablir.",
+      );
+    });
+
+    // The poll (tiny real-timer interval) sees the daemon restarted → success.
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        "Redémarrage effectué — configuration appliquée.",
+      );
+    });
+  });
+
+  // ---- 12b. Failed async restart: poll never clears → warning toast -------
+  it("avertit quand le restart async ne se produit pas (poll expire)", async () => {
+    const restartAsync = vi.fn().mockResolvedValue({ status: "scheduled" });
+    mocks.useRestartWeb.mockReturnValue({
+      mutateAsync: restartAsync,
+      isPending: false,
+    });
+    mocks.useConfigStatus.mockReturnValue(success(restartRequiredStatus));
+    // The daemon never restarts — status stays restart_required across polls.
+    mocks.getConfigStatus.mockResolvedValue(restartRequiredStatus);
+    renderConfig();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /redémarrer le daemon/i }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Redémarrer" }));
+
+    await waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        "Le redémarrage ne semble pas avoir eu lieu — vérifiez le daemon (logs pm2).",
       );
     });
   });

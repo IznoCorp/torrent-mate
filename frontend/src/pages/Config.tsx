@@ -14,7 +14,12 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
-import { ApiError, type PutFileRequest } from "@/api/client";
+import {
+  ApiError,
+  getConfigStatus,
+  type ConfigStatusResponse,
+  type PutFileRequest,
+} from "@/api/client";
 import { FileList } from "@/components/config/FileList";
 import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
 import { SecretsTab } from "@/components/config/SecretsTab";
@@ -49,6 +54,22 @@ interface ValidationErrorEntry {
   readonly loc: (string | number)[];
   readonly msg: string;
   readonly type?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Restart-poll tuning
+// ---------------------------------------------------------------------------
+
+/**
+ * Restart-outcome poll cadence. Mutable so tests can shrink the window (real
+ * timers, tiny interval) instead of wrestling fake timers; prod uses the
+ * defaults (~20 s window: 10 polls × 2 s).
+ */
+export const restartPollConfig = { attempts: 10, intervalMs: 2000 };
+
+/** Resolve after ``ms`` milliseconds. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ---------------------------------------------------------------------------
@@ -345,6 +366,33 @@ export default function Config(): ReactElement {
   }, [selectedFile, queryClient]);
 
   // ---- Restart handler -----------------------------------------------------
+  // After the 202 (restart is scheduled, not confirmed — the endpoint answers
+  // before the detached pm2 restart runs), poll /status to detect whether the
+  // daemon actually restarted. A real restart re-captures the boot-hash snapshot
+  // from the now-current config, so `restart_required` flips to false. If it
+  // stays true past the window, the async restart silently failed (pm2 not on
+  // PATH, wrong name, daemon down) — surface it instead of a false "scheduled".
+  const pollRestartOutcome = useCallback(async () => {
+    for (let attempt = 0; attempt < restartPollConfig.attempts; attempt++) {
+      await sleep(restartPollConfig.intervalMs);
+      let status: ConfigStatusResponse | null = null;
+      try {
+        status = await getConfigStatus();
+      } catch {
+        // Connection dropped mid-restart is expected — keep polling.
+        continue;
+      }
+      void queryClient.invalidateQueries({ queryKey: configKeys.status });
+      if (!status.restart_required) {
+        toast.success("Redémarrage effectué — configuration appliquée.");
+        return;
+      }
+    }
+    toast.warning(
+      "Le redémarrage ne semble pas avoir eu lieu — vérifiez le daemon (logs pm2).",
+    );
+  }, [queryClient]);
+
   const handleRestart = useCallback(async () => {
     setShowRestartConfirm(false);
     try {
@@ -352,6 +400,7 @@ export default function Config(): ReactElement {
       toast.success(
         "Redémarrage programmé — la connexion va se couper puis se rétablir.",
       );
+      void pollRestartOutcome();
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
         toast.error(
@@ -361,7 +410,7 @@ export default function Config(): ReactElement {
       }
       toast.error("Échec du redémarrage.");
     }
-  }, [restartWeb]);
+  }, [restartWeb, pollRestartOutcome]);
 
   // ---- Loading state -------------------------------------------------------
   if (schemaQ.isLoading || filesQ.isLoading || statusQ.isLoading) {
