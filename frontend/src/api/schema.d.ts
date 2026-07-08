@@ -214,8 +214,11 @@ export interface paths {
          *     (so the 202 response flushes first), then runs ``pm2 restart`` on the
          *     name configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout
          *     and stderr are redirected to a log file under the system temp directory
-         *     (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn, opened
-         *     with ``O_NOFOLLOW``) so a failed pm2 invocation leaves a trace.
+         *     (``<tempdir>/torrentmate-restart-web.log``, opened APPEND + ``O_NOFOLLOW``)
+         *     so a failed pm2 invocation leaves a trace.  Append — not truncate — because
+         *     this file is the ONLY trace of a silently-failed restart (async-202
+         *     limitation, web-ui.md): a retry must not erase the first attempt's pm2
+         *     error output before the operator reads it (R28).
          *
          *     If the log file cannot be opened (``OSError``, e.g. a pre-planted
          *     symlink caught by ``O_NOFOLLOW``), the error is logged at ERROR level
@@ -1492,8 +1495,10 @@ export interface components {
          *             ``"library-clean"``), or ``None`` for pipeline runs.
          *         options_json: JSON-serialized CLI options for maintenance runs, or
          *             ``None`` for pipeline runs.
-         *         output_tail: Tail of the subprocess stdout/stderr for maintenance
-         *             runs (last ~2000 characters), or ``None`` for pipeline runs.
+         *         output_tail: Tail of the subprocess/CLI output (last 64 KiB ring
+         *             buffer) — populated for maintenance runs and, since the universal
+         *             run journal (#235), for pipeline runs too; ``None`` for legacy
+         *             rows recorded before output capture existed.
          */
         RunDetail: {
             /** Command */
