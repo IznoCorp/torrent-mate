@@ -125,6 +125,12 @@ class TestSchemaEndpoint:
         assert ownership.get("web") == "web.json5"
         assert ownership.get("indexer") == "indexer.json5"
         assert ownership.get("disks") == "disks.json5"
+        # `sort` is exposed via scraper.json5 (0.43.1 follow-up); `process_clean`
+        # is intentionally NOT owned by any overlay (its verify_seed_pure flag is
+        # reserved and not enforced — see ProcessCleanConfig), so it is invisible
+        # to the editor by design.
+        assert ownership.get("sort") == "scraper.json5"
+        assert "process_clean" not in ownership
         # All values should be valid filenames (basenames, no path separators).
         for key, filename in ownership.items():
             assert "/" not in filename, f"Ownership value for {key!r} is a path, not a filename: {filename!r}"

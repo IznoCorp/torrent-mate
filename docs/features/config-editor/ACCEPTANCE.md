@@ -231,10 +231,11 @@ OWNERSHIP_COUNT=$(
   | jq '.ownership | keys | length'
 )
 echo "Ownership keys: ${OWNERSHIP_COUNT}"
-test "${OWNERSHIP_COUNT}" -eq 26 && echo "PASS" || echo "FAIL: expected 26"
-# Expected: 26. Two Config.model_fields keys (``process_clean``, ``sort``)
-# have no owner file — they are default-only keys whose overlay was never
-# created (a config-surface decision left open).
+test "${OWNERSHIP_COUNT}" -eq 27 && echo "PASS" || echo "FAIL: expected 27"
+# Expected: 27. `sort` is now owned by scraper.json5 (0.43.1 follow-up).
+# One Config.model_fields key remains unowned by design: ``process_clean``
+# — its only field (`verify_seed_pure`) is RESERVED and NOT enforced, so it is
+# intentionally not exposed in the editor (see ProcessCleanConfig).
 ```
 
 ## ACC-07 — Restart endpoint schedules restart (local, operator-supervised)
