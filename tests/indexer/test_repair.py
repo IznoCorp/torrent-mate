@@ -19,6 +19,11 @@ Covers:
 - ``test_repair_processor_soft_delete_subtree_drains_via_library_repair`` —
   drain with repair_processor on a scope='path'/soft_delete_subtree row
   soft-deletes all files under the missing path (BD-D integration).
+- ``test_repair_processor_content_drift_*`` — scope='file'/content_drift rows
+  must actually refresh the stale content-derived columns (oshash,
+  xxh3_partial, enriched_at) instead of falling through to the
+  unknown_action no-op (2026-07-08 regression: 14 content_drift rows were
+  "succeeded" without any repair).
 """
 
 from __future__ import annotations
@@ -374,4 +379,188 @@ def test_repair_processor_drains_path_missing_closes_detector_loop() -> None:
     still_missing = detect_path_missing(conn)
     assert path_id not in still_missing, (
         f"detect_path_missing still flagged path_id={path_id} after repair drain — closure-of-loop regression"
+    )
+
+
+# ---------------------------------------------------------------------------
+# repair_content_drift (scope='file', reason='content_drift')
+# ---------------------------------------------------------------------------
+
+
+def _seed_disk_path_at(conn: sqlite3.Connection, mount_path: Path, rel_path: str) -> tuple[int, int]:
+    """Insert a disk row mounted at *mount_path* + a path row and return (disk_id, path_id)."""
+    now = int(time.time())
+    cursor = conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES ('uuid-drift', 'DriftDisk', ?, ?, 1, 0)",
+        (str(mount_path), now),
+    )
+    disk_id: int = cursor.lastrowid  # type: ignore[assignment]
+    cursor2 = conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, ?, 0)",
+        (disk_id, rel_path),
+    )
+    path_id: int = cursor2.lastrowid  # type: ignore[assignment]
+    conn.commit()
+    return disk_id, path_id
+
+
+def _seed_stale_media_file(
+    conn: sqlite3.Connection,
+    path_id: int,
+    filename: str,
+    *,
+    oshash: str | None,
+) -> int:
+    """Insert a media_file row whose content-derived columns are deliberately stale."""
+    now = int(time.time())
+    cursor = conn.execute(
+        """
+        INSERT INTO media_file (
+            release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
+            oshash, xxh3_partial, xxh3_full, enriched_at,
+            scan_generation, last_verified_at, deleted_at
+        ) VALUES (NULL, ?, ?, 1, 1700000000000000000, 1700000000000000000,
+                  ?, 'stalestalestale1', 'stalestalestale2', 1650000000,
+                  1, ?, NULL)
+        """,
+        (path_id, filename, oshash, now),
+    )
+    file_id: int = cursor.lastrowid  # type: ignore[assignment]
+    conn.commit()
+    return file_id
+
+
+def _enqueue_content_drift(conn: sqlite3.Connection, file_id: int) -> None:
+    """Insert a content_drift repair row exactly the way drift.enqueue_repair does."""
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, payload_json, enqueued_at, status, attempted_at, attempts)"
+        " VALUES ('file', ?, 'content_drift', '{}', ?, 'pending', NULL, 0)",
+        (file_id, int(time.time())),
+    )
+    conn.commit()
+
+
+def test_repair_processor_content_drift_refreshes_stale_fingerprint(tmp_path: Path) -> None:
+    """A content_drift row must refresh oshash/xxh3_partial and invalidate enrichment.
+
+    Regression contract (2026-07-08 incident): 14 content_drift rows drained
+    "succeeded" via the unknown_action no-op — the stale oshash was never
+    recomputed, so tier-3 rename detection and release linking kept matching
+    on the OLD content identity.  This test fails if repair_processor falls
+    back to the no-op for scope='file'/content_drift.
+    """
+    from personalscraper.indexer import fingerprint as fp  # noqa: PLC0415
+
+    conn = _open_mem_db()
+    media_dir = tmp_path / "films" / "Drifted (2020)"
+    media_dir.mkdir(parents=True)
+    live = media_dir / "Drifted.mkv"
+    live.write_bytes(b"NEW CONTENT AFTER DRIFT " * 4096)
+
+    _, path_id = _seed_disk_path_at(conn, tmp_path, "films/Drifted (2020)")
+    file_id = _seed_stale_media_file(conn, path_id, "Drifted.mkv", oshash="00000000deadbeef")
+    _enqueue_content_drift(conn, file_id)
+
+    stats = drain(conn, budget_seconds=30.0, processor=repair_processor)
+    assert stats.succeeded == 1, f"Expected 1 succeeded, got {stats}"
+
+    row = conn.execute(
+        "SELECT size_bytes, oshash, xxh3_partial, xxh3_full, enriched_at FROM media_file WHERE id = ?",
+        (file_id,),
+    ).fetchone()
+    size_bytes, oshash_val, xxh3_val, xxh3_full, enriched_at = row
+
+    assert size_bytes == live.stat().st_size, "size_bytes was not refreshed from the live file"
+    assert oshash_val == fp.oshash(live), "stale oshash was not recomputed — tier-3 rename detection stays broken"
+    assert xxh3_val == fp.xxh3_partial(live), "stale xxh3_partial was not recomputed"
+    assert xxh3_full is None, "stale xxh3_full must be reset to NULL (unknown after content change)"
+    assert enriched_at is None, "enriched_at must be invalidated so the enrich pass re-extracts streams"
+
+
+def test_repair_processor_content_drift_non_video_keeps_oshash_null(tmp_path: Path) -> None:
+    """A non-video sidecar (oshash=NULL) is refreshed without growing an oshash."""
+    from personalscraper.indexer import fingerprint as fp  # noqa: PLC0415
+
+    conn = _open_mem_db()
+    media_dir = tmp_path / "series" / "Show (1999)"
+    media_dir.mkdir(parents=True)
+    live = media_dir / "tvshow.nfo"
+    live.write_bytes(b"<tvshow><title>Rewritten</title></tvshow>")
+
+    _, path_id = _seed_disk_path_at(conn, tmp_path, "series/Show (1999)")
+    file_id = _seed_stale_media_file(conn, path_id, "tvshow.nfo", oshash=None)
+    _enqueue_content_drift(conn, file_id)
+
+    stats = drain(conn, budget_seconds=30.0, processor=repair_processor)
+    assert stats.succeeded == 1, f"Expected 1 succeeded, got {stats}"
+
+    row = conn.execute(
+        "SELECT oshash, xxh3_partial, enriched_at FROM media_file WHERE id = ?",
+        (file_id,),
+    ).fetchone()
+    oshash_val, xxh3_val, enriched_at = row
+
+    assert oshash_val is None, "oshash must stay NULL for non-video sidecars"
+    assert xxh3_val == fp.xxh3_partial(live), "stale xxh3_partial was not recomputed"
+    assert enriched_at is None, "enriched_at must be invalidated so the enrich pass re-checks the sidecar"
+
+
+def test_repair_processor_content_drift_missing_file_is_graceful_noop(tmp_path: Path) -> None:
+    """A content_drift row whose file vanished must complete as done, not failed.
+
+    Disappearance is owned by the scan's miss-strikes path — the repair must
+    neither raise (which would mark the row failed and leave it re-tripping
+    the 7-day WARN) nor touch the stored row.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_path_at(conn, tmp_path, "films/Vanished (2021)")
+    file_id = _seed_stale_media_file(conn, path_id, "Vanished.mkv", oshash="00000000deadbeef")
+    _enqueue_content_drift(conn, file_id)
+
+    stats = drain(conn, budget_seconds=30.0, processor=repair_processor)
+    assert stats.succeeded == 1, f"Expected graceful done, got {stats}"
+
+    row = conn.execute(
+        "SELECT oshash, xxh3_partial, enriched_at FROM media_file WHERE id = ?",
+        (file_id,),
+    ).fetchone()
+    assert row == ("00000000deadbeef", "stalestalestale1", 1650000000), (
+        "stored row must be left untouched when the live file is missing"
+    )
+
+
+def test_repair_processor_content_drift_refreshes_disk_merkle(tmp_path: Path) -> None:
+    """An oshash change through content_drift repair must keep disk.merkle_root coherent.
+
+    Same contract as test_soft_delete_subtree_refreshes_disk_merkle: any repair
+    that rewrites an oshash shifts the disk's fingerprint set, and a stale
+    stored merkle root re-trips the bulk-change protection on mass drift
+    (2026-06-30 scenario).
+    """
+    from personalscraper.indexer.merkle import FileFingerprint, compute_merkle_root  # noqa: PLC0415
+    from personalscraper.indexer.reconcile import detect_merkle_drift  # noqa: PLC0415
+
+    conn = _open_mem_db()
+    media_dir = tmp_path / "films" / "Drifted (2020)"
+    media_dir.mkdir(parents=True)
+    live = media_dir / "Drifted.mkv"
+    live.write_bytes(b"NEW CONTENT AFTER DRIFT " * 4096)
+
+    disk_id, path_id = _seed_disk_path_at(conn, tmp_path, "films/Drifted (2020)")
+    file_id = _seed_stale_media_file(conn, path_id, "Drifted.mkv", oshash="00000000deadbeef")
+    # Store the merkle matching the CURRENT (stale) DB state so the disk starts clean.
+    initial = compute_merkle_root(
+        [FileFingerprint(path_id=path_id, size=1, mtime_ns=1700000000000000000, oshash="00000000deadbeef")]
+    )
+    conn.execute("UPDATE disk SET merkle_root = ? WHERE id = ?", (initial, disk_id))
+    conn.commit()
+    assert detect_merkle_drift(conn) == [], "Pre-condition: stored merkle must match computed merkle"
+
+    _enqueue_content_drift(conn, file_id)
+    stats = drain(conn, budget_seconds=30.0, processor=repair_processor)
+    assert stats.succeeded == 1, f"Expected 1 succeeded, got {stats}"
+
+    assert detect_merkle_drift(conn) == [], (
+        "disk.merkle_root left stale after the oshash rewrite — bulk-change protection will trip on mass drift"
     )

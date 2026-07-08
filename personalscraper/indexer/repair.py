@@ -10,17 +10,21 @@ Functions:
   for use by ``library-status``.
 - :func:`soft_delete_subtree` — soft-delete every ``media_file`` row under a given
   ``path.id`` (the ``soft_delete_subtree`` action consumed by ``library-repair``).
+- :func:`repair_content_drift` — refresh the content-derived columns (oshash,
+  xxh3_partial, enrichment invalidation) of a drifted ``media_file`` row.
 - :func:`repair_processor` — default repair processor wired into ``library-repair``;
-  dispatches on ``scope`` + ``payload_json['action']``.
+  dispatches on ``scope`` + ``payload_json['action']`` (or ``reason``).
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from personalscraper.indexer.schema import RepairQueueRow, RepairScope
@@ -477,6 +481,109 @@ def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
 
 
 # ---------------------------------------------------------------------------
+# repair_content_drift
+# ---------------------------------------------------------------------------
+
+
+def repair_content_drift(conn: sqlite3.Connection, file_id: int) -> None:
+    """Refresh the content-derived columns of a drifted ``media_file`` row.
+
+    ``reconcile_file`` already rewrites the tier-1 tuple and ``xxh3_partial``
+    at detection time, but the columns *derived from the file content* stay
+    stale: ``oshash`` (tier-3 rename detection + release linking), ``xxh3_full``,
+    and the Stage-B enrichment (``media_stream`` rows keyed off ``enriched_at``).
+    The enrich pass only recomputes ``oshash`` when it is NULL, so without this
+    handler a drifted video file keeps its OLD content identity forever.
+
+    Steps:
+
+    1. Re-stat the live file and recompute ``xxh3_partial`` (the file may have
+       changed again since the scan that enqueued the row).
+    2. Recompute ``oshash`` — only when the stored row has one (non-video
+       sidecars keep ``oshash IS NULL``).
+    3. Reset ``xxh3_full`` to NULL (unknown after a content change) and
+       ``enriched_at`` to NULL so the next enrich pass replaces the
+       ``media_stream`` rows and re-checks NFO/artwork state.
+    4. When the oshash actually changed, refresh ``disk.merkle_root`` so the
+       stored root stays coherent with the live fingerprint set (same
+       contract as :func:`soft_delete_subtree`).
+
+    Rows whose ``media_file`` is gone, tombstoned, or whose live file is
+    unreachable complete as graceful no-ops: disappearance is owned by the
+    scan's miss-strikes path, and a raise here would park the row in
+    ``status='failed'`` where it re-trips the 7-day ``library-status`` WARN.
+
+    Args:
+        conn: Open SQLite connection.  The caller (drain loop) commits.
+        file_id: PK of the ``media_file`` row to refresh.
+    """
+    # Lazy imports keep the (drift ↔ repair) edge acyclic — drift.py imports
+    # this module at module level.
+    from personalscraper.indexer import fingerprint as _fp  # noqa: PLC0415
+    from personalscraper.indexer.drift import clamp_mtime_ns  # noqa: PLC0415
+
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        """
+        SELECT mf.filename, mf.oshash, mf.deleted_at,
+               p.rel_path, p.disk_id, d.mount_path
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+          JOIN disk d ON d.id = p.disk_id
+         WHERE mf.id = ?
+        """,
+        (file_id,),
+    ).fetchone()
+    conn.row_factory = None
+
+    if row is None:
+        log.warning("indexer.repair.content_drift_row_missing", file_id=file_id)
+        return
+    if row["deleted_at"] is not None:
+        log.info("indexer.repair.content_drift_tombstoned_skip", file_id=file_id)
+        return
+
+    full_path = Path(row["mount_path"]) / row["rel_path"] / row["filename"]
+    stored_oshash: str | None = row["oshash"]
+    try:
+        stat = os.stat(full_path)
+        new_xxh3: str = _fp.xxh3_partial(full_path)
+        new_oshash: str | None = _fp.oshash(full_path) if stored_oshash is not None else None
+    except OSError as exc:
+        log.warning(
+            "indexer.repair.content_drift_file_unreadable",
+            file_id=file_id,
+            path=str(full_path),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return
+
+    clamped_mtime_ns = clamp_mtime_ns(stat.st_mtime_ns, time.time_ns())
+    conn.execute(
+        """
+        UPDATE media_file
+           SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
+               oshash = ?, xxh3_partial = ?, xxh3_full = NULL,
+               enriched_at = NULL
+         WHERE id = ?
+        """,
+        (stat.st_size, clamped_mtime_ns, stat.st_ctime_ns, new_oshash, new_xxh3, file_id),
+    )
+
+    oshash_changed = stored_oshash is not None and new_oshash != stored_oshash
+    if oshash_changed:
+        _refresh_disk_merkle(conn, int(row["disk_id"]))
+
+    log.info(
+        "indexer.repair.content_drift_repaired",
+        file_id=file_id,
+        oshash_refreshed=oshash_changed,
+        size_bytes=stat.st_size,
+    )
+
+
+# ---------------------------------------------------------------------------
 # repair_processor
 # ---------------------------------------------------------------------------
 
@@ -484,13 +591,18 @@ def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
 def repair_processor(conn: sqlite3.Connection, row: RepairQueueRow) -> None:
     """Default repair processor dispatched by ``library-repair``.
 
-    Dispatches on ``scope`` and the ``action`` key inside ``payload_json``.
+    Dispatches on ``scope`` and the ``action`` key inside ``payload_json``
+    (falling back to ``reason`` for detector rows enqueued without a payload).
     Currently handles:
 
     - ``scope='path'`` + ``action='soft_delete_subtree'``:
       soft-delete every ``media_file`` row under the path identified by
       ``scope_id``.  Enqueued by ``library-reconcile --enqueue-repairs`` when
       ``detect_path_missing`` detects a missing directory (BD-D).
+    - ``scope='file'`` + ``reason='content_drift'``:
+      refresh the content-derived columns (oshash, xxh3_partial, enrichment)
+      of the file identified by ``scope_id``.  Enqueued by the scanner's
+      tier-2 escalation (``drift.reconcile_file`` and the incremental mode).
 
     Unknown (scope, action) combinations are logged as a warning and treated
     as a no-op so that future actions added by later phases do not cause
@@ -514,6 +626,12 @@ def repair_processor(conn: sqlite3.Connection, row: RepairQueueRow) -> None:
         if row.scope_id is None:
             raise ValueError(f"repair_queue row {row.id}: scope='path' requires a non-NULL scope_id")
         soft_delete_subtree(conn, row.scope_id)
+        return
+
+    if row.scope == "file" and row.reason == "content_drift":
+        if row.scope_id is None:
+            raise ValueError(f"repair_queue row {row.id}: scope='file' requires a non-NULL scope_id")
+        repair_content_drift(conn, row.scope_id)
         return
 
     # Unknown combination — log and skip rather than fail hard so that rows
