@@ -209,10 +209,10 @@ class TestCliStepJournal:
 
 
 class TestPerStepBoundaryPublisher:
-    """Step commands must stream their events like ``personalscraper run``."""
+    """Step commands opt into event streaming like ``personalscraper run``."""
 
-    def test_boundary_builds_and_closes_publisher(self) -> None:
-        """per_step_boundary wires build_redis_publisher on the step bus and closes it."""
+    def test_boundary_builds_and_closes_publisher_when_opted_in(self) -> None:
+        """stream_events=True wires build_redis_publisher on the step bus and closes it."""
         from personalscraper import cli_helpers
 
         publisher = MagicMock()
@@ -223,7 +223,27 @@ class TestPerStepBoundaryPublisher:
             patch.object(cli_helpers, "_build_app_context", return_value=app_context),
             patch.object(cli_helpers, "build_redis_publisher", return_value=publisher) as build_mock,
         ):
-            with cli_helpers.per_step_boundary(config, settings):
+            with cli_helpers.per_step_boundary(config, settings, stream_events=True):
                 build_mock.assert_called_once_with(app_context.event_bus, config.web)
                 publisher.close.assert_not_called()
         publisher.close.assert_called_once()
+
+    def test_boundary_defaults_to_no_publisher(self) -> None:
+        """Non-step consumers (library-*, grab, seed, …) keep a publisher-free boundary.
+
+        Regression contract: an unconditional publisher polluted the stdout of
+        JSON-emitting CLI commands with fail-soft Redis warnings when Redis is
+        absent (CI), breaking their output parsing.
+        """
+        from personalscraper import cli_helpers
+
+        config = MagicMock()
+        settings = MagicMock()
+        app_context = MagicMock()
+        with (
+            patch.object(cli_helpers, "_build_app_context", return_value=app_context),
+            patch.object(cli_helpers, "build_redis_publisher") as build_mock,
+        ):
+            with cli_helpers.per_step_boundary(config, settings):
+                pass
+        build_mock.assert_not_called()

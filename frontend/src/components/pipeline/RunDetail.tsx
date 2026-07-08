@@ -309,19 +309,23 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
           </div>
         )}
 
-        {/* Durable log journal — captured output_tail (universal run journal).
-            Written by every invocation path (web, CLI steps, safety_net), so
-            finished runs always have a log to show even without a live feed. */}
-        {data.output_tail != null && data.output_tail !== "" && (
-          <div className="rounded-lg border border-border bg-muted/30 p-4">
-            <p className="mb-1 text-xs font-semibold text-muted-foreground">
-              Journal
-            </p>
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground/90">
-              {data.output_tail}
-            </pre>
-          </div>
-        )}
+        {/* Durable log journal for PIPELINE runs — captured output_tail
+            (universal run journal). Written by every invocation path (web,
+            CLI steps, safety_net), so finished runs always have a log to
+            show even without a live feed. Maintenance runs render their
+            output in the dedicated section above. */}
+        {data.kind !== "maintenance" &&
+          data.output_tail != null &&
+          data.output_tail !== "" && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                Journal
+              </p>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground/90">
+                {data.output_tail}
+              </pre>
+            </div>
+          )}
       </CardContent>
     </Card>
   );

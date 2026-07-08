@@ -54,7 +54,7 @@ def ingest(
             settings = cli_compat.get_settings()
             staging_dir = config.paths.staging_dir
             ingest_dir = staging_path(config, find_ingest_dir(config))
-            with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
+            with per_step_boundary(config, settings, build_torrent_client=True, stream_events=True) as app_context:
                 report = cli_compat.run_ingest(
                     settings,
                     dry_run=dry_run,
@@ -90,7 +90,7 @@ def sort(
         with cli_step_journal(config, command="sort", dry_run=dry_run):
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings) as app_context:
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
                 report = run_sort(
                     settings,
                     staging_dir=config.paths.staging_dir,
@@ -131,7 +131,7 @@ def scrape(
         with cli_step_journal(config, command="scrape", dry_run=dry_run):
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings) as app_context:
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
                 report = run_scrape(
                     settings,
                     config=config,
@@ -199,7 +199,7 @@ def verify(
         with cli_step_journal(config, command="verify", dry_run=dry_run):
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings) as app_context:
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
                 try:
                     report, dispatchable = run_verify(
                         settings,
@@ -265,7 +265,7 @@ def enforce(
         with cli_step_journal(config, command="enforce", dry_run=dry_run):
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings) as app_context:
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
                 try:
                     report = run_enforce(settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
                 except KeyError as exc:
@@ -301,7 +301,7 @@ def dispatch(
         with cli_step_journal(config, command="dispatch", dry_run=dry_run):
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings) as app_context:
+            with per_step_boundary(config, settings, stream_events=True) as app_context:
                 report, results = run_dispatch(
                     settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus
                 )
@@ -358,7 +358,7 @@ def clean(
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
             try:
-                with per_step_boundary(config, settings) as app_context:
+                with per_step_boundary(config, settings, stream_events=True) as app_context:
                     report = run_clean(
                         settings,
                         config=config,
@@ -409,7 +409,7 @@ def cleanup(
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
             try:
-                with per_step_boundary(config, settings) as app_context:
+                with per_step_boundary(config, settings, stream_events=True) as app_context:
                     report = run_cleanup(
                         settings,
                         config=config,
@@ -449,7 +449,7 @@ def process(
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
             try:
-                with per_step_boundary(config, settings) as app_context:
+                with per_step_boundary(config, settings, stream_events=True) as app_context:
                     clean, scrape, cleanup = run_process(
                         settings,
                         dry_run=dry_run,
@@ -779,6 +779,7 @@ def torrents_list(ctx: typer.Context) -> None:
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured
     # (DESIGN D9) — exit 2 so monitoring tools can branch on the code.
+    # No stream_events: a listing command is not a journaled pipeline step.
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         client = app_context.torrent_client
         if client is None:
