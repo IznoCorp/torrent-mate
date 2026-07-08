@@ -570,7 +570,11 @@ class TestStatusRoute:
         real_connect = sqlite3.connect
 
         def tracking_connect(_p: str) -> sqlite3.Connection:
-            conn = real_connect(str(db))
+            # check_same_thread=False — the route runs in a threadpool thread;
+            # without it the cross-thread execute() below raises
+            # ProgrammingError for the WRONG reason (thread affinity), making
+            # the closed-connection assertion pass even without the fix.
+            conn = real_connect(str(db), check_same_thread=False)
             opened.append(conn)
             return conn
 
