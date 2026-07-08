@@ -22,6 +22,8 @@ config/                       ← gitignored, machine-specific (created by init-
   tracker.json5               ← tracker.*
   ranking.json5               ← ranking.*
   notify.json5                ← notify.*
+  watch_seed.json5             ← cross_seed.*, watch.*
+  web.json5                    ← web.*
   local.json5                 ← optional, gitignored, last-wins machine overrides
 ```
 
@@ -31,7 +33,7 @@ The tracked equivalent lives under `config.example/` at the repo root:
 
 ```
 config.example/               ← tracked, canonical template for new installs
-  config.json5                ← master (16 overlays + config_version)
+  config.json5                ← master (18 overlays + config_version)
   paths.json5
   disks.json5
   categories.json5
@@ -47,10 +49,12 @@ config.example/               ← tracked, canonical template for new installs
   tracker.json5
   ranking.json5
   notify.json5
+  watch_seed.json5
+  web.json5
 ```
 
-The master `config.json5` lists exactly 16 overlays (one master + 16 overlay
-files = 17 config files total).
+The master `config.json5` lists exactly 18 overlays (one master + 18 overlay
+files = 19 config files total).
 
 The `config.example/` directory at repo root is the tracked template for new installs.
 Run `personalscraper init-config` to copy it to `./config/`.
@@ -87,6 +91,8 @@ Run `personalscraper init-config` to copy it to `./config/`.
 | `ranking`                                                                          | `ranking.json5`    |
 | `notify`                                                                           | `notify.json5`     |
 | `acquire`                                                                          | `acquire.json5`    |
+| `cross_seed`, `watch`                                                              | `watch_seed.json5` |
+| `web`                                                                              | `web.json5`        |
 
 ## Tracker economy schema (tracker-economy RP2)
 
@@ -111,3 +117,27 @@ Announce passkeys are **non-gating**: a missing `<TRACKER>_PASSKEY` never
 deactivates a tracker. Resolved via `resolve_optional_secret()` in
 `api/_activation.py` — never consulted by `resolve_active()`.
 See `.env.example` for variable names (`LACALE_PASSKEY`, `C411_PASSKEY`).
+
+## Programmatic writes (S4 config editor)
+
+The web config editor (`/config` route, TorrentMate S4) rewrites overlay files
+and `local.json5` atomically via `tempfile.mkstemp` + `os.replace` with a
+generated header comment:
+
+```
+// Written by TorrentMate config editor <ISO-8601-utc> — hand-written comments are not preserved.
+```
+
+**Implications**:
+
+- Hand-written inline comments in config files are lost on the first web edit.
+  Operators who rely on inline comments should keep notes in `config.example/`
+  (the tracked template) or version-control their `config/` directory.
+- Git-tracked config files get dirty on every web edit (accepted as an audit
+  trail per DESIGN.md §Appendix D4).
+- Before each write, the current file is backed up to
+  `config/.backups/{name}.{utc_microsecond}.json5`. The 10 most recent backups
+  per file name are kept; older ones are pruned automatically.
+- The master `config.json5` (overlays array + `config_version`) is **read-only**
+  through the write endpoints — only overlay files and `local.json5` are
+  writable via `PUT /api/config/files/{name}`.

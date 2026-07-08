@@ -49,16 +49,21 @@ module.exports = {
       // close (provider_registry, acquire) + shutdown log.
       kill_timeout: 30000,
       // Unbuffered stdout + the single canonical config dir shared by all clones.
+      // PERSONALSCRAPER_PM2_NAME enables POST /api/config/restart-web (S4) to
+      // target this app; unset it to disable the endpoint (404 + hidden button).
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_PM2_NAME: "torrentmate-web",
       },
     },
 
     // TorrentMate web UI — STAGING (tm-staging.iznogoudatall.xyz, port 8711).
     // Runs from the staging clone (~/staging/torrentmate) with its OWN venv. Shares
     // the SAME real config dir as prod (where web.port=8710), so the port is
-    // overridden on the CLI: `web --port 8711`. S1 is read-only → real data is safe.
+    // overridden on the CLI: `web --port 8711`. S4 enforces read-only via
+    // PERSONALSCRAPER_WEB_ROLE=staging → 403 on every config write endpoint
+    // (supersedes the S1-era "read-only by construction" assumption).
     {
       name: "torrentmate-web-staging",
       script: "/Users/izno/staging/torrentmate-venv/bin/personalscraper",
@@ -70,6 +75,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_WEB_ROLE: "staging",
       },
     },
 

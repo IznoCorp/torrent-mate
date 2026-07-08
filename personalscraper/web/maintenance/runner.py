@@ -407,18 +407,49 @@ def _kill_child_group(proc: subprocess.Popen[str]) -> None:
     a destructive ``--apply`` command that itself spawned helpers). A killed
     runner must never orphan a live destructive child.
 
+    SAFETY: ``pid`` and the resolved ``pgid`` must both be real ints > 1
+    before ``killpg`` runs. POSIX leaves ``killpg(pgrp<=1, sig)`` undefined —
+    glibc/Linux turns pgrp 1 into ``kill(-1, sig)``, a SIGTERM broadcast to
+    every process the user owns. A ``MagicMock`` pid coerces to 1 via
+    ``__index__``, so an unguarded call from a test killed the whole GitHub
+    Actions runner (CI incident 2026-07-08, PR #230: five consecutive
+    "runner has received a shutdown signal" kills at 91-94%).
+
+    Args:
+        proc: The child :class:`subprocess.Popen` handle.
+    """
+    pid = proc.pid
+    if type(pid) is not int or pid <= 1:
+        # Not a real child pid (mock, sentinel, or corrupt) — never resolve a
+        # group from it. Fall back to terminating the handle directly.
+        _terminate_quietly(proc)
+        return
+    try:
+        pgid = os.getpgid(pid)
+    except Exception:
+        # Already-dead child — nothing left to signal beyond the handle.
+        _terminate_quietly(proc)
+        return
+    if pgid <= 1:
+        # A pgid of 0/1 must never be signalled: killpg(1) broadcasts on Linux.
+        _terminate_quietly(proc)
+        return
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except Exception:
+        _terminate_quietly(proc)
+
+
+def _terminate_quietly(proc: subprocess.Popen[str]) -> None:
+    """Call ``proc.terminate()`` swallowing every error (best-effort cleanup).
+
     Args:
         proc: The child :class:`subprocess.Popen` handle.
     """
     try:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-    except Exception:
-        # getpgid/killpg can fail (already-dead child, or a mocked pid in
-        # tests) — fall back to terminating the process directly.
-        try:
-            proc.terminate()
-        except Exception:
-            pass
+        proc.terminate()
+    except Exception as exc:
+        log.warning("maintenance_runner_terminate_failed", error=str(exc))
 
 
 # ---------------------------------------------------------------------------

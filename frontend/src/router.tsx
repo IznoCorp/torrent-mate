@@ -4,7 +4,7 @@
  * `/login` is a public, chrome-less route. Every authenticated route nests under
  * {@link ProtectedRoute} → {@link AppShell} (TopBar + responsive nav +
  * `<Outlet />`), so the guard runs once and the shell renders once, swapping only
- * the page. The S2–S7 slots resolve to the shared {@link ComingSoon} placeholder
+ * the page. The S5–S7 slots resolve to the shared {@link ComingSoon} placeholder
  * with their wave tag.
  *
  * A pathless {@link RouterBridge} wraps the whole tree: it lives *inside* the
@@ -25,6 +25,7 @@ import ComingSoon from "@/pages/ComingSoon";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Maintenance from "@/pages/Maintenance";
+import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
 
@@ -51,7 +52,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "config",
-                element: <ComingSoon title="Configuration" wave="S4" />,
+                element: <Config />,
               },
               {
                 path: "scraping",

@@ -143,7 +143,7 @@ class AcquireConfig(_StrictModel):
             return v
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            project_root = _paths_model._PROJECT_ROOT
+            project_root = _paths_model._PROJECT_ROOT.get()
             base = project_root if project_root is not None else Path.cwd()
             resolved = (base / resolved).resolve()
 

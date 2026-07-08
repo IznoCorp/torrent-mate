@@ -213,11 +213,11 @@ class IndexerConfig(_StrictModel):
             return v
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            # Read at call time via module attribute so the value mutated by
+            # Read at call time via ContextVar so the value set by
             # ``load_config_dir`` is honoured (a ``from … import _PROJECT_ROOT``
             # would value-bind the original ``None`` and silently fall back to
             # CWD).
-            project_root = _paths_model._PROJECT_ROOT
+            project_root = _paths_model._PROJECT_ROOT.get()
             base = project_root if project_root is not None else Path.cwd()
             resolved = (base / resolved).resolve()
 

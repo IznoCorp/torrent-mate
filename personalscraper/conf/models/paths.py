@@ -1,16 +1,21 @@
 """Path config model (non-disk paths)."""
 
+from contextvars import ContextVar
 from pathlib import Path
 
 from pydantic import Field, field_validator
 
 from personalscraper.conf.models._base import _StrictModel
 
-_PROJECT_ROOT: Path | None = None
-"""Set by ``load_config_dir`` before validation. Resolves to ``config_dir.parent``
-(the repo root). Relative paths in the config are resolved against this directory
-rather than CWD, so that running ``personalscraper`` from a non-repo directory
-(e.g. the staging directory) still resolves ``data_dir`` and similar paths correctly."""
+_PROJECT_ROOT: ContextVar[Path | None] = ContextVar("_PROJECT_ROOT", default=None)
+"""Set by ``load_config_dir`` before validation via ``ContextVar.set()``.
+Resolves to ``config_dir.parent`` (the repo root). Relative paths in the config
+are resolved against this directory rather than CWD, so that running
+``personalscraper`` from a non-repo directory (e.g. the staging directory) still
+resolves ``data_dir`` and similar paths correctly.
+
+Thread-safe: each thread/async task sees its own value, so parallel config
+validation (e.g. in the FastAPI threadpool) cannot cross-contaminate."""
 
 
 class PathConfig(_StrictModel):
@@ -45,5 +50,6 @@ class PathConfig(_StrictModel):
         """
         if v.is_absolute():
             return v
-        base = _PROJECT_ROOT if _PROJECT_ROOT is not None else Path.cwd()
+        root = _PROJECT_ROOT.get()
+        base = root if root is not None else Path.cwd()
         return (base / v).resolve()

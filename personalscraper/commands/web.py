@@ -16,10 +16,7 @@ uvicorn exits.
 
 from __future__ import annotations
 
-import contextlib
-import os
 import secrets
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,6 +25,7 @@ import uvicorn
 
 from personalscraper.cli_helpers import _build_app_context, handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
+from personalscraper.conf.envfile import write_env_keys
 from personalscraper.config import get_settings
 from personalscraper.logger import get_logger
 from personalscraper.web.app import create_app
@@ -185,10 +183,10 @@ def set_password(
     password_hash = hash_password(password)
 
     settings = get_settings()
-    env_lines = [f"WEB_PASSWORD_HASH={password_hash}"]
+    keys = {"WEB_PASSWORD_HASH": password_hash}
     jwt_secret_generated = not settings.web_jwt_secret
     if jwt_secret_generated:
-        env_lines.append(f"WEB_JWT_SECRET={secrets.token_urlsafe(32)}")
+        keys["WEB_JWT_SECRET"] = secrets.token_urlsafe(32)
 
     username_matches_config = username == default_username
 
@@ -197,7 +195,7 @@ def set_password(
         if not confirmed:
             typer.echo("Aborted; .env left unchanged.")
             raise typer.Exit(code=0)
-        _write_env_keys(env_lines, _ENV_PATH)
+        write_env_keys(keys, _ENV_PATH)
         typer.echo(f"Updated {_ENV_PATH} (restart the web daemon to apply).")
         if not username_matches_config:
             typer.echo(
@@ -213,57 +211,11 @@ def set_password(
         return
 
     typer.echo("# Add these lines to your .env file:")
-    for line in env_lines:
-        typer.echo(line)
+    for key, value in keys.items():
+        typer.echo(f"{key}={value}")
     if not username_matches_config:
         typer.echo(
             f"# Note: username '{username}' differs from config.web.username "
             f"('{default_username}') — update config/web.json5 to match."
         )
     log.info("web_set_password_printed", jwt_secret_generated=jwt_secret_generated)
-
-
-def _write_env_keys(new_lines: list[str], env_path: Path) -> None:
-    """Atomically upsert ``KEY=value`` lines into an ``.env`` file.
-
-    Existing lines whose key matches one in *new_lines* are replaced in
-    place; every other line (comments, blanks, unrelated keys) is preserved.
-    Keys not already present are appended.  The write is atomic via a
-    same-directory temp file plus ``os.replace``.  Secret values are never
-    logged by this helper.
-
-    Args:
-        new_lines: Fully-formed ``KEY=value`` strings to upsert.
-        env_path: Path to the ``.env`` file to update (created if absent).
-    """
-    new_by_key = {line.split("=", 1)[0]: line for line in new_lines}
-
-    existing_lines: list[str] = []
-    if env_path.exists():
-        existing_lines = env_path.read_text(encoding="utf-8").splitlines()
-
-    seen: set[str] = set()
-    out_lines: list[str] = []
-    for line in existing_lines:
-        stripped = line.lstrip()
-        key = stripped.split("=", 1)[0] if ("=" in stripped and not stripped.startswith("#")) else None
-        if key is not None and key in new_by_key:
-            out_lines.append(new_by_key[key])
-            seen.add(key)
-        else:
-            out_lines.append(line)
-    for key, line in new_by_key.items():
-        if key not in seen:
-            out_lines.append(line)
-
-    content = "\n".join(out_lines) + "\n"
-
-    fd, tmp_name = tempfile.mkstemp(dir=str(env_path.parent), prefix=".env.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(content)
-        os.replace(tmp_name, env_path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp_name)
-        raise

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import json5
+import pydantic
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError, ConfigLoadError, merge_overlays
@@ -43,6 +44,7 @@ __all__ = [
     "resolve_config_path",
     "load_config",
     "load_config_dir",
+    "validate_candidate",
     "collect_warnings",
 ]
 
@@ -117,6 +119,114 @@ def _load_json5_file(path: Path) -> dict[str, Any]:
             raise ConfigValidationError(f"JSON5 parse error in {path}: {exc}") from exc
 
 
+def _build_config(
+    config_dir: Path,
+    replaced: dict[str, dict[str, Any]] | None = None,
+) -> tuple[Config, list[str]]:
+    """Shared core: read master, load/merge overlays, validate, collect warnings.
+
+    Factored out so that both :func:`load_config_dir` (production loader) and
+    :func:`validate_candidate` (read-only validation for the web config editor)
+    share the same merge + Pydantic validation pipeline.  The only difference
+    is the *replaced* parameter: when a filename is present in *replaced* the
+    candidate dict is used **instead** of reading that file from disk.
+
+    Args:
+        config_dir: Path to the config directory (read-only).
+        replaced: Optional mapping of overlay filenames (e.g. ``"paths.json5"``)
+            to candidate dicts that replace the on-disk file content during
+            validation.  ``None`` is equivalent to an empty dict (no
+            substitution).
+
+    Returns:
+        (validated_config, warnings) tuple where *warnings* is the result of
+        :func:`collect_warnings` on the validated config.
+
+    Raises:
+        ConfigNotFoundError: If ``config.json5`` does not exist in *config_dir*.
+        ConfigLoadError: If a declared overlay file is missing or a key in
+            *replaced* does not match any declared overlay or ``local.json5``.
+        ConfigValidationError: If any file has invalid JSON5 syntax or the merged
+            dict fails pydantic validation.
+        ConfigConflictError: If two non-local overlays define the same top-level
+            key.
+    """
+    if replaced is None:
+        replaced = {}
+
+    master_path = config_dir / _MASTER_FILENAME
+    if not master_path.is_file():
+        raise ConfigNotFoundError(
+            f"No config.json5 found in {config_dir}. "
+            "Run 'personalscraper init-config' to create one from the example template."
+        )
+
+    master = _load_json5_file(master_path)
+
+    # Collect overlay dicts in declared order.
+    overlay_names: list[str] = master.pop("overlays", [])
+
+    # Validate replaced keys: every key must be a declared overlay or local.json5.
+    valid_keys = set(overlay_names) | {_LOCAL_FILENAME}
+    unknown = set(replaced) - valid_keys
+    if unknown:
+        raise ConfigLoadError(
+            f"Replacement key(s) not in overlay set: {', '.join(sorted(unknown))}. "
+            f"Valid overlay filenames are: {', '.join(sorted(valid_keys))}"
+        )
+
+    overlay_dicts: list[dict[str, Any]] = []
+    for name in overlay_names:
+        if name in replaced:
+            # Use candidate dict instead of reading from disk.
+            parsed = dict(replaced[name])
+        else:
+            overlay_path = config_dir / name
+            parsed = _load_json5_file(overlay_path)
+        # Attach source sentinel so merge_overlays can identify local.json5.
+        parsed["__source__"] = config_dir / name
+        overlay_dicts.append(parsed)
+
+    # Optional local.json5 — missing is fine, not an error.
+    local_path = config_dir / _LOCAL_FILENAME
+    if _LOCAL_FILENAME in replaced:
+        local_dict = dict(replaced[_LOCAL_FILENAME])
+        local_dict["__source__"] = local_path
+        overlay_dicts.append(local_dict)
+    elif local_path.is_file():
+        local_dict = _load_json5_file(local_path)
+        local_dict["__source__"] = local_path
+        overlay_dicts.append(local_dict)
+
+    # Merge: master is the base; overlays applied in order.
+    merged = merge_overlays(master, *overlay_dicts)
+
+    # Resolve relative paths against config_dir.parent (repo root), not CWD.
+    # ``init-config`` always places ``config/`` at the repo root, so
+    # ``config_dir.parent`` is the project root by construction.
+    #
+    # The root is exposed as a ContextVar on ``paths_model`` so validators on
+    # nested sub-models (PathConfig, IndexerConfig.db_path) can reach it without
+    # threading ``context=`` through every field_validator.  ContextVar gives
+    # each thread/async task its own value, so parallel config validation (e.g.
+    # from the FastAPI threadpool) cannot cross-contaminate — the promotion
+    # anticipated by the original comment is now done.
+    import personalscraper.conf.models.paths as paths_model
+
+    project_root = config_dir.parent.resolve()
+    token = paths_model._PROJECT_ROOT.set(project_root)
+
+    # Validate through pydantic.
+    try:
+        config = Config.model_validate(merged)
+    except pydantic.ValidationError as exc:
+        raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
+    finally:
+        paths_model._PROJECT_ROOT.reset(token)
+
+    return config, collect_warnings(config)
+
+
 def load_config_dir(config_dir: Path) -> Config:
     """Load and merge a split-config directory into a validated Config.
 
@@ -145,72 +255,53 @@ def load_config_dir(config_dir: Path) -> Config:
             dict fails pydantic validation.
         ConfigConflictError: If two non-local overlays define the same top-level key.
     """
-    master_path = config_dir / _MASTER_FILENAME
-    if not master_path.is_file():
-        raise ConfigNotFoundError(
-            f"No config.json5 found in {config_dir}. "
-            "Run 'personalscraper init-config' to create one from the example template."
-        )
-
-    master = _load_json5_file(master_path)
-
-    # Collect overlay dicts in declared order.
-    overlay_names: list[str] = master.pop("overlays", [])
-    overlay_dicts: list[dict[str, Any]] = []
-    for name in overlay_names:
-        overlay_path = config_dir / name
-        parsed = _load_json5_file(overlay_path)
-        # Attach source sentinel so merge_overlays can identify local.json5.
-        parsed["__source__"] = overlay_path
-        overlay_dicts.append(parsed)
-
-    # Optional local.json5 — missing is fine, not an error.
-    local_path = config_dir / _LOCAL_FILENAME
-    if local_path.is_file():
-        local_dict = _load_json5_file(local_path)
-        local_dict["__source__"] = local_path
-        overlay_dicts.append(local_dict)
-
-    # Merge: master is the base; overlays applied in order.
-    merged = merge_overlays(master, *overlay_dicts)
-
-    # Resolve relative paths against config_dir.parent (repo root), not CWD.
-    # ``init-config`` always places ``config/`` at the repo root, so
-    # ``config_dir.parent`` is the project root by construction.
-    #
-    # We expose the root through a module-level attribute on
-    # ``paths_model`` (saved + restored in finally) instead of pydantic's
-    # ``model_validate(context=...)`` because field_validators on nested
-    # sub-models (PathConfig, IndexerConfig.db_path) cannot reach the
-    # outer validation context cleanly. Validators in those models read
-    # the attribute at call time so this assignment is honoured (a
-    # ``from … import _PROJECT_ROOT`` would value-bind None and silently
-    # fall back to CWD — see indexer.py for the call-time lookup).
-    # Single-threaded CLI startup means no concurrent mutation is
-    # possible; if a future caller validates two configs in parallel,
-    # promote ``_PROJECT_ROOT`` to a ContextVar.
-    import personalscraper.conf.models.paths as paths_model
-
-    project_root = config_dir.parent.resolve()
-    prev_root = paths_model._PROJECT_ROOT
-    paths_model._PROJECT_ROOT = project_root
-
-    # Validate through pydantic.
-    try:
-        config = Config.model_validate(merged)
-    except Exception as exc:
-        raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
-    finally:
-        paths_model._PROJECT_ROOT = prev_root
+    config, warnings = _build_config(config_dir)
 
     # Emit non-blocking warnings.
-    for warning in collect_warnings(config):
+    for warning in warnings:
         log.warning(warning)
 
     # Non-blocking category-orphan startup check (DESIGN §17.2).
     _check_category_orphans(config)
 
     return config
+
+
+def validate_candidate(
+    config_dir: Path,
+    replaced: dict[str, dict[str, Any]],
+) -> tuple[Config, list[str]]:
+    """Validate a candidate config without writing to the filesystem.
+
+    Reads overlay files from *config_dir*, substitutes the values in
+    *replaced* (mapping overlay filenames → replacement dicts) in memory,
+    then runs the full merge + Pydantic validation pipeline.
+
+    Differs from :func:`load_config_dir` in two ways:
+    - Skips the category-orphan DB check (no DB touch).
+    - Runs genuine filesystem probes (WAL-safety of db_path) that are real
+      validation, not side effects.
+
+    Args:
+        config_dir: Path to the config directory (read-only).
+        replaced: Mapping of overlay filenames (e.g. ``"paths.json5"``) to
+            candidate dicts that replace the on-disk file content during
+            validation.
+
+    Returns:
+        (validated_config, warnings) — same shape as :func:`load_config_dir`
+        output, minus the orphan check.
+
+    Raises:
+        ConfigNotFoundError: If ``config.json5`` does not exist in *config_dir*.
+        ConfigLoadError: If any declared overlay file is missing, or if a key
+            in *replaced* does not match any declared overlay or ``local.json5``.
+        ConfigValidationError: If any file has invalid JSON5 syntax or the merged
+            dict fails pydantic validation.
+        ConfigConflictError: If two non-local overlays define the same top-level
+            key.
+    """
+    return _build_config(config_dir, replaced=replaced)
 
 
 def load_config(path: Path | None = None) -> Config:

@@ -37,24 +37,20 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Maintenance" })).toBeInTheDocument();
   });
 
-  it("rend Registre (S6) et Config (S4) désactivés, jamais des liens", () => {
+  it("rend Config comme un lien et Registre désactivé (S6)", () => {
     renderSidebar();
 
-    // The disabled stubs are non-interactive rows, not links.
+    // Config is now an active link.
+    expect(screen.getByRole("link", { name: "Config" })).toHaveAttribute("href", "/config");
+
+    // Registre remains a disabled stub.
     expect(
       screen.queryByRole("link", { name: /Registre/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Config/ }),
     ).not.toBeInTheDocument();
 
     const registre = screen.getByText("Registre").closest("[aria-disabled]");
     expect(registre).toHaveAttribute("aria-disabled", "true");
     expect(within(registre as HTMLElement).getByText("S6")).toBeInTheDocument();
-
-    const config = screen.getByText("Config").closest("[aria-disabled]");
-    expect(config).toHaveAttribute("aria-disabled", "true");
-    expect(within(config as HTMLElement).getByText("S4")).toBeInTheDocument();
   });
 
   it("marque la destination courante en actif (text-primary)", () => {
