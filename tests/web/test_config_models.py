@@ -211,12 +211,14 @@ class TestConfigStatusResponse:
             role="prod",
             read_only=False,
             restart_required=True,
+            restart_configured=True,
             stale_files=["master.json5"],
         )
         d = obj.model_dump()
         assert d["role"] == "prod"
         assert d["read_only"] is False
         assert d["restart_required"] is True
+        assert d["restart_configured"] is True
         assert d["stale_files"] == ["master.json5"]
         assert ConfigStatusResponse.model_validate(d) == obj
 

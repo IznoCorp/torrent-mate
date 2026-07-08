@@ -123,10 +123,15 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
     guarded_api.include_router(maintenance_router)
+    from personalscraper.web.routes.config import capture_boot_hashes
     from personalscraper.web.routes.config import router as config_router
 
     guarded_api.include_router(config_router)
     app.include_router(guarded_api)
+
+    # Capture config file hashes at startup so /status detects
+    # post-boot modifications without a lazy first-access race.
+    capture_boot_hashes(app)
 
     # Mount the built SPA static files with index.html fallback.
     static_dir = Path(__file__).resolve().parent / "static"

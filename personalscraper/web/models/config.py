@@ -145,6 +145,8 @@ class ConfigStatusResponse(BaseModel):
         role: Deployment role (``"prod"`` or ``"staging"``).
         read_only: Whether the web process is in read-only mode.
         restart_required: Whether ``stale_files`` is non-empty.
+        restart_configured: Whether ``PERSONALSCRAPER_PM2_NAME`` is set in the
+            environment (controls visibility of the restart button in the UI).
         stale_files: Config filenames whose on-disk SHA-256 differs from the
             boot-time snapshot.
     """
@@ -154,6 +156,7 @@ class ConfigStatusResponse(BaseModel):
     role: str
     read_only: bool
     restart_required: bool
+    restart_configured: bool
     stale_files: list[str]
 
 

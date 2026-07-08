@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import cast
 
 import json5
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError as PydanticValidationError
 
 from personalscraper.conf.envfile import read_env_catalog, write_env_keys
@@ -242,14 +242,53 @@ def _compute_shadowed_keys(owned_keys: list[str], local_keys_set: set[str]) -> l
     return sorted(set(owned_keys) & local_keys_set)
 
 
-# ── Boot snapshot (lazy, per app instance) ─────────────────────────────────
+# ── Boot snapshot (eager at startup, lazy fallback for mini-app tests) ─────
+
+
+def capture_boot_hashes(app: FastAPI) -> None:
+    """Capture the config file hash snapshot at app startup.
+
+    Called by :func:`create_app` to eagerly snapshot config hashes rather
+    than lazily on first ``/status``.  Stores the result on
+    ``app.state.config_boot_hashes``.
+
+    Raises :class:`ConfigLoadError` or :class:`ConfigValidationError` if the
+    master config is missing or unreadable — the caller (``create_app``)
+    should let these propagate as startup failures.
+
+    Args:
+        app: The FastAPI application instance.
+    """
+    config_dir = _config_dir()
+    hashes: dict[str, str] = {}
+
+    # Master.
+    master_path = config_dir / _MASTER_FILENAME
+    if master_path.is_file():
+        hashes[_MASTER_FILENAME] = _sha256(master_path)
+
+    # Overlays.
+    master = _load_json5_file(master_path)
+    for name in master.get("overlays", []):
+        overlay_path = config_dir / name
+        if overlay_path.is_file():
+            hashes[name] = _sha256(overlay_path)
+
+    # Local.
+    local_path = config_dir / _LOCAL_FILENAME
+    if local_path.is_file():
+        hashes[_LOCAL_FILENAME] = _sha256(local_path)
+
+    app.state.config_boot_hashes = hashes
+    logger.debug("config_boot_hashes_captured", count=len(hashes))
 
 
 def _boot_hashes(request: Request) -> dict[str, str]:
-    """Return the boot-time SHA-256 snapshot, capturing it on first access.
+    """Return the boot-time SHA-256 snapshot.
 
-    The snapshot is stored on ``request.app.state.config_boot_hashes`` and
-    computed once per app instance (lazy, guarded by ``getattr``).
+    If :func:`capture_boot_hashes` was already called by ``create_app``,
+    returns the pre-captured snapshot directly.  Otherwise captures lazily
+    as a fallback (used by mini-apps built in tests without ``create_app``).
 
     Args:
         request: The incoming FastAPI request.
@@ -258,36 +297,14 @@ def _boot_hashes(request: Request) -> dict[str, str]:
         Dict mapping filename → sha256 hex digest at boot time.
     """
     if not getattr(request.app.state, "config_boot_hashes", None):
-        config_dir = _config_dir()
-        hashes: dict[str, str] = {}
-
-        # Master.
-        master_path = config_dir / _MASTER_FILENAME
         try:
-            if master_path.is_file():
-                hashes[_MASTER_FILENAME] = _sha256(master_path)
-
-            # Overlays.
-            master = _load_json5_file(master_path)
+            capture_boot_hashes(request.app)
         except (ConfigLoadError, ConfigValidationError) as exc:
             logger.warning("config_dir_unreadable", error=str(exc))
             raise HTTPException(
                 status_code=500,
                 detail=f"config dir unreadable: {exc}",
             ) from exc
-        for name in master.get("overlays", []):
-            overlay_path = config_dir / name
-            if overlay_path.is_file():
-                hashes[name] = _sha256(overlay_path)
-
-        # Local.
-        local_path = config_dir / _LOCAL_FILENAME
-        if local_path.is_file():
-            hashes[_LOCAL_FILENAME] = _sha256(local_path)
-
-        request.app.state.config_boot_hashes = hashes
-        logger.debug("config_boot_hashes_captured", count=len(hashes))
-
     return cast("dict[str, str]", request.app.state.config_boot_hashes)
 
 
@@ -503,17 +520,24 @@ def get_status(request: Request) -> ConfigStatusResponse:
     """
     role = os.environ.get("PERSONALSCRAPER_WEB_ROLE", "prod")
     read_only = role == "staging"
+    restart_configured = bool(os.environ.get("PERSONALSCRAPER_PM2_NAME"))
 
     boot = _boot_hashes(request)
     config_dir = _config_dir()
 
     stale_files: list[str] = []
-    for name, boot_hash in boot.items():
+    # Iterate over a stable copy — put_file may add entries to the shared
+    # boot_hashes dict concurrently.
+    for name, boot_hash in list(boot.items()):
         file_path = config_dir / name
         if file_path.is_file():
             current_hash = _sha256(file_path)
             if current_hash != boot_hash:
                 stale_files.append(name)
+        else:
+            # File was present at boot (or registered by a PUT of a
+            # post-boot-created file) but is now missing on disk → stale.
+            stale_files.append(name)
 
     # restart_required = any stale file (simplified: True if anything changed).
     restart_required = len(stale_files) > 0
@@ -522,6 +546,7 @@ def get_status(request: Request) -> ConfigStatusResponse:
         role=role,
         read_only=read_only,
         restart_required=restart_required,
+        restart_configured=restart_configured,
         stale_files=sorted(stale_files),
     )
 
@@ -752,6 +777,14 @@ def put_file(
                 os.unlink(tmp_name)
             raise
 
+        # Register a pre-write hash entry for files absent from the boot
+        # snapshot (e.g. local.json5 created post-boot) so they become
+        # stale-tracked.  The boot hash is "" because the file did not exist
+        # at boot time.
+        boot_hashes = _boot_hashes(request)
+        if name not in boot_hashes:
+            boot_hashes[name] = ""
+
     # ── Compute restart_required ──
     restart_required_flag = any(restart_required_for(k) for k in body.values)
 
@@ -871,7 +904,10 @@ def restart_web(
 
     The restart is handed off to a detached subprocess that sleeps 0.5 s
     (so the 202 response flushes first), then runs ``pm2 restart`` on the
-    name configured in ``PERSONALSCRAPER_PM2_NAME``.
+    name configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout
+    and stderr are redirected to a log file under the system temp directory
+    (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn) so a
+    failed pm2 invocation leaves a trace.
 
     Args:
         request: The incoming FastAPI request.
@@ -890,12 +926,15 @@ def restart_web(
     if not pm2_name:
         raise HTTPException(status_code=404, detail="restart not configured")
 
+    log_path = Path(tempfile.gettempdir()) / "torrentmate-restart-web.log"
+    log_fh = open(str(log_path), "w")
+
     subprocess.Popen(
         ["sh", "-c", f"sleep 0.5 && pm2 restart {shlex.quote(pm2_name)}"],
         start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log_fh,
+        stderr=log_fh,
     )
 
-    logger.info("config_restart_scheduled", pm2_name=pm2_name)
+    logger.info("config_restart_spawned", pm2_name=pm2_name, log_path=str(log_path))
     return RestartResponse(status="scheduled")
