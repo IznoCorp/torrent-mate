@@ -20,7 +20,7 @@
 | 3   | Frontend SchemaForm + /config page          | phase-03-frontend-editor.md   | [x]    |
 | 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [x]    |
 | 5   | PR fixes cycle 1                            | phase-05-pr-fixes-cycle-1.md  | [x]    |
-| 6   | PR fixes cycle 2                            | phase-06-pr-fixes-cycle-2.md  | [ ]    |
+| 6   | PR fixes cycle 2                            | phase-06-pr-fixes-cycle-2.md  | [x]    |
 
 ## Review cycles
 
@@ -53,4 +53,4 @@ extends the DESIGN's write-only+restart-badge model).
 
 ## Next action
 
-Execute phase 6 (PR fixes cycle 2) via /implement:phase, push, CI, then re-review (cycle 3).
+Push phase 6, poll CI, then re-review (cycle 3, expected clean → merge).
