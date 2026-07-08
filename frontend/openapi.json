@@ -2238,7 +2238,7 @@
     },
     "/api/version": {
       "get": {
-        "description": "Application version endpoint.\n\nReturns:\n    A dict with ``version`` (the Python package version) and\n    ``build_commit`` (the deployed git SHA, or ``\"dev\"``).",
+        "description": "Application version endpoint.\n\nReturns:\n    A dict with ``version`` (the Python package version) and\n    ``build_commit`` (the git SHA the RUNNING process booted with, or\n    ``\"dev\"`` \u2014 cached at import, see :data:`_BUILD_COMMIT`).",
         "operationId": "version_api_version_get",
         "responses": {
           "200": {

@@ -25,6 +25,14 @@ def _read_build_commit() -> str:
         return "dev"
 
 
+#: Build commit captured ONCE at process boot (module import). Re-reading the
+#: file per request would let a stale (pre-deploy) process serve the freshly
+#: stamped file from disk, making ``GET /api/version`` useless for verifying
+#: WHICH build is actually running (R27). The cached value identifies THIS
+#: process's build — deploy.sh asserts it equals the deployed sha.
+_BUILD_COMMIT: str = _read_build_commit()
+
+
 class VersionResponse(BaseModel):
     """Response model for the version endpoint.
 
@@ -43,9 +51,10 @@ def version() -> VersionResponse:
 
     Returns:
         A dict with ``version`` (the Python package version) and
-        ``build_commit`` (the deployed git SHA, or ``"dev"``).
+        ``build_commit`` (the git SHA the RUNNING process booted with, or
+        ``"dev"`` — cached at import, see :data:`_BUILD_COMMIT`).
     """
     return VersionResponse(
         version=personalscraper.__version__,
-        build_commit=_read_build_commit(),
+        build_commit=_BUILD_COMMIT,
     )

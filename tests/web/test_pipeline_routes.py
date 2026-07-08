@@ -353,6 +353,63 @@ class TestKillRoute:
         assert resp.status_code == 200
         assert resp.json()["state"] == "idle"
 
+    def test_kill_stale_pid_process_gone_returns_200_idle(
+        self,
+        pipeline_client: TestClient,
+        pipeline_data_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """R16 — a dead lock PID (ProcessLookupError) is a clean 200/idle, not a 500.
+
+        The stale-lock case is the kill endpoint's whole reason to exist: the
+        route reads the PID straight from ``pipeline.lock`` without gating on
+        ``is_lock_held``, so a crashed run's leftover lock reaches ``os.kill``
+        and must be swallowed (``pipeline_kill_process_gone``), with the pause
+        sentinel still cleared.
+        """
+        (pipeline_data_dir / "pipeline.lock").write_text("54321")
+        (pipeline_data_dir / "pipeline.pause").touch()
+
+        def _raise_gone(_pid: int, _sig: int) -> None:
+            raise ProcessLookupError
+
+        monkeypatch.setattr("personalscraper.web.routes.pipeline.os.kill", _raise_gone)
+        # The dead-pid lock is "not held" for the trailing status probe.
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.is_lock_held",
+            lambda _lock_file: False,
+        )
+
+        resp = pipeline_client.post("/api/pipeline/kill", headers=_xrw_headers())
+        assert resp.status_code == 200
+        assert resp.json()["state"] == "idle"
+        assert not (pipeline_data_dir / "pipeline.pause").exists()
+
+    def test_kill_permission_error_returns_200_fail_soft(
+        self,
+        pipeline_client: TestClient,
+        pipeline_data_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """R16 — a foreign-owned PID (PermissionError) is fail-soft: 200, sentinel cleared."""
+        (pipeline_data_dir / "pipeline.lock").write_text("54321")
+        (pipeline_data_dir / "pipeline.pause").touch()
+
+        def _raise_perm(_pid: int, _sig: int) -> None:
+            raise PermissionError
+
+        monkeypatch.setattr("personalscraper.web.routes.pipeline.os.kill", _raise_perm)
+        # Held by another user's live process → still "held" for the probe.
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.is_lock_held",
+            lambda _lock_file: True,
+        )
+
+        resp = pipeline_client.post("/api/pipeline/kill", headers=_xrw_headers())
+        assert resp.status_code == 200
+        assert resp.json()["state"] == "running"
+        assert not (pipeline_data_dir / "pipeline.pause").exists()
+
 
 # ── POST /watcher ────────────────────────────────────────────────────────────
 

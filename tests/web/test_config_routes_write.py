@@ -11,6 +11,7 @@ tmp-path-based config dir provisioning and minimal app building.
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -1043,3 +1044,64 @@ class TestRestartEndpoint:
         assert "ELOOP" in caplog.text
         # Warning log still emitted even on the DEVNULL path.
         assert "config_restart_spawned" in caplog.text
+
+    def test_log_open_flags_nofollow_append_no_trunc(self, config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """R17 + R28 — the log is opened O_NOFOLLOW (symlink guard) + O_APPEND, never O_TRUNC.
+
+        Spies on ``os.open`` by WRAPPING the real call (not replacing it) so
+        the route still runs end-to-end. Deleting either flag — or restoring
+        ``O_TRUNC`` — is a silent security/trace regression the previous tests
+        could not see (they either ignored flags or replaced ``os.open``).
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_PM2_NAME", "torrentmate-web")
+        monkeypatch.setattr(
+            "personalscraper.web.routes.config.tempfile.gettempdir",
+            lambda: str(config_dir.parent),
+        )
+        mock_popen = MagicMock()
+        monkeypatch.setattr("personalscraper.web.routes.config.subprocess.Popen", mock_popen)
+
+        real_open = os.open
+        seen_flags: list[int] = []
+
+        def spy_open(path: str, flags: int, *args: int) -> int:
+            seen_flags.append(flags)
+            return real_open(path, flags, *args)
+
+        monkeypatch.setattr("personalscraper.web.routes.config.os.open", spy_open)
+
+        app = _build_app()
+        client = TestClient(app)
+
+        resp = client.post("/api/config/restart-web", headers=_xrw())
+        assert resp.status_code == 202
+        assert len(seen_flags) == 1
+        flags = seen_flags[0]
+        assert flags & os.O_NOFOLLOW, "O_NOFOLLOW dropped — symlink guard gone (R17)"
+        assert flags & os.O_APPEND, "O_APPEND dropped — failed-restart trace truncated (R28)"
+        assert not (flags & os.O_TRUNC), "O_TRUNC present — prior failure trace erased (R28)"
+
+    def test_restart_log_appends_across_spawns(self, config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """R28 — a second restart must not erase the first attempt's log content.
+
+        The log file is the ONLY trace of a silently-failed restart (async-202
+        limitation): pre-seeds it with a prior failure line and asserts the
+        content survives a new spawn.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_PM2_NAME", "torrentmate-web")
+        monkeypatch.setattr(
+            "personalscraper.web.routes.config.tempfile.gettempdir",
+            lambda: str(config_dir.parent),
+        )
+        mock_popen = MagicMock()
+        monkeypatch.setattr("personalscraper.web.routes.config.subprocess.Popen", mock_popen)
+
+        log_path = config_dir.parent / "torrentmate-restart-web.log"
+        log_path.write_text("PRIOR FAILURE TRACE\n")
+
+        app = _build_app()
+        client = TestClient(app)
+
+        resp = client.post("/api/config/restart-web", headers=_xrw())
+        assert resp.status_code == 202
+        assert "PRIOR FAILURE TRACE" in log_path.read_text()

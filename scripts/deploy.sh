@@ -98,11 +98,61 @@ for i in $(seq 1 15); do
   fi
   [ "$i" -lt 15 ] && sleep 2
 done
-if $health_ok; then
-  printf '\n✅ Déployé (prod): %s\n   health %s → 200 · commit tamponné dans personalscraper/web/static/BUILD_COMMIT\n' \
-    "$local_sha" "$HEALTH_URL"
-else
+if ! $health_ok; then
   printf '\n❌ Déployé (prod): %s — mais health %s a répondu "%s" après 15 tentatives (30 s).\n   Vérifie: pm2 logs torrentmate-web\n' \
     "$local_sha" "$HEALTH_URL" "$code" >&2
   exit 1
 fi
+
+# ── Post-check 2 (R27): le process QUI TOURNE sert bien CE build ──────────────
+# /api/version met le BUILD_COMMIT en cache AU BOOT — un ancien process
+# (restart pm2 raté) continuerait de servir l'ANCIEN sha même si le fichier
+# sur disque est frais. La route est session-guardée : on forge un JWT court
+# depuis WEB_JWT_SECRET (.env du clone) avec le python du venv (PyJWT, extra
+# web). Outillage absent (pas de PyJWT / pas de secret) → avertissement
+# fail-soft ; MISMATCH ou timeout → échec dur.
+VERSION_URL="http://127.0.0.1:${PORT}/api/version"
+tm_token="$("$VENV/bin/python" - "$REPO" 2>/dev/null <<'PYEOF' || true
+import re, sys, time
+from pathlib import Path
+
+import jwt  # PyJWT — ships with the web extra in the prod venv
+
+repo = Path(sys.argv[1])
+secret = next(
+    (
+        line.split("=", 1)[1].strip().strip('"').strip("'")
+        for line in (repo / ".env").read_text().splitlines()
+        if line.startswith("WEB_JWT_SECRET=")
+    ),
+    "",
+)
+web_cfg = (repo / "config" / "web.json5").read_text()
+match = re.search(r'username:\s*"([^"]+)"', web_cfg)
+if not secret or match is None:
+    raise SystemExit(1)
+now = int(time.time())
+claims = {"sub": match.group(1), "iat": now, "exp": now + 120}
+print(jwt.encode(claims, secret, algorithm="HS256"))
+PYEOF
+)"
+
+if [ -z "$tm_token" ]; then
+  printf '⚠ post-check version sauté (JWT non forgeable: PyJWT/WEB_JWT_SECRET/config absents) — health seul vérifié.\n' >&2
+else
+  served_sha=""
+  for i in $(seq 1 10); do
+    served_sha="$(curl --connect-timeout 5 --max-time 10 -s -H "Cookie: tm_session=${tm_token}" "$VERSION_URL" \
+      | "$VENV/bin/python" -c 'import json,sys; print(json.load(sys.stdin).get("build_commit",""))' 2>/dev/null || true)"
+    [ "$served_sha" = "$local_sha" ] && break
+    [ "$i" -lt 10 ] && sleep 2
+  done
+  if [ "$served_sha" != "$local_sha" ]; then
+    printf '\n❌ Déployé (prod): %s — mais le process en cours sert build_commit="%s".\n   Le restart pm2 a probablement échoué (ancien process toujours vivant). Vérifie: pm2 logs torrentmate-web\n' \
+      "$local_sha" "$served_sha" >&2
+    exit 1
+  fi
+fi
+
+printf '\n✅ Déployé (prod): %s\n   health %s → 200 · /api/version sert ce commit · tamponné dans personalscraper/web/static/BUILD_COMMIT\n' \
+  "$local_sha" "$HEALTH_URL"

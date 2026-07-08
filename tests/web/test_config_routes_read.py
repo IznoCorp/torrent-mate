@@ -227,6 +227,24 @@ class TestFileEndpoint:
         resp = client.get("/api/config/files/nonexistent.json5")
         assert resp.status_code == 404
 
+    def test_returns_404_for_declared_overlay_missing_on_disk(self, client: TestClient, config_dir: Path) -> None:
+        """404 — an overlay DECLARED in master but deleted from disk (R26).
+
+        ``get_file`` has two distinct 404 branches: unknown name (above) and
+        declared-but-absent-on-disk. Only the first was covered — a regression
+        returning 200/500 for a deleted declared overlay escaped CI. The same
+        sweep asserts ``GET /files`` silently omits the missing file.
+        """
+        (config_dir / "paths.json5").unlink()
+
+        resp = client.get("/api/config/files/paths.json5")
+        assert resp.status_code == 404
+
+        listing = client.get("/api/config/files")
+        assert listing.status_code == 200
+        names = [f["name"] for f in listing.json()["files"]]
+        assert "paths.json5" not in names
+
     def test_values_contain_expected_keys(self, client: TestClient) -> None:
         """The ``values`` dict for paths.json5 contains the paths sub-object."""
         resp = client.get("/api/config/files/paths.json5")

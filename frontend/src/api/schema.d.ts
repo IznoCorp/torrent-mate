@@ -837,7 +837,8 @@ export interface paths {
          *
          *     Returns:
          *         A dict with ``version`` (the Python package version) and
-         *         ``build_commit`` (the deployed git SHA, or ``"dev"``).
+         *         ``build_commit`` (the git SHA the RUNNING process booted with, or
+         *         ``"dev"`` — cached at import, see :data:`_BUILD_COMMIT`).
          */
         get: operations["version_api_version_get"];
         put?: never;
