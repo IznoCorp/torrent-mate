@@ -214,24 +214,36 @@ class TestWriteEnvKeysAtomicity:
         assert len(tmp_files) == 0
 
     def test_fsync_called_before_replace(self, tmp_path: Path) -> None:
-        """Fsync is called on the temp file before os.replace (crash safety)."""
+        """Fsync runs on the temp file BEFORE os.replace (crash safety, R25).
+
+        A single merged call log records both calls in order — the previous
+        two independent mocks only asserted that both were called, so an
+        implementation replacing first and fsyncing after (data loss on a
+        crash between the two) passed unchanged.
+        """
         env_path = tmp_path / ".env"
         env_path.write_text("OLD=value\n")
 
-        fsync_calls: list[int] = []
+        call_order: list[str] = []
+        real_fsync = os.fsync
 
         def tracking_fsync(fd: int) -> None:
-            fsync_calls.append(fd)
+            call_order.append("fsync")
+            real_fsync(fd)
+
+        def tracking_replace(_src: str, _dst: str) -> None:
+            # Ordering-only spy — the file swap itself is irrelevant here.
+            call_order.append("replace")
 
         with (
             mock.patch("os.fsync", side_effect=tracking_fsync),
-            mock.patch("os.replace") as mock_replace,
+            mock.patch("os.replace", side_effect=tracking_replace),
         ):
             write_env_keys({"NEW": "v"}, env_path)
 
-        assert len(fsync_calls) == 1
-        # fsync must be called before os.replace.
-        assert mock_replace.called
+        assert call_order.count("fsync") == 1
+        assert call_order.count("replace") == 1
+        assert call_order.index("fsync") < call_order.index("replace")
 
 
 # ---------------------------------------------------------------------------

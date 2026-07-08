@@ -109,3 +109,25 @@ class TestReadBuildCommit:
         monkeypatch.setattr(version_module, "__file__", str(tmp_path / "routes" / "version.py"))
 
         assert _read_build_commit() == "dev"
+
+
+class TestBuildCommitCachedAtBoot:
+    """R27 — the served build_commit identifies the RUNNING process's build."""
+
+    def test_endpoint_serves_boot_value_not_disk(self, version_client: TestClient, monkeypatch) -> None:
+        """A post-boot change to BUILD_COMMIT on disk must NOT change the response.
+
+        A stale (pre-deploy) process re-reading the freshly stamped file per
+        request would masquerade as the new build — deploy.sh's post-check
+        relies on the boot-time cache to detect a failed pm2 restart.
+        """
+        _login(version_client)
+        first = version_client.get("/api/version").json()["build_commit"]
+
+        # Simulate a new deploy stamping a fresh BUILD_COMMIT while this
+        # (old) process keeps running.
+        monkeypatch.setattr(version_module, "_read_build_commit", lambda: "post-deploy-sha")
+
+        second = version_client.get("/api/version").json()["build_commit"]
+        assert second == first
+        assert second != "post-deploy-sha"
