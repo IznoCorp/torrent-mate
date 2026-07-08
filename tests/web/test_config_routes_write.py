@@ -237,6 +237,8 @@ class TestValidateEndpoint:
         detail = resp.json()["detail"]
         assert isinstance(detail, str)
         assert "conflict" in detail.lower() or "paths" in detail.lower()
+        # Config-dir path must be stripped from the detail (SF-19).
+        assert str(config_dir) not in detail
 
     def test_409_known_name_missing_dependency_overlay(self, client: TestClient, config_dir: Path) -> None:
         """Validate with a known name but another declared overlay missing → 409."""
@@ -432,6 +434,8 @@ class TestPutFileEndpoint:
         detail = resp.json()["detail"]
         assert isinstance(detail, str)
         assert "conflict" in detail.lower() or "paths" in detail.lower()
+        # Config-dir path must be stripped from the detail (SF-19).
+        assert str(config_dir) not in detail
 
     def test_new_local_json5_created_with_empty_base(self, client: TestClient, config_dir: Path) -> None:
         """PUT with base_sha256="" creates local.json5 when it doesn't exist."""

@@ -244,6 +244,20 @@ class TestFileEndpoint:
         resp = client.get(f"/api/config/files/{quote(traversal_name, safe='')}")
         assert resp.status_code == 404
 
+    def test_422_corrupt_json5_parse_error(self, client: TestClient, config_dir: Path) -> None:
+        """GET a file with invalid JSON5 syntax → 422 with parse error detail."""
+        # Corrupt an overlay file on disk.
+        overlay_path = config_dir / "web.json5"
+        original = overlay_path.read_text(encoding="utf-8")
+        try:
+            overlay_path.write_text("{ invalid json5 !!! }", encoding="utf-8")
+            resp = client.get("/api/config/files/web.json5")
+            assert resp.status_code == 422
+            detail = resp.json()["detail"]
+            assert "JSON5 parse error" in detail
+        finally:
+            overlay_path.write_text(original, encoding="utf-8")
+
 
 # ── GET /status ─────────────────────────────────────────────────────────────
 
@@ -310,3 +324,18 @@ class TestStatusEndpoint:
 
         resp2 = client.get("/api/config/status")
         assert resp2.json()["stale_files"] == []
+
+    def test_500_when_master_config_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Status returns 500 when config.json5 is missing, not a bare traceback."""
+        dest = _copy_config_example(tmp_path)
+        monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(dest))
+        # Delete the master config.json5.
+        (dest / "config.json5").unlink()
+
+        app = _build_app()
+        client = TestClient(app)
+
+        resp = client.get("/api/config/status")
+        assert resp.status_code == 500
+        detail = resp.json()["detail"]
+        assert "config dir unreadable" in detail.lower()

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import json5
+import pydantic
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError, ConfigLoadError, merge_overlays
@@ -218,7 +219,7 @@ def _build_config(
     # Validate through pydantic.
     try:
         config = Config.model_validate(merged)
-    except Exception as exc:
+    except pydantic.ValidationError as exc:
         raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
     finally:
         paths_model._PROJECT_ROOT.reset(token)

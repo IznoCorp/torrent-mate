@@ -263,11 +263,18 @@ def _boot_hashes(request: Request) -> dict[str, str]:
 
         # Master.
         master_path = config_dir / _MASTER_FILENAME
-        if master_path.is_file():
-            hashes[_MASTER_FILENAME] = _sha256(master_path)
+        try:
+            if master_path.is_file():
+                hashes[_MASTER_FILENAME] = _sha256(master_path)
 
-        # Overlays.
-        master = _load_json5_file(master_path)
+            # Overlays.
+            master = _load_json5_file(master_path)
+        except (ConfigLoadError, ConfigValidationError) as exc:
+            logger.warning("config_dir_unreadable", error=str(exc))
+            raise HTTPException(
+                status_code=500,
+                detail=f"config dir unreadable: {exc}",
+            ) from exc
         for name in master.get("overlays", []):
             overlay_path = config_dir / name
             if overlay_path.is_file():
@@ -384,6 +391,7 @@ def get_files(request: Request) -> FilesResponse:
         try:
             local = _load_json5_file(local_path)
         except Exception:
+            logger.warning("local_json5_unreadable", path=str(local_path))
             local = {}
         local_owned = [k for k in local if k != "__source__"]
         local_st = local_path.stat()
@@ -452,7 +460,13 @@ def get_file(name: str, request: Request) -> FileContent:
             detail=f"Config file {name!r} is declared but does not exist on disk",
         )
 
-    values = _load_json5_file(file_path)
+    try:
+        values = _load_json5_file(file_path)
+    except ConfigValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"JSON5 parse error in {name}: {exc}",
+        ) from exc
     # Remove internal sentinels.
     values = {k: v for k, v in values.items() if k != "__source__"}
 
@@ -594,13 +608,19 @@ def validate_file(
         raise HTTPException(status_code=409, detail=str(exc))
     except ConfigConflictError as exc:
         # Candidate introduces a key owned by another overlay.
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc).replace(str(config_dir), "<config>"),
+        )
     except ConfigValidationError as exc:
         cause = exc.__cause__
         if cause is not None and isinstance(cause, PydanticValidationError):
             detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in cause.errors()]
             raise HTTPException(status_code=422, detail=detail)
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc).replace(str(config_dir), "<config>"),
+        )
 
     return ValidateResponse(warnings=warnings)
 
@@ -683,13 +703,19 @@ def put_file(
             raise HTTPException(status_code=409, detail=str(exc))
         except ConfigConflictError as exc:
             # Candidate introduces a key owned by another overlay.
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(
+                status_code=422,
+                detail=str(exc).replace(str(config_dir), "<config>"),
+            )
         except ConfigValidationError as exc:
             cause = exc.__cause__
             if cause is not None and isinstance(cause, PydanticValidationError):
                 detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in cause.errors()]
                 raise HTTPException(status_code=422, detail=detail)
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(
+                status_code=422,
+                detail=str(exc).replace(str(config_dir), "<config>"),
+            )
         # Backup existing file.
         if file_path.is_file():
             backup_dir = config_dir / ".backups"
@@ -755,6 +781,7 @@ def get_secrets(request: Request) -> SecretsResponse:
 
     env_example_path = repo_root / ".env.example"
     if not env_example_path.is_file():
+        logger.warning("env_example_missing", path=str(env_example_path))
         return SecretsResponse(secrets=[])
 
     catalog = read_env_catalog(env_example_path)
