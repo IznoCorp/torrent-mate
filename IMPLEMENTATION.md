@@ -19,11 +19,24 @@
 | 2   | Backend config API routes                   | phase-02-backend-routes.md    | [x]    |
 | 3   | Frontend SchemaForm + /config page          | phase-03-frontend-editor.md   | [x]    |
 | 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [x]    |
+| 5   | PR fixes cycle 1                            | phase-05-pr-fixes-cycle-1.md  | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1 (in progress)
+
+4 review agents on PR #230 (code-reviewer, silent-failure-hunter, pr-test-analyzer,
+comment-analyzer). Retained after DESIGN filtering: 1 critical (frontend ApiError drops
+non-string 422 detail — the loc→field mapping never fired against the real backend, masked
+by a vacuous hand-built-ApiError test), 6 major (sha precondition TOCTOU outside the write
+lock; .env newline injection bypassing the catalog allowlist; silent restart flow + false
+UI promises; lazy "boot" hash snapshot; ConfigConflictError → 500; DESIGN-promised
+shadowed-key chip missing), ~12 medium, docs/ACC corrections (ACC-06 count 28→26, ACC-03
+bogus follow-up GET, ACC-02 non-determinism). No design contradiction. Fix phase: 05.
+Open item for operator: `process_clean` and `sort` exist only as model defaults (no overlay
+file owns them → invisible to the editor); adding them to config.example is a config-surface
+decision deferred to the operator.
 
 ## Next action
 
-All phases complete — run /implement:feature-pr.
+Execute phase 5 (PR fixes cycle 1) via /implement:phase, then re-review (cycle 2).
