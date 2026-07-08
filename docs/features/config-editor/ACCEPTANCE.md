@@ -80,6 +80,13 @@ test "${SHA_BEFORE}" = "${SHA_AFTER}" && echo "PASS: file untouched"
 
 ```bash
 FILE="web.json5"
+# Prime the boot snapshot — a GET /status call before any write ensures the
+# eager-snapshot population is deterministic (the snapshot is captured at app
+# startup, then updated on PUT for files absent from the snapshot).
+curl --connect-timeout 10 --max-time 30 -s \
+  --cookie "tm_session=$(cat /tmp/tm_session)" \
+  "http://localhost:8710/api/config/status" > /dev/null
+
 # Read current values + sha256.
 GET_OUT=$(
   curl --connect-timeout 10 --max-time 30 -s \
@@ -141,21 +148,15 @@ echo "$STATUS" | jq -e '.stale_files | contains(["'"${FILE}"'"])' \
 # This criterion requires the staging daemon on port 8711.
 # If tm-staging is not running locally, skip with a note.
 FILE="paths.json5"
-HTTP_CODE=$(
-  curl --connect-timeout 10 --max-time 30 -s -o /dev/null -w "%{http_code}" \
-    -X PUT \
-    -H "Content-Type: application/json" \
-    -H "X-Requested-With: TorrentMate" \
-    --cookie "tm_session=$(cat /tmp/tm_session)" \
-    -d '{"values":{"paths":{"staging_dir":"/tmp/test","data_dir":"/tmp/data"}},"base_sha256":""}' \
-    "http://localhost:8711/api/config/files/${FILE}"
-)
-echo "HTTP ${HTTP_CODE}"
-curl --connect-timeout 10 --max-time 30 -s \
+curl --connect-timeout 10 --max-time 30 -s -o /tmp/acc03_body.json -w "%{http_code}\n" \
+  -X PUT \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: TorrentMate" \
   --cookie "tm_session=$(cat /tmp/tm_session)" \
-  "http://localhost:8711/api/config/files/${FILE}" \
-  | jq -r '.detail'
-# Expected: HTTP 403, detail = "read-only"
+  -d '{"values":{"paths":{"staging_dir":"/tmp/test","data_dir":"/tmp/data"}},"base_sha256":""}' \
+  "http://localhost:8711/api/config/files/${FILE}"
+jq -r '.detail' /tmp/acc03_body.json
+# Expected: HTTP 403, detail = "read-only" in /tmp/acc03_body.json
 # (Skip if staging not running — the 403 is enforced by PERSONALSCRAPER_WEB_ROLE=staging
 # in ecosystem.config.js.  Unit test coverage in test_config_routes_write.py
 # TestPutFileEndpoint.test_403_staging_role.)
@@ -230,8 +231,10 @@ OWNERSHIP_COUNT=$(
   | jq '.ownership | keys | length'
 )
 echo "Ownership keys: ${OWNERSHIP_COUNT}"
-test "${OWNERSHIP_COUNT}" -eq 28 && echo "PASS" || echo "FAIL: expected 28"
-# Expected: 28 (every Config.model_fields key has an owner file)
+test "${OWNERSHIP_COUNT}" -eq 26 && echo "PASS" || echo "FAIL: expected 26"
+# Expected: 26. Two Config.model_fields keys (``process_clean``, ``sort``)
+# have no owner file — they are default-only keys whose overlay was never
+# created (a config-surface decision left open).
 ```
 
 ## ACC-07 — Restart endpoint schedules restart (local, operator-supervised)
