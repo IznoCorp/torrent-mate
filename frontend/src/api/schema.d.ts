@@ -181,9 +181,13 @@ export interface paths {
          *     Raises:
          *         403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
          *         404: If *name* is not a writable config file.
+         *         409: If *name* is valid but another declared overlay is missing on
+         *             disk (``ConfigLoadError``).
          *         412: If *body.base_sha256* does not match the current on-disk file
          *             digest.
-         *         422: If the candidate values fail Pydantic validation.
+         *         422: If the candidate values fail Pydantic validation, or if the
+         *             candidate introduces a key owned by another overlay
+         *             (``ConfigConflictError``).
          */
         put: operations["put_file_api_config_files__name__put"];
         post?: never;
@@ -208,7 +212,10 @@ export interface paths {
          *
          *     The restart is handed off to a detached subprocess that sleeps 0.5 s
          *     (so the 202 response flushes first), then runs ``pm2 restart`` on the
-         *     name configured in ``PERSONALSCRAPER_PM2_NAME``.
+         *     name configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout
+         *     and stderr are redirected to a log file under the system temp directory
+         *     (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn) so a
+         *     failed pm2 invocation leaves a trace.
          *
          *     Args:
          *         request: The incoming FastAPI request.
@@ -967,12 +974,16 @@ export interface components {
          *         role: Deployment role (``"prod"`` or ``"staging"``).
          *         read_only: Whether the web process is in read-only mode.
          *         restart_required: Whether ``stale_files`` is non-empty.
+         *         restart_configured: Whether ``PERSONALSCRAPER_PM2_NAME`` is set in the
+         *             environment (controls visibility of the restart button in the UI).
          *         stale_files: Config filenames whose on-disk SHA-256 differs from the
          *             boot-time snapshot.
          */
         ConfigStatusResponse: {
             /** Read Only */
             read_only: boolean;
+            /** Restart Configured */
+            restart_configured: boolean;
             /** Restart Required */
             restart_required: boolean;
             /** Role */

@@ -149,10 +149,14 @@
       },
       "ConfigStatusResponse": {
         "additionalProperties": false,
-        "description": "Response body for ``GET /api/config/status``.\n\nAttributes:\n    role: Deployment role (``\"prod\"`` or ``\"staging\"``).\n    read_only: Whether the web process is in read-only mode.\n    restart_required: Whether ``stale_files`` is non-empty.\n    stale_files: Config filenames whose on-disk SHA-256 differs from the\n        boot-time snapshot.",
+        "description": "Response body for ``GET /api/config/status``.\n\nAttributes:\n    role: Deployment role (``\"prod\"`` or ``\"staging\"``).\n    read_only: Whether the web process is in read-only mode.\n    restart_required: Whether ``stale_files`` is non-empty.\n    restart_configured: Whether ``PERSONALSCRAPER_PM2_NAME`` is set in the\n        environment (controls visibility of the restart button in the UI).\n    stale_files: Config filenames whose on-disk SHA-256 differs from the\n        boot-time snapshot.",
         "properties": {
           "read_only": {
             "title": "Read Only",
+            "type": "boolean"
+          },
+          "restart_configured": {
+            "title": "Restart Configured",
             "type": "boolean"
           },
           "restart_required": {
@@ -175,6 +179,7 @@
           "role",
           "read_only",
           "restart_required",
+          "restart_configured",
           "stale_files"
         ],
         "title": "ConfigStatusResponse",
@@ -1527,7 +1532,7 @@
         ]
       },
       "put": {
-        "description": "Validate and atomically write a config overlay file.\n\nOrder:\n1. Role check \u2014 403 if staging (read-only).\n2. Existence check \u2014 404 if *name* is not a writable file\n   (overlays + local.json5; master is read-only through this endpoint).\n3. SHA-256 precondition \u2014 412 if *body.base_sha256* \u2260 current\n   on-disk digest (empty string for a non-existent local.json5).\n4. Validate candidate via\n   :func:`~personalscraper.conf.loader.validate_candidate` \u2014 422\n   with Pydantic error loc paths on failure (no backup created).\n5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to\n   10 most recent per file name.\n6. Atomic write via temp file + ``os.replace`` + ``fsync``,\n   serialized with a module-level ``threading.Lock``.\n7. Return 200 with warnings and restart-required flag.\n\nArgs:\n    name: Config file basename (e.g. ``\"paths.json5\"``).\n    body: Request payload with ``values`` and ``base_sha256``.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`PutFileResponse` with warnings and restart_required flag.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    404: If *name* is not a writable config file.\n    412: If *body.base_sha256* does not match the current on-disk file\n        digest.\n    422: If the candidate values fail Pydantic validation.",
+        "description": "Validate and atomically write a config overlay file.\n\nOrder:\n1. Role check \u2014 403 if staging (read-only).\n2. Existence check \u2014 404 if *name* is not a writable file\n   (overlays + local.json5; master is read-only through this endpoint).\n3. SHA-256 precondition \u2014 412 if *body.base_sha256* \u2260 current\n   on-disk digest (empty string for a non-existent local.json5).\n4. Validate candidate via\n   :func:`~personalscraper.conf.loader.validate_candidate` \u2014 422\n   with Pydantic error loc paths on failure (no backup created).\n5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to\n   10 most recent per file name.\n6. Atomic write via temp file + ``os.replace`` + ``fsync``,\n   serialized with a module-level ``threading.Lock``.\n7. Return 200 with warnings and restart-required flag.\n\nArgs:\n    name: Config file basename (e.g. ``\"paths.json5\"``).\n    body: Request payload with ``values`` and ``base_sha256``.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`PutFileResponse` with warnings and restart_required flag.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    404: If *name* is not a writable config file.\n    409: If *name* is valid but another declared overlay is missing on\n        disk (``ConfigLoadError``).\n    412: If *body.base_sha256* does not match the current on-disk file\n        digest.\n    422: If the candidate values fail Pydantic validation, or if the\n        candidate introduces a key owned by another overlay\n        (``ConfigConflictError``).",
         "operationId": "put_file_api_config_files__name__put",
         "parameters": [
           {
@@ -1580,7 +1585,7 @@
     },
     "/api/config/restart-web": {
       "post": {
-        "description": "Schedule a PM2 restart of the web process.\n\nThe restart is handed off to a detached subprocess that sleeps 0.5 s\n(so the 202 response flushes first), then runs ``pm2 restart`` on the\nname configured in ``PERSONALSCRAPER_PM2_NAME``.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    202 with :class:`RestartResponse` ``{\"status\": \"scheduled\"}``.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    404: If ``PERSONALSCRAPER_PM2_NAME`` is not set in the environment.",
+        "description": "Schedule a PM2 restart of the web process.\n\nThe restart is handed off to a detached subprocess that sleeps 0.5 s\n(so the 202 response flushes first), then runs ``pm2 restart`` on the\nname configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout\nand stderr are redirected to a log file under the system temp directory\n(``<tempdir>/torrentmate-restart-web.log``, truncated per spawn) so a\nfailed pm2 invocation leaves a trace.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    202 with :class:`RestartResponse` ``{\"status\": \"scheduled\"}``.\n\nRaises:\n    403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``\"staging\"``.\n    404: If ``PERSONALSCRAPER_PM2_NAME`` is not set in the environment.",
         "operationId": "restart_web_api_config_restart_web_post",
         "responses": {
           "202": {
