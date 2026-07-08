@@ -13,8 +13,6 @@ from __future__ import annotations
 import hashlib
 import shutil
 import subprocess
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from unittest.mock import MagicMock
 from urllib.parse import quote
@@ -464,11 +462,17 @@ class TestPutFileEndpoint:
     ) -> None:
         """Two concurrent PUTs with the same valid sha: exactly one 200 + one 412.
 
-        Patches ``validate_candidate`` with a 0.3 s sleep so the second thread
-        reaches the lock while the first is still validating.  With the
-        sha check inside ``_write_lock``, thread B's in-lock recheck sees the
-        on-disk sha has changed → 412.  The file content matches the 200 writer.
+        Deterministic ordering (no timing dependence, so it can't flake under
+        full-suite CPU contention): the patched ``validate_candidate`` for
+        writer A blocks on an ``Event`` *inside* ``_write_lock``. The main
+        thread only fires writer B once A is provably inside the lock, then
+        releases A. B then blocks on the lock, and its in-lock sha recheck (the
+        sub-phase 5.1 TOCTOU fix) sees the on-disk sha changed by A → 412. A
+        sleep-based overlap would race the Starlette portal under load; an
+        Event-gated handshake pins the interleaving exactly.
         """
+        import threading
+
         import personalscraper.conf.loader as loader_mod
         from personalscraper.web.routes import config as config_mod
 
@@ -478,18 +482,26 @@ class TestPutFileEndpoint:
 
         current = json5.loads(original_bytes.decode("utf-8"))
 
-        # Slow wrapper: stalls 0.3 s then delegates to the real validate_candidate.
+        a_inside_lock = threading.Event()  # set once A is validating inside the lock
+        release_a = threading.Event()  # main releases A to finish its write
         _real_validate = loader_mod.validate_candidate
 
-        def _slow_validate(*args, **kwargs):
-            time.sleep(0.3)
+        def _gated_validate(*args, **kwargs):
+            # Only writer A (identified by its staging_dir suffix) gates; B
+            # runs the real validator immediately once it holds the lock.
+            replaced = args[1] if len(args) > 1 else kwargs.get("replaced", {})
+            paths_vals = next(iter(replaced.values()), {}).get("paths", {})
+            if str(paths_vals.get("staging_dir", "")).endswith("_A"):
+                a_inside_lock.set()
+                release_a.wait(timeout=5.0)
             return _real_validate(*args, **kwargs)
 
-        monkeypatch.setattr(loader_mod, "validate_candidate", _slow_validate)
-        # Also patch the reference imported by the routes module.
-        monkeypatch.setattr(config_mod, "validate_candidate", _slow_validate)
+        monkeypatch.setattr(loader_mod, "validate_candidate", _gated_validate)
+        monkeypatch.setattr(config_mod, "validate_candidate", _gated_validate)
 
-        def _put(values_suffix: str) -> tuple[int, dict]:
+        results: dict[str, tuple[int, dict]] = {}
+
+        def _put(values_suffix: str) -> None:
             new_values = dict(current)
             new_values["paths"] = {**current["paths"], "staging_dir": f"/tmp/concurrent_{values_suffix}"}
             resp = client.put(
@@ -497,23 +509,25 @@ class TestPutFileEndpoint:
                 json={"values": new_values, "base_sha256": original_sha256},
                 headers=_xrw(),
             )
-            return resp.status_code, new_values
+            results[values_suffix] = (resp.status_code, new_values)
 
-        # Launch two concurrent PUTs.
-        statuses: list[int] = []
-        values_list: list[dict] = []
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(_put, "A"), pool.submit(_put, "B")]
-            for fut in as_completed(futures):
-                code, vals = fut.result()
-                statuses.append(code)
-                values_list.append((code, vals))
+        thread_a = threading.Thread(target=_put, args=("A",))
+        thread_a.start()
+        assert a_inside_lock.wait(timeout=5.0), "writer A never entered the lock"
 
-        # Exactly one 200 and one 412.
-        assert sorted(statuses) == [200, 412], f"Expected [200, 412], got {sorted(statuses)}"
+        # A now holds _write_lock. Fire B; it blocks on the lock. Release A so
+        # it writes + releases; B then rechecks the (now-changed) sha → 412.
+        thread_b = threading.Thread(target=_put, args=("B",))
+        thread_b.start()
+        release_a.set()
+        thread_a.join(timeout=10.0)
+        thread_b.join(timeout=10.0)
+
+        statuses = sorted(code for code, _ in results.values())
+        assert statuses == [200, 412], f"Expected [200, 412], got {statuses}"
 
         # File content matches the 200 writer's payload.
-        winner_values = next(v for c, v in values_list if c == 200)
+        winner_values = next(v for c, v in results.values() if c == 200)
         file_text = file_path.read_text(encoding="utf-8")
         stripped = file_text.split("\n", 1)[1]  # remove header
         parsed = json5.loads(stripped)
