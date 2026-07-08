@@ -67,13 +67,19 @@ async function mockGetHistory() {
 }
 
 /** Render RunHistoryTable wrapped in a fresh QueryClientProvider. */
-function renderTable(onSelect: (uid: string) => void = vi.fn()): void {
+function renderTable(
+  onSelect: (uid: string) => void = vi.fn(),
+  kind?: string,
+): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <RunHistoryTable onSelect={onSelect} />
+      <RunHistoryTable
+        onSelect={onSelect}
+        {...(kind !== undefined ? { kind } : {})}
+      />
     </QueryClientProvider>
   );
   render(tree);
@@ -214,5 +220,30 @@ describe("RunHistoryTable", () => {
     fireEvent.click(screen.getByText("web"));
 
     expect(onSelect).toHaveBeenCalledWith("selected-uid");
+  });
+
+  it("passe kind=maintenance dans les query params", async () => {
+    const getHistory = await mockGetHistory();
+    getHistory.mockResolvedValue(makePage([makeRun()]));
+    renderTable(vi.fn(), "maintenance");
+
+    await screen.findByText("Date");
+
+    expect(getHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "maintenance" }),
+    );
+  });
+
+  it("n'inclut pas kind quand le prop est absent", async () => {
+    const getHistory = await mockGetHistory();
+    getHistory.mockResolvedValue(makePage([makeRun()]));
+    renderTable(vi.fn()); // no kind prop
+
+    await screen.findByText("Date");
+
+    const callArgs = getHistory.mock.calls[0]?.[0] as
+      Record<string, unknown> | undefined;
+    expect(callArgs).toBeDefined();
+    expect(callArgs).not.toHaveProperty("kind");
   });
 });

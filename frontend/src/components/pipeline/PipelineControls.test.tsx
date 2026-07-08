@@ -1,10 +1,35 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import type { components } from "@/api/schema";
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+vi.mock("@/api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/client")>();
+  return {
+    ...actual,
+    runPipeline: vi.fn(),
+  };
+});
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
 
 type StatusResponse = components["schemas"]["StatusResponse"];
 
@@ -112,5 +137,34 @@ describe("PipelineControls", () => {
     renderControls(RUNNING_STATUS);
     fireEvent.click(screen.getByRole("button", { name: /Arrêter/i }));
     expect(screen.getByText("Arrêter le pipeline ?")).toBeInTheDocument();
+  });
+
+  it("shows the backend error detail on a failed run mutation", async () => {
+    // Arrange: stub runPipeline to reject with a 409.
+    const mod = await import("@/api/client");
+    const mockedRun = mod.runPipeline as ReturnType<typeof vi.fn>;
+    mockedRun.mockRejectedValueOnce(
+      new ApiError(409, "Pipeline is already running"),
+    );
+
+    vi.mocked(toast.error).mockClear();
+
+    renderControls(IDLE_STATUS);
+
+    // Open the run dialog.
+    fireEvent.click(screen.getByRole("button", { name: /Démarrer/i }));
+    expect(screen.getByText("Démarrer le pipeline")).toBeInTheDocument();
+
+    // Click the confirmation button inside the dialog.
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Démarrer/i }));
+
+    // Assert: the backend detail surfaced via toast.error.
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Pipeline is already running");
+    });
+
+    // The dialog stays open so the user sees the error and can retry.
+    expect(screen.getByText("Démarrer le pipeline")).toBeInTheDocument();
   });
 });

@@ -202,6 +202,41 @@ describe("RunDetail", () => {
     // The error body should also be visible.
     expect(screen.getByText("something broke")).toBeInTheDocument();
   });
+
+  it("affiche la commande, les options et la sortie pour un run de maintenance sans le stepper", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "maintenance",
+        command: "library-clean",
+        options_json: '{"only":"empty"}',
+        output_tail: "line1\nline2",
+        steps: [],
+      }),
+    );
+    renderDetail("abc123-run-uid");
+
+    await screen.findByText("abc123-r…");
+
+    // Command label and value.
+    expect(screen.getByText("Commande")).toBeInTheDocument();
+    expect(screen.getByText("library-clean")).toBeInTheDocument();
+
+    // Options label and parsed key/value.
+    expect(screen.getByText("Options")).toBeInTheDocument();
+    expect(screen.getByText("only")).toBeInTheDocument();
+    expect(screen.getByText("empty")).toBeInTheDocument();
+
+    // Output tail label and content.
+    expect(screen.getByText("Sortie")).toBeInTheDocument();
+    expect(screen.getByText(/line1/)).toBeInTheDocument();
+    expect(screen.getByText(/line2/)).toBeInTheDocument();
+
+    // Pipeline stepper step labels MUST NOT be rendered.
+    expect(screen.queryByText("Collecte")).not.toBeInTheDocument();
+    expect(screen.queryByText("Scraping")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dispatch")).not.toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------

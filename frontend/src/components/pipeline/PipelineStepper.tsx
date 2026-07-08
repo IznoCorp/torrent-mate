@@ -162,7 +162,15 @@ function isStepId(name: string): name is StepId {
  *   The stepper element.
  */
 export function PipelineStepper(props: PipelineStepperProps): ReactElement {
-  const isLive = props.steps == null || props.steps.length === 0;
+  // Empty steps array (not omitted) → nothing to render (defense-in-depth).
+  // Distinguishes `steps=[]` from `steps` omitted (LIVE all-queued).
+  if (props.steps?.length === 0) {
+    return (
+      <div className="py-2 text-xs text-muted-foreground">Aucune étape</div>
+    );
+  }
+
+  const isLive = props.steps == null;
 
   // Build the display list: one entry per step id.
   let rows: {
@@ -194,8 +202,7 @@ export function PipelineStepper(props: PipelineStepperProps): ReactElement {
       const name = s.name;
       const label = isStepId(name) ? STEP_LABELS[name] : name;
       const status = mapStatus(s.status);
-      const elapsed =
-        s.elapsed_s != null ? formatElapsed(s.elapsed_s) : null;
+      const elapsed = s.elapsed_s != null ? formatElapsed(s.elapsed_s) : null;
       // Use the machine name as the key; padding fills in missing known ids.
       return { id: name as StepId, label, status, elapsed };
     });

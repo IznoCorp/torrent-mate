@@ -42,8 +42,8 @@ export default function Pipeline(): ReactElement {
 
       <RunLogFeed runUid={liveStatus.run_uid ?? null} />
 
-      {/* Phase 5: run-history table */}
-      <RunHistoryTable onSelect={setSelectedRun} />
+      {/* Phase 5: run-history table filtered to pipeline runs */}
+      <RunHistoryTable kind="pipeline" onSelect={setSelectedRun} />
 
       {/* Phase 5: inline detail view when a row is selected */}
       {selectedRun !== null && (

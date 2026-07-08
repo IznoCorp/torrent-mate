@@ -11,7 +11,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { type ReactElement } from "react";
+import { Fragment, type ReactElement } from "react";
 
 import { getPipelineRunDetail } from "@/api/client";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
@@ -114,6 +114,59 @@ export interface RunDetailProps {
 // Component
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Options display helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Render the ``options_json`` payload for a maintenance run.
+ *
+ * Attempts ``JSON.parse`` defensively. On success with a plain object, renders
+ * each key/value pair in a small two-column grid. On parse failure or a
+ * non-object result, falls back to a ``<pre>`` block showing the raw or
+ * stringified value.
+ *
+ * Args:
+ *   raw: The raw JSON string from ``RunDetail.options_json``.
+ *
+ * Returns:
+ *   A rendered representation of the options.
+ */
+function OptionsDisplay({ raw }: { readonly raw: string }): ReactElement {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      const entries = Object.entries(parsed as Record<string, unknown>);
+      if (entries.length === 0) {
+        return <p className="text-xs text-muted-foreground">—</p>;
+      }
+      return (
+        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+          {entries.map(([key, value]) => (
+            <Fragment key={key}>
+              <span className="font-mono font-medium text-muted-foreground">
+                {key}
+              </span>
+              <span className="font-mono">{String(value)}</span>
+            </Fragment>
+          ))}
+        </div>
+      );
+    }
+    // Fallback: render the parsed value as indented JSON.
+    return (
+      <pre className="font-mono text-xs">{JSON.stringify(parsed, null, 2)}</pre>
+    );
+  } catch {
+    // Parse failure: show the raw string.
+    return <pre className="font-mono text-xs">{raw}</pre>;
+  }
+}
+
 /**
  * RunDetail — full detail for a single pipeline run.
  *
@@ -121,8 +174,10 @@ export interface RunDetailProps {
  *
  * - A header with the run UID, trigger, outcome Badge, duration, and start/end
  *   dates.
- * - The 9-stage {@link PipelineStepper} in READ-ONLY mode fed from
- *   ``RunDetail.steps``.
+ * - For pipeline runs: the 9-stage {@link PipelineStepper} in READ-ONLY mode
+ *   fed from ``RunDetail.steps``.
+ * - For maintenance runs: the executed command, parsed options, and captured
+ *   output tail.
  * - An error section (danger-styled {@link Card}) when ``error`` is present.
  * - A "Retour" button that calls ``onClose``.
  *
@@ -211,8 +266,36 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
           </div>
         </div>
 
-        {/* Stepper (read-only mode via steps array) */}
-        <PipelineStepper steps={data.steps} />
+        {/* Maintenance section or Pipeline Stepper */}
+        {data.kind === "maintenance" ? (
+          <div className="flex flex-col gap-3">
+            {/* Command */}
+            {data.command != null && data.command !== "" && (
+              <div>
+                <span className="text-xs text-muted-foreground">Commande</span>
+                <p className="font-mono text-sm font-medium">{data.command}</p>
+              </div>
+            )}
+            {/* Options */}
+            {data.options_json != null && data.options_json !== "" && (
+              <div>
+                <span className="text-xs text-muted-foreground">Options</span>
+                <OptionsDisplay raw={data.options_json} />
+              </div>
+            )}
+            {/* Output tail */}
+            {data.output_tail != null && data.output_tail !== "" && (
+              <div>
+                <span className="text-xs text-muted-foreground">Sortie</span>
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs">
+                  {data.output_tail}
+                </pre>
+              </div>
+            )}
+          </div>
+        ) : (
+          <PipelineStepper steps={data.steps} />
+        )}
 
         {/* Error section — danger-styled Card */}
         {data.error != null && data.error !== "" && (
