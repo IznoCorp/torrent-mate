@@ -691,10 +691,23 @@ endpoint:
   subprocess that sleeps 0.5 s (so the `202` response flushes first), then runs
   `pm2 restart <name>`. The subprocess runs in a new session (`start_new_session=True`)
   with stdout/stderr redirected to `<tmpdir>/torrentmate-restart-web.log`
-  (truncated per spawn) so a failed pm2 invocation leaves a trace.
+  (truncated per spawn, opened with `O_NOFOLLOW`) so a failed pm2 invocation
+  leaves a trace. If the log file cannot be opened, the error is logged and the
+  subprocess falls back to `DEVNULL` — the restart still proceeds.
 - **Unset**: `POST /restart-web` returns `404 {"detail": "restart not configured"}`.
 
 Both variables are set per-PM2-app in `ecosystem.config.js` — not in `.env`.
+
+**Async-restart semantics (known limitation).** The endpoint answers `202`
+_before_ the detached restart runs — it confirms the restart was _scheduled_,
+not that it _succeeded_. A restart that then fails (pm2 not on the subprocess
+`PATH`, wrong app name, pm2 daemon down) is **not** surfaced to the caller: the
+web connection never drops and the UI shows "restart scheduled". The only trace
+is the `torrentmate-restart-web.log` file plus the `config_restart_spawned`
+warning log line. A future enhancement could have the frontend poll `/status`
+(the boot-hash snapshot resets after a real restart) and warn if the process is
+still serving the old config after a timeout; this is intentionally not built
+in the S4 write-only + restart-badge model.
 
 ### Secrets editor
 
