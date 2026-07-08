@@ -744,3 +744,79 @@ class TestRunnerFinalizeGuards:
         assert after == before, (
             "main() leaked a SIGTERM handler into the worker — the conftest signal.signal neutralization is not active"
         )
+
+
+class TestKillChildGroup:
+    """``_kill_child_group`` — the pgid<=1 broadcast guard (CI incident 2026-07-08).
+
+    ``killpg(pgrp<=1, sig)`` is undefined per POSIX; glibc/Linux rewrites pgrp 1
+    into ``kill(-1, sig)`` — a SIGTERM broadcast to every process the user owns.
+    A ``MagicMock`` pid coerces to 1 via ``__index__``, so the unguarded call
+    SIGTERM'd the whole GitHub Actions runner from a test (PR #230: five
+    consecutive "runner has received a shutdown signal" kills at 91-94%).
+    """
+
+    def test_mock_pid_never_reaches_killpg(self) -> None:
+        """A non-int pid (MagicMock) must fall back to terminate(), not killpg."""
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        proc = MagicMock()
+        # Reproduce the incident precondition: MagicMock pid coerces to int 1.
+        assert proc.pid.__index__() == 1
+
+        with patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg:
+            runner_mod._kill_child_group(proc)
+
+        mock_killpg.assert_not_called()
+        proc.terminate.assert_called_once()
+
+    def test_pgid_one_never_signalled(self) -> None:
+        """A resolved pgid of 1 must never be signalled (Linux broadcast)."""
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        proc = MagicMock()
+        proc.pid = 4242
+
+        with (
+            patch("personalscraper.web.maintenance.runner.os.getpgid", return_value=1),
+            patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg,
+        ):
+            runner_mod._kill_child_group(proc)
+
+        mock_killpg.assert_not_called()
+        proc.terminate.assert_called_once()
+
+    def test_pid_one_never_resolved(self) -> None:
+        """A pid <= 1 is rejected before getpgid ever runs."""
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        proc = MagicMock()
+        proc.pid = 1
+
+        with (
+            patch("personalscraper.web.maintenance.runner.os.getpgid") as mock_getpgid,
+            patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg,
+        ):
+            runner_mod._kill_child_group(proc)
+
+        mock_getpgid.assert_not_called()
+        mock_killpg.assert_not_called()
+        proc.terminate.assert_called_once()
+
+    def test_real_child_group_still_killed(self) -> None:
+        """A legitimate pid > 1 with a sane pgid still gets the group SIGTERM."""
+        import signal as _signal
+
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        proc = MagicMock()
+        proc.pid = 4242
+
+        with (
+            patch("personalscraper.web.maintenance.runner.os.getpgid", return_value=4242),
+            patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg,
+        ):
+            runner_mod._kill_child_group(proc)
+
+        mock_killpg.assert_called_once_with(4242, _signal.SIGTERM)
+        proc.terminate.assert_not_called()
