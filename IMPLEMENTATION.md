@@ -19,11 +19,11 @@
 | 2   | Backend config API routes                   | phase-02-backend-routes.md    | [x]    |
 | 3   | Frontend SchemaForm + /config page          | phase-03-frontend-editor.md   | [x]    |
 | 4   | Integration gates + docs + acceptance       | phase-04-integration-gates.md | [x]    |
-| 5   | PR fixes cycle 1                            | phase-05-pr-fixes-cycle-1.md  | [ ]    |
+| 5   | PR fixes cycle 1                            | phase-05-pr-fixes-cycle-1.md  | [x]    |
 
 ## Review cycles
 
-### Cycle 1 (in progress)
+### Cycle 1 (fixes applied — phase 5 complete, re-review pending)
 
 4 review agents on PR #230 (code-reviewer, silent-failure-hunter, pr-test-analyzer,
 comment-analyzer). Retained after DESIGN filtering: 1 critical (frontend ApiError drops
@@ -39,4 +39,4 @@ decision deferred to the operator.
 
 ## Next action
 
-Execute phase 5 (PR fixes cycle 1) via /implement:phase, then re-review (cycle 2).
+Push phase 5, poll CI, then re-review (cycle 2).
