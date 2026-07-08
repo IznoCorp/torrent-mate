@@ -971,7 +971,9 @@ export interface components {
          * @description Response body for ``GET /api/config/status``.
          *
          *     Attributes:
-         *         role: Deployment role (``"prod"`` or ``"staging"``).
+         *         role: Deployment role — a direct passthrough of the
+         *             ``PERSONALSCRAPER_WEB_ROLE`` environment variable
+         *             (defaults to ``"prod"`` when unset).
          *         read_only: Whether the web process is in read-only mode.
          *         restart_required: Whether ``stale_files`` is non-empty.
          *         restart_configured: Whether ``PERSONALSCRAPER_PM2_NAME`` is set in the
@@ -1059,7 +1061,7 @@ export interface components {
          * @description Metadata for a single config file listed in ``GET /api/config/files``.
          *
          *     Attributes:
-         *         name: Config file basename (e.g. ``"master.json5"``).
+         *         name: Config file basename (e.g. ``"paths.json5"``).
          *         owned_keys: Top-level keys owned by this file.
          *         sha256: Hex digest of the file contents on disk.
          *         mtime: Last modification time as a Unix timestamp (float).

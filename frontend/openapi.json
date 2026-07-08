@@ -149,7 +149,7 @@
       },
       "ConfigStatusResponse": {
         "additionalProperties": false,
-        "description": "Response body for ``GET /api/config/status``.\n\nAttributes:\n    role: Deployment role (``\"prod\"`` or ``\"staging\"``).\n    read_only: Whether the web process is in read-only mode.\n    restart_required: Whether ``stale_files`` is non-empty.\n    restart_configured: Whether ``PERSONALSCRAPER_PM2_NAME`` is set in the\n        environment (controls visibility of the restart button in the UI).\n    stale_files: Config filenames whose on-disk SHA-256 differs from the\n        boot-time snapshot.",
+        "description": "Response body for ``GET /api/config/status``.\n\nAttributes:\n    role: Deployment role \u2014 a direct passthrough of the\n        ``PERSONALSCRAPER_WEB_ROLE`` environment variable\n        (defaults to ``\"prod\"`` when unset).\n    read_only: Whether the web process is in read-only mode.\n    restart_required: Whether ``stale_files`` is non-empty.\n    restart_configured: Whether ``PERSONALSCRAPER_PM2_NAME`` is set in the\n        environment (controls visibility of the restart button in the UI).\n    stale_files: Config filenames whose on-disk SHA-256 differs from the\n        boot-time snapshot.",
         "properties": {
           "read_only": {
             "title": "Read Only",
@@ -277,7 +277,7 @@
       },
       "FileInfo": {
         "additionalProperties": false,
-        "description": "Metadata for a single config file listed in ``GET /api/config/files``.\n\nAttributes:\n    name: Config file basename (e.g. ``\"master.json5\"``).\n    owned_keys: Top-level keys owned by this file.\n    sha256: Hex digest of the file contents on disk.\n    mtime: Last modification time as a Unix timestamp (float).\n    size: File size in bytes.\n    shadowed_keys: Keys owned by this file that are overridden by\n        ``local.json5``.",
+        "description": "Metadata for a single config file listed in ``GET /api/config/files``.\n\nAttributes:\n    name: Config file basename (e.g. ``\"paths.json5\"``).\n    owned_keys: Top-level keys owned by this file.\n    sha256: Hex digest of the file contents on disk.\n    mtime: Last modification time as a Unix timestamp (float).\n    size: File size in bytes.\n    shadowed_keys: Keys owned by this file that are overridden by\n        ``local.json5``.",
         "properties": {
           "mtime": {
             "title": "Mtime",
