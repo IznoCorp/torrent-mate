@@ -353,6 +353,36 @@ def test_sentinel_kept_on_requeue(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 3b.  test_watcher_paused_sentinel_skips_cycle
+# ---------------------------------------------------------------------------
+
+
+def test_watcher_paused_sentinel_skips_cycle(tmp_path: Path) -> None:
+    """watcher.paused present → no poll, no Popen, trigger sentinel preserved."""
+    from personalscraper.commands.watch import watch
+
+    # A manual trigger that WOULD fire a run if the watcher were not paused.
+    (tmp_path / "watch.trigger").write_text("")
+    # The web pause lever.
+    (tmp_path / "watcher.paused").write_text("")
+
+    fake_app = _make_fake_app_context()
+
+    ctx = _make_ctx(tmp_path, enabled=True)
+
+    with _WatchPatches(fake_app, is_lock_held=False) as p:
+        p.set_single_cycle()
+
+        watch(ctx)
+
+    # Paused → nothing spawned, torrent client never polled.
+    p.mock_subprocess.Popen.assert_not_called()
+    fake_app.torrent_client.get_completed.assert_not_called()
+    # The manual trigger is NOT consumed while paused.
+    assert (tmp_path / "watch.trigger").exists()
+
+
+# ---------------------------------------------------------------------------
 # 4.  test_new_completion_spawns_cross_seed
 # ---------------------------------------------------------------------------
 
