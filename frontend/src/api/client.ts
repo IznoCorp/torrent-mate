@@ -50,7 +50,15 @@ type SuccessBody<T> = T extends {
   };
 }
   ? B
-  : never;
+  : T extends {
+        202: {
+          content: {
+            "application/json": infer B;
+          };
+        };
+      }
+    ? B
+    : never;
 
 // ---------------------------------------------------------------------------
 // Path/method binding to the generated OpenAPI `paths` (DESIGN §5.3)
@@ -251,25 +259,15 @@ const PIPELINE_HEADERS: Record<string, string> = {
   "X-Requested-With": "TorrentMate",
 };
 
-/**
- * Response shape for ``POST /api/pipeline/run``.
- *
- * The OpenAPI schema models the 200 body as a bare dict (``unknown``); this
- * narrows it to the documented ``{run_uid}`` shape the backend returns.
- */
-interface RunResponse {
-  run_uid: string;
-}
-
 /** Launch a pipeline run: POST /api/pipeline/run.  Requires ``X-Requested-With``. */
 export async function runPipeline(
   body: RequestBodyOf<paths["/api/pipeline/run"]["post"]>,
-): Promise<RunResponse> {
+): Promise<ResponseBodyOf<paths["/api/pipeline/run"]["post"]>> {
   return apiFetch("/api/pipeline/run", {
     method: "post",
     body,
     headers: PIPELINE_HEADERS,
-  }) as Promise<RunResponse>;
+  });
 }
 
 /** Pause the running pipeline: POST /api/pipeline/pause.  Requires ``X-Requested-With``. */
@@ -489,7 +487,7 @@ export function getActions(): Promise<ActionsResponse> {
 export async function runMaintenanceAction(
   actionId: string,
   body: ActionRunRequest,
-): Promise<RunResponse> {
+): Promise<ResponseBodyOf<paths["/api/maintenance/actions/{action_id}/run"]["post"]>> {
   const response = await fetch(
     `/api/maintenance/actions/${encodeURIComponent(actionId)}/run`,
     {
@@ -509,7 +507,7 @@ export async function runMaintenanceAction(
     }
     throw new ApiError(response.status, detail);
   }
-  return (await response.json()) as RunResponse;
+  return (await response.json()) as ResponseBodyOf<paths["/api/maintenance/actions/{action_id}/run"]["post"]>;
 }
 
 // ---------------------------------------------------------------------------
