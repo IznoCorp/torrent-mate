@@ -44,7 +44,7 @@ import tempfile
 import threading
 from datetime import timezone
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import json5
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
@@ -910,8 +910,13 @@ def restart_web(
     (so the 202 response flushes first), then runs ``pm2 restart`` on the
     name configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout
     and stderr are redirected to a log file under the system temp directory
-    (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn) so a
-    failed pm2 invocation leaves a trace.
+    (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn, opened
+    with ``O_NOFOLLOW``) so a failed pm2 invocation leaves a trace.
+
+    If the log file cannot be opened (``OSError``, e.g. a pre-planted
+    symlink caught by ``O_NOFOLLOW``), the error is logged at ERROR level
+    and the subprocess is spawned with ``subprocess.DEVNULL`` — the restart
+    still proceeds.
 
     Args:
         request: The incoming FastAPI request.
@@ -931,7 +936,22 @@ def restart_web(
         raise HTTPException(status_code=404, detail="restart not configured")
 
     log_path = Path(tempfile.gettempdir()) / "torrentmate-restart-web.log"
-    log_fh = open(str(log_path), "w")
+    log_ok = True
+    try:
+        fd = os.open(
+            str(log_path),
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+            0o600,
+        )
+        log_fh: Any = os.fdopen(fd, "w")
+    except OSError as exc:
+        logger.error(
+            "config_restart_log_open_failed",
+            path=str(log_path),
+            error=str(exc),
+        )
+        log_fh = subprocess.DEVNULL
+        log_ok = False
 
     subprocess.Popen(
         ["sh", "-c", f"sleep 0.5 && pm2 restart {shlex.quote(pm2_name)}"],
@@ -940,5 +960,14 @@ def restart_web(
         stderr=log_fh,
     )
 
-    logger.info("config_restart_spawned", pm2_name=pm2_name, log_path=str(log_path))
+    # Close the log file handle in the parent after Popen — the child
+    # process keeps its own duplicate.
+    if log_ok:
+        log_fh.close()
+
+    logger.warning(
+        "config_restart_spawned",
+        pm2_name=pm2_name,
+        log_path=str(log_path),
+    )
     return RestartResponse(status="scheduled")

@@ -901,10 +901,10 @@ class TestRestartEndpoint:
     ) -> None:
         """Popen called with a real log file handle; config_restart_spawned logged.
 
-        The route opens ``<tempdir>/torrentmate-restart-web.log`` and
-        passes it as stdout+stderr to Popen (not DEVNULL).  The log line
-        ``config_restart_spawned`` is emitted with the pm2 name and log
-        path.
+        The route opens ``<tempdir>/torrentmate-restart-web.log`` with
+        ``O_NOFOLLOW`` and passes the handle as stdout+stderr to Popen
+        (not DEVNULL).  The log line ``config_restart_spawned`` is emitted
+        at WARNING level with the pm2 name and log path.
         """
         import logging
 
@@ -923,7 +923,7 @@ class TestRestartEndpoint:
             raising=False,
         )
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.WARNING)
 
         app = _build_app()
         client = TestClient(app)
@@ -946,11 +946,71 @@ class TestRestartEndpoint:
         assert stdout is not subprocess.DEVNULL
         assert stdout is stderr
         assert hasattr(stdout, "fileno")
-        assert "torrentmate-restart-web.log" in getattr(stdout, "name", "")
+        # os.fdopen() sets .name to the fd number (int), not the path.
+        # Just verify it's a real handle (fileno present, not DEVNULL);
+        # the log_path assertion above confirms the file was created.
 
         # Detached process.
         assert call_kwargs.get("start_new_session") is True
 
-        # Log line emitted with correct event name and pm2 name.
+        # Log line emitted at WARNING level with correct event name and pm2 name.
         assert "config_restart_spawned" in caplog.text
         assert "torrentmate-web" in caplog.text
+
+    def test_202_oserror_on_log_open_falls_back_to_devnull(
+        self, config_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When os.open raises OSError, the restart still proceeds with DEVNULL.
+
+        The error is logged at ERROR level.  The endpoint must still return
+        202 and Popen must receive DEVNULL for stdout and stderr.
+        """
+        import logging
+
+        monkeypatch.setenv("PERSONALSCRAPER_PM2_NAME", "torrentmate-web")
+        monkeypatch.setattr(
+            "personalscraper.web.routes.config.tempfile.gettempdir",
+            lambda: str(config_dir.parent),
+        )
+
+        # Force os.open to raise OSError (simulating a pre-planted symlink
+        # caught by O_NOFOLLOW → ELOOP, or a permission error).
+        monkeypatch.setattr(
+            "personalscraper.web.routes.config.os.open",
+            MagicMock(side_effect=OSError("ELOOP: too many levels of symbolic links")),
+        )
+
+        mock_popen = MagicMock()
+        monkeypatch.setattr("personalscraper.web.routes.config.subprocess.Popen", mock_popen)
+        devnull = subprocess.DEVNULL
+        monkeypatch.setattr(
+            "personalscraper.web.routes.config.subprocess.DEVNULL",
+            devnull,
+            raising=False,
+        )
+
+        caplog.set_level(logging.WARNING)
+
+        app = _build_app()
+        client = TestClient(app)
+
+        resp = client.post(
+            "/api/config/restart-web",
+            headers=_xrw(),
+        )
+        # Still 202 — the restart proceeds despite the log open failure.
+        assert resp.status_code == 202
+        assert resp.json()["status"] == "scheduled"
+
+        # Popen was called with DEVNULL for both stdout and stderr.
+        assert mock_popen.called
+        call_kwargs = mock_popen.call_args[1]
+        assert call_kwargs.get("stdout") is devnull
+        assert call_kwargs.get("stderr") is devnull
+        assert call_kwargs.get("start_new_session") is True
+
+        # Error log was emitted.
+        assert "config_restart_log_open_failed" in caplog.text
+        assert "ELOOP" in caplog.text
+        # Warning log still emitted even on the DEVNULL path.
+        assert "config_restart_spawned" in caplog.text
