@@ -9,10 +9,11 @@
 -- the outcome (success/error/killed), and an opaque ``steps_json`` blob for
 -- per-step timing data written by the ``PipelineRunWriter``.
 --
--- ``started_at`` and ``ended_at`` are REAL (julian-day float) rather than
--- unix-epoch INTEGER because the pipeline step clock uses ``time.monotonic()``
--- for sub-second precision.  The migration convention (``*_at → int``) is
--- waived here per explicit design choice in the plan.
+-- ``started_at`` and ``ended_at`` are REAL Unix-epoch seconds (``time.time()``,
+-- both the run-level columns and the per-step entries inside ``steps_json``)
+-- rather than the migration convention's ``*_at`` INTEGER, to keep sub-second
+-- precision.  The convention is waived here per explicit design choice in the
+-- plan.
 
 -- ---------------------------------------------------------------------------
 -- Step 1 — create the pipeline_run table.
