@@ -603,17 +603,17 @@ config directory (superseding the S1-era "read-only by construction" assumption)
 Nine endpoints, all guarded by the standard session cookie. Write endpoints
 additionally require `X-Requested-With: TorrentMate`.
 
-| Method | Path            | Guard         | Status codes                      | Notes                                                                                                                                                                                                      |
-| ------ | --------------- | ------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/schema`       | session       | `200`                             | `ConfigSchemaResponse` — JSON Schema from `Config.model_json_schema()`, key ownership map (derived from overlays array), and the static `RESTART_IMPACT` dict. Cached on `app.state` (lazy, first access). |
-| GET    | `/files`        | session       | `200`                             | `FilesResponse` — one `FileInfo` per file (master + overlays + `local.json5` if present), each with `sha256`, `mtime`, `size`, `owned_keys`, and `shadowed_keys` (keys overridden by `local.json5`).       |
-| GET    | `/files/{name}` | session       | `200`, `404`                      | `FileContent` — parsed JSON5 values, SHA-256, shadowed keys. `404` when `name` is not a declared overlay, `local.json5`, or `config.json5`.                                                                |
-| GET    | `/status`       | session       | `200`                             | `ConfigStatusResponse` — `role` (`"prod"` / `"staging"`), `read_only`, `restart_required`, `stale_files` (SHA-256 diff vs boot-time snapshot).                                                             |
-| POST   | `/validate`     | session + XRW | `200`, `404`, `422`               | `ValidateResponse` — dry-run validation via `validate_candidate()`; `422` detail carries Pydantic `loc`/`msg`/`type` entries. `404` when `file_name` is unknown.                                           |
-| PUT    | `/files/{name}` | session + XRW | `200`, `403`, `404`, `412`, `422` | `PutFileResponse` — validate → backup → atomic write. `403` on staging; `404` unknown/missing file; `412` SHA-256 precondition mismatch; `422` Pydantic validation failure.                                |
-| GET    | `/secrets`      | session       | `200`                             | `SecretsResponse` — catalog from `.env.example` with `is_set` flags. Secret **values are never included**.                                                                                                 |
-| PUT    | `/secrets`      | session + XRW | `200`, `403`, `404`, `422`        | `PutFileResponse` — atomic upsert into `.env` via `write_env_keys()`. `403` on staging; `404` `.env.example` missing; `422` unknown keys (key names in detail, **values never echoed**).                   |
-| POST   | `/restart-web`  | session + XRW | `202`, `403`, `404`               | `RestartResponse {"status": "scheduled"}` — spawns a detached `sleep 0.5 && pm2 restart <name>` subprocess. `403` on staging; `404` when `PERSONALSCRAPER_PM2_NAME` is unset.                              |
+| Method | Path            | Guard         | Status codes                             | Notes                                                                                                                                                                                                                                                                                                                          |
+| ------ | --------------- | ------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/schema`       | session       | `200`                                    | `ConfigSchemaResponse` — JSON Schema from `Config.model_json_schema()`, key ownership map (derived from overlays array), and the static `RESTART_IMPACT` dict. Cached on `app.state` (lazy, first access).                                                                                                                     |
+| GET    | `/files`        | session       | `200`                                    | `FilesResponse` — one `FileInfo` per file (master + overlays + `local.json5` if present), each with `sha256`, `mtime`, `size`, `owned_keys`, and `shadowed_keys` (keys overridden by `local.json5`). Overlays declared in master but missing on disk are **silently omitted** (no error, no entry in the list).                |
+| GET    | `/files/{name}` | session       | `200`, `404`, `422`                      | `FileContent` — parsed JSON5 values, SHA-256, shadowed keys. `404` when `name` is unknown or is a declared overlay missing on disk; `422` when the file is unparseable (corrupt JSON5).                                                                                                                                        |
+| GET    | `/status`       | session       | `200`                                    | `ConfigStatusResponse` — `role`, `read_only`, `restart_required`, `restart_configured`, `stale_files` (SHA-256 diff vs snapshot captured at app startup).                                                                                                                                                                      |
+| POST   | `/validate`     | session + XRW | `200`, `404`, `422`                      | `ValidateResponse` — dry-run validation via `validate_candidate()`; `422` detail carries Pydantic `loc`/`msg`/`type` entries. `404` when `file_name` is unknown.                                                                                                                                                               |
+| PUT    | `/files/{name}` | session + XRW | `200`, `403`, `404`, `409`, `412`, `422` | `PutFileResponse` — precondition → validate → backup → atomic write (all inside write lock). `403` on staging; `404` unknown or missing file; `409` another declared overlay is missing on disk; `412` SHA-256 precondition mismatch; `422` Pydantic validation failure or ConfigConflictError (key owned by another overlay). |
+| GET    | `/secrets`      | session       | `200`                                    | `SecretsResponse` — catalog from `.env.example` with `is_set` flags. Secret **values are never included**.                                                                                                                                                                                                                     |
+| PUT    | `/secrets`      | session + XRW | `200`, `403`, `404`, `422`               | `PutFileResponse` — atomic upsert into `.env` via `write_env_keys()`. `403` on staging; `404` `.env.example` missing; `422` unknown keys or control characters in values (key names in detail, **values never echoed**).                                                                                                       |
+| POST   | `/restart-web`  | session + XRW | `202`, `403`, `404`                      | `RestartResponse {"status": "scheduled"}` — spawns a detached subprocess (stdout/stderr to `<tmpdir>/torrentmate-restart-web.log`, truncated per spawn). `403` on staging; `404` when `PERSONALSCRAPER_PM2_NAME` is unset.                                                                                                     |
 
 ### Validate-before-write pipeline
 
@@ -637,17 +637,24 @@ them to form fields via `flattenLocToPath()` (dot-joined path convention).
 
 `PUT /files/{name}` serialises writes through a module-level `threading.Lock`
 (routes are sync handlers in the FastAPI threadpool, so `threading.Lock` is the
-correct primitive). The write sequence:
+correct primitive). The entire write sequence runs inside the lock — the SHA-256
+precondition check and `validate_candidate()` call are also inside the critical
+section, so the compare-and-write is atomic (TOCTOU-safe):
 
-1. **Backup**: if the file exists, copy it to
+1. **Precondition**: the request `base_sha256` is compared against the current
+   file digest. A mismatch returns `412` before any mutation.
+2. **Validate**: `validate_candidate()` runs against the candidate values in
+   memory (no filesystem mutation). On `ConfigConflictError` → `422`; on
+   `ConfigLoadError` for another declared overlay → `409`.
+3. **Backup**: if the file exists, copy it to
    `config/.backups/{name}.{utc_microsecond}.json5` (microsecond timestamps
    prevent collisions when saves land within the same second).
-2. **Prune**: keep the 10 most recent backups per file name; older ones are
+4. **Prune**: keep the 10 most recent backups per file name; older ones are
    deleted.
-3. **Atomic write**: write the new content to a `tempfile.mkstemp` in the config
+5. **Atomic write**: write the new content to a `tempfile.mkstemp` in the config
    directory, `flush()` + `fsync()`, then `os.replace()` onto the target path
    (atomic on the same filesystem). On any failure the temp file is unlinked.
-4. **Header comment**: every rewritten file gets a generated first line:
+6. **Header comment**: every rewritten file gets a generated first line:
    `// Written by TorrentMate config editor <ISO-8601-utc> — hand-written comments are not preserved.`
 
 ### Restart-impact classification
@@ -683,7 +690,8 @@ endpoint:
 - **Set** (e.g. `"torrentmate-web"`): `POST /restart-web` spawns a detached
   subprocess that sleeps 0.5 s (so the `202` response flushes first), then runs
   `pm2 restart <name>`. The subprocess runs in a new session (`start_new_session=True`)
-  with stdout/stderr to `DEVNULL`.
+  with stdout/stderr redirected to `<tmpdir>/torrentmate-restart-web.log`
+  (truncated per spawn) so a failed pm2 invocation leaves a trace.
 - **Unset**: `POST /restart-web` returns `404 {"detail": "restart not configured"}`.
 
 Both variables are set per-PM2-app in `ecosystem.config.js` — not in `.env`.
@@ -696,7 +704,9 @@ utilities consumed by the API routes:
 - **`read_env_catalog(env_example_path)`** — parses `.env.example` into a
   `{KEY: description}` catalog. Keys match `^[A-Z][A-Z0-9_]*=`. Descriptions
   are the contiguous `#` comment lines above each key (section-rule lines
-  starting with `# ──` are excluded; a blank line resets the accumulator).
+  starting with `# ──` **reset the comment accumulator** — they describe the
+  following key group but are never attached to a specific key; a blank line
+  also resets the accumulator).
 - **`write_env_keys(keys, env_path)`** — atomically upserts `{KEY: value}`
   pairs into `.env`. Existing lines with matching keys are replaced in place;
   all other lines (comments, blanks, unrelated keys) are preserved. New keys

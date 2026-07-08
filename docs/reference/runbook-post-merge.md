@@ -633,6 +633,12 @@ STAGING_COOKIE=$(curl -s -c - --connect-timeout 10 --max-time 30 \
   -H "X-Requested-With: TorrentMate" \
   -d '{"username":"izno","password":"<password>"}' | grep tm_session | awk '{print $NF}')
 
+# Verify status reports read-only + staging role.
+curl -s --connect-timeout 10 --max-time 30 \
+  "https://tm-staging.iznogoudatall.xyz/api/config/status" \
+  -b "tm_session=$STAGING_COOKIE" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['role']=='staging', f'Expected staging role, got {d[\"role\"]}'; assert d['read_only'] is True, f'Expected read_only=True'"
+# Expected: exit 0 (role is "staging", read_only is true)
+
 # Attempt a write — must return 403.
 curl -s -o /dev/null -w '%{http_code}\n' --connect-timeout 10 --max-time 30 \
   -X PUT "https://tm-staging.iznogoudatall.xyz/api/config/files/paths.json5" \
@@ -644,6 +650,11 @@ curl -s -o /dev/null -w '%{http_code}\n' --connect-timeout 10 --max-time 30 \
 ```
 
 ### Step 3 — Verify prod restart endpoint is reachable
+
+**WARNING**: the `POST /restart-web` endpoint in ACC-07 **really restarts the
+production daemon** — the PM2 process exits and restarts ~0.5 s after the 202
+response. Do not include this step in automated health checks or CI. Run only
+with explicit operator supervision.
 
 ```bash
 # Login to prod.
