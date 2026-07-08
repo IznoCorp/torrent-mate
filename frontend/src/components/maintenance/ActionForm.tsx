@@ -20,7 +20,7 @@
  * outcome — the durable ``output_tail`` captured by the backend.
  */
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactElement } from "react";
 
 import {
@@ -219,6 +219,7 @@ function RunOutput({
  *   The action-form element.
  */
 export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
+  const queryClient = useQueryClient();
   const [values, setValues] = useState<Record<string, FieldValue>>(() => {
     const init: Record<string, FieldValue> = {};
     for (const option of action.options) {
@@ -316,6 +317,10 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
     onSuccess: (data, vars) => {
       setErrorDetail(null);
       setRunResult({ runUid: data.run_uid, dryRun: vars.dryRun });
+      // R21 — the 202 reserved a fresh pipeline_run row (kind='maintenance'):
+      // refresh every history-table query so the new run appears without a
+      // manual re-sort/paginate/reload.
+      void queryClient.invalidateQueries({ queryKey: ["pipeline", "history"] });
       // Destructive gate: record the launched dry-run so the poll above can
       // track its real outcome. Do NOT unlock here — a 202 only means "spawn
       // accepted", not "dry-run succeeded" (finding G). Re-lock until the poll
