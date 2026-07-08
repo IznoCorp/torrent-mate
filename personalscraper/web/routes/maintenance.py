@@ -673,7 +673,8 @@ def _reserve_run_row(
 
     Guard order (preserved from the original route): 409 concurrency → 428
     dry-run-first → INSERT. The pipeline-lock 409 is checked by the caller before
-    this helper (filesystem, no DB).
+    this helper (filesystem, no DB) and re-probed right after it (R11) — the
+    reserved row is finalized ``'error'`` if the lock appeared in between.
 
     On a DB read error while verifying concurrency, a ``destructive`` action is
     fail-CLOSED (409) — the only concurrency protection must never be dropped
@@ -861,6 +862,16 @@ def action_run(
         options_json=options_json,
         dry_run=body.dry_run,
     )
+
+    # 4b. Re-probe the pipeline lock after the reservation (R11): a pipeline
+    #     run may grab the lock between the step-3 probe and here. The runner
+    #     itself re-acquires the lock atomically for its whole lifetime, so
+    #     this re-probe only converts the near-miss into a fast 409 (with the
+    #     reserved row finalized) instead of a 202 whose run immediately
+    #     finalizes 'error'.
+    if action.risk in ("write", "destructive") and is_lock_held(data_dir / "pipeline.lock"):
+        PipelineRunWriter(db_path).finalize(run_uid, "error", error="Pipeline lock held")
+        raise HTTPException(status_code=409, detail="Pipeline lock held")
 
     # 5. Spawn the runner and claim the reserved row with its pid, so a runner
     #    that dies before finalizing leaves a dead-pid (stale) row rather than a

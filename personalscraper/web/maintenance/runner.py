@@ -6,9 +6,12 @@ configuration from environment variables (set by :func:`_spawn_runner` in
 
 1. Writing a ``pipeline_run`` row (``kind='maintenance'``).
 2. Resolving the action from :data:`REGISTRY` and building the CLI argv.
-3. Spawning the ``library-*`` CLI command as a subprocess.
-4. Streaming each output line to Redis (fail-soft) and a 64 KiB ring buffer.
-5. Finalizing the ``pipeline_run`` row on exit.
+3. Holding ``pipeline.lock`` for the child's whole lifetime (live
+   write/destructive actions whose CLI does not self-acquire — see
+   :data:`_CLI_SELF_LOCKING`).
+4. Spawning the ``library-*`` CLI command as a subprocess.
+5. Streaming each output line to Redis (fail-soft) and a 64 KiB ring buffer.
+6. Finalizing the ``pipeline_run`` row on exit.
 
 Environment contract (canonical — match :func:`_spawn_runner`):
 
@@ -20,7 +23,8 @@ Environment contract (canonical — match :func:`_spawn_runner`):
 Exit codes:
 
 * ``0`` — the CLI subprocess completed successfully.
-* ``1`` — the CLI subprocess exited non-zero (error)
+* ``1`` — the CLI subprocess exited non-zero (error), or ``pipeline.lock``
+  could not be acquired (a pipeline run won the race).
 * ``2`` — misconfiguration (missing env, unknown action, config load failure,
   DB insert failure).
 """
@@ -37,6 +41,7 @@ from types import FrameType
 from typing import Any
 
 from personalscraper.conf.loader import load_config
+from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.maintenance.registry import REGISTRY, MaintenanceAction
@@ -101,6 +106,32 @@ _DRY_RUN_STYLE: dict[str, str] = {
     "library-fix-canonical-provider": "apply",
     "library-relink": "apply",
 }
+
+# ---------------------------------------------------------------------------
+# Pipeline-lock ownership table (R11)
+# ---------------------------------------------------------------------------
+# DESIGN (maint-dash §4): write/destructive actions hold ``pipeline.lock`` for
+# their whole subprocess lifetime — acquired by the CLI command itself where it
+# already does, by the runner otherwise. Ground truth (read from each CLI
+# source): exactly three commands self-acquire, and only in their live (apply)
+# mode:
+#
+#   library-clean     — acquires when ``--apply``          (library/maintenance.py)
+#   library-validate  — acquires when ``--fix --apply``    (library/maintenance.py)
+#   library-rescrape  — acquires when NOT ``--dry-run``    (library/analyze.py)
+#
+# The runner must NOT acquire for these: the child's own ``acquire_lock`` would
+# observe the runner's live pid and exit 1 ("Another instance is running"). For
+# every other live (non-dry-run) write/destructive action the runner acquires
+# the lock itself before spawning the child and releases it on every exit path.
+
+_CLI_SELF_LOCKING: frozenset[str] = frozenset(
+    {
+        "library-clean",
+        "library-validate",
+        "library-rescrape",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Env reading
@@ -464,7 +495,9 @@ def main() -> None:
     ``python -m personalscraper.web.maintenance.runner``. It reads env vars,
     ensures the ``pipeline_run`` row exists (the POST handler reserves it
     first — see :func:`personalscraper.web.routes.maintenance.action_run`),
-    claims it with this process's pid, spawns the CLI subprocess, streams
+    claims it with this process's pid, acquires ``pipeline.lock`` for the
+    child's lifetime (live write/destructive actions outside
+    :data:`_CLI_SELF_LOCKING` — R11), spawns the CLI subprocess, streams
     output to Redis and a ring buffer, then finalizes the row.
 
     The insert→stream→finalize region is fully guarded: any exception (config
@@ -472,8 +505,8 @@ def main() -> None:
     ``'running'`` (Finding A). A ``SIGTERM`` (sent by the web ``kill`` control)
     terminates the child process group and finalizes the row ``'killed'``.
 
-    Exit codes: 0 on CLI success, 1 on CLI error, 2 on misconfiguration,
-    143 on SIGTERM.
+    Exit codes: 0 on CLI success, 1 on CLI error or pipeline-lock loss,
+    2 on misconfiguration, 143 on SIGTERM.
     """
     # 1. Read env.
     run_uid, command, options_json, dry_run = _read_mandatory_env()
@@ -528,12 +561,23 @@ def main() -> None:
     ring = _RingBuffer()
     child: dict[str, subprocess.Popen[str]] = {}
 
+    # Pipeline-lock ownership (R11): a live (non-dry-run) write/destructive
+    # action must hold ``pipeline.lock`` for the child's whole lifetime so a
+    # concurrent pipeline run cannot start while the library is being mutated.
+    # Commands in :data:`_CLI_SELF_LOCKING` acquire it themselves in the child.
+    lock_file = config.paths.data_dir / "pipeline.lock"
+    hold_lock = action.risk in ("write", "destructive") and not dry_run and action.id not in _CLI_SELF_LOCKING
+    lock_acquired = False
+
     def _on_sigterm(_signum: int, _frame: FrameType | None) -> None:
-        """Terminate the child group and finalize the row ``'killed'``."""
+        """Terminate the child group, release the lock, finalize ``'killed'``."""
         proc_ref = child.get("proc")
         if proc_ref is not None:
             _kill_child_group(proc_ref)
         writer.finalize(run_uid, OUTCOME_KILLED, output_tail=ring.to_str())
+        if lock_acquired:
+            # os._exit below bypasses the try/finally that normally releases.
+            release_lock(lock_file)
         log.warning("maintenance_runner_killed", run_uid=run_uid, command=command)
         # os._exit bypasses the streaming try/except below so the 'killed'
         # outcome is not overwritten by an 'error' finalize.
@@ -541,93 +585,115 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, _on_sigterm)
 
-    # 7. Spawn subprocess.
-    log.info(
-        "maintenance_runner_starting",
-        run_uid=run_uid,
-        command=command,
-        dry_run=dry_run,
-        argv=argv,
-    )
+    # 6b. Acquire the pipeline lock (after the SIGTERM handler is installed so
+    #     a kill arriving mid-run still releases it). ``acquire_lock`` is the
+    #     atomic authority (O_CREAT|O_EXCL) — losing it means a pipeline run
+    #     grabbed the lock after the route's probes: finalize 'error', exit 1.
+    if hold_lock:
+        if not acquire_lock(lock_file):
+            writer.finalize(run_uid, OUTCOME_ERROR, error="Pipeline lock held")
+            log.error(
+                "maintenance_runner_lock_held",
+                run_uid=run_uid,
+                command=command,
+            )
+            sys.exit(1)
+        lock_acquired = True
 
+    # Steps 7-9 run under try/finally so every exit path (sys.exit raises
+    # SystemExit) releases the pipeline lock. Only os._exit in the SIGTERM
+    # handler bypasses this — that handler releases the lock itself.
     try:
-        proc = subprocess.Popen(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            errors="replace",
-            bufsize=1,
-            start_new_session=True,
-        )
-    except (OSError, ValueError) as exc:
-        # OSError → exec failure; ValueError → embedded null byte in an arg.
-        log.error(
-            "maintenance_runner_spawn_failed",
-            run_uid=run_uid,
-            command=command,
-            error=str(exc),
-        )
-        writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
-        sys.exit(2)
-
-    child["proc"] = proc
-
-    # 8. Stream output — ring buffer + Redis. Any failure here finalizes the
-    #    row 'error' so it is never left 'running'.
-    redis = _get_redis(web_config)
-    stream_key = web_config.stream_key
-    stream_maxlen = web_config.stream_maxlen
-    seq = 0
-
-    try:
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            ring.append(line)
-            _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
-            seq += 1
-        rc = proc.wait()
-    except Exception as exc:
-        _kill_child_group(proc)
-        output_tail = ring.to_str()
-        writer.finalize(
-            run_uid,
-            OUTCOME_ERROR,
-            error=str(exc) or type(exc).__name__,
-            output_tail=output_tail,
-        )
-        log.error(
-            "maintenance_runner_stream_failed",
-            run_uid=run_uid,
-            command=command,
-            exc_info=True,
-        )
-        sys.exit(1)
-
-    # 9. Finalize.
-    output_tail = ring.to_str()
-    if rc == 0:
-        writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
+        # 7. Spawn subprocess.
         log.info(
-            "maintenance_runner_completed",
+            "maintenance_runner_starting",
             run_uid=run_uid,
             command=command,
-            rc=rc,
-            lines=seq,
-        )
-    else:
-        # On failure, capture the last portion of output as the error context.
-        error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
-        writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
-        log.error(
-            "maintenance_runner_failed",
-            run_uid=run_uid,
-            command=command,
-            rc=rc,
-            lines=seq,
+            dry_run=dry_run,
+            argv=argv,
         )
 
-    sys.exit(rc)
+        try:
+            proc = subprocess.Popen(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                errors="replace",
+                bufsize=1,
+                start_new_session=True,
+            )
+        except (OSError, ValueError) as exc:
+            # OSError → exec failure; ValueError → embedded null byte in an arg.
+            log.error(
+                "maintenance_runner_spawn_failed",
+                run_uid=run_uid,
+                command=command,
+                error=str(exc),
+            )
+            writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
+            sys.exit(2)
+
+        child["proc"] = proc
+
+        # 8. Stream output — ring buffer + Redis. Any failure here finalizes the
+        #    row 'error' so it is never left 'running'.
+        redis = _get_redis(web_config)
+        stream_key = web_config.stream_key
+        stream_maxlen = web_config.stream_maxlen
+        seq = 0
+
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                ring.append(line)
+                _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
+                seq += 1
+            rc = proc.wait()
+        except Exception as exc:
+            _kill_child_group(proc)
+            output_tail = ring.to_str()
+            writer.finalize(
+                run_uid,
+                OUTCOME_ERROR,
+                error=str(exc) or type(exc).__name__,
+                output_tail=output_tail,
+            )
+            log.error(
+                "maintenance_runner_stream_failed",
+                run_uid=run_uid,
+                command=command,
+                exc_info=True,
+            )
+            sys.exit(1)
+
+        # 9. Finalize.
+        output_tail = ring.to_str()
+        if rc == 0:
+            writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
+            log.info(
+                "maintenance_runner_completed",
+                run_uid=run_uid,
+                command=command,
+                rc=rc,
+                lines=seq,
+            )
+        else:
+            # On failure, capture the last portion of output as the error context.
+            error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
+            writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
+            log.error(
+                "maintenance_runner_failed",
+                run_uid=run_uid,
+                command=command,
+                rc=rc,
+                lines=seq,
+            )
+
+        sys.exit(rc)
+    finally:
+        if lock_acquired:
+            release_lock(lock_file)
 
 
 if __name__ == "__main__":

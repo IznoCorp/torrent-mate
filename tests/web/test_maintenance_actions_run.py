@@ -706,6 +706,59 @@ class TestActionRunRowReservation:
         assert data["command"] == WRITE_ACTION_ID
 
 
+class TestActionRunLockReProbe:
+    """R11 — the pipeline lock is re-probed after the row reservation, before spawn."""
+
+    def test_lock_appearing_after_reservation_returns_409_and_finalizes_row(self, test_config, tmp_path: Path) -> None:
+        """409 — lock grabbed between the step-3 probe and the spawn.
+
+        ``is_lock_held`` is patched to pass the early probe (``False``) and trip
+        the pre-spawn re-probe (``True``), simulating a pipeline run acquiring
+        ``pipeline.lock`` in the TOCTOU window. The route must 409, never spawn
+        the runner, and finalize the already-reserved row ``'error'`` so it is
+        not left ``'running'`` forever.
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with (
+            patch(
+                "personalscraper.web.routes.maintenance.is_lock_held",
+                side_effect=[False, True],
+            ),
+            patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn,
+        ):
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "Pipeline lock held"
+        mock_spawn.assert_not_called()
+
+        # The reserved row must be finalized 'error' — never left 'running'.
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM pipeline_run").fetchall()
+        conn.close()
+        assert len(rows) == 1
+        row = dict(rows[0])
+        assert row["outcome"] == "error"
+        assert row["error"] == "Pipeline lock held"
+        assert row["ended_at"] is not None
+
+
 class TestActionRunConcurrencyFailClosed:
     """Finding E — the concurrency guard fails CLOSED for destructive actions on DB error."""
 
