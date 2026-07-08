@@ -340,6 +340,13 @@ export default function Config(): ReactElement {
           return;
         }
       }
+      if (err instanceof ApiError && err.status === 409) {
+        // R20 — a declared dependency overlay is missing on disk: the
+        // composed config cannot be built, so validation is BLOCKED (the
+        // candidate itself was never evaluated — distinct from a 422).
+        toast.error(`Validation impossible — ${err.detail}`);
+        return;
+      }
       toast.error(
         err instanceof ApiError && err.detail
           ? err.detail
