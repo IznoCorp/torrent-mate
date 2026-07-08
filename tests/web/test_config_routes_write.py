@@ -536,6 +536,72 @@ class TestPutFileEndpoint:
         )
         assert resp.status_code == 404
 
+    def test_put_before_status_flags_stale(self, config_dir: Path) -> None:
+        """PUT before any GET /status → the modified file is flagged stale.
+
+        Pre-seeds boot hashes (simulating eager capture at startup), then
+        PUTs a modified overlay.  A subsequent GET /status must detect the
+        change.
+        """
+        import json5
+
+        file_path = config_dir / "paths.json5"
+        paths_sha = hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+        # Pre-seed boot hashes (no prior /status call).
+        app = _build_app()
+        app.state.config_boot_hashes = {
+            "paths.json5": paths_sha,
+        }
+        client = TestClient(app)
+
+        # Modify and PUT.
+        current = json5.loads(file_path.read_text(encoding="utf-8"))
+        new_values = dict(current)
+        new_values["paths"] = {**current["paths"], "staging_dir": "/tmp/stale_put_before"}
+        resp = client.put(
+            "/api/config/files/paths.json5",
+            json={"values": new_values, "base_sha256": paths_sha},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 200
+
+        # GET /status → paths.json5 flagged stale.
+        resp = client.get("/api/config/status")
+        assert resp.status_code == 200
+        assert "paths.json5" in resp.json()["stale_files"]
+
+    def test_created_local_json5_flags_stale(self, config_dir: Path) -> None:
+        """PUT creates local.json5 post-boot → flagged stale by /status.
+
+        The boot snapshot has no local.json5 entry.  After PUT creates it,
+        the route registers a pre-write hash of "" so the file is
+        stale-tracked.
+        """
+        # Pre-seed boot hashes WITHOUT local.json5.
+        paths_sha = hashlib.sha256((config_dir / "paths.json5").read_bytes()).hexdigest()
+        app = _build_app()
+        app.state.config_boot_hashes = {
+            "paths.json5": paths_sha,
+            "config.json5": hashlib.sha256(
+                (config_dir / "config.json5").read_bytes()
+            ).hexdigest(),
+        }
+        client = TestClient(app)
+
+        # PUT creates local.json5 (base_sha256="" because it doesn't exist).
+        resp = client.put(
+            "/api/config/files/local.json5",
+            json={"values": {}, "base_sha256": ""},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 200
+
+        # GET /status → local.json5 flagged stale.
+        resp = client.get("/api/config/status")
+        assert resp.status_code == 200
+        assert "local.json5" in resp.json()["stale_files"]
+
 
 # ── GET /secrets ────────────────────────────────────────────────────────────
 
@@ -745,17 +811,34 @@ class TestRestartEndpoint:
         assert resp.status_code == 404
         assert resp.json()["detail"] == "restart not configured"
 
-    def test_202_pm2_restart_called(self, config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """When PERSONALSCRAPER_PM2_NAME is set, Popen is called with pm2 restart."""
+    def test_202_pm2_restart_called(
+        self, config_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Popen called with a real log file handle; config_restart_spawned logged.
+
+        The route opens ``<tempdir>/torrentmate-restart-web.log`` and
+        passes it as stdout+stderr to Popen (not DEVNULL).  The log line
+        ``config_restart_spawned`` is emitted with the pm2 name and log
+        path.
+        """
+        import logging
+
         monkeypatch.setenv("PERSONALSCRAPER_PM2_NAME", "torrentmate-web")
+        # Point tempfile.gettempdir() at the test temp area so the log
+        # file lands in tmp_path (auto-cleaned).
+        monkeypatch.setattr(
+            "personalscraper.web.routes.config.tempfile.gettempdir",
+            lambda: str(config_dir.parent),
+        )
         mock_popen = MagicMock()
         monkeypatch.setattr("personalscraper.web.routes.config.subprocess.Popen", mock_popen)
-        # Also mock DEVNULL for attribute access.
         monkeypatch.setattr(
             "personalscraper.web.routes.config.subprocess.DEVNULL",
             subprocess.DEVNULL,
             raising=False,
         )
+
+        caplog.set_level(logging.INFO)
 
         app = _build_app()
         client = TestClient(app)
@@ -770,11 +853,19 @@ class TestRestartEndpoint:
 
         # Popen was called.
         assert mock_popen.called
-        call_args = mock_popen.call_args
-        # First positional arg should be the command list.
-        cmd = call_args[0][0]
-        assert "pm2 restart" in " ".join(cmd)
-        assert "torrentmate-web" in " ".join(cmd)
-        assert "sleep 0.5" in " ".join(cmd)
+        call_kwargs = mock_popen.call_args[1]
+
+        # stdout/stderr are the same real file handle, not DEVNULL.
+        stdout = call_kwargs.get("stdout")
+        stderr = call_kwargs.get("stderr")
+        assert stdout is not subprocess.DEVNULL
+        assert stdout is stderr
+        assert hasattr(stdout, "fileno")
+        assert "torrentmate-restart-web.log" in getattr(stdout, "name", "")
+
         # Detached process.
-        assert call_args[1].get("start_new_session") is True
+        assert call_kwargs.get("start_new_session") is True
+
+        # Log line emitted with correct event name and pm2 name.
+        assert "config_restart_spawned" in caplog.text
+        assert "torrentmate-web" in caplog.text

@@ -339,3 +339,44 @@ class TestStatusEndpoint:
         assert resp.status_code == 500
         detail = resp.json()["detail"]
         assert "config dir unreadable" in detail.lower()
+
+    def test_restart_configured_false_by_default(self, client: TestClient) -> None:
+        """When ``PERSONALSCRAPER_PM2_NAME`` is not set, ``restart_configured`` is ``False``."""
+        resp = client.get("/api/config/status")
+        assert resp.status_code == 200
+        assert resp.json()["restart_configured"] is False
+
+    def test_restart_configured_true_when_set(
+        self, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When ``PERSONALSCRAPER_PM2_NAME`` is set, ``restart_configured`` is ``True``."""
+        monkeypatch.setenv("PERSONALSCRAPER_PM2_NAME", "torrentmate-web")
+        app = _build_app()
+        client = TestClient(app)
+        resp = client.get("/api/config/status")
+        assert resp.status_code == 200
+        assert resp.json()["restart_configured"] is True
+
+    def test_deleted_overlay_flags_stale(self, config_dir: Path) -> None:
+        """A snapshot-listed overlay file deleted from disk is flagged stale."""
+        import hashlib
+
+        web_path = config_dir / "web.json5"
+        web_sha = hashlib.sha256(web_path.read_bytes()).hexdigest()
+
+        # Pre-seed boot hashes with web.json5 present at boot.
+        app = _build_app()
+        app.state.config_boot_hashes = {"web.json5": web_sha}
+        client = TestClient(app)
+
+        original = web_path.read_bytes()
+        try:
+            web_path.unlink()
+
+            # GET /status → web.json5 missing from disk → stale.
+            resp = client.get("/api/config/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "web.json5" in data["stale_files"]
+        finally:
+            web_path.write_bytes(original)
