@@ -94,6 +94,24 @@ type RequestBodyOf<Op> = Op extends {
   ? B
   : never;
 
+/**
+ * The **required** path parameters of an operation, or ``never`` when the
+ * operation declares none (openapi-typescript stamps ``path?: never`` on
+ * parameterless operations, which fails the required-property match below).
+ */
+type PathParamsOf<Op> = Op extends { parameters: { path: infer P } }
+  ? P
+  : never;
+
+/**
+ * The optional query parameters of an operation, or ``never`` when the
+ * operation declares none.  Query params are always optional in the generated
+ * types (``query?: {...}``), so the match strips the ``undefined`` arm.
+ */
+type QueryParamsOf<Op> = Op extends { parameters: { query?: infer Q } }
+  ? NonNullable<Q>
+  : never;
+
 /** The 2xx ``application/json`` response body inferred from an operation. */
 type ResponseBodyOf<Op> = Op extends { responses: infer R }
   ? SuccessBody<R>
@@ -146,9 +164,13 @@ function extractDetail(body: unknown, fallback: string): string {
  * - ``Content-Type: application/json`` set only when a body is present.
  * - An ``ApiError`` thrown on any non-OK status (401 handled in the app layer).
  *
- * S1 has no parameterized routes, so path/query params are intentionally not
- * modelled here. S2+ adds them by extending ``init`` with a ``params`` object
- * derived from ``paths[P][M]["parameters"]`` and interpolating ``path``.
+ * Parameterized routes (R15): ``init.params.path`` carries the operation's
+ * path parameters (interpolated into the ``{name}`` placeholders of the
+ * literal ``paths`` key, URI-encoded) and ``init.params.query`` its query
+ * parameters (serialised to a query string, ``undefined`` entries skipped).
+ * Both are typed from ``paths[P][M]["parameters"]`` — passing a param the
+ * operation does not declare, or omitting a required path param, is a
+ * compile error.
  *
  * Type parameters:
  *   **P**: The API path — a key of the generated ``paths``.
@@ -157,8 +179,9 @@ function extractDetail(body: unknown, fallback: string): string {
  * Args:
  *   path: The API path (e.g. ``"/api/health"``), checked against ``paths``.
  *   init: The request method plus, for body-carrying operations, a ``body``
- *       typed to that operation's ``requestBody`` JSON shape, and optional
- *       extra ``headers``.
+ *       typed to that operation's ``requestBody`` JSON shape, optional
+ *       ``params`` (path/query, schema-typed), and optional extra
+ *       ``headers``.
  */
 export async function apiFetch<P extends keyof paths, M extends MethodOf<P>>(
   path: P,
@@ -166,6 +189,10 @@ export async function apiFetch<P extends keyof paths, M extends MethodOf<P>>(
     method: M;
     body?: RequestBodyOf<paths[P][M]>;
     headers?: Record<string, string>;
+    params?: {
+      path?: PathParamsOf<paths[P][M]>;
+      query?: QueryParamsOf<paths[P][M]>;
+    };
   },
 ): Promise<ResponseBodyOf<paths[P][M]>> {
   // Build headers — only set Content-Type when there is a body.
@@ -189,7 +216,29 @@ export async function apiFetch<P extends keyof paths, M extends MethodOf<P>>(
     fetchInit.body = JSON.stringify(init.body);
   }
 
-  const response = await fetch(path, fetchInit);
+  // Resolve the concrete URL: interpolate {name} path params, append query.
+  let url: string = path;
+  const pathParams = init.params?.path;
+  if (pathParams !== undefined) {
+    for (const [key, value] of Object.entries(
+      pathParams as Record<string, string | number>,
+    )) {
+      url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
+    }
+  }
+  const queryParams = init.params?.query;
+  if (queryParams !== undefined) {
+    const sp = new URLSearchParams();
+    for (const [key, value] of Object.entries(
+      queryParams as Record<string, string | number | boolean | undefined>,
+    )) {
+      if (value !== undefined) sp.set(key, String(value));
+    }
+    const qs = sp.toString();
+    if (qs) url = `${url}?${qs}`;
+  }
+
+  const response = await fetch(url, fetchInit);
 
   if (!response.ok) {
     let detail = response.statusText;
@@ -311,7 +360,7 @@ export function setWatcher(
   });
 }
 
-/** Get the live pipeline status: GET /api/pipeline/status.  Public read — no ``X-Requested-With``. */
+/** Get the live pipeline status: GET /api/pipeline/status.  Session-guarded read — no ``X-Requested-With`` header. */
 export function getPipelineStatus(): Promise<
   SuccessBody<paths["/api/pipeline/status"]["get"]["responses"]>
 > {
@@ -332,19 +381,20 @@ export type RunDetail = SuccessBody<
   paths["/api/pipeline/history/{run_uid}"]["get"]["responses"]
 >;
 
-/** Query parameters accepted by ``GET /api/pipeline/history``. */
-export interface HistoryParams {
-  readonly limit?: number;
-  readonly offset?: number;
-  readonly sort?: string;
-  readonly kind?: string;
-}
+/**
+ * Query parameters accepted by ``GET /api/pipeline/history`` — derived from
+ * the generated schema so a backend parameter change breaks compilation here
+ * (R15), not at runtime.
+ */
+export type HistoryParams = QueryParamsOf<
+  paths["/api/pipeline/history"]["get"]
+>;
 
 /**
  * Fetch a single page of pipeline run history.
  *
- * Sends ``GET /api/pipeline/history`` with optional query params. Read-only —
- * no ``X-Requested-With`` header.
+ * Sends ``GET /api/pipeline/history`` with optional query params through the
+ * typed {@link apiFetch} (R15). Read-only — no ``X-Requested-With`` header.
  *
  * Args:
  *   params: Optional pagination/sort query parameters.
@@ -352,35 +402,21 @@ export interface HistoryParams {
  * Returns:
  *   A {@link HistoryResponse} with the page of {@link RunSummary} items.
  */
-export async function getPipelineHistory(
+export function getPipelineHistory(
   params: HistoryParams = {},
 ): Promise<HistoryResponse> {
-  const sp = new URLSearchParams();
-  if (params.limit !== undefined) sp.set("limit", String(params.limit));
-  if (params.offset !== undefined) sp.set("offset", String(params.offset));
-  if (params.sort !== undefined) sp.set("sort", params.sort);
-  if (params.kind !== undefined) sp.set("kind", params.kind);
-  const qs = sp.toString();
-  const url = `/api/pipeline/history${qs ? `?${qs}` : ""}`;
-  const response = await fetch(url, { method: "GET", credentials: "include" });
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body: unknown = await response.json();
-      detail = extractDetail(body, response.statusText);
-    } catch {
-      // Body is not JSON or is empty — keep statusText.
-    }
-    throw new ApiError(response.status, detail);
-  }
-  return (await response.json()) as HistoryResponse;
+  return apiFetch("/api/pipeline/history", {
+    method: "get",
+    params: { query: params },
+  });
 }
 
 /**
  * Fetch full detail for a single pipeline run.
  *
- * Sends ``GET /api/pipeline/history/{run_uid}``. Read-only — no
- * ``X-Requested-With`` header.
+ * Sends ``GET /api/pipeline/history/{run_uid}`` through the typed
+ * {@link apiFetch} (R15 — ``run_uid`` is a schema-typed path param).
+ * Read-only — no ``X-Requested-With`` header.
  *
  * Args:
  *   runUid: The unique run identifier (uuid4 hex).
@@ -391,22 +427,11 @@ export async function getPipelineHistory(
  * Raises:
  *   ApiError: 404 if no run with the given ``runUid`` exists.
  */
-export async function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
-  const response = await fetch(
-    `/api/pipeline/history/${encodeURIComponent(runUid)}`,
-    { method: "GET", credentials: "include" },
-  );
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body: unknown = await response.json();
-      detail = extractDetail(body, response.statusText);
-    } catch {
-      // Body is not JSON or is empty — keep statusText.
-    }
-    throw new ApiError(response.status, detail);
-  }
-  return (await response.json()) as RunDetail;
+export function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
+  return apiFetch("/api/pipeline/history/{run_uid}", {
+    method: "get",
+    params: { path: { run_uid: runUid } },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -466,10 +491,9 @@ export function getActions(): Promise<ActionsResponse> {
  * Launch a maintenance action as a detached subprocess.
  *
  * Sends ``POST /api/maintenance/actions/{action_id}/run`` with the
- * ``X-Requested-With`` header (mirroring the mutating pipeline endpoints) and
- * ``credentials: "include"``. The ``action_id`` is a path parameter, so the URL
- * is interpolated here rather than routed through {@link apiFetch} (which binds
- * to literal ``paths`` keys); this mirrors {@link getPipelineRunDetail}.
+ * ``X-Requested-With`` header (mirroring the mutating pipeline endpoints)
+ * through the typed {@link apiFetch} (R15 — ``action_id`` is a schema-typed
+ * path param).
  *
  * Args:
  *   actionId: The kebab-case action id (e.g. ``"library-index"``).
@@ -484,30 +508,18 @@ export function getActions(): Promise<ActionsResponse> {
  *     422 (invalid options), or 428 (destructive action without a recent
  *     successful dry-run). The ``detail`` carries the backend message.
  */
-export async function runMaintenanceAction(
+export function runMaintenanceAction(
   actionId: string,
   body: ActionRunRequest,
-): Promise<ResponseBodyOf<paths["/api/maintenance/actions/{action_id}/run"]["post"]>> {
-  const response = await fetch(
-    `/api/maintenance/actions/${encodeURIComponent(actionId)}/run`,
-    {
-      method: "POST",
-      credentials: "include",
-      headers: { ...PIPELINE_HEADERS, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body: unknown = await response.json();
-      detail = extractDetail(body, response.statusText);
-    } catch {
-      // Body is not JSON or is empty — keep statusText.
-    }
-    throw new ApiError(response.status, detail);
-  }
-  return (await response.json()) as ResponseBodyOf<paths["/api/maintenance/actions/{action_id}/run"]["post"]>;
+): Promise<
+  ResponseBodyOf<paths["/api/maintenance/actions/{action_id}/run"]["post"]>
+> {
+  return apiFetch("/api/maintenance/actions/{action_id}/run", {
+    method: "post",
+    body,
+    headers: PIPELINE_HEADERS,
+    params: { path: { action_id: actionId } },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -576,8 +588,8 @@ export function getConfigFiles(): Promise<FilesResponse> {
 /**
  * Fetch the parsed contents of a single config file.
  *
- * Sends ``GET /api/config/files/{name}``. The ``name`` is a path parameter so
- * the URL is interpolated here rather than routed through {@link apiFetch}.
+ * Sends ``GET /api/config/files/{name}`` through the typed {@link apiFetch}
+ * (R15 — ``name`` is a schema-typed path param).
  *
  * Args:
  *   name: Config file basename (e.g. ``"paths.json5"``).
@@ -588,22 +600,11 @@ export function getConfigFiles(): Promise<FilesResponse> {
  * Raises:
  *   ApiError: 404 if *name* is not a recognised config file.
  */
-export async function getConfigFile(name: string): Promise<FileContent> {
-  const response = await fetch(
-    `/api/config/files/${encodeURIComponent(name)}`,
-    { method: "GET", credentials: "include" },
-  );
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body: unknown = await response.json();
-      detail = extractDetail(body, response.statusText);
-    } catch {
-      // Body is not JSON or is empty — keep statusText.
-    }
-    throw new ApiError(response.status, detail);
-  }
-  return (await response.json()) as FileContent;
+export function getConfigFile(name: string): Promise<FileContent> {
+  return apiFetch("/api/config/files/{name}", {
+    method: "get",
+    params: { path: { name } },
+  });
 }
 
 /** Fetch deployment status and stale file detection: GET /api/config/status. */
@@ -620,8 +621,8 @@ export function getConfigSecrets(): Promise<SecretsResponse> {
  * Validate and atomically write a config overlay file.
  *
  * Sends ``PUT /api/config/files/{name}`` with the ``X-Requested-With`` header
- * and ``credentials: "include"``. The ``name`` is a path parameter so the URL
- * is interpolated here (mirrors {@link runMaintenanceAction}).
+ * through the typed {@link apiFetch} (R15 — ``name`` is a schema-typed path
+ * param).
  *
  * Args:
  *   name: Config file basename (e.g. ``"paths.json5"``).
@@ -634,30 +635,16 @@ export function getConfigSecrets(): Promise<SecretsResponse> {
  *   ApiError: 403 (staging read-only), 404 (not a writable file),
  *     412 (SHA-256 mismatch), or 422 (validation failure).
  */
-export async function putConfigFile(
+export function putConfigFile(
   name: string,
   body: PutFileRequest,
 ): Promise<PutFileResponse> {
-  const response = await fetch(
-    `/api/config/files/${encodeURIComponent(name)}`,
-    {
-      method: "PUT",
-      credentials: "include",
-      headers: { ...PIPELINE_HEADERS, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body: unknown = await response.json();
-      detail = extractDetail(body, response.statusText);
-    } catch {
-      // Body is not JSON or is empty — keep statusText.
-    }
-    throw new ApiError(response.status, detail);
-  }
-  return (await response.json()) as PutFileResponse;
+  return apiFetch("/api/config/files/{name}", {
+    method: "put",
+    body,
+    headers: PIPELINE_HEADERS,
+    params: { path: { name } },
+  });
 }
 
 /**

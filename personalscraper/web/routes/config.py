@@ -598,7 +598,17 @@ def _is_staging() -> bool:
 # ── POST /validate ─────────────────────────────────────────────────────────
 
 
-@router.post("/validate", response_model=ValidateResponse)
+@router.post(
+    "/validate",
+    response_model=ValidateResponse,
+    responses={
+        409: {
+            "description": "A declared dependency overlay is missing on disk "
+            "— the composed config cannot be built, so the candidate cannot "
+            "be validated (R20)."
+        }
+    },
+)
 def validate_file(
     body: ValidateRequest,
     request: Request,
@@ -619,6 +629,9 @@ def validate_file(
 
     Raises:
         404: If *body.file_name* is not a known overlay or ``local.json5``.
+        409: If the composed config cannot be loaded because another declared
+            overlay is missing on disk (``ConfigLoadError``) — the candidate
+            itself may be fine, but validation is impossible.
         422: If the candidate values fail Pydantic validation, with detail
             carrying the error loc paths extracted from the underlying
             :class:`pydantic.ValidationError`.

@@ -109,8 +109,9 @@ describe("DisksPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("SSD Principal")).toBeInTheDocument();
-    expect(screen.getByText("800.0 Go")).toBeInTheDocument();
-    expect(screen.getByText("libre / 1000.0 Go")).toBeInTheDocument();
+    // formatGb (U1): round values drop the trailing .0, ≥1024 Go switch to To.
+    expect(screen.getByText("800 Go")).toBeInTheDocument();
+    expect(screen.getByText("libre / 1000 Go")).toBeInTheDocument();
     expect(screen.getByText("OK")).toBeInTheDocument();
   });
 
