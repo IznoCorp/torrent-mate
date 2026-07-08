@@ -185,8 +185,10 @@ class RunDetail(BaseModel):
             ``"library-clean"``), or ``None`` for pipeline runs.
         options_json: JSON-serialized CLI options for maintenance runs, or
             ``None`` for pipeline runs.
-        output_tail: Tail of the subprocess stdout/stderr for maintenance
-            runs (last ~2000 characters), or ``None`` for pipeline runs.
+        output_tail: Tail of the subprocess/CLI output (last 64 KiB ring
+            buffer) — populated for maintenance runs and, since the universal
+            run journal (#235), for pipeline runs too; ``None`` for legacy
+            rows recorded before output capture existed.
     """
 
     run_uid: str

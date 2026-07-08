@@ -15,18 +15,32 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.indexer import migrations as _migrations_pkg
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.web.auth.passwords import hash_password
+from personalscraper.web.deps import require_session
 
 TEST_USERNAME = "unified-test"
 TEST_PASSWORD = "unified-test-password"
 TEST_HASH = hash_password(TEST_PASSWORD)
 TEST_SECRET = "unified-history-test-secret"
+
+
+def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
+    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14).
+
+    Handlers no longer carry a per-route ``Depends(require_session)`` — the
+    guard lives on the parent router only (web-ui.md §6), so test apps must
+    reproduce the same perimeter to exercise auth.
+    """
+    guarded_api = APIRouter(dependencies=[Depends(require_session)])
+    guarded_api.include_router(router)
+    app.include_router(guarded_api)
+
 
 # ── Timestamp baseline for deterministic sort assertions ─────────────────────
 _T0 = 1750000000.0  # 2025-06-15T12:26:40+00:00
@@ -66,7 +80,7 @@ def _make_client(test_config, db_path: Path, data_dir: Path) -> TestClient:
     from personalscraper.web.routes.pipeline import router as pipeline_router
 
     app.include_router(auth_router)
-    app.include_router(pipeline_router)
+    _mount_guarded(app, pipeline_router)
 
     client = TestClient(app, base_url="https://testserver")
     resp = client.post(
@@ -421,7 +435,7 @@ class TestUnifiedHistoryGuards:
         app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
         client = TestClient(app, base_url="https://testserver")
 
         resp = client.get("/api/pipeline/history")
@@ -447,7 +461,7 @@ class TestUnifiedHistoryGuards:
         app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        app.include_router(pipeline_router)
+        _mount_guarded(app, pipeline_router)
         client = TestClient(app, base_url="https://testserver")
 
         resp = client.get("/api/pipeline/history/p1-aaa111")

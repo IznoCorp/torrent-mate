@@ -9,7 +9,10 @@ monitoring-panel data contract defined in
 - ``GET /index-health`` → :class:`IndexHealthResponse`
 
 All routes are guarded by ``require_session`` inherited from the parent
-``guarded_api`` router (double-added per pipeline.py convention).
+``guarded_api`` router (registration in app.py).  Auth dependencies are NOT
+added per-route — the auth perimeter is a single dependency at registration
+time, per ``docs/reference/web-ui.md`` §6 (the single authority for this
+convention; R14/R24).
 """
 
 from __future__ import annotations
@@ -36,9 +39,7 @@ from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.deps import (
-    Session,
     require_not_staging,
-    require_session,
     require_x_requested_with,
 )
 from personalscraper.web.maintenance.models import (
@@ -105,7 +106,6 @@ def _db_path(request: Request) -> Path:
 @router.get("/disks", response_model=DisksResponse)
 def get_disks(
     request: Request,
-    _session: Session = Depends(require_session),
 ) -> DisksResponse:
     """Return mount status and capacity for every configured storage disk.
 
@@ -299,7 +299,6 @@ def _sweep_tmp_orphans(config: Config) -> list[TmpOrphan]:
 @router.get("/locks", response_model=LocksResponse)
 def get_locks(
     request: Request,
-    _session: Session = Depends(require_session),
 ) -> LocksResponse:
     """Return pipeline lock state, sentinels, and bounded tmp-orphan sweep.
 
@@ -384,7 +383,6 @@ def _empty_health(*, degraded: bool = False, error: str | None = None) -> IndexH
 @router.get("/index-health", response_model=IndexHealthResponse)
 def get_index_health(
     request: Request,
-    _session: Session = Depends(require_session),
 ) -> IndexHealthResponse:
     """Return an aggregate health snapshot of the indexer database.
 
@@ -797,7 +795,6 @@ def action_run(
     action_id: str,
     body: ActionRunRequest,
     request: Request,
-    _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
     _staging: None = Depends(require_not_staging),
 ) -> ActionRunResponse:
@@ -893,9 +890,7 @@ def action_run(
 
 
 @router.get("/actions", response_model=ActionsResponse)
-def get_actions(
-    _session: Session = Depends(require_session),
-) -> ActionsResponse:
+def get_actions() -> ActionsResponse:
     """Return the full maintenance action registry with category counts.
 
     The registry is defined at module level in

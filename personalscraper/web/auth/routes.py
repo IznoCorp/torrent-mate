@@ -47,8 +47,12 @@ def _client_key(request: Request) -> str:
 
     Uses the peer IP normally.  When the peer is loopback — the Caddy TLS proxy
     terminating in front of the app — and an ``X-Forwarded-For`` header is
-    present, the first forwarded address is used so per-real-client limiting
-    survives the reverse proxy.
+    present, the LAST forwarded address is used so per-real-client limiting
+    survives the reverse proxy.  The rightmost entry is the one appended by
+    the trusted local proxy (the address it directly accepted the connection
+    from); any earlier entries arrive verbatim from the client and are
+    spoofable — keying on them let an attacker rotate a fake leftmost value
+    to dodge the login rate limit (R13).
 
     Args:
         request: The incoming FastAPI request.
@@ -60,7 +64,7 @@ def _client_key(request: Request) -> str:
     if peer in _LOOPBACK_HOSTS:
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            return forwarded.split(",")[-1].strip()
     return peer
 
 

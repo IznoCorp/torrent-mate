@@ -21,8 +21,9 @@ Write endpoints (sub-phase 2.3):
 
 All routes are guarded by ``require_session`` inherited from the parent
 ``guarded_api`` router (registration in app.py, sub-phase 2.4).  Auth
-dependencies are NOT added here — they are wired at registration time
-(mirroring maintenance.py).
+dependencies are NOT added per-route — the auth perimeter is a single
+dependency at registration time, per ``docs/reference/web-ui.md`` §6 (the
+single authority for this convention; R14/R24).
 
 **Config directory resolution**: The config directory is resolved at request
 time via :func:`personalscraper.conf.loader.resolve_config_path`, a 4-level
@@ -916,8 +917,11 @@ def restart_web(
     (so the 202 response flushes first), then runs ``pm2 restart`` on the
     name configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout
     and stderr are redirected to a log file under the system temp directory
-    (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn, opened
-    with ``O_NOFOLLOW``) so a failed pm2 invocation leaves a trace.
+    (``<tempdir>/torrentmate-restart-web.log``, opened APPEND + ``O_NOFOLLOW``)
+    so a failed pm2 invocation leaves a trace.  Append — not truncate — because
+    this file is the ONLY trace of a silently-failed restart (async-202
+    limitation, web-ui.md): a retry must not erase the first attempt's pm2
+    error output before the operator reads it (R28).
 
     If the log file cannot be opened (``OSError``, e.g. a pre-planted
     symlink caught by ``O_NOFOLLOW``), the error is logged at ERROR level
@@ -946,10 +950,10 @@ def restart_web(
     try:
         fd = os.open(
             str(log_path),
-            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+            os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW,
             0o600,
         )
-        log_fh: Any = os.fdopen(fd, "w")
+        log_fh: Any = os.fdopen(fd, "a")
     except OSError as exc:
         logger.error(
             "config_restart_log_open_failed",

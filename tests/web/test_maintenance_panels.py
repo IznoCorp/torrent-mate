@@ -17,12 +17,26 @@ import time
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.web.auth.passwords import hash_password
+from personalscraper.web.deps import require_session
+
+
+def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
+    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14).
+
+    Handlers no longer carry a per-route ``Depends(require_session)`` — the
+    guard lives on the parent router only (web-ui.md §6), so test apps must
+    reproduce the same perimeter to exercise auth.
+    """
+    guarded_api = APIRouter(dependencies=[Depends(require_session)])
+    guarded_api.include_router(router)
+    app.include_router(guarded_api)
+
 
 TEST_USERNAME = "testuser"
 TEST_PASSWORD = "test-password"
@@ -101,7 +115,7 @@ def _build_app(
 
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
-    app.include_router(maintenance_router)
+    _mount_guarded(app, maintenance_router)
 
     return app, settings
 
