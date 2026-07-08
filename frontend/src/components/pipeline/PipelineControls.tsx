@@ -12,8 +12,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pause, Play, Square } from "lucide-react";
 import type { ReactElement } from "react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import {
+  ApiError,
   killPipeline,
   pausePipeline,
   resumePipeline,
@@ -71,16 +73,37 @@ export function PipelineControls({
       setShowRunDialog(false);
       void invalidate();
     },
+    onError: (err) => {
+      toast.error(
+        err instanceof ApiError && err.detail
+          ? err.detail
+          : "Le lancement a échoué",
+      );
+    },
   });
 
   const pauseMutation = useMutation({
     mutationFn: pausePipeline,
     onSuccess: invalidate,
+    onError: (err) => {
+      toast.error(
+        err instanceof ApiError && err.detail
+          ? err.detail
+          : "La mise en pause a échoué",
+      );
+    },
   });
 
   const resumeMutation = useMutation({
     mutationFn: resumePipeline,
     onSuccess: invalidate,
+    onError: (err) => {
+      toast.error(
+        err instanceof ApiError && err.detail
+          ? err.detail
+          : "La reprise a échoué",
+      );
+    },
   });
 
   const killMutation = useMutation({
@@ -89,11 +112,23 @@ export function PipelineControls({
       setShowKillDialog(false);
       void invalidate();
     },
+    onError: (err) => {
+      toast.error(
+        err instanceof ApiError && err.detail ? err.detail : "L'arrêt a échoué",
+      );
+    },
   });
 
   const watcherMutation = useMutation({
     mutationFn: (enabled: boolean) => setWatcher({ enabled }),
     onSuccess: invalidate,
+    onError: (err) => {
+      toast.error(
+        err instanceof ApiError && err.detail
+          ? err.detail
+          : "Le changement du watcher a échoué",
+      );
+    },
   });
 
   // ---- derived state ----
@@ -108,7 +143,9 @@ export function PipelineControls({
         <Button
           size="sm"
           disabled={!isIdle || runMutation.isPending}
-          onClick={() => { setShowRunDialog(true); }}
+          onClick={() => {
+            setShowRunDialog(true);
+          }}
         >
           <Play className="size-4" aria-hidden="true" />
           Démarrer
@@ -119,7 +156,9 @@ export function PipelineControls({
           size="sm"
           variant="outline"
           disabled={!isRunning || pauseMutation.isPending}
-          onClick={() => { pauseMutation.mutate(); }}
+          onClick={() => {
+            pauseMutation.mutate();
+          }}
         >
           <Pause className="size-4" aria-hidden="true" />
           Pause
@@ -130,7 +169,9 @@ export function PipelineControls({
           size="sm"
           variant="outline"
           disabled={!isPaused || resumeMutation.isPending}
-          onClick={() => { resumeMutation.mutate(); }}
+          onClick={() => {
+            resumeMutation.mutate();
+          }}
         >
           <Play className="size-4" aria-hidden="true" />
           Reprendre
@@ -141,7 +182,9 @@ export function PipelineControls({
           size="sm"
           variant="destructive"
           disabled={(isIdle && !status.run_uid) || killMutation.isPending}
-          onClick={() => { setShowKillDialog(true); }}
+          onClick={() => {
+            setShowKillDialog(true);
+          }}
         >
           <Square className="size-4" aria-hidden="true" />
           Arrêter
@@ -151,7 +194,9 @@ export function PipelineControls({
         <label className="ml-auto flex items-center gap-2 text-sm">
           <Switch
             checked={status.watcher_enabled}
-            onCheckedChange={(v) => { watcherMutation.mutate(v); }}
+            onCheckedChange={(v) => {
+              watcherMutation.mutate(v);
+            }}
             disabled={watcherMutation.isPending}
             aria-label="Auto-trigger"
           />
@@ -178,11 +223,18 @@ export function PipelineControls({
             <span className="text-sm">Dry-run (simulation sans écriture)</span>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowRunDialog(false); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRunDialog(false);
+              }}
+            >
               Annuler
             </Button>
             <Button
-              onClick={() => { runMutation.mutate(); }}
+              onClick={() => {
+                runMutation.mutate();
+              }}
               disabled={runMutation.isPending}
             >
               {runMutation.isPending ? "Lancement…" : "Démarrer"}
@@ -202,12 +254,19 @@ export function PipelineControls({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowKillDialog(false); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowKillDialog(false);
+              }}
+            >
               Annuler
             </Button>
             <Button
               variant="destructive"
-              onClick={() => { killMutation.mutate(); }}
+              onClick={() => {
+                killMutation.mutate();
+              }}
               disabled={killMutation.isPending}
             >
               {killMutation.isPending ? "Arrêt…" : "Arrêter"}

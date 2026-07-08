@@ -40,8 +40,8 @@ export default function Maintenance(): ReactElement {
         <IndexHealthPanel />
       </div>
 
-      {/* Run-history panel (reuses S2 RunHistoryTable; kind filter chips → 5.2) */}
-      <RunHistoryTable onSelect={setSelectedRun} />
+      {/* Run-history panel filtered to maintenance runs (kind param → backend) */}
+      <RunHistoryTable kind="maintenance" onSelect={setSelectedRun} />
 
       {/* Inline detail view when a history row is selected */}
       {selectedRun !== null && (
