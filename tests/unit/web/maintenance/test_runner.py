@@ -72,11 +72,17 @@ def _select_row(db_path: Path, run_uid: str) -> dict | None:
 
 
 def _make_mock_config(tmp_path: Path) -> MagicMock:
-    """Build a mock ``Config`` with a real DB path and dummy web config."""
+    """Build a mock ``Config`` with a real DB path and dummy web config.
+
+    ``paths.data_dir`` must be a real directory (not a ``MagicMock``): the
+    runner resolves ``data_dir / "pipeline.lock"`` for the R11 lock-ownership
+    logic, and ``acquire_lock`` performs real filesystem operations on it.
+    """
     db_path = tmp_path / "library.db"
     _create_db(db_path)
     config = MagicMock()
     config.indexer.db_path = db_path
+    config.paths.data_dir = tmp_path
     config.web.enabled = True
     config.web.redis_url = "redis://127.0.0.1:6379/0"
     config.web.stream_key = "test:events"
@@ -835,3 +841,184 @@ class TestKillChildGroup:
         args, kwargs = mock_warning.call_args
         assert args[0] == "maintenance_runner_terminate_failed"
         assert kwargs["error"] == "no such process"
+
+
+# ---------------------------------------------------------------------------
+# Tests — R11: pipeline.lock held for the child's lifetime
+# ---------------------------------------------------------------------------
+
+
+class TestRunnerPipelineLock:
+    """R11 — live write/destructive actions hold ``pipeline.lock``; others don't.
+
+    DESIGN (maint-dash §4): no write action runs without the lock. The runner
+    acquires it for every live (non-dry-run) write/destructive action whose CLI
+    does not self-acquire (``_CLI_SELF_LOCKING``), and releases it on every
+    exit path (success, error, spawn failure, SIGTERM).
+    """
+
+    RUN_UID = "lock-uid-000111"
+    WRITE_COMMAND = "library-gc"  # risk=write, CLI does NOT self-acquire
+    SELF_LOCKING_COMMAND = "library-clean"  # destructive, CLI acquires on --apply
+    RO_COMMAND = "library-status"  # risk=ro, no options
+    OPTIONS_JSON = "{}"
+
+    @pytest.fixture(autouse=True)
+    def _env_teardown(self) -> None:
+        """Clear the runner env vars after each test (tests set their own)."""
+        yield
+        _clear_runner_env()
+
+    def _run_main(self, mock_config: MagicMock, mock_proc: MagicMock) -> SystemExit:
+        """Invoke ``main()`` with config/Popen/Redis patched; return the exit."""
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        with (
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch(
+                "personalscraper.web.maintenance.runner.subprocess.Popen",
+                return_value=mock_proc,
+            ),
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            runner_mod.main()
+        return exc_info.value
+
+    def test_write_live_run_acquires_and_releases_lock(self, tmp_path: Path) -> None:
+        """A live write action acquires the lock before spawn and releases after."""
+        _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        with (
+            patch(
+                "personalscraper.web.maintenance.runner.acquire_lock",
+                return_value=True,
+            ) as mock_acquire,
+            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
+        ):
+            exit_exc = self._run_main(mock_config, mock_proc)
+
+        assert exit_exc.code == 0
+        mock_acquire.assert_called_once_with(tmp_path / "pipeline.lock")
+        mock_release.assert_called_once_with(tmp_path / "pipeline.lock")
+
+    def test_lock_held_finalizes_error_and_exits_1(self, tmp_path: Path) -> None:
+        """Losing the lock race finalizes the row 'error' and never spawns the CLI.
+
+        The lock file holds this test process's live pid, so the REAL
+        ``acquire_lock`` refuses it — the exact behaviour when a pipeline run
+        grabbed the lock after the route's probes.
+        """
+        _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        mock_config = _make_mock_config(tmp_path)
+        (tmp_path / "pipeline.lock").write_text(str(os.getpid()))
+
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        with (
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.maintenance.runner.subprocess.Popen") as mock_popen,
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            runner_mod.main()
+
+        assert exc_info.value.code == 1
+        mock_popen.assert_not_called()
+        row = _select_row(mock_config.indexer.db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "error"
+        assert row["error"] == "Pipeline lock held"
+        # The pre-existing lock is left untouched (owned by the other process).
+        assert (tmp_path / "pipeline.lock").read_text() == str(os.getpid())
+
+    def test_self_locking_action_does_not_acquire(self, tmp_path: Path) -> None:
+        """A live self-locking CLI (library-clean --apply) is never double-locked.
+
+        The runner must leave the lock to the child — acquiring it here would
+        make the child's own ``acquire_lock`` observe the runner's live pid and
+        exit 1 ("Another instance is running").
+        """
+        _set_runner_env(self.RUN_UID, self.SELF_LOCKING_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        with patch("personalscraper.web.maintenance.runner.acquire_lock") as mock_acquire:
+            exit_exc = self._run_main(mock_config, mock_proc)
+
+        assert exit_exc.code == 0
+        mock_acquire.assert_not_called()
+
+    def test_dry_run_does_not_acquire(self, tmp_path: Path) -> None:
+        """A dry-run of a write action is read-only — no lock is taken."""
+        _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=True)
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        with patch("personalscraper.web.maintenance.runner.acquire_lock") as mock_acquire:
+            exit_exc = self._run_main(mock_config, mock_proc)
+
+        assert exit_exc.code == 0
+        mock_acquire.assert_not_called()
+
+    def test_ro_action_does_not_acquire(self, tmp_path: Path) -> None:
+        """A read-only action never touches the pipeline lock."""
+        _set_runner_env(self.RUN_UID, self.RO_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        with patch("personalscraper.web.maintenance.runner.acquire_lock") as mock_acquire:
+            exit_exc = self._run_main(mock_config, mock_proc)
+
+        assert exit_exc.code == 0
+        mock_acquire.assert_not_called()
+
+    def test_sigterm_handler_releases_lock(self, tmp_path: Path) -> None:
+        """The SIGTERM handler releases the lock (os._exit bypasses the finally)."""
+        import signal as _signal
+
+        from personalscraper.web.maintenance import runner as runner_mod
+
+        _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        captured: dict[int, object] = {}
+
+        def fake_signal(sig: int, handler: object) -> None:
+            captured[sig] = handler
+
+        with (
+            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch(
+                "personalscraper.web.maintenance.runner.subprocess.Popen",
+                return_value=mock_proc,
+            ),
+            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.web.maintenance.runner.signal.signal", fake_signal),
+            patch(
+                "personalscraper.web.maintenance.runner.acquire_lock",
+                return_value=True,
+            ),
+            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
+            pytest.raises(SystemExit),
+        ):
+            runner_mod.main()
+
+        # main() completed → the finally released once.
+        mock_release.assert_called_once_with(tmp_path / "pipeline.lock")
+
+        # Invoke the captured handler: it must release again before os._exit.
+        # (Re-patch release_lock — the first patch context has exited, and the
+        # handler resolves the name from the module namespace at call time.)
+        handler = captured[_signal.SIGTERM]
+        with (
+            patch("personalscraper.web.maintenance.runner.os._exit"),
+            patch("personalscraper.web.maintenance.runner._kill_child_group"),
+            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release_sigterm,
+        ):
+            handler(_signal.SIGTERM, None)
+
+        mock_release_sigterm.assert_called_once_with(tmp_path / "pipeline.lock")

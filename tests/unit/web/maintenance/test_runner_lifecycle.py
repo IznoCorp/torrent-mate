@@ -69,11 +69,17 @@ def _select_row(db_path: Path, run_uid: str) -> dict | None:
 
 
 def _make_mock_config(tmp_path: Path) -> MagicMock:
-    """Build a mock ``Config`` with a real DB path and dummy web config."""
+    """Build a mock ``Config`` with a real DB path and dummy web config.
+
+    ``paths.data_dir`` must be a real directory (not a ``MagicMock``): the
+    runner resolves ``data_dir / "pipeline.lock"`` for the R11 lock-ownership
+    logic, and ``acquire_lock`` performs real filesystem operations on it.
+    """
     db_path = tmp_path / "library.db"
     _create_db(db_path)
     config = MagicMock()
     config.indexer.db_path = db_path
+    config.paths.data_dir = tmp_path
     config.web.enabled = True
     config.web.redis_url = "redis://127.0.0.1:6379/0"
     config.web.stream_key = "test:events"
@@ -364,3 +370,49 @@ class TestRunnerLifecycleIntegration:
         assert json.loads(row["options_json"]) == input_options
 
         _clear_runner_env()
+
+    # ── R11: pipeline.lock held for the child's whole lifetime ─────────────
+
+    def test_live_write_run_holds_lock_during_child_and_releases_after(self, tmp_path: Path) -> None:
+        """The lock exists while the child runs and is gone after main() exits.
+
+        The class-level env is ``library-gc`` (risk=write, CLI does not
+        self-acquire) with ``dry_run=False`` — exactly the case R11 requires the
+        runner to cover. The real child process itself probes ``pipeline.lock``:
+        without runner-side acquisition it prints ``LOCK_MISSING`` and this test
+        fails (regression proof).
+        """
+        mock_config = _make_mock_config(tmp_path)
+        db_path = mock_config.indexer.db_path
+        lock_file = tmp_path / "pipeline.lock"
+        child_code = (
+            f"import pathlib; print('LOCK_HELD' if pathlib.Path({str(lock_file)!r}).exists() else 'LOCK_MISSING')"
+        )
+        argv = self._trivial_argv(child_code)
+
+        with (
+            patch(
+                "personalscraper.web.maintenance.runner._build_argv",
+                return_value=argv,
+            ),
+            patch(
+                "personalscraper.web.maintenance.runner.load_config",
+                return_value=mock_config,
+            ),
+            patch(
+                "personalscraper.web.maintenance.runner._get_redis",
+                return_value=None,
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from personalscraper.web.maintenance.runner import main
+
+            main()
+
+        assert exc_info.value.code == 0
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "success"
+        assert "LOCK_HELD" in row["output_tail"]
+        # Released after the run — a new pipeline run can start immediately.
+        assert not lock_file.exists()
