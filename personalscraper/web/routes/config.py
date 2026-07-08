@@ -57,6 +57,7 @@ from personalscraper.conf.loader import (
     validate_candidate,
 )
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.overlay import ConfigConflictError
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.config import (
@@ -578,14 +579,22 @@ def validate_file(
             :class:`pydantic.ValidationError`.
     """
     config_dir = _config_dir()
+    valid_names = _valid_file_names(config_dir)
 
-    try:
-        _, warnings = validate_candidate(config_dir, {body.file_name: body.values})
-    except ConfigLoadError:
+    if body.file_name not in valid_names:
         raise HTTPException(
             status_code=404,
             detail=f"Unknown config file: {body.file_name!r}",
         )
+
+    try:
+        _, warnings = validate_candidate(config_dir, {body.file_name: body.values})
+    except ConfigLoadError as exc:
+        # Name is valid — another declared overlay is missing on disk.
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ConfigConflictError as exc:
+        # Candidate introduces a key owned by another overlay.
+        raise HTTPException(status_code=422, detail=str(exc))
     except ConfigValidationError as exc:
         cause = exc.__cause__
         if cause is not None and isinstance(cause, PydanticValidationError):
@@ -634,9 +643,13 @@ def put_file(
     Raises:
         403: If ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
         404: If *name* is not a writable config file.
+        409: If *name* is valid but another declared overlay is missing on
+            disk (``ConfigLoadError``).
         412: If *body.base_sha256* does not match the current on-disk file
             digest.
-        422: If the candidate values fail Pydantic validation.
+        422: If the candidate values fail Pydantic validation, or if the
+            candidate introduces a key owned by another overlay
+            (``ConfigConflictError``).
     """
     if _is_staging():
         raise HTTPException(status_code=403, detail="read-only")
@@ -648,30 +661,35 @@ def put_file(
 
     file_path = config_dir / name
 
-    # ── SHA-256 precondition ──
-    if file_path.is_file():
-        current_sha256 = _sha256(file_path)
-    else:
-        # local.json5 may not exist yet — empty string matches empty base.
-        current_sha256 = ""
-
-    if body.base_sha256 != current_sha256:
-        raise HTTPException(status_code=412, detail="file modified since last read")
-
-    # ── Validate candidate (before any filesystem mutation) ──
-    try:
-        _, warnings = validate_candidate(config_dir, {name: body.values})
-    except ConfigLoadError:
-        raise HTTPException(status_code=404, detail=f"Unknown config file: {name!r}")
-    except ConfigValidationError as exc:
-        cause = exc.__cause__
-        if cause is not None and isinstance(cause, PydanticValidationError):
-            detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in cause.errors()]
-            raise HTTPException(status_code=422, detail=detail)
-        raise HTTPException(status_code=422, detail=str(exc))
-
-    # ── Serialized write section ──
+    # ── Serialized compare-validate-write section ──
     with _write_lock:
+        # SHA-256 precondition (re-checked inside lock for atomicity).
+        if file_path.is_file():
+            current_sha256 = _sha256(file_path)
+        else:
+            # local.json5 may not exist yet — empty string matches empty base.
+            current_sha256 = ""
+
+        if body.base_sha256 != current_sha256:
+            raise HTTPException(status_code=412, detail="file modified since last read")
+
+        # Validate candidate.
+        try:
+            _, warnings = validate_candidate(config_dir, {name: body.values})
+        except ConfigLoadError as exc:
+            # Name is already whitelist-checked — another declared overlay is
+            # missing on disk (409 Conflict, not 404).
+            logger.warning("config_put_load_error", name=name, error=str(exc))
+            raise HTTPException(status_code=409, detail=str(exc))
+        except ConfigConflictError as exc:
+            # Candidate introduces a key owned by another overlay.
+            raise HTTPException(status_code=422, detail=str(exc))
+        except ConfigValidationError as exc:
+            cause = exc.__cause__
+            if cause is not None and isinstance(cause, PydanticValidationError):
+                detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in cause.errors()]
+                raise HTTPException(status_code=422, detail=detail)
+            raise HTTPException(status_code=422, detail=str(exc))
         # Backup existing file.
         if file_path.is_file():
             backup_dir = config_dir / ".backups"

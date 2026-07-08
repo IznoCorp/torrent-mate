@@ -13,6 +13,8 @@ from __future__ import annotations
 import hashlib
 import shutil
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -219,6 +221,34 @@ class TestValidateEndpoint:
         )
         assert resp.status_code == 200
 
+    def test_422_conflict_key_owned_by_another_overlay(self, client: TestClient, config_dir: Path) -> None:
+        """Validating a candidate that introduces a key owned by another overlay → 422."""
+        resp = client.post(
+            "/api/config/validate",
+            json={
+                "file_name": "scraper.json5",
+                # "paths" is owned by paths.json5, not scraper.json5.
+                "values": {"paths": {"staging_dir": "/tmp/conflict_test", "data_dir": "/tmp/data"}},
+            },
+            headers=_xrw(),
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert isinstance(detail, str)
+        assert "conflict" in detail.lower() or "paths" in detail.lower()
+
+    def test_409_known_name_missing_dependency_overlay(self, client: TestClient, config_dir: Path) -> None:
+        """Validate with a known name but another declared overlay missing → 409."""
+        # Remove paths.json5 from disk.  web.json5 is still a valid name,
+        # but paths.json5 (declared in the overlays array) is now missing.
+        (config_dir / "paths.json5").unlink()
+        resp = client.post(
+            "/api/config/validate",
+            json={"file_name": "web.json5", "values": {"web": {"port": 8080}}},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 409
+
 
 # ── PUT /files/{name} ───────────────────────────────────────────────────────
 
@@ -383,6 +413,25 @@ class TestPutFileEndpoint:
         assert resp.status_code == 200
         assert resp.json()["restart_required"] is False
 
+    def test_422_conflict_key_owned_by_another_overlay(self, client: TestClient, config_dir: Path) -> None:
+        """PUT with a candidate introducing a key owned by another overlay → 422."""
+        file_path = config_dir / "scraper.json5"
+        current_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+        resp = client.put(
+            "/api/config/files/scraper.json5",
+            json={
+                # "paths" is owned by paths.json5, not scraper.json5.
+                "values": {"paths": {"staging_dir": "/tmp/conflict_put", "data_dir": "/tmp/data"}},
+                "base_sha256": current_sha256,
+            },
+            headers=_xrw(),
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert isinstance(detail, str)
+        assert "conflict" in detail.lower() or "paths" in detail.lower()
+
     def test_new_local_json5_created_with_empty_base(self, client: TestClient, config_dir: Path) -> None:
         """PUT with base_sha256="" creates local.json5 when it doesn't exist."""
         local_path = config_dir / "local.json5"
@@ -405,11 +454,65 @@ class TestPutFileEndpoint:
         # Cleanup.
         local_path.unlink()
 
-    def test_writes_are_serialized(self, client: TestClient, config_dir: Path) -> None:
-        """The module-level _write_lock exists (threading.Lock)."""
-        from personalscraper.web.routes.config import _write_lock
+    def test_concurrent_put_with_same_sha_one_succeeds_one_412(
+        self, client: TestClient, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Two concurrent PUTs with the same valid sha: exactly one 200 + one 412.
 
-        assert hasattr(_write_lock, "acquire")
+        Patches ``validate_candidate`` with a 0.3 s sleep so the second thread
+        reaches the lock while the first is still validating.  With the
+        sha check inside ``_write_lock``, thread B's in-lock recheck sees the
+        on-disk sha has changed → 412.  The file content matches the 200 writer.
+        """
+        import personalscraper.conf.loader as loader_mod
+        from personalscraper.web.routes import config as config_mod
+
+        file_path = config_dir / "paths.json5"
+        original_bytes = file_path.read_bytes()
+        original_sha256 = hashlib.sha256(original_bytes).hexdigest()
+
+        current = json5.loads(original_bytes.decode("utf-8"))
+
+        # Slow wrapper: stalls 0.3 s then delegates to the real validate_candidate.
+        _real_validate = loader_mod.validate_candidate
+
+        def _slow_validate(*args, **kwargs):
+            time.sleep(0.3)
+            return _real_validate(*args, **kwargs)
+
+        monkeypatch.setattr(loader_mod, "validate_candidate", _slow_validate)
+        # Also patch the reference imported by the routes module.
+        monkeypatch.setattr(config_mod, "validate_candidate", _slow_validate)
+
+        def _put(values_suffix: str) -> tuple[int, dict]:
+            new_values = dict(current)
+            new_values["paths"] = {**current["paths"], "staging_dir": f"/tmp/concurrent_{values_suffix}"}
+            resp = client.put(
+                "/api/config/files/paths.json5",
+                json={"values": new_values, "base_sha256": original_sha256},
+                headers=_xrw(),
+            )
+            return resp.status_code, new_values
+
+        # Launch two concurrent PUTs.
+        statuses: list[int] = []
+        values_list: list[dict] = []
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(_put, "A"), pool.submit(_put, "B")]
+            for fut in as_completed(futures):
+                code, vals = fut.result()
+                statuses.append(code)
+                values_list.append((code, vals))
+
+        # Exactly one 200 and one 412.
+        assert sorted(statuses) == [200, 412], f"Expected [200, 412], got {sorted(statuses)}"
+
+        # File content matches the 200 writer's payload.
+        winner_values = next(v for c, v in values_list if c == 200)
+        file_text = file_path.read_text(encoding="utf-8")
+        stripped = file_text.split("\n", 1)[1]  # remove header
+        parsed = json5.loads(stripped)
+        assert parsed == winner_values
 
 
 # ── GET /secrets ────────────────────────────────────────────────────────────

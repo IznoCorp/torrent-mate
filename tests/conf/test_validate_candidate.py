@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.conf.loader import (
+    ConfigConflictError,
     ConfigLoadError,
     ConfigValidationError,
     validate_candidate,
@@ -295,6 +296,20 @@ class TestValidateCandidate:
 
         assert result_a == "ThreadA", f"Expected 'ThreadA', got '{result_a}'"
         assert result_b == "ThreadB", f"Expected 'ThreadB', got '{result_b}'"
+
+    # -- ConfigConflictError propagation ------------------------------------
+
+    def test_conflict_error_propagated(self, tmp_path: Path) -> None:
+        """Raise ConfigConflictError when two non-local overlays define the same key."""
+        cfg_dir = tmp_path / "config"
+        cfg_dir.mkdir()
+        # Two overlays both define "shared_key".
+        _write_master(cfg_dir / "config.json5", tmp_path, overlay_names=["a.json5", "b.json5"])
+        (cfg_dir / "a.json5").write_text('{"shared_key": 1}', encoding="utf-8")
+        (cfg_dir / "b.json5").write_text('{"shared_key": 2}', encoding="utf-8")
+
+        with pytest.raises(ConfigConflictError, match="shared_key"):
+            validate_candidate(cfg_dir, replaced={"a.json5": {"shared_key": 3}})
 
     # -- Orphan check skipped ------------------------------------------------
 
