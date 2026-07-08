@@ -214,8 +214,13 @@ export interface paths {
          *     (so the 202 response flushes first), then runs ``pm2 restart`` on the
          *     name configured in ``PERSONALSCRAPER_PM2_NAME``.  The subprocess stdout
          *     and stderr are redirected to a log file under the system temp directory
-         *     (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn) so a
-         *     failed pm2 invocation leaves a trace.
+         *     (``<tempdir>/torrentmate-restart-web.log``, truncated per spawn, opened
+         *     with ``O_NOFOLLOW``) so a failed pm2 invocation leaves a trace.
+         *
+         *     If the log file cannot be opened (``OSError``, e.g. a pre-planted
+         *     symlink caught by ``O_NOFOLLOW``), the error is logged at ERROR level
+         *     and the subprocess is spawned with ``subprocess.DEVNULL`` — the restart
+         *     still proceeds.
          *
          *     Args:
          *         request: The incoming FastAPI request.
