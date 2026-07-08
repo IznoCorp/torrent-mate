@@ -892,7 +892,12 @@ def put_secrets(
 
     env_path = repo_root / ".env"
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
-    write_env_keys(body.root, env_path)
+    # R10: serialize the .env read-modify-write under the same module lock as
+    # PUT /files. write_env_keys reads .env, upserts, and os.replace()s; two
+    # concurrent PUT /secrets would otherwise each read the same pre-write .env
+    # and the second replace would silently drop the first request's key.
+    with _write_lock:
+        write_env_keys(body.root, env_path)
 
     return PutFileResponse(warnings=[], restart_required=True)
 

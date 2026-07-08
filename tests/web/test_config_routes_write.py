@@ -710,6 +710,35 @@ class TestSecretsPutEndpoint:
         assert "TMDB_API_KEY=new_secret_value" in env_content
         assert "TVDB_API_KEY=tvdb_secret" in env_content
 
+    def test_write_runs_under_write_lock(self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """R10: the .env read-modify-write runs while ``_write_lock`` is held.
+
+        Without the lock, two concurrent PUT /secrets each read the same
+        pre-write .env and the second ``os.replace`` silently drops the first's
+        upserted key (lost update). This asserts the lock is held during the
+        write; it fails if the ``with _write_lock:`` guard is removed.
+        """
+        from personalscraper.web.routes import config as config_module
+
+        observed: dict[str, bool] = {}
+        real_write = config_module.write_env_keys
+
+        def _spy(keys: object, path: object) -> None:
+            observed["locked"] = config_module._write_lock.locked()
+            real_write(keys, path)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(config_module, "write_env_keys", _spy)
+
+        app = _build_app()
+        client = TestClient(app)
+        resp = client.put(
+            "/api/config/secrets",
+            json={"TMDB_API_KEY": "x"},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 200
+        assert observed.get("locked") is True
+
     def test_422_unknown_key_no_value_echo(self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Unknown keys → 422, value never echoed in error response."""
         app = _build_app()
