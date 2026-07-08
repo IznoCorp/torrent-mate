@@ -1,15 +1,7 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  SchemaForm,
-  flattenLocToPath,
-} from "@/components/config/SchemaForm";
+import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -23,9 +15,7 @@ afterEach(cleanup);
 
 describe("flattenLocToPath", () => {
   it("joint des tableaux de loc mixtes avec des points", () => {
-    expect(flattenLocToPath(["paths", 0, "data_dir"])).toBe(
-      "paths.0.data_dir",
-    );
+    expect(flattenLocToPath(["paths", 0, "data_dir"])).toBe("paths.0.data_dir");
   });
 
   it("retourne une chaîne vide pour un tableau vide", () => {
@@ -41,9 +31,9 @@ describe("flattenLocToPath", () => {
   });
 
   it("lève TypeError quand l'entrée n'est pas un tableau de (string | number)", () => {
-    expect(() => flattenLocToPath(null as unknown as (string | number)[])).toThrow(
-      TypeError,
-    );
+    expect(() =>
+      flattenLocToPath(null as unknown as (string | number)[]),
+    ).toThrow(TypeError);
     expect(() =>
       flattenLocToPath([true] as unknown as (string | number)[]),
     ).toThrow(TypeError);
@@ -220,7 +210,9 @@ describe("SchemaForm — Optional (anyOf [X, null])", () => {
     // Should render as a text input, not a fallback textarea.
     const input = screen.getByRole("textbox");
     expect(input).toHaveValue("hello");
-    expect(screen.queryByRole("textbox", { name: "JSON" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "JSON" }),
+    ).not.toBeInTheDocument();
   });
 
   it("déballe anyOf [null, integer] en champ number", () => {
@@ -263,9 +255,7 @@ describe("SchemaForm — array of primitives", () => {
     expect(inputs[1]).toHaveValue("beta");
 
     // Add button is present.
-    expect(
-      screen.getByRole("button", { name: /Ajouter/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ajouter/ })).toBeInTheDocument();
 
     // Remove buttons for each item.
     expect(
@@ -711,10 +701,7 @@ describe("SchemaForm — errors", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
+    expect(screen.getByRole("textbox")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("n'affiche pas d'erreur pour un chemin non correspondant", () => {
@@ -729,9 +716,7 @@ describe("SchemaForm — errors", () => {
       />,
     );
 
-    expect(
-      screen.queryByText("Erreur ailleurs"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Erreur ailleurs")).not.toBeInTheDocument();
   });
 });
 
@@ -837,12 +822,89 @@ describe("SchemaForm — labels et required", () => {
     // The label for "name" should contain "Name" with a required marker.
     const labels = screen.getAllByText(/Name/);
     // At least one label should contain the aria-hidden "*".
-    const requiredLabel = labels.find(
-      (el) => el.tagName === "LABEL",
-    );
+    const requiredLabel = labels.find((el) => el.tagName === "LABEL");
     expect(requiredLabel).toBeTruthy();
     if (!requiredLabel) throw new Error("Expected label not found");
     expect(requiredLabel.textContent).toMatch(/\*/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shadowedKeys warning chips
+// ---------------------------------------------------------------------------
+
+describe("SchemaForm — shadowedKeys", () => {
+  it("affiche un avertissement pour une clé de premier niveau dans shadowedKeys", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: {
+            api_key: { type: "string" },
+            max_retries: { type: "integer" },
+          },
+        }}
+        values={{ api_key: "secret", max_retries: 3 }}
+        onChange={onChange}
+        shadowedKeys={["api_key"]}
+      />,
+    );
+
+    // Warning chip for the shadowed key.
+    expect(
+      screen.getByText(/écrasée par local.json5 — modification sans effet/i),
+    ).toBeInTheDocument();
+  });
+
+  it("n'affiche pas d'avertissement pour les clés non shadowed", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: {
+            api_key: { type: "string" },
+            max_retries: { type: "integer" },
+          },
+        }}
+        values={{ api_key: "secret", max_retries: 3 }}
+        onChange={onChange}
+        shadowedKeys={[]}
+      />,
+    );
+
+    // No warning chip.
+    expect(
+      screen.queryByText(/écrasée par local.json5 — modification sans effet/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("n'affiche pas d'avertissement pour les clés imbriquées (profondeur > 0)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: {
+            nested: {
+              type: "object",
+              properties: {
+                shadowed_inner: { type: "string" },
+              },
+            },
+          },
+        }}
+        values={{ nested: { shadowed_inner: "val" } }}
+        onChange={onChange}
+        shadowedKeys={["shadowed_inner"]}
+      />,
+    );
+
+    // The shadowed key is at depth 1 (inside "nested"), so NO chip.
+    expect(
+      screen.queryByText(/écrasée par local.json5 — modification sans effet/i),
+    ).not.toBeInTheDocument();
   });
 });
 

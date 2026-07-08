@@ -78,6 +78,7 @@ const defaultStatus = {
   role: "prod",
   read_only: false,
   restart_required: false,
+  restart_configured: true,
   stale_files: [],
 };
 
@@ -86,6 +87,7 @@ const readOnlyStatus = {
   role: "staging",
   read_only: true,
   restart_required: false,
+  restart_configured: true,
   stale_files: [],
 };
 
@@ -94,6 +96,7 @@ const restartRequiredStatus = {
   role: "prod",
   read_only: false,
   restart_required: true,
+  restart_configured: true,
   stale_files: ["master.json5", "secrets.json5"],
 };
 
@@ -396,12 +399,14 @@ describe("Config", () => {
     });
   });
 
-  // ---- 7. Restart badge on files with restart_impact ----------------------
-  it("affiche un badge restart sur les fichiers dont une clé impacte le redémarrage", () => {
+  // ---- 7. Restart badge + shadowed badge on files --------------------------
+  it("affiche les badges restart et shadowed dans la liste des fichiers", () => {
     renderConfig();
 
     // secrets.json5 owns api_key which has restart_impact=true → "restart" badge.
     expect(screen.getByText("restart")).toBeInTheDocument();
+    // secrets.json5 has non-empty shadowed_keys → "shadowed" badge.
+    expect(screen.getByText("shadowed")).toBeInTheDocument();
   });
 
   // ---- 8. Loading state ---------------------------------------------------
@@ -449,7 +454,11 @@ describe("Config", () => {
       new ApiError(
         422,
         JSON.stringify([
-          { loc: [], msg: "Une clé au moins est obligatoire", type: "value_error" },
+          {
+            loc: [],
+            msg: "Une clé au moins est obligatoire",
+            type: "value_error",
+          },
         ]),
       ),
     );
@@ -482,5 +491,162 @@ describe("Config", () => {
         "Validation échouée — 1 erreur(s) : Une clé au moins est obligatoire",
       );
     });
+  });
+
+  // ---- 11. Restart button hidden when restart_configured=false ------------
+  it("cache le bouton de redémarrage quand restart_configured est false et affiche un hint", () => {
+    mocks.useConfigStatus.mockReturnValue(
+      success({
+        ...restartRequiredStatus,
+        restart_configured: false,
+      }),
+    );
+    renderConfig();
+
+    // The banner heading is still shown.
+    expect(screen.getByText("Redémarrage requis")).toBeInTheDocument();
+    // Button should NOT be present.
+    expect(
+      screen.queryByRole("button", { name: /redémarrer le daemon/i }),
+    ).not.toBeInTheDocument();
+    // Hint should be shown.
+    expect(screen.getByText(/non configuré sur ce daemon/)).toBeInTheDocument();
+  });
+
+  // ---- 12. Restart click flow: confirm → POST → success toast ------------
+  it("affiche un toast de succès après un redémarrage confirmé", async () => {
+    const restartAsync = vi.fn().mockResolvedValue({ status: "scheduled" });
+    mocks.useRestartWeb.mockReturnValue({
+      mutateAsync: restartAsync,
+      isPending: false,
+    });
+    mocks.useConfigStatus.mockReturnValue(success(restartRequiredStatus));
+    renderConfig();
+
+    // Click "Redémarrer le daemon" button.
+    fireEvent.click(
+      screen.getByRole("button", { name: /redémarrer le daemon/i }),
+    );
+
+    // Confirmation dialog should appear.
+    await waitFor(() => {
+      expect(screen.getByText(/redémarrer le daemon \?/i)).toBeInTheDocument();
+    });
+
+    // Click the destructive "Redémarrer" button.
+    fireEvent.click(screen.getByRole("button", { name: "Redémarrer" }));
+
+    await waitFor(() => {
+      expect(restartAsync).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        "Redémarrage programmé — la connexion va se couper puis se rétablir.",
+      );
+    });
+  });
+
+  // ---- 13. 404 from restart endpoint → error toast -----------------------
+  it("affiche un toast d'erreur quand le restart renvoie 404", async () => {
+    const restartAsync = vi
+      .fn()
+      .mockRejectedValue(new ApiError(404, "Not Found"));
+    mocks.useRestartWeb.mockReturnValue({
+      mutateAsync: restartAsync,
+      isPending: false,
+    });
+    mocks.useConfigStatus.mockReturnValue(success(restartRequiredStatus));
+    renderConfig();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /redémarrer le daemon/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/redémarrer le daemon \?/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Redémarrer" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Redémarrage non configuré — PERSONALSCRAPER_PM2_NAME absent.",
+      );
+    });
+  });
+
+  // ---- 14. PUT warnings + restart_required → both toasts -----------------
+  it("affiche les warnings et le hint restart_required après une sauvegarde réussie", async () => {
+    const putAsync = vi.fn().mockResolvedValue({
+      restart_required: true,
+      warnings: ["Clé 'api_key' sera écrasée par local.json5"],
+    });
+    mocks.usePutConfigFile.mockReturnValue({
+      mutateAsync: putAsync,
+      isPending: false,
+    });
+    mocks.useConfigFile.mockReturnValue(
+      success({
+        name: "secrets.json5",
+        values: { api_key: "old" },
+        sha256: "def456",
+        shadowed_keys: ["api_key"],
+      }),
+    );
+    renderConfig();
+
+    // Select secrets.json5.
+    fireEvent.click(screen.getByText("secrets.json5"));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("old")).toBeInTheDocument();
+    });
+
+    // Edit to trigger dirty.
+    fireEvent.change(screen.getByDisplayValue("old"), {
+      target: { value: "new_key" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    // Both warning and restart toasts should fire.
+    await waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        "Clé 'api_key' sera écrasée par local.json5",
+      );
+      expect(toast.warning).toHaveBeenCalledWith(
+        "Redémarrage requis pour appliquer.",
+      );
+    });
+  });
+
+  // ---- 15. Shadowed-key warning chip for secrets.json5 -------------------
+  it("affiche un avertissement de clé écrasée pour les fichiers avec shadowed_keys", async () => {
+    mocks.useConfigFile.mockReturnValue(
+      success({
+        name: "secrets.json5",
+        values: { api_key: "abc" },
+        sha256: "def456",
+        shadowed_keys: ["api_key"],
+      }),
+    );
+    renderConfig();
+
+    // Select secrets.json5.
+    fireEvent.click(screen.getByText("secrets.json5"));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("abc")).toBeInTheDocument();
+    });
+
+    // Shadowed warning chip should be visible.
+    expect(
+      screen.getByText(/écrasée par local.json5 — modification sans effet/i),
+    ).toBeInTheDocument();
   });
 });
