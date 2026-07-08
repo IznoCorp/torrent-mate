@@ -28,6 +28,19 @@
     min_ratio: 0.0,
   },
 
+  // Sort step tunables.
+  sort: {
+    // Opt-in seed-pure sort guard (ENFORCED). When true, the sort step asks the
+    // torrent client for completed torrents tagged "seed-pure" and excludes any
+    // staging item whose name matches one (skipped, never moved into the library).
+    // The always-on ingest skip is the primary guardrail; this is defense-in-depth.
+    verify_seed_pure: false,
+  },
+  // NOTE: the `process_clean` config section (process_clean.verify_seed_pure) is
+  // intentionally NOT exposed as an overlay key — that flag is reserved and NOT
+  // enforced (the clean-side seed-pure guard is deliberately unimplemented, see
+  // ProcessCleanConfig). It stays at its model default; do not surface it in the editor.
+
   // Fuzzy match thresholds (anti-false-positive guards). Values below are defaults.
   fuzzy_match: {
     // Reject if len(shorter) / len(longer) < this ratio. Range: (0.0, 1.0]

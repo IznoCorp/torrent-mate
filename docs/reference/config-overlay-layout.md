@@ -12,7 +12,7 @@ config/                       ← gitignored, machine-specific (created by init-
   categories.json5            ← custom_categories, categories{}, category_rules[], anime_rule, genre_mapping
   patterns.json5              ← staging_dirs[]
   encoding.json5              ← library.*
-  scraper.json5               ← scraper, ingest, fuzzy_match
+  scraper.json5               ← scraper, ingest, sort, fuzzy_match
   trailers.json5              ← trailers.*
   indexer.json5               ← indexer.*
   thresholds.json5            ← thresholds.*
@@ -80,7 +80,7 @@ Run `personalscraper init-config` to copy it to `./config/`.
 | `custom_categories`, `categories`, `category_rules`, `anime_rule`, `genre_mapping` | `categories.json5` |
 | `staging_dirs`                                                                     | `patterns.json5`   |
 | `library`                                                                          | `encoding.json5`   |
-| `scraper`, `ingest`, `fuzzy_match`                                                 | `scraper.json5`    |
+| `scraper`, `ingest`, `sort`, `fuzzy_match`                                         | `scraper.json5`    |
 | `trailers`                                                                         | `trailers.json5`   |
 | `indexer`                                                                          | `indexer.json5`    |
 | `thresholds`                                                                       | `thresholds.json5` |
