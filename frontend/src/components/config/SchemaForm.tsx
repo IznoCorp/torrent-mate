@@ -60,6 +60,14 @@ export interface SchemaFormProps {
   /** When ``true`` all controls are disabled. */
   readonly readOnly?: boolean;
   /**
+   * Keys in the current file that are overridden by ``local.json5``.
+   *
+   * Top-level property fields whose key is in this set render a warning chip
+   * ("écrasée par local.json5 — modification sans effet").  Only checked at
+   * path depth 0 (the file root).
+   */
+  readonly shadowedKeys?: readonly string[];
+  /**
    * Whether this field is required by its parent object schema.
    *
    * When ``true`` the label is marked with ``*`` and ``aria-required``.
@@ -1108,6 +1116,7 @@ export function SchemaForm({
   readOnly = false,
   required = false,
   path = "",
+  shadowedKeys,
 }: SchemaFormProps): ReactElement {
   const fullRoot = rootSchema ?? schema;
 
@@ -1207,6 +1216,14 @@ export function SchemaForm({
                 />
                 {/* Show required marker for the property itself */}
                 {isReq && <span className="sr-only">(requis)</span>}
+                {/* Shadowed-key warning chip (top-level only, DESIGN §5). */}
+                {path === "" &&
+                  shadowedKeys != null &&
+                  shadowedKeys.includes(key) && (
+                    <p className="text-xs text-[var(--warning)] mt-1">
+                      Écrasée par local.json5 — modification sans effet
+                    </p>
+                  )}
               </div>
             );
           })}

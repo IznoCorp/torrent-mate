@@ -91,9 +91,7 @@ function intersectRequired(
   ownedKeys: string[],
 ): string[] | undefined {
   if (!Array.isArray(required)) return undefined;
-  const req = required.filter(
-    (v): v is string => typeof v === "string",
-  );
+  const req = required.filter((v): v is string => typeof v === "string");
   const ownedSet = new Set(ownedKeys);
   const filtered = req.filter((k) => ownedSet.has(k));
   return filtered.length > 0 ? filtered : undefined;
@@ -110,9 +108,7 @@ function intersectRequired(
  *   An array of validation errors, or ``null`` when the error is not a 422 or
  *   the detail cannot be parsed.
  */
-function extractValidationErrors(
-  err: unknown,
-): ValidationErrorEntry[] | null {
+function extractValidationErrors(err: unknown): ValidationErrorEntry[] | null {
   if (!(err instanceof ApiError) || err.status !== 422) return null;
   try {
     const parsed: unknown = JSON.parse(err.detail);
@@ -166,6 +162,7 @@ export default function Config(): ReactElement {
   const dirtyFileNames = new Set(dirtyValues.keys());
   const readOnly = statusQ.data?.read_only === true;
   const restartRequired = statusQ.data?.restart_required === true;
+  const restartConfigured = statusQ.data?.restart_configured === true;
   const staleFiles = statusQ.data?.stale_files ?? [];
   const isStaging = statusQ.data?.role === "staging";
 
@@ -176,13 +173,10 @@ export default function Config(): ReactElement {
   const validate = useValidateConfig();
 
   // ---- File selection handler ----------------------------------------------
-  const handleSelectFile = useCallback(
-    (name: string) => {
-      setSelectedFile(name);
-      setFormErrors({});
-    },
-    [],
-  );
+  const handleSelectFile = useCallback((name: string) => {
+    setSelectedFile(name);
+    setFormErrors({});
+  }, []);
 
   // ---- Get current values for the selected file ----------------------------
   const currentValues = useMemo<Record<string, unknown>>(
@@ -198,11 +192,8 @@ export default function Config(): ReactElement {
 
   // ---- Build the sub-schema for the selected file --------------------------
   const rootSchema = schemaQ.data?.json_schema as
-    | Record<string, unknown>
-    | undefined;
-  const fileInfo = filesQ.data?.files.find(
-    (f) => f.name === selectedFile,
-  );
+    Record<string, unknown> | undefined;
+  const fileInfo = filesQ.data?.files.find((f) => f.name === selectedFile);
   const ownedKeys = fileInfo?.owned_keys ?? [];
 
   let fileSchema: Record<string, unknown> = { type: "object" };
@@ -227,8 +218,16 @@ export default function Config(): ReactElement {
     const body: PutFileRequest = { values, base_sha256: baseSha256 };
 
     try {
-      await putFile.mutateAsync(body);
+      const result = await putFile.mutateAsync(body);
       // 200 — success.
+      // Surface warnings from validate_candidate.
+      if (result.warnings.length > 0) {
+        toast.warning(result.warnings.join("\n"));
+      }
+      // Surface restart hint (status invalidation covers the banner).
+      if (result.restart_required) {
+        toast.warning("Redémarrage requis pour appliquer.");
+      }
       toast.success(`Fichier "${selectedFile}" enregistré.`);
       setDirtyValues((prev) => {
         const next = new Map(prev);
@@ -342,7 +341,9 @@ export default function Config(): ReactElement {
     setShowRestartConfirm(false);
     try {
       await restartWeb.mutateAsync();
-      toast.success("Redémarrage programmé — la page va se rafraîchir.");
+      toast.success(
+        "Redémarrage programmé — la connexion va se couper puis se rétablir.",
+      );
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
         toast.error(
@@ -404,7 +405,7 @@ export default function Config(): ReactElement {
                 Fichiers modifiés : {staleFiles.join(", ")}
               </p>
             </div>
-            {!readOnly && (
+            {!readOnly && restartConfigured && (
               <Button
                 type="button"
                 variant="outline"
@@ -416,6 +417,12 @@ export default function Config(): ReactElement {
               >
                 Redémarrer le daemon
               </Button>
+            )}
+            {!readOnly && !restartConfigured && (
+              <p className="text-xs text-muted-foreground">
+                Redémarrage requis — non configuré sur ce daemon
+                (PERSONALSCRAPER_PM2_NAME).
+              </p>
             )}
           </div>
         </div>
@@ -467,16 +474,12 @@ export default function Config(): ReactElement {
                   <Button
                     type="button"
                     size="sm"
-                    disabled={
-                      readOnly || !isDirty || putFile.isPending
-                    }
+                    disabled={readOnly || !isDirty || putFile.isPending}
                     onClick={() => {
                       void handleSave();
                     }}
                   >
-                    {putFile.isPending
-                      ? "Enregistrement…"
-                      : "Enregistrer"}
+                    {putFile.isPending ? "Enregistrement…" : "Enregistrer"}
                   </Button>
                 </div>
               </div>
@@ -495,6 +498,7 @@ export default function Config(): ReactElement {
                 }}
                 errors={formErrors}
                 readOnly={readOnly}
+                shadowedKeys={fileQ.data?.shadowed_keys ?? []}
               />
             </div>
           )}
@@ -532,10 +536,7 @@ export default function Config(): ReactElement {
             >
               Annuler
             </Button>
-            <Button
-              type="button"
-              onClick={handleReloadFile}
-            >
+            <Button type="button" onClick={handleReloadFile}>
               Recharger
             </Button>
           </DialogFooter>
@@ -553,8 +554,8 @@ export default function Config(): ReactElement {
           <DialogHeader>
             <DialogTitle>Redémarrer le daemon ?</DialogTitle>
             <DialogDescription>
-              Cette action va redémarrer le processus web via PM2. La page se
-              rafraîchira automatiquement une fois le redémarrage terminé.
+              Cette action va redémarrer le processus web via PM2. La connexion
+              va se couper puis se rétablir.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
