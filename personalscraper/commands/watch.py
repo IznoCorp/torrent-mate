@@ -150,6 +150,16 @@ def watch(ctx: typer.Context) -> None:
 
     try:
         while not _shutdown_requested:
+            # Web pause lever: POST /api/pipeline/watcher {enabled:false} writes the
+            # watcher.paused sentinel. Honour it here — while it exists, skip polling,
+            # evaluation, and any FIRE_RUN/FIRE_CROSS_SEED dispatch. This does NOT touch
+            # an already-running tracked child (pausing the watcher only prevents the
+            # daemon from auto-starting NEW runs; matches pipe-control DESIGN §pause).
+            if (data_dir / "watcher.paused").exists():
+                log.debug("watcher_paused_skipping_cycle")
+                _interruptible_sleep(config.watch.poll_interval_s)
+                continue
+
             # 1. Fresh ingested set — re-read every cycle (spawned runs mutate
             #    ingested_torrents.json).
             tracker_path = data_dir / "ingested_torrents.json"
