@@ -382,3 +382,57 @@ class TestLoginRateLimit:
                 ).status_code
                 == 401
             )
+
+
+class TestClientKeyXffSpoofing:
+    """R13 — the limiter key uses the RIGHTMOST X-Forwarded-For entry.
+
+    Behind Caddy the app peer is always loopback and Caddy APPENDS the real
+    client address to any client-supplied X-Forwarded-For. Keying on the
+    leftmost entry let an attacker rotate a fake value per POST and get a
+    fresh rate-limit window every time — the 5-failures/60s login cap (the
+    sole documented brute-force mitigation) was unenforceable.
+    """
+
+    @staticmethod
+    def _request(peer: str, xff: str | None):
+        """Build a real Starlette Request from a synthetic ASGI scope."""
+        from fastapi import Request
+
+        headers = [(b"x-forwarded-for", xff.encode())] if xff is not None else []
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/auth/login",
+            "client": (peer, 12345),
+            "headers": headers,
+        }
+        return Request(scope)
+
+    def test_loopback_peer_keys_on_rightmost_xff(self) -> None:
+        """The proxy-appended (rightmost) address is the limiter key."""
+        from personalscraper.web.auth.routes import _client_key
+
+        req = self._request("127.0.0.1", "6.6.6.6, 203.0.113.7")
+        assert _client_key(req) == "203.0.113.7"
+
+    def test_spoofed_leftmost_xff_does_not_create_new_limiter_key(self) -> None:
+        """Rotating the client-controlled leftmost entry must NOT change the key."""
+        from personalscraper.web.auth.routes import _client_key
+
+        keys = {_client_key(self._request("127.0.0.1", f"fake-{i}.invalid, 203.0.113.7")) for i in range(5)}
+        assert keys == {"203.0.113.7"}
+
+    def test_non_loopback_peer_ignores_xff(self) -> None:
+        """A direct (non-proxy) peer is keyed on its own address, XFF ignored."""
+        from personalscraper.web.auth.routes import _client_key
+
+        req = self._request("198.51.100.2", "6.6.6.6, 203.0.113.7")
+        assert _client_key(req) == "198.51.100.2"
+
+    def test_loopback_peer_without_xff_keys_on_peer(self) -> None:
+        """Loopback peer with no XFF header falls back to the peer address."""
+        from personalscraper.web.auth.routes import _client_key
+
+        req = self._request("127.0.0.1", None)
+        assert _client_key(req) == "127.0.0.1"
