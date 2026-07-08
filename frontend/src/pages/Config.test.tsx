@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
 import Config from "@/pages/Config";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Default mock data
@@ -306,8 +307,13 @@ describe("Config", () => {
     });
   });
 
-  // ---- 5. 422 maps errors into the form -----------------------------------
-  it("affiche les erreurs de validation 422 dans le formulaire", async () => {
+  // ---- 5. 422 maps errors into the form + fires toast ----------------------
+  // The transport-level guarantee that stringified arrays round-trip lives in
+  // useConfig.test.tsx → "putConfigFile transport (422 array detail)".
+  it("affiche les erreurs de validation 422 dans le formulaire et déclenche un toast", async () => {
+    // After the transport fix (FIX 1), the ApiError.detail is a
+    // JSON.stringified array — this is legitimate and is what the real
+    // transport now produces.
     const putAsync = vi.fn().mockRejectedValue(
       new ApiError(
         422,
@@ -348,6 +354,9 @@ describe("Config", () => {
     await waitFor(() => {
       expect(screen.getByText("Doit être >= 0")).toBeInTheDocument();
     });
+
+    // Always-toast contract (FIX 2): every 422 save fires toast.error.
+    expect(toast.error).toHaveBeenCalledWith("Validation échouée");
   });
 
   // ---- 6. 412 opens conflict dialog ---------------------------------------
@@ -429,5 +438,49 @@ describe("Config", () => {
     expect(
       screen.getByText(/impossible de charger la configuration/i),
     ).toBeInTheDocument();
+  });
+
+  // ---- 10. 422 model-level error (loc: []) → toast, no crash --------------
+  it("affiche un toast avec le message d'erreur modèle sur loc: [] sans crash", async () => {
+    // Model-level errors have an empty loc array — flattenLocToPath produces
+    // "", which matches no rendered field.  The fix (SF-14) detects them as
+    // "unmatched" and surfaces the first message in the toast.
+    const putAsync = vi.fn().mockRejectedValue(
+      new ApiError(
+        422,
+        JSON.stringify([
+          { loc: [], msg: "Une clé au moins est obligatoire", type: "value_error" },
+        ]),
+      ),
+    );
+    mocks.usePutConfigFile.mockReturnValue({
+      mutateAsync: putAsync,
+      isPending: false,
+    });
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    fireEvent.click(screen.getByText("master.json5"));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByDisplayValue("3"), {
+      target: { value: "" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    // No crash — the toast surfaces the unmatched error.
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Validation échouée — 1 erreur(s) : Une clé au moins est obligatoire",
+      );
+    });
   });
 });

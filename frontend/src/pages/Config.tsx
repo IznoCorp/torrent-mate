@@ -246,11 +246,26 @@ export default function Config(): ReactElement {
           const validationErrors = extractValidationErrors(err);
           if (validationErrors) {
             const mapped: Record<string, string> = {};
+            const unmatched: string[] = [];
             for (const ve of validationErrors) {
               const path = flattenLocToPath(ve.loc);
-              mapped[path] = ve.msg;
+              if (path === "") {
+                // Model-level error (loc: []) — no field to anchor to.
+                unmatched.push(ve.msg);
+              } else {
+                mapped[path] = ve.msg;
+              }
             }
             setFormErrors(mapped);
+            // Always toast on 422 save failure (SF-14 — simpler contract).
+            if (unmatched.length > 0) {
+              const first = unmatched[0] ?? "";
+              toast.error(
+                `Validation échouée — ${String(unmatched.length)} erreur(s) : ${first}`,
+              );
+            } else {
+              toast.error("Validation échouée");
+            }
             return;
           }
         }
@@ -280,11 +295,24 @@ export default function Config(): ReactElement {
         const validationErrors = extractValidationErrors(err);
         if (validationErrors) {
           const mapped: Record<string, string> = {};
+          const unmatched: string[] = [];
           for (const ve of validationErrors) {
             const path = flattenLocToPath(ve.loc);
-            mapped[path] = ve.msg;
+            if (path === "") {
+              unmatched.push(ve.msg);
+            } else {
+              mapped[path] = ve.msg;
+            }
           }
           setFormErrors(mapped);
+          if (unmatched.length > 0) {
+            const first = unmatched[0] ?? "";
+            toast.error(
+              `Validation échouée — ${String(unmatched.length)} erreur(s) : ${first}`,
+            );
+          } else {
+            toast.error("Validation échouée");
+          }
           return;
         }
       }

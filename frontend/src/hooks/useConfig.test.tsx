@@ -3,7 +3,7 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/api/client";
+import { ApiError, putConfigFile } from "@/api/client";
 import { configKeys } from "@/hooks/useConfigKeys";
 import {
   useConfigFiles,
@@ -64,9 +64,7 @@ function createWrapper(): (props: { children: ReactNode }) => ReactElement {
 
   return function Wrapper({ children }: { children: ReactNode }): ReactElement {
     return (
-      <QueryClientProvider client={client}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
   };
 }
@@ -179,5 +177,67 @@ describe("useValidateConfig", () => {
 
     expect(result.current.error).toBeInstanceOf(ApiError);
     expect((result.current.error as ApiError).status).toBe(422);
+  });
+});
+
+describe("putConfigFile transport (422 array detail)", () => {
+  it("surfaces an array detail as a JSON.stringified string that round-trips", async () => {
+    // The backend returns 422 with detail = [{loc, msg, type}, ...] (FastAPI
+    // validation errors).  The transport must JSON.stringify the array so
+    // extractValidationErrors in Config.tsx can JSON.parse it back.
+    const detailArray = [
+      { loc: ["max_retries"], msg: "Doit être >= 0", type: "value_error" },
+    ];
+    const errorBody = { detail: detailArray };
+
+    fetchMock.mockResolvedValue(buildResponse(422, errorBody));
+
+    await expect(
+      putConfigFile("master.json5", {
+        values: { max_retries: -1 },
+        base_sha256: "abc123",
+      }),
+    ).rejects.toSatisfy((err: unknown) => {
+      expect(err).toBeInstanceOf(ApiError);
+      const apiErr = err as ApiError;
+      expect(apiErr.status).toBe(422);
+      // The detail must be a string that JSON.parses back to the original array.
+      const parsed: unknown = JSON.parse(apiErr.detail);
+      expect(parsed).toEqual(detailArray);
+      return true;
+    });
+  });
+
+  it("surfaces a string detail unchanged", async () => {
+    fetchMock.mockResolvedValue(
+      buildResponse(422, { detail: "Something went wrong" }),
+    );
+
+    await expect(
+      putConfigFile("master.json5", {
+        values: {},
+        base_sha256: "abc123",
+      }),
+    ).rejects.toSatisfy((err: unknown) => {
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).detail).toBe("Something went wrong");
+      return true;
+    });
+  });
+
+  it("falls back to statusText when the body has no detail key", async () => {
+    // Simulate a non-JSON body or JSON without a 'detail' key.
+    fetchMock.mockResolvedValue(buildResponse(500, { error: "boom" }));
+
+    await expect(
+      putConfigFile("master.json5", {
+        values: {},
+        base_sha256: "abc123",
+      }),
+    ).rejects.toSatisfy((err: unknown) => {
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).status).toBe(500);
+      return true;
+    });
   });
 });
