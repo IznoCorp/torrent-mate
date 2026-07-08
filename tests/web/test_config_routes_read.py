@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 from fastapi import FastAPI
@@ -227,6 +228,21 @@ class TestFileEndpoint:
         values: dict[str, object] = data["values"]["paths"]
         assert "staging_dir" in values
         assert "data_dir" in values
+
+    @pytest.mark.parametrize(
+        "traversal_name",
+        [
+            "../x.json5",
+            "/etc/passwd",
+            ".backups/paths.json5.x.json5",
+        ],
+    )
+    def test_404_path_traversal_rejected(self, client: TestClient, traversal_name: str) -> None:
+        """Path traversal attempts via GET /files/{name} are rejected with 404."""
+        # URL-encode to preserve path separators in the name segment.
+
+        resp = client.get(f"/api/config/files/{quote(traversal_name, safe='')}")
+        assert resp.status_code == 404
 
 
 # ── GET /status ─────────────────────────────────────────────────────────────

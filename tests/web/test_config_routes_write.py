@@ -17,6 +17,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from unittest.mock import MagicMock
+from urllib.parse import quote
 
 import json5
 import pytest
@@ -513,6 +514,23 @@ class TestPutFileEndpoint:
         stripped = file_text.split("\n", 1)[1]  # remove header
         parsed = json5.loads(stripped)
         assert parsed == winner_values
+
+    @pytest.mark.parametrize(
+        "traversal_name",
+        [
+            "../x.json5",
+            "/etc/passwd",
+            ".backups/paths.json5.x.json5",
+        ],
+    )
+    def test_404_path_traversal_rejected(self, client: TestClient, traversal_name: str) -> None:
+        """Path traversal attempts via PUT /files/{name} are rejected with 404."""
+        resp = client.put(
+            f"/api/config/files/{quote(traversal_name, safe='')}",
+            json={"values": {}, "base_sha256": ""},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 404
 
 
 # ── GET /secrets ────────────────────────────────────────────────────────────
