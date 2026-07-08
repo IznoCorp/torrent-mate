@@ -9,7 +9,7 @@
     // verify_timeout_s: 900,
   },
   watch: {
-    enabled: false,
+    enabled: true,
     // poll_interval_s: 60,
     // debounce_s: 900,
     // safety_net_hours: 24,
