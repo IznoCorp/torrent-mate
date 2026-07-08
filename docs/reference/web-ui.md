@@ -384,13 +384,47 @@ JWT-cookie auth on `/api/*` and the WS handshake).
 
 ### PM2 entries
 
-In `ecosystem.config.js`:
+In `ecosystem.config.js`. **Every daemon/cron runs from the prod clone**
+(`~/deploy/torrentmate` + its venv), never from the dev checkout — see
+**Environment separation** below.
 
-| App                       | Script / interpreter  | Notes                                      |
-| ------------------------- | --------------------- | ------------------------------------------ |
-| `torrentmate-web`         | `personalscraper web` | cwd: `~/deploy/torrentmate`, prod venv     |
-| `torrentmate-web-staging` | `web --port 8711`     | cwd: `~/staging/torrentmate`, staging venv |
-| `torrentmate-autodeploy`  | `autodeploy-poll.sh`  | interpreter: `/bin/bash`, restart_delay 60 |
+| App                             | Script / interpreter   | Notes                                                       |
+| ------------------------------- | ---------------------- | ----------------------------------------------------------- |
+| `torrentmate-web`               | `personalscraper web`  | cwd: `~/deploy/torrentmate`, prod venv                      |
+| `torrentmate-web-staging`       | `web --port 8711`      | cwd: `~/staging/torrentmate`, staging venv                  |
+| `torrentmate-autodeploy`        | `autodeploy-poll.sh`   | interpreter: `/bin/bash`, cwd: prod clone, restart_delay 60 |
+| `personalscraper-watch`         | `watch`                | prod clone/venv; the watcher daemon (`autorestart: true`)   |
+| `personalscraper-index-enrich`  | `library-index …`      | prod clone/venv; `cron_restart` Sun 04:30                   |
+| `personalscraper-backfill-ids`  | `library-backfill-ids` | prod clone/venv; `cron_restart` Sun 05:00                   |
+| `personalscraper-follow-detect` | `follow detect`        | prod clone/venv; `cron_restart` daily 03:00                 |
+| `personalscraper-grab`          | `grab`                 | prod clone/venv; `cron_restart` daily 03:20 + 15:20         |
+| `personalscraper-health-check`  | `health-check`         | prod clone/venv; `cron_restart` hourly :15                  |
+
+### Environment separation (ENV-SEP)
+
+Three roles, one shared data plane. The **code** each process runs (which git
+branch) and process ownership are separated; `library.db`, `.data/`, `config/`,
+and the storage disks are **shared**.
+
+| Role        | Path                    | Branch                 | Runs                                                          |
+| ----------- | ----------------------- | ---------------------- | ------------------------------------------------------------- |
+| **dev**     | `~/dev/PersonalScraper` | feature branches       | nothing under PM2 — development checkout only                 |
+| **prod**    | `~/deploy/torrentmate`  | `main` (autodeploy)    | `torrentmate-web` + the watch daemon + all crons + autodeploy |
+| **staging** | `~/staging/torrentmate` | `staging` (autodeploy) | `torrentmate-web-staging` **only** (read-only, no crons)      |
+
+Rationale: the crons/watch used to run from the dev checkout via the pyenv
+editable install (`cwd: __dirname`), so they executed whatever feature branch
+dev happened to be on — a version-skew hazard against the shared `library.db`
+(pre-1.0 = no DB back-compat). They now run the prod clone's own venv binary
+with `PERSONALSCRAPER_CONFIG` passed explicitly. **Staging is web-only**: it
+shares the real `library.db`/`.data`/disks, so a second active watcher/grab/enrich
+would double-execute and race the single prod authority.
+
+The **watcher** (`watch.enabled`) is the auto-trigger for the pipeline on torrent
+completion. It ships `false` (opt-in kill-switch) and is enabled in `config`. A
+config-disabled watcher **idles cleanly** under PM2 (`personalscraper/commands/watch.py`
+sleeps honouring SIGTERM) rather than exiting — an immediate exit would crash-loop
+the `autorestart: true` daemon.
 
 ### BUILD_COMMIT stamping
 
