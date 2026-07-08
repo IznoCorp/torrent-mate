@@ -11,6 +11,7 @@
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,8 +97,8 @@ export function SecretsTab({
       setEdited(new Map());
       setSaved(true);
       toast.success("Secrets enregistrés.");
-    } catch {
-      toast.error("Échec de l’enregistrement des secrets.");
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiError ? err.detail : "Échec de l’enregistrement des secrets.");
     }
   }
 
