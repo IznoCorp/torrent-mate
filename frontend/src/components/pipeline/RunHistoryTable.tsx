@@ -174,6 +174,13 @@ const COLUMNS: ColumnDef<RunSummary>[] = [
 export interface RunHistoryTableProps {
   /** Called with the selected run UID when a row is clicked. */
   readonly onSelect: (runUid: string) => void;
+  /**
+   * Optional run-kind filter forwarded to the backend.
+   *
+   * When set to ``"maintenance"`` only maintenance runs appear; ``"pipeline"``
+   * restricts to pipeline runs.  Omitted or undefined → all run kinds.
+   */
+  readonly kind?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,12 +196,14 @@ export interface RunHistoryTableProps {
  *
  * Args:
  *   onSelect: Callback invoked with the selected run UID.
+ *   kind: Optional run-kind filter (``"maintenance"`` or ``"pipeline"``).
  *
  * Returns:
  *   The history table element.
  */
 export function RunHistoryTable({
   onSelect,
+  kind,
 }: RunHistoryTableProps): ReactElement {
   // Server-side pagination + sorting state.
   const [offset, setOffset] = useState(0);
@@ -211,8 +220,13 @@ export function RunHistoryTable({
   }, [sorting]);
 
   const queryParams: HistoryParams = useMemo(
-    () => ({ limit: PAGE_SIZE, offset, sort: sortParam }),
-    [offset, sortParam],
+    () => ({
+      limit: PAGE_SIZE,
+      offset,
+      sort: sortParam,
+      ...(kind !== undefined ? { kind } : {}),
+    }),
+    [offset, sortParam, kind],
   );
 
   const { data, isLoading, isError } = useQuery({
