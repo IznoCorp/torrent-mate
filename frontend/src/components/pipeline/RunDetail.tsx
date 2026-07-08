@@ -283,18 +283,19 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
                 <OptionsDisplay raw={data.options_json} />
               </div>
             )}
-            {/* Output tail */}
-            {data.output_tail != null && data.output_tail !== "" && (
-              <div>
-                <span className="text-xs text-muted-foreground">Sortie</span>
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs">
-                  {data.output_tail}
-                </pre>
-              </div>
-            )}
           </div>
         ) : (
           <PipelineStepper steps={data.steps} />
+        )}
+
+        {/* Output tail — shown for both pipeline and maintenance runs */}
+        {data.output_tail != null && data.output_tail !== "" && (
+          <div>
+            <span className="text-xs text-muted-foreground">Sortie</span>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs">
+              {data.output_tail}
+            </pre>
+          </div>
         )}
 
         {/* Error section — danger-styled Card */}

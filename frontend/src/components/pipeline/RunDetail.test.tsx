@@ -203,6 +203,28 @@ describe("RunDetail", () => {
     expect(screen.getByText("something broke")).toBeInTheDocument();
   });
 
+  it("affiche la sortie (output_tail) pour un run pipeline avec des détails", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "pipeline",
+        output_tail: "[scrape] hello\n[verify] WARN: oops",
+      }),
+    );
+    renderDetail("abc123-run-uid");
+
+    await screen.findByText("abc123-r…");
+
+    // The output_tail section label should be visible.
+    expect(screen.getByText("Sortie")).toBeInTheDocument();
+    // Both lines from the output_tail should be rendered.
+    expect(screen.getByText(/\[scrape\] hello/)).toBeInTheDocument();
+    expect(screen.getByText(/\[verify\] WARN: oops/)).toBeInTheDocument();
+
+    // Pipeline stepper should still render alongside the output tail.
+    expect(screen.getByText("Collecte")).toBeInTheDocument();
+  });
+
   it("affiche la commande, les options et la sortie pour un run de maintenance sans le stepper", async () => {
     const getDetail = await mockGetDetail();
     getDetail.mockResolvedValue(
