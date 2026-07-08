@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
+import { formatGb } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,19 +93,6 @@ function healthLabel(health: DiskHealth): string {
   }
 }
 
-/**
- * Format a gibibyte value to one decimal, appending " Go".
- *
- * Args:
- *   gb: The value in gibibytes.
- *
- * Returns:
- *   A formatted string like ``"238.5 Go"``.
- */
-function fmtGb(gb: number): string {
-  return `${gb.toFixed(1)} Go`;
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -168,8 +156,10 @@ export function DisksPanel(): ReactElement {
                 </div>
 
                 <StatPanel
-                  value={disk.mounted ? fmtGb(disk.free_gb) : "—"}
-                  unit={disk.mounted ? `libre / ${fmtGb(disk.total_gb)}` : undefined}
+                  value={disk.mounted ? formatGb(disk.free_gb) : "—"}
+                  unit={
+                    disk.mounted ? `libre / ${formatGb(disk.total_gb)}` : undefined
+                  }
                 />
 
                 {/* Capacity fill bar */}

@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
+import { formatGb } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,13 +84,18 @@ function humanAge(ageS: number | null | undefined): string {
 /**
  * Classify the most recent scan run status.
  *
+ * The backend lifecycle values are ``'running' | 'ok' | 'failed' | 'aborted'``
+ * (``scan_run.status``, indexer/schema.py). ``'ok'`` — not ``'done'`` — is the
+ * success terminal state; matching the wrong literal here painted a red dot
+ * next to a healthy "ok" scan (U1, operator-reported).
+ *
  * Args:
  *   status: The last_scan_status string, or null.
  *   stuck: Whether the scan is considered stuck.
  *
  * Returns:
- *   A verdict: ``done`` on success, ``warning`` when stuck, ``error`` on
- *   failure, ``done`` with no-scan label when null.
+ *   A verdict: ``done`` on success, ``warning`` when stuck/running, ``error``
+ *   on failure, ``done`` with no-scan label when null.
  */
 function scanVerdict(
   status: string | null | undefined,
@@ -99,10 +105,11 @@ function scanVerdict(
     return { status: "done", label: "Dernier scan", detail: "Aucun" };
   if (stuck)
     return { status: "warning", label: "Dernier scan", detail: "Bloqué ?" };
-  if (status === "done")
+  if (status === "ok")
     return { status: "done", label: "Dernier scan", detail: "OK" };
   if (status === "running")
     return { status: "warning", label: "Dernier scan", detail: "En cours" };
+  // failed / aborted / unknown → error with the raw status as detail.
   return { status: "error", label: "Dernier scan", detail: status };
 }
 
@@ -246,7 +253,7 @@ export function IndexHealthPanel(): ReactElement {
               <StatPanel
                 label="Fichiers"
                 value={data.files}
-                unit={`${data.size_gb.toFixed(1)} Go`}
+                unit={formatGb(data.size_gb)}
               />
             </div>
 
