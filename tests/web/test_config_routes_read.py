@@ -346,9 +346,7 @@ class TestStatusEndpoint:
         assert resp.status_code == 200
         assert resp.json()["restart_configured"] is False
 
-    def test_restart_configured_true_when_set(
-        self, config_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_restart_configured_true_when_set(self, config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """When ``PERSONALSCRAPER_PM2_NAME`` is set, ``restart_configured`` is ``True``."""
         monkeypatch.setenv("PERSONALSCRAPER_PM2_NAME", "torrentmate-web")
         app = _build_app()

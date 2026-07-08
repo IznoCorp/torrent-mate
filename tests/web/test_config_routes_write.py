@@ -583,9 +583,7 @@ class TestPutFileEndpoint:
         app = _build_app()
         app.state.config_boot_hashes = {
             "paths.json5": paths_sha,
-            "config.json5": hashlib.sha256(
-                (config_dir / "config.json5").read_bytes()
-            ).hexdigest(),
+            "config.json5": hashlib.sha256((config_dir / "config.json5").read_bytes()).hexdigest(),
         }
         client = TestClient(app)
 
