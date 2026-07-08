@@ -799,6 +799,79 @@ class TestSecretsPutEndpoint:
         assert resp.status_code == 422
         assert resp.json()["detail"] == "no keys provided"
 
+    @pytest.mark.parametrize(
+        "char,label",
+        [
+            ("\x0b", "\\x0b"),
+            ("\x0c", "\\x0c"),
+            ("\x1c", "\\x1c"),
+            ("\x1d", "\\x1d"),
+            ("\x1e", "\\x1e"),
+            ("\x85", "\\x85"),
+        ],
+    )
+    def test_422_control_char_injection_rejected(
+        self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch, char: str, label: str
+    ) -> None:
+        r"""Values containing any str.splitlines() separator (not just \r/\n) → 422.
+
+        The validator rejects every character in
+        ``FORBIDDEN_CONTROL_CHARS`` so a value like
+        ``"v\x0bINJ=evil"`` that would pass a naive \r/\n guard is
+        stopped at the API boundary.
+        """
+        app = _build_app()
+        client = TestClient(app)
+
+        original_env = (secrets_tmp_dir / ".env").read_text(encoding="utf-8")
+
+        resp = client.put(
+            "/api/config/secrets",
+            json={"TMDB_API_KEY": f"safe{char}WEB_PASSWORD_HASH=evil"},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 422
+
+        # .env must be untouched — the injected key must NOT appear.
+        env_after = (secrets_tmp_dir / ".env").read_text(encoding="utf-8")
+        assert env_after == original_env
+        assert "WEB_PASSWORD_HASH" not in env_after
+
+    def test_422_control_char_no_second_order_injection(
+        self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        r"""A \x0b value rejected at PUT → second clean upsert never sees the injected key.
+
+        Regression test for the second-order injection scenario: a value
+        ``"v\x0bINJ=evil"`` passes naive guards, is written as one line,
+        then a LATER upsert re-splits it via splitlines → ``INJ=evil``
+        becomes a real .env line.  With the full guard, the first PUT is
+        rejected, so the second upsert never sees the injected key.
+        """
+        app = _build_app()
+        client = TestClient(app)
+
+        # Attempt the injection — must be rejected.
+        resp = client.put(
+            "/api/config/secrets",
+            json={"TMDB_API_KEY": "v\x0bINJ=evil"},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 422
+
+        # Now do a legitimate second upsert — INJ must NOT appear.
+        resp = client.put(
+            "/api/config/secrets",
+            json={"TMDB_API_KEY": "clean_value"},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 200
+
+        env_content = (secrets_tmp_dir / ".env").read_text(encoding="utf-8")
+        assert "TMDB_API_KEY=clean_value" in env_content
+        assert "INJ=" not in env_content
+        assert "INJ=evil" not in env_content
+
 
 # ── POST /restart-web ───────────────────────────────────────────────────────
 

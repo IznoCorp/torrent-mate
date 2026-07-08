@@ -13,6 +13,26 @@ import re
 import tempfile
 from pathlib import Path
 
+#: Characters forbidden in .env values because they act as line separators in
+#: ``str.splitlines()`` (which is Python's default when re-parsing a text file).
+#: A value containing any of these could inject a fake ``KEY=value`` line on a
+#: later upsert.  This set covers every character *c* where
+#: ``("x" + c + "y").splitlines()`` has ``len != 1``.
+FORBIDDEN_CONTROL_CHARS: frozenset[str] = frozenset(
+    {
+        "\n",
+        "\r",
+        "\x0b",
+        "\x0c",
+        "\x1c",
+        "\x1d",
+        "\x1e",
+        "\x85",
+        " ",
+        " ",
+    }
+)
+
 
 def write_env_keys(keys: dict[str, str], env_path: Path) -> None:
     """Atomically upsert KEY=value pairs into a .env file.
@@ -30,12 +50,20 @@ def write_env_keys(keys: dict[str, str], env_path: Path) -> None:
     # Defense in depth: reject control characters that could inject new
     # KEY=value lines when the value is written verbatim.
     for _key, _val in keys.items():
-        if "\r" in _val or "\n" in _val:
+        if any(c in _val for c in FORBIDDEN_CONTROL_CHARS):
             raise ValueError(f"Value for {_key!r} contains control characters")
 
     existing_lines: list[str] = []
     if env_path.exists():
-        existing_lines = env_path.read_text(encoding="utf-8").splitlines()
+        # Use "\n" (not splitlines) so that characters like \x0b, \x1c, …
+        # that splitlines treats as separators do NOT inject fake lines.
+        text = env_path.read_text(encoding="utf-8")
+        existing_lines = text.split("\n")
+        # .split("\n") on "a\nb\n" yields ["a", "b", ""] — one more
+        # trailing empty than splitlines().  Drop it so the join below
+        # doesn't inject an extra blank line.
+        if existing_lines and existing_lines[-1] == "":
+            existing_lines.pop()
 
     seen: set[str] = set()
     out_lines: list[str] = []

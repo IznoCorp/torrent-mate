@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, RootModel, model_validator
 
+from personalscraper.conf.envfile import FORBIDDEN_CONTROL_CHARS
+
 
 class FileInfo(BaseModel):
     """Metadata for a single config file listed in ``GET /api/config/files``.
@@ -200,15 +202,21 @@ class SecretsPutRequest(RootModel[dict[str, str]]):
 
     @model_validator(mode="after")
     def _reject_control_chars(self) -> "SecretsPutRequest":
-        r"""Reject values containing \r or \n (newline injection guard).
+        r"""Reject values containing str.splitlines() separators.
+
+        The forbidden set is
+        :data:`personalscraper.conf.envfile.FORBIDDEN_CONTROL_CHARS`
+        — every character where ``("x" + c + "y").splitlines()`` has
+        ``len != 1`` (``\n``, ``\r``, ``\x0b``, ``\x0c``, ``\x1c``,
+        ``\x1d``, ``\x1e``, ``\x85``, `` ``, `` ``).
 
         Raises:
-            ValueError: If any value contains carriage return or newline
-                characters.  The key name is included in the error message
-                but the value is **never** echoed.
+            ValueError: If any value contains a forbidden control character.
+                The key name is included in the error message but the value
+                is **never** echoed.
         """
         for key, value in self.root.items():
-            if "\r" in value or "\n" in value:
+            if any(c in value for c in FORBIDDEN_CONTROL_CHARS):
                 raise ValueError(f"Value for {key!r} contains control characters")
         return self
 

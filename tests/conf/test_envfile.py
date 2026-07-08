@@ -119,6 +119,58 @@ class TestWriteEnvKeysUpsert:
 
         assert env_path.read_text() == "EXISTING=yes\n"
 
+    @pytest.mark.parametrize(
+        "char,label",
+        [
+            ("\x0b", "\\x0b"),
+            ("\x0c", "\\x0c"),
+            ("\x1c", "\\x1c"),
+            ("\x1d", "\\x1d"),
+            ("\x1e", "\\x1e"),
+            ("\x85", "\\x85"),
+            (" ", "\\u2028"),
+            (" ", "\\u2029"),
+        ],
+    )
+    def test_rejects_full_splitlines_separator_set(self, tmp_path: Path, char: str, label: str) -> None:
+        r"""Values containing any str.splitlines() separator raise ValueError.
+
+        The guard must cover every character where
+        ``("x" + c + "y").splitlines()`` has ``len != 1`` — not just \r/\n.
+        """
+        env_path = tmp_path / ".env"
+        env_path.write_text("EXISTING=yes\n")
+
+        with pytest.raises(ValueError, match="control characters"):
+            write_env_keys({"KEY": f"val{char}INJECTED=evil"}, env_path)
+
+        # File must be untouched.
+        assert env_path.read_text() == "EXISTING=yes\n"
+
+    def test_split_newline_only_does_not_split_on_other_separators(self, tmp_path: Path) -> None:
+        r"""Re-parsing with "\n" does not treat \x0b, \x1c, etc. as line breaks.
+
+        When a value sneaks past the guard with a non-\n/\r separator,
+        ``.split("\n")`` (defense in depth) must treat it as one line so
+        the fake ``KEY=value`` is never parsed as a real key.
+        """
+        env_path = tmp_path / ".env"
+        # Simulate a .env file that already has a value containing \x0b
+        # (e.g. written by a buggy earlier version).  The re-parse with
+        # .split("\n") must keep it on one line and match the real key
+        # MYKEY, NOT the injected FAKE_KEY.
+        env_path.write_text("MYKEY=val\x0bFAKE_KEY=evil\nOTHER=keep\n")
+        write_env_keys({"MYKEY": "new_val"}, env_path)
+        result = env_path.read_text()
+        # MYKEY must be replaced with the new value — the \x0b is part of
+        # the value on the original line, so that entire line is the
+        # MYKEY line, and it gets replaced in place.
+        assert "MYKEY=new_val\n" in result
+        # FAKE_KEY must NOT appear as a separate line.
+        assert "FAKE_KEY=" not in result
+        # OTHER must be preserved.
+        assert "OTHER=keep" in result
+
 
 class TestWriteEnvKeysAtomicity:
     """The write uses a same-directory temp file + os.replace for atomicity."""
