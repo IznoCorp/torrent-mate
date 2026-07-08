@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.models import PipelineReport, StepReport
+from personalscraper.pipeline import _build_run_output_tail
 from personalscraper.pipeline_history import PipelineRunWriter
 
 # ---------------------------------------------------------------------------
@@ -271,3 +274,88 @@ class TestPipelineRunWriterFailSoft:
         writer = PipelineRunWriter(not_a_db)
         # Must not raise (sqlite3 will complain but we catch it).
         writer.insert("uid-fs6", trigger="cli", dry_run=False, pid=1)
+
+
+# ---------------------------------------------------------------------------
+# _build_run_output_tail tests
+# ---------------------------------------------------------------------------
+
+
+class TestBuildRunOutputTail:
+    """Tests for ``_build_run_output_tail()`` — the durable log builder."""
+
+    def test_empty_report_returns_none(self) -> None:
+        """A report with no steps returns ``None``."""
+        report = PipelineReport(started_at=datetime.now())
+        assert _build_run_output_tail(report) is None
+
+    def test_steps_without_details_or_warnings_returns_none(self) -> None:
+        """Steps with zero details and zero warnings → ``None``."""
+        report = PipelineReport(started_at=datetime.now())
+        report.add_step("ingest", StepReport(name="ingest", success_count=5))
+        report.add_step("sort", StepReport(name="sort", success_count=4))
+        assert _build_run_output_tail(report) is None
+
+    def test_details_and_warnings_formatted_with_step_prefix(self) -> None:
+        """Each detail/warning is prefixed with ``[step_name]``."""
+        report = PipelineReport(started_at=datetime.now())
+        scrape = StepReport(
+            name="scrape",
+            success_count=2,
+            details=["[scraped] Top Chef (2010) — Saison 16/ | NFO"],
+            warnings=["Aucune correspondance pour un élément"],
+        )
+        dispatch = StepReport(
+            name="dispatch",
+            success_count=2,
+            details=["Déplacé: Top Chef → Disk1"],
+        )
+        report.add_step("scrape", scrape)
+        report.add_step("dispatch", dispatch)
+
+        result = _build_run_output_tail(report)
+        assert result is not None
+        assert "[scrape] [scraped] Top Chef (2010) — Saison 16/ | NFO" in result
+        assert "[scrape] WARN: Aucune correspondance pour un élément" in result
+        assert "[dispatch] Déplacé: Top Chef → Disk1" in result
+
+    def test_steps_ordered_by_insertion(self) -> None:
+        """The output preserves insertion order (ingest → sort → ... → dispatch)."""
+        report = PipelineReport(started_at=datetime.now())
+        report.add_step("ingest", StepReport(name="ingest", details=["1"]))
+        report.add_step("dispatch", StepReport(name="dispatch", details=["9"]))
+        report.add_step("sort", StepReport(name="sort", details=["2"]))
+
+        result = _build_run_output_tail(report)
+        assert result is not None
+        ingest_idx = result.index("[ingest]")
+        sort_idx = result.index("[sort]")
+        dispatch_idx = result.index("[dispatch]")
+        assert ingest_idx < dispatch_idx < sort_idx
+
+    def test_capped_at_64kib(self) -> None:
+        """Text longer than 64 KiB is truncated to the last 64 KiB."""
+        report = PipelineReport(started_at=datetime.now())
+        # Build a single detail line of ~1 KiB, repeated 100× = ~100 KiB.
+        long_line = "x" * 1000
+        step = StepReport(name="test", details=[long_line] * 100)
+        report.add_step("test", step)
+
+        result = _build_run_output_tail(report)
+        assert result is not None
+        assert len(result.encode("utf-8")) <= 65536
+        # The result should be the tail — the first lines should be missing.
+        assert not result.startswith("[test] " + "x" * 1000)
+
+    def test_finalize_persists_output_tail(self, tmp_path: Path) -> None:
+        """``finalize()`` with ``output_tail`` stores it in the DB row."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-tail", trigger="web", dry_run=False, pid=1)
+
+        writer.finalize("uid-tail", "success", output_tail="[scrape] hello\n[verify] WARN: oops")
+
+        row = _select_row(db_path, "uid-tail")
+        assert row is not None
+        assert row["output_tail"] == "[scrape] hello\n[verify] WARN: oops"

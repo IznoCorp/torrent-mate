@@ -62,6 +62,33 @@ class _PipelineInterrupted(Exception):
     """
 
 
+def _build_run_output_tail(report: PipelineReport) -> str | None:
+    """Build a durable per-run ``output_tail`` from step details and warnings.
+
+    Iterates the steps in pipeline order (insertion order of the dict),
+    prepending the step name in brackets to each detail and warning line.
+    Caps the result to the last 64 KiB to match the ``output_tail``
+    convention established by maintenance actions (migration 012).
+
+    Args:
+        report: The completed :class:`PipelineReport` with all steps.
+
+    Returns:
+        The last 64 KiB of the step-detail log joined with newlines,
+        or ``None`` when no step has any details or warnings.
+    """
+    lines: list[str] = []
+    for step_name, step in report.steps.items():
+        for detail in step.details:
+            lines.append(f"[{step_name}] {detail}")
+        for warning in step.warnings:
+            lines.append(f"[{step_name}] WARN: {warning}")
+    if not lines:
+        return None
+    text = "\n".join(lines)
+    return text[-65536:]
+
+
 class Pipeline:
     """Sequential exhaustive pipeline orchestrator.
 
@@ -558,7 +585,8 @@ class Pipeline:
                 # is finalized.
                 if self._history_writer is not None:
                     assert self._run_uid is not None  # set at top of run()
-                    self._history_writer.finalize(self._run_uid, run_outcome)
+                    output_tail = _build_run_output_tail(report)
+                    self._history_writer.finalize(self._run_uid, run_outcome, output_tail=output_tail)
             finally:
                 current_correlation_id.reset(token)
                 self._restore_sigint_handler(previous_sigint)
