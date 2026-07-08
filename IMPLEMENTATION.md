@@ -51,6 +51,15 @@ not surfaced to the caller; phase 6 logs it at warning + documents the semantics
 "poll /status after 202" health-recheck enhancement is left for the operator's decision (it
 extends the DESIGN's write-only+restart-badge model).
 
+### Cycle 3 (clean — merge)
+
+Focused adversarial verify of the phase-6 fix commits (code-reviewer, execution-backed:
+splitlines-set comparison, functional .env injection round-trip, mypy, targeted test runs).
+All 6 cycle-2 findings VERIFIED RESOLVED. Zero new blocking regressions. Three sub-threshold
+observations (SecretsTab empty-detail HTTP/2 edge, theoretical fdopen/Popen FD leak,
+spawn-log level=warning) — all optional polish, none a defect; the warning level is the
+intentional NEW-03 fix. Loop exits clean → squash merge (auto).
+
 ## Next action
 
-Push phase 6, poll CI, then re-review (cycle 3, expected clean → merge).
+Squash-merge PR #230 → main, then post-merge index/deploy per runbook.
