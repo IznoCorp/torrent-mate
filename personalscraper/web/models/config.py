@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic import BaseModel, ConfigDict, RootModel, model_validator
 
 
 class FileInfo(BaseModel):
@@ -192,6 +192,20 @@ class SecretsPutRequest(RootModel[dict[str, str]]):
     Wraps a flat ``{KEY: value, ...}`` mapping. Keys must exist in the
     secret catalog (``.env.example``). Values are the new secret strings.
     """
+
+    @model_validator(mode="after")
+    def _reject_control_chars(self) -> "SecretsPutRequest":
+        r"""Reject values containing \r or \n (newline injection guard).
+
+        Raises:
+            ValueError: If any value contains carriage return or newline
+                characters.  The key name is included in the error message
+                but the value is **never** echoed.
+        """
+        for key, value in self.root.items():
+            if "\r" in value or "\n" in value:
+                raise ValueError(f"Value for {key!r} contains control characters")
+        return self
 
 
 class RestartResponse(BaseModel):

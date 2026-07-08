@@ -27,6 +27,12 @@ def write_env_keys(keys: dict[str, str], env_path: Path) -> None:
         keys: Mapping of KEY → value to upsert.
         env_path: Path to the .env file (created if absent).
     """
+    # Defense in depth: reject control characters that could inject new
+    # KEY=value lines when the value is written verbatim.
+    for _key, _val in keys.items():
+        if "\r" in _val or "\n" in _val:
+            raise ValueError(f"Value for {_key!r} contains control characters")
+
     existing_lines: list[str] = []
     if env_path.exists():
         existing_lines = env_path.read_text(encoding="utf-8").splitlines()
@@ -51,6 +57,8 @@ def write_env_keys(keys: dict[str, str], env_path: Path) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(content)
+            fh.flush()
+            os.fsync(fh.fileno())
         os.replace(tmp_name, env_path)
     except BaseException:
         with contextlib.suppress(OSError):

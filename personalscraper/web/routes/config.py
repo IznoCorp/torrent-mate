@@ -805,6 +805,9 @@ def put_secrets(
     if _is_staging():
         raise HTTPException(status_code=403, detail="read-only")
 
+    if not body.root:
+        raise HTTPException(status_code=422, detail="no keys provided")
+
     config_dir = _config_dir()
     repo_root = config_dir.parent
 

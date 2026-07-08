@@ -685,6 +685,38 @@ class TestSecretsPutEndpoint:
         log_text = caplog.text
         assert secret_value not in log_text
 
+    def test_422_newline_injection_rejected(self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        r"""Values containing \n are rejected with 422; .env untouched, key not injected."""
+        app = _build_app()
+        client = TestClient(app)
+
+        original_env = (secrets_tmp_dir / ".env").read_text(encoding="utf-8")
+
+        resp = client.put(
+            "/api/config/secrets",
+            json={"TMDB_API_KEY": "safe\nWEB_PASSWORD_HASH=evil"},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 422
+
+        # .env must be untouched — the injected key must NOT appear.
+        env_after = (secrets_tmp_dir / ".env").read_text(encoding="utf-8")
+        assert env_after == original_env
+        assert "WEB_PASSWORD_HASH" not in env_after
+
+    def test_422_empty_dict_no_keys_provided(self, secrets_tmp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """PUT {} → 422 'no keys provided'."""
+        app = _build_app()
+        client = TestClient(app)
+
+        resp = client.put(
+            "/api/config/secrets",
+            json={},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 422
+        assert resp.json()["detail"] == "no keys provided"
+
 
 # ── POST /restart-web ───────────────────────────────────────────────────────
 

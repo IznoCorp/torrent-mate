@@ -98,6 +98,27 @@ class TestWriteEnvKeysUpsert:
         write_env_keys({"KEY": "val"}, env_path)
         assert env_path.read_text() == "# just a comment\nKEY=val\n"
 
+    def test_rejects_newline_in_value(self, tmp_path: Path) -> None:
+        r"""Values containing \n or \r raise ValueError (defense in depth)."""
+        env_path = tmp_path / ".env"
+        env_path.write_text("EXISTING=yes\n")
+
+        with pytest.raises(ValueError, match="control characters"):
+            write_env_keys({"KEY": "val\nINJECTED=evil"}, env_path)
+
+        # File must be untouched.
+        assert env_path.read_text() == "EXISTING=yes\n"
+
+    def test_rejects_carriage_return_in_value(self, tmp_path: Path) -> None:
+        r"""Values containing \r raise ValueError."""
+        env_path = tmp_path / ".env"
+        env_path.write_text("EXISTING=yes\n")
+
+        with pytest.raises(ValueError, match="control characters"):
+            write_env_keys({"KEY": "val\rINJECTED=evil"}, env_path)
+
+        assert env_path.read_text() == "EXISTING=yes\n"
+
 
 class TestWriteEnvKeysAtomicity:
     """The write uses a same-directory temp file + os.replace for atomicity."""
@@ -139,6 +160,26 @@ class TestWriteEnvKeysAtomicity:
         # No .tmp file must be left behind.
         tmp_files = list(tmp_path.glob(".env.*.tmp"))
         assert len(tmp_files) == 0
+
+    def test_fsync_called_before_replace(self, tmp_path: Path) -> None:
+        """Fsync is called on the temp file before os.replace (crash safety)."""
+        env_path = tmp_path / ".env"
+        env_path.write_text("OLD=value\n")
+
+        fsync_calls: list[int] = []
+
+        def tracking_fsync(fd: int) -> None:
+            fsync_calls.append(fd)
+
+        with (
+            mock.patch("os.fsync", side_effect=tracking_fsync),
+            mock.patch("os.replace") as mock_replace,
+        ):
+            write_env_keys({"NEW": "v"}, env_path)
+
+        assert len(fsync_calls) == 1
+        # fsync must be called before os.replace.
+        assert mock_replace.called
 
 
 # ---------------------------------------------------------------------------
