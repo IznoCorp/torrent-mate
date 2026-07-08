@@ -103,8 +103,12 @@ class TestPerStepBoundaryClose:
         with (
             patch("personalscraper.cli_helpers._build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
+            # The boundary now wires the fail-soft Redis event publisher on
+            # the step bus (universal run journal) — isolate it here.
+            patch("personalscraper.cli_helpers.build_redis_publisher", return_value=None),
         ):
             mock_ctx = MagicMock(spec=AppContext)
+            mock_ctx.event_bus = MagicMock()
             mock_ctx.acquire = acquire
             mock_ctx.provider_registry = MagicMock()
             mock_build.return_value = mock_ctx
@@ -122,8 +126,12 @@ class TestPerStepBoundaryClose:
         with (
             patch("personalscraper.cli_helpers._build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
+            # The boundary now wires the fail-soft Redis event publisher on
+            # the step bus (universal run journal) — isolate it here.
+            patch("personalscraper.cli_helpers.build_redis_publisher", return_value=None),
         ):
             mock_ctx = MagicMock(spec=AppContext)
+            mock_ctx.event_bus = MagicMock()
             mock_ctx.acquire = acquire
             mock_ctx.provider_registry = MagicMock()
             mock_build.return_value = mock_ctx
@@ -139,8 +147,12 @@ class TestPerStepBoundaryClose:
         with (
             patch("personalscraper.cli_helpers._build_app_context") as mock_build,
             patch("personalscraper.cli_helpers.current_correlation_id"),
+            # The boundary now wires the fail-soft Redis event publisher on
+            # the step bus (universal run journal) — isolate it here.
+            patch("personalscraper.cli_helpers.build_redis_publisher", return_value=None),
         ):
             mock_ctx = MagicMock(spec=AppContext)
+            mock_ctx.event_bus = MagicMock()
             mock_ctx.acquire = None
             mock_ctx.provider_registry = MagicMock()
             mock_build.return_value = mock_ctx

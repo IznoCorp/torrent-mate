@@ -16,6 +16,9 @@ from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.logger import get_logger
+from personalscraper.subscribers.redis_stream import build_redis_publisher
+
+log = get_logger("cli_helpers")
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -243,9 +246,19 @@ def per_step_boundary(
     """
     app_context = _build_app_context(config, settings, build_torrent_client=build_torrent_client)
     token = current_correlation_id.set(str(uuid4()))
+    # Stream step events to the web UI live feed exactly like a full
+    # ``personalscraper run`` (universal run journal, 2026-07-08). The
+    # builder is gated on ``web.enabled`` and fail-soft — Redis down never
+    # blocks a step command.
+    redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
     try:
         yield app_context
     finally:
+        if redis_publisher is not None:
+            try:
+                redis_publisher.close()
+            except Exception:  # noqa: BLE001 — teardown must never mask the step outcome
+                log.warning("per_step_boundary_publisher_close_failed", exc_info=True)
         current_correlation_id.reset(token)
         app_context.provider_registry.close()
         if app_context.acquire is not None:
