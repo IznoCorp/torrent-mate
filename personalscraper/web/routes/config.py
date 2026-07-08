@@ -63,7 +63,7 @@ from personalscraper.conf.loader import (
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError
 from personalscraper.logger import get_logger
-from personalscraper.web.deps import require_x_requested_with
+from personalscraper.web.deps import is_staging_role, require_x_requested_with
 from personalscraper.web.models.config import (
     ConfigSchemaResponse,
     ConfigStatusResponse,
@@ -584,13 +584,14 @@ def _writable_file_names(config_dir: Path) -> set[str]:
 def _is_staging() -> bool:
     """Return ``True`` if the web process is in read-only staging mode.
 
-    Reads the ``PERSONALSCRAPER_WEB_ROLE`` environment variable, defaulting
-    to ``"prod"``.
+    Delegates to :func:`personalscraper.web.deps.is_staging_role`, the
+    single source of truth for the staging role check shared by the
+    pipeline (S2), maintenance (S3), and config (S4) staging guards.
 
     Returns:
         ``True`` when the role is ``"staging"``.
     """
-    return os.environ.get("PERSONALSCRAPER_WEB_ROLE", "prod") == "staging"
+    return is_staging_role()
 
 
 # ── POST /validate ─────────────────────────────────────────────────────────

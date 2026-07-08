@@ -20,13 +20,13 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import (
     Session,
+    require_not_staging,
     require_session,
     require_x_requested_with,
 )
@@ -143,13 +143,14 @@ def _db_path(request: Request) -> Path:
     return cast(Path, request.app.state.config.indexer.db_path)
 
 
-@router.post("/run")
+@router.post("/run", response_model=RunResponse, status_code=202)
 def pipeline_run(
     request: Request,
     body: RunRequest,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
-) -> JSONResponse:
+    _staging: None = Depends(require_not_staging),
+) -> RunResponse:
     """Launch a new pipeline run as a detached subprocess.
 
     Returns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock
@@ -177,7 +178,7 @@ def pipeline_run(
         start_new_session=True,
         env={**os.environ, "PERSONALSCRAPER_RUN_UID": run_uid},
     )
-    return JSONResponse(status_code=202, content=RunResponse(run_uid=run_uid).model_dump())
+    return RunResponse(run_uid=run_uid)
 
 
 @router.post("/pause")
@@ -185,6 +186,7 @@ def pipeline_pause(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
     """Create the ``pipeline.pause`` sentinel to pause the running pipeline.
 
@@ -205,6 +207,7 @@ def pipeline_resume(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
     """Remove the ``pipeline.pause`` sentinel to resume a paused pipeline.
 
@@ -221,6 +224,7 @@ def pipeline_kill(
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> StatusResponse:
     """Kill the running pipeline subprocess with SIGTERM.
 
@@ -260,6 +264,7 @@ def pipeline_watcher(
     body: WatcherRequest,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
+    _staging: None = Depends(require_not_staging),
 ) -> WatcherResponse:
     """Enable or pause the directory watcher daemon.
 

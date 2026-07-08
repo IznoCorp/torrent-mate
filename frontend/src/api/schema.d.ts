@@ -924,6 +924,21 @@ export interface components {
             };
         };
         /**
+         * ActionRunResponse
+         * @description Response body returned after a successful ``POST .../run``.
+         *
+         *     Mirrors the S2 :class:`~personalscraper.web.models.pipeline.RunResponse`
+         *     pattern: a single ``run_uid`` the client can poll for status.
+         *
+         *     Attributes:
+         *         run_uid: The unique hex identifier of the newly launched
+         *             maintenance run (a ``uuid4().hex``).
+         */
+        ActionRunResponse: {
+            /** Run Uid */
+            run_uid: string;
+        };
+        /**
          * ActionsResponse
          * @description Top-level response for the maintenance actions catalog.
          *
@@ -1527,6 +1542,17 @@ export interface components {
              * @default false
              */
             dry_run: boolean;
+        };
+        /**
+         * RunResponse
+         * @description Response body returned after a successful ``POST /api/pipeline/run``.
+         *
+         *     Attributes:
+         *         run_uid: The unique identifier of the newly launched pipeline run.
+         */
+        RunResponse: {
+            /** Run Uid */
+            run_uid: string;
         };
         /**
          * RunSummary
@@ -2166,12 +2192,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ActionRunResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2384,12 +2410,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RunResponse"];
                 };
             };
             /** @description Validation Error */

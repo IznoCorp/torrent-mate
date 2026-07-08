@@ -27,7 +27,6 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
@@ -38,6 +37,7 @@ from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.deps import (
     Session,
+    require_not_staging,
     require_session,
     require_x_requested_with,
 )
@@ -791,14 +791,15 @@ def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool
 # ── POST /actions/{action_id}/run ──────────────────────────────────────────────
 
 
-@router.post("/actions/{action_id}/run")
+@router.post("/actions/{action_id}/run", response_model=ActionRunResponse, status_code=202)
 def action_run(
     action_id: str,
     body: ActionRunRequest,
     request: Request,
     _session: Session = Depends(require_session),
     _xrw: None = Depends(require_x_requested_with),
-) -> JSONResponse:
+    _staging: None = Depends(require_not_staging),
+) -> ActionRunResponse:
     """Launch a maintenance action as a detached subprocess.
 
     Mirror of ``POST /api/pipeline/run`` — validates the action id, options, and
@@ -874,7 +875,7 @@ def action_run(
     if isinstance(pid, int):
         PipelineRunWriter(db_path).update_pid(run_uid, pid)
 
-    return JSONResponse(status_code=202, content=ActionRunResponse(run_uid=run_uid).model_dump())
+    return ActionRunResponse(run_uid=run_uid)
 
 
 # ── GET /actions ────────────────────────────────────────────────────────────

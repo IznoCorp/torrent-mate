@@ -1134,3 +1134,82 @@ class TestHistoryRoutes:
 
         resp = client.get("/api/pipeline/history/aaa111")
         assert resp.status_code == 401
+
+
+# ── Staging read-only guard ──────────────────────────────────────────────────
+
+
+class TestStagingReadOnly:
+    """``PERSONALSCRAPER_WEB_ROLE=staging`` → 403 ``read-only`` on every mutating POST route."""
+
+    def test_run_returns_403_when_staging(
+        self,
+        pipeline_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /run → 403 read-only on staging."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = pipeline_client.post(
+            "/api/pipeline/run",
+            json={"dry_run": False},
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "read-only"
+
+    def test_pause_returns_403_when_staging(
+        self,
+        pipeline_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /pause → 403 read-only on staging."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = pipeline_client.post(
+            "/api/pipeline/pause",
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "read-only"
+
+    def test_resume_returns_403_when_staging(
+        self,
+        pipeline_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /resume → 403 read-only on staging."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = pipeline_client.post(
+            "/api/pipeline/resume",
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "read-only"
+
+    def test_kill_returns_403_when_staging(
+        self,
+        pipeline_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /kill → 403 read-only on staging."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = pipeline_client.post(
+            "/api/pipeline/kill",
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "read-only"
+
+    def test_watcher_returns_403_when_staging(
+        self,
+        pipeline_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /watcher → 403 read-only on staging."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = pipeline_client.post(
+            "/api/pipeline/watcher",
+            json={"enabled": False},
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "read-only"

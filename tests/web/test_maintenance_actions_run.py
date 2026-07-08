@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from .test_maintenance_panels import (
@@ -767,3 +768,32 @@ class TestActionRunConcurrencyFailClosed:
             )
         assert resp.status_code == 202
         assert mock_spawn.called
+
+
+# ── Staging read-only guard ──────────────────────────────────────────────────
+
+
+class TestStagingReadOnly:
+    """``PERSONALSCRAPER_WEB_ROLE=staging`` → 403 on POST /actions/{id}/run."""
+
+    def test_action_run_returns_403_when_staging(
+        self,
+        test_config,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /api/maintenance/actions/{id}/run → 403 read-only on staging.
+
+        The 403 fires before action lookup — no DB setup needed.
+        """
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client(test_config, tmp_path)
+
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = client.post(
+            "/api/maintenance/actions/library-status/run",
+            json={"options": {}, "dry_run": False},
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "read-only"
