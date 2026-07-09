@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with phase 4 (frontend /decisions).
+Run `/implement:phase` to continue with phase 5 (integration gates + ACC + docs).
