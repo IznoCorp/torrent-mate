@@ -61,13 +61,16 @@ connection, injected from composition boundary — never opened in `_build_app_c
 
 - `upsert(staging_path, media_kind, extracted_title, extracted_year, trigger,
 candidates_json, run_uid)` — opens short-lived `sqlite3` connection (WAL pragmas),
-  NFC-normalizes `staging_path`, `INSERT OR REPLACE` (only when existing row is
-  `'pending'`), sets `updated_at = time.time()` on refresh.
+  NFC-normalizes `staging_path`, uses `INSERT ... ON CONFLICT(staging_path) DO UPDATE
+... WHERE scrape_decision.status='pending'` (NOT `INSERT OR REPLACE` — which would
+  clobber the status of non-pending rows). Sets `created_at = updated_at =
+time.time()` on insert; refreshes `candidates_json`, `"trigger"`, `run_uid`,
+  `updated_at` on update. Never resurrects resolved/dismissed/superseded rows.
 - `mark_superseded_orphans()` — marks `pending` rows where `staging_path` no longer
   exists on disk as `'superseded'`. Run at enqueue + listing time.
-- `resolve(decision_id, provider, provider_id)` — sets `status='resolved'`,
-  `resolution_json`, `resolved_at`.
-- `dismiss(decision_id)` — sets `status='dismissed'`.
+- `resolve(decision_id, provider, provider_id, via="pick")` — sets
+  `status='resolved'`, `resolution_json`, `resolved_at`, `updated_at`.
+- `dismiss(decision_id)` — sets `status='dismissed'`, `updated_at`.
 - All methods fail-soft: try/except, log warning, never raise.
 
 Test: upsert NFC dedup, dismissed non-resurrection, orphan GC, connection lifecycle
