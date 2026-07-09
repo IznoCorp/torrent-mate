@@ -23,6 +23,7 @@ from rapidfuzz import fuzz
 
 from personalscraper.api.metadata._base import SearchResult
 from personalscraper.logger import get_logger
+from personalscraper.scraper.decision_candidate import DecisionCandidate
 from personalscraper.text_utils import media_processor
 
 if TYPE_CHECKING:
@@ -365,12 +366,67 @@ def _merge_results(
     return primary + [r for r in extra if r.provider_id not in seen]
 
 
-def match_movie(
+def _results_to_candidates(
+    results: list[SearchResult],
+    local_title: str,
+    local_year: int | None,
+    *,
+    limit: int = 5,
+) -> list[DecisionCandidate]:
+    """Score search results and return top-N candidates sorted by score desc.
+
+    Deduplicates by ``provider_id`` (first occurrence wins), scores each
+    result via :func:`_score_result`, and returns the top ``limit``
+    candidates sorted by score descending.  Used by the detailed match
+    variants to build the candidate list for the scrape-arbiter decision
+    queue without additional API calls.
+
+    Args:
+        results: Search results from the provider.
+        local_title: Title extracted from the local folder.
+        local_year: Year extracted from the local folder (None if absent).
+        limit: Maximum number of candidates to return (default 5).
+
+    Returns:
+        Top-N candidates sorted by score descending.
+    """
+    scored: list[tuple[float, DecisionCandidate]] = []
+    seen_ids: set[int] = set()
+
+    for r in results:
+        pid = int(r.provider_id) if r.provider_id.isdigit() else 0
+        if pid in seen_ids or pid == 0:
+            continue
+        seen_ids.add(pid)
+
+        score = _score_result(local_title, local_year, r)
+        candidate = DecisionCandidate(
+            provider=r.provider,  # type: ignore[arg-type]  # "tmdb"|"tvdb" in practice
+            provider_id=pid,
+            title=r.title,
+            year=r.year,
+            score=score,
+            poster_url=r.poster_url or None,
+            overview=r.overview or None,
+        )
+        scored.append((score, candidate))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [c for _, c in scored[:limit]]
+
+
+def match_movie_detailed(
     tmdb_client: object,
     title: str,
     year: int | None,
-) -> MatchResult | None:
-    """Match a local movie against TMDB search results.
+) -> tuple[MatchResult | None, list[DecisionCandidate]]:
+    """Detailed variant of :func:`match_movie` returning scored candidates.
+
+    Same search chain and scoring as :func:`match_movie`, but additionally
+    returns the top-5 scored candidates as :class:`DecisionCandidate`
+    instances for the scrape-arbiter decision queue.  No additional API
+    calls are made — only the data already present in the search results
+    is used.
 
     Applies a chain of fallbacks when the initial search returns no results:
     1. fr-FR with year
@@ -386,8 +442,8 @@ def match_movie(
         year: Release year (None if not detected).
 
     Returns:
-        Best MatchResult, or None if no results found.
-        Confidence threshold evaluation is left to the caller.
+        Tuple of (best :class:`MatchResult` or None, top-5
+        :class:`DecisionCandidate` list).
     """
     # Read languages from the TMDB client config
     fr = getattr(tmdb_client, "_language", "fr-FR")
@@ -437,15 +493,15 @@ def match_movie(
 
     # 4. Year + language fallback: fallback language, no year filter
     if not results and year is not None and en != fr:
-        candidates = _search_with_language(tmdb_client, title, None, en)
-        results = _filter_by_year_window(candidates, year)
+        no_year_candidates = _search_with_language(tmdb_client, title, None, en)
+        results = _filter_by_year_window(no_year_candidates, year)
         if results:
             fallback_event = "movie_match_year_language_fallback"
             fallback_meta = {"original_year": year, "language": en}
 
     if not results:
         log.info("movie_no_tmdb_results", title=title, year=year)
-        return None
+        return None, []
 
     best_match: MatchResult | None = None
     best_score = -1.0
@@ -504,7 +560,35 @@ def match_movie(
                     candidates_count=len(results),
                 )
 
-    return best_match
+    candidates = _results_to_candidates(results, title, year)
+    return best_match, candidates
+
+
+def match_movie(
+    tmdb_client: object,
+    title: str,
+    year: int | None,
+) -> MatchResult | None:
+    """Match a local movie against TMDB search results.
+
+    Applies a chain of fallbacks when the initial search returns no results:
+    1. fr-FR with year
+    2. fr-FR without year (year window filter)
+    3. en-US with year
+    4. en-US without year (year window filter)
+
+    Languages are read from the TMDB client configuration.
+
+    Args:
+        tmdb_client: TMDBClient instance (typed as object to avoid circular import).
+        title: Movie title from the local folder.
+        year: Release year (None if not detected).
+
+    Returns:
+        Best MatchResult, or None if no results found.
+        Confidence threshold evaluation is left to the caller.
+    """
+    return match_movie_detailed(tmdb_client, title, year)[0]
 
 
 def _candidate_has_any_season(
@@ -543,23 +627,20 @@ def _candidate_has_any_season(
     return bool(available & wanted_seasons)
 
 
-def match_tvshow_tvdb(
+def match_tvshow_tvdb_detailed(
     tvdb_client: object,
     title: str,
     year: int | None,
     local_seasons: set[int] | None = None,
-) -> MatchResult | None:
-    """Match a local TV show against TVDB search results.
+) -> tuple[MatchResult | None, list[DecisionCandidate]]:
+    """Detailed variant of :func:`match_tvshow_tvdb` returning scored candidates.
 
-    TVDB is the primary provider for TV shows. Search results use
-    snake_case fields and tvdb_id (string) as the identifier.
-
-    When ``local_seasons`` is provided and the search returns multiple
-    candidates above LOW_CONFIDENCE, candidates whose TVDB catalog does
-    not overlap the local seasons are filtered out before picking the
-    best score. This prevents a same-keyword spin-off (short catalog)
-    from winning over the main show for a file tagged Sxx where xx is
-    beyond the spin-off's range.
+    Same search, scoring, and content-aware season disambiguation as
+    :func:`match_tvshow_tvdb`, but additionally returns the top-5 scored
+    candidates as :class:`DecisionCandidate` instances.  Also emits the
+    ``tvshow_match_ambiguous`` warning when the top two candidates are
+    within ``AMBIGUITY_DELTA`` — the same ambiguity detection movies have
+    via ``movie_match_ambiguous``.
 
     Args:
         tvdb_client: TVDBClient instance.
@@ -571,7 +652,8 @@ def match_tvshow_tvdb(
             whose TVDB seasons don't intersect this set are rejected.
 
     Returns:
-        Best MatchResult with source="tvdb", or None if no results.
+        Tuple of (best :class:`MatchResult` with source="tvdb" or None,
+        top-5 :class:`DecisionCandidate` list).
     """
     results = tvdb_client.search_series(title, year)  # type: ignore[attr-defined]
     # Year-window merge: TVDB's year filter (like TMDB's) can exclude the correct
@@ -588,7 +670,14 @@ def match_tvshow_tvdb(
         results = _merge_results(results, windowed)
     if not results:
         log.info("show_no_tvdb_results", title=title, year=year)
-        return None
+        return None, []
+
+    # Build lookup for poster/overview enrichment (no extra API calls).
+    _sr_by_id: dict[int, SearchResult] = {}
+    for r in results:
+        pid = int(r.provider_id) if r.provider_id.isdigit() else 0
+        if pid and pid not in _sr_by_id:
+            _sr_by_id[pid] = r
 
     # First pass: score every candidate.
     scored: list[tuple[float, MatchResult]] = []
@@ -640,6 +729,33 @@ def match_tvshow_tvdb(
         if survivors:
             scored = survivors
 
+    # Build candidates from post-filter scored list.
+    candidates: list[DecisionCandidate] = []
+    for score, match in scored[:5]:
+        sr = _sr_by_id.get(match.api_id)
+        candidates.append(
+            DecisionCandidate(
+                provider="tvdb",
+                provider_id=match.api_id,
+                title=match.api_title,
+                year=match.api_year,
+                score=score,
+                poster_url=sr.poster_url or None if sr else None,
+                overview=sr.overview or None if sr else None,
+            )
+        )
+
+    # TV ambiguity delta — same detection movies have (movie_match_ambiguous).
+    if len(candidates) > 1:
+        if candidates[1].score >= LOW_CONFIDENCE and candidates[0].score - candidates[1].score < AMBIGUITY_DELTA:
+            log.warning(
+                "tvshow_match_ambiguous",
+                title=title,
+                top_score=round(candidates[0].score, 2),
+                runner_up=round(candidates[1].score, 2),
+                candidates_count=len(candidates),
+            )
+
     _, best_match = scored[0]
     if best_match is not None:
         log.info(
@@ -662,7 +778,40 @@ def match_tvshow_tvdb(
                 source="tvdb",
             )
 
-    return best_match
+    return best_match, candidates
+
+
+def match_tvshow_tvdb(
+    tvdb_client: object,
+    title: str,
+    year: int | None,
+    local_seasons: set[int] | None = None,
+) -> MatchResult | None:
+    """Match a local TV show against TVDB search results.
+
+    TVDB is the primary provider for TV shows. Search results use
+    snake_case fields and tvdb_id (string) as the identifier.
+
+    When ``local_seasons`` is provided and the search returns multiple
+    candidates above LOW_CONFIDENCE, candidates whose TVDB catalog does
+    not overlap the local seasons are filtered out before picking the
+    best score. This prevents a same-keyword spin-off (short catalog)
+    from winning over the main show for a file tagged Sxx where xx is
+    beyond the spin-off's range.
+
+    Args:
+        tvdb_client: TVDBClient instance.
+        title: Show title from the local folder.
+        year: First air date year (None if not detected).
+        local_seasons: Season numbers observed in the folder's video files
+            (e.g. {17} for a folder containing S17E08). When provided and
+            more than one candidate survives the score filter, candidates
+            whose TVDB seasons don't intersect this set are rejected.
+
+    Returns:
+        Best MatchResult with source="tvdb", or None if no results.
+    """
+    return match_tvshow_tvdb_detailed(tvdb_client, title, year, local_seasons=local_seasons)[0]
 
 
 def _tv_tmdb_candidates(
@@ -787,6 +936,94 @@ def match_tvshow_single(
     return None
 
 
+def match_tvshow_detailed(
+    tvdb_client: object,
+    tmdb_client: object,
+    title: str,
+    year: int | None,
+    local_seasons: set[int] | None = None,
+) -> tuple[MatchResult | None, list[DecisionCandidate]]:
+    """Detailed variant of :func:`match_tvshow` returning scored candidates.
+
+    Same provider chain (TVDB first, TMDB fallback) as :func:`match_tvshow`,
+    but additionally returns the top-5 scored candidates as
+    :class:`DecisionCandidate` instances for the scrape-arbiter decision
+    queue.
+
+    Strict invariant (project rule): TVDB is the canonical source for TV
+    shows. TMDB-for-TV is permitted **only** when TVDB has no match for
+    the show — never as a "TVDB returned a low-confidence match, maybe
+    TMDB scores higher" override.
+
+    Args:
+        tvdb_client: TVDBClient instance.
+        tmdb_client: TMDBClient instance (used only when TVDB is silent).
+        title: Show title from the local folder.
+        year: First air date year (None if not detected).
+        local_seasons: Seasons observed in the folder (content-aware
+            disambiguation — see ``match_tvshow_tvdb``).
+
+    Returns:
+        Tuple of (best :class:`MatchResult` or None, top-5
+        :class:`DecisionCandidate` list). TVDB candidates when TVDB
+        returned any match; otherwise TMDB candidates; otherwise empty.
+    """
+    # Query TVDB first. Any TVDB error (circuit open, 5xx, timeout) is
+    # treated as "TVDB is silent" and lets the TMDB fallback run.
+    tvdb_match: MatchResult | None = None
+    tvdb_candidates: list[DecisionCandidate] = []
+    try:
+        tvdb_match, tvdb_candidates = match_tvshow_tvdb_detailed(tvdb_client, title, year, local_seasons=local_seasons)
+    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of ApiError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
+        log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
+
+    if tvdb_match is not None:
+        # TVDB found something — return it. We never let TMDB override
+        # a TVDB match for TV shows, regardless of confidence delta.
+        return tvdb_match, tvdb_candidates
+
+    # TVDB is silent → consult TMDB as the documented fallback. Some
+    # French documentary releases are localised as "Les secrets de
+    # <subject>" while TMDB indexes the original title under the subject
+    # name, so try a narrow subject-only query as well.
+    tmdb_results = _tv_tmdb_candidates(tmdb_client.search_tv, title, year)  # type: ignore[attr-defined]
+    tmdb_match: MatchResult | None = None
+    tmdb_candidates: list[DecisionCandidate] = []
+    best_score = -1.0
+
+    for query_title, result in tmdb_results:
+        # api-unify: SearchResult.title is unified across movie ("title") and
+        # tv ("name") TMDB endpoints; year is pre-extracted.
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
+
+        score = _score_result(query_title, year, result)
+        if score > best_score:
+            best_score = score
+            tmdb_match = MatchResult(
+                api_id=api_id,
+                api_title=api_title,
+                api_year=api_year,
+                confidence=score,
+                source="tmdb",
+            )
+
+    if tmdb_match:
+        log.info(
+            "show_tmdb_fallback_match",
+            title=title,
+            api_title=tmdb_match.api_title,
+            api_year=tmdb_match.api_year,
+            confidence=round(tmdb_match.confidence, 2),
+        )
+        # Build candidates from TMDB fallback results.
+        sr_list = [sr for _, sr in tmdb_results]
+        tmdb_candidates = _results_to_candidates(sr_list, title, year)
+
+    return tmdb_match, tmdb_candidates
+
+
 def match_tvshow(
     tvdb_client: object,
     tmdb_client: object,
@@ -825,55 +1062,7 @@ def match_tvshow(
         TVDB MatchResult when TVDB found anything; otherwise the best TMDB
         MatchResult; otherwise ``None``.
     """
-    # Query TVDB first. Any TVDB error (circuit open, 5xx, timeout) is
-    # treated as "TVDB is silent" and lets the TMDB fallback run.
-    tvdb_match: MatchResult | None = None
-    try:
-        tvdb_match = match_tvshow_tvdb(tvdb_client, title, year, local_seasons=local_seasons)
-    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of ApiError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
-        log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
-
-    if tvdb_match is not None:
-        # TVDB found something — return it. We never let TMDB override
-        # a TVDB match for TV shows, regardless of confidence delta.
-        return tvdb_match
-
-    # TVDB is silent → consult TMDB as the documented fallback. Some
-    # French documentary releases are localised as "Les secrets de
-    # <subject>" while TMDB indexes the original title under the subject
-    # name, so try a narrow subject-only query as well.
-    tmdb_results = _tv_tmdb_candidates(tmdb_client.search_tv, title, year)  # type: ignore[attr-defined]
-    tmdb_match: MatchResult | None = None
-    best_score = -1.0
-
-    for query_title, result in tmdb_results:
-        # api-unify: SearchResult.title is unified across movie ("title") and
-        # tv ("name") TMDB endpoints; year is pre-extracted.
-        api_title = result.title
-        api_year = result.year
-        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
-
-        score = _score_result(query_title, year, result)
-        if score > best_score:
-            best_score = score
-            tmdb_match = MatchResult(
-                api_id=api_id,
-                api_title=api_title,
-                api_year=api_year,
-                confidence=score,
-                source="tmdb",
-            )
-
-    if tmdb_match:
-        log.info(
-            "show_tmdb_fallback_match",
-            title=title,
-            api_title=tmdb_match.api_title,
-            api_year=tmdb_match.api_year,
-            confidence=round(tmdb_match.confidence, 2),
-        )
-
-    return tmdb_match
+    return match_tvshow_detailed(tvdb_client, tmdb_client, title, year, local_seasons=local_seasons)[0]
 
 
 def get_episode_titles(

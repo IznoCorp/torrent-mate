@@ -88,12 +88,39 @@ Test: upsert NFC dedup, dismissed non-resurrection, orphan GC, connection lifecy
 **DESIGN ref:** §4 — match functions additionally return scored candidate list (top-5)
 alongside best match; TV path gains ambiguity-delta detection
 
-Changes to `match_movie()` and `match_tvshow_tvdb()`: return a tuple
-`(MatchResult | None, list[DecisionCandidate])` — the best match (unchanged semantics) plus
-a top-5 scored candidate list from the search results. TV path: add
-`AMBIGUITY_DELTA = 0.05` check identical to movies — if runner-up within delta and ≥
-`LOW_CONFIDENCE`, mark best match as ambiguous. Test: trigger matrix per DESIGN §9 — 0.49
-→ below_threshold, 0.65 → mid_band, 0.85 + runner-up 0.83 → ambiguous, 0.85 clean → auto.
+**Plan correction (detailed-variants, 2026-07-09):** The original plan prescribed
+changing `match_movie()` and `match_tvshow_tvdb()` to return a tuple. The actual
+implementation instead created NEW `_detailed`-variant functions
+(`match_movie_detailed`, `match_tvshow_tvdb_detailed`, `match_tvshow_detailed`)
+that return `(MatchResult | None, list[DecisionCandidate])`, while the existing
+public signatures (`match_movie`, `match_tvshow_tvdb`, `match_tvshow`) are kept as
+thin wrappers returning only `MatchResult | None`. This avoids touching ~60
+existing call sites across the codebase that only consume the best match.
+
+Detailed-variant functions:
+
+- `match_movie_detailed(tmdb_client, title, year)` — l.418
+- `match_tvshow_tvdb_detailed(tvdb_client, title, year, local_seasons=None)` — l.630
+- `match_tvshow_detailed(tmdb_client, tvdb_client, title, year, local_seasons=None)` — l.939
+
+Each follows the same search, scoring, and content-aware disambiguation as the
+original, but additionally returns the top-5 scored candidates as
+`DecisionCandidate` instances. The TVDB path emits a `tvshow_match_ambiguous`
+warning (l.752) when the top two candidates are both ≥ `LOW_CONFIDENCE` (0.5) and
+within `AMBIGUITY_DELTA` (0.05) — the same ambiguity detection movies have via
+`movie_match_ambiguous`.
+
+**Test fix (2026-07-09):** `test_tvdb_ambiguous_emits_warning` originally used
+"Similar Show A" / "Similar Show B" as TVDB returned titles. The superstring
+penalty (`_superstring_penalty`) treats "A" as a noise token (article, dropped →
+no penalty) but "B" as a content word (→ -0.08 penalty). This created a score gap
+of 0.08 > 0.05 AMBIGUITY_DELTA, so the ambiguity warning never fired. Fixed by
+using identical-name candidates ("Ambiguous Show", different provider IDs), which
+guarantee identical scores and a gap of 0.0 < 0.05 without scoring-function
+interference.
+
+Test matrix per DESIGN §9: 0.49 → below_threshold, 0.65 → mid_band, 0.85 +
+runner-up 0.83 → ambiguous, 0.85 clean → auto. 97 tests pass.
 
 **Commit:** `feat(scrape-arbiter): surface top-5 candidates and add TV ambiguity delta`
 
