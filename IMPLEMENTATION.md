@@ -7,7 +7,7 @@
 **Version bump**: 0.44.0 → 0.45.0 (minor)
 **Branch**: feat/scrape-arbiter
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/244
 **Design**: docs/features/scrape-arbiter/DESIGN.md
 **Master plan**: docs/features/scrape-arbiter/plan/INDEX.md
 
