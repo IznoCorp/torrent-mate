@@ -21,7 +21,7 @@ from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
-from personalscraper.scraper.confidence import LOW_CONFIDENCE
+from personalscraper.scraper.confidence import AMBIGUITY_DELTA, HIGH_CONFIDENCE, LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
 from personalscraper.text_utils import sanitize_filename
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.confidence import MatchResult
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
     from personalscraper.scraper.nfo_generator import NFOGenerator
 
 log = get_logger("scraper")
@@ -506,7 +507,7 @@ class MovieServiceMixin:
         title: str,
         year: int | None,
         result: ScrapeResult,
-    ) -> MatchResult | None:
+    ) -> tuple[MatchResult | None, list[DecisionCandidate]]:
         """Search the configured movie chain for candidates matching title + year.
 
         Iterates ``self._registry.chain(MovieDetailsProvider)`` per DESIGN §6.2
@@ -534,9 +535,9 @@ class MovieServiceMixin:
         - Any other exception — set ``result.error``, log, return ``None``
           (preserves the legacy fail-soft contract used by orchestrator).
 
-        Returns the **first** provider's MatchResult (even if low-confidence
-        — the confidence threshold is the caller's responsibility, see
-        ``_select_best_candidate``).
+        Returns the **first** provider's MatchResult and scored candidate list
+        (even if low-confidence — the confidence threshold is the caller's
+        responsibility, see ``_select_best_candidate``).
 
         Args:
             title: Movie title to search for.
@@ -544,8 +545,9 @@ class MovieServiceMixin:
             result: ScrapeResult for error tracking.
 
         Returns:
-            MatchResult on the first successful provider call, or ``None``
-            when ``result.error`` was populated (unclassified exception)
+            Tuple of (MatchResult, top-5 DecisionCandidate list) on the first
+            successful provider call, or ``(None, [])`` when
+            ``result.error`` was populated (unclassified exception)
             or every chain provider returned an empty result (legacy
             ``skipped_low_confidence`` path).
 
@@ -555,17 +557,19 @@ class MovieServiceMixin:
                 no provider returned a match. The caller is responsible
                 for catching and surfacing the error in ``result.error``.
         """
-        from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+        from personalscraper.scraper.confidence import match_movie_detailed  # noqa: PLC0415
 
         item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "movie"}
         providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
         attempted: list[AttemptOutcome] = []
         last_exception: Exception | None = None
+        all_candidates: list[DecisionCandidate] = []
 
         for provider in providers:
             provider_name = getattr(provider, "provider_name", "?")
             try:
-                match = scraper_api.match_movie(provider, title, year)
+                best, candidates = match_movie_detailed(provider, title, year)
+                all_candidates = candidates
             except CircuitOpenError as exc:
                 last_exception = exc
                 attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open"))
@@ -636,7 +640,7 @@ class MovieServiceMixin:
                 )
                 continue
 
-            if match is None:
+            if best is None:
                 attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
                 log.debug(
                     "registry_provider_skip",
@@ -652,7 +656,7 @@ class MovieServiceMixin:
                 )
                 continue
 
-            return match
+            return best, all_candidates
 
         # All providers attempted and none produced a match.
         if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
@@ -682,7 +686,7 @@ class MovieServiceMixin:
         # Empty chain or all empty_result → legacy "no confident match"
         # path (caller branches on the None return to set
         # ``skipped_low_confidence`` and try ``_restore_from_db``).
-        return None
+        return None, []
 
     def _select_best_candidate(
         self,
@@ -690,21 +694,51 @@ class MovieServiceMixin:
         title: str,
         year: int | None,
         result: ScrapeResult,
+        candidates: list[DecisionCandidate] | None = None,
     ) -> bool:
-        """Check confidence of the matched candidate and reject low-confidence matches.
+        """Check confidence of the matched candidate and route to decision queue.
+
+        Implements the scrape-arbiter three-tier trigger logic (DESIGN §4):
+
+        - ``below_threshold`` (confidence < LOW_CONFIDENCE): keeps the
+          existing ``skipped_low_confidence`` action + db-restore fallback,
+          ADDITIVELY sets ``decision_candidates`` and
+          ``decision_trigger="below_threshold"`` so the item lands in the
+          decision queue.
+        - ``mid_band`` (LOW_CONFIDENCE <= confidence < HIGH_CONFIDENCE):
+          REPLACES the historical auto-accept — action is set to
+          ``"queued_for_decision"``, ``decision_trigger="mid_band"``,
+          and no NFO/artwork is written.
+        - ``ambiguous`` (confidence >= HIGH_CONFIDENCE but the top two
+          candidates are both >= LOW_CONFIDENCE and within AMBIGUITY_DELTA):
+          action is ``"queued_for_decision"``,
+          ``decision_trigger="ambiguous"``, and no NFO/artwork is written.
+        - Clean (confidence >= HIGH_CONFIDENCE, no ambiguity): unchanged
+          auto-accept, returns True to proceed with the full scrape path.
+
+        DESIGN §2 decision 2: the mid-band auto-accept behavior change is
+        operator-approved — items that were formerly accepted silently now
+        enter the decision queue for human review.
 
         Args:
             match: MatchResult from TMDB (may be None).
             title: Movie title for logging.
             year: Optional release year for logging.
             result: ScrapeResult for action tracking.
+            candidates: Top-5 scored DecisionCandidate list from the
+                detailed match. Used for ambiguity detection and decision
+                queue population.
 
         Returns:
-            True if the candidate is accepted and result.match is set,
-            False if skipped.
+            True if the candidate is accepted for auto-scrape (clean
+            >= HIGH_CONFIDENCE, no ambiguity) and result.match is set.
+            False otherwise (skip or queued).
         """
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
+            if candidates:
+                result.decision_candidates = candidates
+            result.decision_trigger = "below_threshold"
             log.warning(
                 "movie_no_confident_match",
                 title=title,
@@ -712,7 +746,44 @@ class MovieServiceMixin:
                 score=round(match.confidence if match else 0.0, 2),
             )
             return False
+
         result.match = match
+
+        # Mid band: was auto-accepted, now enqueued for operator review.
+        if match.confidence < HIGH_CONFIDENCE:
+            result.action = "queued_for_decision"
+            if candidates:
+                result.decision_candidates = candidates
+            result.decision_trigger = "mid_band"
+            log.info(
+                "movie_queued_for_decision",
+                title=title,
+                api_title=match.api_title,
+                source=match.source,
+                confidence=round(match.confidence, 2),
+                trigger="mid_band",
+            )
+            return False
+
+        # Ambiguity guard: top two candidates within AMBIGUITY_DELTA and
+        # both >= LOW_CONFIDENCE → enqueue even though best is >= HIGH.
+        if candidates and len(candidates) > 1:
+            if candidates[1].score >= LOW_CONFIDENCE and candidates[0].score - candidates[1].score < AMBIGUITY_DELTA:
+                result.action = "queued_for_decision"
+                result.decision_candidates = candidates
+                result.decision_trigger = "ambiguous"
+                log.info(
+                    "movie_queued_for_decision",
+                    title=title,
+                    api_title=match.api_title,
+                    source=match.source,
+                    confidence=round(match.confidence, 2),
+                    trigger="ambiguous",
+                    runner_up_score=round(candidates[1].score, 2),
+                )
+                return False
+
+        # Clean >= HIGH_CONFIDENCE — unchanged auto-accept.
         log.info(
             "movie_matched",
             title=title,
@@ -787,7 +858,7 @@ class MovieServiceMixin:
         # and surface the original exception detail in ``result.error``
         # to preserve the ACC-13 legacy contract.
         try:
-            match = self._match_movie_candidates(title, year, result)
+            match, candidates = self._match_movie_candidates(title, year, result)
         except ProviderExhausted as exc:
             detail = exc.last_exception if exc.last_exception is not None else exc
             result.error = f"Match failed: {detail}"
@@ -795,7 +866,15 @@ class MovieServiceMixin:
             return result
         if result.error:
             return result
-        if not self._select_best_candidate(match, title, year, result):
+        if not self._select_best_candidate(match, title, year, result, candidates):
+            # queued_for_decision items (mid_band, ambiguous) return early —
+            # no db restore, no NFO/artwork. The item stays in staging until
+            # the operator resolves the decision.
+            if result.action == "queued_for_decision":
+                return result
+            # below_threshold → try db restore (existing behavior), then
+            # additively set decision_candidates so the item lands in the
+            # decision queue even when restoration fails.
             outcome = _restore_from_db(self.config, self.dry_run, movie_dir, title, year)
             if isinstance(outcome, Restored):
                 result.action = "restored_from_db"
