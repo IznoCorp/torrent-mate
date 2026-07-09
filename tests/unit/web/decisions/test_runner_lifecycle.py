@@ -122,7 +122,7 @@ def _insert_decision_row(
     now = time.time()
     conn.execute(
         "INSERT INTO scrape_decision "
-        "(id, staging_path, media_kind, extracted_title, \"trigger\", "
+        '(id, staging_path, media_kind, extracted_title, "trigger", '
         "candidates_json, status, created_at, updated_at) "
         "VALUES (?, ?, ?, ?, ?, '[]', ?, ?, ?)",
         (decision_id, staging_path, media_kind, extracted_title, trigger, status, now, now),
