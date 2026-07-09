@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import { NAV_SECTIONS, type NavItem } from "@/components/layout/nav";
@@ -21,6 +21,12 @@ interface NavSectionsProps {
    * Sheet to close itself on navigation.
    */
   readonly onNavigate?: () => void;
+  /**
+   * Optional per-path badge nodes rendered next to the label (e.g. pending-count
+   * chip on the Scraping entry).  Keys are router paths (``"/scraping"``);
+   * missing keys render no badge.
+   */
+  readonly badges?: Record<string, ReactNode>;
 }
 
 /** Props for a single rendered nav row. */
@@ -28,6 +34,8 @@ interface NavRowProps {
   readonly item: NavItem;
   readonly collapsed: boolean;
   readonly onNavigate?: (() => void) | undefined;
+  /** Optional badge node rendered next to the label (e.g. pending count). */
+  readonly badge?: ReactNode;
 }
 
 /**
@@ -36,7 +44,12 @@ interface NavRowProps {
  *
  * @returns The row element.
  */
-function NavRow({ item, collapsed, onNavigate }: NavRowProps): ReactElement {
+function NavRow({
+  item,
+  collapsed,
+  onNavigate,
+  badge,
+}: NavRowProps): ReactElement {
   const Icon = item.icon;
 
   if (item.disabled) {
@@ -82,6 +95,7 @@ function NavRow({ item, collapsed, onNavigate }: NavRowProps): ReactElement {
     >
       <Icon className="size-5 shrink-0" aria-hidden="true" />
       {!collapsed && <span className="truncate">{item.label}</span>}
+      {badge}
     </NavLink>
   );
 }
@@ -102,6 +116,7 @@ export function NavSections({
   ariaLabel,
   collapsed = false,
   onNavigate,
+  badges,
 }: NavSectionsProps): ReactElement {
   return (
     <nav aria-label={ariaLabel} className="flex flex-1 flex-col gap-1 p-2">
@@ -124,6 +139,7 @@ export function NavSections({
               item={item}
               collapsed={collapsed}
               onNavigate={onNavigate}
+              badge={badges?.[item.to]}
             />
           ))}
         </div>

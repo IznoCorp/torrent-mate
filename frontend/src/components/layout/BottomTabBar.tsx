@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import { BOTTOM_TAB_ITEMS } from "@/components/layout/nav";
@@ -16,9 +16,18 @@ import { cn } from "@/lib/utils";
  * gap on standalone PWAs. `NavLink` also stamps `aria-current="page"` on the
  * active tab.
  *
+ * Args:
+ *   badges: Optional per-path badge nodes rendered next to the label (e.g.
+ *       pending-count chip on the Scraping tab).  Keys are router paths;
+ *       missing keys render no badge.
+ *
  * @returns The bottom tab bar element.
  */
-export function BottomTabBar(): ReactElement {
+export function BottomTabBar({
+  badges,
+}: {
+  readonly badges?: Record<string, ReactNode>;
+}): ReactElement {
   return (
     <nav
       aria-label="Navigation principale"
@@ -26,6 +35,7 @@ export function BottomTabBar(): ReactElement {
     >
       {BOTTOM_TAB_ITEMS.map((item) => {
         const Icon = item.icon;
+        const badge = badges?.[item.to];
         return (
           <NavLink
             key={item.to}
@@ -40,6 +50,7 @@ export function BottomTabBar(): ReactElement {
           >
             <Icon className="size-5 shrink-0" aria-hidden="true" />
             <span className="truncate">{item.label}</span>
+            {badge}
           </NavLink>
         );
       })}

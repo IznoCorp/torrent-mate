@@ -23,6 +23,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RouterBridge } from "@/components/RouterBridge";
 import ComingSoon from "@/pages/ComingSoon";
 import Dashboard from "@/pages/Dashboard";
+import Decisions from "@/pages/Decisions";
 import Login from "@/pages/Login";
 import Maintenance from "@/pages/Maintenance";
 import Config from "@/pages/Config";
@@ -56,7 +57,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "scraping",
-                element: <ComingSoon title="Scraping interactif" wave="S5" />,
+                element: <Decisions />,
               },
               {
                 path: "registry",

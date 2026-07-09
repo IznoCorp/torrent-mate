@@ -1,5 +1,10 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useCallback, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import { BRAND_ICON } from "@/lib/env";
 import { NavSections } from "@/components/layout/NavSections";
@@ -52,7 +57,11 @@ function useSidebarCollapsed(): readonly [boolean, () => void] {
  *
  * @returns The sidebar element.
  */
-export function Sidebar(): ReactElement {
+export function Sidebar({
+  badges,
+}: {
+  readonly badges?: Record<string, ReactNode>;
+}): ReactElement {
   const [collapsed, toggle] = useSidebarCollapsed();
 
   return (
@@ -76,7 +85,11 @@ export function Sidebar(): ReactElement {
         )}
       </div>
 
-      <NavSections ariaLabel="Navigation latérale" collapsed={collapsed} />
+      <NavSections
+        ariaLabel="Navigation latérale"
+        collapsed={collapsed}
+        {...(badges ? { badges } : {})}
+      />
 
       <div className="border-t border-sidebar-border p-2">
         <button

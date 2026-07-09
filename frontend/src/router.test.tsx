@@ -61,6 +61,17 @@ beforeEach(() => {
     if (url.includes("/api/auth/me")) {
       return Promise.resolve(buildResponse(200, { username: "izno" }));
     }
+    if (url.includes("/api/decisions")) {
+      return Promise.resolve(
+        buildResponse(200, {
+          items: [],
+          pending_count: 0,
+          total: 0,
+          page: 1,
+          page_size: 50,
+        }),
+      );
+    }
     return Promise.resolve(buildResponse(200, {}));
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -120,6 +131,15 @@ describe("router", () => {
     // the page heading (the h1, not the bottom-nav link) mounts.
     expect(
       await screen.findByRole("heading", { name: "Maintenance" }),
+    ).toBeInTheDocument();
+  });
+
+  it("monte la page Décisions sur « /scraping »", async () => {
+    renderAt("/scraping");
+
+    // The Decisions page heading — no longer ComingSoon (S5).
+    expect(
+      await screen.findByRole("heading", { name: /décisions de scraping/i }),
     ).toBeInTheDocument();
   });
 

@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { Outlet } from "react-router-dom";
 
 import { EventStreamProvider } from "@/components/EventStreamProvider";
@@ -6,6 +6,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { NavSections } from "@/components/layout/NavSections";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { Badge } from "@/components/ui/badge";
 import { BRAND_ICON } from "@/lib/env";
 import {
   Sheet,
@@ -14,6 +15,101 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { decisionsKeys } from "@/api/decisions";
+import { useEventStreamContext } from "@/hooks/useEventStreamContext";
+import { useDecisions } from "@/hooks/useDecisions";
+import { useQueryClient } from "@tanstack/react-query";
+import { isEvent } from "@/api/events";
+
+/**
+ * AppShellInner — the shell content with access to the event-stream context
+ * (mounted inside {@link EventStreamProvider}).  Owns the pending-count badge
+ * query and the WebSocket listener that refreshes it on
+ * ``queued_for_decision`` events.
+ *
+ * @returns The shell layout element.
+ */
+function AppShellInner(): ReactElement {
+  const [navOpen, setNavOpen] = useState<boolean>(false);
+  const queryClient = useQueryClient();
+  const { events } = useEventStreamContext();
+
+  // Lightweight count-only query for the badge — page_size=1 so we never
+  // pull the full list just to show the chip.
+  const { data } = useDecisions({ status: "pending", page_size: 1 });
+  const pendingCount: number = data?.pending_count ?? 0;
+
+  // Listen for ItemProgressed WS events carrying status "queued_for_decision"
+  // and invalidate the decisions cache so the badge refreshes live.
+  useEffect(() => {
+    if (events.length === 0) {
+      return;
+    }
+    // Only the most recent event matters — a full sweep every tick is wasteful.
+    const latest = events[events.length - 1];
+    if (
+      latest !== undefined &&
+      isEvent(latest) &&
+      latest.type === "ItemProgressed" &&
+      latest.data.status === "queued_for_decision"
+    ) {
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      void queryClient.invalidateQueries({
+        queryKey: ["pipeline", "history"],
+      });
+    }
+  }, [events, queryClient]);
+
+  const badges = useMemo(
+    () =>
+      pendingCount > 0
+        ? {
+            "/scraping": <Badge tone="danger">{String(pendingCount)}</Badge>,
+          }
+        : undefined,
+    [pendingCount],
+  );
+
+  return (
+    <div className="flex min-h-screen bg-background font-sans text-foreground">
+      <Sidebar {...(badges ? { badges } : {})} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          onOpenNav={() => {
+            setNavOpen(true);
+          }}
+        />
+        <main className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6">
+          <Outlet />
+        </main>
+      </div>
+      <BottomTabBar {...(badges ? { badges } : {})} />
+
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent side="left" className="w-72 gap-0 p-0">
+          <SheetHeader className="border-b border-sidebar-border">
+            <SheetTitle className="flex items-center gap-2 text-sm tracking-tight">
+              <img src={BRAND_ICON} alt="" className="size-7 shrink-0" />
+              <span>
+                Torrent<span className="text-primary">Mate</span>
+              </span>
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Menu de navigation principal
+            </SheetDescription>
+          </SheetHeader>
+          <NavSections
+            ariaLabel="Navigation mobile"
+            {...(badges ? { badges } : {})}
+            onNavigate={() => {
+              setNavOpen(false);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
 
 /**
  * AppShell — the responsive layout route wrapping every authenticated page.
@@ -37,46 +133,9 @@ import {
  * @returns The app shell layout element.
  */
 export function AppShell(): ReactElement {
-  const [navOpen, setNavOpen] = useState<boolean>(false);
-
   return (
     <EventStreamProvider>
-      <div className="flex min-h-screen bg-background font-sans text-foreground">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar
-            onOpenNav={() => {
-              setNavOpen(true);
-            }}
-          />
-          <main className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6">
-            <Outlet />
-          </main>
-        </div>
-        <BottomTabBar />
-
-        <Sheet open={navOpen} onOpenChange={setNavOpen}>
-          <SheetContent side="left" className="w-72 gap-0 p-0">
-            <SheetHeader className="border-b border-sidebar-border">
-              <SheetTitle className="flex items-center gap-2 text-sm tracking-tight">
-                <img src={BRAND_ICON} alt="" className="size-7 shrink-0" />
-                <span>
-                  Torrent<span className="text-primary">Mate</span>
-                </span>
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                Menu de navigation principal
-              </SheetDescription>
-            </SheetHeader>
-            <NavSections
-              ariaLabel="Navigation mobile"
-              onNavigate={() => {
-                setNavOpen(false);
-              }}
-            />
-          </SheetContent>
-        </Sheet>
-      </div>
+      <AppShellInner />
     </EventStreamProvider>
   );
 }
