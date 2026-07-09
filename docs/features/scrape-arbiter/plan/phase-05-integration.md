@@ -18,18 +18,25 @@
 - `tests/integration/test_scrape_arbiter_e2e.py` — end-to-end: enqueue → list → resolve →
   NFO written → decision resolved → pipeline_run row success
 - `tests/unit/web/decisions/test_runner_lifecycle.py` — runner lifecycle: success, failure,
-  SIGTERM, pipeline.lock held during child
+  SIGTERM, lock NOT held by runner (scrape-resolve self-acquires — R11)
 
 **DESIGN ref:** §9 — runner lifecycle (S3-style, real child): success → NFO written +
-decision resolved; failure → pending + row error; `pipeline.lock` held during child
+decision resolved; failure → pending + row error; runner-side lock non-acquisition
+(`scrape-resolve` self-acquires `pipeline.lock`; the runner never touches it — a
+double acquisition would deadlock the child). The full R11 proof is the decomposition:
+runner-side non-acquisition (this file) + child-side acquire/release contract
+(`tests/cli/test_scrape_resolve.py` lock tests).
 
-Integration E2E: set up a staging folder with a mock movie file, insert a
-`scrape_decision` row with `status='pending'`, call `scrape-resolve` on it, assert NFO
-exists, decision row is `resolved`, `pipeline_run` row has `status='success'`. Runner
-lifecycle: mock provider failure → exit code 1 → decision stays `pending` +
-`pipeline_run.status='error'` + `output_tail` contains error. Pipeline lock probe: while
-child is running, assert `is_lock_held()` returns True; after child exits, lock is
-released.
+Integration E2E: set up a staging folder, insert a `scrape_decision` row with
+`status='pending'`, invoke `scrape-resolve` via CliRunner with provider mocked with
+golden-fixture payload → assert exit 0, NFO file exists in the staging folder, decision
+row is `resolved` with `resolution_json`, artwork calls attempted. Runner lifecycle:
+real child via `_build_argv` patch → success (exit 0 → row `success` + output_tail),
+failure (exit 1 → row `error`, decision stays `pending`), SIGTERM (captured handler
+→ `killed`). Lock probe: child stub creates+removes `pipeline.lock` to simulate
+scrape-resolve self-acquire; the test asserts the runner did NOT pre-acquire (lock file
+absent before the child creates it). Corrected from the original plan — the DESIGN splits
+ownership, the runner never holds the lock.
 
 **Commit:** `test(scrape-arbiter): add integration and runner-lifecycle tests`
 
