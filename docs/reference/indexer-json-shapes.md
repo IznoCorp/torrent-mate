@@ -384,3 +384,36 @@ Notes:
   the JSON are rejected at validation time.
 - `year`, `poster_url`, and `overview` are nullable; they default
   to `None` when omitted.
+
+---
+
+## `scrape_decision.resolution_json`
+
+**Written by**: `DecisionWriter.resolve`
+(`personalscraper/scraper/decision_writer.py`)
+
+Populated when the operator resolves a decision (web pick/search or CLI
+`scrape-resolve`). Stays `NULL` for `pending`, `dismissed`, and
+`superseded` rows.
+
+```json
+{
+  "provider": "tmdb",
+  "provider_id": 27205,
+  "via": "pick"
+}
+```
+
+| Field         | Type                            | Meaning                                                                                                                       |
+| ------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `provider`    | `"tmdb"` or `"tvdb"`            | The metadata provider chosen for the re-scrape.                                                                               |
+| `provider_id` | int                             | Numeric identifier assigned by the chosen provider.                                                                           |
+| `via`         | `"pick"` or `"search_override"` | `"pick"` when the operator selected an existing candidate; `"search_override"` when a live search returned a different match. |
+
+Notes:
+
+- This is a **flat dict** written via `json.dumps` — there is no Pydantic
+  model enforcing the shape at write time. The `DecisionDetail` Pydantic
+  response model (`personalscraper/web/models/decisions.py`) deserializes it
+  as `dict[str, Any] | None`.
+- `via` is informational only — the resolve machinery does not branch on it.

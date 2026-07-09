@@ -886,3 +886,147 @@ save/validate/restart buttons are disabled.
   accepted as an audit trail (D4 decision in DESIGN.md §Appendix) — the
   `config/.backups/` directory provides an additional recovery layer independent
   of git.
+
+## Interactive scraping (S5 — `scrape-arbiter`)
+
+S5 replaces the batch scraper's silent auto-accept with an async decision
+queue + operator review surface. When the scraper cannot confidently pick a
+metadata match, it enqueues the item instead of guessing — the operator drains
+the queue via the web `/decisions` page or the `personalscraper scrape-resolve`
+CLI. Ticket #184; design at `docs/features/scrape-arbiter/DESIGN.md`.
+
+### REST endpoints (`/api/decisions`)
+
+Five endpoints, all guarded by the standard session cookie inherited from the
+`guarded_api` router. Write endpoints additionally require
+`X-Requested-With: TorrentMate`; the resolve and dismiss endpoints are
+guarded by `require_not_staging` (403 on staging).
+
+| Method | Path                          | Guard                   | Status codes                      | Notes                                                                                                                                                                                                                                                                                         |
+| ------ | ----------------------------- | ----------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/decisions`              | session                 | `200`                             | `DecisionsResponse` — paginated (`?page&page_size&status`), `pending_count` always included (shell badge). Orphan GC runs before every query (rows whose `staging_path` no longer exists are marked `superseded`).                                                                            |
+| GET    | `/api/decisions/{id}`         | session                 | `200`, `404`, `410`               | `DecisionDetail` — full row with `candidates` array and `resolution_json` (when resolved). `410` when `status='superseded'`.                                                                                                                                                                  |
+| POST   | `/api/decisions/{id}/search`  | session + XRW           | `200`, `404`, `410`, `502`        | `SearchResponse` — live provider search via `match_movie_detailed` / `match_tvshow_detailed` (see [`scraping.md`](scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter)). Body: `{title, year?}`. Read-only — no state change. `502` on provider failure.                          |
+| POST   | `/api/decisions/{id}/resolve` | session + XRW + staging | `202`, `404`, `409`, `410`, `500` | `ResolveResponse {"run_uid"}` — spawns a detached `scrape-resolve` runner (see [runner lifecycle](#scrape-resolve-runner-lifecycle)). Body: `{provider: "tmdb"\|"tvdb", provider_id: int}`. `409` when the pipeline lock is held or another scrape-resolve is running. Staging returns `403`. |
+| POST   | `/api/decisions/{id}/dismiss` | session + XRW + staging | `200`, `404`, `410`               | `DecisionDetail` — marks the decision `dismissed` (manual/MediaElch path). Returns the refreshed row. Staging returns `403`.                                                                                                                                                                  |
+
+### Decision queue workflow
+
+The **batch pipeline never blocks**. When the scraper encounters an item it
+cannot confidently match, it enqueues a `scrape_decision` row and moves on.
+The operator drains the queue asynchronously via two surfaces:
+
+1. **Web `/decisions` page** — interactive candidate review, live provider
+   search, one-click resolve/dismiss.
+2. **CLI** — `personalscraper scrape-resolve <staging_path> --provider tmdb|tvdb
+--id <provider_id>` for direct terminal resolution.
+
+On the next pipeline run, a resolved item (valid NFO present) is seen as
+`skipped_already_done` — verify/dispatch proceed normally. No dispatch is
+triggered by S5 (unchanged pipeline flow).
+
+Batch runs refresh `candidates_json`, `trigger`, `run_uid`, and `updated_at`
+of existing `pending` rows (upsert by `staging_path`, NFC-normalized). They
+never resurrect `resolved` / `dismissed` / `superseded` rows.
+
+### Pending-count badge + WebSocket refetch
+
+The shell navigation renders a badge with the `pending_count` from
+`GET /api/decisions?status=pending`. The badge refetches on two triggers:
+
+- **WS `ItemProgressed` envelope** with `status="queued_for_decision"` (emitted
+  per enqueued item during a batch scrape step).
+- **After resolve/dismiss mutations** — `invalidateQueries(['decisions'])` on
+  mutation success.
+
+The `pending_count` field is computed independently of the pagination filter
+(always counts `WHERE status='pending'`), so the badge stays accurate even
+when the `/decisions` page is filtered to `resolved` or `dismissed`.
+
+### Scrape-resolve runner lifecycle
+
+The `POST /{id}/resolve` handler spawns a detached subprocess
+(`python -m personalscraper.web.decisions.runner`) following the S3
+maintenance runner pattern verbatim:
+
+| Aspect           | Value                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| Entry point      | `personalscraper.web.decisions.runner` (env-contract subprocess)                                      |
+| Child command    | `personalscraper scrape-resolve <staging_path> --provider X --id Y`                                   |
+| `pipeline_run`   | `kind='maintenance'`, `command='scrape-resolve'`, `options_json={decision_id, provider, provider_id}` |
+| Output streaming | Redis (fail-soft) + 64 KiB `output_tail` ring buffer                                                  |
+| Exit 0           | NFO written + artwork fetched → decision `resolved` + run row `success`                               |
+| Exit 1           | Provider/API failure → decision stays `pending` + run row `error` with `output_tail`                  |
+| SIGTERM (143)    | Run row `killed`                                                                                      |
+
+**Lock ownership (R11).** `scrape-resolve` **self-acquires** `pipeline.lock`
+for its lifetime (same convention as `library-rescrape` — it writes into
+staging). It is listed in
+`personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`, so the web runner
+does NOT acquire the lock. A double acquisition would deadlock the child
+(the child's `acquire_lock` would see the runner's live pid and exit 1).
+The route handler probes the lock twice (before and after reserving the
+`pipeline_run` row) and returns `409` if held — this serializes concurrent
+resolve POSTs for the same or different decisions.
+
+**Concurrency guard.** `_reserve_decision_run` queries
+`WHERE kind='maintenance' AND command='scrape-resolve' AND outcome='running'`
+under `BEGIN IMMEDIATE`, checks pid liveness via `os.kill(pid, 0)`, and raises
+`409` when a live runner is found. This is narrower than the maintenance
+runner's guard (which blocks all write actions) — a `scrape-resolve` only
+blocks other `scrape-resolve` runs, not `library-*` maintenance actions.
+
+### Error states
+
+| Code  | Condition                                                                          | UI treatment                                                   |
+| ----- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `403` | Staging environment (`require_not_staging`) on resolve/dismiss                     | Action buttons disabled; staging banner already shown.         |
+| `404` | Unknown `decision_id`                                                              | Toast « Décision introuvable », item removed from list.        |
+| `409` | Pipeline lock held (`pipeline.lock` exists with live pid)                          | Toast « Pipeline en cours — réessayez quand il sera terminé ». |
+| `409` | Another scrape-resolve is running (pid-liveness check)                             | Toast « Une résolution est déjà en cours ».                    |
+| `410` | Decision `status='superseded'` (staging folder deleted between enqueue and review) | Item removed from list on next refresh (orphan GC).            |
+| `502` | Live provider search fails (API down, network error, registry build failure)       | Toast with the provider error detail; no state change.         |
+
+### Three triggers with thresholds
+
+The decision queue captures three situations, classified by
+`personalscraper.scraper.decision_triage.classify_decision_trigger` using the
+constants in [`personalscraper/scraper/confidence.py`](../personalscraper/scraper/confidence.py):
+
+| Trigger           | Condition                                                                     | `ScrapeResult.action`         | Operator intent                                                |
+| ----------------- | ----------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------- |
+| `below_threshold` | Best match confidence `< 0.5` (`LOW_CONFIDENCE`) or no match at all           | `skipped_low_confidence`      | Item stays in staging; operator picks or uses MediaElch        |
+| `mid_band`        | Best match confidence `≥ 0.5` and `< 0.8` (`HIGH_CONFIDENCE`)                 | `queued_for_decision`         | **Replaces** historical auto-accept — operator reviews         |
+| `ambiguous`       | Best match `≥ 0.8` AND runner-up `≥ 0.5` AND gap `< 0.05` (`AMBIGUITY_DELTA`) | `queued_for_decision`         | Two close high-confidence candidates — operator breaks the tie |
+| _(clean)_         | Best match `≥ 0.8`, no close runner-up                                        | `skipped_already_done` (etc.) | Auto-accept unchanged — proceeds to NFO/artwork write          |
+
+The `< 0.5` case is **additive**: the item keeps its existing skip semantics
+for verify/dispatch (stays in staging), and a `scrape_decision` row is created
+alongside. The mid-band case is a **behavior change**: items that were
+previously auto-accepted (0.5–0.8) now enter the queue instead. Clean `≥ 0.8`
+matches are unchanged.
+
+### Frontend
+
+`/decisions` (route `/decisions`, page component
+`frontend/src/pages/Decisions.tsx`) renders the decision queue with
+mobile-first shadcn/TanStack components on the TorrentMate design system:
+
+- **Decision list** — each row shows extracted title, folder basename,
+  a trigger chip (`below_threshold` / `mid_band` / `ambiguous`), candidate
+  count, and age.
+- **Detail panel** — candidate cards (poster thumbnail, title, year, score
+  bar, provider badge), title/year override form → **Re-chercher** triggers
+  `POST /{id}/search` for fresh candidates.
+- **Actions** — **Choisir** (resolve via `POST /{id}/resolve` with the chosen
+  `{provider, provider_id}`), **Ignorer** (dismiss).
+- **Live resolve output** — reuses the `RunLogFeed` component from S2; on
+  success the item leaves the list (`invalidateQueries`).
+- **Resolution history** — visible in the unified run history
+  (`GET /api/pipeline/history?kind=maintenance` filtered to
+  `command='scrape-resolve'`; `RunDetail` renders `command` + `output_tail`).
+
+Cross-references:
+
+- [`scraping.md`](scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter) — batch confidence thresholds and detailed match variants.
+- [`maintenance.md`](maintenance.md) — runner lifecycle pattern (S3, reused verbatim).
