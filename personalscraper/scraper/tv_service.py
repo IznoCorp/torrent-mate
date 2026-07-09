@@ -14,7 +14,6 @@ from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
-from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -607,21 +606,53 @@ class TvServiceMixin:
         Returns:
             Success tuple or ``None``.
         """
-        # The chain raises ``ProviderExhausted`` when every eligible
-        # provider failed with a classified error (DESIGN §6.2 line 79).
-        # Catch and surface the original exception detail to preserve
-        # the ACC-13 legacy contract.
+        # Scrape-arbiter DESIGN §4: call the detailed variant to get both the
+        # best match and the scored candidate list for the three-tier trigger
+        # logic. TVDB is the primary provider; TMDB is a fallback only when
+        # TVDB returns no candidates. match_tvshow_detailed catches TVDB
+        # exceptions internally and falls through to TMDB; a TMDB exception
+        # propagates and is surfaced as a fail-soft ``result.error``.
+
+        from personalscraper.scraper.confidence import (  # noqa: PLC0415
+            AMBIGUITY_DELTA,
+            HIGH_CONFIDENCE,
+            match_tvshow_detailed,
+        )
+
+        # Resolve TVDB and TMDB clients from the registry (fail-soft — a
+        # missing provider yields None, and match_tvshow_detailed handles
+        # both None branches gracefully).
         try:
-            match = self._match_tvshow_candidates(title, year, local_seasons, result)
-        except ProviderExhausted as exc:
-            detail = exc.last_exception if exc.last_exception is not None else exc
-            result.error = f"Match failed: {detail}"
+            tvdb_client = self._registry.get("tvdb")
+        except Exception:
+            tvdb_client = None
+        try:
+            tmdb_client = self._registry.get("tmdb")
+        except Exception:
+            tmdb_client = None
+
+        try:
+            match, candidates = match_tvshow_detailed(
+                tvdb_client,
+                tmdb_client,
+                title,
+                year,
+                local_seasons=local_seasons,
+            )
+        except Exception as exc:
+            result.error = f"Match failed: {exc}"
             result.action = "error"
             return None
-        if result.error:
-            return None
+
+        # Three-tier trigger logic (scrape-arbiter DESIGN §4).
+        # - below_threshold: keep skip semantics, additively set candidates.
+        # - mid_band: REPLACES historical auto-accept → queued_for_decision.
+        # - ambiguous: >= HIGH_CONFIDENCE but top two within AMBIGUITY_DELTA.
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
+            if candidates:
+                result.decision_candidates = candidates
+            result.decision_trigger = "below_threshold"
             log.warning(
                 "show_no_confident_match",
                 title=title,
@@ -629,7 +660,44 @@ class TvServiceMixin:
                 score=round(match.confidence if match else 0.0, 2),
             )
             return None
+
         result.match = match
+
+        # Mid band: was auto-accepted, now enqueued for operator review.
+        if match.confidence < HIGH_CONFIDENCE:
+            result.action = "queued_for_decision"
+            if candidates:
+                result.decision_candidates = candidates
+            result.decision_trigger = "mid_band"
+            log.info(
+                "show_queued_for_decision",
+                title=title,
+                api_title=match.api_title,
+                source=match.source,
+                confidence=round(match.confidence, 2),
+                trigger="mid_band",
+            )
+            return None
+
+        # Ambiguity guard: top two candidates within AMBIGUITY_DELTA and
+        # both >= LOW_CONFIDENCE → enqueue even though best is >= HIGH.
+        if candidates and len(candidates) > 1:
+            if candidates[1].score >= LOW_CONFIDENCE and candidates[0].score - candidates[1].score < AMBIGUITY_DELTA:
+                result.action = "queued_for_decision"
+                result.decision_candidates = candidates
+                result.decision_trigger = "ambiguous"
+                log.info(
+                    "show_queued_for_decision",
+                    title=title,
+                    api_title=match.api_title,
+                    source=match.source,
+                    confidence=round(match.confidence, 2),
+                    trigger="ambiguous",
+                    runner_up_score=round(candidates[1].score, 2),
+                )
+                return None
+
+        # Clean >= HIGH_CONFIDENCE — proceed with full scrape path.
         log.info(
             "show_matched",
             title=title,
