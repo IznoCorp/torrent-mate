@@ -27,7 +27,6 @@ from personalscraper.scraper._tvdb_convert import (
     fetch_show_data,
 )
 from personalscraper.scraper.classifier import _parse_folder_name
-from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import (
     _file_season,
     create_season_dirs,
@@ -613,11 +612,7 @@ class TvServiceMixin:
         # exceptions internally and falls through to TMDB; a TMDB exception
         # propagates and is surfaced as a fail-soft ``result.error``.
 
-        from personalscraper.scraper.confidence import (  # noqa: PLC0415
-            AMBIGUITY_DELTA,
-            HIGH_CONFIDENCE,
-            match_tvshow_detailed,
-        )
+        from personalscraper.scraper.confidence import match_tvshow_detailed  # noqa: PLC0415
 
         # Resolve TVDB and TMDB clients from the registry (fail-soft — a
         # missing provider yields None, and match_tvshow_detailed handles
@@ -644,60 +639,43 @@ class TvServiceMixin:
             result.action = "error"
             return None
 
-        # Three-tier trigger logic (scrape-arbiter DESIGN §4).
-        # - below_threshold: keep skip semantics, additively set candidates.
-        # - mid_band: REPLACES historical auto-accept → queued_for_decision.
-        # - ambiguous: >= HIGH_CONFIDENCE but top two within AMBIGUITY_DELTA.
-        if match is None or match.confidence < LOW_CONFIDENCE:
-            result.action = "skipped_low_confidence"
-            if candidates:
-                result.decision_candidates = candidates
-            result.decision_trigger = "below_threshold"
-            log.warning(
-                "show_no_confident_match",
-                title=title,
-                year=year,
-                score=round(match.confidence if match else 0.0, 2),
-            )
-            return None
+        # Three-tier trigger logic delegates to the shared decision_triage
+        # module (scrape-arbiter DESIGN §4). Only the log event names are
+        # TV-specific.
+        from personalscraper.scraper.decision_triage import (  # noqa: PLC0415
+            apply_decision_to_result,
+            classify_decision_trigger,
+        )
 
-        result.match = match
-
-        # Mid band: was auto-accepted, now enqueued for operator review.
-        if match.confidence < HIGH_CONFIDENCE:
-            result.action = "queued_for_decision"
-            if candidates:
-                result.decision_candidates = candidates
-            result.decision_trigger = "mid_band"
+        trigger = classify_decision_trigger(match, candidates)
+        if trigger is not None:
+            apply_decision_to_result(result, match, candidates, trigger)
+            if trigger == "below_threshold":
+                log.warning(
+                    "show_no_confident_match",
+                    title=title,
+                    year=year,
+                    score=round(match.confidence if match else 0.0, 2),
+                )
+                return None
+            assert match is not None  # narrowed by classify_decision_trigger
+            extra: dict[str, Any] = {}
+            if trigger == "ambiguous" and candidates:
+                extra["runner_up_score"] = round(candidates[1].score, 2)
             log.info(
                 "show_queued_for_decision",
                 title=title,
                 api_title=match.api_title,
                 source=match.source,
                 confidence=round(match.confidence, 2),
-                trigger="mid_band",
+                trigger=trigger,
+                **extra,
             )
             return None
 
-        # Ambiguity guard: top two candidates within AMBIGUITY_DELTA and
-        # both >= LOW_CONFIDENCE → enqueue even though best is >= HIGH.
-        if candidates and len(candidates) > 1:
-            if candidates[1].score >= LOW_CONFIDENCE and candidates[0].score - candidates[1].score < AMBIGUITY_DELTA:
-                result.action = "queued_for_decision"
-                result.decision_candidates = candidates
-                result.decision_trigger = "ambiguous"
-                log.info(
-                    "show_queued_for_decision",
-                    title=title,
-                    api_title=match.api_title,
-                    source=match.source,
-                    confidence=round(match.confidence, 2),
-                    trigger="ambiguous",
-                    runner_up_score=round(candidates[1].score, 2),
-                )
-                return None
-
         # Clean >= HIGH_CONFIDENCE — proceed with full scrape path.
+        assert match is not None  # narrowed by classify_decision_trigger
+        result.match = match
         log.info(
             "show_matched",
             title=title,

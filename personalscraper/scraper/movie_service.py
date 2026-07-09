@@ -21,7 +21,7 @@ from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
-from personalscraper.scraper.confidence import AMBIGUITY_DELTA, HIGH_CONFIDENCE, LOW_CONFIDENCE
+from personalscraper.scraper.decision_triage import apply_decision_to_result, classify_decision_trigger
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
 from personalscraper.text_utils import sanitize_filename
 
@@ -696,94 +696,37 @@ class MovieServiceMixin:
         result: ScrapeResult,
         candidates: list[DecisionCandidate] | None = None,
     ) -> bool:
-        """Check confidence of the matched candidate and route to decision queue.
+        """Route a match through the three-tier decision logic (DESIGN §4).
 
-        Implements the scrape-arbiter three-tier trigger logic (DESIGN §4):
-
-        - ``below_threshold`` (confidence < LOW_CONFIDENCE): keeps the
-          existing ``skipped_low_confidence`` action + db-restore fallback,
-          ADDITIVELY sets ``decision_candidates`` and
-          ``decision_trigger="below_threshold"`` so the item lands in the
-          decision queue.
-        - ``mid_band`` (LOW_CONFIDENCE <= confidence < HIGH_CONFIDENCE):
-          REPLACES the historical auto-accept — action is set to
-          ``"queued_for_decision"``, ``decision_trigger="mid_band"``,
-          and no NFO/artwork is written.
-        - ``ambiguous`` (confidence >= HIGH_CONFIDENCE but the top two
-          candidates are both >= LOW_CONFIDENCE and within AMBIGUITY_DELTA):
-          action is ``"queued_for_decision"``,
-          ``decision_trigger="ambiguous"``, and no NFO/artwork is written.
-        - Clean (confidence >= HIGH_CONFIDENCE, no ambiguity): unchanged
-          auto-accept, returns True to proceed with the full scrape path.
-
-        DESIGN §2 decision 2: the mid-band auto-accept behavior change is
-        operator-approved — items that were formerly accepted silently now
-        enter the decision queue for human review.
-
-        Args:
-            match: MatchResult from TMDB (may be None).
-            title: Movie title for logging.
-            year: Optional release year for logging.
-            result: ScrapeResult for action tracking.
-            candidates: Top-5 scored DecisionCandidate list from the
-                detailed match. Used for ambiguity detection and decision
-                queue population.
+        Delegates to :mod:`~personalscraper.scraper.decision_triage`.
 
         Returns:
-            True if the candidate is accepted for auto-scrape (clean
-            >= HIGH_CONFIDENCE, no ambiguity) and result.match is set.
-            False otherwise (skip or queued).
+            True for clean auto-accept, False otherwise.
         """
-        if match is None or match.confidence < LOW_CONFIDENCE:
-            result.action = "skipped_low_confidence"
-            if candidates:
-                result.decision_candidates = candidates
-            result.decision_trigger = "below_threshold"
-            log.warning(
-                "movie_no_confident_match",
-                title=title,
-                year=year,
-                score=round(match.confidence if match else 0.0, 2),
-            )
-            return False
-
-        result.match = match
-
-        # Mid band: was auto-accepted, now enqueued for operator review.
-        if match.confidence < HIGH_CONFIDENCE:
-            result.action = "queued_for_decision"
-            if candidates:
-                result.decision_candidates = candidates
-            result.decision_trigger = "mid_band"
-            log.info(
-                "movie_queued_for_decision",
-                title=title,
-                api_title=match.api_title,
-                source=match.source,
-                confidence=round(match.confidence, 2),
-                trigger="mid_band",
-            )
-            return False
-
-        # Ambiguity guard: top two candidates within AMBIGUITY_DELTA and
-        # both >= LOW_CONFIDENCE → enqueue even though best is >= HIGH.
-        if candidates and len(candidates) > 1:
-            if candidates[1].score >= LOW_CONFIDENCE and candidates[0].score - candidates[1].score < AMBIGUITY_DELTA:
-                result.action = "queued_for_decision"
-                result.decision_candidates = candidates
-                result.decision_trigger = "ambiguous"
+        trigger = classify_decision_trigger(match, candidates)
+        if trigger is not None:
+            apply_decision_to_result(result, match, candidates, trigger)
+            if trigger == "below_threshold":
+                log.warning(
+                    "movie_no_confident_match",
+                    title=title,
+                    year=year,
+                    score=round(match.confidence if match else 0.0, 2),
+                )
+            else:
+                assert match is not None  # narrowed by classify_decision_trigger
                 log.info(
                     "movie_queued_for_decision",
                     title=title,
                     api_title=match.api_title,
                     source=match.source,
                     confidence=round(match.confidence, 2),
-                    trigger="ambiguous",
-                    runner_up_score=round(candidates[1].score, 2),
+                    trigger=trigger,
+                    runner_up_score=(round(candidates[1].score, 2) if trigger == "ambiguous" and candidates else None),
                 )
-                return False
-
-        # Clean >= HIGH_CONFIDENCE — unchanged auto-accept.
+            return False
+        assert match is not None  # narrowed by classify_decision_trigger
+        result.match = match
         log.info(
             "movie_matched",
             title=title,
