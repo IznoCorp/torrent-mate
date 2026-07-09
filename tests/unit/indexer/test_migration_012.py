@@ -24,7 +24,7 @@ from personalscraper.indexer.db import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 # Migration files to include when building a "through-011" directory
-_MIGRATION_NAMES_001_011 = sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql") if not p.name.startswith("012_"))
+_MIGRATION_NAMES_001_011 = sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql") if int(p.name.split("_", 1)[0]) <= 11)
 
 
 # ---------------------------------------------------------------------------
