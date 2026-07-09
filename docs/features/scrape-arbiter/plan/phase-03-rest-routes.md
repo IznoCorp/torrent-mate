@@ -20,9 +20,9 @@
 
 Models:
 
-- `DecisionCandidate(BaseModel)`: `provider: Literal['tmdb', 'tvdb']`, `provider_id: int`,
-  `title: str`, `year: int | None`, `score: float`, `poster_url: str | None`,
-  `overview: str | None`.
+- `DecisionCandidate(BaseModel)`: **Re-exported** from
+  `personalscraper.scraper.decision_candidate` (created in phase 1.2) — single source of
+  truth; NOT redefined here.
 - `DecisionListItem(BaseModel)`: `id: int`, `staging_path: str`, `media_kind: str`,
   `extracted_title: str`, `extracted_year: int | None`, `trigger: str`,
   `candidates_count: int`, `status: str`, `created_at: float`.
