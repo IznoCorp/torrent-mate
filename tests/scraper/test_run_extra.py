@@ -15,6 +15,7 @@ Targets the residual gaps in :func:`run_scrape`, :func:`_to_step_report`,
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -328,3 +329,348 @@ def test_to_step_report_unknown_skipped_action() -> None:
     # ``unmatched`` counter stays at zero — only ``skipped_low_confidence``
     # surfaces there.
     assert "unmatched" not in report.counts
+
+
+# ---------------------------------------------------------------------------
+# scrape-arbiter decision enqueue wiring (sub-phase 1.5b)
+# ---------------------------------------------------------------------------
+
+_MIGRATION_013_PATH = (
+    Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations" / "013_scrape_decision.sql"
+)
+
+
+def _create_decision_db(db_path: Path) -> None:
+    """Create a SQLite DB with the ``scrape_decision`` table.
+
+    Mirrors ``tests/scraper/test_decision_writer.py::_create_db``.
+    The migration 013 script references ``schema_version``; create that
+    table first, then run the full migration via ``executescript``.
+
+    Args:
+        db_path: Path to the on-disk SQLite database file to create.
+    """
+    import sqlite3
+
+    from personalscraper.core.sqlite._pragmas import apply_pragmas
+
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    apply_pragmas(conn)
+    conn.execute("CREATE TABLE schema_version (version INTEGER PRIMARY KEY)")
+    conn.commit()
+    migration_sql = _MIGRATION_013_PATH.read_text(encoding="utf-8")
+    conn.executescript(migration_sql)
+    conn.close()
+
+
+class TestDecisionEnqueue:
+    """Tests for scrape-arbiter decision enqueue wiring in ``run_scrape``."""
+
+    def test_enqueued_item_upserted_to_db(self, tmp_path: Path) -> None:
+        """Item with ``queued_for_decision`` action → row inserted in scrape_decision.
+
+        Verifies that:
+        - The staging_path is NFC-normalized in the DB.
+        - All fields (media_kind, extracted_title, extracted_year, trigger,
+          candidates_json, status, run_uid, timestamps) are populated.
+        - The row is queryable after ``run_scrape`` returns.
+        """
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Inception (2010)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=27205,
+                title="Inception",
+                year=2010,
+                score=0.65,
+            ),
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=99999,
+                title="Inception 2",
+                year=2012,
+                score=0.55,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="mid_band",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT staging_path, media_kind, extracted_title, extracted_year, "
+            '"trigger", candidates_json, status, run_uid, created_at, updated_at '
+            "FROM scrape_decision WHERE staging_path = ?",
+            (str(movie_folder),),
+        ).fetchone()
+        conn.close()
+
+        assert row is not None, "Row should exist for the enqueued item"
+        (
+            staging_path_db,
+            media_kind,
+            title,
+            year,
+            trigger,
+            candidates_json,
+            status,
+            run_uid_val,
+            created_at,
+            updated_at,
+        ) = row
+        assert staging_path_db == str(movie_folder)  # NFC (already NFC here)
+        assert media_kind == "movie"
+        assert title == "Inception"
+        assert year == 2010
+        assert trigger == "mid_band"
+        assert status == "pending"
+        assert run_uid_val is None
+        assert created_at > 0
+        assert updated_at > 0
+        assert created_at == updated_at
+        parsed = json.loads(candidates_json)
+        assert len(parsed) == 2
+        assert parsed[0]["provider"] == "tmdb"
+        assert parsed[0]["provider_id"] == 27205
+
+    def test_no_db_path_no_crash(self, tmp_path: Path) -> None:
+        """config.indexer.db_path is None → enqueue is skipped, no crash."""
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Unknown (2024)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = None  # No DB → should skip gracefully
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=1,
+                title="Test",
+                year=2024,
+                score=0.30,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="below_threshold",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            report = run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        # Should return a valid StepReport without crashing.
+        assert report.name == "scrape"
+
+    def test_orphan_gc_called_after_enqueue(self, tmp_path: Path) -> None:
+        """``mark_superseded_orphans`` runs after enqueue when db_path is set.
+
+        We insert an orphan row (staging path that does not exist on disk)
+        before the run and assert it is superseded afterwards.
+        """
+        import sqlite3
+        import time
+
+        from personalscraper.core.sqlite._pragmas import apply_pragmas
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Real Movie (2024)"
+        movie_folder.mkdir()
+
+        # Pre-insert an orphan row for a path that does NOT exist.
+        orphan_path = str(movies_dir / "Deleted Movie (2021)")
+        now = time.time()
+        conn = sqlite3.connect(str(db_path), isolation_level=None)
+        apply_pragmas(conn)
+        conn.execute(
+            "INSERT INTO scrape_decision "
+            "(staging_path, media_kind, extracted_title, extracted_year, "
+            '"trigger", candidates_json, status, run_uid, created_at, updated_at) '
+            "VALUES (?, 'movie', 'Deleted Movie', 2021, 'mid_band', '[]', "
+            "'pending', NULL, ?, ?)",
+            (orphan_path, now, now),
+        )
+        conn.commit()
+        conn.close()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=1,
+                title="Real Movie",
+                year=2024,
+                score=0.65,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="mid_band",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        # Orphan row should be superseded.
+        conn = sqlite3.connect(str(db_path))
+        orphan_status = conn.execute(
+            "SELECT status FROM scrape_decision WHERE staging_path = ?",
+            (orphan_path,),
+        ).fetchone()
+        conn.close()
+        assert orphan_status is not None
+        assert orphan_status[0] == "superseded"
+
+    def test_skipped_low_confidence_with_candidates_also_enqueued(self, tmp_path: Path) -> None:
+        """``skipped_low_confidence`` with decision_candidates → enqueued additively.
+
+        Items below LOW_CONFIDENCE keep their ``skipped_low_confidence`` action
+        but carry ``decision_candidates`` for the additive decision queue row.
+        """
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Obscure Film (1999)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=42,
+                title="Obscure Film",
+                year=1999,
+                score=0.30,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="skipped_low_confidence",
+            decision_candidates=candidates,
+            decision_trigger="below_threshold",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            'SELECT extracted_title, media_kind, "trigger", status FROM scrape_decision WHERE staging_path = ?',
+            (str(movie_folder),),
+        ).fetchone()
+        conn.close()
+        assert row is not None, "Additive enqueue for skipped_low_confidence should create a row"
+        assert row[0] == "Obscure Film"
+        assert row[1] == "movie"
+        assert row[2] == "below_threshold"
+        assert row[3] == "pending"

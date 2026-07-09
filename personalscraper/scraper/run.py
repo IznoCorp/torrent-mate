@@ -7,6 +7,7 @@ for the pipeline framework.
 Lock is acquired at the CLI level, not here.
 """
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -270,6 +271,35 @@ def run_scrape(
                     details={"error": r.error or ""},
                 )
             )
+
+    # Enqueue ambiguous / mid-band / low-confidence items into the
+    # scrape-arbiter decision queue so the operator can later resolve them
+    # through the web UI (§5).  The DecisionWriter is fail-soft — a DB
+    # failure never aborts the pipeline.
+    db_path = config.indexer.db_path
+    if not isinstance(db_path, Path):
+        log.debug("scrape_arbiter_skip_no_db", reason="indexer.db_path is not a Path")
+    else:
+        from personalscraper.scraper.decision_writer import DecisionWriter
+        from personalscraper.scraper.scraper import _parse_folder_name
+
+        writer = DecisionWriter(db_path)
+        for r in all_results:
+            if r.action == "queued_for_decision" or r.decision_candidates:
+                title, year = _parse_folder_name(r.media_path.name)
+                candidates_json = (
+                    json.dumps([c.model_dump() for c in r.decision_candidates]) if r.decision_candidates else "[]"
+                )
+                writer.upsert(
+                    staging_path=r.media_path,
+                    media_kind=r.media_type,
+                    extracted_title=title,
+                    extracted_year=year,
+                    trigger=r.decision_trigger or "mid_band",
+                    candidates_json=candidates_json,
+                    run_uid=None,
+                )
+        writer.mark_superseded_orphans()
 
     # Convert to StepReport
     return _to_step_report(all_results)
