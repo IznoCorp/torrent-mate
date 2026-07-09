@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from personalscraper.scraper.decision_candidate import DecisionCandidate  # noqa: F401
+from personalscraper.scraper.decision_candidate import DecisionCandidate as DecisionCandidate
 
 # DecisionCandidate is re-exported from personalscraper.scraper.decision_candidate
 # (single source of truth — created in phase 1.2).  Web models reference it
