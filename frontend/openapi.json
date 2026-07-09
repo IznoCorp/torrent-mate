@@ -199,6 +199,249 @@
         "title": "ConfigStatusResponse",
         "type": "object"
       },
+      "DecisionCandidate": {
+        "description": "A single scored search-result candidate for a scrape-decision row.\n\nRepresents one provider match that the operator can inspect and\nresolve.  Stored as an element of the ``candidates_json`` JSON array\nin the ``scrape_decision`` table.\n\nAttributes:\n    provider: The metadata provider that returned this candidate\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the provider.\n    title: The candidate title as returned by the provider.\n    year: The release year, or ``None`` when the provider did not\n        return one.\n    score: The confidence score (0.0\u20131.0) assigned by the matching\n        engine.\n    poster_url: The provider poster URL, or ``None`` when no poster\n        is available.\n    overview: A short plot summary, or ``None`` when the provider\n        did not return one.",
+        "properties": {
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "poster_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Url"
+          },
+          "provider": {
+            "enum": [
+              "tmdb",
+              "tvdb"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "provider",
+          "provider_id",
+          "title",
+          "score"
+        ],
+        "title": "DecisionCandidate",
+        "type": "object"
+      },
+      "DecisionDetail": {
+        "description": "Full detail for a single ``scrape_decision`` row.\n\nExtends :class:`DecisionListItem` with the full candidate list and the\nresolution metadata (when resolved).\n\nAttributes:\n    candidates: The full candidate list deserialized from\n        ``candidates_json``.\n    resolution_json: The resolution metadata deserialized from\n        ``resolution_json``, or ``None`` when the decision is still\n        pending, dismissed, or superseded.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "candidates_count": {
+            "title": "Candidates Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "extracted_title": {
+            "title": "Extracted Title",
+            "type": "string"
+          },
+          "extracted_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extracted Year"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "media_kind": {
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "resolution_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Json"
+          },
+          "staging_path": {
+            "title": "Staging Path",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "staging_path",
+          "media_kind",
+          "extracted_title",
+          "trigger",
+          "candidates_count",
+          "status",
+          "created_at",
+          "candidates"
+        ],
+        "title": "DecisionDetail",
+        "type": "object"
+      },
+      "DecisionListItem": {
+        "description": "Summary row for the decisions list endpoint.\n\nRepresents one ``scrape_decision`` row at the list level, without the\nfull ``candidates_json`` payload.\n\nAttributes:\n    id: The auto-increment primary key of the ``scrape_decision`` row.\n    staging_path: Absolute path to the staging folder, NFC-normalized.\n    media_kind: ``\"movie\"`` or ``\"tvshow\"``.\n    extracted_title: Title guessed from the folder name.\n    extracted_year: Release year guessed from the folder name, or\n        ``None`` when no year was extractable.\n    trigger: What caused the enqueue \u2014\n        ``\"below_threshold\"``, ``\"mid_band\"``, or ``\"ambiguous\"``.\n    candidates_count: Number of candidates in ``candidates_json``\n        (computed at query time, not stored).\n    status: ``\"pending\"``, ``\"resolved\"``, ``\"dismissed\"``, or\n        ``\"superseded\"``.\n    created_at: Epoch seconds when the row was created (``time.time()``).",
+        "properties": {
+          "candidates_count": {
+            "title": "Candidates Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "extracted_title": {
+            "title": "Extracted Title",
+            "type": "string"
+          },
+          "extracted_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extracted Year"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "media_kind": {
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "staging_path": {
+            "title": "Staging Path",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "staging_path",
+          "media_kind",
+          "extracted_title",
+          "trigger",
+          "candidates_count",
+          "status",
+          "created_at"
+        ],
+        "title": "DecisionListItem",
+        "type": "object"
+      },
+      "DecisionsResponse": {
+        "description": "Paginated response for the ``GET /api/decisions`` endpoint.\n\nAttributes:\n    items: Decision list items for the current page.\n    pending_count: Total number of decisions with ``status='pending'``\n        (independent of pagination \u2014 the shell badge value).\n    total: Total number of decisions matching the current filter\n        (all statuses, for pagination).\n    page: Current page number (1-indexed).\n    page_size: Number of items per page.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "pending_count",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "DecisionsResponse",
+        "type": "object"
+      },
       "DiskInfo": {
         "description": "A single configured storage disk with its mount and capacity data.\n\nAttributes:\n    id: The disk identifier as declared in ``config/disks.json5``\n        (e.g. ``\"disk_1\"``, ``\"disk_2\"``).\n    label: Human-readable disk label configured by the operator.\n    mounted: ``True`` if the disk mount path currently exists and is\n        accessible on the filesystem.\n    free_gb: Free space in gibibytes, rounded to one decimal.\n    total_gb: Total capacity in gibibytes, derived from\n        ``shutil.disk_usage(path).total`` at query time.\n    used_pct: Percentage of capacity currently in use, rounded to one\n        decimal (``(1 - free_gb / total_gb) * 100``).",
         "properties": {
@@ -817,6 +1060,43 @@
         "title": "PutFileResponse",
         "type": "object"
       },
+      "ResolveRequest": {
+        "description": "Request body for ``POST /api/decisions/{id}/resolve``.\n\nPins a chosen provider identity and launches a targeted re-scrape.\n\nAttributes:\n    provider: The metadata provider to use for the re-scrape\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the chosen provider.",
+        "properties": {
+          "provider": {
+            "enum": [
+              "tmdb",
+              "tvdb"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider",
+          "provider_id"
+        ],
+        "title": "ResolveRequest",
+        "type": "object"
+      },
+      "ResolveResponse": {
+        "description": "Response body for a successful ``POST /api/decisions/{id}/resolve``.\n\nReturned as HTTP 202 (Accepted) \u2014 the re-scrape is launched asynchronously.\n\nAttributes:\n    run_uid: The unique identifier of the launched scrape-resolve run.",
+        "properties": {
+          "run_uid": {
+            "title": "Run Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_uid"
+        ],
+        "title": "ResolveResponse",
+        "type": "object"
+      },
       "RestartResponse": {
         "additionalProperties": false,
         "description": "Response body for ``POST /api/config/restart-web``.\n\nAttributes:\n    status: Always ``\"scheduled\"`` \u2014 the restart has been handed off to\n        the process manager.",
@@ -1051,6 +1331,48 @@
           "started_at"
         ],
         "title": "RunSummary",
+        "type": "object"
+      },
+      "SearchRequest": {
+        "description": "Request body for ``POST /api/decisions/{id}/search``.\n\nTriggers a live search against TMDB/TVDB for a given title and optional\nyear.  Read-only \u2014 no state change.\n\nAttributes:\n    title: The title to search for on the metadata providers.\n    year: An optional release year to narrow the search.",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "SearchRequest",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "description": "Response body for ``POST /api/decisions/{id}/search``.\n\nWraps the fresh candidate list returned by the live provider search.\n\nAttributes:\n    candidates: Fresh ``DecisionCandidate`` list from the live provider\n        search.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "title": "SearchResponse",
         "type": "object"
       },
       "SecretEntry": {
@@ -1781,6 +2103,262 @@
         "summary": "Validate File",
         "tags": [
           "config"
+        ]
+      }
+    },
+    "/api/decisions/": {
+      "get": {
+        "description": "Return a paginated list of scrape decisions.\n\nRuns :meth:`DecisionWriter.mark_superseded_orphans` before querying so\nrows whose staging path no longer exists are garbage-collected to\n``'superseded'`` before the list is built.\n\nArgs:\n    request: The incoming FastAPI request.\n    page: 1-indexed page number (default 1).\n    page_size: Items per page (default 50, capped at 200).\n    status: Filter by status (default ``'pending'``).\n\nReturns:\n    A :class:`DecisionsResponse` with items, ``pending_count``,\n    ``total``, ``page``, and ``page_size``.",
+        "operationId": "list_decisions_api_decisions__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Decisions",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/api/decisions/{decision_id}": {
+      "get": {
+        "description": "Return full detail for a single scrape decision.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`DecisionDetail` with the full candidate list and\n    optional resolution metadata.\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.",
+        "operationId": "get_decision_api_decisions__decision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "title": "Decision Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Decision",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/api/decisions/{decision_id}/dismiss": {
+      "post": {
+        "description": "Dismiss a decision (manual or MediaElch path).\n\nMarks the decision ``'dismissed'`` via :meth:`DecisionWriter.dismiss`.\nReturns the refreshed :class:`DecisionDetail` so the UI can update its\nrow without an extra round-trip.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    request: The incoming FastAPI request.\n\nReturns:\n    The refreshed :class:`DecisionDetail` with ``status='dismissed'``.\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.",
+        "operationId": "dismiss_decision_api_decisions__decision_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "title": "Decision Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Decision",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/api/decisions/{decision_id}/resolve": {
+      "post": {
+        "description": "Launch a targeted re-scrape for a decision.\n\nMirrors ``POST /api/maintenance/actions/{action_id}/run``: validates\npreconditions (pipeline lock, concurrent resolve), reserves a\n``pipeline_run`` row atomically, re-probes the lock, spawns the runner\nsubprocess, and returns ``202`` with the ``run_uid``.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    body: The request payload with ``provider`` and ``provider_id``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ResolveResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.\n    409: The pipeline lock is held, or a scrape-resolve is already running.\n    500: The runner subprocess failed to spawn.",
+        "operationId": "resolve_decision_api_decisions__decision_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "title": "Decision Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Decision",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/api/decisions/{decision_id}/search": {
+      "post": {
+        "description": "Search live providers for candidate matches.\n\nRead-only \u2014 no state change.  Creates per-request provider clients\nand delegates to the detailed confidence matchers\n(:func:`~personalscraper.scraper.confidence.match_movie_detailed` or\n:func:`~personalscraper.scraper.confidence.match_tvshow_detailed`) to\nbuild a fresh candidate list.  The existing decision row is read only\nto determine ``media_kind``; the search title/year come from the\nrequest body so the operator can correct the extracted guess.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    body: Search request with ``title`` and optional ``year``.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`SearchResponse` with fresh provider candidates.\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.\n    502: Provider API failure or client build failure.",
+        "operationId": "search_decision_api_decisions__decision_id__search_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "title": "Decision Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Decision",
+        "tags": [
+          "decisions"
         ]
       }
     },

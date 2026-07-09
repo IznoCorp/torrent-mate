@@ -79,7 +79,9 @@ Route file: `router = APIRouter(prefix="/api/decisions", tags=["decisions"])`.
 
 **Modifies:** `personalscraper/web/app.py` (add decisions router to `guarded_api`),
 `frontend/openapi.json`, `frontend/src/api/schema.d.ts`
-**Test:** `tests/unit/web/test_app.py` (assert decisions routes registered)
+**Test:** `tests/unit/web/test_app.py` (created — plan originally claimed it existed, but no
+app-level route registration test file was present; created with recursive route-path
+collector to handle Starlette's ``_IncludedRouter`` nesting)
 
 **DESIGN ref:** §6 — `guarded_api` perimeter, `make openapi` → schema.d.ts; CI diff-guard
 
