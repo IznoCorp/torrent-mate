@@ -23,7 +23,7 @@
 | 2   | scrape-resolve CLI + web runner + journal wiring                                    | phase-02-cli-runner.md        | [ ]    |
 | 3   | REST routes + models + OpenAPI regen                                                | phase-03-rest-routes.md       | [ ]    |
 | 4   | Frontend /decisions page + badge + typed client                                     | phase-04-frontend.md          | [ ]    |
-| 5   | Integration gates + ACC + docs                                                      | phase-05-integration.md       | [ ]    |
+| 5   | Integration gates + ACC + docs                                                      | phase-05-integration.md       | [x]    |
 
 ## Review cycles
 
@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with phase 5 (integration gates + ACC + docs).
+All phases complete — run /implement:feature-pr (push + PR + CI). Merge: MANUAL.
