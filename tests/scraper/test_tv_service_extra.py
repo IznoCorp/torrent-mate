@@ -308,7 +308,7 @@ class TestLookupSeries:
         mixin = _make_mixin()
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
             side_effect=RuntimeError("boom"),
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -321,12 +321,16 @@ class TestLookupSeries:
         mixin = _make_mixin()
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
-            return_value=None,
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            return_value=(None, []),
         ):
             out = mixin._lookup_series("X", None, set(), result)
         assert out is None
         assert result.action == "skipped_low_confidence"
+        # DESIGN §2 decision 2: below-threshold items additively surface
+        # trigger + candidates so the scrape-arbiter decision queue can pick
+        # them up.
+        assert result.decision_trigger == "below_threshold"
 
     def test_low_confidence_match_returns_none(self, tmp_path: Path) -> None:
         """A real match below the LOW_CONFIDENCE threshold also skips."""
@@ -334,12 +338,16 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=1, api_title="X", api_year=2020, confidence=0.0, source="tmdb")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
-            return_value=match,
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            return_value=(match, []),
         ):
             out = mixin._lookup_series("X", None, set(), result)
         assert out is None
         assert result.action == "skipped_low_confidence"
+        # DESIGN §2 decision 2: below-threshold items additively surface
+        # trigger + candidates so the scrape-arbiter decision queue can pick
+        # them up.
+        assert result.decision_trigger == "below_threshold"
 
     def test_tvdb_branch_with_tmdb_cross_ref(self, tmp_path: Path) -> None:
         """TVDB success: external_ids drives the tmdb_id cross-reference."""
@@ -356,8 +364,8 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.95, source="tvdb")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
-            return_value=match,
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            return_value=(match, []),
         ):
             out = mixin._lookup_series("Show", 2020, {1}, result)
         assert out is not None
@@ -376,8 +384,8 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.95, source="tvdb")
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
-            return_value=match,
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            return_value=(match, []),
         ):
             out = mixin._lookup_series("Show", 2020, {1}, result)
         assert out is not None
@@ -403,8 +411,8 @@ class TestLookupSeries:
             source="tmdb",
         )
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
-            return_value=match,
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            return_value=(match, []),
         ):
             out = mixin._lookup_series("TmdbShow", 2021, {1}, result)
         assert out is not None
@@ -426,8 +434,8 @@ class TestLookupSeries:
             source="tmdb",
         )
         with patch(
-            "personalscraper.scraper.scraper.match_tvshow_single",
-            return_value=match,
+            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            return_value=(match, []),
         ):
             out = mixin._lookup_series("X", 2021, set(), result)
         assert out is None
@@ -1073,8 +1081,8 @@ class TestScrapeTvshowDriftAndFastPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=None,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(None, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1127,8 +1135,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=None,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(None, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1151,8 +1159,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1176,8 +1184,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1201,8 +1209,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1226,8 +1234,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1252,8 +1260,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1277,8 +1285,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1302,8 +1310,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
             patch(
                 "personalscraper.scraper.tv_service._rename_dir_case_safe",
@@ -1359,8 +1367,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
         ):
             res = mixin.scrape_tvshow(show)
@@ -1412,8 +1420,8 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.scraper.match_tvshow_single",
-                return_value=match,
+                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                return_value=(match, []),
             ),
             caplog.at_level("WARNING"),
         ):
@@ -1448,8 +1456,8 @@ def test_lookup_series_emits_match_attribute(tmp_path: Path, source: str) -> Non
     result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
     match = MatchResult(api_id=1, api_title="X", api_year=2020, confidence=0.9, source=source)
     with patch(
-        "personalscraper.scraper.scraper.match_tvshow_single",
-        return_value=match,
+        "personalscraper.scraper.confidence.match_tvshow_detailed",
+        return_value=(match, []),
     ):
         out = mixin._lookup_series("X", 2020, set(), result)
     assert out is not None
@@ -1487,8 +1495,8 @@ def test_tv_chain_details_continues_on_runtime_error(tmp_path: Path) -> None:
     result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
     match = MatchResult(api_id=100, api_title="Show", api_year=2020, confidence=0.95, source="tmdb")
     with patch(
-        "personalscraper.scraper.scraper.match_tvshow_single",
-        return_value=match,
+        "personalscraper.scraper.confidence.match_tvshow_detailed",
+        return_value=(match, []),
     ):
         out = mixin._lookup_series("Show", 2020, set(), result)
 
