@@ -19,7 +19,7 @@
 
 | #   | Phase                                                                               | File                          | Status |
 | --- | ----------------------------------------------------------------------------------- | ----------------------------- | ------ |
-| 1   | Migration 013 + DecisionWriter + confidence.py candidate surfacing + enqueue wiring | phase-01-migration-enqueue.md | [ ]    |
+| 1   | Migration 013 + DecisionWriter + confidence.py candidate surfacing + enqueue wiring | phase-01-migration-enqueue.md | [x]    |
 | 2   | scrape-resolve CLI + web runner + journal wiring                                    | phase-02-cli-runner.md        | [ ]    |
 | 3   | REST routes + models + OpenAPI regen                                                | phase-03-rest-routes.md       | [ ]    |
 | 4   | Frontend /decisions page + badge + typed client                                     | phase-04-frontend.md          | [ ]    |
@@ -31,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start phase 1.
+Run `/implement:phase` to continue with phase 2 (scrape-resolve CLI + runner).
