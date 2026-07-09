@@ -9,7 +9,7 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/scrape-arbiter/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/scrape-arbiter/plan/INDEX.md
 
 > Note: the `VERSION` file lagged at 0.43.1 while `personalscraper.__version__`
 > (the pyproject dynamic-attr source of truth) was 0.44.0; both are reconciled
@@ -17,7 +17,13 @@
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                                               | File                          | Status |
+| --- | ----------------------------------------------------------------------------------- | ----------------------------- | ------ |
+| 1   | Migration 013 + DecisionWriter + confidence.py candidate surfacing + enqueue wiring | phase-01-migration-enqueue.md | [ ]    |
+| 2   | scrape-resolve CLI + web runner + journal wiring                                    | phase-02-cli-runner.md        | [ ]    |
+| 3   | REST routes + models + OpenAPI regen                                                | phase-03-rest-routes.md       | [ ]    |
+| 4   | Frontend /decisions page + badge + typed client                                     | phase-04-frontend.md          | [ ]    |
+| 5   | Integration gates + ACC + docs                                                      | phase-05-integration.md       | [ ]    |
 
 ## Review cycles
 
@@ -25,4 +31,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start phase 1.
