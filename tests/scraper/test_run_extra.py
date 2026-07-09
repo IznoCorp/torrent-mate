@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.naming_patterns import PATTERNS
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.run import (
     _has_unscraped_items,
@@ -674,3 +675,223 @@ class TestDecisionEnqueue:
         assert row[1] == "movie"
         assert row[2] == "below_threshold"
         assert row[3] == "pending"
+
+
+# ---------------------------------------------------------------------------
+# scrape-arbiter sub-phase 1.6 — StepReport counting + ItemProgressed emission
+# ---------------------------------------------------------------------------
+
+
+class TestQueuedForDecisionReporting:
+    """Tests for ``queued_for_decision`` counting and event emission."""
+
+    # -- _to_step_report ---------------------------------------------------
+
+    def test_to_step_report_counts_queued_for_decision(self) -> None:
+        """``queued_for_decision`` items counted in ``counts["queued_for_decision"]``.
+
+        Paths also appear in ``unmatched_paths`` for operator visibility.
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=1, title="T", year=2020, score=0.65),
+        ]
+        results = [
+            ScrapeResult(
+                media_path=Path("Mid Movie"),
+                media_type="movie",
+                action="queued_for_decision",
+                decision_candidates=candidates,
+                decision_trigger="mid_band",
+            ),
+        ]
+        report = _to_step_report(results)
+        assert report.counts.get("queued_for_decision") == 1
+        assert "queued_for_decision" not in report.counts.get("unmatched", {})
+        # Not counted as success: queued items are pending operator review.
+        assert report.success_count == 0
+        assert report.skip_count == 0
+        assert report.error_count == 0
+        assert "Mid Movie" in report.unmatched_paths
+        assert any("queued_for_decision" in d for d in report.details)
+
+    def test_to_step_report_additive_skipped_low_confidence(self) -> None:
+        """``skipped_low_confidence`` with candidates also counted in ``queued_for_decision``.
+
+        The item stays counted as both ``unmatched`` (existing behaviour) and
+        ``queued_for_decision`` (additive enqueue). The path appears once in
+        ``unmatched_paths`` (no double-append).
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=42, title="X", year=1999, score=0.30),
+        ]
+        results = [
+            ScrapeResult(
+                media_path=Path("Low Movie"),
+                media_type="movie",
+                action="skipped_low_confidence",
+                decision_candidates=candidates,
+                decision_trigger="below_threshold",
+            ),
+        ]
+        report = _to_step_report(results)
+        assert report.counts.get("unmatched") == 1  # existing counter
+        assert report.counts.get("queued_for_decision") == 1  # additive
+        assert report.skip_count == 1
+        assert report.success_count == 0
+        # Path appears exactly once in unmatched_paths.
+        assert report.unmatched_paths == ["Low Movie"]
+
+    def test_to_step_report_mixed_items(self) -> None:
+        """Mix of queued, skipped_low_confidence+candidates, and clean items."""
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        candidates_a = [
+            DecisionCandidate(provider="tmdb", provider_id=1, title="A", year=2020, score=0.65),
+        ]
+        candidates_b = [
+            DecisionCandidate(provider="tmdb", provider_id=2, title="B", year=2020, score=0.49),
+        ]
+        results = [
+            ScrapeResult(
+                media_path=Path("Mid A"),
+                media_type="movie",
+                action="queued_for_decision",
+                decision_candidates=candidates_a,
+                decision_trigger="mid_band",
+            ),
+            ScrapeResult(
+                media_path=Path("Low B"),
+                media_type="movie",
+                action="skipped_low_confidence",
+                decision_candidates=candidates_b,
+                decision_trigger="below_threshold",
+            ),
+            ScrapeResult(
+                media_path=Path("Clean C"),
+                media_type="movie",
+                action="scraped",
+                nfo_written=True,
+            ),
+            ScrapeResult(
+                media_path=Path("Low No Candidates D"),
+                media_type="movie",
+                action="skipped_low_confidence",
+                # No decision_candidates — not enqueued.
+            ),
+        ]
+        report = _to_step_report(results)
+        assert report.counts.get("queued_for_decision") == 2  # Mid A + Low B
+        assert report.counts.get("unmatched") == 2  # Low B + Low No Candidates D
+        assert report.success_count == 1  # Clean C
+        assert report.skip_count == 2  # Low B + Low No Candidates D
+        assert set(report.unmatched_paths) == {"Mid A", "Low B", "Low No Candidates D"}
+
+    # -- run_scrape event emission -----------------------------------------
+
+    def test_run_scrape_emits_item_progressed_queued(self, tmp_path: Path) -> None:
+        """``run_scrape`` emits one ``ItemProgressed(status="queued_for_decision")`` per enqueued item.
+
+        Each event carries ``trigger``, ``confidence``, and ``candidates_count``
+        in its ``details`` dict.  The ``started`` event still fires first
+        (existing behaviour).
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Mid Movie (2024)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = None  # skip DB wiring
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=1, title="Mid Movie", year=2024, score=0.65),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="mid_band",
+        )
+
+        bus = EventBus()
+        captured: list[ItemProgressed] = []
+        bus.subscribe(ItemProgressed, captured.append)
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(settings, config=config, event_bus=bus, registry=MagicMock())
+
+        queued_events = [e for e in captured if e.status == "queued_for_decision"]
+        assert len(queued_events) == 1, f"Expected 1 queued_for_decision event, got {len(queued_events)}"
+        event = queued_events[0]
+        assert event.step == "scrape"
+        assert event.item == "Mid Movie (2024)"
+        assert event.details is not None
+        assert event.details["trigger"] == "mid_band"
+        assert event.details["candidates_count"] == 1
+        # ``started`` event also emitted (existing behaviour).
+        started_events = [e for e in captured if e.status == "started"]
+        assert len(started_events) == 1
+
+    def test_run_scrape_queued_report_counts(self, tmp_path: Path) -> None:
+        """StepReport returned by ``run_scrape`` includes ``queued_for_decision`` count."""
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Ambiguous Film (2023)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = None
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=10, title="Ambiguous Film", year=2023, score=0.85),
+            DecisionCandidate(provider="tmdb", provider_id=11, title="Ambiguous Film", year=2023, score=0.83),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="ambiguous",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            report = run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        assert report.counts.get("queued_for_decision") == 1
+        assert "Ambiguous Film (2023)" in report.unmatched_paths

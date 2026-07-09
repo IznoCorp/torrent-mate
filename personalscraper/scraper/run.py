@@ -253,6 +253,19 @@ def run_scrape(
                     },
                 )
             )
+        elif r.action == "queued_for_decision":
+            event_bus.emit(
+                ItemProgressed(
+                    step="scrape",
+                    item=item_name,
+                    status="queued_for_decision",
+                    details={
+                        "trigger": r.decision_trigger or "",
+                        "confidence": r.match.confidence if r.match else 0.0,
+                        "candidates_count": len(r.decision_candidates or []),
+                    },
+                )
+            )
         elif r.action in ("skipped_already_done", "skipped_no_category"):
             event_bus.emit(
                 ItemProgressed(
@@ -356,6 +369,9 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
             unmatched += 1
             details.append(f"[unmatched] {name}")
             unmatched_paths.append(name)
+        elif r.action == "queued_for_decision":
+            details.append(f"[queued_for_decision] {name}")
+            unmatched_paths.append(name)
         elif r.action.startswith("skipped"):
             skipped += 1
             details.append(f"[skipped] {name} ({r.action})")
@@ -367,6 +383,12 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
     counts: dict[str, int] = {}
     if unmatched:
         counts["unmatched"] = unmatched
+    # Count all items enqueued for operator decision: explicit
+    # ``queued_for_decision`` action and ``skipped_low_confidence`` items
+    # that carry decision_candidates (additive enqueue, sub-phase 1.5).
+    queued = sum(1 for r in results if r.action == "queued_for_decision" or r.decision_candidates)
+    if queued:
+        counts["queued_for_decision"] = queued
 
     return StepReport(
         name="scrape",
