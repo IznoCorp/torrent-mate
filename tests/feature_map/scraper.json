@@ -2,9 +2,29 @@
   "feature": "scraper",
   "design": "docs/reference/scraping.md",
   "sections": {
+    "batch-confidence--decision-queue-s5--scrape-arbiter": {
+      "tests": [
+        "tests/scraper/test_run_extra.py::TestDecisionEnqueue::test_enqueued_item_upserted_to_db"
+      ]
+    },
     "configuration-reference": {
       "tests": [
         "tests/conf/test_example_config.py::TestExampleConfig::test_example_parses_and_validates"
+      ]
+    },
+    "decision-queue-drain": {
+      "tests": [
+        "tests/cli/test_scrape_resolve.py::TestScrapeResolveExit0::test_movie_fetch_by_id_succeeds"
+      ]
+    },
+    "detailed-match-variants": {
+      "tests": [
+        "tests/scraper/test_confidence.py::TestMatchMovieDetailed::test_below_threshold_returns_candidates"
+      ]
+    },
+    "event-emission": {
+      "tests": [
+        "tests/scraper/test_run_extra.py::TestQueuedForDecisionReporting::test_run_scrape_emits_item_progressed_queued"
       ]
     },
     "fallback-triggers-chain": {
@@ -32,6 +52,16 @@
         "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",
         "tests/unit/api/metadata/registry/test_registry_fan_out.py::test_fan_out_wrong_semantic_raises",
         "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
+      ]
+    },
+    "three-triggers": {
+      "tests": [
+        "tests/scraper/test_run_extra.py::TestQueuedForDecisionReporting::test_to_step_report_mixed_items"
+      ]
+    },
+    "threshold-constants": {
+      "tests": [
+        "tests/scraper/test_confidence.py::TestScoreMatch::test_exact_match_with_year"
       ]
     }
   },

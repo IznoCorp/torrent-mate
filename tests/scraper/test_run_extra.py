@@ -370,6 +370,12 @@ class TestDecisionEnqueue:
     def test_enqueued_item_upserted_to_db(self, tmp_path: Path) -> None:
         """Item with ``queued_for_decision`` action → row inserted in scrape_decision.
 
+        Design: docs/reference/scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter
+        Contract: When run_scrape processes a ScrapeResult with
+        action='queued_for_decision', the item is upserted into the
+        scrape_decision table with status='pending', all extracted fields
+        populated, and candidates_json carrying the serialized candidate list.
+
         Verifies that:
         - The staging_path is NFC-normalized in the DB.
         - All fields (media_kind, extracted_title, extracted_year, trigger,
@@ -746,7 +752,15 @@ class TestQueuedForDecisionReporting:
         assert report.unmatched_paths == ["Low Movie"]
 
     def test_to_step_report_mixed_items(self) -> None:
-        """Mix of queued, skipped_low_confidence+candidates, and clean items."""
+        """Mix of queued, skipped_low_confidence+candidates, and clean items.
+
+        Design: docs/reference/scraping.md#three-triggers
+        Contract: The three decision triggers (mid_band, below_threshold, and
+        ambiguous) each produce distinct queue entries with correct counting in
+        the StepReport — mid_band items queue via queued_for_decision,
+        below_threshold items queue additively alongside skipped_low_confidence,
+        and non-queued items are unaffected.
+        """
         from personalscraper.scraper.decision_candidate import DecisionCandidate
 
         candidates_a = [
@@ -794,6 +808,12 @@ class TestQueuedForDecisionReporting:
 
     def test_run_scrape_emits_item_progressed_queued(self, tmp_path: Path) -> None:
         """``run_scrape`` emits one ``ItemProgressed(status="queued_for_decision")`` per enqueued item.
+
+        Design: docs/reference/scraping.md#event-emission
+        Contract: When a ScrapeResult carries action='queued_for_decision',
+        run_scrape emits an ItemProgressed event with status='queued_for_decision'
+        on the EventBus, with details containing trigger, candidates_count, and
+        the item path. The started event still fires first.
 
         Each event carries ``trigger``, ``confidence``, and ``candidates_count``
         in its ``details`` dict.  The ``started`` event still fires first

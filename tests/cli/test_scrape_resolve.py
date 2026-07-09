@@ -488,7 +488,14 @@ class TestScrapeResolveExit0:
     """Happy-path tests with realistic golden-fixture payloads."""
 
     def test_movie_fetch_by_id_succeeds(self, tmp_path: Path, test_config: Any) -> None:
-        """Movie via TMDB: golden payload → NFO + artwork → decision resolved."""
+        """Movie via TMDB: golden payload → NFO + artwork → decision resolved.
+
+        Design: docs/reference/scraping.md#decision-queue-drain
+        Contract: The scrape-resolve CLI command fetches a movie by provider ID
+        via the TMDB API, generates NFO + artwork into the staging folder, marks
+        the decision row as resolved with resolution_json containing provider,
+        provider_id, and via='pick', and exits 0.
+        """
         staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
         staging.mkdir(parents=True)
 

@@ -106,7 +106,13 @@ class TestScoreMatch:
     """Tests for the confidence scoring algorithm."""
 
     def test_exact_match_with_year(self) -> None:
-        """Exact title + exact year should score >= HIGH_CONFIDENCE."""
+        """Exact title + exact year should score >= HIGH_CONFIDENCE.
+
+        Design: docs/reference/scraping.md#threshold-constants
+        Contract: score_match returns a value >= HIGH_CONFIDENCE (0.9) when
+        both the title and year match exactly, and the score is always clamped
+        within [0.0, 1.0].
+        """
         score = score_match("The Matrix", 1999, "The Matrix", 1999)
         assert score >= HIGH_CONFIDENCE
 
@@ -1387,7 +1393,14 @@ class TestMatchMovieDetailed:
     """Tests for match_movie_detailed() returning candidates alongside best match."""
 
     def test_below_threshold_returns_candidates(self) -> None:
-        """Best < LOW_CONFIDENCE → match returned with low confidence, candidates non-empty."""
+        """Best < LOW_CONFIDENCE → match returned with low confidence, candidates non-empty.
+
+        Design: docs/reference/scraping.md#detailed-match-variants
+        Contract: match_movie_detailed returns a (match, candidates) tuple
+        where match is the best-scoring result (even if below threshold) and
+        candidates is a DecisionCandidate list sorted by score descending,
+        capped at 5 entries.
+        """
         client = MagicMock()
         client._language = "fr-FR"
         client._fallback_language = "en-US"

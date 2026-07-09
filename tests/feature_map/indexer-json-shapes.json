@@ -16,6 +16,16 @@
       "tests": [
         "tests/integration/test_design_indexer.py::TestScanStatsShapeContract::test_scan_stats_defaults_zero_and_forbids_unknown_keys"
       ]
+    },
+    "scrape_decisioncandidates_json": {
+      "tests": [
+        "tests/scraper/test_decision_candidate.py::TestDecisionCandidateRoundTrip::test_round_trip_full"
+      ]
+    },
+    "scrape_decisionresolution_json": {
+      "tests": [
+        "tests/scraper/test_decision_writer.py::TestDecisionWriterResolve::test_resolve_sets_status_and_resolution_json"
+      ]
     }
   },
   "skip_audit": [
