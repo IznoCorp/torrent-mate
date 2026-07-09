@@ -19,11 +19,12 @@
 --id <provider_id>`; exit 0/1/2; self-acquires `pipeline.lock`
 
 CLI command: accepts `staging_path` (Path arg), `--provider` (`tmdb` or `tvdb`), `--id`
-(int). Loads config, self-acquires `pipeline.lock` (via `is_lock_held` check + file
-creation), fetches media by provider ID through existing service fetch/write paths (TMDB
-client for movies, TVDB client for TV shows — respecting the multi-provider separation
-boundary from `docs/reference/external-ids-flow.md`), writes NFO + artwork into staging
-folder. On success: marks decision `resolved` via `DecisionWriter.resolve()` with
+(int). Loads config, self-acquires `pipeline.lock` via `cli_compat.acquire_lock()`
+(EXACTLY like `library-rescrape` in `analyze.py:305` — not a hand-rolled `is_lock_held`
+check + file creation), fetches media by provider ID through existing service fetch/write
+paths (TMDB client for movies, TVDB client for TV shows — respecting the multi-provider
+separation boundary from `docs/reference/external-ids-flow.md`), writes NFO + artwork into
+staging folder. On success: marks decision `resolved` via `DecisionWriter.resolve()` with
 `resolution_json = {provider, provider_id, via: 'pick'}`. Exit codes: 0 (success), 1
 (scrape error — NFO write failed, API error), 2 (misconfiguration — missing DB, bad
 provider). Add `"scrape-resolve"` to `_CLI_SELF_LOCKING` frozenset in

@@ -130,6 +130,7 @@ _CLI_SELF_LOCKING: frozenset[str] = frozenset(
         "library-clean",
         "library-validate",
         "library-rescrape",
+        "scrape-resolve",
     }
 )
 
