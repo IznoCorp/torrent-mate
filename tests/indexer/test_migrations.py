@@ -44,6 +44,7 @@ _EXPECTED_TABLES_V1 = {
     "scan_event",
     "deleted_item",
     "schema_version",
+    "scrape_decision",
     "_migration_007_changes",
 }
 
@@ -107,15 +108,15 @@ def _user_version(conn: sqlite3.Connection) -> int:
 class TestApplyMigrations001:
     """apply_migrations applies all migrations to a fresh database correctly.
 
-    With migrations 001-012 present, the final schema version is 12.
+    With migrations 001-013 present, the final schema version is 13.
     """
 
     def test_user_version_matches_latest(self, tmp_path: Path) -> None:
-        """After applying every migration, PRAGMA user_version equals the latest version (12)."""
+        """After applying every migration, PRAGMA user_version equals the latest version (13)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 12
+        assert _user_version(conn) == 13
 
     def test_all_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all expected tables exist."""
@@ -158,7 +159,7 @@ class TestApplyMigrationsIdempotence:
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
-        assert version_after_first == 12
+        assert version_after_first == 13
         # Second call must be a no-op.
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
@@ -359,12 +360,12 @@ class TestApplyMigrationsFailureRollback:
     """
 
     def _setup_db_and_mig_dir(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection, Path]:
-        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 013_noop + 999_bad.
+        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 014_noop + 999_bad.
 
         After applying MIGRATIONS_DIR the DB is at the latest committed version
-        (migrations 001-012). The custom mig_dir uses version 013 for the noop
-        migration so it runs after the real chain. Bumped to 013 when the real
-        ``012_pipeline_run_maintenance`` migration was added (maint-dash run history).
+        (migrations 001-013). The custom mig_dir uses version 014 for the noop
+        migration so it runs after the real chain. Bumped to 014 when the real
+        ``013_scrape_decision`` migration was added (scrape-arbiter decision queue).
 
         Args:
             tmp_path: Pytest-provided temporary directory.
@@ -372,14 +373,14 @@ class TestApplyMigrationsFailureRollback:
         Returns:
             A tuple of ``(db_path, conn, mig_dir)`` ready for the rollback scenario.
             ``conn`` is the open connection after applying the full chain.
-            ``mig_dir`` contains both ``013_noop.sql`` and ``999_bad.sql``.
+            ``mig_dir`` contains both ``014_noop.sql`` and ``999_bad.sql``.
         """
         mig_dir = tmp_path / "migrations"
         mig_dir.mkdir()
-        # Valid migration: creates `noop` table at version 13 (one past the real
-        # chain, which now ends at the committed migration 012).
-        (mig_dir / "013_noop.sql").write_text(
-            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 13;\n",
+        # Valid migration: creates `noop` table at version 14 (one past the real
+        # chain, which now ends at the committed migration 013).
+        (mig_dir / "014_noop.sql").write_text(
+            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 14;\n",
             encoding="utf-8",
         )
         # Malformed migration: intentionally broken SQL at version 999.
@@ -389,20 +390,20 @@ class TestApplyMigrationsFailureRollback:
         )
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
-        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest (12)
+        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest (13)
         return db_path, conn, mig_dir
 
     def test_bad_migration_raises_indexer_migration_error(self, tmp_path: Path) -> None:
         """IndexerMigrationError is raised with version=999 when migration 999 is malformed.
 
         In a single ``apply_migrations`` call on ``mig_dir`` (which contains both
-        ``013_noop.sql`` and ``999_bad.sql``):
-        - ``013`` is applied successfully (version → 13).
+        ``014_noop.sql`` and ``999_bad.sql``):
+        - ``014`` is applied successfully (version → 14).
         - ``999`` fails → ``IndexerMigrationError(version=999)`` is raised.
         """
         db_path, conn, mig_dir = self._setup_db_and_mig_dir(tmp_path)
 
-        # Single call: 012 succeeds, 999 fails → IndexerMigrationError(999).
+        # Single call: 014 succeeds, 999 fails → IndexerMigrationError(999).
         with pytest.raises(IndexerMigrationError) as exc_info:
             apply_migrations(conn, mig_dir)
 
@@ -434,6 +435,83 @@ class TestApplyMigrationsFailureRollback:
         conn2 = open_db(db_path, event_bus=EventBus())
         tables = _table_names(conn2)
         assert "foo" not in tables, "foo table should not exist after rollback"
-        # noop was added by the successful 012 migration and should still be present
+        # noop was added by the successful 014 migration and should still be present
         # in the restored snapshot (which was taken just before 999).
-        assert "noop" in tables, "noop table from migration 013 should be preserved in snapshot"
+        assert "noop" in tables, "noop table from migration 014 should be preserved in snapshot"
+
+
+# ---------------------------------------------------------------------------
+# Test: migration 013 — scrape_decision
+# ---------------------------------------------------------------------------
+
+
+class TestMigration013ScrapeDecision:
+    """Migration 013 creates the scrape_decision table for the interactive scraping queue.
+
+    Validates table existence, column names and types, index presence, and the
+    version chain registration (version 13 in schema_version + PRAGMA user_version=13).
+    """
+
+    def test_scrape_decision_table_exists(self, tmp_path: Path) -> None:
+        """After applying all migrations, the scrape_decision table is present."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path, event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+        assert "scrape_decision" in _table_names(conn)
+
+    def test_scrape_decision_index_exists(self, tmp_path: Path) -> None:
+        """After applying all migrations, the idx_scrape_decision_status index exists."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path, event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_scrape_decision_status'"
+        ).fetchall()
+        assert len(rows) == 1
+
+    def test_scrape_decision_column_names_and_types(self, tmp_path: Path) -> None:
+        """After applying all migrations, scrape_decision has the expected columns and types."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path, event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+        # PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
+        info = {
+            row[1]: {"type": row[2], "notnull": row[3], "dflt_value": row[4]}
+            for row in conn.execute("PRAGMA table_info('scrape_decision')").fetchall()
+        }
+        assert info["id"]["type"] == "INTEGER"
+        assert info["id"]["notnull"] == 0  # implied by PK
+        assert info["staging_path"]["type"] == "TEXT"
+        assert info["staging_path"]["notnull"] == 1
+        assert info["media_kind"]["type"] == "TEXT"
+        assert info["media_kind"]["notnull"] == 1
+        assert info["extracted_title"]["type"] == "TEXT"
+        assert info["extracted_title"]["notnull"] == 1
+        assert info["extracted_year"]["type"] == "INTEGER"
+        assert info["extracted_year"]["notnull"] == 0  # nullable
+        assert info["trigger"]["type"] == "TEXT"
+        assert info["trigger"]["notnull"] == 1
+        assert info["candidates_json"]["type"] == "TEXT"
+        assert info["candidates_json"]["notnull"] == 1
+        assert info["status"]["type"] == "TEXT"
+        assert info["status"]["notnull"] == 1
+        assert info["status"]["dflt_value"] == "'pending'"
+        assert info["resolution_json"]["type"] == "TEXT"
+        assert info["resolution_json"]["notnull"] == 0  # nullable
+        assert info["run_uid"]["type"] == "TEXT"
+        assert info["run_uid"]["notnull"] == 0  # nullable
+        assert info["created_at"]["type"] == "REAL"
+        assert info["created_at"]["notnull"] == 1
+        assert info["updated_at"]["type"] == "REAL"
+        assert info["updated_at"]["notnull"] == 1
+        assert info["resolved_at"]["type"] == "REAL"
+        assert info["resolved_at"]["notnull"] == 0  # nullable
+
+    def test_version_registered_in_schema_version(self, tmp_path: Path) -> None:
+        """After applying all migrations, version 13 is registered in schema_version."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path, event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+        rows = conn.execute("SELECT version FROM schema_version WHERE version = 13").fetchall()
+        assert len(rows) == 1
+        assert rows[0][0] == 13
