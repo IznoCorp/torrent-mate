@@ -77,12 +77,14 @@ def _build_authenticated_client_with_decisions(
 
     # Auth router (needed for login).
     from personalscraper.web.auth.routes import router as auth_router
+
     app.include_router(auth_router)
 
     # Guarded API with both maintenance + decisions routers.
     guarded_api = APIRouter(dependencies=[Depends(require_session)])
     from personalscraper.web.routes.decisions import router as decisions_router
     from personalscraper.web.routes.maintenance import router as maintenance_router
+
     guarded_api.include_router(maintenance_router)
     guarded_api.include_router(decisions_router)
     app.include_router(guarded_api)
@@ -90,6 +92,7 @@ def _build_authenticated_client_with_decisions(
     client = TestClient(app, base_url="https://testserver")
     _login(client)
     return client
+
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
