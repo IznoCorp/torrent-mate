@@ -107,13 +107,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         redis_pool = await init_redis_pool(config.web)
         app.state.redis = redis_pool
         projection = app.state.registry_projection
-        relay_task = asyncio.create_task(
-            read_stream_loop(redis_pool, registry, config.web.stream_key, projection=projection),
-        )
-        logger.info("relay_started", stream_key=config.web.stream_key)
 
-        # Boot warm-up: replay the Redis stream tail through the projection so
-        # the first REST hit reflects history (S6 reg-health §3.4).  Fail-soft:
+        # Boot warm-up FIRST — replay the Redis stream tail through the
+        # projection BEFORE starting the live relay, so the first REST hit
+        # reflects history (S6 reg-health §3.4) and no replayed event can race
+        # a live one (the reducer's event-time ordering guard is the primary
+        # defence; this ordering makes the window vanish entirely).  Fail-soft:
         # Redis down or empty stream → projection stays at its neutral baseline.
         try:
             # redis-py's return type is loosely typed (bytes|str|None); cast to
@@ -152,6 +151,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
         except Exception:  # noqa: BLE001 — fail-soft: Redis down → skip warm-up
             logger.warning("projection_warmup_failed", reason="redis unavailable")
+
+        # Start the live relay AFTER the warm-up so history is applied first.
+        relay_task = asyncio.create_task(
+            read_stream_loop(redis_pool, registry, config.web.stream_key, projection=projection),
+        )
+        logger.info("relay_started", stream_key=config.web.stream_key)
     else:
         app.state.redis = None
         logger.info("relay_disabled", reason="web.enabled is False")

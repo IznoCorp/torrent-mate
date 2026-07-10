@@ -8,8 +8,15 @@ per the web-ui epoch convention.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 
 from personalscraper.web.registry_projection import RegistryHealthProjection
+
+
+def _iso(epoch: float) -> str:
+    """Render *epoch* as the ISO-8601 UTC string an Event serializes into ``data``."""
+    return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat()
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -304,17 +311,17 @@ class TestTimestampsAreEpochFloats:
 class TestGracefulMissingKeys:
     """The reducer handles missing or empty data keys gracefully."""
 
-    def test_opened_missing_breaker_uses_empty_string(self) -> None:
-        """A CircuitBreakerOpened with no ``breaker`` key defaults to ``""``."""
+    def test_opened_missing_breaker_is_skipped(self) -> None:
+        """A CircuitBreakerOpened with no ``breaker`` key is skipped (no "" provider)."""
         projection = RegistryHealthProjection()
         projection.apply(
             "CircuitBreakerOpened",
             {"failure_count": 1, "last_error_class": "E", "last_error_message": "m"},
         )
 
-        snap = projection.snapshot()
-        assert "" in snap
-        assert snap[""]["circuit_state"] == "open"
+        # A breaker-less event is malformed — it must not create an empty-name
+        # provider entry.
+        assert projection.snapshot() == {}
 
     def test_call_completed_missing_ok_defaults_falsy(self) -> None:
         """A ProviderCallCompleted with no ``ok`` key defaults to a failure timestamp."""
@@ -324,3 +331,78 @@ class TestGracefulMissingKeys:
         snap = projection.snapshot()
         assert snap["x"]["last_failure_at"] is not None
         assert snap["x"]["last_success_at"] is None
+
+
+# ── Event-time ordering (adversarial-review fixes) ──────────────────────────────
+
+
+class TestEventTimeOrdering:
+    """The reducer stamps event time and drops out-of-order (older) events.
+
+    Guards the two adversarial-review findings: (1) the boot warm-up must not
+    overwrite a fresher live event with a stale replayed one; (2) recency
+    timestamps must be the *event's* time, not the web apply time.
+    """
+
+    def test_event_timestamp_used_for_recency_not_now(self) -> None:
+        """last_failure_at is the EVENT's timestamp, not the web apply time."""
+        projection = RegistryHealthProjection()
+        past = time.time() - 3600.0  # one hour ago
+        projection.apply(
+            "CircuitBreakerOpened",
+            {"breaker": "tmdb", "failure_count": 1, "timestamp": _iso(past)},
+        )
+
+        ts = projection.snapshot()["tmdb"]["last_failure_at"]
+        assert isinstance(ts, float)
+        # The stored time is the event's (~1h ago), NOT ~now.
+        assert abs(ts - past) <= 1.0
+        assert time.time() - ts > 60.0
+
+    def test_older_event_is_skipped(self) -> None:
+        """An event older than the newest applied for a provider is dropped."""
+        projection = RegistryHealthProjection()
+        newer = time.time()
+        older = newer - 100.0
+        # Apply the NEWER close first, then an OLDER open — the open must NOT win.
+        projection.apply("CircuitBreakerClosed", {"breaker": "tmdb", "timestamp": _iso(newer)})
+        projection.apply(
+            "CircuitBreakerOpened",
+            {"breaker": "tmdb", "failure_count": 9, "timestamp": _iso(older)},
+        )
+
+        snap = projection.snapshot()
+        # The older Opened was skipped → state stays closed, no stale failure count.
+        assert snap["tmdb"]["circuit_state"] == "closed"
+        assert snap["tmdb"]["failure_count_recent"] == 0
+
+    def test_warmup_race_live_event_survives_older_replay(self) -> None:
+        """Simulates the boot race: a live newer event survives an older replay.
+
+        The relay applies a fresh ``CircuitBreakerClosed`` (t=now); the warm-up
+        then replays an older ``CircuitBreakerOpened`` (t=now-100).  The ordering
+        guard must keep the provider ``closed`` (the HIGH adversarial finding).
+        """
+        projection = RegistryHealthProjection()
+        now = time.time()
+        # 1. Live event applied by the relay.
+        projection.apply("CircuitBreakerClosed", {"breaker": "omdb", "timestamp": _iso(now)})
+        # 2. Older event replayed by the warm-up afterwards.
+        projection.apply(
+            "CircuitBreakerOpened",
+            {"breaker": "omdb", "failure_count": 5, "timestamp": _iso(now - 100.0)},
+        )
+
+        assert projection.snapshot()["omdb"]["circuit_state"] == "closed"
+
+    def test_newer_event_after_older_still_applies(self) -> None:
+        """A newer event applied after an older one wins (normal forward order)."""
+        projection = RegistryHealthProjection()
+        t0 = time.time() - 50.0
+        projection.apply("CircuitBreakerClosed", {"breaker": "tvdb", "timestamp": _iso(t0)})
+        projection.apply(
+            "CircuitBreakerOpened",
+            {"breaker": "tvdb", "failure_count": 3, "timestamp": _iso(t0 + 10.0)},
+        )
+
+        assert projection.snapshot()["tvdb"]["circuit_state"] == "open"

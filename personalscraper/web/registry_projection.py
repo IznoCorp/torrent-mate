@@ -16,11 +16,38 @@ from __future__ import annotations
 
 import copy
 import time
+from datetime import datetime
 from typing import Any
 
 from personalscraper.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _parse_event_epoch(raw: Any) -> float:
+    """Parse an event's ``timestamp`` into a Unix-epoch float.
+
+    Every :class:`~personalscraper.core.event_bus.Event` carries a UTC-aware
+    ``timestamp`` that serializes into the WS ``data`` dict as an ISO-8601
+    string (e.g. ``"2026-07-10T14:07:12.177891+00:00"``).  Using the event's
+    own time — not the web process's apply time — keeps ``last_success_at`` /
+    ``last_failure_at`` honest across the boot warm-up replay, and lets the
+    reducer order events (see :meth:`RegistryHealthProjection.apply`).
+
+    Args:
+        raw: The ``data["timestamp"]`` value (ISO string, or ``None`` /
+            malformed on a hand-built payload).
+
+    Returns:
+        Epoch seconds parsed from *raw*, or ``time.time()`` when *raw* is
+        absent or unparseable (defensive — real events always carry it).
+    """
+    if isinstance(raw, str):
+        try:
+            return datetime.fromisoformat(raw).timestamp()
+        except ValueError:
+            return time.time()
+    return time.time()
 
 
 class RegistryHealthProjection:
@@ -30,58 +57,72 @@ class RegistryHealthProjection:
     and :class:`ProviderCallCompleted` events into a dict keyed by provider
     name.  The reducer is :meth:`apply`; consumers read via :meth:`snapshot`.
 
+    Events are applied in **event-timestamp order** per provider: an event
+    older than the newest one already applied for that provider is skipped, so
+    the boot warm-up replay can never overwrite a fresher live event with stale
+    state (the warm-up-vs-relay race).
+
     Attributes:
         _providers: Internal ``{provider_name: {circuit_state, …}}`` dict.
+        _last_event_ts: Newest event epoch applied per provider (ordering guard).
     """
 
     def __init__(self) -> None:
         """Initialize an empty projection."""
         self._providers: dict[str, dict[str, Any]] = {}
+        self._last_event_ts: dict[str, float] = {}
 
     # -- Reducer ---------------------------------------------------------------
 
     def apply(self, event_type: str, data: dict[str, Any]) -> None:
-        """Reduce a single event into the projection.
+        """Reduce a single event into the projection, in event-time order.
 
-        Unknown event types are silently ignored so the projection is
-        forward-compatible with new events added to the stream.
+        The provider key is ``data["breaker"]`` for ``CircuitBreaker*`` events
+        and ``data["provider"]`` for ``ProviderCallCompleted``.  An event whose
+        ``timestamp`` predates the newest one already applied for that provider
+        is dropped (ordering guard).  Timestamps are stamped from the *event's*
+        time, not the web process's apply time.  Unknown event types are
+        silently ignored (forward-compatible).
 
         Args:
             event_type: Event class name (e.g. ``"CircuitBreakerOpened"``).
             data: The event's ``data`` dict from the WS message envelope.
         """
-        now = time.time()
+        if event_type.startswith("CircuitBreaker"):
+            provider = data.get("breaker") or ""
+        elif event_type == "ProviderCallCompleted":
+            provider = data.get("provider") or ""
+        else:
+            return  # unknown / non-health event — ignore
+        if not provider:
+            return
+
+        event_ts = _parse_event_epoch(data.get("timestamp"))
+        # Ordering guard: never let an older (e.g. replayed) event overwrite a
+        # newer one already applied for this provider.
+        if event_ts < self._last_event_ts.get(provider, 0.0):
+            return
+
+        entry = self._ensure_provider(provider)
 
         if event_type == "CircuitBreakerOpened":
-            provider = data.get("breaker", "")
-            entry = self._ensure_provider(provider)
             entry["circuit_state"] = "open"
             entry["failure_count_recent"] = data.get("failure_count", 0)
-            entry["last_failure_at"] = now
-
+            entry["last_failure_at"] = event_ts
         elif event_type == "CircuitBreakerClosed":
-            provider = data.get("breaker", "")
-            entry = self._ensure_provider(provider)
             entry["circuit_state"] = "closed"
             entry["failure_count_recent"] = 0
-            entry["last_success_at"] = now
-
+            entry["last_success_at"] = event_ts
         elif event_type == "CircuitBreakerHalfOpened":
-            provider = data.get("breaker", "")
-            entry = self._ensure_provider(provider)
             entry["circuit_state"] = "half_open"
-
         elif event_type == "ProviderCallCompleted":
-            provider = data.get("provider", "")
-            entry = self._ensure_provider(provider)
             entry["last_latency_ms"] = data.get("latency_ms")
             if data.get("ok"):
-                entry["last_success_at"] = now
+                entry["last_success_at"] = event_ts
             else:
-                entry["last_failure_at"] = now
+                entry["last_failure_at"] = event_ts
 
-        # Unknown event types are intentionally ignored — the projection is
-        # forward-compatible (new events added to the stream don't break it).
+        self._last_event_ts[provider] = event_ts
 
     # -- Read ------------------------------------------------------------------
 

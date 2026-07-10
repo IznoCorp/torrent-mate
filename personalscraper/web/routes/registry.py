@@ -64,59 +64,62 @@ def registry_status(request: Request) -> RegistryStatusResponse:
         A :class:`RegistryStatusResponse` with one item per configured or
         observed provider, sorted by ``provider_name``.
     """
+    # Whole body is fail-soft: any error (bad projection entry, config read,
+    # Pydantic validation) returns an empty list rather than a 500 — the panel
+    # degrades gracefully.
     try:
         snapshot = request.app.state.registry_projection.snapshot()
         roster = _build_roster(
             cast(ProvidersConfig, request.app.state.config.providers),
         )
+
+        providers: list[ProviderStatusItem] = []
+
+        # 1. Roster providers: use projection state when observed, else baseline.
+        for name in roster:
+            if name in snapshot:
+                entry = snapshot[name]
+                providers.append(
+                    ProviderStatusItem(
+                        provider_name=name,
+                        circuit_state=entry["circuit_state"],
+                        failure_count_recent=entry["failure_count_recent"],
+                        last_success_at=entry.get("last_success_at"),
+                        last_failure_at=entry.get("last_failure_at"),
+                        last_latency_ms=entry.get("last_latency_ms"),
+                        live=True,
+                    )
+                )
+            else:
+                providers.append(
+                    ProviderStatusItem(
+                        provider_name=name,
+                        circuit_state="closed",
+                        failure_count_recent=0,
+                        last_success_at=None,
+                        last_failure_at=None,
+                        last_latency_ms=None,
+                        live=False,
+                    )
+                )
+
+        # 2. Projection-only providers (observed but not in the roster).
+        for name, entry in snapshot.items():
+            if name not in roster:
+                providers.append(
+                    ProviderStatusItem(
+                        provider_name=name,
+                        circuit_state=entry["circuit_state"],
+                        failure_count_recent=entry["failure_count_recent"],
+                        last_success_at=entry.get("last_success_at"),
+                        last_failure_at=entry.get("last_failure_at"),
+                        last_latency_ms=entry.get("last_latency_ms"),
+                        live=True,
+                    )
+                )
+
+        providers.sort(key=lambda p: p.provider_name)
+        return RegistryStatusResponse(providers=providers)
     except Exception:
         logger.warning("registry_status_read_failed", exc_info=True)
         return RegistryStatusResponse(providers=[])
-
-    providers: list[ProviderStatusItem] = []
-
-    # 1. Roster providers: use projection state when observed, else baseline.
-    for name in roster:
-        if name in snapshot:
-            entry = snapshot[name]
-            providers.append(
-                ProviderStatusItem(
-                    provider_name=name,
-                    circuit_state=entry["circuit_state"],
-                    failure_count_recent=entry["failure_count_recent"],
-                    last_success_at=entry.get("last_success_at"),
-                    last_failure_at=entry.get("last_failure_at"),
-                    last_latency_ms=entry.get("last_latency_ms"),
-                    live=True,
-                )
-            )
-        else:
-            providers.append(
-                ProviderStatusItem(
-                    provider_name=name,
-                    circuit_state="closed",
-                    failure_count_recent=0,
-                    last_success_at=None,
-                    last_failure_at=None,
-                    last_latency_ms=None,
-                    live=False,
-                )
-            )
-
-    # 2. Projection-only providers (observed but not in the roster).
-    for name, entry in snapshot.items():
-        if name not in roster:
-            providers.append(
-                ProviderStatusItem(
-                    provider_name=name,
-                    circuit_state=entry["circuit_state"],
-                    failure_count_recent=entry["failure_count_recent"],
-                    last_success_at=entry.get("last_success_at"),
-                    last_failure_at=entry.get("last_failure_at"),
-                    last_latency_ms=entry.get("last_latency_ms"),
-                    live=True,
-                )
-            )
-
-    providers.sort(key=lambda p: p.provider_name)
-    return RegistryStatusResponse(providers=providers)
