@@ -347,7 +347,9 @@ describe("DecisionDetail", () => {
     expect(toast.success).toHaveBeenCalledWith("Re-scraping lancé.");
   });
 
-  it("affiche une erreur 409 avec indication de réessayer", async () => {
+  it("affiche un message 'pipeline occupé' sur un 409 pipeline-lock (§4.3)", async () => {
+    // The global pipeline.lock is held by a full run — a distinct, specific
+    // message so the operator knows nothing resolves until the run finishes.
     resolveDecisionMock.mockRejectedValueOnce(
       new ApiError(409, "Pipeline lock held"),
     );
@@ -359,9 +361,35 @@ describe("DecisionDetail", () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining("Un autre re-scraping est déjà en cours"),
+        expect.stringContaining("Pipeline occupé"),
       );
     });
+    // It is NOT the per-decision-busy message.
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("déjà en cours de re-scraping"),
+    );
+  });
+
+  it("affiche un message 'décision déjà en cours' sur un 409 per-décision (§4.3)", async () => {
+    // Only THIS decision is already resolving — other decisions are unaffected.
+    resolveDecisionMock.mockRejectedValueOnce(
+      new ApiError(409, "This decision is already resolving"),
+    );
+
+    renderDetail(makeDecision());
+
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("Cette décision est déjà en cours"),
+      );
+    });
+    // It is NOT the pipeline-lock message (a different decision could resolve).
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("Pipeline occupé"),
+    );
   });
 
   it("gère le 410 sur resolve en notifiant la page parent", async () => {

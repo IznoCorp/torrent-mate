@@ -13,13 +13,14 @@ import { type ReactElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  useAllDecisions,
   useDecisionDetail,
   useDecisions,
 } from "@/hooks/useDecisions";
 import { decisionsKeys } from "@/api/decisions";
 import { ApiError } from "@/api/client";
 
-import type { DecisionDetailResponse } from "@/api/decisions";
+import type { DecisionDetailResponse, DecisionListItem } from "@/api/decisions";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -231,5 +232,186 @@ describe("useDecisionDetail", () => {
 
     expect(result.current.isPending).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — useAllDecisions (§4.1 flat list)
+// ---------------------------------------------------------------------------
+
+/** A minimal DecisionListItem with sensible defaults. */
+function makeAggItem(
+  overrides: Partial<DecisionListItem> = {},
+): DecisionListItem {
+  return {
+    id: 1,
+    media_kind: "movie",
+    extracted_title: "Item",
+    extracted_year: 2024,
+    staging_path: "/staging/001-MOVIES/Item",
+    trigger: "below_threshold",
+    candidates_count: 0,
+    status: "pending",
+    created_at: 1_000,
+    ...overrides,
+  };
+}
+
+/** Extract the request URL from a fetch input without unsafe stringification. */
+function urlOf(input: string | URL | Request): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
+/**
+ * Build a fetch mock that returns a distinct per-status list response based on
+ * the ``status=`` query param in the requested URL.
+ *
+ * ``byStatus`` maps a status to its ``{ items, total }``; a missing status
+ * yields an empty page. This mirrors the real endpoint, which the hook queries
+ * once per status.
+ */
+function mockPerStatus(
+  byStatus: Partial<
+    Record<string, { items: DecisionListItem[]; total: number }>
+  >,
+): void {
+  fetchMock.mockImplementation((input: string | URL | Request) => {
+    const url = urlOf(input);
+    const status = /[?&]status=([^&]+)/.exec(url)?.[1] ?? "pending";
+    const page = byStatus[status] ?? { items: [], total: 0 };
+    return Promise.resolve(
+      buildResponse(200, {
+        items: page.items,
+        pending_count: byStatus.pending?.total ?? 0,
+        total: page.total,
+        page: 1,
+        page_size: 200,
+      }),
+    );
+  });
+}
+
+describe("useAllDecisions", () => {
+  it("fetches every status and merges into one flat list", async () => {
+    mockPerStatus({
+      pending: { items: [makeAggItem({ id: 1, status: "pending" })], total: 1 },
+      resolved: {
+        items: [makeAggItem({ id: 2, status: "resolved" })],
+        total: 1,
+      },
+      dismissed: {
+        items: [makeAggItem({ id: 3, status: "dismissed" })],
+        total: 5,
+      },
+      superseded: {
+        items: [makeAggItem({ id: 4, status: "superseded" })],
+        total: 2,
+      },
+    });
+
+    const { result } = renderHook(() => useAllDecisions(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // One query per status.
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    // Merged list holds all four ids.
+    expect(result.current.items.map((i) => i.id).sort()).toEqual([1, 2, 3, 4]);
+    // Per-status counts reflect each response's `total`.
+    expect(result.current.counts).toEqual({
+      pending: 1,
+      resolved: 1,
+      dismissed: 5,
+      superseded: 2,
+    });
+  });
+
+  it("sorts merged items newest-first by created_at", async () => {
+    mockPerStatus({
+      pending: {
+        items: [makeAggItem({ id: 1, created_at: 100 })],
+        total: 1,
+      },
+      resolved: {
+        items: [makeAggItem({ id: 2, status: "resolved", created_at: 300 })],
+        total: 1,
+      },
+      dismissed: {
+        items: [makeAggItem({ id: 3, status: "dismissed", created_at: 200 })],
+        total: 1,
+      },
+    });
+
+    const { result } = renderHook(() => useAllDecisions(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // 300 → 200 → 100.
+    expect(result.current.items.map((i) => i.id)).toEqual([2, 3, 1]);
+  });
+
+  it("narrows the merged list to the active statuses but keeps all counts", async () => {
+    mockPerStatus({
+      pending: { items: [makeAggItem({ id: 1 })], total: 3 },
+      resolved: {
+        items: [makeAggItem({ id: 2, status: "resolved" })],
+        total: 7,
+      },
+    });
+
+    const { result } = renderHook(() => useAllDecisions(["resolved"]), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Only 'resolved' rows are in the list…
+    expect(result.current.items.map((i) => i.id)).toEqual([2]);
+    // …but counts still cover every status (for the chip counters).
+    expect(result.current.counts.pending).toBe(3);
+    expect(result.current.counts.resolved).toBe(7);
+  });
+
+  it("tolerates partial failure (isError only when every query fails)", async () => {
+    // 'superseded' fails; the other three succeed → list still shows them.
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const url = urlOf(input);
+      const status = /[?&]status=([^&]+)/.exec(url)?.[1] ?? "pending";
+      if (status === "superseded") {
+        return Promise.resolve(buildResponse(500, { detail: "boom" }));
+      }
+      return Promise.resolve(
+        buildResponse(200, {
+          items: [makeAggItem({ id: status === "pending" ? 1 : 2, status })],
+          pending_count: 1,
+          total: 1,
+          page: 1,
+          page_size: 200,
+        }),
+      );
+    });
+
+    const { result } = renderHook(() => useAllDecisions(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(false);
+    expect(result.current.items.length).toBeGreaterThan(0);
   });
 });

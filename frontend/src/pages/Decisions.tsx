@@ -1,26 +1,33 @@
 /**
  * Decisions page — the scrape-arbiter decision queue (``/scraping``).
  *
- * Renders a status-filtered list of scrape decisions with a side-by-side
- * detail panel on desktop.  The layout stacks vertically on mobile:
- * selecting a row replaces the list with the detail view; a "Retour"
- * button returns to the list.
+ * Renders a single FLAT list of all scrape decisions (§4.1) with a side-by-side
+ * detail panel on desktop.  Status filter chips are OPTIONAL (multi-select, or
+ * none = show everything) and carry a live per-status count.  The layout stacks
+ * vertically on mobile: selecting a row replaces the list with the detail view;
+ * a "Retour" button returns to the list.
  *
  * Reuses:
- * - {@link DecisionList} for the row list
+ * - {@link DecisionList} for the row list (+ inline quick-dismiss)
  * - {@link DecisionDetail} for the selected item's full detail + actions
- * - {@link useDecisions} / {@link useDecisionDetail} TanStack hooks (§4.1)
+ * - {@link useAllDecisions} to merge every status into one flat list (the API
+ *   has no "all" filter — see the hook doc), {@link useDecisionDetail} for detail
  */
 
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactElement } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
-import { decisionsKeys } from "@/api/decisions";
-import { useDecisionDetail, useDecisions } from "@/hooks/useDecisions";
+import { decisionsKeys, dismissDecision } from "@/api/decisions";
+import { useAllDecisions, useDecisionDetail } from "@/hooks/useDecisions";
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
+import {
+  STATUS_SHORT_LABEL,
+  STATUS_TOOLTIP,
+  type DecisionStatus,
+} from "@/components/decisions/triggers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,15 +36,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Constants
 // ---------------------------------------------------------------------------
 
-/** The closed set of statuses the operator can filter by (matches the API Literal). */
-type StatusFilter = "pending" | "resolved" | "dismissed" | "superseded";
-
-/** Status values the operator can filter by. */
-const STATUS_FILTERS: readonly { value: StatusFilter; label: string }[] = [
-  { value: "pending", label: "En attente" },
-  { value: "resolved", label: "Résolues" },
-  { value: "dismissed", label: "Ignorées" },
-  { value: "superseded", label: "Remplacées" },
+/** Status filter chips, in display order (matches the API status Literal). */
+const STATUS_FILTERS: readonly DecisionStatus[] = [
+  "pending",
+  "resolved",
+  "dismissed",
+  "superseded",
 ];
 
 // ---------------------------------------------------------------------------
@@ -63,8 +67,8 @@ function ListSkeleton(): ReactElement {
  * Decisions — the authenticated decisions route (``/scraping``).
  *
  * Layout:
- * - Desktop: filter chips → [DecisionList | DecisionDetail] side-by-side.
- * - Mobile: filter chips → list (stacked), detail replaces list with a
+ * - Desktop: optional filter chips → [DecisionList | DecisionDetail] side-by-side.
+ * - Mobile: filter chips → flat list (stacked), detail replaces list with a
  *   "Retour" back button.
  *
  * Returns:
@@ -72,16 +76,28 @@ function ListSkeleton(): ReactElement {
  */
 export default function Decisions(): ReactElement {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<StatusFilter>("pending");
+  // Optional, multi-select status filter. Empty set = show ALL statuses (default).
+  const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
+    () => new Set(),
+  );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // When true on mobile, the detail panel replaces the list.
   const [showDetailMobile, setShowDetailMobile] = useState(false);
+  // The decision id whose inline "Ignorer" quick-dismiss is in flight.
+  const [dismissingId, setDismissingId] = useState<number | null>(null);
+
+  // Stable array for the hook: an empty filter fetches (and merges) all statuses.
+  const activeStatusesList = useMemo<DecisionStatus[]>(
+    () => STATUS_FILTERS.filter((s) => activeStatuses.has(s)),
+    [activeStatuses],
+  );
 
   const {
-    data: listData,
+    items,
+    counts,
     isLoading: listLoading,
     isError: listError,
-  } = useDecisions({ status });
+  } = useAllDecisions(activeStatusesList);
 
   const {
     data: detailData,
@@ -89,6 +105,37 @@ export default function Decisions(): ReactElement {
     isError: detailError,
     error: detailErrorObj,
   } = useDecisionDetail(selectedId ?? 0);
+
+  // ---- inline quick-dismiss mutation ----------------------------------------
+  // A pending row can be dismissed straight from the list without opening the
+  // detail panel (§4.1). Concurrency is per-decision: dismissing row A never
+  // blocks selecting/resolving row B.
+  const quickDismissMutation = useMutation({
+    mutationFn: (id: number) => dismissDecision(id),
+    onSuccess: () => {
+      toast.success("Décision ignorée.");
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError) {
+        if (error.status === 410) {
+          toast.error(
+            "Cette décision a été remplacée par une version plus récente.",
+          );
+        } else if (error.status === 409) {
+          toast.error("Cette décision n'est plus en attente.");
+        } else {
+          toast.error(error.detail);
+        }
+        void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      } else {
+        toast.error("Erreur inattendue.");
+      }
+    },
+    onSettled: () => {
+      setDismissingId(null);
+    },
+  });
 
   // ---- event handlers --------------------------------------------------------
 
@@ -107,8 +154,24 @@ export default function Decisions(): ReactElement {
     setShowDetailMobile(false);
   }
 
-  function handleStatusChange(newStatus: StatusFilter): void {
-    setStatus(newStatus);
+  function handleQuickDismiss(id: number): void {
+    setDismissingId(id);
+    quickDismissMutation.mutate(id);
+  }
+
+  /** Toggle a status filter chip on/off (multi-select). */
+  function handleToggleStatus(status: DecisionStatus): void {
+    setActiveStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+    // A filter change can drop the selected row from view; deselect to avoid a
+    // stale detail panel (matches the previous status-tab reset behaviour).
     setSelectedId(null);
     setShowDetailMobile(false);
   }
@@ -136,32 +199,42 @@ export default function Decisions(): ReactElement {
         Décisions de scraping
       </h1>
 
-      {/* ---- Status filter chips --------------------------------------------- */}
-      <div
-        className="flex flex-wrap items-center gap-2"
-        role="group"
-        aria-label="Filtrer les décisions par statut"
-      >
-        {STATUS_FILTERS.map((filter) => {
-          const active = status === filter.value;
-          return (
-            <button
-              key={filter.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => {
-                handleStatusChange(filter.value);
-              }}
-            >
-              <Badge
-                tone={active ? "solid" : "outline"}
-                className="cursor-pointer"
+      {/* ---- Optional status filter chips ------------------------------------ */}
+      <div className="flex flex-col gap-1.5">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label="Filtrer les décisions par statut (optionnel)"
+        >
+          {STATUS_FILTERS.map((status) => {
+            const active = activeStatuses.has(status);
+            const count = counts[status];
+            return (
+              <button
+                key={status}
+                type="button"
+                aria-pressed={active}
+                title={STATUS_TOOLTIP[status]}
+                onClick={() => {
+                  handleToggleStatus(status);
+                }}
               >
-                {filter.label}
-              </Badge>
-            </button>
-          );
-        })}
+                <Badge
+                  tone={active ? "solid" : "outline"}
+                  className="cursor-pointer"
+                >
+                  {STATUS_SHORT_LABEL[status]}
+                  <span className="ml-1 opacity-70">({count})</span>
+                </Badge>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {activeStatuses.size === 0
+            ? "Toutes les décisions sont affichées — cliquez un statut pour filtrer."
+            : "Filtre actif — cliquez un statut pour l'activer/le désactiver."}
+        </p>
       </div>
 
       {/* ---- Content area ---------------------------------------------------- */}
@@ -173,10 +246,15 @@ export default function Decisions(): ReactElement {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           {/* List panel — hidden on mobile when detail is showing, always visible on desktop */}
           <div className={showDetailMobile ? "hidden lg:block" : "block"}>
-            {listLoading || listData == null ? (
+            {listLoading && items.length === 0 ? (
               <ListSkeleton />
             ) : (
-              <DecisionList items={listData.items} onSelect={handleSelect} />
+              <DecisionList
+                items={items}
+                onSelect={handleSelect}
+                onQuickDismiss={handleQuickDismiss}
+                dismissingId={dismissingId}
+              />
             )}
           </div>
 

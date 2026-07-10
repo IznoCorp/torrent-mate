@@ -50,19 +50,22 @@ describe("DecisionList", () => {
 
   it("affiche le titre extrait et l'année", () => {
     renderList([makeItem()]);
-    const btn = screen.getByRole("button");
-    expect(btn).toHaveTextContent(/Inception/);
-    expect(btn).toHaveTextContent(/2010/);
+    // The title button carries the extracted title + year.
+    const titleBtn = screen.getByText("Inception").closest("button");
+    expect(titleBtn).toBeTruthy();
+    expect(titleBtn).toHaveTextContent(/Inception/);
+    expect(titleBtn).toHaveTextContent(/2010/);
   });
 
   it("affiche le titre sans année quand extracted_year est null", () => {
     renderList([makeItem({ extracted_year: null })]);
-    // The title font-medium span should only contain the title, no year.
-    const titleSpan = screen
-      .getByRole("button")
-      .querySelector(".font-medium");
-    expect(titleSpan).toBeTruthy();
-    expect(titleSpan).toHaveTextContent("Inception");
+    // The title button (font-medium) should only contain the title, no year.
+    const titleBtn = screen
+      .getByText("Inception")
+      .closest("button.font-medium");
+    expect(titleBtn).toBeTruthy();
+    expect(titleBtn).toHaveTextContent("Inception");
+    expect(titleBtn).not.toHaveTextContent("(");
   });
 
   it("affiche le nom du dossier (dernier segment du chemin)", () => {
@@ -99,7 +102,7 @@ describe("DecisionList", () => {
 
   it("affiche le message vide quand la liste est vide", () => {
     renderList([]);
-    expect(screen.getByText("Aucune décision en attente.")).toBeInTheDocument();
+    expect(screen.getByText("Aucune décision.")).toBeInTheDocument();
   });
 
   // -----------------------------------------------------------------------
@@ -180,7 +183,92 @@ describe("DecisionList", () => {
     renderList([makeItem()]);
     expect(screen.getByText("Décisions")).toBeInTheDocument();
     expect(
-      screen.getByText("Candidats en attente de résolution"),
+      screen.getByText("File de décisions de scraping"),
     ).toBeInTheDocument();
+  });
+
+  // -----------------------------------------------------------------------
+  // Status badge (§4.1 relabel)
+  // -----------------------------------------------------------------------
+
+  it("affiche le badge de statut relabellé avec tooltip pour 'dismissed'", () => {
+    renderList([makeItem({ status: "dismissed" })]);
+    const badge = screen.getByText("Ignorée (laissée telle quelle)");
+    expect(badge).toBeInTheDocument();
+    // The tooltip lives on the wrapping span (Badge doesn't take a title prop).
+    const wrapper = badge.closest("[title]");
+    expect(wrapper).toHaveAttribute(
+      "title",
+      expect.stringContaining("laissé tel quel"),
+    );
+  });
+
+  it("affiche le badge de statut relabellé avec tooltip pour 'superseded'", () => {
+    renderList([makeItem({ status: "superseded" })]);
+    const badge = screen.getByText("Remplacée (re-scrapée depuis)");
+    expect(badge).toBeInTheDocument();
+    const wrapper = badge.closest("[title]");
+    expect(wrapper).toHaveAttribute(
+      "title",
+      expect.stringContaining("version plus récente"),
+    );
+  });
+
+  it("affiche le badge 'En attente' pour un statut pending", () => {
+    renderList([makeItem({ status: "pending" })]);
+    expect(screen.getByText("En attente")).toBeInTheDocument();
+  });
+
+  // -----------------------------------------------------------------------
+  // Inline quick-dismiss (§4.1)
+  // -----------------------------------------------------------------------
+
+  it("affiche l'action 'Ignorer' inline sur une ligne pending quand onQuickDismiss est fourni", () => {
+    renderList([makeItem({ status: "pending" })]);
+    // No onQuickDismiss → no inline action.
+    expect(screen.queryByText("Ignorer")).not.toBeInTheDocument();
+  });
+
+  it("appelle onQuickDismiss avec l'id au clic sur 'Ignorer'", () => {
+    const onQuickDismiss = vi.fn();
+    const tree: ReactElement = (
+      <DecisionList
+        items={[makeItem({ id: 7, status: "pending" })]}
+        onSelect={vi.fn()}
+        onQuickDismiss={onQuickDismiss}
+      />
+    );
+    render(tree);
+
+    fireEvent.click(screen.getByText("Ignorer"));
+    expect(onQuickDismiss).toHaveBeenCalledTimes(1);
+    expect(onQuickDismiss).toHaveBeenCalledWith(7);
+  });
+
+  it("n'affiche pas 'Ignorer' inline sur une ligne non-pending", () => {
+    const tree: ReactElement = (
+      <DecisionList
+        items={[makeItem({ id: 8, status: "resolved" })]}
+        onSelect={vi.fn()}
+        onQuickDismiss={vi.fn()}
+      />
+    );
+    render(tree);
+    expect(screen.queryByText("Ignorer")).not.toBeInTheDocument();
+  });
+
+  it("désactive 'Ignorer' quand dismissingId correspond à la ligne", () => {
+    const tree: ReactElement = (
+      <DecisionList
+        items={[makeItem({ id: 9, status: "pending" })]}
+        onSelect={vi.fn()}
+        onQuickDismiss={vi.fn()}
+        dismissingId={9}
+      />
+    );
+    render(tree);
+    // While in flight the label becomes an ellipsis and the button is disabled.
+    const btn = screen.getByText("…").closest("button");
+    expect(btn).toBeDisabled();
   });
 });
