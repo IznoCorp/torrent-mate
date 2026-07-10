@@ -14,8 +14,7 @@
     },
     "decision-queue-drain": {
       "tests": [
-        "tests/cli/test_scrape_resolve.py::TestScrapeResolveExit0::test_movie_fetch_by_id_succeeds",
-        "tests/cli/test_scrape_resolve.py::TestScrapeResolveLockLifecycle::test_lock_held_during_body_released_after"
+        "tests/cli/test_scrape_resolve.py::TestScrapeResolveExit0::test_movie_fetch_by_id_succeeds"
       ]
     },
     "detailed-match-variants": {
