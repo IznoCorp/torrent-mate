@@ -10,7 +10,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import {
   acqKeys,
@@ -229,9 +229,16 @@ function truncate(s: string, max: number): string {
 interface FollowedPanelProps {
   readonly data: readonly FollowedSeriesItem[];
   readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly error: unknown;
 }
 
-function FollowedPanel({ data, isLoading }: FollowedPanelProps): ReactElement {
+function FollowedPanel({
+  data,
+  isLoading,
+  isError,
+  error,
+}: FollowedPanelProps): ReactElement {
   const followMutation = useFollow();
   const unfollowMutation = useUnfollow();
   const updateMutation = useUpdateFollow();
@@ -288,6 +295,19 @@ function FollowedPanel({ data, isLoading }: FollowedPanelProps): ReactElement {
           <Skeleton key={`sk-f-${String(idx)}`} className="h-12 w-full" />
         ))}
       </div>
+    );
+  }
+
+  // ── Error ──────────────────────────────────────────────────────────────
+  // Surface a real error instead of the empty state — otherwise a failed
+  // query (e.g. an expired session → 401) would read as "you follow nothing"
+  // and could trigger duplicate re-adds (adversarial-review finding).
+  if (isError) {
+    return (
+      <p className="py-4 text-muted-foreground">
+        Erreur de chargement des séries suivies :{" "}
+        {error instanceof Error ? error.message : "Inconnue"}
+      </p>
     );
   }
 
@@ -650,14 +670,12 @@ function ObligationsPanel(): ReactElement {
     ...(status !== "all" ? { status } : {}),
   });
 
-  // Client-side filter (status is derived from timestamps — the backend
-  // filter handles the server side; when "all" is selected we show everything
-  // but derived status badges are accurate).
-  const items = useMemo(() => {
-    const all = data?.items ?? [];
-    if (status === "all") return all;
-    return all.filter((item) => obligationStatus(item) === status);
-  }, [data, status]);
+  // Trust the SERVER filter (the route already filters by status) — do NOT
+  // re-filter client-side: a row with both satisfied_at and breached_at set is
+  // classified "breached" by the server but "satisfied" by obligationStatus(),
+  // so a client re-filter would silently drop it (adversarial-review finding).
+  // obligationStatus() stays in use only for the per-row status BADGE.
+  const items = data?.items ?? [];
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -995,6 +1013,8 @@ export default function AcquisitionPage(): ReactElement {
             <FollowedPanel
               data={followedQuery.data?.items ?? []}
               isLoading={followedQuery.isLoading}
+              isError={followedQuery.isError}
+              error={followedQuery.error}
             />
           )}
           {activeTab === "wanted" && <WantedPanel />}

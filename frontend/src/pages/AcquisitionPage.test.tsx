@@ -294,6 +294,26 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText("Inactif")).toBeInTheDocument();
   });
 
+  it("surfaces a followed-query error instead of the empty state", () => {
+    // Adversarial-review regression: on a failed followed query (e.g. 401) the
+    // panel must show an error, NOT "aucune série suivie" (data illusion).
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: undefined,
+      error: new Error("Session expirée"),
+    });
+    renderPage();
+
+    expect(
+      screen.getByText(/erreur de chargement des séries suivies/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/session expirée/i)).toBeInTheDocument();
+    // The empty-state text must NOT be shown.
+    expect(screen.queryByText(/aucune série suivie/i)).not.toBeInTheDocument();
+  });
+
   it("shows wanted_pending badge when count is above zero", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
