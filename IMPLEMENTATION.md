@@ -15,8 +15,8 @@
 
 | #   | Phase                         | File                        | Status |
 | --- | ----------------------------- | --------------------------- | ------ |
-| 1   | Read routes + models          | phase-01-read-routes.md     | [ ]    |
-| 2   | Write routes (follow CRUD)    | phase-02-write-routes.md    | [ ]    |
+| 1   | Read routes + models          | phase-01-read-routes.md     | [x]    |
+| 2   | Write routes (follow CRUD)    | phase-02-write-routes.md    | [x]    |
 | 3   | Frontend typed client + hooks | phase-03-frontend-client.md | [ ]    |
 | 4   | Frontend page                 | phase-04-frontend-page.md   | [ ]    |
 | 5   | Integration + ACC + docs      | phase-05-integration-acc.md | [ ]    |
