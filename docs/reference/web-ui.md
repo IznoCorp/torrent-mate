@@ -363,6 +363,15 @@ loop:
   interval.
 - Fail-soft per cycle — one failed pass never kills the loop.
 
+> **Schema migrations.** The poller ships code + restarts but does **not** run
+> indexer migrations. Instead the **prod** web app applies any pending
+> `personalscraper/indexer/migrations/*.sql` to the shared `library.db` on boot
+> (`_apply_pending_indexer_migrations` in `web/app.py`, fail-soft), so a web
+> wave that adds a table (e.g. S5 migration `013` `scrape_decision`) never
+> serves `500 no such table` after deploy. The **staging** clone skips this
+> (read-only — it must never write the prod-owned DB); it relies on prod having
+> already migrated the shared DB.
+
 ### Caddy reverse proxy
 
 Blocks at `/opt/homebrew/etc/Caddyfile` (operator-applied):

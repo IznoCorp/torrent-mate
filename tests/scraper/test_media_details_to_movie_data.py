@@ -10,7 +10,7 @@ shim can be deleted.
 from __future__ import annotations
 
 from personalscraper.api.metadata._base import ArtworkItem, MediaDetails
-from personalscraper.scraper.movie_service import (
+from personalscraper.scraper._movie_convert import (
     _coerce_to_movie_data,
     _media_details_to_movie_data,
 )
@@ -162,7 +162,7 @@ class TestMediaDetailsToShowData:
     def test_includes_seasons_array(self) -> None:
         """The seasons array (TV-specific) must be present and shaped correctly."""
         from personalscraper.api.metadata._base import SeasonInfo
-        from personalscraper.scraper.movie_service import _media_details_to_show_data
+        from personalscraper.scraper._movie_convert import _media_details_to_show_data
 
         md = MediaDetails(
             provider="tmdb",
@@ -194,7 +194,7 @@ class TestMediaDetailsToShowData:
 
     def test_inherits_movie_fields(self) -> None:
         """Top-level fields (title, overview, etc.) come from movie shim."""
-        from personalscraper.scraper.movie_service import _media_details_to_show_data
+        from personalscraper.scraper._movie_convert import _media_details_to_show_data
 
         md = MediaDetails(
             provider="tmdb",
@@ -214,7 +214,7 @@ class TestCoerceToShowData:
 
     def test_passthrough_for_dict(self) -> None:
         """Dict input is returned unchanged."""
-        from personalscraper.scraper.movie_service import _coerce_to_show_data
+        from personalscraper.scraper._movie_convert import _coerce_to_show_data
 
         d = {"id": 1, "name": "Show", "seasons": []}
         assert _coerce_to_show_data(d) is d
@@ -222,7 +222,7 @@ class TestCoerceToShowData:
     def test_converts_media_details_with_seasons(self) -> None:
         """MediaDetails input is converted with seasons array populated."""
         from personalscraper.api.metadata._base import SeasonInfo
-        from personalscraper.scraper.movie_service import _coerce_to_show_data
+        from personalscraper.scraper._movie_convert import _coerce_to_show_data
 
         md = MediaDetails(
             provider="tmdb",

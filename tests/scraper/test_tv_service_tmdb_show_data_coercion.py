@@ -45,7 +45,7 @@ class _FakeTMDB:
 
 def test_tmdb_show_data_is_coerced_to_dict() -> None:
     """The TMDB branch must coerce MediaDetails to a dict carrying the fields downstream reads."""
-    from personalscraper.scraper.movie_service import _coerce_to_show_data
+    from personalscraper.scraper._movie_convert import _coerce_to_show_data
     from personalscraper.scraper.tv_service import TvServiceMixin
 
     mixin = TvServiceMixin.__new__(TvServiceMixin)

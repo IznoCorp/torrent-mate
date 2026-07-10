@@ -257,7 +257,7 @@ class ExistingValidatorMixin:
                 root_api_episodes = _fetch_season_episodes_tvdb(tvdb_client, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
-                from personalscraper.scraper.movie_service import _coerce_to_show_data
+                from personalscraper.scraper._movie_convert import _coerce_to_show_data
 
                 # Direct-dispatch (sub-phase 7.4 audit): the NFO-stored TMDB id was
                 # minted by TMDB, and ``_fetch_season_episodes`` calls TMDB-specific
@@ -370,7 +370,7 @@ class ExistingValidatorMixin:
                 api_episodes = _fetch_season_episodes_tvdb(tvdb_client, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
-                from personalscraper.scraper.movie_service import _coerce_to_show_data
+                from personalscraper.scraper._movie_convert import _coerce_to_show_data
 
                 # Direct-dispatch (sub-phase 7.4 audit): mirror of
                 # ``_repair_episode_files`` TMDB branch — TMDB-specific
@@ -549,7 +549,7 @@ class ExistingValidatorMixin:
 
         try:
             from personalscraper.api.metadata._contracts import MovieDetailsProvider  # noqa: PLC0415
-            from personalscraper.scraper.movie_service import _coerce_to_movie_data
+            from personalscraper.scraper._movie_convert import _coerce_to_movie_data
 
             # Protocol-typed direct-dispatch (sub-phase 17.3): the TMDB id
             # was minted by TMDB when the NFO was written, and artwork must
@@ -607,7 +607,7 @@ class ExistingValidatorMixin:
 
         try:
             from personalscraper.api.metadata._contracts import TvDetailsProvider  # noqa: PLC0415
-            from personalscraper.scraper.movie_service import _coerce_to_show_data
+            from personalscraper.scraper._movie_convert import _coerce_to_show_data
 
             # Protocol-typed direct-dispatch (sub-phase 17.3): mirror of
             # ``_recover_movie_artwork`` — TMDB-minted id, canonical refetch
