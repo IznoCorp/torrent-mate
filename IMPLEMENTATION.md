@@ -19,7 +19,7 @@
 | 2   | REST read route                      | phase-02-rest-route.md      | [x]    |
 | 3   | Frontend typed client + hook         | phase-03-frontend-client.md | [x]    |
 | 4   | Frontend page + nav                  | phase-04-frontend-page.md   | [x]    |
-| 5   | Integration + ACC + docs             | phase-05-integration-acc.md | [ ]    |
+| 5   | Integration + ACC + docs             | phase-05-integration-acc.md | [x]    |
 
 ## Review cycles
 
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 1-4 done (backend + full frontend). Continue with phase 5 (integration + ACC + docs).
+All phases complete — run /implement:feature-pr (push + PR + CI).
