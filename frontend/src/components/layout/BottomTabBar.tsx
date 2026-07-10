@@ -48,9 +48,15 @@ export function BottomTabBar({
               )
             }
           >
-            <Icon className="size-5 shrink-0" aria-hidden="true" />
+            {/* Badge is a corner superscript on the icon so it never becomes a
+                third flow child that makes the Scraping tab taller (SHELL-2). */}
+            <span className="relative">
+              <Icon className="size-5 shrink-0" aria-hidden="true" />
+              {badge != null && (
+                <span className="absolute -right-2.5 -top-1.5">{badge}</span>
+              )}
+            </span>
             <span className="truncate">{item.label}</span>
-            {badge}
           </NavLink>
         );
       })}
