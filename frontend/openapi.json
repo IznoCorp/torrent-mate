@@ -162,6 +162,20 @@
         "title": "ActionsResponse",
         "type": "object"
       },
+      "CadenceShape": {
+        "description": "Per-series search cadence override (editable).\n\nThe shape mirrors what the backend ``effective_cadence`` resolver consumes\nfrom ``cadence_json``.  The PATCH endpoint validates incoming cadence\nagainst this schema before writing to ``cadence_json``.",
+        "properties": {
+          "interval_minutes": {
+            "title": "Interval Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "interval_minutes"
+        ],
+        "title": "CadenceShape",
+        "type": "object"
+      },
       "ConfigSchemaResponse": {
         "additionalProperties": false,
         "description": "Response body for ``GET /api/config/schema``.\n\nAttributes:\n    json_schema: JSON Schema for the merged config (generated via\n        ``Config.model_json_schema()``).\n    ownership: Mapping of each top-level key to the file that owns it.\n    restart_impact: Mapping of each top-level key to whether changing\n        it requires a web process restart.",
@@ -230,6 +244,57 @@
           "stale_files"
         ],
         "title": "ConfigStatusResponse",
+        "type": "object"
+      },
+      "CreateFollowRequest": {
+        "description": "Request body for POST /api/acquisition/followed.\n\nAt least one provider ID is required (422 otherwise).  *title* is optional\n\u2014 when omitted the backend stores an empty string.  The web form will\nalways send a title, but the route accepts ``None`` for programmatic\nclients.",
+        "properties": {
+          "imdb_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imdb Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "tmdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Id"
+          },
+          "tvdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tvdb Id"
+          }
+        },
+        "title": "CreateFollowRequest",
         "type": "object"
       },
       "DecisionCandidate": {
@@ -2012,6 +2077,34 @@
         "title": "TmpOrphan",
         "type": "object"
       },
+      "UpdateFollowRequest": {
+        "description": "Request body for PATCH /api/acquisition/followed/{id}.\n\nEvery field is optional \u2014 only the provided fields are updated.\n*cadence* is validated against :class:`CadenceShape` before writing to\n``cadence_json``.  ``quality_profile_json`` is intentionally ABSENT\n(RP3a deferred \u2014 do NOT expose an editor until the backend consumes it).",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "cadence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CadenceShape"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "UpdateFollowRequest",
+        "type": "object"
+      },
       "ValidateRequest": {
         "additionalProperties": false,
         "description": "Request body for ``POST /api/config/validate``.\n\nAttributes:\n    file_name: Config file basename to validate against.\n    values: Candidate key-value pairs to validate.",
@@ -2294,6 +2387,133 @@
           }
         },
         "summary": "Get Followed",
+        "tags": [
+          "acquisition"
+        ]
+      },
+      "post": {
+        "description": "Follow a new series (or reactivate an inactive one).\n\nArgs:\n    request: The incoming FastAPI request.\n    body: The parsed :class:`CreateFollowRequest`.\n\nReturns:\n    The created or reactivated :class:`FollowedSeriesItem`.\n\nRaises:\n    HTTPException: 409 if the series is already actively followed.",
+        "operationId": "create_follow_api_acquisition_followed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFollowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowedSeriesItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Follow",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/followed/{followed_id}": {
+      "delete": {
+        "description": "Soft-unfollow a series (sets active=False).\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.",
+        "operationId": "delete_follow_api_acquisition_followed__followed_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followed_id",
+            "required": true,
+            "schema": {
+              "title": "Followed Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Follow",
+        "tags": [
+          "acquisition"
+        ]
+      },
+      "patch": {
+        "description": "Update the active flag or cadence for a followed series.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n    body: The parsed :class:`UpdateFollowRequest`.\n\nReturns:\n    The updated :class:`FollowedSeriesItem`.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.",
+        "operationId": "update_follow_api_acquisition_followed__followed_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followed_id",
+            "required": true,
+            "schema": {
+              "title": "Followed Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFollowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowedSeriesItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Follow",
         "tags": [
           "acquisition"
         ]

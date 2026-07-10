@@ -1,7 +1,8 @@
 """Acquisition REST routes (acq-watch feature).
 
-Four GET endpoints under /api/acquisition/ exposing the followed-series list,
-wanted queue, seed obligations, and watcher status.  Fed by direct reads of
+Four GET endpoints + three mutating endpoints (POST/PATCH/DELETE) under
+/api/acquisition/ exposing the followed-series list, wanted queue, seed
+obligations, watcher status, and follow CRUD.  Fed by direct reads/writes of
 the shared WAL acquire.db — NOT an event projection (unlike S6).
 
 All routes are guarded by require_session inherited from the parent
@@ -14,28 +15,40 @@ Reads open a FRESH read-only sqlite3 connection PER REQUEST — the store's
 shared self._conn is not safe across FastAPI request threads (TestClient
 threadpool + uvicorn workers → thread-affinity ProgrammingError).  This
 mirrors pipeline.py's _build_status pattern.
+
+Writes use ``build_acquire_store`` to create a fresh ConcreteAcquireStore per
+request — its own connection, safe across threads.  Each mutating route also
+carries ``require_not_staging`` (staging → 403) and
+``require_x_requested_with`` (CSRF → 400) as per-route dependencies.
 """
 
 from __future__ import annotations
 
 import json
 import sqlite3
+import time
 from contextlib import closing
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.store import build_acquire_store
+from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
+from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionStatusResponse,
+    CreateFollowRequest,
     FollowedResponse,
     FollowedSeriesItem,
     MediaRefResponse,
     ObligationItem,
     ObligationsResponse,
     RecentRun,
+    UpdateFollowRequest,
     WantedItemResponse,
     WantedResponse,
 )
@@ -403,3 +416,221 @@ def get_acquisition_status(request: Request) -> AcquisitionStatusResponse:
         watcher_enabled=watcher_enabled,
         recent_runs=recent_runs,
     )
+
+
+# ── helpers (write routes) ───────────────────────────────────────────────
+
+
+def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSeriesItem:
+    """Convert a :class:`FollowedSeries` domain object to a response item.
+
+    Args:
+        fs: The domain object from the store (must have ``id`` set).
+        wanted_pending: The COUNT of pending/searching wanted rows.
+
+    Returns:
+        A :class:`FollowedSeriesItem` ready for JSON serialization.
+    """
+    return FollowedSeriesItem(
+        id=fs.id,  # type: ignore[arg-type]  # store.get guarantees id is set
+        title=fs.title,
+        media_ref=MediaRefResponse(
+            tvdb_id=fs.media_ref.tvdb_id,
+            tmdb_id=fs.media_ref.tmdb_id,
+            imdb_id=fs.media_ref.imdb_id,
+        ),
+        active=fs.active,
+        cadence=_parse_json_dict(fs.cadence_json),
+        added_at=float(fs.added_at),
+        wanted_pending=wanted_pending,
+        quality_profile=_parse_json_dict(fs.quality_profile_json),
+    )
+
+
+def _item_from_followed(fs: FollowedSeries) -> FollowedSeriesItem:
+    """Build a response item from a :class:`FollowedSeries` domain object.
+
+    Populates ``media_ref`` from the domain object's ``media_ref`` field
+    (NOT the raw JSON column — the domain object already has a parsed
+    :class:`MediaRef`).  ``wanted_pending`` is set to 0 for newly created
+    or reactivated items.
+
+    Args:
+        fs: The domain object from the store (must have ``id`` set).
+
+    Returns:
+        A :class:`FollowedSeriesItem` ready for JSON serialization.
+    """
+    return FollowedSeriesItem(
+        id=fs.id,  # type: ignore[arg-type]  # store.get guarantees id is set
+        title=fs.title,
+        media_ref=MediaRefResponse(
+            tvdb_id=fs.media_ref.tvdb_id,
+            tmdb_id=fs.media_ref.tmdb_id,
+            imdb_id=fs.media_ref.imdb_id,
+        ),
+        active=fs.active,
+        cadence=_parse_json_dict(fs.cadence_json),
+        added_at=float(fs.added_at),
+        wanted_pending=0,  # newly created/reactivated → no wanted items yet
+        quality_profile=_parse_json_dict(fs.quality_profile_json),
+    )
+
+
+# ── /api/acquisition/followed (write) ─────────────────────────────────────
+
+
+@router.post(
+    "/followed",
+    status_code=201,
+    response_model=FollowedSeriesItem,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeriesItem:
+    """Follow a new series (or reactivate an inactive one).
+
+    Args:
+        request: The incoming FastAPI request.
+        body: The parsed :class:`CreateFollowRequest`.
+
+    Returns:
+        The created or reactivated :class:`FollowedSeriesItem`.
+
+    Raises:
+        HTTPException: 409 if the series is already actively followed.
+    """
+    config = request.app.state.config
+    media_ref = MediaRef(
+        tvdb_id=body.tvdb_id,
+        tmdb_id=body.tmdb_id,
+        imdb_id=body.imdb_id,
+    )
+    title = body.title or ""
+
+    store = build_acquire_store(config.acquire)
+    try:
+        existing = store.follow.find_by_ref(media_ref)
+        if existing is not None:
+            assert existing.id is not None  # noqa: S101 — find_by_ref always sets id
+            if existing.active:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Series is already followed (active=True)",
+                )
+            # Reactivate.
+            store.follow.set_active(existing.id, True)
+            reactivated = store.follow.get(existing.id)
+            assert reactivated is not None  # noqa: S101 — just wrote it
+            return _item_from_followed(reactivated)
+
+        # New follow.
+        series = FollowedSeries(
+            media_ref=media_ref,
+            title=title,
+            added_at=int(time.time()),
+            active=True,
+        )
+        new_id = store.follow.add(series)
+        created = store.follow.get(new_id)
+        assert created is not None  # noqa: S101 — just inserted it
+        return _item_from_followed(created)
+    finally:
+        store.close()
+
+
+@router.patch(
+    "/followed/{followed_id}",
+    response_model=FollowedSeriesItem,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def update_follow(
+    request: Request,
+    followed_id: int,
+    body: UpdateFollowRequest,
+) -> FollowedSeriesItem:
+    """Update the active flag or cadence for a followed series.
+
+    Args:
+        request: The incoming FastAPI request.
+        followed_id: Rowid of the ``followed_series`` row.
+        body: The parsed :class:`UpdateFollowRequest`.
+
+    Returns:
+        The updated :class:`FollowedSeriesItem`.
+
+    Raises:
+        HTTPException: 404 if the followed_id does not exist.
+    """
+    config = request.app.state.config
+    store = build_acquire_store(config.acquire)
+    try:
+        existing = store.follow.get(followed_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Followed series not found")
+
+        if body.active is not None:
+            store.follow.set_active(followed_id, body.active)
+
+        if body.cadence is not None:
+            cadence_json = json.dumps(body.cadence.model_dump())
+            store.follow.set_cadence(followed_id, cadence_json)
+
+        updated = store.follow.get(followed_id)
+        assert updated is not None  # noqa: S101 — just wrote it
+
+        # Count wanted pending for accurate response.
+        wanted_pending = _count_wanted_pending(store, followed_id)
+        return _build_followed_item(updated, wanted_pending)
+    finally:
+        store.close()
+
+
+def _count_wanted_pending(store: Any, followed_id: int) -> int:
+    """Count pending/searching wanted rows for a followed series.
+
+    Uses the store's connection directly for a cheap COUNT query.
+
+    Args:
+        store: An open :class:`ConcreteAcquireStore`.
+        followed_id: Rowid of the ``followed_series`` row.
+
+    Returns:
+        The number of wanted rows in ``pending`` or ``searching`` status.
+    """
+    # Access the store's internal connection — safe because the store
+    # is freshly built per-request (no thread-affinity risk).
+    conn = store._conn
+    if conn is None:
+        return 0
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status IN ('pending', 'searching')",
+        (followed_id,),
+    ).fetchone()
+    return row[0] if row else 0
+
+
+@router.delete(
+    "/followed/{followed_id}",
+    status_code=204,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def delete_follow(request: Request, followed_id: int) -> None:
+    """Soft-unfollow a series (sets active=False).
+
+    Args:
+        request: The incoming FastAPI request.
+        followed_id: Rowid of the ``followed_series`` row.
+
+    Raises:
+        HTTPException: 404 if the followed_id does not exist.
+    """
+    config = request.app.state.config
+    store = build_acquire_store(config.acquire)
+    try:
+        existing = store.follow.get(followed_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Followed series not found")
+        store.follow.set_active(followed_id, False)
+    finally:
+        store.close()

@@ -6,7 +6,7 @@ models serve.
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class MediaRefResponse(BaseModel):
@@ -98,3 +98,61 @@ class AcquisitionStatusResponse(BaseModel):
     last_successful_run_at: float | None = None  # epoch seconds
     watcher_enabled: bool
     recent_runs: list[RecentRun] = []
+
+
+# ── Request models (write routes) ────────────────────────────────────────
+
+
+class CreateFollowRequest(BaseModel):
+    """Request body for POST /api/acquisition/followed.
+
+    At least one provider ID is required (422 otherwise).  *title* is optional
+    — when omitted the backend stores an empty string.  The web form will
+    always send a title, but the route accepts ``None`` for programmatic
+    clients.
+    """
+
+    tvdb_id: int | None = None
+    tmdb_id: int | None = None
+    imdb_id: str | None = None
+    title: str | None = None
+
+    @model_validator(mode="after")
+    def _at_least_one_id(self) -> "CreateFollowRequest":
+        """Validate that at least one provider ID is provided.
+
+        Returns:
+            The validated instance.
+
+        Raises:
+            ValueError: If all three provider IDs are ``None``.
+        """
+        if self.tvdb_id is None and self.tmdb_id is None and self.imdb_id is None:
+            raise ValueError("At least one provider ID (tvdb_id, tmdb_id, or imdb_id) is required")
+        return self
+
+
+class CadenceShape(BaseModel):
+    """Per-series search cadence override (editable).
+
+    The shape mirrors what the backend ``effective_cadence`` resolver consumes
+    from ``cadence_json``.  The PATCH endpoint validates incoming cadence
+    against this schema before writing to ``cadence_json``.
+    """
+
+    interval_minutes: int
+    # Future RP9/D2 fields added here (e.g. per-season windows).
+    # For S7, interval_minutes is the only active field.
+
+
+class UpdateFollowRequest(BaseModel):
+    """Request body for PATCH /api/acquisition/followed/{id}.
+
+    Every field is optional — only the provided fields are updated.
+    *cadence* is validated against :class:`CadenceShape` before writing to
+    ``cadence_json``.  ``quality_profile_json`` is intentionally ABSENT
+    (RP3a deferred — do NOT expose an editor until the backend consumes it).
+    """
+
+    active: bool | None = None
+    cadence: CadenceShape | None = None

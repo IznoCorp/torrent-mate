@@ -24,11 +24,67 @@ export interface paths {
          */
         get: operations["get_followed_api_acquisition_followed_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Follow
+         * @description Follow a new series (or reactivate an inactive one).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         body: The parsed :class:`CreateFollowRequest`.
+         *
+         *     Returns:
+         *         The created or reactivated :class:`FollowedSeriesItem`.
+         *
+         *     Raises:
+         *         HTTPException: 409 if the series is already actively followed.
+         */
+        post: operations["create_follow_api_acquisition_followed_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/followed/{followed_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Follow
+         * @description Soft-unfollow a series (sets active=False).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *
+         *     Raises:
+         *         HTTPException: 404 if the followed_id does not exist.
+         */
+        delete: operations["delete_follow_api_acquisition_followed__followed_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Follow
+         * @description Update the active flag or cadence for a followed series.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *         body: The parsed :class:`UpdateFollowRequest`.
+         *
+         *     Returns:
+         *         The updated :class:`FollowedSeriesItem`.
+         *
+         *     Raises:
+         *         HTTPException: 404 if the followed_id does not exist.
+         */
+        patch: operations["update_follow_api_acquisition_followed__followed_id__patch"];
         trace?: never;
     };
     "/api/acquisition/obligations": {
@@ -1329,6 +1385,18 @@ export interface components {
             };
         };
         /**
+         * CadenceShape
+         * @description Per-series search cadence override (editable).
+         *
+         *     The shape mirrors what the backend ``effective_cadence`` resolver consumes
+         *     from ``cadence_json``.  The PATCH endpoint validates incoming cadence
+         *     against this schema before writing to ``cadence_json``.
+         */
+        CadenceShape: {
+            /** Interval Minutes */
+            interval_minutes: number;
+        };
+        /**
          * ConfigSchemaResponse
          * @description Response body for ``GET /api/config/schema``.
          *
@@ -1379,6 +1447,25 @@ export interface components {
             role: string;
             /** Stale Files */
             stale_files: string[];
+        };
+        /**
+         * CreateFollowRequest
+         * @description Request body for POST /api/acquisition/followed.
+         *
+         *     At least one provider ID is required (422 otherwise).  *title* is optional
+         *     — when omitted the backend stores an empty string.  The web form will
+         *     always send a title, but the route accepts ``None`` for programmatic
+         *     clients.
+         */
+        CreateFollowRequest: {
+            /** Imdb Id */
+            imdb_id?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Tmdb Id */
+            tmdb_id?: number | null;
+            /** Tvdb Id */
+            tvdb_id?: number | null;
         };
         /**
          * DecisionCandidate
@@ -2488,6 +2575,20 @@ export interface components {
             prefix: string;
         };
         /**
+         * UpdateFollowRequest
+         * @description Request body for PATCH /api/acquisition/followed/{id}.
+         *
+         *     Every field is optional — only the provided fields are updated.
+         *     *cadence* is validated against :class:`CadenceShape` before writing to
+         *     ``cadence_json``.  ``quality_profile_json`` is intentionally ABSENT
+         *     (RP3a deferred — do NOT expose an editor until the backend consumes it).
+         */
+        UpdateFollowRequest: {
+            /** Active */
+            active?: boolean | null;
+            cadence?: components["schemas"]["CadenceShape"] | null;
+        };
+        /**
          * ValidateRequest
          * @description Request body for ``POST /api/config/validate``.
          *
@@ -2629,6 +2730,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FollowedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_follow_api_acquisition_followed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFollowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowedSeriesItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_follow_api_acquisition_followed__followed_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_follow_api_acquisition_followed__followed_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFollowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowedSeriesItem"];
                 };
             };
             /** @description Validation Error */
