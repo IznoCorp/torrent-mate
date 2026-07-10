@@ -9,11 +9,17 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/acq-watch/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/acq-watch/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                         | File                        | Status |
+| --- | ----------------------------- | --------------------------- | ------ |
+| 1   | Read routes + models          | phase-01-read-routes.md     | [ ]    |
+| 2   | Write routes (follow CRUD)    | phase-02-write-routes.md    | [ ]    |
+| 3   | Frontend typed client + hooks | phase-03-frontend-client.md | [ ]    |
+| 4   | Frontend page                 | phase-04-frontend-page.md   | [ ]    |
+| 5   | Integration + ACC + docs      | phase-05-integration-acc.md | [ ]    |
 
 ## Review cycles
 
@@ -21,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1 (read routes + models).
