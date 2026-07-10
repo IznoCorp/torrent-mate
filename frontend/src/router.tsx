@@ -4,8 +4,8 @@
  * `/login` is a public, chrome-less route. Every authenticated route nests under
  * {@link ProtectedRoute} → {@link AppShell} (TopBar + responsive nav +
  * `<Outlet />`), so the guard runs once and the shell renders once, swapping only
- * the page. The S5–S7 slots resolve to the shared {@link ComingSoon} placeholder
- * with their wave tag.
+ * the page. The S5–S6 slots resolved to the shared {@link ComingSoon} placeholder;
+ * S7 (acquisition) has its own fully-implemented page as of 0.44.0.
  *
  * A pathless {@link RouterBridge} wraps the whole tree: it lives *inside* the
  * router (so it may call `useNavigate`) and registers the router-aware 401
@@ -21,7 +21,7 @@ import { createBrowserRouter, type RouteObject } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RouterBridge } from "@/components/RouterBridge";
-import ComingSoon from "@/pages/ComingSoon";
+import AcquisitionPage from "@/pages/AcquisitionPage";
 import Dashboard from "@/pages/Dashboard";
 import Decisions from "@/pages/Decisions";
 import Login from "@/pages/Login";
@@ -66,7 +66,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "acquisition",
-                element: <ComingSoon title="Acquisition" wave="S7" />,
+                element: <AcquisitionPage />,
               },
             ],
           },
