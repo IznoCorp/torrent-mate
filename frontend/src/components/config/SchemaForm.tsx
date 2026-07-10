@@ -13,6 +13,12 @@
 
 import { useId, useState, type ReactElement, type ChangeEvent } from "react";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -199,6 +205,114 @@ function humanize(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * Resolve the display label for a schema node: prefer the schema ``title`` when
+ * present, else humanize the field key.
+ *
+ * Args:
+ *   schema: The resolved schema node (may carry a ``title``).
+ *   fieldKey: The property key, used as the humanized fallback.
+ *
+ * Returns:
+ *   The human-readable label string.
+ */
+function fieldLabel(schema: Record<string, unknown>, fieldKey: string): string {
+  const title = schema.title;
+  if (typeof title === "string" && title.trim() !== "") return title;
+  return humanize(fieldKey);
+}
+
+/**
+ * Heuristic: does a string schema/key describe a filesystem path?
+ *
+ * Path-like fields render with a monospace class so long absolute paths stay
+ * legible. Detection keys off ``format: "path"`` or common path-ish key names
+ * (``dir``/``path``/``file``/``root``) — a pure display hint, never a value
+ * constraint.
+ *
+ * Args:
+ *   schema: The resolved string schema node.
+ *   fieldKey: The property key.
+ *
+ * Returns:
+ *   ``true`` when the field should render monospace.
+ */
+function isPathLike(
+  schema: Record<string, unknown>,
+  fieldKey: string,
+): boolean {
+  if (schema.format === "path") return true;
+  return /(^|_)(dir|path|file|root)($|_|s$)/i.test(fieldKey);
+}
+
+/**
+ * Derive a client-side validation error for a leaf value from its schema.
+ *
+ * Cheap, synchronous checks only — type coherence, ``enum`` membership, and
+ * numeric ``minimum``/``maximum``/``exclusiveMinimum``/``exclusiveMaximum``
+ * bounds. This is a *hint* surfaced on blur; the server 422 mapping remains the
+ * source of truth (a server error for the same field always wins, see
+ * {@link fieldError} precedence at the call sites).
+ *
+ * Args:
+ *   schema: The resolved leaf schema node.
+ *   value: The current value.
+ *
+ * Returns:
+ *   A French error message, or ``null`` when the value passes the cheap checks.
+ */
+function clientValidate(
+  schema: Record<string, unknown>,
+  value: unknown,
+): string | null {
+  // Empty/undefined values are left to the server (required-ness lives there).
+  if (value === undefined || value === null || value === "") return null;
+
+  const type = typeof schema.type === "string" ? schema.type : undefined;
+
+  // enum membership (only meaningful for primitive values).
+  if (
+    Array.isArray(schema.enum) &&
+    (typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean")
+  ) {
+    const opts = (schema.enum as unknown[]).map((o) => String(o));
+    if (!opts.includes(String(value))) {
+      return `Valeur invalide — attendu : ${opts.join(", ")}`;
+    }
+    return null;
+  }
+
+  if (type === "integer" || type === "number") {
+    const n = typeof value === "number" ? value : Number(value);
+    if (Number.isNaN(n)) return "Doit être un nombre.";
+    if (type === "integer" && !Number.isInteger(n)) {
+      return "Doit être un entier.";
+    }
+    if (typeof schema.minimum === "number" && n < schema.minimum) {
+      return `Doit être ≥ ${String(schema.minimum)}.`;
+    }
+    if (typeof schema.maximum === "number" && n > schema.maximum) {
+      return `Doit être ≤ ${String(schema.maximum)}.`;
+    }
+    if (
+      typeof schema.exclusiveMinimum === "number" &&
+      n <= schema.exclusiveMinimum
+    ) {
+      return `Doit être > ${String(schema.exclusiveMinimum)}.`;
+    }
+    if (
+      typeof schema.exclusiveMaximum === "number" &&
+      n >= schema.exclusiveMaximum
+    ) {
+      return `Doit être < ${String(schema.exclusiveMaximum)}.`;
+    }
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // $ref resolution
 // ---------------------------------------------------------------------------
@@ -349,6 +463,38 @@ function requiredSet(schema: Record<string, unknown>): Set<string> | null {
   return null;
 }
 
+/**
+ * Classify a property schema as a "scalar" leaf (string / number / boolean /
+ * enum) versus a composite (object / array / dict / fallback).
+ *
+ * Scalars are laid out in a responsive 2-column grid (they are short, single-
+ * line controls); composites always take the full row so their nested editors
+ * have room. Detection resolves ``$ref`` + unwraps ``Optional`` first.
+ *
+ * Args:
+ *   schema: The raw (possibly ``$ref``-carrying) child schema.
+ *   rootSchema: The schema carrying ``$defs``.
+ *
+ * Returns:
+ *   ``true`` when the child renders as a single scalar control.
+ */
+function isScalarSchema(
+  schema: Record<string, unknown>,
+  rootSchema: Record<string, unknown>,
+): boolean {
+  const eff = effectiveSchema(schema, rootSchema);
+  if (hasProperties(eff) || hasAdditionalProperties(eff) || hasItems(eff)) {
+    return false;
+  }
+  const type = eff.type;
+  return (
+    type === "string" ||
+    type === "integer" ||
+    type === "number" ||
+    type === "boolean"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Error lookup
 // ---------------------------------------------------------------------------
@@ -406,14 +552,18 @@ function StringField({
   required,
 }: LeafProps): ReactElement {
   const id = useId();
-  const er = fieldError(errors, fieldPath);
+  const serverErr = fieldError(errors, fieldPath);
+  const [clientErr, setClientErr] = useState<string | null>(null);
+  // Server 422 wins over the cheap client hint (server is the authority).
+  const er = serverErr ?? clientErr;
   const description =
     typeof schema.description === "string" ? schema.description : null;
+  const mono = isPathLike(schema, fieldKey);
 
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>
-        {humanize(fieldKey)}
+        {fieldLabel(schema, fieldKey)}
         {required && <span aria-hidden="true"> *</span>}
       </Label>
       {description !== null && (
@@ -425,9 +575,14 @@ function StringField({
         aria-required={required}
         aria-invalid={er !== null ? true : undefined}
         disabled={readOnly}
+        className={cn(mono && "font-mono")}
         value={typeof value === "string" ? value : ""}
         onChange={(e) => {
+          if (clientErr !== null) setClientErr(null);
           onChange(e.target.value);
+        }}
+        onBlur={(e) => {
+          setClientErr(clientValidate(schema, e.target.value));
         }}
       />
       {er !== null && (
@@ -461,14 +616,17 @@ function NumberField({
   required,
 }: LeafProps): ReactElement {
   const id = useId();
-  const er = fieldError(errors, fieldPath);
+  const serverErr = fieldError(errors, fieldPath);
+  const [clientErr, setClientErr] = useState<string | null>(null);
+  // Server 422 wins over the cheap client hint (server is the authority).
+  const er = serverErr ?? clientErr;
   const description =
     typeof schema.description === "string" ? schema.description : null;
 
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>
-        {humanize(fieldKey)}
+        {fieldLabel(schema, fieldKey)}
         {required && <span aria-hidden="true"> *</span>}
       </Label>
       {description !== null && (
@@ -484,6 +642,7 @@ function NumberField({
           typeof value === "number" && !Number.isNaN(value) ? String(value) : ""
         }
         onChange={(e) => {
+          if (clientErr !== null) setClientErr(null);
           const raw = e.target.value;
           if (raw === "") {
             onChange(undefined);
@@ -491,6 +650,10 @@ function NumberField({
           }
           const n = Number(raw);
           if (!Number.isNaN(n)) onChange(n);
+        }}
+        onBlur={(e) => {
+          const raw = e.target.value;
+          setClientErr(raw === "" ? null : clientValidate(schema, Number(raw)));
         }}
       />
       {er !== null && (
@@ -533,12 +696,12 @@ function BooleanField({
       )}
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={id}>
-          {humanize(fieldKey)}
+          {fieldLabel(schema, fieldKey)}
           {required && <span aria-hidden="true"> *</span>}
         </Label>
         <Switch
           id={id}
-          aria-label={humanize(fieldKey)}
+          aria-label={fieldLabel(schema, fieldKey)}
           aria-required={required}
           checked={value === true}
           disabled={readOnly}
@@ -586,7 +749,7 @@ function EnumField({
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>
-        {humanize(fieldKey)}
+        {fieldLabel(schema, fieldKey)}
         {required && <span aria-hidden="true"> *</span>}
       </Label>
       {description !== null && (
@@ -601,7 +764,7 @@ function EnumField({
       >
         <SelectTrigger
           id={id}
-          aria-label={humanize(fieldKey)}
+          aria-label={fieldLabel(schema, fieldKey)}
           aria-required={required}
           aria-invalid={er !== null ? true : undefined}
         >
@@ -660,7 +823,7 @@ function PrimitiveArrayField({
 }): ReactElement {
   const arr: unknown[] = Array.isArray(values) ? values : [];
   const items = schema.items as Record<string, unknown>;
-  const label = humanize(path.split(".").pop() ?? "items");
+  const label = fieldLabel(schema, path.split(".").pop() ?? "items");
 
   function replaceAt(index: number, newValue: unknown): void {
     const next = [...arr];
@@ -766,7 +929,7 @@ function ObjectArrayField({
   const arr: unknown[] = Array.isArray(values) ? values : [];
   const items = schema.items as Record<string, unknown>;
   const resolvedItems = effectiveSchema(items, rootSchema);
-  const label = humanize(path.split(".").pop() ?? "items");
+  const label = fieldLabel(schema, path.split(".").pop() ?? "items");
 
   function replaceAt(index: number, newValue: unknown): void {
     const next = [...arr];
@@ -881,7 +1044,7 @@ function AdditionalPropertiesField({
   const obj: Record<string, unknown> = isObject(values) ? values : {};
   const entries = Object.entries(obj);
   const addSchema = schema.additionalProperties as Record<string, unknown>;
-  const label = humanize(path.split(".").pop() ?? "entries");
+  const label = fieldLabel(schema, path.split(".").pop() ?? "entries");
 
   function setEntry(key: string, newValue: unknown): void {
     onChange({ ...obj, [key]: newValue });
@@ -1181,54 +1344,93 @@ export function SchemaForm({
     const description =
       typeof effective.description === "string" ? effective.description : null;
 
-    return (
-      <details
-        className="group rounded-md border border-border"
-        open={path === "" ? true : undefined}
-      >
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium select-none">
-          {humanize(fieldKey)}
-        </summary>
-        <div className="flex flex-col gap-4 px-3 pb-3">
-          {description !== null && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-          {propKeys.map((key) => {
-            const propSchema = props_[key] ?? {};
-            const childPath = joinPath(path !== "" ? path : undefined, key);
-            const isReq = req?.has(key) === true;
+    // Render one property child (control + required-marker + shadowed chip).
+    function renderChild(key: string): ReactElement {
+      const propSchema = props_[key] ?? {};
+      const childPath = joinPath(path !== "" ? path : undefined, key);
+      const isReq = req?.has(key) === true;
 
-            return (
-              <div key={key}>
-                <SchemaForm
-                  schema={propSchema}
-                  rootSchema={fullRoot}
-                  values={path === "" ? values : { [key]: nestedValues[key] }}
-                  onChange={(newChildValues) => {
-                    // newChildValues is { [key]: newValue } — extract and propagate.
-                    const newVal = newChildValues[key];
-                    setProperty(key, newVal);
-                  }}
-                  errors={errors}
-                  readOnly={readOnly}
-                  required={isReq}
-                  path={childPath}
-                />
-                {/* Show required marker for the property itself */}
-                {isReq && <span className="sr-only">(requis)</span>}
-                {/* Shadowed-key warning chip (top-level only, DESIGN §5). */}
-                {path === "" &&
-                  shadowedKeys != null &&
-                  shadowedKeys.includes(key) && (
-                    <p className="text-xs text-[var(--warning)] mt-1">
-                      Écrasée par local.json5 — modification sans effet
-                    </p>
-                  )}
-              </div>
-            );
-          })}
+      return (
+        <div key={key}>
+          <SchemaForm
+            schema={propSchema}
+            rootSchema={fullRoot}
+            values={path === "" ? values : { [key]: nestedValues[key] }}
+            onChange={(newChildValues) => {
+              // newChildValues is { [key]: newValue } — extract and propagate.
+              const newVal = newChildValues[key];
+              setProperty(key, newVal);
+            }}
+            errors={errors}
+            readOnly={readOnly}
+            required={isReq}
+            path={childPath}
+          />
+          {/* Show required marker for the property itself */}
+          {isReq && <span className="sr-only">(requis)</span>}
+          {/* Shadowed-key warning chip (top-level only, DESIGN §5). */}
+          {path === "" &&
+            shadowedKeys != null &&
+            shadowedKeys.includes(key) && (
+              <p className="text-xs text-[var(--warning)] mt-1">
+                Écrasée par local.json5 — modification sans effet
+              </p>
+            )}
         </div>
-      </details>
+      );
+    }
+
+    // Group consecutive scalar fields into a responsive 2-column grid; composite
+    // fields (objects/arrays/dicts) always take a full row. Preserving source
+    // order keeps the schema's field ordering intact.
+    const groups: { scalar: boolean; keys: string[] }[] = [];
+    for (const key of propKeys) {
+      const scalar = isScalarSchema(props_[key] ?? {}, fullRoot);
+      const last = groups[groups.length - 1];
+      if (last?.scalar === scalar) {
+        last.keys.push(key);
+      } else {
+        groups.push({ scalar, keys: [key] });
+      }
+    }
+
+    // Grouped children, laid out with the scalar/composite grid split.
+    const body = (
+      <div className="flex flex-col gap-4">
+        {description !== null && (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        )}
+        {groups.map((group, gi) =>
+          group.scalar ? (
+            <div key={gi} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {group.keys.map((key) => renderChild(key))}
+            </div>
+          ) : (
+            <div key={gi} className="flex flex-col gap-4">
+              {group.keys.map((key) => renderChild(key))}
+            </div>
+          ),
+        )}
+      </div>
+    );
+
+    // At the file root (empty path) the wrapper object has no meaningful title,
+    // so render its children directly — the nested objects become the titled
+    // "domain sections". Deeper objects render as a titled, collapsible
+    // Accordion section (collapsed by default; nesting preserved).
+    if (path === "") {
+      return <div className="flex flex-col gap-4">{body}</div>;
+    }
+
+    return (
+      <Accordion className="rounded-md border border-border">
+        <AccordionItem className="border-b-0">
+          <AccordionTrigger className="px-3">
+            {fieldLabel(effective, fieldKey)}
+          </AccordionTrigger>
+          <AccordionContent className="px-3">{body}</AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 
