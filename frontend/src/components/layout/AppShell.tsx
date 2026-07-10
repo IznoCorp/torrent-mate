@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { Outlet } from "react-router-dom";
 
 import { EventStreamProvider } from "@/components/EventStreamProvider";
@@ -41,18 +41,24 @@ function AppShellInner(): ReactElement {
 
   // Listen for ItemProgressed WS events carrying status "queued_for_decision"
   // and invalidate the decisions cache so the badge refreshes live.
+  //
+  // Scan every event appended since the last render, not just the last one:
+  // useEventStream coalesces a synchronous replay burst (reconnect, or several
+  // items in one scrape tick) into ONE re-render, so inspecting only
+  // events[length-1] would silently drop a queued_for_decision buried in the
+  // batch (coherence study F13).
+  const lastProcessedRef = useRef(0);
   useEffect(() => {
-    if (events.length === 0) {
-      return;
-    }
-    // Only the most recent event matters — a full sweep every tick is wasteful.
-    const latest = events[events.length - 1];
-    if (
-      latest !== undefined &&
-      isEvent(latest) &&
-      latest.type === "ItemProgressed" &&
-      latest.data.status === "queued_for_decision"
-    ) {
+    const start = Math.min(lastProcessedRef.current, events.length);
+    const fresh = events.slice(start);
+    lastProcessedRef.current = events.length;
+    const hasQueued = fresh.some(
+      (e) =>
+        isEvent(e) &&
+        e.type === "ItemProgressed" &&
+        e.data.status === "queued_for_decision",
+    );
+    if (hasQueued) {
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
       void queryClient.invalidateQueries({
         queryKey: ["pipeline", "history"],

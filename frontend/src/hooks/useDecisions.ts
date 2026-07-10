@@ -8,22 +8,15 @@
  * :class:`ApiError`.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   type DecisionsParams,
   type DecisionsResponse,
   type DecisionDetailResponse,
-  type ResolveRequest,
-  type ResolveResponse,
-  type SearchRequest,
-  type SearchResponse,
   decisionsKeys,
-  dismissDecision,
   fetchDecisionDetail,
   fetchDecisions,
-  resolveDecision,
-  searchDecisionCandidates,
 } from "@/api/decisions";
 
 // ---------------------------------------------------------------------------
@@ -69,65 +62,9 @@ export function useDecisionDetail(id: number) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Mutation hooks
-// ---------------------------------------------------------------------------
-
-/**
- * Launch a targeted re-scrape for a decision.
- *
- * Mutation with ``onSuccess`` invalidation of ``['decisions']`` (so the list
- * and detail cache refresh) and ``['pipeline', 'history']`` (so the new
- * scrape-resolve run appears in the pipeline history).
- *
- * Returns:
- *   A ``useMutation`` handle that accepts ``{id, body}``.
- */
-export function useResolveDecision() {
-  const queryClient = useQueryClient();
-
-  return useMutation<ResolveResponse, Error, { id: number; body: ResolveRequest }>({
-    mutationFn: ({ id, body }) => resolveDecision(id, body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      void queryClient.invalidateQueries({ queryKey: ["pipeline", "history"] });
-    },
-  });
-}
-
-/**
- * Dismiss a decision (manual or MediaElch path).
- *
- * Mutation with ``onSuccess`` invalidation of ``['decisions']`` so the list
- * refreshes.  Also invalidates ``['decisions', id]`` so the detail view (if
- * open) reflects the ``'dismissed'`` status.
- *
- * Returns:
- *   A ``useMutation`` handle that accepts an ``id``.
- */
-export function useDismissDecision() {
-  const queryClient = useQueryClient();
-
-  return useMutation<DecisionDetailResponse, Error, number>({
-    mutationFn: (id) => dismissDecision(id),
-    onSuccess: (_data, id) => {
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.detail(id) });
-    },
-  });
-}
-
-/**
- * Search live providers for candidate matches (read-only, POST body).
- *
- * Mutation with **no** query key invalidation — the search results are
- * ephemeral and displayed inline; they do not update persisted state.
- *
- * Returns:
- *   A ``useMutation`` handle that accepts ``{id, body}``.
- */
-export function useSearchCandidates() {
-  return useMutation<SearchResponse, Error, { id: number; body: SearchRequest }>({
-    mutationFn: ({ id, body }) => searchDecisionCandidates(id, body),
-  });
-}
+// NOTE (coherence study F12): the resolve / dismiss / search MUTATIONS live
+// inline in DecisionDetail.tsx, where they carry the per-call toast, local
+// state, via-computation (F09), and completion-poll (F19) logic. The former
+// useResolveDecision / useDismissDecision / useSearchCandidates hooks here were
+// dead code that had already diverged from those inline copies (dual source of
+// truth) and were deleted. Keep only the two query hooks above.

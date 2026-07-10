@@ -12,8 +12,12 @@
  * - {@link useDecisions} / {@link useDecisionDetail} TanStack hooks (§4.1)
  */
 
-import { useState, type ReactElement } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, type ReactElement } from "react";
+import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
+import { decisionsKeys } from "@/api/decisions";
 import { useDecisionDetail, useDecisions } from "@/hooks/useDecisions";
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
@@ -25,13 +29,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Constants
 // ---------------------------------------------------------------------------
 
+/** The closed set of statuses the operator can filter by (matches the API Literal). */
+type StatusFilter = "pending" | "resolved" | "dismissed" | "superseded";
+
 /** Status values the operator can filter by. */
-const STATUS_FILTERS = [
+const STATUS_FILTERS: readonly { value: StatusFilter; label: string }[] = [
   { value: "pending", label: "En attente" },
   { value: "resolved", label: "Résolues" },
   { value: "dismissed", label: "Ignorées" },
   { value: "superseded", label: "Remplacées" },
-] as const;
+];
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -64,7 +71,8 @@ function ListSkeleton(): ReactElement {
  *   The decisions page element.
  */
 export default function Decisions(): ReactElement {
-  const [status, setStatus] = useState<string>("pending");
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<StatusFilter>("pending");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // When true on mobile, the detail panel replaces the list.
   const [showDetailMobile, setShowDetailMobile] = useState(false);
@@ -75,9 +83,12 @@ export default function Decisions(): ReactElement {
     isError: listError,
   } = useDecisions({ status });
 
-  const { data: detailData, isLoading: detailLoading } = useDecisionDetail(
-    selectedId ?? 0,
-  );
+  const {
+    data: detailData,
+    isLoading: detailLoading,
+    isError: detailError,
+    error: detailErrorObj,
+  } = useDecisionDetail(selectedId ?? 0);
 
   // ---- event handlers --------------------------------------------------------
 
@@ -96,11 +107,26 @@ export default function Decisions(): ReactElement {
     setShowDetailMobile(false);
   }
 
-  function handleStatusChange(newStatus: string): void {
+  function handleStatusChange(newStatus: StatusFilter): void {
     setStatus(newStatus);
     setSelectedId(null);
     setShowDetailMobile(false);
   }
+
+  // A detail GET can 410 when the row was superseded between the list render
+  // and the click (the backend list-GC makes this a normal race). Deselect +
+  // refresh the list instead of rendering an eternal skeleton (F14).
+  useEffect(() => {
+    if (!detailError) return;
+    if (detailErrorObj instanceof ApiError && detailErrorObj.status === 410) {
+      toast.error(
+        "Cette décision a été remplacée par une version plus récente.",
+      );
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+    }
+    setSelectedId(null);
+    setShowDetailMobile(false);
+  }, [detailError, detailErrorObj, queryClient]);
 
   // ---- render ----------------------------------------------------------------
 
@@ -111,13 +137,18 @@ export default function Decisions(): ReactElement {
       </h1>
 
       {/* ---- Status filter chips --------------------------------------------- */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className="flex flex-wrap items-center gap-2"
+        role="group"
+        aria-label="Filtrer les décisions par statut"
+      >
         {STATUS_FILTERS.map((filter) => {
           const active = status === filter.value;
           return (
             <button
               key={filter.value}
               type="button"
+              aria-pressed={active}
               onClick={() => {
                 handleStatusChange(filter.value);
               }}
@@ -149,51 +180,47 @@ export default function Decisions(): ReactElement {
             )}
           </div>
 
-          {/* Detail panel — mobile: replaces list with back button */}
-          <div className={showDetailMobile ? "block lg:hidden" : "hidden"}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mb-2"
-              onClick={handleBackToList}
-            >
-              ← Retour à la liste
-            </Button>
-
-            {detailLoading || detailData == null ? (
-              <Skeleton className="h-64 w-full" />
-            ) : (
-              <DecisionDetail
-                decision={detailData}
-                onDecisionHandled={handleDecisionHandled}
-              />
-            )}
-          </div>
-
-          {/* Detail panel — desktop: side-by-side when selected */}
-          <div className={selectedId != null ? "hidden lg:block" : "hidden"}>
-            {detailLoading || detailData == null ? (
-              <Skeleton className="h-64 w-full" />
-            ) : (
-              <DecisionDetail
-                decision={detailData}
-                onDecisionHandled={handleDecisionHandled}
-              />
-            )}
-          </div>
-
-          {/* Desktop placeholder when nothing is selected */}
+          {/* Detail panel — a SINGLE DecisionDetail instance (F36): shown on
+              mobile when selected (with a back button), side-by-side on desktop,
+              and replaced by the placeholder when nothing is selected. */}
           <div
             className={
-              selectedId == null
-                ? "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8"
-                : "hidden"
+              selectedId != null
+                ? showDetailMobile
+                  ? "block"
+                  : "hidden lg:block"
+                : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8"
             }
           >
-            <p className="text-sm text-muted-foreground">
-              Sélectionnez une décision pour voir les détails.
-            </p>
+            {selectedId != null ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mb-2 lg:hidden"
+                  onClick={handleBackToList}
+                >
+                  ← Retour à la liste
+                </Button>
+
+                {detailLoading || detailData == null ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : (
+                  // key={id} resets DecisionDetail's local state per decision
+                  // so a search / runUid from one never leaks onto another (F02).
+                  <DecisionDetail
+                    key={detailData.id}
+                    decision={detailData}
+                    onDecisionHandled={handleDecisionHandled}
+                  />
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Sélectionnez une décision pour voir les détails.
+              </p>
+            )}
           </div>
         </div>
       )}

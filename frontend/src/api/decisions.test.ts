@@ -147,6 +147,14 @@ describe("searchDecisionCandidates", () => {
     expect(init.body).toBe(JSON.stringify({ title: "Inception", year: 2010 }));
   });
 
+  it("sends the X-Requested-With header (F00 — else 400)", async () => {
+    await searchDecisionCandidates(7, { title: "Inception" });
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)["X-Requested-With"]).toBe(
+      "TorrentMate",
+    );
+  });
+
   it("omits year from body when undefined", async () => {
     await searchDecisionCandidates(7, { title: "Inception" });
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
@@ -173,12 +181,30 @@ describe("resolveDecision", () => {
     vi.unstubAllGlobals();
   });
 
-  it("posts with decision_id in path and body containing provider + provider_id", async () => {
-    await resolveDecision(3, { provider: "tmdb", provider_id: 550 });
+  it("posts with decision_id in path and body containing provider + provider_id + via", async () => {
+    await resolveDecision(3, {
+      provider: "tmdb",
+      provider_id: 550,
+      via: "search_override",
+    });
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/decisions/3/resolve");
     expect(init.method).toBe("POST");
-    expect(init.body).toBe(JSON.stringify({ provider: "tmdb", provider_id: 550 }));
+    expect(init.body).toBe(
+      JSON.stringify({
+        provider: "tmdb",
+        provider_id: 550,
+        via: "search_override",
+      }),
+    );
+  });
+
+  it("sends the X-Requested-With header (F00 — else 400)", async () => {
+    await resolveDecision(3, { provider: "tmdb", provider_id: 550, via: "pick" });
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)["X-Requested-With"]).toBe(
+      "TorrentMate",
+    );
   });
 
   it("throws ApiError on 409 (lock held)", async () => {
@@ -186,7 +212,7 @@ describe("resolveDecision", () => {
       jsonResponse({ detail: "Pipeline lock held" }, 409),
     );
     await expect(
-      resolveDecision(3, { provider: "tmdb", provider_id: 550 }),
+      resolveDecision(3, { provider: "tmdb", provider_id: 550, via: "pick" }),
     ).rejects.toThrow(ApiError);
   });
 
@@ -195,7 +221,7 @@ describe("resolveDecision", () => {
       jsonResponse({ detail: "Decision superseded" }, 410),
     );
     await expect(
-      resolveDecision(3, { provider: "tmdb", provider_id: 550 }),
+      resolveDecision(3, { provider: "tmdb", provider_id: 550, via: "pick" }),
     ).rejects.toThrow(ApiError);
   });
 });
@@ -218,6 +244,14 @@ describe("dismissDecision", () => {
     expect(url).toBe("/api/decisions/5/dismiss");
     expect(init.method).toBe("POST");
     expect(init.body).toBeUndefined();
+  });
+
+  it("sends the X-Requested-With header (F00 — else 400)", async () => {
+    await dismissDecision(5);
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)["X-Requested-With"]).toBe(
+      "TorrentMate",
+    );
   });
 
   it("throws ApiError on 404", async () => {

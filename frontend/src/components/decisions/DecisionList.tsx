@@ -11,6 +11,7 @@
 import { type ReactElement } from "react";
 
 import type { DecisionListItem } from "@/api/decisions";
+import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -39,20 +40,7 @@ import {
  * ``ambiguous`` because it signals "needs attention" without the urgency of
  * ``danger`` or the caution of ``warning``.
  */
-const TRIGGER_VARIANT: Record<string, "danger" | "warning" | "info"> = {
-  below_threshold: "danger",
-  mid_band: "warning",
-  ambiguous: "info",
-};
-
-/**
- * French labels for each trigger reason.
- */
-const TRIGGER_LABEL: Record<string, string> = {
-  below_threshold: "Score faible",
-  mid_band: "Zone grise",
-  ambiguous: "Ambigu",
-};
+const TRIGGER_VARIANT = TRIGGER_TONE;
 
 /**
  * Extract a short, human-readable folder name from an absolute staging path.

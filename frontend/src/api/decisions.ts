@@ -9,7 +9,7 @@
  */
 
 import type { components, paths } from "./schema";
-import { apiFetch } from "./client";
+import { XRW_HEADERS, apiFetch } from "./client";
 
 // ---------------------------------------------------------------------------
 // Re-export schema component types so the UI layer can import them from one
@@ -199,6 +199,7 @@ export function searchDecisionCandidates(
   return apiFetch("/api/decisions/{decision_id}/search", {
     method: "post",
     body,
+    headers: XRW_HEADERS,
     params: { path: { decision_id: id } },
   });
 }
@@ -228,6 +229,7 @@ export function resolveDecision(
   return apiFetch("/api/decisions/{decision_id}/resolve", {
     method: "post",
     body,
+    headers: XRW_HEADERS,
     params: { path: { decision_id: id } },
   });
 }
@@ -253,6 +255,7 @@ export function dismissDecision(
 ): Promise<DecisionDetailResponse> {
   return apiFetch("/api/decisions/{decision_id}/dismiss", {
     method: "post",
+    headers: XRW_HEADERS,
     params: { path: { decision_id: id } },
   });
 }

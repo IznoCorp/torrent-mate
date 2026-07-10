@@ -303,8 +303,12 @@ export function getVersion(): Promise<
 // Pipeline endpoints
 // ---------------------------------------------------------------------------
 
-/** Shared header required by every mutating pipeline endpoint (Phases 2-3). */
-const PIPELINE_HEADERS: Record<string, string> = {
+/**
+ * Shared header required by EVERY mutating endpoint (the backend's
+ * `require_x_requested_with` guard returns 400 without it). Exported so the
+ * decisions helpers reuse the exact same value (coherence study F00).
+ */
+export const XRW_HEADERS: Record<string, string> = {
   "X-Requested-With": "TorrentMate",
 };
 
@@ -315,7 +319,7 @@ export async function runPipeline(
   return apiFetch("/api/pipeline/run", {
     method: "post",
     body,
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -325,7 +329,7 @@ export function pausePipeline(): Promise<
 > {
   return apiFetch("/api/pipeline/pause", {
     method: "post",
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -335,7 +339,7 @@ export function resumePipeline(): Promise<
 > {
   return apiFetch("/api/pipeline/resume", {
     method: "post",
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -345,7 +349,7 @@ export function killPipeline(): Promise<
 > {
   return apiFetch("/api/pipeline/kill", {
     method: "post",
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -356,7 +360,7 @@ export function setWatcher(
   return apiFetch("/api/pipeline/watcher", {
     method: "post",
     body,
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -517,7 +521,7 @@ export function runMaintenanceAction(
   return apiFetch("/api/maintenance/actions/{action_id}/run", {
     method: "post",
     body,
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
     params: { path: { action_id: actionId } },
   });
 }
@@ -642,7 +646,7 @@ export function putConfigFile(
   return apiFetch("/api/config/files/{name}", {
     method: "put",
     body,
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
     params: { path: { name } },
   });
 }
@@ -667,7 +671,7 @@ export function putConfigSecrets(
   return apiFetch("/api/config/secrets", {
     method: "put",
     body,
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -691,7 +695,7 @@ export function validateConfig(
   return apiFetch("/api/config/validate", {
     method: "post",
     body,
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 
@@ -711,7 +715,7 @@ export function validateConfig(
 export function restartWeb(): Promise<RestartResponse> {
   return apiFetch("/api/config/restart-web", {
     method: "post",
-    headers: PIPELINE_HEADERS,
+    headers: XRW_HEADERS,
   });
 }
 

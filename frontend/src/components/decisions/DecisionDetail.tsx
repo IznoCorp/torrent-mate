@@ -10,11 +10,11 @@
  * 409 (lock-held retry hint) and 410 (superseded — refetch list).
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactElement } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
-import { ApiError } from "@/api/client";
+import { ApiError, getPipelineRunDetail } from "@/api/client";
 import type {
   DecisionCandidate,
   DecisionDetail as DecisionDetailType,
@@ -28,6 +28,7 @@ import {
   dismissDecision,
 } from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
+import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,16 +61,28 @@ const TRIGGER_EXPLANATION: Record<string, string> = {
     "recherche pour trouver une correspondance plus précise.",
 };
 
+/** Terminal pipeline_run outcomes — the scrape-resolve run is done. */
+const TERMINAL_OUTCOMES = new Set(["success", "error", "killed"]);
+
 /**
- * Trigger → French label.
+ * Map a known backend error status to a French inline message (F38).
  *
- * Mirrors the labels in {@link ../DecisionList.tsx} for consistency.
+ * The toasts are already localized; the persistent inline error box previously
+ * showed the raw English ``ApiError.detail``.  Falls back to the detail string
+ * for unmapped statuses.
  */
-const TRIGGER_LABEL: Record<string, string> = {
-  below_threshold: "Score faible",
-  mid_band: "Zone grise",
-  ambiguous: "Ambigu",
-};
+function frenchErrorDetail(error: ApiError): string {
+  switch (error.status) {
+    case 409:
+      return "Un autre re-scraping est déjà en cours. Attendez qu'il se termine avant de réessayer.";
+    case 410:
+      return "Cette décision a été remplacée par une version plus récente.";
+    case 502:
+      return "Le fournisseur de métadonnées est indisponible. Réessayez plus tard.";
+    default:
+      return error.detail;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -146,6 +159,10 @@ export function DecisionDetail({
   /** Candidates to render: search results override the originals. */
   const candidates = searchResults ?? decision.candidates;
 
+  /** True once the launched resolve run has reached a terminal outcome. */
+  const [runDone, setRunDone] = useState(false);
+  const invalidatedOnDone = useRef(false);
+
   const triggerLabel = TRIGGER_LABEL[decision.trigger] ?? decision.trigger;
   const triggerExplanation =
     TRIGGER_EXPLANATION[decision.trigger] ??
@@ -175,12 +192,15 @@ export function DecisionDetail({
     },
     onError: (error) => {
       if (error instanceof ApiError) {
-        setErrorDetail(error.detail);
+        setErrorDetail(frenchErrorDetail(error));
         if (error.status === 410) {
           toast.error(
             "Cette décision a été remplacée par une version plus récente.",
           );
           void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+          // The detail panel is dead — deselect it like the resolve/dismiss
+          // 410 handlers do (F37), instead of leaving it open re-toasting 410.
+          onDecisionHandled();
         } else if (error.status === 502) {
           toast.error(
             "Le fournisseur de métadonnées est indisponible. Réessayez plus tard.",
@@ -203,12 +223,27 @@ export function DecisionDetail({
       resolveDecision(decision.id, {
         provider: candidate.provider,
         provider_id: candidate.provider_id,
+        // A candidate present in the live-search results was found via the
+        // search-override flow; otherwise it was picked from the queue
+        // snapshot (F09 — persisted in resolution_json.via).
+        via:
+          searchResults?.some(
+            (c) =>
+              c.provider === candidate.provider &&
+              c.provider_id === candidate.provider_id,
+          ) === true
+            ? "search_override"
+            : "pick",
       }),
     onSuccess: (data) => {
       setErrorDetail(null);
       setRunUid(data.run_uid);
+      setRunDone(false);
+      invalidatedOnDone.current = false;
       toast.success("Re-scraping lancé.");
-      // Invalidate decisions list so the resolved item disappears.
+      // Optimistic invalidation at 202. The row is still 'pending' until the
+      // detached runner marks it resolved — the completion poll below fires a
+      // second invalidation once the run is terminal (F19/F49).
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["pipeline", "history"] });
     },
@@ -228,7 +263,7 @@ export function DecisionDetail({
         } else {
           toast.error(error.detail);
         }
-        setErrorDetail(error.detail);
+        setErrorDetail(frenchErrorDetail(error));
       } else {
         toast.error("Erreur inattendue lors du re-scraping.");
       }
@@ -239,6 +274,9 @@ export function DecisionDetail({
     mutationFn: () => dismissDecision(decision.id),
     onSuccess: () => {
       toast.success("Décision ignorée.");
+      // Refresh the list + badge so the dismissed row leaves the queue
+      // immediately (F01 — the success path previously never invalidated).
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
       setDismissed(true);
       onDecisionHandled();
     },
@@ -250,6 +288,10 @@ export function DecisionDetail({
           );
           void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
           onDecisionHandled();
+        } else if (error.status === 409) {
+          toast.error("Cette décision n'est plus en attente.");
+          void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+          onDecisionHandled();
         } else {
           toast.error(error.detail);
         }
@@ -258,6 +300,34 @@ export function DecisionDetail({
       }
     },
   });
+
+  // ---- resolve-run completion poll (F19/F49) --------------------------------
+  // Poll the launched run's history row; when it reaches a terminal outcome,
+  // re-invalidate the decisions list (the row is now really resolved) and flip
+  // the in-progress badge. Stops polling once terminal.
+  const runQuery = useQuery({
+    queryKey: ["pipeline", "history", runUid],
+    queryFn: () => getPipelineRunDetail(runUid ?? ""),
+    enabled: runUid != null && !runDone,
+    refetchInterval: (query) => {
+      const outcome = query.state.data?.outcome;
+      return outcome != null && TERMINAL_OUTCOMES.has(outcome) ? false : 2000;
+    },
+  });
+
+  useEffect(() => {
+    const outcome = runQuery.data?.outcome;
+    if (
+      runUid != null &&
+      outcome != null &&
+      TERMINAL_OUTCOMES.has(outcome) &&
+      !invalidatedOnDone.current
+    ) {
+      invalidatedOnDone.current = true;
+      setRunDone(true);
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+    }
+  }, [runQuery.data?.outcome, runUid, queryClient]);
 
   // ---- event handlers --------------------------------------------------------
 
@@ -318,15 +388,7 @@ export function DecisionDetail({
               ({yearLabel})
             </span>
           </CardTitle>
-          <Badge
-            tone={
-              decision.trigger === "below_threshold"
-                ? "danger"
-                : decision.trigger === "mid_band"
-                  ? "warning"
-                  : "info"
-            }
-          >
+          <Badge tone={TRIGGER_TONE[decision.trigger] ?? "info"}>
             {triggerLabel}
           </Badge>
         </div>
@@ -418,8 +480,8 @@ export function DecisionDetail({
         {runUid != null && (
           <div className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3">
             <div className="flex items-center gap-2">
-              <Badge tone="success" dot>
-                Re-scraping en cours
+              <Badge tone={runDone ? "neutral" : "success"} dot={!runDone}>
+                {runDone ? "Re-scraping terminé" : "Re-scraping en cours"}
               </Badge>
               <span className="text-xs text-muted-foreground">
                 run_uid : <span className="font-mono">{runUid}</span>

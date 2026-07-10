@@ -277,6 +277,43 @@ describe("DecisionDetail", () => {
     });
   });
 
+  it("résout un candidat issu d'une recherche via 'search_override' (F09)", async () => {
+    const freshCandidates = [
+      makeCandidate({
+        provider: "tmdb",
+        provider_id: 999,
+        title: "New Match",
+        score: 0.95,
+      }),
+    ];
+    searchDecisionCandidatesMock.mockResolvedValueOnce({
+      candidates: freshCandidates,
+    });
+    resolveDecisionMock.mockResolvedValueOnce({ run_uid: "run-ov" });
+
+    renderDetail(makeDecision());
+
+    fireEvent.change(screen.getByLabelText("Titre"), {
+      target: { value: "New Match" },
+    });
+    fireEvent.click(screen.getByText("Re-chercher"));
+
+    await waitFor(() => {
+      expect(screen.getByText("New Match")).toBeInTheDocument();
+    });
+
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    await waitFor(() => {
+      expect(resolveDecisionMock).toHaveBeenCalledWith(1, {
+        provider: "tmdb",
+        provider_id: 999,
+        via: "search_override",
+      });
+    });
+  });
+
   // ---- Resolve ---------------------------------------------------------------
 
   it("lance le re-scraping sur le candidat sélectionné", async () => {
@@ -290,9 +327,12 @@ describe("DecisionDetail", () => {
     fireEvent.click(screen.getByText("Choisir"));
 
     await waitFor(() => {
+      // A candidate picked from the original queue snapshot resolves via 'pick'
+      // (F09 — the via provenance is now sent to the backend).
       expect(resolveDecisionMock).toHaveBeenCalledWith(1, {
         provider: "tmdb",
         provider_id: 123,
+        via: "pick",
       });
     });
 
