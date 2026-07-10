@@ -11,6 +11,7 @@
 
 /* eslint-disable react-refresh/only-export-components */
 
+import { Plus, X } from "lucide-react";
 import { useId, useState, type ReactElement, type ChangeEvent } from "react";
 
 import {
@@ -220,6 +221,97 @@ function fieldLabel(schema: Record<string, unknown>, fieldKey: string): string {
   const title = schema.title;
   if (typeof title === "string" && title.trim() !== "") return title;
   return humanize(fieldKey);
+}
+
+/**
+ * Curated French labels for the well-known config domain sections. Anything not
+ * listed falls back to a humanized property key so a nested Pydantic model never
+ * surfaces its raw class name (e.g. ``"ScraperConfig"``, F6).
+ */
+const SECTION_LABELS: Record<string, string> = {
+  scraper: "Scraper",
+  ingest: "Ingestion",
+  sort: "Tri",
+  fuzzy_match: "Correspondance floue",
+  trailers: "Bandes-annonces",
+  indexer: "Indexeur",
+  acquire: "Acquisition",
+  paths: "Chemins",
+  disks: "Disques",
+  library: "Bibliothèque",
+  categories: "Catégories",
+  category_rules: "Règles de catégorie",
+  custom_categories: "Catégories personnalisées",
+  anime_rule: "Règle anime",
+  genre_mapping: "Correspondance des genres",
+  staging_dirs: "Dossiers de staging",
+};
+
+/**
+ * Resolve a section (nested-object) heading. Prefers a curated French label,
+ * then the humanized property key — never a schema ``title`` that is a bare
+ * PascalCase class name (Pydantic sets a nested model's title to its class
+ * name, so ``fieldLabel`` would surface ``"ScraperConfig"``; F6).
+ *
+ * Args:
+ *   fieldKey: The section's property key (e.g. ``"fuzzy_match"``).
+ *   schema: The resolved section schema node (may carry a ``title``).
+ *
+ * Returns:
+ *   A human-readable French section heading.
+ */
+function sectionLabel(
+  fieldKey: string,
+  schema: Record<string, unknown>,
+): string {
+  const mapped = SECTION_LABELS[fieldKey];
+  if (mapped != null) return mapped;
+  const title = schema.title;
+  if (
+    typeof title === "string" &&
+    title.trim() !== "" &&
+    !/^[A-Z][A-Za-z0-9]*$/.test(title.trim())
+  ) {
+    return title;
+  }
+  return humanize(fieldKey);
+}
+
+/**
+ * SectionDescription — a section docstring truncated to its first sentence with
+ * an "En savoir plus" toggle. Full Pydantic docstrings ("… Attributes: language:
+ * …") are a wall of text; the first sentence is the useful summary and the
+ * per-field help text covers the rest (F7).
+ *
+ * Args:
+ *   text: The full section description string.
+ *
+ * Returns:
+ *   The collapsible description element.
+ */
+function SectionDescription({ text }: { text: string }): ReactElement {
+  const [expanded, setExpanded] = useState(false);
+  const sep = text.indexOf(". ");
+  const summary = sep === -1 ? text : `${text.slice(0, sep)}.`;
+  const isLong = summary.length < text.length;
+  return (
+    <div className="flex flex-col items-start gap-0.5">
+      <p className="text-xs text-muted-foreground">
+        {expanded || !isLong ? text : summary}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => {
+            setExpanded((v) => !v);
+          }}
+          className="text-xs font-medium text-primary hover:underline"
+        >
+          {expanded ? "Réduire" : "En savoir plus"}
+        </button>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -871,7 +963,7 @@ function PrimitiveArrayField({
                   removeAt(i);
                 }}
               >
-                ✕
+                <X className="size-4" aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -887,7 +979,8 @@ function PrimitiveArrayField({
           aria-label="Ajouter un élément"
           onClick={addItem}
         >
-          + Ajouter
+          <Plus className="size-4" aria-hidden="true" />
+          Ajouter
         </Button>
       )}
     </fieldset>
@@ -967,7 +1060,7 @@ function ObjectArrayField({
                     removeAt(i);
                   }}
                 >
-                  ✕
+                  <X className="size-4" aria-hidden="true" />
                 </Button>
               )}
             </CardHeader>
@@ -997,7 +1090,8 @@ function ObjectArrayField({
           aria-label={`Ajouter ${label}`}
           onClick={addItem}
         >
-          + Ajouter
+          <Plus className="size-4" aria-hidden="true" />
+          Ajouter
         </Button>
       )}
     </fieldset>
@@ -1123,7 +1217,7 @@ function AdditionalPropertiesField({
                   removeEntry(k);
                 }}
               >
-                ✕
+                <X className="size-4" aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -1139,7 +1233,8 @@ function AdditionalPropertiesField({
           aria-label="Ajouter une entrée"
           onClick={addEntry}
         >
-          + Ajouter
+          <Plus className="size-4" aria-hidden="true" />
+          Ajouter
         </Button>
       )}
     </fieldset>
@@ -1397,9 +1492,7 @@ export function SchemaForm({
     // Grouped children, laid out with the scalar/composite grid split.
     const body = (
       <div className="flex flex-col gap-4">
-        {description !== null && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {description !== null && <SectionDescription text={description} />}
         {groups.map((group, gi) =>
           group.scalar ? (
             <div key={gi} className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1426,7 +1519,7 @@ export function SchemaForm({
       <Accordion className="rounded-md border border-border">
         <AccordionItem className="border-b-0">
           <AccordionTrigger className="px-3">
-            {fieldLabel(effective, fieldKey)}
+            {sectionLabel(fieldKey, effective)}
           </AccordionTrigger>
           <AccordionContent className="px-3">{body}</AccordionContent>
         </AccordionItem>
