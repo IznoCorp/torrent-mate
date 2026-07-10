@@ -6,17 +6,21 @@ See docs/features/tm-shell/DESIGN.md §4.1.
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager, closing, suppress
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.indexer import migrations as _indexer_migrations
+from personalscraper.indexer.db import apply_migrations
 from personalscraper.logger import get_logger
 from personalscraper.web.auth.routes import router as auth_router
-from personalscraper.web.deps import require_session
+from personalscraper.web.deps import is_staging_role, require_session
 from personalscraper.web.routes.health import router as health_router
 from personalscraper.web.routes.version import router as version_router
 from personalscraper.web.static import mount_spa
@@ -28,6 +32,45 @@ from personalscraper.web.ws.relay import (
 from personalscraper.web.ws.routes import router as ws_router
 
 logger = get_logger(__name__)
+
+
+def _apply_pending_indexer_migrations(config: Config) -> None:
+    """Apply pending indexer schema migrations on web startup (prod only).
+
+    The autodeploy poller ships new code + restarts but does **not** run
+    indexer migrations, and the web app opens the DB read-only during
+    requests — so a web wave that adds a migration serves ``500`` (``no such
+    table``) on its new endpoints until an indexer scan next opens the DB
+    (hit on S5: migration 013 / ``scrape_decision``).  Applying pending
+    migrations here closes that gap on every prod boot.
+
+    Skipped entirely on the **staging** clone: prod and staging share the same
+    ``library.db`` (ENV-SEP), so the staging process must never write to the
+    prod-owned DB.  Skipped when the DB file does not yet exist (the indexer
+    creates + migrates it on first use).  Fail-soft: a migration error is
+    logged but never aborts boot — health stays up and only the
+    migration-dependent endpoints degrade, exactly as before this guard.
+
+    Args:
+        config: The parsed configuration (provides ``indexer.db_path``).
+    """
+    if is_staging_role():
+        logger.info("web_boot_migrate_skipped", reason="staging role (read-only)")
+        return
+    db_path = config.indexer.db_path
+    if db_path is None or not db_path.exists():
+        logger.info("web_boot_migrate_skipped", reason="indexer db absent")
+        return
+    migrations_dir = Path(_indexer_migrations.__file__).resolve().parent
+    try:
+        with closing(sqlite3.connect(str(db_path), timeout=30)) as conn:
+            apply_pragmas(conn)
+            apply_migrations(conn, migrations_dir)
+            conn.commit()
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+        logger.info("web_boot_migrate_applied", db_version=version)
+    except Exception:  # noqa: BLE001 — fail-soft: never abort boot on a migration error
+        logger.error("web_boot_migrate_failed", db_path=str(db_path), exc_info=True)
 
 
 @asynccontextmanager
@@ -45,6 +88,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         - Closes the Redis connection pool.
     """
     config = app.state.config
+
+    # Ensure the shared indexer DB is on the latest schema before serving —
+    # the deploy path does not migrate, and web-wave migrations otherwise 500
+    # until an indexer scan runs (prod-only; staging is read-only).
+    _apply_pending_indexer_migrations(config)
+
     registry = ConnectionRegistry()
     app.state.ws_registry = registry
 
