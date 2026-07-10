@@ -474,6 +474,55 @@ def test_follow_set_active_flips_flag(store: ConcreteAcquireStore) -> None:
     assert any(s.id == row_id for s in active_list), "Reactivated row must appear in list_active()"
 
 
+def test_follow_add_same_ref_twice_no_duplicate_reactivates(store: ConcreteAcquireStore) -> None:
+    """RACE/IDEMPOTENCY: two adds of the same media_ref → ONE active row, same id, no IntegrityError.
+
+    The ux_followed_media_ref UNIQUE index (migration 004) + ON CONFLICT DO UPDATE
+    make add() idempotent: the second add hits the conflict path, returns the SAME
+    surviving rowid, leaves exactly one row, and keeps it active — never leaking a
+    sqlite3.IntegrityError to the caller.
+    """
+    ref = MediaRef(tvdb_id=424242)
+    first = FollowedSeries(media_ref=ref, title="First Title", added_at=1_700_000_000, active=True)
+    second = FollowedSeries(media_ref=ref, title="Second Title", added_at=1_700_000_500, active=True)
+
+    id1 = store.follow.add(first)
+    id2 = store.follow.add(second)  # must NOT raise IntegrityError
+
+    assert id1 == id2, "second add of the same ref must return the same surviving rowid"
+    # Exactly one row for this ref.
+    all_rows = [s for s in store.follow.list_all() if s.media_ref == ref]
+    assert len(all_rows) == 1, f"expected exactly one row for the ref, got {len(all_rows)}"
+    # Title refreshed from the second payload; row stays active.
+    survivor = store.follow.get(id1)
+    assert survivor is not None
+    assert survivor.title == "Second Title", "ON CONFLICT DO UPDATE must refresh the title"
+    assert survivor.active is True
+
+
+def test_follow_add_reactivates_inactive_ref(store: ConcreteAcquireStore) -> None:
+    """RE-ADD of an inactive ref reactivates it (active flips 0 → 1) on the SAME row."""
+    ref = MediaRef(tvdb_id=515151)
+    row_id = store.follow.add(FollowedSeries(media_ref=ref, title="Show", added_at=1, active=True))
+    store.follow.set_active(row_id, False)
+    assert store.follow.get(row_id).active is False  # type: ignore[union-attr]
+
+    # Re-add the same ref → reactivate via ON CONFLICT DO UPDATE SET active=1.
+    re_id = store.follow.add(FollowedSeries(media_ref=ref, title="Show", added_at=2, active=True))
+    assert re_id == row_id, "re-add must target the existing row, not insert a new one"
+    reactivated = store.follow.get(row_id)
+    assert reactivated is not None
+    assert reactivated.active is True, "re-add of an inactive ref must reactivate it"
+
+
+def test_follow_add_distinct_refs_are_independent(store: ConcreteAcquireStore) -> None:
+    """Two DIFFERENT media_refs produce two distinct rows (no false-merge via ON CONFLICT)."""
+    id_a = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=6001), title="A", added_at=1, active=True))
+    id_b = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=6002), title="B", added_at=2, active=True))
+    assert id_a != id_b
+    assert len(store.follow.list_all()) == 2
+
+
 def test_follow_substore_satisfies_protocol(store: ConcreteAcquireStore) -> None:
     """_FollowSubStore satisfies the FollowSubStore Protocol (all new methods present)."""
     from personalscraper.acquire._ports import FollowSubStore as FollowSubStoreProto
