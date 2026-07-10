@@ -255,7 +255,7 @@ export default function Decisions(): ReactElement {
           still renders — but the pending count would otherwise read a false "0".
           Surface it explicitly so the operator knows the signal is unreliable. */}
       {!listError && pendingFailed && (
-        <p role="alert" className="text-sm text-[var(--danger)]">
+        <p role="alert" className="text-sm text-danger">
           Impossible de charger les décisions en attente — le nombre affiché
           peut être incomplet. Réessayez.
         </p>
@@ -263,7 +263,7 @@ export default function Decisions(): ReactElement {
 
       {/* ---- Content area ---------------------------------------------------- */}
       {listError ? (
-        <p className="text-sm text-[var(--danger)]">
+        <p className="text-sm text-danger">
           Erreur lors du chargement des décisions.
         </p>
       ) : (

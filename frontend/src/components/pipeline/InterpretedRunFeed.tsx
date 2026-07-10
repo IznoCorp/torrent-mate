@@ -31,9 +31,9 @@ const FOLLOW_THRESHOLD = 24;
 /** Tone → text colour class for an interpreted line. */
 const TONE_CLASS: Record<LineTone, string> = {
   info: "text-muted-foreground",
-  success: "text-[var(--success)]",
-  warning: "text-[var(--warning)]",
-  danger: "text-[var(--danger)]",
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
 };
 
 /** Props for {@link InterpretedRunFeed}. */

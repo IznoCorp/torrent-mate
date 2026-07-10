@@ -58,7 +58,7 @@ export function FileList({
 
   if (files.isError || schema.isError || status.isError) {
     return (
-      <div className="text-sm text-[var(--danger)] py-4" role="alert">
+      <div className="text-sm text-danger py-4" role="alert">
         Erreur lors du chargement des fichiers.
       </div>
     );
@@ -100,7 +100,7 @@ export function FileList({
               {/* Dirty dot */}
               {isDirty && (
                 <span
-                  className="size-2 shrink-0 rounded-full bg-[var(--warning)]"
+                  className="size-2 shrink-0 rounded-full bg-warning"
                   aria-label="Modifications non enregistrées"
                 />
               )}

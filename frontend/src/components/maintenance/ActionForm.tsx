@@ -442,7 +442,7 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
 
       {/* Error block (validation or backend 409/422/428) */}
       {errorDetail != null && (
-        <div className="rounded-md border border-[color-mix(in_oklch,var(--danger)_34%,transparent)] bg-[color-mix(in_oklch,var(--danger)_12%,transparent)] p-3 text-sm text-[var(--danger)]">
+        <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
           {errorDetail}
         </div>
       )}

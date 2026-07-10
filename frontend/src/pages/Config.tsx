@@ -442,7 +442,7 @@ export default function Config(): ReactElement {
     return (
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
         <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           Impossible de charger la configuration. Vérifiez que le backend est
           accessible.
         </p>
@@ -459,7 +459,7 @@ export default function Config(): ReactElement {
       {isStaging && <StagingBanner />}
       {readOnly && (
         <div
-          className="rounded-md border border-[var(--warning)] bg-[var(--warning)]/10 px-4 py-3 text-sm"
+          className="rounded-md border border-warning bg-warning/10 px-4 py-3 text-sm"
           role="alert"
         >
           Mode lecture seule — les modifications sont désactivées sur cette
@@ -469,7 +469,7 @@ export default function Config(): ReactElement {
 
       {/* Restart required banner */}
       {restartRequired && (
-        <div className="rounded-md border border-[var(--info)] bg-[var(--info)]/10 px-4 py-3 text-sm">
+        <div className="rounded-md border border-info bg-info/10 px-4 py-3 text-sm">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <p className="font-medium">Redémarrage requis</p>
@@ -544,7 +544,7 @@ export default function Config(): ReactElement {
               Chargement du fichier…
             </p>
           ) : fileQ.isError ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p className="text-sm text-danger" role="alert">
               Erreur lors du chargement de &quot;{selectedFile}&quot;.
             </p>
           ) : (

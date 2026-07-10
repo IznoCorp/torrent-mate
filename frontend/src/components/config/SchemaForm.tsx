@@ -586,7 +586,7 @@ function StringField({
         }}
       />
       {er !== null && (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {er}
         </p>
       )}
@@ -657,7 +657,7 @@ function NumberField({
         }}
       />
       {er !== null && (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {er}
         </p>
       )}
@@ -711,7 +711,7 @@ function BooleanField({
         />
       </div>
       {er !== null && (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {er}
         </p>
       )}
@@ -779,7 +779,7 @@ function EnumField({
         </SelectContent>
       </Select>
       {er !== null && (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {er}
         </p>
       )}
@@ -1106,7 +1106,7 @@ function AdditionalPropertiesField({
               {(() => {
                 const er = fieldError(errors, rowPath);
                 return er !== null ? (
-                  <p className="text-sm text-[var(--danger)]" role="alert">
+                  <p className="text-sm text-danger" role="alert">
                     {er}
                   </p>
                 ) : null;
@@ -1229,12 +1229,12 @@ function JsonFallback({
         spellCheck={false}
       />
       {parseErr !== null && (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {parseErr}
         </p>
       )}
       {er !== null && (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {er}
         </p>
       )}
@@ -1372,7 +1372,7 @@ export function SchemaForm({
           {path === "" &&
             shadowedKeys != null &&
             shadowedKeys.includes(key) && (
-              <p className="text-xs text-[var(--warning)] mt-1">
+              <p className="text-xs text-warning mt-1">
                 Écrasée par local.json5 — modification sans effet
               </p>
             )}
