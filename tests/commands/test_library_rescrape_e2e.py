@@ -370,7 +370,7 @@ def test_rescrape_partial_payload_nfo_renderer_handles_none_fields(tmp_path: Pat
     """
     import xml.etree.ElementTree as ET  # noqa: PLC0415
 
-    from personalscraper.scraper.movie_service import _coerce_to_movie_data  # noqa: PLC0415
+    from personalscraper.scraper._movie_convert import _coerce_to_movie_data  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
     from tests.commands._e2e_helpers import _make_partial_movie_details  # noqa: PLC0415
 

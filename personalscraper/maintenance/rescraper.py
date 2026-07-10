@@ -403,7 +403,7 @@ def _rescrape_item(
     # Fix NFO
     if needs_nfo:
         try:
-            from personalscraper.scraper.movie_service import (
+            from personalscraper.scraper._movie_convert import (
                 _coerce_to_movie_data,
                 _coerce_to_show_data,
             )
@@ -431,7 +431,7 @@ def _rescrape_item(
     if needs_artwork:
         try:
             if not dry_run:
-                from personalscraper.scraper.movie_service import (
+                from personalscraper.scraper._movie_convert import (
                     _coerce_to_movie_data,
                     _coerce_to_show_data,
                 )

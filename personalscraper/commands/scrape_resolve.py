@@ -316,7 +316,7 @@ def _scrape_movie(
         log.error("scrape_resolve_movie_api_failed", api_id=api_id, error=str(exc))
         raise typer.Exit(1) from exc
 
-    from personalscraper.scraper.movie_service import _coerce_to_movie_data  # noqa: PLC0415
+    from personalscraper.scraper._movie_convert import _coerce_to_movie_data  # noqa: PLC0415
 
     coerced = _coerce_to_movie_data(movie_data)
 

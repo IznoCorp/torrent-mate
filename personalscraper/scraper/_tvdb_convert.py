@@ -73,7 +73,7 @@ def fetch_show_data(
         return show_data, tmdb_id
 
     # source == "tmdb": fetch directly from TMDB.
-    from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
+    from personalscraper.scraper._movie_convert import _coerce_to_show_data  # noqa: PLC0415
 
     show_data = _coerce_to_show_data(provider.get_tv(api_id))
     return show_data, api_id
