@@ -291,13 +291,22 @@ function sectionLabel(
  */
 function SectionDescription({ text }: { text: string }): ReactElement {
   const [expanded, setExpanded] = useState(false);
-  const sep = text.indexOf(". ");
-  const summary = sep === -1 ? text : `${text.slice(0, sep)}.`;
-  const isLong = summary.length < text.length;
+  // Google-style docstrings put the one-line summary before the first blank
+  // line ("… tunables.\n\nAttributes: …"), so the first line IS the summary.
+  // (Splitting on ". " gets fooled by "e.g." abbreviations.) Cap a runaway
+  // single line so it can never itself be a wall of text.
+  const trimmed = text.trim();
+  const firstLine = (trimmed.split("\n", 1)[0] ?? trimmed).trim();
+  const CAP = 200;
+  const summary =
+    firstLine.length > CAP
+      ? `${firstLine.slice(0, CAP).trimEnd()}…`
+      : firstLine;
+  const isLong = summary.length < trimmed.length;
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <p className="text-xs text-muted-foreground">
-        {expanded || !isLong ? text : summary}
+      <p className="whitespace-pre-line text-xs text-muted-foreground">
+        {expanded || !isLong ? trimmed : summary}
       </p>
       {isLong && (
         <button

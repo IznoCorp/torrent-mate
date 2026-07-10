@@ -1064,7 +1064,7 @@ describe("SchemaForm — libellés de section + description (F6/F7)", () => {
 
   it("tronque une longue docstring de section à sa première phrase (F7)", () => {
     const longDoc =
-      "Scraper runtime tunables. Attributes: language: primary metadata language. fallback_language: secondary.";
+      "Scraper runtime tunables.\n\nAttributes:\n    language: primary metadata language (e.g. fr-FR).\n    fallback_language: secondary.";
     render(
       <SchemaForm
         schema={{
@@ -1086,9 +1086,11 @@ describe("SchemaForm — libellés de section + description (F6/F7)", () => {
     // Only the first sentence shows; the "Attributes:" wall stays hidden.
     expect(screen.getByText("Scraper runtime tunables.")).toBeInTheDocument();
     expect(screen.queryByText(/Attributes:/)).not.toBeInTheDocument();
-    // "En savoir plus" reveals the full docstring.
+    // "En savoir plus" reveals the full docstring (Attributes block included).
     fireEvent.click(screen.getByRole("button", { name: "En savoir plus" }));
-    expect(screen.getByText(longDoc)).toBeInTheDocument();
+    expect(
+      screen.getByText(/fallback_language: secondary/),
+    ).toBeInTheDocument();
   });
 });
 
