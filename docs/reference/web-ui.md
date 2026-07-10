@@ -1045,3 +1045,93 @@ Cross-references:
 
 - [`scraping.md`](scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter) — batch confidence thresholds and detailed match variants.
 - [`maintenance.md`](maintenance.md) — runner lifecycle pattern (S3, reused verbatim).
+
+## Registry (§S6)
+
+The `/registry` page and `/api/registry/status` endpoint (reg-health feature,
+ticket #185) expose the live health of every configured metadata provider:
+circuit-breaker state, recent failure count, last success/failure timestamps,
+and last call latency.
+
+### Route: `GET /api/registry/status`
+
+- Mounted under `guarded_api` (single auth perimeter — §6).
+- Read-only — no `X-Requested-With` header required.
+- Staging-allowed: returns 200 on 8711 (no `require_not_staging`).
+- `response_model`: `RegistryStatusResponse` → `openapi.json` → `schema.d.ts`.
+- Timestamps as Unix-epoch floats (consistency with `pipeline_run` convention).
+- Fail-soft: any error reading the projection or config returns an empty list
+  `{"providers": []}` rather than 500-ing.
+
+### Response shape
+
+```json
+{
+  "providers": [
+    {
+      "provider_name": "tmdb",
+      "circuit_state": "closed",
+      "failure_count_recent": 0,
+      "last_success_at": 1719792000.0,
+      "last_failure_at": null,
+      "last_latency_ms": 42.5,
+      "live": false
+    }
+  ]
+}
+```
+
+`live` is `True` when the projection has observed at least one event for
+that provider — the health data reflects real event-stream history rather
+than an optimistic baseline. Roster providers that have never emitted an
+event appear with `live=false`, `circuit_state="closed"`,
+`failure_count_recent=0`, and all timestamps `None`.
+
+### Data flow: event-driven projection (cross-process)
+
+The web process is separate from the pipeline processes — the registry
+status is NOT a live `registry.status()` call across processes. Instead:
+
+1. **Boot warm-up**: at startup the web process replays recent events from
+   the Redis stream (`personalscraper:events`) to rebuild the in-memory
+   `RegistryHealthProjection`.
+2. **Live stream**: the projection subscribes to the same stream for
+   real-time updates (`CircuitBreakerOpened`, `CircuitBreakerClosed`,
+   `CircuitBreakerHalfOpened`, `ProviderCallCompleted`).
+3. **REST reads the projection**: `GET /api/registry/status` merges the
+   projection snapshot with the configured provider roster, producing one
+   `ProviderStatusItem` per known provider sorted by `provider_name`.
+
+The pipeline process emits a **throttled** `ProviderCallCompleted` event
+after each provider API call, carrying the latency in milliseconds. The
+projection uses this to populate `last_latency_ms` and `last_success_at`
+(clocked at the pipeline process wall time, Unix-epoch float).
+
+### Freeze test
+
+`tests/unit/api/metadata/registry/test_status_contract_frozen.py` pins the
+public contract as **additive-only**. A removed/renamed `ProviderStatus`
+field or `CircuitState` value fails the test. A new field is allowed only
+when the test is deliberately extended in the same commit (the extension
+documents the additive change).
+
+### Frontend
+
+- **Page**: `frontend/src/pages/RegistryPage.tsx` — one card per provider
+  with circuit-state badge, recent failures, relative timestamps, latency.
+- **Typed client**: `frontend/src/api/registry.ts` — `apiFetch` with
+  schema-typed paths (R15 convention, see §REST Contract Conventions).
+- **Hook**: `frontend/src/hooks/useRegistryStatus.ts` — `useQuery` with
+  `registryKeys.status()` from `frontend/src/api/queryKeys.ts`.
+- **Live refresh**: the page subscribes to the WebSocket event stream
+  (`useEventStreamContext`) and filters for circuit-state events;
+  a `queryClient.invalidateQueries` on match triggers a fresh GET without
+  a page reload.
+
+### Error handling (frontend)
+
+| Code  | Condition                          | UI treatment                                        |
+| ----- | ---------------------------------- | --------------------------------------------------- |
+| `401` | No session cookie or expired JWT   | Redirect to /login (guarded route perimeter).       |
+| `500` | Server-side exception (should not) | Toast « Erreur serveur », stale data stays visible. |
+| —     | Empty `providers: []` (fail-soft)  | Empty state: « Aucun fournisseur configuré ».       |
