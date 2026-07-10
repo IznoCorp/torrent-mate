@@ -359,10 +359,11 @@ once before the row reservation and re-probed right before the spawn (the
 reserved row is finalized `error` if the lock appeared in the window). The
 **runner** then acquires the lock itself for every live (non-dry-run)
 write/destructive action whose CLI does not self-acquire, and releases it on
-every exit path (success, error, spawn failure, SIGTERM). Three CLIs
+every exit path (success, error, spawn failure, SIGTERM). Four CLIs
 self-acquire in their live mode and are exempt from runner-side acquisition
 (`_CLI_SELF_LOCKING`): `library-clean` (`--apply`), `library-validate`
-(`--fix --apply`), `library-rescrape` (non-dry-run). Losing a last-instant
+(`--fix --apply`), `library-rescrape` (non-dry-run), and `scrape-resolve`
+(always live; it writes into staging). Losing a last-instant
 race finalizes the run `error` ("Pipeline lock held"). Net effect: no two
 writers can run concurrently, regardless of whether they are a pipeline run,
 a maintenance action, or a watcher-triggered run — and `POST /pipeline/kill`

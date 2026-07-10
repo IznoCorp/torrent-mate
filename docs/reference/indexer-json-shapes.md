@@ -380,7 +380,8 @@ Notes:
 - The array length is at most 5 (top-5 candidates). A degenerate case
   (only one candidate returned by the provider) produces a single-element
   array.
-- The model uses Pydantic's default `extra="forbid"` — unknown keys in
+- The model explicitly sets `extra="forbid"` via
+  `model_config = ConfigDict(extra="forbid")` — unknown keys in
   the JSON are rejected at validation time.
 - `year`, `poster_url`, and `overview` are nullable; they default
   to `None` when omitted.

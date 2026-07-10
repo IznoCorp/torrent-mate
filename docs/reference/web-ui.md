@@ -482,7 +482,7 @@ authority — no parallel writer; the EventBus stays observe-only).
 | POST   | `/kill`              | session + XRW | SIGTERM the run pid (read from the lock file); clear the pause sentinel; the run finalizes its history row as `killed`.                                                                                                                                   |
 | POST   | `/watcher`           | session + XRW | `{enabled}` — `false` writes the `watcher.paused` sentinel (the watch loop no-ops); `true` removes it. Distinct from pausing a running pipeline.                                                                                                          |
 | GET    | `/status`            | session       | `{state, run_uid?, step?, paused, watcher_enabled, pid?}`. State: `idle`, `running`, or `paused` — derived from the lock file, sentinel files, and the latest `pipeline_run` row.                                                                         |
-| GET    | `/history`           | session       | `?limit&offset&sort` (`started_at`, `-started_at`, `duration`, `-duration`) → `{runs: RunSummary[], total}`.                                                                                                                                              |
+| GET    | `/history`           | session       | `?limit&offset&sort&kind` (`sort`: `started_at`, `-started_at`, `duration`, `-duration`; `kind`: `pipeline`, `maintenance`, `all`) → `{runs: RunSummary[], total}`. `400` on invalid `sort` or `kind` value.                                              |
 | GET    | `/history/{run_uid}` | session       | One run with per-step timings → `RunDetail`; `404` if unknown.                                                                                                                                                                                            |
 
 ### Pause mechanics — two distinct levers
@@ -902,13 +902,13 @@ Five endpoints, all guarded by the standard session cookie inherited from the
 `X-Requested-With: TorrentMate`; the resolve and dismiss endpoints are
 guarded by `require_not_staging` (403 on staging).
 
-| Method | Path                          | Guard                   | Status codes                      | Notes                                                                                                                                                                                                                                                                                         |
-| ------ | ----------------------------- | ----------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/decisions`              | session                 | `200`                             | `DecisionsResponse` — paginated (`?page&page_size&status`), `pending_count` always included (shell badge). Orphan GC runs before every query (rows whose `staging_path` no longer exists are marked `superseded`).                                                                            |
-| GET    | `/api/decisions/{id}`         | session                 | `200`, `404`, `410`               | `DecisionDetail` — full row with `candidates` array and `resolution_json` (when resolved). `410` when `status='superseded'`.                                                                                                                                                                  |
-| POST   | `/api/decisions/{id}/search`  | session + XRW           | `200`, `404`, `410`, `502`        | `SearchResponse` — live provider search via `match_movie_detailed` / `match_tvshow_detailed` (see [`scraping.md`](scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter)). Body: `{title, year?}`. Read-only — no state change. `502` on provider failure.                          |
-| POST   | `/api/decisions/{id}/resolve` | session + XRW + staging | `202`, `404`, `409`, `410`, `500` | `ResolveResponse {"run_uid"}` — spawns a detached `scrape-resolve` runner (see [runner lifecycle](#scrape-resolve-runner-lifecycle)). Body: `{provider: "tmdb"\|"tvdb", provider_id: int}`. `409` when the pipeline lock is held or another scrape-resolve is running. Staging returns `403`. |
-| POST   | `/api/decisions/{id}/dismiss` | session + XRW + staging | `200`, `404`, `410`               | `DecisionDetail` — marks the decision `dismissed` (manual/MediaElch path). Returns the refreshed row. Staging returns `403`.                                                                                                                                                                  |
+| Method | Path                          | Guard                   | Status codes                      | Notes                                                                                                                                                                                                                                                                                                                         |
+| ------ | ----------------------------- | ----------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/decisions/`             | session                 | `200`, `422`                      | `DecisionsResponse` — paginated (`?page&page_size&status`), `pending_count` always included (shell badge). Orphan GC runs before every query (rows whose `staging_path` no longer exists are marked `superseded`). `422` when `page<1`, `page_size>200`, or an unknown `status` value.                                        |
+| GET    | `/api/decisions/{id}`         | session                 | `200`, `404`, `410`               | `DecisionDetail` — full row with `candidates` array and `resolution_json` (when resolved). `410` when `status='superseded'`.                                                                                                                                                                                                  |
+| POST   | `/api/decisions/{id}/search`  | session + XRW           | `200`, `404`, `410`, `502`        | `SearchResponse` — live provider search via `match_movie_detailed` / `match_tvshow_detailed` (see [`scraping.md`](scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter)). Body: `{title, year?}`. Read-only — no state change. `502` on provider failure.                                                          |
+| POST   | `/api/decisions/{id}/resolve` | session + XRW + staging | `202`, `404`, `409`, `410`, `500` | `ResolveResponse {"run_uid"}` — spawns a detached `scrape-resolve` runner (see [runner lifecycle](#scrape-resolve-runner-lifecycle)). Body: `{provider: "tmdb"\|"tvdb", provider_id: int}`. `409` when the pipeline lock is held, another scrape-resolve is running, or the decision is not `pending`. Staging returns `403`. |
+| POST   | `/api/decisions/{id}/dismiss` | session + XRW + staging | `200`, `404`, `409`, `410`, `500` | `DecisionDetail` — marks the decision `dismissed` (manual/MediaElch path). Returns the refreshed row. `409` when the decision is not `pending`; `500` on a DB write failure. Staging returns `403`.                                                                                                                           |
 
 ### Decision queue workflow
 
@@ -972,9 +972,15 @@ resolve POSTs for the same or different decisions.
 **Concurrency guard.** `_reserve_decision_run` queries
 `WHERE kind='maintenance' AND command='scrape-resolve' AND outcome='running'`
 under `BEGIN IMMEDIATE`, checks pid liveness via `os.kill(pid, 0)`, and raises
-`409` when a live runner is found. This is narrower than the maintenance
-runner's guard (which blocks all write actions) — a `scrape-resolve` only
-blocks other `scrape-resolve` runs, not `library-*` maintenance actions.
+`409` when a live runner is found. The decisions _route's_ concurrency guard is
+narrower than the maintenance runner's guard (which blocks all write actions):
+it only checks other `scrape-resolve` rows. However, a running `scrape-resolve`
+**does** block write/destructive `library-*` maintenance actions through two
+independent mechanisms: (1) the maintenance POST handler's `_guard_no_running_maintenance`
+filters `kind='maintenance'` with no command filter, catching an in-flight
+`scrape-resolve` row; and (2) `scrape-resolve` holds `pipeline.lock` for its
+lifetime, and the maintenance runner's lock probe returns `409` while the lock
+is held.
 
 ### Error states
 

@@ -70,11 +70,11 @@ personalscraper run --dry-run 2>&1 | grep -c '\[queued_for_decision\]'
 ```bash
 # Resolve a pending decision via the CLI.  Requires at least one pending
 # scrape_decision row in library.db.  Find one with:
-DECISION_ID=$(sqlite3 library.db \
+DECISION_ID=$(sqlite3 .data/library.db \
   "SELECT id FROM scrape_decision WHERE status='pending' LIMIT 1")
-STAGING_PATH=$(sqlite3 library.db \
+STAGING_PATH=$(sqlite3 .data/library.db \
   "SELECT staging_path FROM scrape_decision WHERE id=${DECISION_ID}")
-MEDIA_KIND=$(sqlite3 library.db \
+MEDIA_KIND=$(sqlite3 .data/library.db \
   "SELECT media_kind FROM scrape_decision WHERE id=${DECISION_ID}")
 
 echo "Resolving decision ${DECISION_ID} at ${STAGING_PATH} (kind=${MEDIA_KIND})"
@@ -98,7 +98,7 @@ echo "personalscraper scrape-resolve \"${STAGING_PATH}\" --provider ${PROVIDER} 
 # Expected: exit 0, console shows "Successfully resolved decision <id> via <provider>:<id>."
 
 # Verify the decision row is now 'resolved':
-# sqlite3 library.db "SELECT status FROM scrape_decision WHERE id=${DECISION_ID}"
+# sqlite3 .data/library.db "SELECT status FROM scrape_decision WHERE id=${DECISION_ID}"
 # Expected: resolved
 
 # Verify NFO was written in the staging folder:
@@ -117,7 +117,7 @@ provider ID for that item (operator-supplied at re-exercise time).
 # GET /api/decisions?status=pending returns a paginated list with pending_count.
 RESP=$(curl --connect-timeout 10 --max-time 30 -s \
   --cookie "tm_session=$(cat /tmp/tm_session)" \
-  "http://localhost:8710/api/decisions?status=pending&page=1&page_size=5")
+  "http://localhost:8710/api/decisions/?status=pending&page=1&page_size=5")
 
 echo "$RESP" | jq '{pending_count, total, page, page_size}'
 # Expected: pending_count is an integer >= 0, total matches the status filter,
@@ -154,7 +154,7 @@ fi
 # the prod daemon on port 8710 (staging returns 403; see ACC-06).
 
 # Find a pending decision:
-DECISION_ID=$(sqlite3 library.db \
+DECISION_ID=$(sqlite3 .data/library.db \
   "SELECT id FROM scrape_decision WHERE status='pending' LIMIT 1")
 
 if [ -z "${DECISION_ID}" ]; then
@@ -162,7 +162,7 @@ if [ -z "${DECISION_ID}" ]; then
   exit 0
 fi
 
-MEDIA_KIND=$(sqlite3 library.db \
+MEDIA_KIND=$(sqlite3 .data/library.db \
   "SELECT media_kind FROM scrape_decision WHERE id=${DECISION_ID}")
 echo "Decision ${DECISION_ID}: kind=${MEDIA_KIND}"
 
@@ -201,9 +201,9 @@ echo "  \"http://localhost:8710/api/decisions/${DECISION_ID}/resolve\""
 #   && echo "PASS: run_uid is a 32-character hex string"
 #
 # # Verify a pipeline_run row was reserved:
-# sqlite3 library.db \
-#   "SELECT run_uid, action_key, status FROM pipeline_run WHERE run_uid='$(echo "$BODY" | jq -r '.run_uid')'"
-# # Expected: one row with action_key='scrape-resolve', status='running'
+# sqlite3 .data/library.db \
+#   "SELECT run_uid, command, outcome FROM pipeline_run WHERE run_uid='$(echo "$BODY" | jq -r '.run_uid')'"
+# # Expected: one row with command='scrape-resolve', outcome='running'
 ```
 
 **Status**: PENDING — requires a pending `scrape_decision` row and a valid
@@ -220,7 +220,7 @@ prepared test row.
 # Read-only — no state change.  Requires X-Requested-With: TorrentMate.
 
 # Find a pending decision:
-DECISION_ID=$(sqlite3 library.db \
+DECISION_ID=$(sqlite3 .data/library.db \
   "SELECT id FROM scrape_decision WHERE status='pending' LIMIT 1")
 
 if [ -z "${DECISION_ID}" ]; then
@@ -229,7 +229,7 @@ if [ -z "${DECISION_ID}" ]; then
 fi
 
 # Extract the title to search with (or override with a known-good title).
-EXTRACTED_TITLE=$(sqlite3 library.db \
+EXTRACTED_TITLE=$(sqlite3 .data/library.db \
   "SELECT extracted_title FROM scrape_decision WHERE id=${DECISION_ID}")
 echo "Decision ${DECISION_ID}: title='${EXTRACTED_TITLE}'"
 
@@ -318,45 +318,82 @@ echo "$DISMISS_BODY" | jq -r '.detail'
 ## ACC-07 — Lock-held scrape-resolve exits 1 (local CLI)
 
 ```bash
-# scrape-resolve self-acquires pipeline.lock via acquire_lock() (O_CREAT|O_EXCL).
-# When the lock is already held, acquire_lock returns False and the command
-# exits 1 with the message "Another instance is running. Exiting.".
+# scrape-resolve self-acquires pipeline.lock via acquire_lock().
+# When the lock is already held, acquire_lock returns False (after removing
+# dead-pid locks as stale) and the command exits 1 with the message
+# "Another instance is running. Exiting.".
 # This is the R11 contract: scrape-resolve self-acquires, the web runner never
 # pre-acquires, and a double-acquisition is rejected with exit 1.
+#
+# The decision-row DB lookup (step 3 in scrape_resolve.py) happens BEFORE the
+# lock acquire (step 5), so a real staging path with a pending row is needed
+# to reach the lock check.  A nonexistent path exits 2 during Typer argument
+# validation (staging_path is typer.Argument(..., exists=True)) and never
+# reaches the lock check.
+#
+# This criterion requires at least one pending scrape_decision row.
 
-# 1. Acquire the lock manually (simulate a concurrent pipeline or another resolve).
+# 1. Hold pipeline.lock from a long-lived background process (simulate a
+#    concurrent pipeline or maintenance action).
 python3 -c "
 from personalscraper.lock import acquire_lock
+import time
 held = acquire_lock()
 print('LOCK_HELD' if held else 'LOCK_NOT_HELD')
-"
+if held:
+    time.sleep(60)
+" &
+LOCK_PID=$!
+sleep 0.5  # Let the background process acquire the lock.
 # Expected: LOCK_HELD
 
-# 2. Run scrape-resolve — must fail with exit 1 because the lock is held.
-# Use any valid staging path; the lock check happens before the DB lookup.
-personalscraper scrape-resolve "/nonexistent/path" --provider tmdb --id 1
-ACTUAL_EXIT=$?
-echo "Exit code: ${ACTUAL_EXIT}"
-# Expected: exit 1, console shows "Another instance is running. Exiting."
+# 2. Find a real staging path with a pending decision row.
+STAGING_PATH=$(sqlite3 .data/library.db \
+  "SELECT staging_path FROM scrape_decision WHERE status='pending' LIMIT 1")
 
-# 3. Release the lock.
+if [ -z "${STAGING_PATH}" ]; then
+  echo "SKIP: no pending decision row available"
+  # Release the lock before skipping.
+  kill ${LOCK_PID} 2>/dev/null || true
+  wait ${LOCK_PID} 2>/dev/null || true
+  python3 -c "from personalscraper.lock import release_lock; release_lock()"
+  exit 0
+fi
+
+MEDIA_KIND=$(sqlite3 .data/library.db \
+  "SELECT media_kind FROM scrape_decision WHERE staging_path='${STAGING_PATH}'")
+echo "Decision at ${STAGING_PATH} (kind=${MEDIA_KIND})"
+
+# Pick provider by media kind.
+if [ "${MEDIA_KIND}" = "movie" ]; then
+  PROVIDER="tmdb"
+else
+  PROVIDER="tvdb"
+fi
+
+# Set PROVIDER_ID to a valid provider identifier for this item, then uncomment
+# and run the command below:
+
+# # 3. scrape-resolve with the real staging path.  The decision-row DB lookup
+# #    (step 3) passes because the path exists and has a pending row; then
+# #    acquire_lock (step 5) fails because the background process still holds
+# #    the lock → exit 1.
+# personalscraper scrape-resolve "${STAGING_PATH}" --provider "${PROVIDER}" --id "${PROVIDER_ID}"
+# ACTUAL_EXIT=$?
+# echo "Exit code: ${ACTUAL_EXIT}"
+# # Expected: exit 1, console shows "Another instance is running. Exiting."
+# test ${ACTUAL_EXIT} -eq 1 && echo "PASS: lock held → exit 1"
+
+# 4. Kill the background lock holder and release the lock.
+kill ${LOCK_PID} 2>/dev/null || true
+wait ${LOCK_PID} 2>/dev/null || true
 python3 -c "
 from personalscraper.lock import release_lock
 release_lock()
 print('LOCK_RELEASED')
 "
 # Expected: LOCK_RELEASED
-
-# 4. Run scrape-resolve again — now the lock is free (still fails on the
-#    nonexistent path, but with exit 2, not exit 1).
-personalscraper scrape-resolve "/nonexistent/path" --provider tmdb --id 1
-ACTUAL_EXIT2=$?
-echo "Exit code: ${ACTUAL_EXIT2}"
-# Expected: exit 2 (misconfiguration — no decision row for that path), NOT exit 1.
-#   exit 2 proves the lock check passed and the command proceeded past it.
-
-test ${ACTUAL_EXIT} -eq 1 && echo "PASS: lock held → exit 1"
-test ${ACTUAL_EXIT2} -eq 2 && echo "PASS: lock released → exit 2 (past lock check)"
 ```
 
-**Status**: PENDING
+**Status**: PENDING — requires a pending `scrape_decision` row and a valid
+provider ID (operator-supplied at re-exercise time).
