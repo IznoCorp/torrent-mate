@@ -103,8 +103,10 @@ export default function RegistryPage(): ReactElement {
   // ── Loading ──────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="space-y-4 p-4">
-        <h1 className="text-2xl font-bold">Registre des fournisseurs</h1>
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
+        <h1 className="text-xl font-semibold tracking-tight">
+          Registre des fournisseurs
+        </h1>
         {Array.from({ length: 3 }).map((_, idx) => (
           <Skeleton key={`sk-${String(idx)}`} className="h-28 w-full" />
         ))}
@@ -115,9 +117,11 @@ export default function RegistryPage(): ReactElement {
   // ── Error ────────────────────────────────────────────────────────────────
   if (isError || !data) {
     return (
-      <div className="p-4">
-        <h1 className="text-2xl font-bold">Registre des fournisseurs</h1>
-        <p className="mt-4 text-muted-foreground">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
+        <h1 className="text-xl font-semibold tracking-tight">
+          Registre des fournisseurs
+        </h1>
+        <p className="text-muted-foreground">
           Impossible de charger le statut :{" "}
           {error instanceof Error ? error.message : "Erreur inconnue"}
         </p>
@@ -130,19 +134,21 @@ export default function RegistryPage(): ReactElement {
   // ── Empty state ──────────────────────────────────────────────────────────
   if (providers.length === 0) {
     return (
-      <div className="p-4">
-        <h1 className="text-2xl font-bold">Registre des fournisseurs</h1>
-        <p className="mt-4 text-muted-foreground">
-          Aucun fournisseur configuré.
-        </p>
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
+        <h1 className="text-xl font-semibold tracking-tight">
+          Registre des fournisseurs
+        </h1>
+        <p className="text-muted-foreground">Aucun fournisseur configuré.</p>
       </div>
     );
   }
 
   // ── Normal render ────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4 p-4">
-      <h1 className="text-2xl font-bold">Registre des fournisseurs</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+      <h1 className="text-xl font-semibold tracking-tight">
+        Registre des fournisseurs
+      </h1>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {groupProviders(providers).map(({ parent: p, subs }) => (
@@ -151,7 +157,9 @@ export default function RegistryPage(): ReactElement {
             className={!p.live ? "opacity-60" : undefined}
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg">{p.provider_name}</CardTitle>
+              <CardTitle className="font-mono text-lg">
+                {p.provider_name}
+              </CardTitle>
               <Badge tone={CIRCUIT_TONE[p.circuit_state]}>
                 {CIRCUIT_LABEL[p.circuit_state] ?? p.circuit_state}
               </Badge>
@@ -162,14 +170,21 @@ export default function RegistryPage(): ReactElement {
                   En attente de données live
                 </p>
               )}
-              <p>Échecs récents : {p.failure_count_recent}</p>
+              <p>
+                Échecs récents :{" "}
+                <span className="font-mono tabular-nums">
+                  {p.failure_count_recent}
+                </span>
+              </p>
               <p>Dernier succès : {relativeTime(p.last_success_at)}</p>
               <p>Dernier échec : {relativeTime(p.last_failure_at)}</p>
               <p>
                 Latence :{" "}
-                {p.last_latency_ms != null
-                  ? `${p.last_latency_ms.toFixed(0)} ms`
-                  : "—"}
+                <span className="font-mono tabular-nums">
+                  {p.last_latency_ms != null
+                    ? `${p.last_latency_ms.toFixed(0)} ms`
+                    : "—"}
+                </span>
               </p>
 
               {subs.length > 0 && (
@@ -180,20 +195,26 @@ export default function RegistryPage(): ReactElement {
                   {subs.map((s) => (
                     <div
                       key={s.provider_name}
-                      className="flex items-center justify-between gap-2"
-                      title={subCircuitHint(s.provider_name)}
+                      className="flex flex-col gap-0.5"
                     >
-                      <span className="text-xs">
-                        {subCircuitLabel(s.provider_name)}
-                        {s.last_latency_ms != null && (
-                          <span className="ml-1 text-muted-foreground">
-                            · {s.last_latency_ms.toFixed(0)} ms
-                          </span>
-                        )}
-                      </span>
-                      <Badge tone={CIRCUIT_TONE[s.circuit_state]}>
-                        {CIRCUIT_LABEL[s.circuit_state] ?? s.circuit_state}
-                      </Badge>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs">
+                          {subCircuitLabel(s.provider_name)}
+                          {s.last_latency_ms != null && (
+                            <span className="ml-1 font-mono tabular-nums text-muted-foreground">
+                              · {s.last_latency_ms.toFixed(0)} ms
+                            </span>
+                          )}
+                        </span>
+                        <Badge tone={CIRCUIT_TONE[s.circuit_state]}>
+                          {CIRCUIT_LABEL[s.circuit_state] ?? s.circuit_state}
+                        </Badge>
+                      </div>
+                      {/* Rationale visible on all devices (not just hover) so
+                          touch users learn what the sub-circuit is (REGISTRY-4). */}
+                      <p className="text-xs text-muted-foreground">
+                        {subCircuitHint(s.provider_name)}
+                      </p>
                     </div>
                   ))}
                 </div>
