@@ -1,6 +1,39 @@
 {
   "components": {
     "schemas": {
+      "AcquisitionStatusResponse": {
+        "description": "Response for GET /api/acquisition/status.",
+        "properties": {
+          "last_successful_run_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Successful Run At"
+          },
+          "recent_runs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RecentRun"
+            },
+            "title": "Recent Runs",
+            "type": "array"
+          },
+          "watcher_enabled": {
+            "title": "Watcher Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "watcher_enabled"
+        ],
+        "title": "AcquisitionStatusResponse",
+        "type": "object"
+      },
       "ActionOption": {
         "description": "A single targeting option for a maintenance action.\n\nModels one CLI flag or positional argument. The ``type`` field drives\nthe form control rendered in the web UI (text input, number input,\ncheckbox, or dropdown). Enum values are the valid choices for a\n``select`` / dropdown control.\n\nAttributes:\n    name: CLI-facing name (flag name without leading dashes, or\n        positional arg name). Used as the JSON key in ``options_json``.\n    type: Form-control type \u2014 ``\"str\"`` for text, ``\"int\"`` for number,\n        ``\"bool\"`` for checkbox, ``\"enum\"`` for dropdown.\n    enum_values: Valid choices when ``type=\"enum\"``. ``None`` otherwise.\n    default: Default value matching the CLI default. ``None`` when the\n        CLI has no default (optional flags) or when the value is a\n        required positional.\n    required: ``True`` for mandatory positional arguments (e.g.\n        ``library-search``'s ``query``). ``False`` for optional flags.\n    label: French label for the web UI form field.\n    help: French help text / placeholder for the web UI form field.",
         "properties": {
@@ -597,6 +630,85 @@
         "title": "FilesResponse",
         "type": "object"
       },
+      "FollowedResponse": {
+        "description": "Response for GET /api/acquisition/followed.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FollowedSeriesItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "FollowedResponse",
+        "type": "object"
+      },
+      "FollowedSeriesItem": {
+        "description": "A single followed series in the list response.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "added_at": {
+            "title": "Added At",
+            "type": "number"
+          },
+          "cadence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadence"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "media_ref": {
+            "$ref": "#/components/schemas/MediaRefResponse"
+          },
+          "quality_profile": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Profile"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "wanted_pending": {
+            "title": "Wanted Pending",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "media_ref",
+          "active",
+          "added_at",
+          "wanted_pending"
+        ],
+        "title": "FollowedSeriesItem",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -971,6 +1083,46 @@
         "title": "MaintenanceAction",
         "type": "object"
       },
+      "MediaRefResponse": {
+        "description": "Provider-ID key exposed in API responses (tvdb_id primary).",
+        "properties": {
+          "imdb_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imdb Id"
+          },
+          "tmdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdb Id"
+          },
+          "tvdb_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tvdb Id"
+          }
+        },
+        "title": "MediaRefResponse",
+        "type": "object"
+      },
       "NfoStats": {
         "description": "Aggregate NFO file status counts across the indexed library.\n\nAttributes:\n    valid: Number of media items with a valid NFO file.\n    invalid: Number of media items with a structurally invalid NFO file.\n    missing: Number of media items without any NFO file.",
         "properties": {
@@ -993,6 +1145,134 @@
           "missing"
         ],
         "title": "NfoStats",
+        "type": "object"
+      },
+      "ObligationItem": {
+        "description": "A seed obligation with its current ratio state.",
+        "properties": {
+          "accumulated_seed_time_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accumulated Seed Time S"
+          },
+          "added_at": {
+            "title": "Added At",
+            "type": "number"
+          },
+          "breached_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breached At"
+          },
+          "dispatched_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatched Path"
+          },
+          "hnr_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hnr Count"
+          },
+          "info_hash": {
+            "title": "Info Hash",
+            "type": "string"
+          },
+          "min_ratio": {
+            "title": "Min Ratio",
+            "type": "number"
+          },
+          "min_seed_time_s": {
+            "title": "Min Seed Time S",
+            "type": "integer"
+          },
+          "observed_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Ratio"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
+          "satisfied_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Satisfied At"
+          },
+          "source_tracker": {
+            "title": "Source Tracker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "info_hash",
+          "source_tracker",
+          "min_seed_time_s",
+          "min_ratio",
+          "added_at"
+        ],
+        "title": "ObligationItem",
+        "type": "object"
+      },
+      "ObligationsResponse": {
+        "description": "Response for GET /api/acquisition/obligations.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ObligationItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ObligationsResponse",
         "type": "object"
       },
       "PipelineOutcome": {
@@ -1126,6 +1406,47 @@
           "restart_required"
         ],
         "title": "PutFileResponse",
+        "type": "object"
+      },
+      "RecentRun": {
+        "description": "A recent watcher-triggered pipeline run summary.",
+        "properties": {
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "run_uid": {
+            "title": "Run Uid",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "run_uid",
+          "started_at"
+        ],
+        "title": "RecentRun",
         "type": "object"
       },
       "RegistryStatusResponse": {
@@ -1789,6 +2110,110 @@
         "title": "VersionResponse",
         "type": "object"
       },
+      "WantedItemResponse": {
+        "description": "A single wanted item in the paginated list.",
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "enqueued_at": {
+            "title": "Enqueued At",
+            "type": "number"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_search_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search At"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "status",
+          "attempts",
+          "enqueued_at"
+        ],
+        "title": "WantedItemResponse",
+        "type": "object"
+      },
+      "WantedResponse": {
+        "description": "Paginated response for GET /api/acquisition/wanted.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WantedItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "WantedResponse",
+        "type": "object"
+      },
       "WatcherRequest": {
         "description": "Request body for ``POST /api/pipeline/watcher``.\n\nAttributes:\n    enabled: If ``True``, enable the directory watcher; if ``False``,\n        pause it.",
         "properties": {
@@ -1825,6 +2250,202 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/acquisition/followed": {
+      "get": {
+        "description": "List followed series, filtered by active status.\n\nArgs:\n    request: The incoming FastAPI request.\n    active: Filter: ``\"active\"`` (default), ``\"all\"``, or ``\"inactive\"``.\n\nReturns:\n    A ``FollowedResponse`` with the matching items.",
+        "operationId": "get_followed_api_acquisition_followed_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "active",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "all",
+                "active",
+                "inactive"
+              ],
+              "title": "Active",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Followed",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/obligations": {
+      "get": {
+        "description": "List seed obligations with their current ratio state.\n\nArgs:\n    request: The incoming FastAPI request.\n    status: Filter: ``\"all\"`` (default), ``\"pending\"``, ``\"breached\"``,\n        or ``\"satisfied\"``.\n\nReturns:\n    An ``ObligationsResponse`` with matching items.  Each item LEFT JOINs\n    ``ratio_state`` on tracker name.",
+        "operationId": "get_obligations_api_acquisition_obligations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "pending",
+                "breached",
+                "satisfied"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Obligations",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/status": {
+      "get": {
+        "description": "Return the watcher status and recent watcher-triggered runs.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    An ``AcquisitionStatusResponse`` with watcher enabled state, last\n    successful run timestamp, and recent runs.",
+        "operationId": "get_acquisition_status_api_acquisition_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcquisitionStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Acquisition Status",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/wanted": {
+      "get": {
+        "description": "List wanted items, paginated, with optional status filter.\n\nArgs:\n    request: The incoming FastAPI request.\n    status: Filter by wanted status (default ``\"all\"``).\n    page: Page number (1-based, default 1).\n    page_size: Items per page (1\u2013200, default 50).\n\nReturns:\n    A ``WantedResponse`` with the matching items + pagination metadata.",
+        "operationId": "get_wanted_api_acquisition_wanted_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "pending",
+                "searching",
+                "grabbed",
+                "done",
+                "abandoned"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WantedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Wanted",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "description": "Authenticate a user and set a session cookie.\n\nVerifies the supplied credentials against the stored scrypt hash.  On\nsuccess, creates a JWT session token and sets it as an HttpOnly,\nSameSite=Strict cookie and clears the client's failure window.  On failure,\nrecords the attempt and returns 401 \u2014 after too many recent failures the\nclient is locked out with 429 (non-blocking, no ``time.sleep``).\n\nArgs:\n    body: The login credentials (username + password).\n    request: The incoming FastAPI request (for app.state access).\n\nReturns:\n    A ``Response`` with status 204 and a ``Set-Cookie`` header on success.\n\nRaises:\n    HTTPException: 429 once the client exceeds the failed-attempt threshold;\n        401 if the credentials are invalid or the server is not fully\n        configured (missing password hash or JWT secret).",
