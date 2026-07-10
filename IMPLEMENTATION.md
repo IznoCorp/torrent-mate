@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 1 (read routes + models).
+Phase 1 done (read routes). Continue with phase 2 (write routes).
