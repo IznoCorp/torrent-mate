@@ -211,7 +211,10 @@ def library_clean(
 
     # Acquire lock only when applying changes
     if apply:
-        if not cli_compat.acquire_lock():
+        if not cli_compat.acquire_pipeline_lock(
+            config.paths.data_dir / "pipeline.lock",
+            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+        ):
             console.print("[red]Another instance is running. Exiting.[/red]")
             raise typer.Exit(1)
 
@@ -386,7 +389,10 @@ def library_validate(
         raise typer.Exit(1)
 
     if fix and apply:
-        if not cli_compat.acquire_lock():
+        if not cli_compat.acquire_pipeline_lock(
+            config.paths.data_dir / "pipeline.lock",
+            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+        ):
             console.print("[red]Another instance is running. Exiting.[/red]")
             raise typer.Exit(1)
 

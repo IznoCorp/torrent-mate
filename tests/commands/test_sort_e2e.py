@@ -39,7 +39,7 @@ def test_sort_help_exits_zero() -> None:
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_fast_skip_no_items(
     mock_run,
@@ -60,7 +60,7 @@ def test_sort_fast_skip_no_items(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_with_items(
     mock_run,
@@ -94,7 +94,7 @@ def test_sort_with_items(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=False)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
 def test_sort_lock_contention(
     mock_lock,
     mock_release,
@@ -112,7 +112,7 @@ def test_sort_lock_contention(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_with_errors(
     mock_run,
@@ -135,7 +135,7 @@ def test_sort_with_errors(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_idempotent(
     mock_run,
@@ -161,7 +161,7 @@ def test_sort_idempotent(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_dry_run_forwards_flag(
     mock_run,
@@ -185,7 +185,7 @@ def test_sort_dry_run_forwards_flag(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_output_no_traceback(
     mock_run,
@@ -205,7 +205,7 @@ def test_sort_output_no_traceback(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.sorter.run.run_sort")
 def test_sort_verbose_prints_details(
     mock_run,
@@ -232,7 +232,7 @@ def test_sort_verbose_prints_details(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_sort_emits_item_progressed_events(
     mock_lock,
     mock_release,

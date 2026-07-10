@@ -313,8 +313,11 @@ class TestScrapeArbiterE2E:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
@@ -365,8 +368,11 @@ class TestScrapeArbiterE2E:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),

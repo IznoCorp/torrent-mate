@@ -32,7 +32,7 @@ def test_enforce_list_checks_exits_zero(test_config) -> None:
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.enforce.run.run_enforce")
 def test_enforce_check_bogus_name_exits_nonzero(
     mock_run,
@@ -59,7 +59,7 @@ def test_enforce_check_bogus_name_exits_nonzero(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.enforce.run.run_enforce")
 def test_enforce_check_known_name_forwards_only(
     mock_run,

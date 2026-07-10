@@ -31,7 +31,7 @@ from personalscraper.cli_state import AppCtx, State, state
 from personalscraper.commands.info import info_app
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
-from personalscraper.lock import acquire_lock, release_lock
+from personalscraper.lock import acquire_lock, acquire_pipeline_lock, release_lock, scrape_locks_dir_for
 from personalscraper.logger import configure_logging, get_logger
 
 # Rich tracebacks for readable error output.
@@ -133,6 +133,7 @@ __all__ = [
     "_format_validation",
     "_resolve_category",
     "acquire_lock",
+    "acquire_pipeline_lock",
     "app",
     "config_app",
     "get_settings",
@@ -140,5 +141,6 @@ __all__ = [
     "main",
     "release_lock",
     "run_ingest",
+    "scrape_locks_dir_for",
     "state",
 ]

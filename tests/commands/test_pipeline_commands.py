@@ -24,7 +24,7 @@ def _step(name: str, success: int = 1) -> StepReport:
     return sr
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestVerifyCommand:
     """Tests for the `verify` Typer subcommand."""
@@ -67,13 +67,13 @@ class TestVerifyLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["verify"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestEnforceCommand:
     """Tests for the `enforce` Typer subcommand."""
@@ -115,12 +115,12 @@ class TestEnforceLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["enforce"])
         assert result.exit_code == 1
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestDispatchCommand:
     """Tests for the `dispatch` Typer subcommand."""
@@ -162,12 +162,12 @@ class TestDispatchLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["dispatch"])
         assert result.exit_code == 1
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestProcessCommand:
     """Tests for the `process` Typer subcommand."""
@@ -238,7 +238,7 @@ class TestProcessLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["process"])
         assert result.exit_code == 1
 
@@ -246,7 +246,7 @@ class TestProcessLockBlocked:
 # ── clean / cleanup standalone CLI (SH-21 / AR-C, sub-phase 8.5) ────────────
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestCleanCommand:
     """Tests for the standalone ``clean`` Typer subcommand."""
@@ -304,13 +304,13 @@ class TestCleanLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["clean"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestCleanupCommand:
     """Tests for the standalone ``cleanup`` Typer subcommand."""
@@ -368,7 +368,7 @@ class TestCleanupLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["cleanup"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
@@ -377,7 +377,7 @@ class TestCleanupLockBlocked:
 # ── ingest / sort / scrape — verbose branches not covered by test_cli.py ────
 
 
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.release_lock")
 class TestIngestSortScrapeVerbose:
     """Verbose branches for already-tested commands (covers details printing)."""
@@ -414,7 +414,7 @@ class TestRunTrailerFailure:
         from personalscraper.trailers.state import TrailerStepFailed
 
         with (
-            patch("personalscraper.cli.acquire_lock", return_value=True),
+            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
             patch("personalscraper.cli.release_lock"),
             patch(
                 "personalscraper.pipeline.Pipeline.run",

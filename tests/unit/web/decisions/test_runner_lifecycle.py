@@ -419,15 +419,16 @@ class TestRunnerLifecycleIntegration:
     def test_runner_does_not_acquire_lock_child_self_acquires(self, tmp_path: Path) -> None:
         """The runner never acquires ``pipeline.lock`` — the child (scrape-resolve) does.
 
-        R11 design: ``scrape-resolve`` self-acquires ``pipeline.lock`` for its
-        lifetime (same convention as ``library-rescrape``). The decisions runner
-        must NOT acquire it — a double acquisition would make the child's own
-        ``acquire_lock`` observe the runner's live pid and exit 1.
+        R11 / webui-ux phase 4 design: ``scrape-resolve`` self-acquires its own
+        lock for its lifetime (now a per-staging-item scrape lock, not the global
+        ``pipeline.lock``). The decisions runner must NOT acquire the global
+        ``pipeline.lock`` — a double acquisition would make the child observe the
+        runner's live pid and back off.
 
-        The child stub simulates scrape-resolve's self-acquire pattern: it
-        creates the lock file, prints ``SELF_LOCKED``, then removes it. The
-        test asserts the runner-side non-acquisition: the lock file does NOT
-        exist before the child creates it.
+        The child stub simulates the child's self-acquire pattern with the lock
+        file it controls: it creates the file, prints ``SELF_LOCKED``, then
+        removes it. The test asserts the runner-side non-acquisition: the lock
+        file does NOT exist before the child creates it.
 
         The ``tests/cli/test_scrape_resolve.py`` lock tests cover the child-side
         acquire/release contract (``test_lock_held_exits_1``). This test covers

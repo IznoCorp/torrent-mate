@@ -701,11 +701,18 @@ export interface paths {
          *     Returns:
          *         ``202`` with :class:`ResolveResponse` (``{"run_uid": "..."}``).
          *
+         *     Concurrency (webui-ux phase 4): two DIFFERENT decisions resolve concurrently
+         *     (both 202) — the reservation guard is scoped to THIS ``decision_id``.  409
+         *     fires only when THIS decision is already resolving, or when a GLOBAL pipeline
+         *     holder (full run / maintenance) owns ``pipeline.lock`` — resolves are excluded
+         *     from those, so they must not start while one is mid-dispatch.
+         *
          *     Raises:
          *         404: The decision does not exist.
          *         410: The decision has status ``'superseded'``.
          *         409: The decision is not ``'pending'`` (already resolved / dismissed),
-         *             the pipeline lock is held, or a scrape-resolve is already running.
+         *             a GLOBAL pipeline lock is held (full run / maintenance), or THIS
+         *             decision is already resolving.
          *         500: The runner subprocess failed to spawn.
          */
         post: operations["resolve_decision_api_decisions__decision_id__resolve_post"];

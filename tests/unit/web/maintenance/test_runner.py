@@ -893,7 +893,7 @@ class TestRunnerPipelineLock:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner.acquire_lock",
+                "personalscraper.web.maintenance.runner.acquire_pipeline_lock",
                 return_value=True,
             ) as mock_acquire,
             patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
@@ -901,7 +901,9 @@ class TestRunnerPipelineLock:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
-        mock_acquire.assert_called_once_with(tmp_path / "pipeline.lock")
+        # Routed through acquire_pipeline_lock (global lock + scrape-dir fail-closed
+        # check) with the pipeline.lock path and the <data_dir>/locks/scrape/ dir.
+        mock_acquire.assert_called_once_with(tmp_path / "pipeline.lock", tmp_path / "locks" / "scrape")
         mock_release.assert_called_once_with(tmp_path / "pipeline.lock")
 
     def test_lock_held_finalizes_error_and_exits_1(self, tmp_path: Path) -> None:
@@ -945,7 +947,7 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.maintenance.runner.acquire_lock") as mock_acquire:
+        with patch("personalscraper.web.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
@@ -957,7 +959,7 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.maintenance.runner.acquire_lock") as mock_acquire:
+        with patch("personalscraper.web.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
@@ -969,7 +971,7 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.maintenance.runner.acquire_lock") as mock_acquire:
+        with patch("personalscraper.web.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
@@ -999,7 +1001,7 @@ class TestRunnerPipelineLock:
             patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
             patch("personalscraper.web.maintenance.runner.signal.signal", fake_signal),
             patch(
-                "personalscraper.web.maintenance.runner.acquire_lock",
+                "personalscraper.web.maintenance.runner.acquire_pipeline_lock",
                 return_value=True,
             ),
             patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,

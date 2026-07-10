@@ -41,7 +41,7 @@ from types import FrameType
 from typing import Any
 
 from personalscraper.conf.loader import load_config
-from personalscraper.lock import acquire_lock, release_lock
+from personalscraper.lock import acquire_pipeline_lock, release_lock, scrape_locks_dir_for
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.maintenance.registry import REGISTRY, MaintenanceAction
@@ -591,7 +591,7 @@ def main() -> None:
     #     atomic authority (O_CREAT|O_EXCL) — losing it means a pipeline run
     #     grabbed the lock after the route's probes: finalize 'error', exit 1.
     if hold_lock:
-        if not acquire_lock(lock_file):
+        if not acquire_pipeline_lock(lock_file, scrape_locks_dir_for(config.paths.data_dir)):
             writer.finalize(run_uid, OUTCOME_ERROR, error="Pipeline lock held")
             log.error(
                 "maintenance_runner_lock_held",

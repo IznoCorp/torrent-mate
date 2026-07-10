@@ -66,7 +66,7 @@ _RUN_MOCKS = (
     ),
     patch("personalscraper.cli.get_settings"),
     patch("personalscraper.cli.release_lock"),
-    patch("personalscraper.cli.acquire_lock", return_value=True),
+    patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
     patch("personalscraper.pipeline.Pipeline.run"),
 )
 
@@ -168,7 +168,7 @@ def test_run_headless(
 )
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=False)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
 def test_run_lock_contention(
     mock_lock,
     mock_release,
@@ -333,7 +333,7 @@ def test_run_error_exit_nonzero_on_bad_report(
 )
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_run_emits_pipeline_lifecycle_events(
     mock_lock,
     mock_release,
@@ -424,7 +424,7 @@ def test_run_emits_pipeline_lifecycle_events(
 )
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_run_sigint_partial_completion(
     mock_lock,
     mock_release,
@@ -465,7 +465,7 @@ def test_run_sigint_partial_completion(
 )
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_run_sigint_lock_released_on_exception(
     mock_lock,
     mock_release,

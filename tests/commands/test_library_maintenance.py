@@ -179,7 +179,7 @@ class TestLibraryClean:
 
     def test_apply_lock_blocked(self) -> None:
         """--apply with held lock exits 1 with 'Another instance' message."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-clean", "--apply"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
@@ -189,7 +189,7 @@ class TestLibraryClean:
         cresult = CleanResult(dry_run=False, deleted_count=4, freed_bytes=2 * 1024 * 1024)
         with (
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult),
-            patch("personalscraper.cli.acquire_lock", return_value=True),
+            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
             patch("personalscraper.cli.release_lock"),
         ):
             result = runner.invoke(app, ["library-clean", "--apply"])
@@ -208,7 +208,7 @@ class TestLibraryClean:
         )
         with (
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult),
-            patch("personalscraper.cli.acquire_lock", return_value=True),
+            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
             patch("personalscraper.cli.release_lock"),
         ):
             result = runner.invoke(app, ["library-clean", "--apply"])
@@ -308,7 +308,7 @@ class TestLibraryValidateGaps:
 
     def test_fix_apply_lock_blocked(self) -> None:
         """--fix --apply with held lock exits 1."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-validate", "--fix", "--apply"])
         assert result.exit_code == 1
         assert "Another instance" in result.output

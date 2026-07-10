@@ -782,12 +782,12 @@ class TestRunnerFinalizeGuards:
 
 
 class TestRunnerPipelineLock:
-    """R11 — the decisions runner never acquires ``pipeline.lock``.
+    """R11 / webui-ux phase 4 — the decisions runner never acquires ``pipeline.lock``.
 
-    ``scrape-resolve`` self-acquires ``pipeline.lock`` for its lifetime (same
-    convention as ``library-rescrape``). The runner must NOT acquire it — doing
-    so would make the child's own ``acquire_lock`` observe the runner's live pid
-    and exit 1 ("Another instance is running").
+    ``scrape-resolve`` self-acquires its own lock for its lifetime — now a
+    per-staging-item scrape lock (not the global ``pipeline.lock``, which it only
+    read-checks). The runner must NOT acquire the global ``pipeline.lock`` —
+    doing so would make the child observe the runner's live pid and back off.
     """
 
     RUN_UID = "lock-uid-000333"

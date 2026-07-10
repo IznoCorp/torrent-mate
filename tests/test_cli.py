@@ -89,9 +89,13 @@ _mock_report = StepReport(name="ingest", success_count=2, skip_count=1)
 
 @pytest.fixture
 def _cli_lock_mocks():
-    """``acquire_lock`` (True) + ``release_lock`` mocks for step-command tests."""
+    """``acquire_pipeline_lock`` (True) + ``release_lock`` mocks for step-command tests.
+
+    Pipeline commands route through ``acquire_pipeline_lock`` (global lock +
+    scrape-dir fail-closed check, webui-ux phase 4); release is unchanged.
+    """
     with (
-        patch("personalscraper.cli.acquire_lock", return_value=True) as al,
+        patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as al,
         patch("personalscraper.cli.release_lock") as rl,
     ):
         yield SimpleNamespace(acquire=al, release=rl)
@@ -99,8 +103,8 @@ def _cli_lock_mocks():
 
 @pytest.fixture
 def _cli_lock_blocked():
-    """``acquire_lock`` returning False — simulates a held pipeline lock."""
-    with patch("personalscraper.cli.acquire_lock", return_value=False) as mock:
+    """``acquire_pipeline_lock`` returning False — simulates a held pipeline lock."""
+    with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False) as mock:
         yield mock
 
 
@@ -511,7 +515,7 @@ class TestLibraryClean:
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=mock_result),
-            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as mock_lock,
             patch("personalscraper.cli.release_lock"),
         ):
             settings = MagicMock()
@@ -592,7 +596,7 @@ class TestLibraryValidate:
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as mock_lock,
             patch("personalscraper.cli.release_lock"),
         ):
             settings = MagicMock()
@@ -733,7 +737,7 @@ class TestLibraryRescrape:
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.acquire_lock") as mock_lock,
+            patch("personalscraper.cli.acquire_pipeline_lock") as mock_lock,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path

@@ -473,11 +473,18 @@ def resolve_decision(
     Returns:
         ``202`` with :class:`ResolveResponse` (``{"run_uid": "..."}``).
 
+    Concurrency (webui-ux phase 4): two DIFFERENT decisions resolve concurrently
+    (both 202) — the reservation guard is scoped to THIS ``decision_id``.  409
+    fires only when THIS decision is already resolving, or when a GLOBAL pipeline
+    holder (full run / maintenance) owns ``pipeline.lock`` — resolves are excluded
+    from those, so they must not start while one is mid-dispatch.
+
     Raises:
         404: The decision does not exist.
         410: The decision has status ``'superseded'``.
         409: The decision is not ``'pending'`` (already resolved / dismissed),
-            the pipeline lock is held, or a scrape-resolve is already running.
+            a GLOBAL pipeline lock is held (full run / maintenance), or THIS
+            decision is already resolving.
         500: The runner subprocess failed to spawn.
     """
     db_path = _db_path(request)
@@ -498,9 +505,13 @@ def resolve_decision(
 
     run_uid = uuid.uuid4().hex
 
-    # 3. Atomic concurrency-409 + reserve the running row under BEGIN IMMEDIATE
-    #    (closes the check→insert race so a second concurrent resolve POST sees
-    #    the freshly-inserted running row and gets 409).
+    # 3. Atomic per-decision concurrency-409 + reserve the running row under
+    #    BEGIN IMMEDIATE (closes the check→insert race so a second concurrent
+    #    resolve POST FOR THE SAME decision sees the freshly-inserted running row
+    #    and gets 409).  A resolve of a DIFFERENT decision is not blocked — the
+    #    guard is scoped to decision_id (webui-ux phase 4). Same-staging-path
+    #    exclusivity across two decision rows is enforced one layer down by the
+    #    CLI's per-item scrape lock (acquire_scrape_resolve_lock).
     _reserve_decision_run(
         db_path,
         run_uid=run_uid,

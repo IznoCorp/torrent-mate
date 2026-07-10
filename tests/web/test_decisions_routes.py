@@ -250,7 +250,13 @@ def _seed_decision(
     return decision_id
 
 
-def _seed_running_resolve(conn: sqlite3.Connection, *, pid: int | None = None) -> None:
+def _seed_running_resolve(
+    conn: sqlite3.Connection,
+    *,
+    pid: int | None = None,
+    decision_id: int | None = None,
+    run_uid: str = "deadc0de1234",
+) -> None:
     """Insert a running scrape-resolve ``pipeline_run`` row.
 
     Args:
@@ -258,12 +264,20 @@ def _seed_running_resolve(conn: sqlite3.Connection, *, pid: int | None = None) -
         pid: Optional PID to store in the row.  When ``None`` the column is
             left NULL (simulating a pre-pid-migration row or a runner that
             crashed before inserting its pid).
+        decision_id: Optional ``decision_id`` embedded in ``options_json`` so
+            the per-decision reservation guard (scoped by
+            ``json_extract(options_json, '$.decision_id')``) can match it.  When
+            ``None`` an empty ``{}`` is stored (a row scoped to no decision — the
+            guard will NOT match it for any decision id).
+        run_uid: The run identifier for the row (distinct rows need distinct
+            uids when a test seeds more than one).
     """
+    options_json = "{}" if decision_id is None else json.dumps({"decision_id": decision_id})
     conn.execute(
         "INSERT INTO pipeline_run (run_uid, kind, command, trigger, dry_run, "
         "  options_json, started_at, outcome, pid) "
-        "VALUES (?, 'maintenance', 'scrape-resolve', 'web', 0, '{}', ?, 'running', ?)",
-        ("deadc0de1234", float(NOW), pid),
+        "VALUES (?, 'maintenance', 'scrape-resolve', 'web', 0, ?, ?, 'running', ?)",
+        (run_uid, options_json, float(NOW), pid),
     )
     conn.commit()
 
@@ -762,14 +776,16 @@ class TestResolveDecision:
         assert resp.json()["detail"] == "Pipeline lock held"
 
     def test_resolve_concurrent_running_returns_409(self, test_config, tmp_path: Path) -> None:
-        """409 — a scrape-resolve with a live pid is already running."""
+        """409 — a scrape-resolve for THIS decision with a live pid is already running."""
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
 
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
         _seed_decision(conn, decision_id=1)
-        _seed_running_resolve(conn, pid=os.getpid())  # Live PID
+        # A live resolve scoped to decision 1 → a second resolve of decision 1
+        # must 409 (per-decision guard, webui-ux phase 4).
+        _seed_running_resolve(conn, pid=os.getpid(), decision_id=1)  # Live PID
         conn.close()
 
         client = _build_authenticated_client_with_decisions(
@@ -782,7 +798,38 @@ class TestResolveDecision:
             headers={"X-Requested-With": "TorrentMate"},
         )
         assert resp.status_code == 409
-        assert "already running" in resp.json()["detail"]
+        assert "already resolving" in resp.json()["detail"]
+
+    def test_resolve_different_decision_running_allows_202(self, test_config, tmp_path: Path) -> None:
+        """202 — a live resolve of a DIFFERENT decision does NOT block this one.
+
+        Per-decision scoping (webui-ux phase 4): the guard filters running rows
+        by ``decision_id``, so a resolve of decision 2 leaves decision 1 free to
+        resolve concurrently (both accepted).
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1)
+        _seed_decision(conn, decision_id=2, staging_path="/tmp/staging/Other Movie (2023)")
+        # A live resolve scoped to decision 2 — must NOT block decision 1.
+        _seed_running_resolve(conn, pid=os.getpid(), decision_id=2, run_uid="beef00000002")
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+
+        with patch("personalscraper.web.routes.decisions._spawn_decision_runner"):
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        assert resp.status_code == 202
 
     def test_resolve_concurrent_dead_pid_allows_202(self, test_config, tmp_path: Path) -> None:
         """202 — running resolve row with dead pid is stale → ignored."""
@@ -792,7 +839,9 @@ class TestResolveDecision:
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
         _seed_decision(conn, decision_id=1)
-        _seed_running_resolve(conn, pid=99999)  # Dead PID
+        # A dead-pid resolve scoped to decision 1 is stale → the per-decision
+        # guard ignores it and the resolve of decision 1 proceeds (202).
+        _seed_running_resolve(conn, pid=99999, decision_id=1)  # Dead PID
         conn.close()
 
         client = _build_authenticated_client_with_decisions(
@@ -954,7 +1003,7 @@ class TestResolveSecondConcurrent:
             )
 
         assert second.status_code == 409
-        assert "already running" in second.json()["detail"]
+        assert "already resolving" in second.json()["detail"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

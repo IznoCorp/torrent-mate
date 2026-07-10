@@ -261,7 +261,11 @@ def _stub_pipeline_steps(request, monkeypatch):
     _report.finished_at = datetime(2026, 1, 1) + timedelta(seconds=1)
 
     # Lock helpers — every CLI command acquires/releases the pipeline lock.
+    # Pipeline commands route through acquire_pipeline_lock (global lock +
+    # scrape-dir fail-closed check, webui-ux phase 4); acquire_lock is kept
+    # stubbed for any residual raw callers.
     monkeypatch.setattr("personalscraper.cli.acquire_lock", lambda *a, **kw: True)
+    monkeypatch.setattr("personalscraper.cli.acquire_pipeline_lock", lambda *a, **kw: True)
     monkeypatch.setattr("personalscraper.cli.release_lock", lambda *a, **kw: None)
 
     # Standalone step commands.

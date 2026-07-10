@@ -39,7 +39,7 @@ def test_ingest_help_exits_zero() -> None:
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_no_torrents(
     mock_run,
@@ -60,7 +60,7 @@ def test_ingest_no_torrents(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_two_torrents_copied(
     mock_run,
@@ -93,7 +93,7 @@ def test_ingest_two_torrents_copied(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=False)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
 def test_ingest_lock_contention(
     mock_lock,
     mock_release,
@@ -111,7 +111,7 @@ def test_ingest_lock_contention(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_qbit_unreachable(
     mock_run,
@@ -135,7 +135,7 @@ def test_ingest_qbit_unreachable(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_all_content_missing(
     mock_run,
@@ -165,7 +165,7 @@ def test_ingest_all_content_missing(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_idempotent(
     mock_run,
@@ -191,7 +191,7 @@ def test_ingest_idempotent(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_dry_run_forwards_flag(
     mock_run,
@@ -215,7 +215,7 @@ def test_ingest_dry_run_forwards_flag(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_output_no_traceback(
     mock_run,
@@ -235,7 +235,7 @@ def test_ingest_output_no_traceback(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.cli.run_ingest")
 def test_ingest_summary_always_printed(
     mock_run,
@@ -259,7 +259,7 @@ def test_ingest_summary_always_printed(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_ingest_emits_item_progressed_events(
     mock_lock,
     mock_release,

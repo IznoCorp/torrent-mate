@@ -2,9 +2,11 @@
 
 Resolves a pending ``scrape_decision`` row by fetching metadata directly from the
 chosen provider (TMDB or TVDB) by its known ID, generating NFO + downloading artwork
-into the staging folder, then marking the decision ``resolved``.  Self-acquires
-``pipeline.lock`` for its lifetime (same convention as ``library-rescrape``) so it is
-both human-runnable and safe as a web-runner subprocess.
+into the staging folder, then marking the decision ``resolved``.  Acquires a
+**per-staging-item** scrape lock (``<data_dir>/locks/scrape/<sha1(path)>.lock``) for
+its lifetime so distinct items resolve in parallel, while staying mutually exclusive
+with any global ``pipeline.lock`` holder (webui-ux phase 4) — both human-runnable and
+safe as a web-runner subprocess.
 
 Registered as ``personalscraper scrape-resolve`` on the shared Typer app.
 """
@@ -25,6 +27,11 @@ from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.lock import (
+    acquire_scrape_resolve_lock,
+    release_scrape_resolve_lock,
+    scrape_locks_dir_for,
+)
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 
@@ -143,13 +150,17 @@ def scrape_resolve(
     the staging folder, and marks the matching ``scrape_decision`` row as
     ``resolved``.
 
-    Self-acquires ``pipeline.lock`` for its lifetime so it is safe as
-    both a direct human invocation and a web-runner subprocess (added to
-    ``_CLI_SELF_LOCKING`` — the runner must NOT double-acquire).
+    Acquires a per-staging-item scrape lock for its lifetime (scoped, scrape-only
+    locking — webui-ux phase 4): distinct staging items resolve in PARALLEL, the
+    SAME item blocks (idempotent guard), and any global ``pipeline.lock`` holder
+    (full run / maintenance) makes the resolve back off.  Safe as both a direct
+    human invocation and a web-runner subprocess (still in ``_CLI_SELF_LOCKING`` —
+    the runner must NOT acquire the global lock on its behalf).
 
     Exit codes:
         0 — success (NFO written, artwork downloaded, decision resolved).
-        1 — scrape error (API failure, NFO write failure) or lock held.
+        1 — scrape error (API failure, NFO write failure) or lock held
+            (same item already resolving, or a global pipeline holder is active).
         2 — misconfiguration (missing DB, unknown provider, no matching
             pending decision row, invalid provider for media kind).
     """
@@ -196,11 +207,18 @@ def scrape_resolve(
         console.print(f"[red]Movies require provider 'tmdb', got '{provider}'.[/red]")
         raise typer.Exit(2)
 
-    # ── 5. Acquire pipeline lock (exit 1 if held) ────────────────────────
-    # Self-acquire EXACTLY like library-rescrape (analyze.py:305) — the
-    # atomic authority (O_CREAT|O_EXCL) in acquire_lock() handles stale-PID
-    # detection and the TOCTOU race window.
-    if not cli_compat.acquire_lock():
+    # ── 5. Acquire the per-staging-item scrape lock (exit 1 if held) ──────
+    # Scoped, scrape-only locking (webui-ux phase 4): register a per-item lock
+    # under <data_dir>/locks/scrape/ so two resolves on DISTINCT staging paths
+    # run in PARALLEL, while a resolve stays mutually exclusive with any global
+    # pipeline holder.  acquire_scrape_resolve_lock is claim-first-then-verify
+    # (register the item lock, THEN check pipeline.lock) — fail-closed against a
+    # concurrent full run / maintenance.  It returns None either when the SAME
+    # item is already resolving or when a global holder is active.
+    pipeline_lock = config.paths.data_dir / "pipeline.lock"
+    scrape_locks_dir = scrape_locks_dir_for(config.paths.data_dir)
+    item_lock = acquire_scrape_resolve_lock(staging_path, pipeline_lock, scrape_locks_dir)
+    if item_lock is None:
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
 
@@ -276,7 +294,7 @@ def scrape_resolve(
         console.print(f"[green]Successfully resolved decision {decision_id} via {provider}:{provider_id}.[/green]")
 
     finally:
-        cli_compat.release_lock()
+        release_scrape_resolve_lock(item_lock)
 
 
 # ---------------------------------------------------------------------------

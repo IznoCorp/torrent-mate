@@ -87,7 +87,10 @@ def ingest(
     config = ctx.obj.config
     assert config is not None  # guaranteed non-None by callback
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -125,7 +128,10 @@ def sort(
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -166,7 +172,10 @@ def scrape(
     config = ctx.obj.config  # Guaranteed non-None by callback.
     assert config is not None
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -234,7 +243,10 @@ def verify(
             raise typer.BadParameter(
                 f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
             )
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -300,7 +312,10 @@ def enforce(
             raise typer.BadParameter(
                 f"Unknown check(s): {sorted(_unknown)}. Available staging checks: {sorted(_available)}"
             )
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -336,7 +351,10 @@ def dispatch(
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -392,7 +410,10 @@ def clean(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -443,7 +464,10 @@ def cleanup(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -483,7 +507,10 @@ def process(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -611,7 +638,10 @@ def run(
     verbose = state["verbose"]
     _run_log = get_logger("pipeline")
 
-    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
+    if not cli_compat.acquire_pipeline_lock(
+        config.paths.data_dir / "pipeline.lock",
+        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+    ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         _journal_lock_conflict(config, dry_run=dry_run)
         raise typer.Exit(1)

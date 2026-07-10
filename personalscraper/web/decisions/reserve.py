@@ -44,27 +44,38 @@ def _safe_rollback(conn: sqlite3.Connection) -> None:
         pass
 
 
-def _guard_no_running_resolve(conn: sqlite3.Connection) -> None:
-    """Raise 409 when a scrape-resolve with a live pid is already running.
+def _guard_no_running_resolve(conn: sqlite3.Connection, decision_id: int) -> None:
+    """Raise 409 when a live scrape-resolve for *decision_id* is already running.
 
     Queries ``pipeline_run`` for rows with ``kind='maintenance'``,
-    ``command='scrape-resolve'``, and ``outcome='running'`` and checks liveness
-    via ``os.kill(pid, 0)``. Rows with a dead or NULL pid are stale (crashed
-    runner / pre-pid migration) and are ignored — we never mutate them here.
+    ``command='scrape-resolve'``, ``outcome='running'``, AND
+    ``json_extract(options_json, '$.decision_id') = decision_id`` — the guard is
+    scoped to THIS decision so two DIFFERENT decisions resolve concurrently
+    (webui-ux phase 4), while a double-launch of the SAME decision still 409s.
+    Liveness is checked via ``os.kill(pid, 0)``; rows with a dead or NULL pid are
+    stale (crashed runner / pre-pid migration) and are ignored — we never mutate
+    them here.
 
-    Mirrors :func:`personalscraper.web.routes.maintenance._guard_no_running_maintenance`
-    with an added ``command='scrape-resolve'`` filter so decision resolves block
-    each other without blocking other maintenance actions.
+    Same-staging-path exclusivity across two distinct decision rows is enforced
+    one layer down by :func:`personalscraper.lock.acquire_scrape_resolve_lock`
+    (sha1 of the staging path), so this per-``decision_id`` reservation guard and
+    the per-item CLI lock together cover both the same-decision and same-path
+    races.
 
     Args:
         conn: An open connection (inside the reserve transaction).
+        decision_id: The ``scrape_decision.id`` being resolved — the guard is
+            scoped to running resolves of THIS decision only.
 
     Raises:
-        HTTPException: 409 when a live scrape-resolve runner is found.
+        HTTPException: 409 when a live scrape-resolve runner for *decision_id* is
+            found.
     """
     rows = conn.execute(
         "SELECT run_uid, pid FROM pipeline_run "
-        "WHERE kind='maintenance' AND command='scrape-resolve' AND outcome='running'"
+        "WHERE kind='maintenance' AND command='scrape-resolve' AND outcome='running' "
+        "AND json_extract(options_json, '$.decision_id') = ?",
+        (decision_id,),
     ).fetchall()
     for row in rows:
         run_uid_db = row["run_uid"]
@@ -82,9 +93,9 @@ def _guard_no_running_resolve(conn: sqlite3.Connection) -> None:
             continue
         except PermissionError:
             # Process exists but owned by another user → treat as alive.
-            raise HTTPException(status_code=409, detail="A scrape-resolve is already running")
+            raise HTTPException(status_code=409, detail="This decision is already resolving")
         else:
-            raise HTTPException(status_code=409, detail="A scrape-resolve is already running")
+            raise HTTPException(status_code=409, detail="This decision is already resolving")
 
 
 def _reserve_decision_run(
@@ -95,12 +106,14 @@ def _reserve_decision_run(
     provider: str,
     provider_id: int,
 ) -> None:
-    """Atomically guard concurrency and reserve a ``pipeline_run`` row for a decision resolve.
+    """Atomically guard per-decision concurrency and reserve a ``pipeline_run`` row.
 
     Opens one connection under ``BEGIN IMMEDIATE`` so the concurrency check and
     the ``pipeline_run`` INSERT are a single serialised transaction, closing the
-    check→insert TOCTOU race: a second concurrent resolve POST blocks on the
-    write lock, then observes the freshly-inserted running row and gets 409.
+    check→insert TOCTOU race: a second concurrent resolve POST **for the same
+    decision** blocks on the write lock, then observes the freshly-inserted
+    running row and gets 409.  Resolves of DIFFERENT decisions do not block each
+    other — the guard is scoped to ``decision_id`` (webui-ux phase 4).
 
     The row is reserved with the web process's pid (guaranteed alive) — the
     caller updates it to the spawned runner's pid right after spawn, matching
@@ -131,8 +144,9 @@ def _reserve_decision_run(
         provider_id: Numeric identifier assigned by the provider.
 
     Raises:
-        HTTPException: 409 when a scrape-resolve is already running with a live
-            pid, or when the DB cannot be read to verify concurrency.
+        HTTPException: 409 when a scrape-resolve for THIS ``decision_id`` is
+            already running with a live pid, or when the DB cannot be read to
+            verify concurrency.
     """
     options = {"decision_id": decision_id, "provider": provider, "provider_id": provider_id}
     options_json = json.dumps(options, sort_keys=True, separators=(",", ":"))
@@ -147,7 +161,7 @@ def _reserve_decision_run(
         conn.row_factory = sqlite3.Row
         try:
             conn.execute("BEGIN IMMEDIATE")
-            _guard_no_running_resolve(conn)
+            _guard_no_running_resolve(conn, decision_id)
             conn.execute(
                 "INSERT INTO pipeline_run "
                 "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "

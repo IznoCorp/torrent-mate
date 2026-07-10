@@ -464,8 +464,11 @@ class TestScrapeResolveExit1:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
@@ -510,8 +513,11 @@ class TestScrapeResolveExit0:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
@@ -556,8 +562,11 @@ class TestScrapeResolveExit0:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
@@ -599,8 +608,11 @@ class TestScrapeResolveExit0:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
@@ -658,8 +670,11 @@ class TestNFCNormalization:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
-            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
             patch(
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
@@ -675,26 +690,31 @@ class TestNFCNormalization:
 
 
 class TestScrapeResolveLockLifecycle:
-    """Unmocked ``pipeline.lock`` self-acquisition proof (R11 / F52).
+    """Unmocked per-item scrape-lock self-acquisition proof (webui-ux phase 4).
 
-    Every other happy-path test stubs ``cli_compat.acquire_lock`` /
-    ``release_lock`` so the lock is never really taken — a joint mock that
-    would let a broken self-lock ship green.  This test runs the REAL
-    ``acquire_lock`` / ``release_lock`` and asserts the lock file is held
-    *while the scrape body executes* and released once the command returns.
+    Every other happy-path test stubs ``acquire_scrape_resolve_lock`` /
+    ``release_scrape_resolve_lock`` so the lock is never really taken — a joint
+    mock that would let a broken self-lock ship green.  This test runs the REAL
+    ``acquire_scrape_resolve_lock`` / ``release_scrape_resolve_lock`` and asserts
+    the per-staging-item lock is held *while the scrape body executes* and
+    released once the command returns — while the global ``pipeline.lock`` is
+    NEVER taken (distinct items resolve in parallel; mutual exclusion with the
+    pipeline is a read-check only).
     """
 
-    def test_lock_held_during_body_released_after(self, tmp_path: Path, test_config: Any) -> None:
-        """A real scrape-resolve holds ``pipeline.lock`` mid-body, frees it after.
+    def test_item_lock_held_during_body_pipeline_lock_untouched(self, tmp_path: Path, test_config: Any) -> None:
+        """A real scrape-resolve holds its per-item scrape lock mid-body, frees it after.
 
-        Design: docs/reference/scraping.md#decision-queue-drain
-        Contract: scrape-resolve self-acquires the pipeline lock for its
-        lifetime (like library-rescrape) — the lock file exists and is held by
-        a live PID during the scrape/NFO body, and is removed when the command
-        exits, so concurrent runs and write/destructive maintenance actions are
-        serialised against it.
+        Design: docs/features/webui-ux/plan/phase-04-scraping.md §4.2
+        Contract: scrape-resolve acquires a per-staging-item lock under
+        ``<data_dir>/locks/scrape/`` for its lifetime — that lock file exists and
+        is held by a live PID during the scrape/NFO body, and is removed when the
+        command exits.  The global ``pipeline.lock`` is NEVER acquired (only
+        read-checked), so two resolves on distinct items run concurrently.
         """
         import os as _os
+
+        from personalscraper.lock import scrape_locks_dir_for
 
         staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
         staging.mkdir(parents=True)
@@ -703,20 +723,24 @@ class TestScrapeResolveLockLifecycle:
         _create_db(test_config.indexer.db_path)
         _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
 
-        lock_path = test_config.paths.data_dir / "pipeline.lock"
+        pipeline_lock_path = test_config.paths.data_dir / "pipeline.lock"
+        scrape_dir = scrape_locks_dir_for(test_config.paths.data_dir)
         captured: dict[str, Any] = {}
 
         def _lock_probe(*_args: Any, **_kwargs: Any) -> None:
-            """Record whether the pipeline lock is held while the body runs."""
-            captured["mid_body_held"] = is_lock_held(lock_path)
-            captured["mid_body_pid"] = lock_path.read_text().strip() if lock_path.exists() else None
+            """Record lock state while the scrape body runs."""
+            item_locks = sorted(scrape_dir.glob("*.lock")) if scrape_dir.is_dir() else []
+            captured["item_lock_held"] = any(is_lock_held(p) for p in item_locks)
+            captured["item_lock_pid"] = item_locks[0].read_text().strip() if item_locks else None
+            # The GLOBAL pipeline.lock must NOT be taken by scrape-resolve.
+            captured["pipeline_lock_held"] = is_lock_held(pipeline_lock_path)
 
         mock_client = MagicMock()
         mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
 
-        # NB: acquire_lock / release_lock are NOT patched here — they run for
-        # real against test_config's data_dir (via the patched loader).  Only
-        # the scrape body is replaced with the lock probe.
+        # NB: acquire_scrape_resolve_lock / release_scrape_resolve_lock are NOT
+        # patched here — they run for real against test_config's data_dir (via
+        # the patched loader).  Only the scrape body is replaced with the probe.
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
@@ -732,9 +756,11 @@ class TestScrapeResolveLockLifecycle:
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
         assert result.exit_code == 0, result.output
-        # The lock was genuinely held (live PID) while the scrape body ran.
-        assert captured.get("mid_body_held") is True
-        assert captured.get("mid_body_pid") == str(_os.getpid())
-        # And released once the command returned (finally: release_lock()).
-        assert not is_lock_held(lock_path)
-        assert not lock_path.exists()
+        # The per-item scrape lock was genuinely held (live PID) mid-body.
+        assert captured.get("item_lock_held") is True
+        assert captured.get("item_lock_pid") == str(_os.getpid())
+        # The global pipeline.lock was NEVER taken by scrape-resolve.
+        assert captured.get("pipeline_lock_held") is False
+        assert not pipeline_lock_path.exists()
+        # And the item lock was released once the command returned (finally).
+        assert not any(is_lock_held(p) for p in (scrape_dir.glob("*.lock") if scrape_dir.is_dir() else []))

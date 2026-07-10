@@ -6,8 +6,28 @@ Detects and cleans up stale locks from crashed processes.
 
 Lock is acquired at CLI command level (not in run_*() functions)
 to avoid double-lock when the `run` command calls individual steps.
+
+Two-tier mutual-exclusion model (webui-ux phase 4, scoped scrape locking)
+------------------------------------------------------------------------
+
+* **Global pipeline holders** (full run / individual steps / maintenance /
+  analyze) take the single ``pipeline.lock`` through :func:`acquire_pipeline_lock`.
+  They dispatch/move files, so at most ONE may run at a time AND none may run
+  while a ``scrape-resolve`` is mid-writing an item.
+* **Scrape-resolve runs** take a **per-staging-item** lock under
+  ``scrape_locks_dir`` through :func:`acquire_scrape_resolve_lock`. Two resolves
+  on distinct staging paths run in PARALLEL, but any resolve is mutually
+  exclusive with any global holder.
+
+Fail-closed ordering (do NOT invert): each side *creates its own claim BEFORE
+checking the other side*.  A global holder acquires ``pipeline.lock`` first, THEN
+checks the scrape dir; a resolve registers its item lock first, THEN checks
+``pipeline.lock``.  In any interleaving at most one side passes its check; if both
+race, both back off (safe — never both proceed).  A check-then-claim order would
+let both proceed, corrupting an item mid-dispatch.
 """
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -141,3 +161,142 @@ def release_lock(lock_file: Path | None = None) -> None:
         lock_file = _default_lock_file()
     lock_file.unlink(missing_ok=True)
     log.debug("lock_released", lock_file=str(lock_file))
+
+
+# ---------------------------------------------------------------------------
+# Two-tier mutual exclusion — global pipeline lock vs scoped scrape-resolve
+# ---------------------------------------------------------------------------
+
+
+def any_scrape_resolve_active(scrape_locks_dir: Path) -> bool:
+    """Return ``True`` when any ``*.lock`` in *scrape_locks_dir* is held live.
+
+    Iterates every ``*.lock`` file in the directory and probes it with
+    :func:`is_lock_held` (the same stale-PID detection used by the global
+    lock).  A missing directory means no resolve has ever registered a lock →
+    ``False``.  Stale locks (dead pid / corrupt / missing) are treated as
+    inactive so a crashed resolve never blocks the pipeline forever.
+
+    Args:
+        scrape_locks_dir: The directory holding per-staging-item scrape locks
+            (``<data_dir>/locks/scrape/``).
+
+    Returns:
+        ``True`` when at least one item lock is held by a live process;
+        ``False`` when the directory is absent, empty, or holds only stale
+        locks.
+    """
+    if not scrape_locks_dir.is_dir():
+        return False
+    for item_lock in scrape_locks_dir.glob("*.lock"):
+        if is_lock_held(item_lock):
+            return True
+    return False
+
+
+def acquire_pipeline_lock(lock_file: Path, scrape_locks_dir: Path) -> bool:
+    """Acquire the global ``pipeline.lock``, fail-closed against active resolves.
+
+    Claim-first-then-verify: acquire the global lock FIRST, then check the
+    scrape-lock directory.  This ordering (never inverted) makes the mutual
+    exclusion with :func:`acquire_scrape_resolve_lock` fail-closed — if a resolve
+    races us, at most one side passes its post-claim check; if both race, both
+    back off (safe).
+
+    Args:
+        lock_file: Path to the global ``pipeline.lock``.
+        scrape_locks_dir: The directory holding per-staging-item scrape locks
+            (``<data_dir>/locks/scrape/``).
+
+    Returns:
+        ``True`` when the global lock was acquired AND no scrape-resolve is
+        active; ``False`` when another global holder owns the lock, or when a
+        scrape-resolve is active (in which case the just-acquired global lock is
+        released before returning so it is never leaked).
+    """
+    if not acquire_lock(lock_file):
+        return False
+    # Claim-first-then-verify: the global lock now exists on disk, so a resolve
+    # starting concurrently will observe it in ITS post-claim check.  Only after
+    # claiming do we check the scrape dir — if a resolve already registered its
+    # item lock before we claimed, back off and release the global lock.
+    if any_scrape_resolve_active(scrape_locks_dir):
+        release_lock(lock_file)
+        log.warning("pipeline_lock_backoff_scrape_active", scrape_locks_dir=str(scrape_locks_dir))
+        return False
+    return True
+
+
+def acquire_scrape_resolve_lock(
+    staging_path: Path,
+    pipeline_lock: Path,
+    scrape_locks_dir: Path,
+) -> Path | None:
+    """Register a per-staging-item scrape lock, fail-closed against the pipeline.
+
+    Claim-first-then-verify: acquire the per-item lock FIRST, then check the
+    global ``pipeline.lock``.  This ordering (never inverted) makes the mutual
+    exclusion with :func:`acquire_pipeline_lock` fail-closed — if a global holder
+    races us, at most one side passes its post-claim check; if both race, both
+    back off (safe).
+
+    The item lock name is ``<sha1(str(staging_path))>.lock`` so two resolves on
+    DISTINCT staging paths take distinct locks (parallel), while a second resolve
+    on the SAME path collides on the identical name and is refused (idempotent
+    guard).
+
+    Args:
+        staging_path: The staging directory of the item being resolved.
+        pipeline_lock: Path to the global ``pipeline.lock`` (read-checked only —
+            never acquired here).
+        scrape_locks_dir: The directory holding per-staging-item scrape locks
+            (``<data_dir>/locks/scrape/``, created if missing).
+
+    Returns:
+        The acquired item-lock :class:`Path` on success; ``None`` when the same
+        item is already resolving, or when a global pipeline holder is active (in
+        which case the just-acquired item lock is released before returning so it
+        is never leaked).
+    """
+    scrape_locks_dir.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha1(str(staging_path).encode()).hexdigest()  # noqa: S324 — non-cryptographic key derivation
+    item_lock = scrape_locks_dir / f"{digest}.lock"
+
+    if not acquire_lock(item_lock):
+        # The SAME staging item is already resolving (identical lock name held
+        # by a live process) — refuse the duplicate resolve.
+        return None
+    # Claim-first-then-verify: the item lock now exists on disk, so a pipeline
+    # holder starting concurrently will observe it in ITS post-claim check.  Only
+    # after claiming do we check the global lock — if a global holder already
+    # acquired pipeline.lock before we claimed, back off and release the item lock.
+    if is_lock_held(pipeline_lock):
+        release_lock(item_lock)
+        log.warning("scrape_resolve_backoff_pipeline_held", pipeline_lock=str(pipeline_lock))
+        return None
+    return item_lock
+
+
+def release_scrape_resolve_lock(item_lock: Path) -> None:
+    """Release a per-staging-item scrape lock acquired by :func:`acquire_scrape_resolve_lock`.
+
+    Args:
+        item_lock: The item-lock path returned by
+            :func:`acquire_scrape_resolve_lock`.
+    """
+    release_lock(item_lock)
+
+
+def scrape_locks_dir_for(data_dir: Path) -> Path:
+    """Return the per-staging-item scrape-lock directory for *data_dir*.
+
+    The directory is ``<data_dir>/locks/scrape/`` — created lazily by
+    :func:`acquire_scrape_resolve_lock`, so this helper only computes the path.
+
+    Args:
+        data_dir: The configured pipeline data directory (``paths.data_dir``).
+
+    Returns:
+        The ``<data_dir>/locks/scrape/`` directory path.
+    """
+    return data_dir / "locks" / "scrape"

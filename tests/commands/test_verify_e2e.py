@@ -39,7 +39,7 @@ def test_verify_help_exits_zero() -> None:
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_no_media_noop(
     mock_run,
@@ -61,7 +61,7 @@ def test_verify_no_media_noop(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_some_valid_some_blocked(
     mock_run,
@@ -87,7 +87,7 @@ def test_verify_some_valid_some_blocked(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_all_blocked(
     mock_run,
@@ -115,7 +115,7 @@ def test_verify_all_blocked(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=False)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
 def test_verify_lock_contention(
     mock_lock,
     mock_release,
@@ -136,7 +136,7 @@ def test_verify_lock_contention(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_idempotent(
     mock_run,
@@ -162,7 +162,7 @@ def test_verify_idempotent(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_dry_run_forwards_flag(
     mock_run,
@@ -183,7 +183,7 @@ def test_verify_dry_run_forwards_flag(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_movies_only_forwards_flag(
     mock_run,
@@ -204,7 +204,7 @@ def test_verify_movies_only_forwards_flag(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_tvshows_only_forwards_flag(
     mock_run,
@@ -228,7 +228,7 @@ def test_verify_tvshows_only_forwards_flag(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_output_no_traceback(
     mock_run,
@@ -248,7 +248,7 @@ def test_verify_output_no_traceback(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_summary_always_printed(
     mock_run,
@@ -270,7 +270,7 @@ def test_verify_summary_always_printed(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_verbose_prints_details(
     mock_run,
@@ -299,7 +299,7 @@ def test_verify_verbose_prints_details(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_verify_emits_item_progressed_events(
     mock_lock,
     mock_release,
