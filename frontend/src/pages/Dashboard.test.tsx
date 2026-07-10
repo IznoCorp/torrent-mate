@@ -29,13 +29,40 @@ function urlOf(input: RequestInfo | URL): string {
   return input.url;
 }
 
-/** Route ``/api/health`` and ``/api/version`` to their canned payloads. */
+/** A minimal schedulers payload (watcher + one cron). */
+const SCHEDULERS = {
+  schedulers: [
+    {
+      name: "personalscraper-watch",
+      kind: "watcher",
+      display_name: "Surveillance des téléchargements",
+      schedule: null,
+      enabled: true,
+      last_run_at: null,
+      last_outcome: null,
+    },
+    {
+      name: "personalscraper-grab",
+      kind: "cron",
+      display_name: "Récupération (grab)",
+      schedule: "Tous les jours à 03:20 et 15:20",
+      enabled: null,
+      last_run_at: null,
+      last_outcome: null,
+    },
+  ],
+};
+
+/** Route ``/api/*`` to their canned payloads. */
 function routeFetch(input: RequestInfo | URL): Promise<Response> {
   const url = urlOf(input);
   if (url.includes("/api/version")) {
     return Promise.resolve(
       buildResponse(200, { version: "0.40.0", build_commit: "abcdef1234567" }),
     );
+  }
+  if (url.includes("/api/maintenance/schedulers")) {
+    return Promise.resolve(buildResponse(200, SCHEDULERS));
   }
   return Promise.resolve(
     buildResponse(200, { status: "ok", redis: true, db: true }),
@@ -75,22 +102,28 @@ function renderDashboard(): void {
 }
 
 describe("Dashboard", () => {
-  it("monte les sections principales et résout les cartes", async () => {
+  it("monte les cartes et le panneau planificateurs, sans flux d’événements", async () => {
     renderDashboard();
 
-    // A single WebSocket is opened by the provider (the shared stream).
-    expect(MockWebSocket.instances).toHaveLength(1);
-
-    // Structure: heading + feed + table sections.
+    // Structure: heading + scheduler overview.
     expect(
       screen.getByRole("heading", { name: "Tableau de bord" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Flux d’événements")).toBeInTheDocument();
-    expect(screen.getByText("Événements récents")).toBeInTheDocument();
-    expect(screen.getByText("En attente d’événements…")).toBeInTheDocument();
+    expect(screen.getByText("Planificateurs")).toBeInTheDocument();
+
+    // The event feed + recent-events table moved to Maintenance (Phase 5.1) —
+    // they must NOT render on the Dashboard anymore.
+    expect(screen.queryByText("Flux d’événements")).not.toBeInTheDocument();
+    expect(screen.queryByText("Événements récents")).not.toBeInTheDocument();
 
     // Cards resolve from their queries (Redis online, version rendered).
     expect(await screen.findByText("Redis en ligne")).toBeInTheDocument();
     expect(await screen.findByText("0.40.0")).toBeInTheDocument();
+
+    // Scheduler rows resolve from the mocked payload.
+    expect(
+      await screen.findByText("Surveillance des téléchargements"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Récupération (grab)")).toBeInTheDocument();
   });
 });

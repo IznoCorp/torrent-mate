@@ -115,6 +115,46 @@ describe("RegistryPage", () => {
     expect(screen.getByText(/43 ms/)).toBeInTheDocument();
   });
 
+  it("nests a sub-circuit under its parent provider card (not a twin)", () => {
+    useRegistryStatusMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        providers: [
+          {
+            provider_name: "tvdb",
+            circuit_state: "closed",
+            failure_count_recent: 0,
+            last_success_at: 1_719_792_000,
+            last_failure_at: null,
+            last_latency_ms: 30,
+            live: true,
+          },
+          {
+            provider_name: "tvdb-bootstrap",
+            circuit_state: "open",
+            failure_count_recent: 2,
+            last_success_at: null,
+            last_failure_at: 1_719_705_600,
+            last_latency_ms: null,
+            live: true,
+          },
+        ],
+      },
+      error: null,
+    });
+
+    renderPage();
+
+    // The parent provider name renders once; the raw sub-circuit name does not
+    // appear as its own card title — it is relabelled "Authentification".
+    expect(screen.getByText("tvdb")).toBeInTheDocument();
+    expect(screen.queryByText("tvdb-bootstrap")).not.toBeInTheDocument();
+    expect(screen.getByText("Authentification")).toBeInTheDocument();
+    // The "Sous-circuits" section header is present under the parent.
+    expect(screen.getByText("Sous-circuits")).toBeInTheDocument();
+  });
+
   it("renders empty state when no providers", () => {
     useRegistryStatusMock.mockReturnValue({
       isLoading: false,

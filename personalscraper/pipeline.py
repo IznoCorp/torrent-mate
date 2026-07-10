@@ -533,6 +533,11 @@ class Pipeline:
                         _dispatch_ts,
                         _dispatch_ts,
                         "skipped",
+                        success_count=dispatch_report.success_count,
+                        skip_count=dispatch_report.skip_count,
+                        error_count=dispatch_report.error_count,
+                        unmatched_count=len(dispatch_report.unmatched_paths),
+                        counts=dict(dispatch_report.counts),
                     )
 
         except _PipelineInterrupted as exc:
@@ -761,12 +766,18 @@ class Pipeline:
             # capture the step failure with elapsed wall-clock time.
             if self._history_writer is not None:
                 assert self._run_uid is not None  # set at top of run()
+                # webui-ux Phase 2.2: a crashed step contributes one error to
+                # the persisted summary so the last-run report reflects it.
                 self._history_writer.update_step(
                     self._run_uid,
                     name,
                     step_started_at,
                     step_started_at + (time.monotonic() - t0),
                     "error",
+                    success_count=0,
+                    skip_count=0,
+                    error_count=1,
+                    unmatched_count=0,
                 )
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
@@ -785,6 +796,8 @@ class Pipeline:
             )
             # Run-history step record (pipe-control sub-phase 1.3b):
             # capture the step completion with elapsed wall-clock time.
+            # webui-ux Phase 2.2: also persist the StepReport summary counts so
+            # the interpreted last-run report survives past the live WS stream.
             if self._history_writer is not None:
                 assert self._run_uid is not None  # set at top of run()
                 self._history_writer.update_step(
@@ -793,6 +806,11 @@ class Pipeline:
                     step_started_at,
                     step_started_at + elapsed,
                     "success",
+                    success_count=step_report.success_count,
+                    skip_count=step_report.skip_count,
+                    error_count=step_report.error_count,
+                    unmatched_count=len(step_report.unmatched_paths),
+                    counts=dict(step_report.counts),
                 )
 
         ok = step_report.success_count

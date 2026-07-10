@@ -21,4 +21,21 @@ describe("StatPanel", () => {
     expect(screen.getByText("+12 / 24h")).toBeInTheDocument();
     expect(container.querySelector(".ps-stat__delta--up")).not.toBeNull();
   });
+
+  it("renders a wrapping secondary line below the value", () => {
+    const { container } = render(
+      <StatPanel
+        label="Items"
+        value="1 837"
+        secondary="245 films / 90 séries"
+      />,
+    );
+
+    const sub = container.querySelector(".ps-stat__sub");
+    expect(sub).not.toBeNull();
+    expect(sub).toHaveTextContent("245 films / 90 séries");
+    // The secondary line must NOT be nested inside the headline value span
+    // (that inline placement is what caused the desktop overlap).
+    expect(container.querySelector(".ps-stat__value .ps-stat__sub")).toBeNull();
+  });
 });

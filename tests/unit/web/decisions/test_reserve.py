@@ -75,6 +75,7 @@ def _insert_running_row(
     run_uid: str,
     pid: int | None = None,
     command: str = "scrape-resolve",
+    decision_id: int | None = None,
 ) -> None:
     """Insert a running ``pipeline_run`` row directly (bypassing the reserve function).
 
@@ -83,14 +84,19 @@ def _insert_running_row(
         run_uid: The unique run identifier.
         pid: The pid to write (``None`` for a NULL-pid stale row).
         command: The ``command`` column value.
+        decision_id: Optional ``decision_id`` embedded in ``options_json`` so the
+            per-decision reservation guard (scoped by
+            ``json_extract(options_json, '$.decision_id')``) can match it.  When
+            ``None`` an empty ``{}`` is stored (scoped to no decision).
     """
+    options_json = "{}" if decision_id is None else json.dumps({"decision_id": decision_id})
     conn = sqlite3.connect(str(db_path), isolation_level=None)
     apply_pragmas(conn)
     conn.execute(
         "INSERT INTO pipeline_run "
         "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, kind, command, options_json) "
-        "VALUES (?, 'web', 0, ?, 'running', '[]', ?, 'maintenance', ?, '{}')",
-        (run_uid, time.time(), pid, command),
+        "VALUES (?, 'web', 0, ?, 'running', '[]', ?, 'maintenance', ?, ?)",
+        (run_uid, time.time(), pid, command, options_json),
     )
     conn.commit()
     conn.close()
@@ -154,12 +160,12 @@ class TestReserveDecisionRun:
     # ------------------------------------------------------------------
 
     def test_concurrent_resolve_raises_409_with_live_pid(self, tmp_path: Path) -> None:
-        """A second reservation while a live-pid resolve is running → 409."""
+        """A second reservation while a live-pid resolve of THIS decision is running → 409."""
         db_path = tmp_path / "library.db"
         _create_db(db_path)
 
-        # Insert a running row with OUR pid (guaranteed alive).
-        _insert_running_row(db_path, "existing-run", pid=os.getpid())
+        # Insert a running row for decision 1 with OUR pid (guaranteed alive).
+        _insert_running_row(db_path, "existing-run", pid=os.getpid(), decision_id=1)
 
         from personalscraper.web.decisions.reserve import _reserve_decision_run
 
@@ -173,13 +179,40 @@ class TestReserveDecisionRun:
             )
         assert exc_info.value.status_code == 409
 
+    def test_concurrent_resolve_of_different_decision_allowed(self, tmp_path: Path) -> None:
+        """A live-pid resolve of a DIFFERENT decision does NOT block this reservation.
+
+        Per-decision scoping (webui-ux phase 4): the guard filters running rows by
+        ``json_extract(options_json, '$.decision_id')``, so a live resolve of
+        decision 2 leaves decision 1 free to reserve concurrently.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+
+        # A live resolve of decision 2 must NOT block a reservation for decision 1.
+        _insert_running_row(db_path, "other-run", pid=os.getpid(), decision_id=2)
+
+        from personalscraper.web.decisions.reserve import _reserve_decision_run
+
+        _reserve_decision_run(
+            db_path,
+            run_uid="new-run",
+            decision_id=1,
+            provider="tmdb",
+            provider_id=1,
+        )
+
+        row = _select_row(db_path, "new-run")
+        assert row is not None
+        assert row["outcome"] == "running"
+
     def test_dead_pid_stale_row_allows_new_reservation(self, tmp_path: Path) -> None:
         """A running row with a dead pid is stale → new reservation succeeds."""
         db_path = tmp_path / "library.db"
         _create_db(db_path)
 
         stale_pid = 99999
-        _insert_running_row(db_path, "stale-run", pid=stale_pid)
+        _insert_running_row(db_path, "stale-run", pid=stale_pid, decision_id=1)
 
         from personalscraper.web.decisions.reserve import _reserve_decision_run
 
@@ -209,7 +242,7 @@ class TestReserveDecisionRun:
         db_path = tmp_path / "library.db"
         _create_db(db_path)
 
-        _insert_running_row(db_path, "null-pid-run", pid=None)
+        _insert_running_row(db_path, "null-pid-run", pid=None, decision_id=1)
 
         from personalscraper.web.decisions.reserve import _reserve_decision_run
 

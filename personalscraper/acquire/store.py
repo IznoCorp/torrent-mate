@@ -160,21 +160,41 @@ class _FollowSubStore:
         self._conn = conn
 
     def add(self, series: FollowedSeries) -> int:
-        """Insert a :class:`FollowedSeries` row and return its rowid.
+        """Insert a :class:`FollowedSeries` row (idempotent) and return its rowid.
+
+        The ``ux_followed_media_ref`` UNIQUE index (migration 004) makes
+        ``media_ref_json`` the natural key.  A second add of the same provider-ID
+        tuple therefore does not insert a duplicate: it hits
+        ``ON CONFLICT(media_ref_json)`` and reactivates the existing row
+        (``active=1``) while refreshing its ``title`` from the new payload.  The
+        surviving rowid is read back via ``RETURNING id`` — ``cur.lastrowid`` is
+        unreliable on the DO-UPDATE (conflict) path, whereas ``RETURNING`` yields
+        the affected row's id for both the INSERT and the UPDATE branch.
+
+        This closes the race the old plain-INSERT + app-level ``find_by_ref``
+        dedup left open (two concurrent adds of the same ref could both insert):
+        the second concurrent ``BEGIN IMMEDIATE`` serialises behind the first and
+        then hits the conflict path — exactly one active row, no
+        ``IntegrityError`` leaks to the caller.
 
         Args:
             series: The :class:`FollowedSeries` to persist.
 
         Returns:
-            The rowid of the newly inserted row.
+            The rowid of the surviving row (freshly inserted, or the reactivated
+            pre-existing row on a duplicate ``media_ref_json``).
         """
         with _write_tx(self._conn):
-            cur = self._conn.execute(
+            row = self._conn.execute(
                 """
                 INSERT INTO followed_series
                   (media_ref_json, title, active,
                    quality_profile_json, cadence_json, added_at)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(media_ref_json) DO UPDATE SET
+                  active = 1,
+                  title = excluded.title
+                RETURNING id
                 """,
                 (
                     _media_ref_to_json(series.media_ref),
@@ -184,10 +204,9 @@ class _FollowSubStore:
                     series.cadence_json,
                     series.added_at,
                 ),
-            )
-            row_id = cur.lastrowid
-        assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
-        return row_id
+            ).fetchone()
+        assert row is not None  # noqa: S101 — RETURNING always yields the affected row
+        return int(row[0])
 
     def get(self, followed_id: int) -> FollowedSeries | None:
         """Return the :class:`FollowedSeries` for *followed_id*, or ``None``.

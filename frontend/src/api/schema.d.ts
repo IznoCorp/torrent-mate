@@ -701,11 +701,18 @@ export interface paths {
          *     Returns:
          *         ``202`` with :class:`ResolveResponse` (``{"run_uid": "..."}``).
          *
+         *     Concurrency (webui-ux phase 4): two DIFFERENT decisions resolve concurrently
+         *     (both 202) — the reservation guard is scoped to THIS ``decision_id``.  409
+         *     fires only when THIS decision is already resolving, or when a GLOBAL pipeline
+         *     holder (full run / maintenance) owns ``pipeline.lock`` — resolves are excluded
+         *     from those, so they must not start while one is mid-dispatch.
+         *
          *     Raises:
          *         404: The decision does not exist.
          *         410: The decision has status ``'superseded'``.
          *         409: The decision is not ``'pending'`` (already resolved / dismissed),
-         *             the pipeline lock is held, or a scrape-resolve is already running.
+         *             a GLOBAL pipeline lock is held (full run / maintenance), or THIS
+         *             decision is already resolving.
          *         500: The runner subprocess failed to spawn.
          */
         post: operations["resolve_decision_api_decisions__decision_id__resolve_post"];
@@ -943,6 +950,38 @@ export interface paths {
          *         A :class:`LocksResponse` with lock, sentinel, and orphan data.
          */
         get: operations["get_locks_api_maintenance_locks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/maintenance/schedulers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Schedulers
+         * @description Return the scheduler overview: the watcher plus every static cron job.
+         *
+         *     Aggregates each scheduled agent's state from three fail-soft sources: the
+         *     ``watcher.paused`` sentinel + ``acquire.db`` ``watch_state`` (watcher), the
+         *     static :data:`CRON_JOBS` registry (schedule + display names), and the last
+         *     matching ``pipeline_run`` row per cron (``library.db``).  Read-only,
+         *     lock-free, per-request ``sqlite3`` connections (mirrors the acquisition
+         *     status read pattern).  Never 500s — a missing source DB yields
+         *     ``last_run_at=None`` rather than an error.
+         *
+         *     Returns:
+         *         A :class:`SchedulersResponse` with the watcher first, then each cron in
+         *         registry order.
+         */
+        get: operations["get_schedulers_api_maintenance_schedulers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2398,6 +2437,64 @@ export interface components {
             trigger: string;
         };
         /**
+         * SchedulerItem
+         * @description One scheduled agent (watcher or cron) in the scheduler overview.
+         *
+         *     Serves ``GET /api/maintenance/schedulers`` (webui-ux Phase 5). One row per
+         *     scheduled agent — the download-completion watcher plus each static cron job.
+         *
+         *     Attributes:
+         *         name: Stable machine identifier (the PM2 process name for crons, or
+         *             ``"personalscraper-watch"`` for the watcher). Never localised —
+         *             used as the React list key.
+         *         kind: ``"watcher"`` for the long-running completion watcher, ``"cron"``
+         *             for a scheduled cron job.
+         *         display_name: Human-readable French label for the panel.
+         *         schedule: Human-readable schedule string (crons), or ``None`` for the
+         *             watcher, which is event-driven rather than scheduled.
+         *         enabled: The watcher's enabled state (``True`` when the
+         *             ``watcher.paused`` sentinel is absent), or ``None`` for a cron
+         *             (whose enabled/disabled state is a PM2 concern the web process
+         *             cannot observe).
+         *         last_run_at: Unix-epoch seconds of the agent's last run, or ``None``
+         *             when no run is recorded. For the watcher this is
+         *             ``watch_state.last_successful_run_at``; for a cron it is the most
+         *             recent matching ``pipeline_run`` row's ``started_at`` (``None`` when
+         *             the job writes no ``pipeline_run`` row — the current reality, so
+         *             crons surface ``None`` fail-soft).
+         *         last_outcome: Final outcome of the last run (``"success"`` / ``"error"``
+         *             / ``"killed"``), or ``None`` when unknown. The watcher never carries
+         *             an outcome (its last-run timestamp records only *successful* runs).
+         */
+        SchedulerItem: {
+            /** Display Name */
+            display_name: string;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Kind */
+            kind: string;
+            /** Last Outcome */
+            last_outcome?: string | null;
+            /** Last Run At */
+            last_run_at?: number | null;
+            /** Name */
+            name: string;
+            /** Schedule */
+            schedule?: string | null;
+        };
+        /**
+         * SchedulersResponse
+         * @description Response for ``GET /api/maintenance/schedulers``.
+         *
+         *     Attributes:
+         *         schedulers: One entry per scheduled agent (watcher first, then each
+         *             cron in schedule order).
+         */
+        SchedulersResponse: {
+            /** Schedulers */
+            schedulers: components["schemas"]["SchedulerItem"][];
+        };
+        /**
          * SearchRequest
          * @description Request body for ``POST /api/decisions/{id}/search``.
          *
@@ -2533,6 +2630,12 @@ export interface components {
          * StepTiming
          * @description Timing record for a single pipeline step within a run.
          *
+         *     The five count fields (webui-ux Phase 2.2) mirror the
+         *     :class:`~personalscraper.models.StepReport` summary persisted into
+         *     ``steps_json`` so the interpreted last-run report survives past the live
+         *     WS event stream. They are all optional and default to ``None`` for legacy
+         *     ``steps_json`` entries written before Phase 2.2 (fail-soft parsing).
+         *
          *     Attributes:
          *         name: Human-readable step name (e.g. ``"ingest"``, ``"sort"``).
          *         status: Step status (``"done"``, ``"running"``, ``"error"``, etc.).
@@ -2540,18 +2643,39 @@ export interface components {
          *         ended_at: ISO 8601 UTC timestamp of step end, or ``None``.
          *         elapsed_s: Step duration in seconds, or ``None`` if either timestamp
          *             is missing.
+         *         success_count: StepReport ``success_count``, or ``None`` for a legacy
+         *             entry that predates the persisted summary.
+         *         skip_count: StepReport ``skip_count``, or ``None`` for a legacy entry.
+         *         error_count: StepReport ``error_count``, or ``None`` for a legacy entry.
+         *         unmatched_count: Number of folders the scraper could not confidently
+         *             match (length of StepReport ``unmatched_paths``), or ``None`` for a
+         *             legacy entry.
+         *         counts: StepReport ``counts`` sub-category dict, or ``None`` when the
+         *             step tracks no sub-categories / for a legacy entry.
          */
         StepTiming: {
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            } | null;
             /** Elapsed S */
             elapsed_s?: number | null;
             /** Ended At */
             ended_at?: string | null;
+            /** Error Count */
+            error_count?: number | null;
             /** Name */
             name: string;
+            /** Skip Count */
+            skip_count?: number | null;
             /** Started At */
             started_at?: string | null;
             /** Status */
             status: string;
+            /** Success Count */
+            success_count?: number | null;
+            /** Unmatched Count */
+            unmatched_count?: number | null;
         };
         /**
          * TmpOrphan
@@ -3530,6 +3654,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LocksResponse"];
+                };
+            };
+        };
+    };
+    get_schedulers_api_maintenance_schedulers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulersResponse"];
                 };
             };
         };

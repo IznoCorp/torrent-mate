@@ -801,4 +801,25 @@ describe("Config", () => {
       expect(toast.error).toHaveBeenCalledWith("read-only");
     });
   });
+
+  // ---- 19. Mobile file selector renders + reflects selection (3.3) ---------
+  it("affiche le sélecteur de fichier mobile et reflète la sélection", async () => {
+    renderConfig();
+
+    // The mobile-only file dropdown renders as a labelled combobox with a
+    // placeholder while nothing is selected.
+    const mobileSelect = screen.getByRole("combobox", { name: "Fichier" });
+    expect(mobileSelect).toBeInTheDocument();
+    expect(mobileSelect).toHaveTextContent("Sélectionner un fichier…");
+
+    // Selecting a file (via the sidebar) updates the mobile selector's value.
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    fireEvent.click(screen.getByText("master.json5"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("combobox", { name: "Fichier" }),
+      ).toHaveTextContent("master.json5");
+    });
+  });
 });

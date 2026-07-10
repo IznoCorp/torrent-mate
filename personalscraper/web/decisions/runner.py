@@ -11,11 +11,17 @@ configuration from environment variables (set by the POST handler in
 4. Streaming each output line to Redis (fail-soft) and a 64 KiB ring buffer.
 5. Finalizing the ``pipeline_run`` row on every exit path.
 
-Pipeline-lock ownership (R11): ``scrape-resolve`` **self-acquires** ``pipeline.lock``
-for its lifetime (same convention as ``library-rescrape``) and is listed in
-``personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`` — this runner does NOT
-acquire it. Acquiring it here would make the child's own ``acquire_lock`` observe the
-runner's live pid and exit 1 ("Another instance is running").
+Lock ownership (R11 / webui-ux phase 4): the ``scrape-resolve`` CLI acquires the
+SCOPED per-staging-item scrape lock
+(:func:`~personalscraper.lock.acquire_scrape_resolve_lock`) for its lifetime — NOT
+the global ``pipeline.lock``. That scoped lock is fail-closed against the global
+lock (distinct items resolve in parallel; any global holder makes the resolve back
+off), so this runner does NOT acquire any lock on the child's behalf. The
+``"scrape-resolve"`` entry in
+``personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for this
+path: that set is consulted only by the MAINTENANCE runner (which does not spawn
+scrape-resolve); this decisions runner consults no such set and simply never
+touches a lock.
 
 Environment contract (canonical — match the spawner):
 
@@ -217,8 +223,11 @@ def main() -> None:
     ``'running'`` (Finding A). A ``SIGTERM`` terminates the child process group
     and finalizes the row ``'killed'``.
 
-    Pipeline-lock ownership (R11): ``scrape-resolve`` self-acquires
-    ``pipeline.lock``; this runner does NOT touch the lock.
+    Lock ownership (R11 / webui-ux phase 4): the ``scrape-resolve`` CLI acquires
+    the SCOPED per-staging-item scrape lock (fail-closed against the global
+    ``pipeline.lock``), NOT the global lock itself; this runner does NOT touch any
+    lock. The vestigial ``_CLI_SELF_LOCKING`` "scrape-resolve" entry (maintenance
+    runner) is irrelevant here — this decisions runner consults no such set.
 
     Exit codes: 0 on CLI success, 1 on CLI error, 2 on misconfiguration,
     143 on SIGTERM.
@@ -457,7 +466,9 @@ def main() -> None:
 
         sys.exit(rc)
     finally:
-        # No lock to release — scrape-resolve self-acquires pipeline.lock (R11).
+        # No lock to release here — the scrape-resolve CLI owns the scoped
+        # per-item scrape lock for its own lifetime (R11); this runner never
+        # acquires a lock on its behalf.
         pass
 
 

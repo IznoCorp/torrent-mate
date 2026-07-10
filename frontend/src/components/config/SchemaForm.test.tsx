@@ -358,7 +358,7 @@ describe("SchemaForm — array of objects ($ref)", () => {
 
   it("propage une modification imbriquée de façon immuable", () => {
     const onChange = vi.fn();
-    const { container } = render(
+    render(
       <SchemaForm
         schema={{
           type: "array",
@@ -373,9 +373,10 @@ describe("SchemaForm — array of objects ($ref)", () => {
       />,
     );
 
-    // Open all <details> elements so inputs are accessible.
-    container.querySelectorAll("details").forEach((d) => {
-      d.setAttribute("open", "");
+    // Nested object sections render as a collapsed Accordion — expand every
+    // section trigger so the inner inputs mount and become accessible.
+    screen.getAllByRole("button", { expanded: false }).forEach((trigger) => {
+      fireEvent.click(trigger);
     });
 
     // Edit the name field inside the first card.
@@ -466,8 +467,10 @@ describe("SchemaForm — object with properties", () => {
       />,
     );
 
-    // The details summary shows the field key humanized.
-    expect(screen.getByText("Config")).toBeInTheDocument();
+    // The accordion trigger shows the field key humanized.
+    expect(screen.getByRole("button", { name: /Config/ })).toBeInTheDocument();
+    // Expand the section so its description mounts.
+    fireEvent.click(screen.getByRole("button", { name: /Config/ }));
     // The object description is shown.
     expect(screen.getByText("Configuration de base")).toBeInTheDocument();
   });
@@ -482,6 +485,9 @@ describe("SchemaForm — object with properties", () => {
         path="config"
       />,
     );
+
+    // Expand the collapsed section so the inner inputs mount.
+    fireEvent.click(screen.getByRole("button", { name: /Config/ }));
 
     // Find the text input for "name" and change it.
     const textInputs = screen.getAllByRole("textbox");
@@ -506,6 +512,9 @@ describe("SchemaForm — object with properties", () => {
         path="config"
       />,
     );
+
+    // Expand the collapsed section so the inner labels mount.
+    fireEvent.click(screen.getByRole("button", { name: /Config/ }));
 
     // The "name" input should have aria-required="true".
     // Label text should contain "*" for required fields.
@@ -819,6 +828,9 @@ describe("SchemaForm — labels et required", () => {
       />,
     );
 
+    // Expand the collapsed section so the inner "name" label mounts.
+    fireEvent.click(screen.getByRole("button", { name: /User/ }));
+
     // The label for "name" should contain "Name" with a required marker.
     const labels = screen.getAllByText(/Name/);
     // At least one label should contain the aria-hidden "*".
@@ -928,5 +940,155 @@ describe("SchemaForm — $ref non résolu", () => {
     // Should render as a textarea, not crash.
     const textarea = screen.getByRole("textbox");
     expect(textarea.tagName).toBe("TEXTAREA");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Accordion collapsible sections (3.1)
+// ---------------------------------------------------------------------------
+
+describe("SchemaForm — sections repliables (Accordion)", () => {
+  const nestedSchema = {
+    type: "object",
+    properties: {
+      db: {
+        type: "object",
+        description: "Base de données",
+        properties: {
+          host: { type: "string" },
+        },
+      },
+    },
+  };
+
+  it("rend une section imbriquée repliée par défaut (contenu masqué)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={nestedSchema}
+        values={{ db: { host: "localhost" } }}
+        onChange={onChange}
+      />,
+    );
+
+    // The nested "db" object renders as a collapsed Accordion trigger.
+    const trigger = screen.getByRole("button", { name: /Db/ });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    // Its inner field ("host") is not mounted while collapsed.
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("révèle le contenu imbriqué quand on ouvre la section", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={nestedSchema}
+        values={{ db: { host: "localhost" } }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Db/ }));
+
+    // After expanding, the nested input + description are visible.
+    expect(screen.getByRole("textbox")).toHaveValue("localhost");
+    expect(screen.getByText("Base de données")).toBeInTheDocument();
+  });
+
+  it("n'enveloppe pas la racine dans un Accordion (pas de titre vide)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: { name: { type: "string" } },
+        }}
+        values={{ name: "root-level" }}
+        onChange={onChange}
+      />,
+    );
+
+    // Root scalar field is rendered directly (no collapse needed at root).
+    expect(screen.getByRole("textbox")).toHaveValue("root-level");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schema title preference + inline validation (3.2 / 3.3)
+// ---------------------------------------------------------------------------
+
+describe("SchemaForm — titre de schéma et validation inline", () => {
+  it("préfère le title du schéma au nom de clé humanisé", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{ type: "string", title: "Répertoire de staging" }}
+        values={{ staging_dir: "/tmp" }}
+        onChange={onChange}
+        path="staging_dir"
+      />,
+    );
+
+    // The schema title wins over humanize("staging_dir") = "Staging dir".
+    expect(screen.getByText("Répertoire de staging")).toBeInTheDocument();
+    expect(screen.queryByText("Staging dir")).not.toBeInTheDocument();
+  });
+
+  it("affiche une erreur inline au blur pour une borne minimum violée", () => {
+    const onChange = vi.fn();
+    // The control is parent-controlled, so seed an out-of-bounds value and let
+    // the blur handler read it straight from the DOM (no re-render needed).
+    render(
+      <SchemaForm
+        schema={{ type: "integer", minimum: 0 }}
+        values={{ retries: -3 }}
+        onChange={onChange}
+        path="retries"
+      />,
+    );
+
+    const input = screen.getByRole("spinbutton");
+    // No inline error before the field is blurred.
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.blur(input);
+    // Client-side bound check surfaces on blur.
+    expect(screen.getByRole("alert")).toHaveTextContent("Doit être ≥ 0.");
+  });
+
+  it("efface l'erreur inline dès que l'utilisateur retape", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{ type: "integer", minimum: 0 }}
+        values={{ retries: -3 }}
+        onChange={onChange}
+        path="retries"
+      />,
+    );
+
+    const input = screen.getByRole("spinbutton");
+    fireEvent.blur(input);
+    expect(screen.getByRole("alert")).toHaveTextContent("Doit être ≥ 0.");
+
+    // Typing clears the stale client-side hint immediately.
+    fireEvent.change(input, { target: { value: "2" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("laisse l'erreur serveur 422 primer sur la validation client", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{ type: "integer", minimum: 0 }}
+        values={{ retries: -3 }}
+        onChange={onChange}
+        errors={{ retries: "Erreur serveur" }}
+        path="retries"
+      />,
+    );
+
+    // Server error is shown even before any blur.
+    expect(screen.getByRole("alert")).toHaveTextContent("Erreur serveur");
   });
 });

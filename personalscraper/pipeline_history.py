@@ -174,12 +174,26 @@ class PipelineRunWriter:
         started_at: float,
         ended_at: float,
         status: str,
+        *,
+        success_count: int | None = None,
+        skip_count: int | None = None,
+        error_count: int | None = None,
+        unmatched_count: int | None = None,
+        counts: dict[str, int] | None = None,
     ) -> None:
         """Append a step timing record to the row's ``steps_json`` array.
 
         Reads the current ``steps_json`` value for the given ``run_uid``,
         appends a new entry ``{name, started_at, ended_at, status}``, and
         writes the updated array back.
+
+        The five keyword-only summary parameters (webui-ux Phase 2.2) are
+        additive and optional. When supplied they are folded into the same
+        ``steps_json`` entry so the persisted last-run report can surface the
+        interpreted per-step counts after the live WS stream is gone. Each is
+        omitted from the entry when ``None`` (or, for ``counts``, empty), so
+        legacy rows and callers that pass only the timing fields keep the exact
+        prior entry shape — every reader must default-parse missing keys.
 
         Args:
             run_uid: Unique run identifier.
@@ -189,13 +203,35 @@ class PipelineRunWriter:
             ended_at: Unix-epoch timestamp (``time.time()``-based) when the
                 step completed.
             status: Step outcome (``'success'`` or ``'error'``).
+            success_count: :class:`~personalscraper.models.StepReport`
+                ``success_count`` for this step, or ``None`` to omit.
+            skip_count: StepReport ``skip_count`` for this step, or ``None``.
+            error_count: StepReport ``error_count`` for this step, or ``None``.
+            unmatched_count: Length of StepReport ``unmatched_paths`` for this
+                step (folders the scraper could not confidently match), or
+                ``None`` to omit.
+            counts: A small StepReport ``counts`` sub-category dict (e.g.
+                ``{"downloaded": 3, "bot_detected": 1}``), or ``None``/empty to
+                omit.
         """
-        entry = {
+        entry: dict[str, object] = {
             "name": step_name,
             "started_at": started_at,
             "ended_at": ended_at,
             "status": status,
         }
+        # Fold the StepReport summary into the entry only when present so the
+        # persisted shape stays byte-identical for timing-only callers/rows.
+        if success_count is not None:
+            entry["success_count"] = success_count
+        if skip_count is not None:
+            entry["skip_count"] = skip_count
+        if error_count is not None:
+            entry["error_count"] = error_count
+        if unmatched_count is not None:
+            entry["unmatched_count"] = unmatched_count
+        if counts:
+            entry["counts"] = counts
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)

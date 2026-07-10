@@ -48,7 +48,7 @@ def test_process_help_exits_zero() -> None:
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_empty_staging_noop(
     mock_run,
@@ -75,7 +75,7 @@ def test_process_empty_staging_noop(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_with_operations(
     mock_run,
@@ -104,7 +104,7 @@ def test_process_with_operations(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=False)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
 def test_process_lock_contention(
     mock_lock,
     mock_release,
@@ -122,7 +122,7 @@ def test_process_lock_contention(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_runtime_error(
     mock_run,
@@ -146,7 +146,7 @@ def test_process_runtime_error(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_idempotent(
     mock_run,
@@ -178,7 +178,7 @@ def test_process_idempotent(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_dry_run_forwards_flag(
     mock_run,
@@ -202,7 +202,7 @@ def test_process_dry_run_forwards_flag(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_output_no_traceback(
     mock_run,
@@ -222,7 +222,7 @@ def test_process_output_no_traceback(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.process.run.run_process")
 def test_process_error_exit_code_nonzero(
     mock_run,
@@ -244,7 +244,7 @@ def test_process_error_exit_code_nonzero(
 
 @patch("personalscraper.cli.get_settings")
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
 def test_process_emits_item_progressed_events(
     mock_lock,
     mock_release,

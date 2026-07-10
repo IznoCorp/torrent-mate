@@ -12,8 +12,14 @@ export interface StatPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: React.ReactNode;
   /** The headline figure. */
   value?: React.ReactNode;
-  /** Trailing unit (e.g. "TB", "items"). */
+  /** Short trailing unit rendered inline next to the value (e.g. "TB", "items"). */
   unit?: React.ReactNode;
+  /**
+   * Optional secondary line rendered BELOW the value — for a full descriptor
+   * such as "12 films / 5 séries". Wraps and never collides with the headline
+   * figure (unlike {@link StatPanelProps.unit}, which is inline).
+   */
+  secondary?: React.ReactNode;
   /** Optional trend text (e.g. "+12 / 24h"). */
   delta?: React.ReactNode;
   /** Trend colour. @default "flat" */
@@ -34,6 +40,7 @@ export function StatPanel({
   icon,
   value,
   unit,
+  secondary,
   delta,
   deltaDir = "flat",
   className = "",
@@ -49,6 +56,7 @@ export function StatPanel({
         {value}
         {unit != null && <span className="ps-stat__unit">{unit}</span>}
       </span>
+      {secondary != null && <span className="ps-stat__sub">{secondary}</span>}
       {delta != null && (
         <span className={`ps-stat__delta ps-stat__delta--${deltaDir}`}>
           {delta}

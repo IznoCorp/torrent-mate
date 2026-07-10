@@ -92,8 +92,8 @@ describe("RunDetail", () => {
 
     // Run UID (truncated to 8 chars).
     expect(await screen.findByText("abc123-r…")).toBeInTheDocument();
-    // Trigger.
-    expect(screen.getByText("web")).toBeInTheDocument();
+    // Trigger rendered as its human label ("web" → "Interface web").
+    expect(screen.getByText("Interface web")).toBeInTheDocument();
     // Outcome badge (success → "Succès").
     expect(screen.getByText("Succès")).toBeInTheDocument();
     // Duration formatted as "5m 30s".

@@ -65,6 +65,48 @@ const TRIGGER_EXPLANATION: Record<string, string> = {
 const TERMINAL_OUTCOMES = new Set(["success", "error", "killed"]);
 
 /**
+ * The two distinct 409 causes a resolve can return (§4.3).
+ *
+ * The scrape-resolve concurrency is now PER-DECISION: two DIFFERENT decisions
+ * resolve concurrently. A 409 therefore only ever means one of:
+ *
+ * - ``pipeline_lock``: a full pipeline run / maintenance holds the GLOBAL
+ *   ``pipeline.lock`` (backend detail: ``"Pipeline lock held"``). Nothing
+ *   resolves until that run finishes.
+ * - ``decision_busy``: THIS decision is already resolving (backend detail:
+ *   ``"This decision is already resolving"``). Other decisions are unaffected.
+ */
+type Conflict409 = "pipeline_lock" | "decision_busy";
+
+/**
+ * Classify a 409 ``ApiError.detail`` into its cause (§4.3).
+ *
+ * The backend detail strings are stable; matching on the ``pipeline lock``
+ * substring is enough to separate the global-lock case from the
+ * per-decision-busy case. Unknown 409 details fall back to ``decision_busy``
+ * (the per-decision message is the least alarming and stays accurate: the
+ * operator's own action just didn't take).
+ *
+ * Args:
+ *   detail: The raw ``ApiError.detail`` of a 409 response.
+ *
+ * Returns:
+ *   The classified {@link Conflict409} cause.
+ */
+function classify409(detail: string): Conflict409 {
+  return detail.toLowerCase().includes("pipeline lock")
+    ? "pipeline_lock"
+    : "decision_busy";
+}
+
+/** French message for the pipeline-lock 409 (global run in progress). */
+const MSG_PIPELINE_LOCK = "Pipeline occupé — réessayez après le run en cours.";
+
+/** French message for the per-decision-busy 409 (this decision only). */
+const MSG_DECISION_BUSY =
+  "Cette décision est déjà en cours de re-scraping. Attendez qu'elle se termine.";
+
+/**
  * Map a known backend error status to a French inline message (F38).
  *
  * The toasts are already localized; the persistent inline error box previously
@@ -74,7 +116,9 @@ const TERMINAL_OUTCOMES = new Set(["success", "error", "killed"]);
 function frenchErrorDetail(error: ApiError): string {
   switch (error.status) {
     case 409:
-      return "Un autre re-scraping est déjà en cours. Attendez qu'il se termine avant de réessayer.";
+      return classify409(error.detail) === "pipeline_lock"
+        ? MSG_PIPELINE_LOCK
+        : MSG_DECISION_BUSY;
     case 410:
       return "Cette décision a été remplacée par une version plus récente.";
     case 502:
@@ -163,6 +207,13 @@ export function DecisionDetail({
   const [runDone, setRunDone] = useState(false);
   const invalidatedOnDone = useRef(false);
 
+  /**
+   * The terminal outcome of the launched run (``success`` / ``error`` /
+   * ``killed``), or ``null`` while still running / not yet launched.  Drives the
+   * badge tone + label so a failed run does not masquerade as success (SF1).
+   */
+  const [runOutcome, setRunOutcome] = useState<string | null>(null);
+
   const triggerLabel = TRIGGER_LABEL[decision.trigger] ?? decision.trigger;
   const triggerExplanation =
     TRIGGER_EXPLANATION[decision.trigger] ??
@@ -250,9 +301,14 @@ export function DecisionDetail({
     onError: (error) => {
       if (error instanceof ApiError) {
         if (error.status === 409) {
+          // §4.3 — a 409 no longer means "some other resolve is running".
+          // Resolves are per-decision, so distinguish the two real causes:
+          //  - pipeline_lock: a full run/maintenance holds the global lock;
+          //  - decision_busy: THIS decision is already resolving (others OK).
           toast.error(
-            "Un autre re-scraping est déjà en cours. " +
-              "Attendez qu'il se termine avant de réessayer.",
+            classify409(error.detail) === "pipeline_lock"
+              ? MSG_PIPELINE_LOCK
+              : MSG_DECISION_BUSY,
           );
         } else if (error.status === 410) {
           toast.error(
@@ -304,14 +360,24 @@ export function DecisionDetail({
   // ---- resolve-run completion poll (F19/F49) --------------------------------
   // Poll the launched run's history row; when it reaches a terminal outcome,
   // re-invalidate the decisions list (the row is now really resolved) and flip
-  // the in-progress badge. Stops polling once terminal.
+  // the in-progress badge. Stops polling once terminal — and also stops if the
+  // GET persistently errors, so a 404 (row never written) does not poll forever
+  // (SF1 stuck-poll guard).
   const runQuery = useQuery({
     queryKey: ["pipeline", "history", runUid],
     queryFn: () => getPipelineRunDetail(runUid ?? ""),
     enabled: runUid != null && !runDone,
+    // Do not retry a failing run-detail GET forever — surface it via isError
+    // instead so refetchInterval can stop the 2s poll.
+    retry: 2,
     refetchInterval: (query) => {
       const outcome = query.state.data?.outcome;
-      return outcome != null && TERMINAL_OUTCOMES.has(outcome) ? false : 2000;
+      if (outcome != null && TERMINAL_OUTCOMES.has(outcome)) return false;
+      // Stop polling once the query has settled into an error state (e.g. a
+      // persistent 404 for a run row that was never written) — otherwise the
+      // 2s interval would hammer a dead endpoint indefinitely (SF1).
+      if (query.state.status === "error") return false;
+      return 2000;
     },
   });
 
@@ -325,9 +391,32 @@ export function DecisionDetail({
     ) {
       invalidatedOnDone.current = true;
       setRunDone(true);
+      setRunOutcome(outcome);
+      // SF1: a terminal FAILURE (error/killed) must not look like success —
+      // fire a single error toast alongside the danger badge below.
+      if (outcome !== "success") {
+        toast.error(
+          "Le re-scraping a échoué. Consultez le journal ci-dessous.",
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
     }
   }, [runQuery.data?.outcome, runUid, queryClient]);
+
+  // ---- stuck-poll guard (SF1) -----------------------------------------------
+  // If the run-detail GET persistently errors (e.g. the run row was never
+  // written → 404), stop the poll and surface a failure instead of spinning the
+  // "en cours" badge forever.  Fires once (invalidatedOnDone latch).
+  useEffect(() => {
+    if (runUid != null && runQuery.isError && !invalidatedOnDone.current) {
+      invalidatedOnDone.current = true;
+      setRunDone(true);
+      setRunOutcome("error");
+      toast.error(
+        "Impossible de suivre le re-scraping (statut indisponible). Réessayez.",
+      );
+    }
+  }, [runQuery.isError, runUid]);
 
   // ---- event handlers --------------------------------------------------------
 
@@ -480,9 +569,21 @@ export function DecisionDetail({
         {runUid != null && (
           <div className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3">
             <div className="flex items-center gap-2">
-              <Badge tone={runDone ? "neutral" : "success"} dot={!runDone}>
-                {runDone ? "Re-scraping terminé" : "Re-scraping en cours"}
-              </Badge>
+              {/* SF1: a terminal FAILURE (error/killed) shows a danger badge —
+                  it must not look like the success "terminé" state. */}
+              {(() => {
+                if (!runDone) {
+                  return (
+                    <Badge tone="success" dot>
+                      Re-scraping en cours
+                    </Badge>
+                  );
+                }
+                if (runOutcome != null && runOutcome !== "success") {
+                  return <Badge tone="danger">Re-scraping échoué</Badge>;
+                }
+                return <Badge tone="success">Re-scraping terminé</Badge>;
+              })()}
               <span className="text-xs text-muted-foreground">
                 run_uid : <span className="font-mono">{runUid}</span>
               </span>

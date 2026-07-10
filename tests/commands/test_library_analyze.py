@@ -313,7 +313,7 @@ class TestLibraryRescrape:
                 return_value=rresult,
             ),
             patch("personalscraper.io_utils.write_json"),
-            patch("personalscraper.cli.acquire_lock") as mock_acquire,
+            patch("personalscraper.cli.acquire_pipeline_lock") as mock_acquire,
         ):
             result = runner.invoke(app, ["library-rescrape", "--dry-run"])
         assert result.exit_code == 0
@@ -344,7 +344,7 @@ class TestLibraryRescrape:
                 return_value=rresult,
             ),
             patch("personalscraper.io_utils.write_json"),
-            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_acquire,
+            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as mock_acquire,
             patch("personalscraper.cli.release_lock") as mock_release,
         ):
             result = runner.invoke(app, ["library-rescrape"])
@@ -354,7 +354,7 @@ class TestLibraryRescrape:
 
     def test_live_lock_blocked(self) -> None:
         """A non dry-run invocation exits 1 when the lock is held."""
-        with patch("personalscraper.cli.acquire_lock", return_value=False):
+        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-rescrape"])
         assert result.exit_code == 1
         assert "Another instance" in result.output

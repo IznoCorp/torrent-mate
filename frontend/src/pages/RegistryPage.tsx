@@ -26,6 +26,11 @@ import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  groupProviders,
+  subCircuitHint,
+  subCircuitLabel,
+} from "@/components/registry/groupProviders";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -140,7 +145,7 @@ export default function RegistryPage(): ReactElement {
       <h1 className="text-2xl font-bold">Registre des fournisseurs</h1>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {providers.map((p) => (
+        {groupProviders(providers).map(({ parent: p, subs }) => (
           <Card
             key={p.provider_name}
             className={!p.live ? "opacity-60" : undefined}
@@ -166,6 +171,33 @@ export default function RegistryPage(): ReactElement {
                   ? `${p.last_latency_ms.toFixed(0)} ms`
                   : "—"}
               </p>
+
+              {subs.length > 0 && (
+                <div className="mt-2 space-y-1 border-t border-border pt-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Sous-circuits
+                  </p>
+                  {subs.map((s) => (
+                    <div
+                      key={s.provider_name}
+                      className="flex items-center justify-between gap-2"
+                      title={subCircuitHint(s.provider_name)}
+                    >
+                      <span className="text-xs">
+                        {subCircuitLabel(s.provider_name)}
+                        {s.last_latency_ms != null && (
+                          <span className="ml-1 text-muted-foreground">
+                            · {s.last_latency_ms.toFixed(0)} ms
+                          </span>
+                        )}
+                      </span>
+                      <Badge tone={CIRCUIT_TONE[s.circuit_state]}>
+                        {CIRCUIT_LABEL[s.circuit_state] ?? s.circuit_state}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

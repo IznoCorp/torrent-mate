@@ -243,17 +243,21 @@ export function IndexHealthPanel(): ReactElement {
 
         {!isLoading && !isError && data != null && (
           <>
-            {/* Headline stats row */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Headline stats — stacked. The index-health card is a narrow
+                grid track (~200px), too tight for a 5-digit figure in a 2-col
+                split (the value clipped: "97605" → "9760…"). Stacking gives each
+                stat the full card width; the descriptor stays on its own
+                wrapping `secondary` line below the figure. */}
+            <div className="grid grid-cols-1 gap-2">
               <StatPanel
                 label="Items"
                 value={data.items}
-                unit={`${String(data.movies)} films / ${String(data.shows)} séries`}
+                secondary={`${String(data.movies)} films / ${String(data.shows)} séries`}
               />
               <StatPanel
                 label="Fichiers"
                 value={data.files}
-                unit={formatGb(data.size_gb)}
+                secondary={formatGb(data.size_gb)}
               />
             </div>
 

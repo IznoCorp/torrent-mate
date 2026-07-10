@@ -25,6 +25,14 @@ import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { StagingBanner } from "@/components/StagingBanner";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -492,10 +500,32 @@ export default function Config(): ReactElement {
         </div>
       )}
 
+      {/* Mobile-only file selector — the 240px sidebar is hidden < md, so a
+          top dropdown keeps the editor usable at 375px. */}
+      <div className="flex flex-col gap-1.5 md:hidden">
+        <Label htmlFor="config-file-mobile-select">Fichier</Label>
+        <Select
+          {...(selectedFile !== null ? { value: selectedFile } : {})}
+          onValueChange={handleSelectFile}
+        >
+          <SelectTrigger id="config-file-mobile-select" aria-label="Fichier">
+            <SelectValue placeholder="Sélectionner un fichier…" />
+          </SelectTrigger>
+          <SelectContent>
+            {(filesQ.data?.files ?? []).map((f) => (
+              <SelectItem key={f.name} value={f.name}>
+                {f.name}
+                {dirtyFileNames.has(f.name) ? " •" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Two-panel layout: FileList (sidebar) + SchemaForm editor */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-        {/* Left panel: file list */}
-        <div className="rounded-md border border-border p-2">
+        {/* Left panel: file list (hidden < md — replaced by the mobile Select) */}
+        <div className="hidden rounded-md border border-border p-2 md:block">
           <FileList
             dirtyFiles={dirtyFileNames}
             selected={selectedFile}

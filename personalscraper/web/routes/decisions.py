@@ -447,6 +447,33 @@ def _spawn_decision_runner(
     return proc.pid
 
 
+def _finalize_fail_soft(db_path: Path, run_uid: str, error: str) -> None:
+    """Finalize a reserved ``pipeline_run`` row 'error', fail-soft on DB error.
+
+    The finalize on the resolve error/spawn-fail paths must NEVER let a raising
+    ``PipelineRunWriter.finalize`` (contended DB) leave the reserved ``running``
+    row behind: that row carries the long-lived web-process pid, which is live, so
+    the next resolve's ``_guard_no_running_resolve`` would see it and return a
+    PERMANENT 409 for that decision (SF3).  A finalize failure is logged as a
+    warning and swallowed so the intended HTTP response still fires — the worst
+    case degrades to a stale ``running`` row that the next resolve reclaims,
+    never a permanent block from THIS request.
+
+    Args:
+        db_path: Absolute path to ``library.db``.
+        run_uid: The reserved run's unique identifier.
+        error: The error string to persist on the finalized row.
+    """
+    try:
+        PipelineRunWriter(db_path).finalize(run_uid, "error", error=error)
+    except sqlite3.Error as exc:
+        logger.warning(
+            "decision_resolve_finalize_failed",
+            run_uid=run_uid,
+            error=str(exc),
+        )
+
+
 # ── POST /{id}/resolve ───────────────────────────────────────────────────────
 
 
@@ -473,11 +500,18 @@ def resolve_decision(
     Returns:
         ``202`` with :class:`ResolveResponse` (``{"run_uid": "..."}``).
 
+    Concurrency (webui-ux phase 4): two DIFFERENT decisions resolve concurrently
+    (both 202) — the reservation guard is scoped to THIS ``decision_id``.  409
+    fires only when THIS decision is already resolving, or when a GLOBAL pipeline
+    holder (full run / maintenance) owns ``pipeline.lock`` — resolves are excluded
+    from those, so they must not start while one is mid-dispatch.
+
     Raises:
         404: The decision does not exist.
         410: The decision has status ``'superseded'``.
         409: The decision is not ``'pending'`` (already resolved / dismissed),
-            the pipeline lock is held, or a scrape-resolve is already running.
+            a GLOBAL pipeline lock is held (full run / maintenance), or THIS
+            decision is already resolving.
         500: The runner subprocess failed to spawn.
     """
     db_path = _db_path(request)
@@ -498,9 +532,13 @@ def resolve_decision(
 
     run_uid = uuid.uuid4().hex
 
-    # 3. Atomic concurrency-409 + reserve the running row under BEGIN IMMEDIATE
-    #    (closes the check→insert race so a second concurrent resolve POST sees
-    #    the freshly-inserted running row and gets 409).
+    # 3. Atomic per-decision concurrency-409 + reserve the running row under
+    #    BEGIN IMMEDIATE (closes the check→insert race so a second concurrent
+    #    resolve POST FOR THE SAME decision sees the freshly-inserted running row
+    #    and gets 409).  A resolve of a DIFFERENT decision is not blocked — the
+    #    guard is scoped to decision_id (webui-ux phase 4). Same-staging-path
+    #    exclusivity across two decision rows is enforced one layer down by the
+    #    CLI's per-item scrape lock (acquire_scrape_resolve_lock).
     _reserve_decision_run(
         db_path,
         run_uid=run_uid,
@@ -512,19 +550,22 @@ def resolve_decision(
     # 4. Re-probe the pipeline lock after the reservation (R11): a pipeline run
     #    may grab the lock between the step-2 probe and here.  Finalize the
     #    reserved row 'error' + 409 rather than returning 202 whose run would
-    #    immediately fail.
+    #    immediately fail.  The finalize is fail-soft (SF3): a raising finalize
+    #    (contended DB) must NOT keep the reserved row 'running' with the
+    #    long-lived web-process pid — that pid is live, so _guard_no_running_resolve
+    #    would see it and PERMANENTLY 409 this decision.  Log + still raise the 409.
     if is_lock_held(data_dir / "pipeline.lock"):
-        PipelineRunWriter(db_path).finalize(run_uid, "error", error="Pipeline lock held")
+        _finalize_fail_soft(db_path, run_uid, "Pipeline lock held")
         raise HTTPException(status_code=409, detail="Pipeline lock held")
 
     # 5. Spawn the runner and claim the reserved row with its pid, so a runner
     #    that dies before finalizing leaves a dead-pid (stale) row rather than a
     #    live-pid (permanently blocking) one.  A spawn failure finalizes the
-    #    reserved row 'error' so it never stays 'running'.
+    #    reserved row 'error' so it never stays 'running' (fail-soft — SF3).
     try:
         pid = _spawn_decision_runner(run_uid, decision_id, body.provider, body.provider_id, body.via)
     except (OSError, ValueError) as exc:
-        PipelineRunWriter(db_path).finalize(run_uid, "error", error=str(exc))
+        _finalize_fail_soft(db_path, run_uid, str(exc))
         logger.error(
             "decision_resolve_spawn_failed",
             run_uid=run_uid,
@@ -533,7 +574,17 @@ def resolve_decision(
         )
         raise HTTPException(status_code=500, detail="Failed to spawn decision runner") from exc
     if isinstance(pid, int):
-        PipelineRunWriter(db_path).update_pid(run_uid, pid)
+        # Fail-soft (SF3): a raising update_pid must not abort the 202 — the row is
+        # already reserved and the runner will (re)claim its own pid on start.
+        try:
+            PipelineRunWriter(db_path).update_pid(run_uid, pid)
+        except sqlite3.Error as exc:
+            logger.warning(
+                "decision_resolve_update_pid_failed",
+                run_uid=run_uid,
+                decision_id=decision_id,
+                error=str(exc),
+            )
 
     return ResolveResponse(run_uid=run_uid)
 

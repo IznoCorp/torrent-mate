@@ -1813,6 +1813,91 @@
         "title": "RunSummary",
         "type": "object"
       },
+      "SchedulerItem": {
+        "description": "One scheduled agent (watcher or cron) in the scheduler overview.\n\nServes ``GET /api/maintenance/schedulers`` (webui-ux Phase 5). One row per\nscheduled agent \u2014 the download-completion watcher plus each static cron job.\n\nAttributes:\n    name: Stable machine identifier (the PM2 process name for crons, or\n        ``\"personalscraper-watch\"`` for the watcher). Never localised \u2014\n        used as the React list key.\n    kind: ``\"watcher\"`` for the long-running completion watcher, ``\"cron\"``\n        for a scheduled cron job.\n    display_name: Human-readable French label for the panel.\n    schedule: Human-readable schedule string (crons), or ``None`` for the\n        watcher, which is event-driven rather than scheduled.\n    enabled: The watcher's enabled state (``True`` when the\n        ``watcher.paused`` sentinel is absent), or ``None`` for a cron\n        (whose enabled/disabled state is a PM2 concern the web process\n        cannot observe).\n    last_run_at: Unix-epoch seconds of the agent's last run, or ``None``\n        when no run is recorded. For the watcher this is\n        ``watch_state.last_successful_run_at``; for a cron it is the most\n        recent matching ``pipeline_run`` row's ``started_at`` (``None`` when\n        the job writes no ``pipeline_run`` row \u2014 the current reality, so\n        crons surface ``None`` fail-soft).\n    last_outcome: Final outcome of the last run (``\"success\"`` / ``\"error\"``\n        / ``\"killed\"``), or ``None`` when unknown. The watcher never carries\n        an outcome (its last-run timestamp records only *successful* runs).",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Outcome"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "display_name"
+        ],
+        "title": "SchedulerItem",
+        "type": "object"
+      },
+      "SchedulersResponse": {
+        "description": "Response for ``GET /api/maintenance/schedulers``.\n\nAttributes:\n    schedulers: One entry per scheduled agent (watcher first, then each\n        cron in schedule order).",
+        "properties": {
+          "schedulers": {
+            "items": {
+              "$ref": "#/components/schemas/SchedulerItem"
+            },
+            "title": "Schedulers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schedulers"
+        ],
+        "title": "SchedulersResponse",
+        "type": "object"
+      },
       "SearchRequest": {
         "description": "Request body for ``POST /api/decisions/{id}/search``.\n\nTriggers a live search against TMDB/TVDB for a given title and optional\nyear.  Read-only \u2014 no state change.\n\nAttributes:\n    title: The title to search for on the metadata providers.\n    year: An optional release year to narrow the search.",
         "properties": {
@@ -2002,8 +2087,22 @@
         "type": "object"
       },
       "StepTiming": {
-        "description": "Timing record for a single pipeline step within a run.\n\nAttributes:\n    name: Human-readable step name (e.g. ``\"ingest\"``, ``\"sort\"``).\n    status: Step status (``\"done\"``, ``\"running\"``, ``\"error\"``, etc.).\n    started_at: ISO 8601 UTC timestamp of step start, or ``None``.\n    ended_at: ISO 8601 UTC timestamp of step end, or ``None``.\n    elapsed_s: Step duration in seconds, or ``None`` if either timestamp\n        is missing.",
+        "description": "Timing record for a single pipeline step within a run.\n\nThe five count fields (webui-ux Phase 2.2) mirror the\n:class:`~personalscraper.models.StepReport` summary persisted into\n``steps_json`` so the interpreted last-run report survives past the live\nWS event stream. They are all optional and default to ``None`` for legacy\n``steps_json`` entries written before Phase 2.2 (fail-soft parsing).\n\nAttributes:\n    name: Human-readable step name (e.g. ``\"ingest\"``, ``\"sort\"``).\n    status: Step status (``\"done\"``, ``\"running\"``, ``\"error\"``, etc.).\n    started_at: ISO 8601 UTC timestamp of step start, or ``None``.\n    ended_at: ISO 8601 UTC timestamp of step end, or ``None``.\n    elapsed_s: Step duration in seconds, or ``None`` if either timestamp\n        is missing.\n    success_count: StepReport ``success_count``, or ``None`` for a legacy\n        entry that predates the persisted summary.\n    skip_count: StepReport ``skip_count``, or ``None`` for a legacy entry.\n    error_count: StepReport ``error_count``, or ``None`` for a legacy entry.\n    unmatched_count: Number of folders the scraper could not confidently\n        match (length of StepReport ``unmatched_paths``), or ``None`` for a\n        legacy entry.\n    counts: StepReport ``counts`` sub-category dict, or ``None`` when the\n        step tracks no sub-categories / for a legacy entry.",
         "properties": {
+          "counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counts"
+          },
           "elapsed_s": {
             "anyOf": [
               {
@@ -2026,9 +2125,31 @@
             ],
             "title": "Ended At"
           },
+          "error_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Count"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "skip_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Count"
           },
           "started_at": {
             "anyOf": [
@@ -2044,6 +2165,28 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "success_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Count"
+          },
+          "unmatched_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unmatched Count"
           }
         },
         "required": [
@@ -3192,7 +3335,7 @@
     },
     "/api/decisions/{decision_id}/resolve": {
       "post": {
-        "description": "Launch a targeted re-scrape for a decision.\n\nMirrors ``POST /api/maintenance/actions/{action_id}/run``: validates\npreconditions (pipeline lock, concurrent resolve), reserves a\n``pipeline_run`` row atomically, re-probes the lock, spawns the runner\nsubprocess, and returns ``202`` with the ``run_uid``.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    body: The request payload with ``provider`` and ``provider_id``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ResolveResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.\n    409: The decision is not ``'pending'`` (already resolved / dismissed),\n        the pipeline lock is held, or a scrape-resolve is already running.\n    500: The runner subprocess failed to spawn.",
+        "description": "Launch a targeted re-scrape for a decision.\n\nMirrors ``POST /api/maintenance/actions/{action_id}/run``: validates\npreconditions (pipeline lock, concurrent resolve), reserves a\n``pipeline_run`` row atomically, re-probes the lock, spawns the runner\nsubprocess, and returns ``202`` with the ``run_uid``.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    body: The request payload with ``provider`` and ``provider_id``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ResolveResponse` (``{\"run_uid\": \"...\"}``).\n\nConcurrency (webui-ux phase 4): two DIFFERENT decisions resolve concurrently\n(both 202) \u2014 the reservation guard is scoped to THIS ``decision_id``.  409\nfires only when THIS decision is already resolving, or when a GLOBAL pipeline\nholder (full run / maintenance) owns ``pipeline.lock`` \u2014 resolves are excluded\nfrom those, so they must not start while one is mid-dispatch.\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.\n    409: The decision is not ``'pending'`` (already resolved / dismissed),\n        a GLOBAL pipeline lock is held (full run / maintenance), or THIS\n        decision is already resolving.\n    500: The runner subprocess failed to spawn.",
         "operationId": "resolve_decision_api_decisions__decision_id__resolve_post",
         "parameters": [
           {
@@ -3454,6 +3597,28 @@
           }
         },
         "summary": "Get Locks",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/schedulers": {
+      "get": {
+        "description": "Return the scheduler overview: the watcher plus every static cron job.\n\nAggregates each scheduled agent's state from three fail-soft sources: the\n``watcher.paused`` sentinel + ``acquire.db`` ``watch_state`` (watcher), the\nstatic :data:`CRON_JOBS` registry (schedule + display names), and the last\nmatching ``pipeline_run`` row per cron (``library.db``).  Read-only,\nlock-free, per-request ``sqlite3`` connections (mirrors the acquisition\nstatus read pattern).  Never 500s \u2014 a missing source DB yields\n``last_run_at=None`` rather than an error.\n\nReturns:\n    A :class:`SchedulersResponse` with the watcher first, then each cron in\n    registry order.",
+        "operationId": "get_schedulers_api_maintenance_schedulers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Schedulers",
         "tags": [
           "maintenance"
         ]

@@ -15,6 +15,7 @@ import { Fragment, type ReactElement } from "react";
 
 import { getPipelineRunDetail } from "@/api/client";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
+import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -244,7 +245,7 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
           <div>
             <span className="text-muted-foreground">Déclencheur</span>
-            <p className="font-medium">{data.trigger}</p>
+            <p className="font-medium">{triggerLabel(data.trigger)}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Durée</span>

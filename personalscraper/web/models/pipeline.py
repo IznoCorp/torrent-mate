@@ -149,6 +149,12 @@ class RunSummary(BaseModel):
 class StepTiming(BaseModel):
     """Timing record for a single pipeline step within a run.
 
+    The five count fields (webui-ux Phase 2.2) mirror the
+    :class:`~personalscraper.models.StepReport` summary persisted into
+    ``steps_json`` so the interpreted last-run report survives past the live
+    WS event stream. They are all optional and default to ``None`` for legacy
+    ``steps_json`` entries written before Phase 2.2 (fail-soft parsing).
+
     Attributes:
         name: Human-readable step name (e.g. ``"ingest"``, ``"sort"``).
         status: Step status (``"done"``, ``"running"``, ``"error"``, etc.).
@@ -156,6 +162,15 @@ class StepTiming(BaseModel):
         ended_at: ISO 8601 UTC timestamp of step end, or ``None``.
         elapsed_s: Step duration in seconds, or ``None`` if either timestamp
             is missing.
+        success_count: StepReport ``success_count``, or ``None`` for a legacy
+            entry that predates the persisted summary.
+        skip_count: StepReport ``skip_count``, or ``None`` for a legacy entry.
+        error_count: StepReport ``error_count``, or ``None`` for a legacy entry.
+        unmatched_count: Number of folders the scraper could not confidently
+            match (length of StepReport ``unmatched_paths``), or ``None`` for a
+            legacy entry.
+        counts: StepReport ``counts`` sub-category dict, or ``None`` when the
+            step tracks no sub-categories / for a legacy entry.
     """
 
     name: str
@@ -163,6 +178,11 @@ class StepTiming(BaseModel):
     started_at: str | None = None
     ended_at: str | None = None
     elapsed_s: float | None = None
+    success_count: int | None = None
+    skip_count: int | None = None
+    error_count: int | None = None
+    unmatched_count: int | None = None
+    counts: dict[str, int] | None = None
 
 
 class RunDetail(BaseModel):

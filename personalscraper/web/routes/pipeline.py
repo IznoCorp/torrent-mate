@@ -376,6 +376,54 @@ _SORT_COLUMN_MAP: dict[str, str] = {
 }
 
 
+def _opt_int(value: object) -> int | None:
+    """Coerce a ``steps_json`` summary field to ``int`` or ``None`` (fail-soft).
+
+    Legacy entries (pre-webui-ux Phase 2.2) lack the count fields, so ``None``
+    passes through untouched. A malformed non-numeric value is treated as
+    absent rather than raising — a corrupt summary must never 500 the detail
+    read.
+
+    Args:
+        value: The raw value pulled from a ``steps_json`` entry (may be ``None``).
+
+    Returns:
+        The value as an ``int``, or ``None`` when absent/uncoercible.
+    """
+    if isinstance(value, bool):
+        # bool is an int subclass; a JSON true/false is not a valid count.
+        return None
+    if isinstance(value, (int, float, str)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _opt_counts(value: object) -> dict[str, int] | None:
+    """Coerce a ``steps_json`` ``counts`` field to ``dict[str, int]`` or ``None``.
+
+    Only a JSON object with integer-coercible values survives; anything else
+    (absent, wrong type, uncoercible members) yields ``None`` so a legacy or
+    malformed entry never breaks the typed response.
+
+    Args:
+        value: The raw ``counts`` value from a ``steps_json`` entry.
+
+    Returns:
+        A ``dict[str, int]`` of the sub-category counters, or ``None``.
+    """
+    if not isinstance(value, dict):
+        return None
+    coerced: dict[str, int] = {}
+    for key, raw in value.items():
+        as_int = _opt_int(raw)
+        if as_int is not None:
+            coerced[str(key)] = as_int
+    return coerced or None
+
+
 def _row_to_run_summary(row: sqlite3.Row) -> RunSummary:
     """Map a ``pipeline_run`` row to a :class:`RunSummary`.
 
@@ -559,6 +607,10 @@ def pipeline_history_detail(
                     if s_start is not None and s_end is not None:
                         step_elapsed = float(s_end) - float(s_start)
 
+                    # webui-ux Phase 2.2: the StepReport summary counts are
+                    # optional in steps_json — a legacy entry (pre-Phase-2.2)
+                    # simply lacks them, so ``_opt_int`` / ``_opt_counts``
+                    # yield ``None`` and the model defaults hold (fail-soft).
                     steps.append(
                         StepTiming(
                             name=str(s.get("name", "")),
@@ -566,6 +618,11 @@ def pipeline_history_detail(
                             started_at=step_started_at,
                             ended_at=step_ended_at,
                             elapsed_s=step_elapsed,
+                            success_count=_opt_int(s.get("success_count")),
+                            skip_count=_opt_int(s.get("skip_count")),
+                            error_count=_opt_int(s.get("error_count")),
+                            unmatched_count=_opt_int(s.get("unmatched_count")),
+                            counts=_opt_counts(s.get("counts")),
                         )
                     )
         except (json.JSONDecodeError, TypeError, ValueError):

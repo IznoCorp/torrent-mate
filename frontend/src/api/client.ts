@@ -462,6 +462,14 @@ export type ActionsResponse = SuccessBody<
   paths["/api/maintenance/actions"]["get"]["responses"]
 >;
 
+/** Response type for ``GET /api/maintenance/schedulers``. */
+export type SchedulersResponse = SuccessBody<
+  paths["/api/maintenance/schedulers"]["get"]["responses"]
+>;
+
+/** A single scheduled-agent entry (watcher or cron) from the overview. */
+export type SchedulerItem = components["schemas"]["SchedulerItem"];
+
 /** A single maintenance action entry from the registry. */
 export type MaintenanceAction = components["schemas"]["MaintenanceAction"];
 
@@ -489,6 +497,11 @@ export function getIndexHealth(): Promise<IndexHealthResponse> {
 /** Fetch the static maintenance action registry: GET /api/maintenance/actions. */
 export function getActions(): Promise<ActionsResponse> {
   return apiFetch("/api/maintenance/actions", { method: "get" });
+}
+
+/** Fetch the scheduler overview (watcher + crons): GET /api/maintenance/schedulers. */
+export function getSchedulers(): Promise<SchedulersResponse> {
+  return apiFetch("/api/maintenance/schedulers", { method: "get" });
 }
 
 /**
