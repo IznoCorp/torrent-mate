@@ -16,7 +16,7 @@
 | #   | Phase                                | File                      | Status |
 | --- | ------------------------------------ | ------------------------- | ------ |
 | 1   | Quick presentation fixes             | phase-01-quick-fixes.md   | [x]    |
-| 2   | Pipeline page UX                     | phase-02-pipeline-ux.md   | [ ]    |
+| 2   | Pipeline page UX                     | phase-02-pipeline-ux.md   | [x]    |
 | 3   | Config SchemaForm redesign           | phase-03-config-form.md   | [ ]    |
 | 4   | Scraping refonte + parallel scraping | phase-04-scraping.md      | [ ]    |
 | 5   | Dashboard reorg + scheduler overview | phase-05-dashboard.md     | [ ]    |
@@ -29,4 +29,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 2.
+Run `/implement:phase` to execute phase 3.
