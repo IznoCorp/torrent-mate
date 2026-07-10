@@ -1135,3 +1135,95 @@ documents the additive change).
 | `401` | No session cookie or expired JWT   | Redirect to /login (guarded route perimeter).       |
 | `500` | Server-side exception (should not) | Toast « Erreur serveur », stale data stays visible. |
 | —     | Empty `providers: []` (fail-soft)  | Empty state: « Aucun fournisseur configuré ».       |
+
+## Acquisition (§S7 — acq-watch)
+
+The `/acquisition` page exposes the acquisition subsystem: followed series CRUD,
+the wanted queue, seed obligations + ratio state, and watcher control.
+
+### Data source
+
+Reads and writes go **directly** to the shared WAL `acquire.db` via the
+`ConcreteAcquireStore`. Each GET handler opens a fresh read-only connection
+per request (lock-free reads, no shared connection across FastAPI threads).
+Each mutating route calls `build_acquire_store` for a fresh store instance
+with its own `BEGIN IMMEDIATE`-guarded write connection — safe against
+concurrent writers (web + pipeline + watcher). This is NOT an event projection
+(unlike S6 registry — acquisition state is persisted).
+
+Live updates come from the existing acquisition event stream via WebSocket
+(the R13 new-events-only ref pattern): the frontend subscribes to
+`SeriesFollowed`/`Unfollowed`, `WantedEnqueued`/`Abandoned`, `GrabSucceeded`/
+`Failed`, `SeedObligation*`, `RatioMeasured`, and `WatcherRunTriggered` events
+and invalidates matching TanStack Query caches without a page reload.
+
+### API surface
+
+| Method | Path                             | Auth    | Staging | XRW |
+| ------ | -------------------------------- | ------- | ------- | --- |
+| GET    | `/api/acquisition/followed`      | session | allowed | no  |
+| GET    | `/api/acquisition/wanted`        | session | allowed | no  |
+| GET    | `/api/acquisition/obligations`   | session | allowed | no  |
+| GET    | `/api/acquisition/status`        | session | allowed | no  |
+| POST   | `/api/acquisition/followed`      | session | 403     | yes |
+| PATCH  | `/api/acquisition/followed/{id}` | session | 403     | yes |
+| DELETE | `/api/acquisition/followed/{id}` | session | 403     | yes |
+
+All routes are mounted under the single `guarded_api` router (auth perimeter
+§6). The four GET routes are staging-allowed (no `require_not_staging`). The
+three mutating routes carry `require_not_staging` (staging → 403) and
+`require_x_requested_with` (missing XRW → 400) as per-route dependencies.
+
+The watcher toggle reuses `POST /api/pipeline/watcher` (S2) — S7 does NOT
+add a new watcher route. The `/status` endpoint reads the `watcher.paused`
+sentinel to derive `watcher_enabled`, queries `watch_state` KV from acquire.db
+for `last_successful_run_at`, and fetches the last 10 watcher-triggered
+`pipeline_run` rows from `library.db` for `recent_runs`.
+
+### FollowedSeriesItem response shape
+
+```json
+{
+  "id": 1,
+  "title": "Breaking Bad",
+  "media_ref": { "tvdb_id": 81189, "tmdb_id": 1396, "imdb_id": null },
+  "active": true,
+  "cadence": { "interval_minutes": 120 },
+  "added_at": 1719792000.0,
+  "wanted_pending": 3,
+  "quality_profile": null
+}
+```
+
+All timestamps are Unix-epoch floats (consistency with `pipeline_run` convention).
+`quality_profile` is read-only (RP3a deferred — backend does not consume it yet;
+editing it would front-run an unshipped capability).
+
+### Override rules
+
+- **Cadence** (`cadence_json`): editable per-series via
+  `PATCH /api/acquisition/followed/{id}`. The body `{"cadence": {"interval_minutes": N}}`
+  is validated against `CadenceShape` before writing. Consumed by
+  `acquire/desired.py effective_cadence` at detect time.
+- **Quality profile** (`quality_profile_json`): surfaced **read-only**.
+  Editing is deferred to RP3a (backend does not consume it yet). The PATCH
+  route's `UpdateFollowRequest` intentionally omits a `quality_profile` field
+  — Pydantic ignores any unknown field sent in the body.
+
+### Frontend
+
+Typed client + TanStack hooks: `frontend/src/api/acquisition.ts`,
+`frontend/src/hooks/useAcquisition.ts`. Page: `AcquisitionPage.tsx` — four
+tabbed panels (Followed, Wanted, Obligations, Watcher). Live invalidation
+via `useEventStreamContext` with the R13 new-events-only ref pattern.
+
+### Error handling (frontend)
+
+| Code  | Condition                            | UI treatment                                          |
+| ----- | ------------------------------------ | ----------------------------------------------------- |
+| `401` | No session cookie or expired JWT     | Redirect to /login (guarded route perimeter).         |
+| `403` | Staging environment (write attempt)  | Write buttons disabled; staging banner already shown. |
+| `404` | Unknown followed_id on PATCH/DELETE  | Toast « Série introuvable ».                          |
+| `409` | Duplicate follow (already active)    | Toast « Cette série est déjà suivie ».                |
+| `422` | No provider ID (Pydantic validation) | Inline form error on the add-follow dialog.           |
+| —     | Empty `items: []` (fail-soft)        | Empty state per tab (e.g. « Aucune série suivie »).   |
