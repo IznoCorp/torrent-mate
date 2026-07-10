@@ -1021,6 +1021,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/registry/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registry Status
+         * @description Return the last-known health state for every provider.
+         *
+         *     Reads the in-memory :class:`RegistryHealthProjection` (fed by the
+         *     Redis event stream relay + boot warm-up replay) and merges it with
+         *     the configured provider roster so that a provider with no event history
+         *     still renders with an optimistic baseline (``circuit_state="closed"``,
+         *     zero ``failure_count_recent``, all timestamps ``None``, ``live=False``).
+         *
+         *     Fail-soft: any error reading the projection or config returns an empty
+         *     provider list rather than a 500.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`RegistryStatusResponse` with one item per configured or
+         *         observed provider, sorted by ``provider_name``.
+         */
+        get: operations["registry_status_api_registry_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/version": {
         parameters: {
             query?: never;
@@ -1781,6 +1817,49 @@ export interface components {
          */
         PipelineState: "idle" | "running" | "paused";
         /**
+         * ProviderStatusItem
+         * @description Health snapshot for a single provider.
+         *
+         *     Returned as part of the :class:`RegistryStatusResponse` list.  Fields that
+         *     have never been observed (no event stream history) are ``None`` and
+         *     ``live`` is ``False``.
+         *
+         *     Attributes:
+         *         provider_name: The provider identifier (e.g. ``"tmdb"``, ``"tvdb"``).
+         *         circuit_state: Last-known circuit-breaker state —
+         *             ``"closed"``, ``"open"``, or ``"half_open"``.
+         *         failure_count_recent: Consecutive failures that triggered the
+         *             current circuit state.  Zero when the circuit is closed.
+         *         last_success_at: Epoch seconds of the last successful call, or
+         *             ``None`` when no success has been observed.
+         *         last_failure_at: Epoch seconds of the last failed call, or
+         *             ``None`` when no failure has been observed.
+         *         last_latency_ms: Wall-clock latency in milliseconds of the last
+         *             call, or ``None`` when no call has been observed.
+         *         live: ``True`` when the projection has observed at least one event
+         *             for this provider (so the state reflects real history rather
+         *             than an optimistic baseline).
+         */
+        ProviderStatusItem: {
+            /**
+             * Circuit State
+             * @enum {string}
+             */
+            circuit_state: "closed" | "open" | "half_open";
+            /** Failure Count Recent */
+            failure_count_recent: number;
+            /** Last Failure At */
+            last_failure_at?: number | null;
+            /** Last Latency Ms */
+            last_latency_ms?: number | null;
+            /** Last Success At */
+            last_success_at?: number | null;
+            /** Live */
+            live: boolean;
+            /** Provider Name */
+            provider_name: string;
+        };
+        /**
          * PutFileRequest
          * @description Request body for ``PUT /api/config/files/{name}``.
          *
@@ -1811,6 +1890,18 @@ export interface components {
             restart_required: boolean;
             /** Warnings */
             warnings: string[];
+        };
+        /**
+         * RegistryStatusResponse
+         * @description Response for ``GET /api/registry/status``.
+         *
+         *     Attributes:
+         *         providers: One :class:`ProviderStatusItem` per configured or
+         *             observed provider, sorted by name for stable output.
+         */
+        RegistryStatusResponse: {
+            /** Providers */
+            providers: components["schemas"]["ProviderStatusItem"][];
         };
         /**
          * ResolveRequest
@@ -3075,6 +3166,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registry_status_api_registry_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistryStatusResponse"];
                 };
             };
         };

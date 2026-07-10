@@ -1017,6 +1017,73 @@
         "title": "PipelineState",
         "type": "string"
       },
+      "ProviderStatusItem": {
+        "description": "Health snapshot for a single provider.\n\nReturned as part of the :class:`RegistryStatusResponse` list.  Fields that\nhave never been observed (no event stream history) are ``None`` and\n``live`` is ``False``.\n\nAttributes:\n    provider_name: The provider identifier (e.g. ``\"tmdb\"``, ``\"tvdb\"``).\n    circuit_state: Last-known circuit-breaker state \u2014\n        ``\"closed\"``, ``\"open\"``, or ``\"half_open\"``.\n    failure_count_recent: Consecutive failures that triggered the\n        current circuit state.  Zero when the circuit is closed.\n    last_success_at: Epoch seconds of the last successful call, or\n        ``None`` when no success has been observed.\n    last_failure_at: Epoch seconds of the last failed call, or\n        ``None`` when no failure has been observed.\n    last_latency_ms: Wall-clock latency in milliseconds of the last\n        call, or ``None`` when no call has been observed.\n    live: ``True`` when the projection has observed at least one event\n        for this provider (so the state reflects real history rather\n        than an optimistic baseline).",
+        "properties": {
+          "circuit_state": {
+            "enum": [
+              "closed",
+              "open",
+              "half_open"
+            ],
+            "title": "Circuit State",
+            "type": "string"
+          },
+          "failure_count_recent": {
+            "title": "Failure Count Recent",
+            "type": "integer"
+          },
+          "last_failure_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failure At"
+          },
+          "last_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Latency Ms"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "live": {
+            "title": "Live",
+            "type": "boolean"
+          },
+          "provider_name": {
+            "title": "Provider Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_name",
+          "circuit_state",
+          "failure_count_recent",
+          "live"
+        ],
+        "title": "ProviderStatusItem",
+        "type": "object"
+      },
       "PutFileRequest": {
         "additionalProperties": false,
         "description": "Request body for ``PUT /api/config/files/{name}``.\n\nAttributes:\n    values: Key-value pairs to write into the config file.\n    base_sha256: Expected SHA-256 digest of the file before the write\n        (used for optimistic concurrency control \u2014 412 if mismatched).",
@@ -1059,6 +1126,23 @@
           "restart_required"
         ],
         "title": "PutFileResponse",
+        "type": "object"
+      },
+      "RegistryStatusResponse": {
+        "description": "Response for ``GET /api/registry/status``.\n\nAttributes:\n    providers: One :class:`ProviderStatusItem` per configured or\n        observed provider, sorted by name for stable output.",
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderStatusItem"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "title": "RegistryStatusResponse",
         "type": "object"
       },
       "ResolveRequest": {
@@ -2820,6 +2904,28 @@
         "summary": "Pipeline Watcher",
         "tags": [
           "pipeline"
+        ]
+      }
+    },
+    "/api/registry/status": {
+      "get": {
+        "description": "Return the last-known health state for every provider.\n\nReads the in-memory :class:`RegistryHealthProjection` (fed by the\nRedis event stream relay + boot warm-up replay) and merges it with\nthe configured provider roster so that a provider with no event history\nstill renders with an optimistic baseline (``circuit_state=\"closed\"``,\nzero ``failure_count_recent``, all timestamps ``None``, ``live=False``).\n\nFail-soft: any error reading the projection or config returns an empty\nprovider list rather than a 500.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`RegistryStatusResponse` with one item per configured or\n    observed provider, sorted by ``provider_name``.",
+        "operationId": "registry_status_api_registry_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistryStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Registry Status",
+        "tags": [
+          "registry"
         ]
       }
     },
