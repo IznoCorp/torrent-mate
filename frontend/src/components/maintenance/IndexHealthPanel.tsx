@@ -243,17 +243,19 @@ export function IndexHealthPanel(): ReactElement {
 
         {!isLoading && !isError && data != null && (
           <>
-            {/* Headline stats row */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Headline stats row — stack on narrow, two-up from sm. The long
+                descriptor goes in the wrapping `secondary` slot, never inline
+                with the headline figure (fixes the desktop overlap). */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <StatPanel
                 label="Items"
                 value={data.items}
-                unit={`${String(data.movies)} films / ${String(data.shows)} séries`}
+                secondary={`${String(data.movies)} films / ${String(data.shows)} séries`}
               />
               <StatPanel
                 label="Fichiers"
                 value={data.files}
-                unit={formatGb(data.size_gb)}
+                secondary={formatGb(data.size_gb)}
               />
             </div>
 

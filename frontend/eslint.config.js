@@ -185,9 +185,9 @@ export default tseslint.config(
         // <StatPanel>
         {
           selector:
-            "JSXOpeningElement[name.name='StatPanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|value|unit|delta|deltaDir|className|key|ref|className|style|children)$/]",
+            "JSXOpeningElement[name.name='StatPanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|value|unit|secondary|delta|deltaDir|className|key|ref|className|style|children)$/]",
           message:
-            "<StatPanel> doesn't accept that prop. Declared props: label, icon, value, unit, delta, deltaDir, className.",
+            "<StatPanel> doesn't accept that prop. Declared props: label, icon, value, unit, secondary, delta, deltaDir, className.",
         },
         {
           selector:
