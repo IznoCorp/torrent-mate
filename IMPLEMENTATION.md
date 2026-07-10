@@ -20,9 +20,9 @@
 | #   | Phase                                                                               | File                          | Status |
 | --- | ----------------------------------------------------------------------------------- | ----------------------------- | ------ |
 | 1   | Migration 013 + DecisionWriter + confidence.py candidate surfacing + enqueue wiring | phase-01-migration-enqueue.md | [x]    |
-| 2   | scrape-resolve CLI + web runner + journal wiring                                    | phase-02-cli-runner.md        | [ ]    |
-| 3   | REST routes + models + OpenAPI regen                                                | phase-03-rest-routes.md       | [ ]    |
-| 4   | Frontend /decisions page + badge + typed client                                     | phase-04-frontend.md          | [ ]    |
+| 2   | scrape-resolve CLI + web runner + journal wiring                                    | phase-02-cli-runner.md        | [x]    |
+| 3   | REST routes + models + OpenAPI regen                                                | phase-03-rest-routes.md       | [x]    |
+| 4   | Frontend /decisions page + badge + typed client                                     | phase-04-frontend.md          | [x]    |
 | 5   | Integration gates + ACC + docs                                                      | phase-05-integration.md       | [x]    |
 
 ## Review cycles
@@ -31,4 +31,6 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-All phases complete — run /implement:feature-pr (push + PR + CI). Merge: MANUAL.
+All phases complete + coherence-study fix batches A–E shipped (CI green on PR #244).
+Ready to squash-merge #244, then deploy prod+staging and re-exercise ACC-00..07 live.
+Merge: MANUAL (operator-authorised).
