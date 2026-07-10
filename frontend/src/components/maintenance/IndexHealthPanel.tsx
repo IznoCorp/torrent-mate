@@ -243,10 +243,12 @@ export function IndexHealthPanel(): ReactElement {
 
         {!isLoading && !isError && data != null && (
           <>
-            {/* Headline stats row — stack on narrow, two-up from sm. The long
-                descriptor goes in the wrapping `secondary` slot, never inline
-                with the headline figure (fixes the desktop overlap). */}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {/* Headline stats — stacked. The index-health card is a narrow
+                grid track (~200px), too tight for a 5-digit figure in a 2-col
+                split (the value clipped: "97605" → "9760…"). Stacking gives each
+                stat the full card width; the descriptor stays on its own
+                wrapping `secondary` line below the figure. */}
+            <div className="grid grid-cols-1 gap-2">
               <StatPanel
                 label="Items"
                 value={data.items}
