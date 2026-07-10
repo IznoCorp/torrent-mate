@@ -108,12 +108,9 @@ describe("AppShell mobile nav Sheet", () => {
     expect(within(sheetNav).getByText("Supervision")).toBeInTheDocument();
     expect(within(sheetNav).getByText("Configuration")).toBeInTheDocument();
 
-    // The disabled stub is a non-interactive row carrying its wave chip.
-    const registre = within(sheetNav)
-      .getByText("Registre")
-      .closest("[aria-disabled]");
-    expect(registre).toHaveAttribute("aria-disabled", "true");
-    expect(within(registre as HTMLElement).getByText("S6")).toBeInTheDocument();
+    // Registre is now an active link (S6 shipped).
+    const registre = within(sheetNav).getByRole("link", { name: "Registre" });
+    expect(registre).toHaveAttribute("href", "/registry");
   });
 
   it("ferme le tiroir lorsqu'une destination est choisie", async () => {

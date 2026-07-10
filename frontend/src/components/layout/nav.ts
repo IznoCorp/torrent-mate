@@ -78,7 +78,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     title: "Configuration",
     items: [
-      { to: "/registry", label: "Registre", icon: Plug, disabled: true, wave: "S6" },
+      { to: "/registry", label: "Registre", icon: Plug },
       { to: "/config", label: "Config", icon: Settings },
     ],
   },
