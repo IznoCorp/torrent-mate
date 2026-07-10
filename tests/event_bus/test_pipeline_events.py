@@ -127,14 +127,17 @@ def test_event_registry_has_all_v1_events() -> None:
     ``watch-seed`` Phase 7 adds ``WatcherRunTriggered`` (→ 37). The
     ``pipe-control`` S2 Phase 1 adds ``PipelinePaused`` and
     ``PipelineResumed`` for the cooperative step-boundary pause (→ 39).
+    The ``reg-health`` S6 Phase 2 adds ``ProviderCallCompleted`` — a
+    throttled per-provider latency event that bridges into the web
+    process's health projection (→ 40).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 39, (
-        f"Expected 39 events (37 existing + 2 pipe-control PipelinePaused/PipelineResumed), "
+    assert len(_EVENT_CLASS_REGISTRY) == 40, (
+        f"Expected 40 events (39 existing + 1 reg-health ProviderCallCompleted), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

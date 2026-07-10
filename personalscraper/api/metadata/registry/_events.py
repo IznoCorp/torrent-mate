@@ -104,3 +104,26 @@ class RegistryBootValidated(Event):
 
     providers: tuple[str, ...]
     capabilities: dict[str, tuple[str, ...]]
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProviderCallCompleted(Event):
+    """Emitted after every HTTP call to a provider completes (throttled).
+
+    Published by the transport layer so the web process's
+    :class:`RegistryHealthProjection` can track per-provider latency and
+    recency without a shared-memory registry.  Emission is throttled to once
+    per ~10 s per transport instance to avoid flooding the Redis stream.
+
+    Attributes:
+        provider: Provider name (e.g. ``"tmdb"``, ``"tvdb"``) — matches
+            ``CircuitBreakerOpened.breaker`` for cross-event correlation.
+        latency_ms: Wall-clock duration of the HTTP call in milliseconds
+            (``time.monotonic()`` delta).
+        ok: ``True`` when the call returned 2xx; ``False`` on any failure
+            path (ApiError / requests exceptions).
+    """
+
+    provider: str
+    latency_ms: float
+    ok: bool

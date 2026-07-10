@@ -595,3 +595,63 @@ class TestWsDegraded:
                     headers={"cookie": f"tm_session={token}"},
                 ) as ws:
                     assert ws.receive_json()["type"] == "ws.hello"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Relay → projection wiring (S6 reg-health §2.1)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def test_read_stream_loop_updates_projection() -> None:
+    """A ``CircuitBreakerOpened`` broadcast updates the projection to ``open``.
+
+    Verifies the relay→projection wiring: when ``read_stream_loop`` parses an
+    event and the optional *projection* parameter is provided, the projection
+    reducer is called with the event type and data.
+    """
+
+    async def _run() -> None:
+        from personalscraper.web.registry_projection import RegistryHealthProjection
+
+        redis = fakeredis.FakeAsyncRedis(decode_responses=True)
+        registry = ConnectionRegistry()
+        ws = _MockWebSocket()
+        registry.add(ws)
+        projection = RegistryHealthProjection()
+
+        task = asyncio.create_task(
+            read_stream_loop(redis, registry, STREAM_KEY, projection=projection),
+        )
+        await asyncio.sleep(0.3)  # let the loop reach its blocking XREAD at the tail
+
+        # XADD a CircuitBreakerOpened event (mimics what the pipeline process emits).
+        envelope = json.dumps(
+            {
+                "_type": "CircuitBreakerOpened",
+                "data": {
+                    "breaker": "tmdb",
+                    "failure_count": 5,
+                    "last_error_class": "ApiError",
+                    "last_error_message": "500 Internal Server Error",
+                },
+            }
+        )
+        await redis.xadd(STREAM_KEY, {"envelope": envelope, "type": "CircuitBreakerOpened"})
+
+        # Wait for the message to flow through the loop.
+        assert await _await_until(lambda: len(ws.messages) >= 1)
+        # Give the projection.apply a tiny window to complete (it is synchronous
+        # and runs before broadcast, so this is defensive).
+        await asyncio.sleep(0.05)
+
+        snap = projection.snapshot()
+        assert "tmdb" in snap
+        assert snap["tmdb"]["circuit_state"] == "open"
+        assert snap["tmdb"]["failure_count_recent"] == 5
+        assert snap["tmdb"]["last_failure_at"] is not None
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(_run())

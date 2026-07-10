@@ -142,6 +142,7 @@ class CircuitBreaker:
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._opened_at: float = 0.0
+        self._last_latency_ms: float | None = None
         self._event_bus = event_bus
         # Guards state mutations + transition emits. Required because the
         # indexer scanner exercises shared breakers from a ThreadPoolExecutor

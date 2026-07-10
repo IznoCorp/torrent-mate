@@ -1,29 +1,25 @@
-# Implementation Progress — scrape-arbiter
+# Implementation Progress — reg-health
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: S5 — Web UI interactive scraping: decision queue + targeted resolve
+**Feature**: S6 Web UI — Registry + Health
 **Type**: feat
-**Version bump**: 0.44.0 → 0.45.0 (minor)
-**Branch**: feat/scrape-arbiter
+**Version bump**: 0.45.1 → 0.46.0 (minor)
+**Branch**: feat/reg-health
 **PR merge**: manual
-**PR**: https://github.com/IznoCorp/torrent-mate/pull/244
-**Design**: docs/features/scrape-arbiter/DESIGN.md
-**Master plan**: docs/features/scrape-arbiter/plan/INDEX.md
-
-> Note: the `VERSION` file lagged at 0.43.1 while `personalscraper.__version__`
-> (the pyproject dynamic-attr source of truth) was 0.44.0; both are reconciled
-> to 0.45.0 in this feature's initial commit.
+**PR**: _(created after last phase)_
+**Design**: docs/features/reg-health/DESIGN.md
+**Master plan**: docs/features/reg-health/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                                                               | File                          | Status |
-| --- | ----------------------------------------------------------------------------------- | ----------------------------- | ------ |
-| 1   | Migration 013 + DecisionWriter + confidence.py candidate surfacing + enqueue wiring | phase-01-migration-enqueue.md | [x]    |
-| 2   | scrape-resolve CLI + web runner + journal wiring                                    | phase-02-cli-runner.md        | [x]    |
-| 3   | REST routes + models + OpenAPI regen                                                | phase-03-rest-routes.md       | [x]    |
-| 4   | Frontend /decisions page + badge + typed client                                     | phase-04-frontend.md          | [x]    |
-| 5   | Integration gates + ACC + docs                                                      | phase-05-integration.md       | [x]    |
+| #   | Phase                                | File                        | Status |
+| --- | ------------------------------------ | --------------------------- | ------ |
+| 1   | S6.0 contract freeze + latency field | phase-01-freeze-latency.md  | [x]    |
+| 2   | REST read route                      | phase-02-rest-route.md      | [x]    |
+| 3   | Frontend typed client + hook         | phase-03-frontend-client.md | [x]    |
+| 4   | Frontend page + nav                  | phase-04-frontend-page.md   | [x]    |
+| 5   | Integration + ACC + docs             | phase-05-integration-acc.md | [x]    |
 
 ## Review cycles
 
@@ -31,6 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-All phases complete + coherence-study fix batches A–E shipped (CI green on PR #244).
-Ready to squash-merge #244, then deploy prod+staging and re-exercise ACC-00..07 live.
-Merge: MANUAL (operator-authorised).
+All phases complete — run /implement:feature-pr (push + PR + CI).

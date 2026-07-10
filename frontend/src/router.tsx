@@ -29,6 +29,7 @@ import Maintenance from "@/pages/Maintenance";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
+import RegistryPage from "@/pages/RegistryPage";
 
 /** The full route table (shared by the browser router and memory-router tests). */
 export const routes: RouteObject[] = [
@@ -61,7 +62,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "registry",
-                element: <ComingSoon title="Registre" wave="S6" />,
+                element: <RegistryPage />,
               },
               {
                 path: "acquisition",
