@@ -58,35 +58,60 @@ last_success_at, last_failure_at, last_latency_ms}` (see §3.2) — asserted via
 This is a _guard_, not runtime code: it makes "additive-only" a checkable invariant the way
 the other web invariants are (staging-guard, typed-route, epoch-timestamp tests).
 
-### 3.2 Latency (additive field)
+### 3.1b CROSS-PROCESS REALITY (architecture correction, 2026-07-10)
 
-`ProviderStatus` gains `last_latency_ms: float | None` (additive — safe under the freeze).
-Source: instrument the registry attempt boundary (where `AttemptOutcome` is already produced
-on each provider call) to record the last call's wall-clock ms on the provider's circuit/
-status. Measured with `time.monotonic()` deltas around the provider call; `None` until the
-first call. No new event needed — the value surfaces via `status()` + the REST snapshot;
-the panel updates it on each `RegistryFanOutCompleted`/circuit event by re-querying, or shows
-the REST snapshot value.
+**The web process is separate from the pipeline process.** Circuit breakers live in-memory in
+the _pipeline_ process's `ProviderRegistry`; the web process has **no live registry** (the
+decisions route builds a throwaway `per_step_boundary` context per request — fresh circuits,
+all `CLOSED`). Therefore a web-side `registry.status()` read does **not** reflect real health,
+and `last_latency_ms` set on a pipeline-process circuit is **unreachable** from the web.
 
-### 3.3 REST — `GET /api/registry/status`
+**The only cross-process channel is the event stream** (pipeline EventBus → Redis stream →
+`web/ws/relay.py` → WS). So S6 is **event-driven**: live health reaches the browser only through
+events, and the REST endpoint is a lightweight **roster + optimistic baseline**, not a live read.
 
-- Mounts inside `guarded_api` (session guard; **no** `X-Requested-With`, it's a read).
-- Pydantic `response_model` (so OpenAPI → `schema.d.ts`): `RegistryStatusResponse` with
-  `providers: list[ProviderStatusItem]`, each item = the ProviderStatus fields with
-  `circuit_state: Literal["closed","open","half_open"]`, timestamps as Unix-epoch floats
-  (consistency with pipeline_run epoch convention) or ISO-8601 — **epoch floats** to match
-  the rest of the web surface, `last_latency_ms: float | None`.
-- Read-only, fast, fail-soft: a provider whose `.circuit` read raises is reported with a
-  degraded marker rather than 500-ing the whole list.
-- `require_not_staging` is **not** applied (read is allowed on staging).
+### 3.2 Latency (additive field + latency event)
 
-### 3.4 WebSocket — consume existing events (no backend change)
+`ProviderStatus` gains `last_latency_ms: float | None` (additive — safe under the freeze;
+still useful **in-process** for CLI `info providers`). The transport records it on the circuit
+with a `time.monotonic()` delta (done in Phase 1). **To cross into the web**, the transport
+also emits a lightweight `ProviderCallCompleted{provider, latency_ms, ok}` event (auto-published
+to the stream like every other event); the frontend projects the latest latency per provider
+from it. `None` until the first call.
 
-The panel subscribes via `useEventStreamContext()` and filters the event ring for the
-health/registry event types (§2). Circuit transitions flip a provider's badge live; fan-out/
-exhausted events annotate the chain view. Initial state comes from the REST snapshot (TanStack
-Query); WS events are the live delta. This mirrors how S2 pipeline + S5 decisions combine a
-REST snapshot with the WS stream.
+### 3.3 REST — `GET /api/registry/status` (roster + optimistic baseline)
+
+- Mounts inside `guarded_api` (session guard; **no** `X-Requested-With`, it's a read; **no**
+  `require_not_staging` — read allowed on staging 8711).
+- Reads the **server-side health projection** (§3.4) — the true last-known per-provider state
+  derived from the event history — merged with the **configured provider roster** so a provider
+  with no event yet still renders (optimistic baseline `circuit_state="closed"`, counts 0,
+  timestamps `null`, `last_latency_ms` `null`, `live=false`). A provider the projection has
+  observed carries its real state + `live=true`.
+- Pydantic `response_model` (OpenAPI → `schema.d.ts`): `RegistryStatusResponse{providers:
+list[ProviderStatusItem]}`; item = `provider_name`, `circuit_state:
+Literal["closed","open","half_open"]`, `failure_count_recent`, `last_success_at: float|None`
+  (epoch), `last_failure_at: float|None`, `last_latency_ms: float|None`, `live: bool`.
+- Fail-soft: never 500 — an empty projection + empty roster yields `{providers: []}`.
+
+### 3.4 Server-side health projection (the cross-process bridge)
+
+A small in-memory `RegistryHealthProjection` (in the web process) holds `{provider →
+{circuit_state, failure_count_recent, last_success_at, last_failure_at, last_latency_ms}}` and
+an `apply(event_type, data)` reducer:
+
+- `CircuitBreakerOpened` → state `open`, set `failure_count_recent`, `last_failure_at`.
+- `CircuitBreakerClosed` → state `closed`. `CircuitBreakerHalfOpened` → state `half_open`.
+- `ProviderCallCompleted{provider, latency_ms, ok}` → set `last_latency_ms`; `ok` refreshes
+  `last_success_at`, else `last_failure_at`.
+
+It is fed from **two sources that share the reducer**: (1) `read_stream_loop` calls
+`projection.apply(...)` on every relevant event as it relays it live; (2) on web **boot**, the
+lifespan **warms** the projection by `XRANGE`-replaying the Redis stream tail through the same
+reducer (so the very first REST hit reflects history, not a cold cache). Stored on
+`app.state.registry_projection`. The REST route reads it; the frontend ALSO patches its own view
+from the same live WS events (so the panel updates without re-polling). This is the honest
+cross-process bridge — no shared DB, reuses the existing event stream + relay.
 
 ### 3.5 Frontend — `/registry` page
 

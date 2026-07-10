@@ -1,331 +1,145 @@
-# Phase 2 — REST read route
+# Phase 2 — Cross-process health projection + REST read route
+
+> **Architecture correction (2026-07-10).** The web process is separate from the pipeline
+> process; a web-side `registry.status()` is a fresh, meaningless registry. Live health crosses
+> processes ONLY via the event stream. So this phase builds a **server-side projection** fed by
+> the event stream (live + a boot warm-up replay) and a REST route that reads it. See DESIGN
+> §3.1b/§3.2/§3.3/§3.4.
+
+Two sub-phases (each ≤6 files, cohesive).
 
 ## Gate
 
 ```bash
-make check              # lint + test + module-size + typed-api guardrails (zero errors)
+make check              # lint + test + module-size + guardrails (zero errors)
 make openapi            # regenerate frontend/openapi.json + frontend/src/api/schema.d.ts
-git diff --stat frontend/src/api/schema.d.ts frontend/openapi.json
-# If changed: commit the regen. CI will flag drift otherwise (project_openapi_drift_ci_guard).
+git diff --stat frontend/src/api/schema.d.ts frontend/openapi.json   # commit if changed
+pytest tests/unit/web/test_registry_projection.py tests/web/routes/test_registry_status.py -v
 ```
 
-Additionally, the new route tests must pass:
-
-```bash
-pytest tests/web/routes/test_registry_status.py -v
-```
-
-Expected: all tests pass (auth guard 401, shape, staging-allowed 200, fail-soft
-per-provider, empty registry → 200 with empty list).
-
-## Objectives
-
-1. Create Pydantic response models for the registry status endpoint in
-   `personalscraper/web/models/registry.py`.
-2. Create `personalscraper/web/routes/registry.py` with a single
-   `GET /api/registry/status` route.
-3. Mount the router under `guarded_api` in `personalscraper/web/app.py`.
-4. Run `make openapi` and commit the regenerated files.
-5. Write route tests covering auth guard, response shape, staging allowance,
-   and fail-soft per-provider behavior.
-
-## Files to create
-
-- `personalscraper/web/models/registry.py`
-- `personalscraper/web/routes/registry.py`
-- `tests/web/routes/test_registry_status.py`
-
-## Files to modify
-
-- `personalscraper/web/app.py` (line ~168-182): add `guarded_api.include_router(registry_router)`.
-
-## Design decisions (from DESIGN §3.3)
-
-- Mounts inside `guarded_api` — session guard inherited from the parent router.
-  No `Depends(require_session)` per-route (single auth perimeter rule:
-  `docs/reference/web-ui.md` §6, R14/R24).
-- **No** `require_x_requested_with` — it's a read-only GET.
-- **No** `require_not_staging` — read is allowed on staging (8711 → 200).
-- Pydantic `response_model` on the route so OpenAPI → `schema.d.ts` works.
-- Timestamps as Unix-epoch floats (consistency with `pipeline_run` epoch convention).
-- `last_latency_ms: float | None`.
-- `circuit_state` as `Literal["closed", "open", "half_open"]`.
-- Fail-soft per provider: if a provider's `.circuit` read raises, report it
-  with a degraded marker rather than 500-ing the whole list.
-
-## Pydantic models (`personalscraper/web/models/registry.py`)
-
-```python
-"""Pydantic models for the registry status API (reg-health feature).
-
-See docs/features/reg-health/DESIGN.md §3.3 for the route contracts these
-models serve.
-"""
-
-from __future__ import annotations
-
-from typing import Literal
-
-from pydantic import BaseModel
-
-
-class ProviderStatusItem(BaseModel):
-    """One provider's runtime status, serialized for the web surface.
-
-    Mirrors the frozen ``ProviderStatus`` dataclass from
-    ``personalscraper.api.metadata.registry``, with circuit_state as a
-    closed Literal and timestamps as Unix-epoch floats.
-    """
-
-    provider_name: str
-    circuit_state: Literal["closed", "open", "half_open"]
-    failure_count_recent: int
-    last_success_at: float | None
-    last_failure_at: float | None
-    last_latency_ms: float | None
-    degraded: bool = False
-
-
-class RegistryStatusResponse(BaseModel):
-    """Response body for ``GET /api/registry/status``."""
-
-    providers: list[ProviderStatusItem]
-```
-
-## Route (`personalscraper/web/routes/registry.py`)
-
-```python
-"""Registry status REST route (reg-health feature).
-
-Single read-only endpoint ``GET /api/registry/status`` that returns the
-live state of every configured provider: circuit-breaker status, recent
-failure count, last success/failure timestamps, and last call latency.
-
-Mounted under ``guarded_api`` so session auth is inherited — no per-route
-``Depends(require_session)`` (single auth perimeter rule, R14/R24).
-Read-only — no ``X-Requested-With`` guard; staging-allowed (no
-``require_not_staging``).
-"""
-
-from __future__ import annotations
-
-from datetime import timezone
-
-from fastapi import APIRouter, Request
-
-from personalscraper.api.metadata.registry import ProviderRegistry, ProviderStatus
-from personalscraper.logger import get_logger
-from personalscraper.web.models.registry import ProviderStatusItem, RegistryStatusResponse
-
-router = APIRouter(prefix="/api/registry", tags=["registry"])
-logger = get_logger(__name__)
-
-
-def _dt_to_epoch(dt) -> float | None:
-    """Convert a timezone-aware datetime to Unix-epoch float.
-
-    Args:
-        dt: A ``datetime`` with ``tzinfo`` set, or ``None``.
-
-    Returns:
-        ``time.time()``-compatible epoch seconds, or ``None``.
-    """
-    if dt is None:
-        return None
-    return dt.astimezone(timezone.utc).timestamp()
-
-
-def _status_to_item(name: str, ps: ProviderStatus) -> ProviderStatusItem:
-    """Convert a ``ProviderStatus`` to the web response model.
-
-    Args:
-        name: The provider's registry name (string key).
-        ps: The frozen status snapshot from the registry.
-
-    Returns:
-        A ``ProviderStatusItem`` ready for JSON serialization.
-    """
-    return ProviderStatusItem(
-        provider_name=name,
-        circuit_state=ps.circuit_state.value,
-        failure_count_recent=ps.failure_count_recent,
-        last_success_at=_dt_to_epoch(ps.last_success_at),
-        last_failure_at=_dt_to_epoch(ps.last_failure_at),
-        last_latency_ms=ps.last_latency_ms,
-        degraded=False,
-    )
-
-
-@router.get("/status", response_model=RegistryStatusResponse)
-def registry_status(request: Request) -> RegistryStatusResponse:
-    """Return the live status of every configured provider.
-
-    Reads ``ProviderRegistry.status()`` from the application state.
-    Fail-soft per provider: a provider whose status read raises is
-    reported with ``degraded=True`` rather than 500-ing the whole list.
-
-    Args:
-        request: The incoming FastAPI request.
-
-    Returns:
-        A ``RegistryStatusResponse`` with one item per provider.
-    """
-    registry: ProviderRegistry = request.app.state.provider_registry
-    providers: list[ProviderStatusItem] = []
-
-    raw = registry.status()
-    for name, ps in raw.items():
-        try:
-            providers.append(_status_to_item(name, ps))
-        except Exception:
-            logger.warning("registry_status_item_failed", provider=name, exc_info=True)
-            providers.append(
-                ProviderStatusItem(
-                    provider_name=name,
-                    circuit_state="open",
-                    failure_count_recent=0,
-                    last_success_at=None,
-                    last_failure_at=None,
-                    last_latency_ms=None,
-                    degraded=True,
-                )
-            )
-
-    return RegistryStatusResponse(providers=providers)
-```
-
-## App mount (`personalscraper/web/app.py`)
-
-Add after the decisions router mount (line ~181):
-
-```python
-from personalscraper.web.routes.registry import router as registry_router
-
-guarded_api.include_router(registry_router)
-```
-
-**Important**: the route depends on `request.app.state.provider_registry` being
-set. Verify that `create_app` already stores the registry on `app.state`
-(or that the lifespan does). If the registry is not yet on app.state, this
-phase must add the wiring — it is a prerequisite for the route to work.
-
-## Route tests (`tests/web/routes/test_registry_status.py`)
-
-Create tests using the project's existing `TestClient` pattern (see
-`tests/web/routes/test_decisions.py` for the auth fixture conventions).
-
-```python
-"""Route tests for GET /api/registry/status (reg-health Phase 2)."""
-
-from __future__ import annotations
-
-import pytest
-from fastapi.testclient import TestClient
-
-
-class TestRegistryStatusAuth:
-    """Authentication guard tests."""
-
-    def test_unauthenticated_returns_401(self, client: TestClient):
-        """GET /api/registry/status without a session cookie → 401."""
-        resp = client.get("/api/registry/status")
-        assert resp.status_code == 401
-
-    def test_authenticated_returns_200(self, auth_client: TestClient):
-        """GET /api/registry/status with a valid session → 200."""
-        resp = auth_client.get("/api/registry/status")
-        assert resp.status_code == 200
-
-
-class TestRegistryStatusShape:
-    """Response shape tests."""
-
-    def test_response_has_providers_list(self, auth_client: TestClient):
-        """Response body must have a 'providers' array."""
-        resp = auth_client.get("/api/registry/status")
-        data = resp.json()
-        assert "providers" in data
-        assert isinstance(data["providers"], list)
-
-    def test_provider_item_shape(self, auth_client: TestClient):
-        """Each provider item must have the frozen field set."""
-        resp = auth_client.get("/api/registry/status")
-        data = resp.json()
-        if data["providers"]:
-            item = data["providers"][0]
-            # Exact key set from the freeze contract (Phase 1).
-            assert set(item.keys()) == {
-                "provider_name",
-                "circuit_state",
-                "failure_count_recent",
-                "last_success_at",
-                "last_failure_at",
-                "last_latency_ms",
-                "degraded",
-            }
-            assert item["circuit_state"] in {"closed", "open", "half_open"}
-
-
-class TestRegistryStatusStaging:
-    """Staging allowance tests."""
-
-    def test_staging_allows_read(self, auth_client_staging: TestClient):
-        """GET /api/registry/status on staging must return 200 (read allowed)."""
-        resp = auth_client_staging.get("/api/registry/status")
-        assert resp.status_code == 200
-
-
-class TestRegistryStatusFailSoft:
-    """Fail-soft per-provider tests."""
-
-    def test_degraded_provider_reported_not_500(self, auth_client: TestClient):
-        """A provider whose status() raises must be reported degraded, not 500."""
-        # This test requires the app state's provider_registry to be a mock
-        # or to have a provider that raises during status().
-        # Implementation detail: the test fixture patches one provider's
-        # circuit to raise on .state access.
-        resp = auth_client.get("/api/registry/status")
-        assert resp.status_code == 200
-        degraded = [p for p in resp.json()["providers"] if p.get("degraded")]
-        assert len(degraded) >= 0  # True even when no providers degrade
-```
-
-**Note on test fixtures**: The `auth_client`, `auth_client_staging`, and
-`client` fixtures must follow the project's existing pattern (see
-`tests/web/conftest.py`). If they don't exist yet for this test module
-scope, create a `tests/web/routes/conftest.py` with the standard
-`TestClient` + auth cookie fixture.
+---
+
+## 2.1 — `ProviderCallCompleted` event + `RegistryHealthProjection` + relay wiring + boot warm-up
+
+### Objectives
+
+1. Add a `ProviderCallCompleted` event (`provider: str`, `latency_ms: float`, `ok: bool`) —
+   frozen `kw_only` dataclass — in `personalscraper/api/metadata/registry/_events.py` (or the
+   nearest existing registry events module). It auto-publishes to the stream (base `Event`).
+2. Emit it from the transport where Phase 1 records latency
+   (`personalscraper/api/transport/_http.py`, the `_request_outer` method). The transport HOLDS an
+   `event_bus` (`__init__(self, policy, *, event_bus)`, ~line 50) and `policy.provider_name` —
+   emit via that bus (the same bus the circuit uses for `CircuitBreakerOpened`, so it reaches the
+   web identically). After computing `elapsed_ms` on BOTH success and failure paths, emit
+   `ProviderCallCompleted(provider=policy.provider_name, latency_ms=elapsed_ms, ok=…)`.
+   **THROTTLE (mandatory — avoid event flooding):** provider calls are high-frequency; a per-call
+   emit would flood the Redis stream (evicting the rare circuit events) and spam WS clients. Emit
+   at most **once per ~10 s per transport instance**: keep `self._last_latency_emit: float` (init
+   `0.0`), emit only when `time.monotonic() - self._last_latency_emit >= 10.0`, updating the stamp
+   on emit. Latency is still recorded on the circuit every call (Phase 1, unthrottled — the CLI
+   sees all); only the _event_ is throttled. Keep `self._event_bus = event_bus` in `__init__` if
+   not already stored. The emit is fail-soft (wrap in try/except so a bus error never breaks the
+   HTTP call; log once).
+3. Create `personalscraper/web/registry_projection.py` — `RegistryHealthProjection`:
+   - internal dict `{provider: dict}` with keys `circuit_state, failure_count_recent,
+last_success_at, last_failure_at, last_latency_ms`.
+   - `apply(event_type: str, data: dict) -> None` reducer:
+     - `CircuitBreakerOpened` → `circuit_state="open"`, `failure_count_recent=data["failure_count"]`,
+       `last_failure_at=<now epoch>`.
+     - `CircuitBreakerClosed` → `circuit_state="closed"`, `last_success_at=<now epoch>`.
+     - `CircuitBreakerHalfOpened` → `circuit_state="half_open"`.
+     - `ProviderCallCompleted` → `last_latency_ms=data["latency_ms"]`; `data["ok"]` truthy →
+       `last_success_at=<now epoch>`, else `last_failure_at=<now epoch>`.
+     - the provider key for circuit events is `data["breaker"]`; for call events `data["provider"]`.
+     - unknown event types are ignored.
+   - `snapshot() -> dict[str, dict]` returns a deep copy.
+   - Uses `time.time()` epoch floats for timestamps (web-ui epoch convention). Thread-unsafe is
+     fine (single relay task + request-thread reads of an immutable-ish snapshot); guard the dict
+     mutation minimally if trivial.
+4. Wire into `personalscraper/web/ws/relay.py`: `read_stream_loop` calls
+   `projection.apply(msg["type"], msg["data"])` for each relayed message (pass the projection in,
+   or read it off a shared ref). Store the projection on `app.state.registry_projection` in
+   `create_app` (default instance) so both the relay task and the REST route share it.
+5. Boot warm-up: in `personalscraper/web/app.py` lifespan, after the redis pool is up, replay the
+   Redis stream tail (reuse the existing `replay_events`/`XRANGE` helper the WS route uses; read
+   the last N≈1000 entries) and feed each through `projection.apply(...)`, so the first REST hit
+   reflects history. Fail-soft: Redis down → warm-up skipped, projection starts empty.
+
+### Files
+
+- modify `personalscraper/api/metadata/registry/_events.py` (add event)
+- modify `personalscraper/api/transport/_http.py` (emit event)
+- create `personalscraper/web/registry_projection.py`
+- modify `personalscraper/web/ws/relay.py` (apply in read_stream_loop)
+- modify `personalscraper/web/app.py` (store projection on app.state + boot warm-up in lifespan)
+- create `tests/unit/web/test_registry_projection.py`
+
+### Tests (2.1)
+
+- `test_registry_projection.py`: the reducer — Opened→open+failure_count, Closed→closed,
+  HalfOpened→half_open, ProviderCallCompleted ok/!ok sets latency + success/failure ts, unknown
+  event ignored, snapshot is a copy (mutating it doesn't change the projection). Assert epoch
+  floats. (These must be REAL assertions, not vacuous — verify actual state transitions.)
+- a relay test (extend the existing relay test) asserting a `CircuitBreakerOpened` message run
+  through `read_stream_loop`'s handling updates the projection to `open`.
+
+---
+
+## 2.2 — REST `GET /api/registry/status` (projection + roster) + models + mount + openapi
+
+### Objectives
+
+1. `personalscraper/web/models/registry.py` — Pydantic `ProviderStatusItem` (`provider_name: str`,
+   `circuit_state: Literal["closed","open","half_open"]`, `failure_count_recent: int`,
+   `last_success_at: float | None`, `last_failure_at: float | None`, `last_latency_ms: float | None`,
+   `live: bool`) + `RegistryStatusResponse{providers: list[ProviderStatusItem]}`.
+2. `personalscraper/web/routes/registry.py` — `GET /api/registry/status`:
+   - read `app.state.registry_projection.snapshot()`.
+   - read the configured provider **roster** from config (the registry-config provider names —
+     find how config exposes providers, e.g. `config.providers` / the registry config section;
+     if unclear, enumerate the projection's own keys as the roster fallback).
+   - merge: every roster provider present → if in the projection, emit its observed state with
+     `live=True`; else optimistic baseline (`closed`, 0, nulls, `live=False`). Providers seen in
+     the projection but not in the roster are still included (`live=True`).
+   - fail-soft: any error → `RegistryStatusResponse(providers=[])`, never 500.
+   - mounted under `guarded_api`; NO per-route `Depends(require_session)`; NO
+     `require_x_requested_with`; NO `require_not_staging` (read allowed on staging).
+3. Mount in `personalscraper/web/app.py`: `guarded_api.include_router(registry_router)` next to
+   the decisions router.
+4. `make openapi` + commit the regenerated `frontend/openapi.json` + `frontend/src/api/schema.d.ts`.
+
+### Files
+
+- create `personalscraper/web/models/registry.py`
+- create `personalscraper/web/routes/registry.py`
+- modify `personalscraper/web/app.py` (mount)
+- modify `frontend/openapi.json` + `frontend/src/api/schema.d.ts` (regen)
+- create `tests/web/routes/test_registry_status.py`
+
+### Tests (2.2)
+
+Follow the existing web route test pattern (`tests/web/test_pipeline_routes.py` / decisions
+routes — build a minimal guarded app + session cookie). Cover:
+
+- unauth → 401; authed → 200 with a `providers` array.
+- item shape == exactly `{provider_name, circuit_state, failure_count_recent, last_success_at,
+last_failure_at, last_latency_ms, live}`; `circuit_state ∈ {closed,open,half_open}`.
+- a projection pre-seeded with an `open` provider surfaces `circuit_state="open"`, `live=True`.
+- a roster provider absent from the projection surfaces the optimistic baseline (`closed`,
+  `live=False`).
+- staging role (`PERSONALSCRAPER_WEB_ROLE=staging`) → still 200 (read allowed).
 
 ## Gotchas
 
-- **Single auth perimeter**: NEVER add `Depends(require_session)` on the
-  route function. The router is mounted under `guarded_api` in `app.py`,
-  which carries `dependencies=[Depends(require_session)]` — that is the
-  single auth perimeter (DESIGN §3.3, web-ui.md §6).
-
-- **`require_not_staging` is NOT applied**: read is allowed on staging
-  (8711 returns 200). Do NOT add `Depends(require_not_staging)`.
-
-- **No `X-Requested-With`**: GET routes don't guard against CSRF —
-  `require_x_requested_with` is only for mutating endpoints.
-
-- **Epoch-float timestamps**: use `datetime.astimezone(timezone.utc).timestamp()`
-  to convert to epoch float. This matches the `pipeline_run` timestamp
-  convention (project web-ui invariant: epoch `time.time()`).
-
-- **CircuitState.state auto-transition**: reading `.state` on the circuit
-  may transition `OPEN → HALF_OPEN` (see Phase 1 gotcha). This is
-  DESIGN_CONFORM and happens on every REST hit when a breaker's cooldown
-  has elapsed. The REST route must not suppress this — it is the half-open
-  probe mechanism.
-
-- **ProviderRegistry on app.state**: verify `app.state.provider_registry`
-  is populated before the route can work. If it isn't, the `create_app` or
-  lifespan must be extended to store it. The route fails with a clear
-  AttributeError at first request if the registry is missing — add the
-  wiring in this phase.
-
-- **`make openapi` after route creation**: any new FastAPI route with a
-  `response_model` changes `openapi.json` and `schema.d.ts`. Run `make openapi`
-  and commit the regenerated files. CI's diff-guard will fail otherwise
-  (project_openapi_drift_ci_guard).
+- **Cross-process**: do NOT call `registry.status()` from the web route — it builds a meaningless
+  fresh registry (DESIGN §3.1b). Read the projection instead.
+- **Single auth perimeter**: NEVER add `Depends(require_session)` on the route — guarded_api owns it.
+- **Epoch floats**: `time.time()` for all timestamps (web-ui invariant), consistent with the
+  projection reducer.
+- **openapi drift**: any new `response_model` route ⇒ `make openapi` + commit the two regen files,
+  else CI's frontend diff-guard reds (project_openapi_drift_ci_guard).
+- **Fail-soft everywhere**: the panel must degrade gracefully (empty list) rather than 500 when
+  the projection or roster read fails.
+- **Latency event bus reachability**: if the transport genuinely has no EventBus to emit on,
+  report it — do not fabricate wiring. In that case latency stays visible only via the in-process
+  circuit (CLI) and the projection latency field stays null from the web; flag for a follow-up.
