@@ -410,12 +410,19 @@ export interface paths {
          *
          *     Runs :meth:`DecisionWriter.mark_superseded_orphans` before querying so
          *     rows whose staging path no longer exists are garbage-collected to
-         *     ``'superseded'`` before the list is built.
+         *     ``'superseded'`` before the list is built — **except on the read-only
+         *     staging instance**, where a GET must not mutate the shared prod DB
+         *     (ENV-SEP, coherence study F04).
+         *
+         *     The query params are OpenAPI-constrained (``page >= 1``,
+         *     ``1 <= page_size <= 200``, ``status`` a closed enum) so the typed frontend
+         *     contract can reject an out-of-range value at compile time and the backend
+         *     returns 422 on an invalid one (F42) instead of silently clamping.
          *
          *     Args:
          *         request: The incoming FastAPI request.
-         *         page: 1-indexed page number (default 1).
-         *         page_size: Items per page (default 50, capped at 200).
+         *         page: 1-indexed page number (default 1, >= 1).
+         *         page_size: Items per page (default 50, 1..200).
          *         status: Filter by status (default ``'pending'``).
          *
          *     Returns:
@@ -489,7 +496,9 @@ export interface paths {
          *
          *     Raises:
          *         404: The decision does not exist.
+         *         409: The decision is not ``'pending'`` (already resolved / dismissed).
          *         410: The decision has status ``'superseded'``.
+         *         500: The dismiss write failed at the DB layer.
          */
         post: operations["dismiss_decision_api_decisions__decision_id__dismiss_post"];
         delete?: never;
@@ -527,7 +536,8 @@ export interface paths {
          *     Raises:
          *         404: The decision does not exist.
          *         410: The decision has status ``'superseded'``.
-         *         409: The pipeline lock is held, or a scrape-resolve is already running.
+         *         409: The decision is not ``'pending'`` (already resolved / dismissed),
+         *             the pipeline lock is held, or a scrape-resolve is already running.
          *         500: The runner subprocess failed to spawn.
          */
         post: operations["resolve_decision_api_decisions__decision_id__resolve_post"];
@@ -1218,8 +1228,9 @@ export interface components {
          *             return one.
          *         score: The confidence score (0.0–1.0) assigned by the matching
          *             engine.
-         *         poster_url: The provider poster URL, or ``None`` when no poster
-         *             is available.
+         *         poster_url: The provider poster URL (``http``/``https`` only), or
+         *             ``None`` when no poster is available or the URL had an untrusted
+         *             scheme.
          *         overview: A short plot summary, or ``None`` when the provider
          *             did not return one.
          */
@@ -1805,6 +1816,10 @@ export interface components {
          *         provider: The metadata provider to use for the re-scrape
          *             (``"tmdb"`` or ``"tvdb"``).
          *         provider_id: The numeric identifier assigned by the chosen provider.
+         *         via: How the operator chose this identity — ``"pick"`` for a candidate
+         *             from the original queue snapshot, ``"search_override"`` for a
+         *             candidate returned by a live title/year search override.  Persisted
+         *             in ``resolution_json.via`` (coherence study F09/F40).
          */
         ResolveRequest: {
             /**
@@ -1814,6 +1829,12 @@ export interface components {
             provider: "tmdb" | "tvdb";
             /** Provider Id */
             provider_id: number;
+            /**
+             * Via
+             * @default pick
+             * @enum {string}
+             */
+            via: "pick" | "search_override";
         };
         /**
          * ResolveResponse
@@ -2550,7 +2571,7 @@ export interface operations {
             query?: {
                 page?: number;
                 page_size?: number;
-                status?: string;
+                status?: "pending" | "resolved" | "dismissed" | "superseded";
             };
             header?: never;
             path?: never;

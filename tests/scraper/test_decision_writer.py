@@ -23,8 +23,10 @@ import sqlite3
 import unicodedata
 from pathlib import Path
 
+import pytest
+
 from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.scraper.decision_writer import DecisionWriter
+from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
 
 # ---------------------------------------------------------------------------
 # Path to the real migration artefact
@@ -336,8 +338,15 @@ class TestDecisionWriterUpsertNonResurrection:
         row = _select_row(db_path, 1)
         assert row["status"] == "resolved"  # still resolved
 
-    def test_upsert_does_not_resurrect_superseded_row(self, tmp_path: Path) -> None:
-        """A superseded row is NOT revived by a subsequent upsert."""
+    def test_upsert_revives_superseded_row(self, tmp_path: Path) -> None:
+        """F07 — a superseded row IS revived to pending when re-enqueued.
+
+        A folder re-created at a path a previous run superseded (re-download,
+        retry after a failed grab) must re-enter the queue rather than being
+        permanently blacklisted.  The revive resets created_at and clears the
+        stale resolution fields; resolved/dismissed rows (operator verdicts)
+        are still never resurrected (separate tests above).
+        """
         db_path = tmp_path / "library.db"
         _create_db(db_path)
         writer = DecisionWriter(db_path)
@@ -357,14 +366,18 @@ class TestDecisionWriterUpsertNonResurrection:
             run_uid="run-001",
         )
 
-        # Manually set status to superseded via direct SQL (simulating a prior GC).
+        # Simulate a prior GC + stale resolution artifacts on the row.
         conn = sqlite3.connect(str(db_path), isolation_level=None)
         apply_pragmas(conn)
-        conn.execute("UPDATE scrape_decision SET status = 'superseded' WHERE id = 1")
+        conn.execute(
+            "UPDATE scrape_decision SET status = 'superseded', "
+            'resolution_json = \'{"provider":"tmdb","provider_id":1,"via":"pick"}\', '
+            "resolved_at = 1.0 WHERE id = 1"
+        )
         conn.commit()
         conn.close()
 
-        # Try to upsert again — must NOT resurrect.
+        # Re-enqueue (the path exists again) — must revive to pending.
         writer.upsert(
             staging_path=staging,
             media_kind="movie",
@@ -376,7 +389,11 @@ class TestDecisionWriterUpsertNonResurrection:
         )
 
         row = _select_row(db_path, 1)
-        assert row["status"] == "superseded"  # still superseded
+        assert row["status"] == "pending"  # revived
+        assert row["trigger"] == "ambiguous"  # refreshed
+        assert row["run_uid"] == "run-002"
+        assert row["resolution_json"] is None  # stale artifacts cleared
+        assert row["resolved_at"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -690,17 +707,47 @@ class TestDecisionWriterFailSoft:
         # Must not raise.
         writer.mark_superseded_orphans()
 
-    def test_resolve_bad_db_path_does_not_raise(self, tmp_path: Path) -> None:
-        """Pointing at a non-existent directory does not raise."""
-        writer = DecisionWriter(tmp_path / "nonexistent" / "library.db")
-        # Must not raise.
-        writer.resolve(1, provider="tmdb", provider_id=1)
+    def test_resolve_bad_db_path_raises(self, tmp_path: Path) -> None:
+        """F05/F29 — resolve is fail-loud: a DB error raises DecisionWriteError.
 
-    def test_dismiss_bad_db_path_does_not_raise(self, tmp_path: Path) -> None:
-        """Pointing at a non-existent directory does not raise."""
+        The operator-verdict path must never silently report success when the
+        status write could not land.
+        """
         writer = DecisionWriter(tmp_path / "nonexistent" / "library.db")
-        # Must not raise.
-        writer.dismiss(1)
+        with pytest.raises(DecisionWriteError):
+            writer.resolve(1, provider="tmdb", provider_id=1)
+
+    def test_dismiss_bad_db_path_raises(self, tmp_path: Path) -> None:
+        """F29 — dismiss is fail-loud: a DB error raises DecisionWriteError."""
+        writer = DecisionWriter(tmp_path / "nonexistent" / "library.db")
+        with pytest.raises(DecisionWriteError):
+            writer.dismiss(1)
+
+    def test_resolve_non_pending_returns_false(self, tmp_path: Path) -> None:
+        """F28/F34 — resolve of a non-pending row returns False, leaves it unchanged."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = DecisionWriter(db_path)
+        writer.upsert("/p", "movie", "T", 2020, "mid_band", "[]", None)
+        assert writer.resolve(1, "tmdb", 1) is True  # first resolve wins
+        # Second resolve on the now-resolved row: no-op, returns False.
+        assert writer.resolve(1, "tmdb", 2) is False
+        row = _select_row(db_path, 1)
+        assert row["status"] == "resolved"
+        assert '"provider_id": 1' in row["resolution_json"]  # not overwritten to 2
+
+    def test_dismiss_non_pending_returns_false(self, tmp_path: Path) -> None:
+        """F28/F33 — dismiss of a resolved row returns False, preserves resolution."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = DecisionWriter(db_path)
+        writer.upsert("/p", "movie", "T", 2020, "mid_band", "[]", None)
+        assert writer.resolve(1, "tmdb", 1, via="pick") is True
+        # Dismiss on a resolved row must not flip it.
+        assert writer.dismiss(1) is False
+        row = _select_row(db_path, 1)
+        assert row["status"] == "resolved"
+        assert row["resolution_json"] is not None
 
     def test_insert_on_path_that_is_a_file_not_a_db_does_not_raise(self, tmp_path: Path) -> None:
         """Pointing at a regular file that is not a SQLite DB does not raise."""

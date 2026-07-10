@@ -31,6 +31,7 @@ from personalscraper.naming_patterns import NamingPatterns
 log = get_logger(__name__)
 
 _VALID_PROVIDERS = frozenset({"tmdb", "tvdb"})
+_VALID_VIA = frozenset({"pick", "search_override"})
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -66,6 +67,42 @@ def _find_largest_video(media_dir: Path) -> Path | None:
     return largest
 
 
+def _lookup_decision(db_path: Path, staging_path: Path) -> tuple[int, str, str] | None:
+    """Look up a ``scrape_decision`` row by *staging_path* (NFC, F35).
+
+    Tries the AS-GIVEN path first (matching the writer's as-scanned storage),
+    then the ``.resolve()``d form for a human who passed an equivalent path.
+
+    Args:
+        db_path: Path to the indexer SQLite database.
+        staging_path: The staging directory argument.
+
+    Returns:
+        ``(id, media_kind, status)`` for the matched row, or ``None``.
+    """
+    candidates = [
+        unicodedata.normalize("NFC", str(staging_path)),
+        unicodedata.normalize("NFC", str(staging_path.resolve())),
+    ]
+    seen: set[str] = set()
+    conn = _sqlite3.connect(str(db_path), isolation_level=None)
+    try:
+        apply_pragmas(conn)
+        for key in candidates:
+            if key in seen:
+                continue
+            seen.add(key)
+            row = conn.execute(
+                "SELECT id, media_kind, status FROM scrape_decision WHERE staging_path = ?",
+                (key,),
+            ).fetchone()
+            if row is not None:
+                return (int(row[0]), str(row[1]), str(row[2]))
+    finally:
+        conn.close()
+    return None
+
+
 # ---------------------------------------------------------------------------
 # CLI command
 # ---------------------------------------------------------------------------
@@ -93,6 +130,11 @@ def scrape_resolve(
         "--id",
         help="Numeric identifier assigned by the provider.",
     ),
+    via: str = typer.Option(
+        "pick",
+        "--via",
+        help="Resolution provenance: 'pick' (candidate from the queue) or 'search_override'.",
+    ),
 ) -> None:
     """Resolve a pending scrape decision by fetching metadata by provider ID.
 
@@ -115,11 +157,14 @@ def scrape_resolve(
     console = state["console"]
     settings = cli_compat.get_settings()
 
-    # ── 1. Validate provider ─────────────────────────────────────────────
+    # ── 1. Validate provider + via ───────────────────────────────────────
     if provider not in _VALID_PROVIDERS:
         console.print(
             f"[red]Invalid provider '{provider}'. Must be one of: {', '.join(sorted(_VALID_PROVIDERS))}.[/red]"
         )
+        raise typer.Exit(2)
+    if via not in _VALID_VIA:
+        console.print(f"[red]Invalid --via '{via}'. Must be one of: {', '.join(sorted(_VALID_VIA))}.[/red]")
         raise typer.Exit(2)
 
     # ── 2. Validate DB path ──────────────────────────────────────────────
@@ -129,18 +174,11 @@ def scrape_resolve(
         raise typer.Exit(2)
 
     # ── 3. Look up decision row by NFC-normalized staging path ───────────
-    normalized_path = unicodedata.normalize("NFC", str(staging_path.resolve()))
-
-    conn = _sqlite3.connect(str(db_path), isolation_level=None)
-    try:
-        apply_pragmas(conn)
-        row = conn.execute(
-            "SELECT id, media_kind, status FROM scrape_decision WHERE staging_path = ?",
-            (normalized_path,),
-        ).fetchone()
-    finally:
-        conn.close()
-
+    # The writer stores the AS-SCANNED path (never .resolve()d); the web runner
+    # passes that stored path straight back.  Match it first, then fall back to
+    # the resolved form for a human who typed an equivalent/relative path — the
+    # two canonicalizations must not diverge silently (F35).
+    row = _lookup_decision(db_path, staging_path)
     if row is None:
         console.print(f"[red]No decision row found for staging path: {staging_path}[/red]")
         raise typer.Exit(2)
@@ -167,6 +205,15 @@ def scrape_resolve(
         raise typer.Exit(1)
 
     try:
+        # Re-check status inside the critical section (F45): the step-3 read
+        # was outside the lock, so a concurrent invocation could have resolved
+        # this row while we waited. Bail before doing any provider/NFO work.
+        recheck = _lookup_decision(db_path, staging_path)
+        if recheck is None or recheck[2] != "pending":
+            now_status = recheck[2] if recheck else "gone"
+            console.print(f"[red]Decision {decision_id} is no longer 'pending' (now '{now_status}'). Aborting.[/red]")
+            raise typer.Exit(2)
+
         console.print(f"[bold]Scrape-resolving '{staging_path.name}' via {provider}:{provider_id}...[/bold]")
 
         scraper_config = config.scraper
@@ -204,10 +251,27 @@ def scrape_resolve(
                 )
 
             # ── 6. Mark decision resolved ─────────────────────────────────
-            from personalscraper.scraper.decision_writer import DecisionWriter  # noqa: PLC0415
+            # Fail-loud (F05): the NFO/artwork are already on disk, but if the
+            # status write does not land the decision must NOT report success —
+            # otherwise the item stays pending and gets re-resolved (duplicate
+            # scrape). resolve() returns False when the row is no longer pending
+            # and raises DecisionWriteError on a DB error.
+            from personalscraper.scraper.decision_writer import (  # noqa: PLC0415
+                DecisionWriteError,
+                DecisionWriter,
+            )
 
             writer = DecisionWriter(db_path)
-            writer.resolve(decision_id, provider, provider_id, via="pick")
+            try:
+                marked = writer.resolve(decision_id, provider, provider_id, via=via)
+            except DecisionWriteError as exc:
+                console.print(f"[red]NFO written but resolve-mark failed for decision {decision_id}: {exc}[/red]")
+                raise typer.Exit(1) from exc
+            if not marked:
+                console.print(
+                    f"[red]NFO written but decision {decision_id} was no longer pending — not marked resolved.[/red]"
+                )
+                raise typer.Exit(1)
 
         console.print(f"[green]Successfully resolved decision {decision_id} via {provider}:{provider_id}.[/green]")
 

@@ -5,9 +5,17 @@ queue.  Each method opens a short-lived ``sqlite3`` connection, applies WAL
 pragmas, performs its operation, commits, and closes — matching the indexer's
 connection conventions.
 
-The writer is **fail-soft**: every method wraps its DB work in a try/except,
-logs a warning on failure, and never raises.  A decision-write error must
-never abort the pipeline.
+Fail-soft vs fail-loud (coherence study F05/F29):
+
+* The **pipeline-path** methods :meth:`DecisionWriter.upsert` and
+  :meth:`DecisionWriter.mark_superseded_orphans` are **fail-soft** — a DB
+  failure logs a warning and never raises, so a decision-write error can never
+  abort the pipeline.
+* The **operator-verdict** methods :meth:`DecisionWriter.resolve` and
+  :meth:`DecisionWriter.dismiss` are **fail-loud**: they enforce the
+  ``pending``-only state-machine transition (returning ``False`` when no
+  pending row matched) and raise :class:`DecisionWriteError` on a DB error, so
+  a silent "resolved OK" that never actually wrote the status is impossible.
 
 Usage inside ``scraper/run.py``::
 
@@ -34,6 +42,16 @@ from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 
 log = get_logger("decision_writer")
+
+
+class DecisionWriteError(Exception):
+    """Raised by the operator-verdict writer methods on an unrecoverable DB error.
+
+    Only :meth:`DecisionWriter.resolve` and :meth:`DecisionWriter.dismiss` raise
+    this — the pipeline-path methods stay fail-soft.  Callers (the scrape-resolve
+    CLI, the dismiss route) map it to a non-zero exit / 5xx instead of silently
+    reporting success (coherence study F05/F29).
+    """
 
 
 class DecisionWriter:
@@ -73,10 +91,17 @@ class DecisionWriter:
 
         Normalizes *staging_path* to NFC before the upsert.  Uses
         ``INSERT ... ON CONFLICT(staging_path) DO UPDATE ... WHERE
-        scrape_decision.status='pending'`` — a resolved, dismissed, or
-        superseded row is **never** resurrected (the ``WHERE`` clause
-        causes the conflict to be silently ignored for non-pending rows,
-        unlike ``INSERT OR REPLACE`` which would clobber the status).
+        scrape_decision.status IN ('pending', 'superseded')``:
+
+        * a **pending** row is refreshed (candidates/trigger/run_uid);
+        * a **superseded** row is **revived** to ``pending`` (F07 recycle):
+          the enqueue only runs for items that were just scanned (their path
+          exists), so a folder re-created at a path a previous run superseded
+          re-enters the queue instead of being blacklisted forever.  Its
+          stale ``resolution_json`` / ``resolved_at`` are cleared and
+          ``created_at`` is reset;
+        * a **resolved** or **dismissed** row (an operator verdict) is
+          **never** touched — the ``WHERE`` clause ignores the conflict.
 
         Args:
             staging_path: Absolute path to the staging item
@@ -104,8 +129,18 @@ class DecisionWriter:
                 "candidates_json = excluded.candidates_json, "
                 '"trigger" = excluded."trigger", '
                 "run_uid = excluded.run_uid, "
-                "updated_at = excluded.updated_at "
-                "WHERE scrape_decision.status = 'pending'",
+                "updated_at = excluded.updated_at, "
+                # Revive a superseded row (F07): reset status + created_at and
+                # clear the stale resolution fields. A pending row keeps its
+                # own values (no-op branch).
+                "status = 'pending', "
+                "created_at = CASE WHEN scrape_decision.status = 'superseded' "
+                "THEN excluded.created_at ELSE scrape_decision.created_at END, "
+                "resolution_json = CASE WHEN scrape_decision.status = 'superseded' "
+                "THEN NULL ELSE scrape_decision.resolution_json END, "
+                "resolved_at = CASE WHEN scrape_decision.status = 'superseded' "
+                "THEN NULL ELSE scrape_decision.resolved_at END "
+                "WHERE scrape_decision.status IN ('pending', 'superseded')",
                 (
                     normalized,
                     media_kind,
@@ -178,11 +213,14 @@ class DecisionWriter:
         provider: str,
         provider_id: int,
         via: str = "pick",
-    ) -> None:
-        """Mark a decision as resolved with the chosen provider identity.
+    ) -> bool:
+        """Mark a *pending* decision as resolved with the chosen provider identity.
 
         Sets ``status = 'resolved'``, stores the resolution details in
-        ``resolution_json``, and records the resolution timestamp.
+        ``resolution_json``, and records the resolution timestamp — **only when
+        the row is still ``pending``** (``WHERE id = ? AND status = 'pending'``),
+        so a completed resolve cannot silently overwrite a concurrent dismiss and
+        a terminal row is never mutated (F28/F33/F34).
 
         Args:
             decision_id: Primary key of the ``scrape_decision`` row.
@@ -190,21 +228,32 @@ class DecisionWriter:
             provider_id: Numeric identifier assigned by the provider.
             via: Resolution method (``'pick'`` for a candidate selection,
                 ``'search_override'`` for a manual search override).
+
+        Returns:
+            ``True`` when exactly one pending row was updated; ``False`` when the
+            row was not pending (already resolved / dismissed / superseded /
+            absent) — the caller decides how to surface a no-op.
+
+        Raises:
+            DecisionWriteError: On any DB error — this is fail-loud (F05/F29): a
+                resolve that never wrote must not report success.
         """
         now = time.time()
         resolution = json.dumps({"provider": provider, "provider_id": provider_id, "via": via})
+        conn: sqlite3.Connection | None = None
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
-            conn.execute(
+            cur = conn.execute(
                 "UPDATE scrape_decision "
                 "SET status = 'resolved', resolution_json = ?, resolved_at = ?, updated_at = ? "
-                "WHERE id = ?",
+                "WHERE id = ? AND status = 'pending'",
                 (resolution, now, now, decision_id),
             )
             conn.commit()
-        except Exception:
-            log.warning(
+            return cur.rowcount == 1
+        except Exception as exc:
+            log.error(
                 "decision_writer.resolve_failed",
                 decision_id=decision_id,
                 provider=provider,
@@ -212,39 +261,53 @@ class DecisionWriter:
                 via=via,
                 exc_info=True,
             )
+            raise DecisionWriteError(f"resolve({decision_id}) failed: {exc}") from exc
         finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
-    def dismiss(self, decision_id: int) -> None:
-        """Mark a decision as dismissed (manual or MediaElch path).
+    def dismiss(self, decision_id: int) -> bool:
+        """Mark a *pending* decision as dismissed (manual or MediaElch path).
 
-        Sets ``status = 'dismissed'`` and ``updated_at = now``.  The
-        operator is expected to handle the item outside the pipeline
-        (e.g. via MediaElch).
+        Sets ``status = 'dismissed'`` and ``updated_at = now`` **only when the
+        row is still ``pending``** — a resolved row keeps its resolution record,
+        and a dismiss racing an in-flight resolve cannot silently erase the
+        operator's verdict (F28/F33).
 
         Args:
             decision_id: Primary key of the ``scrape_decision`` row.
+
+        Returns:
+            ``True`` when exactly one pending row was updated; ``False`` when the
+            row was not pending.
+
+        Raises:
+            DecisionWriteError: On any DB error (fail-loud, F29).
         """
         now = time.time()
+        conn: sqlite3.Connection | None = None
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
-            conn.execute(
-                "UPDATE scrape_decision SET status = 'dismissed', updated_at = ? WHERE id = ?",
+            cur = conn.execute(
+                "UPDATE scrape_decision SET status = 'dismissed', updated_at = ? WHERE id = ? AND status = 'pending'",
                 (now, decision_id),
             )
             conn.commit()
-        except Exception:
-            log.warning(
+            return cur.rowcount == 1
+        except Exception as exc:
+            log.error(
                 "decision_writer.dismiss_failed",
                 decision_id=decision_id,
                 exc_info=True,
             )
+            raise DecisionWriteError(f"dismiss({decision_id}) failed: {exc}") from exc
         finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass

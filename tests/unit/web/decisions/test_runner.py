@@ -229,7 +229,7 @@ class TestBuildArgv:
         """The argv always starts with [sys.executable, -m, personalscraper, scrape-resolve]."""
         from personalscraper.web.decisions.runner import _build_argv
 
-        argv = _build_argv("/tmp/staging/test", "tmdb", 12345)
+        argv = _build_argv("/tmp/staging/test", "tmdb", 12345, "pick")
         assert argv[0] == sys.executable
         assert argv[1] == "-m"
         assert argv[2] == "personalscraper"
@@ -239,18 +239,26 @@ class TestBuildArgv:
         """The staging_path is the first positional argument after the command."""
         from personalscraper.web.decisions.runner import _build_argv
 
-        argv = _build_argv("/tmp/staging/test-item", "tmdb", 42)
+        argv = _build_argv("/tmp/staging/test-item", "tmdb", 42, "pick")
         assert argv[4] == "/tmp/staging/test-item"
 
     def test_provider_and_id_are_flags(self) -> None:
         """Provider and provider_id are passed as --provider and --id flags."""
         from personalscraper.web.decisions.runner import _build_argv
 
-        argv = _build_argv("/tmp/staging/test", "tvdb", 999)
+        argv = _build_argv("/tmp/staging/test", "tvdb", 999, "pick")
         idx_provider = argv.index("--provider")
         assert argv[idx_provider + 1] == "tvdb"
         idx_id = argv.index("--id")
         assert argv[idx_id + 1] == "999"
+
+    def test_via_is_a_flag(self) -> None:
+        """The resolution provenance is passed as --via (F09)."""
+        from personalscraper.web.decisions.runner import _build_argv
+
+        argv = _build_argv("/tmp/staging/test", "tmdb", 5, "search_override")
+        idx_via = argv.index("--via")
+        assert argv[idx_via + 1] == "search_override"
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +317,39 @@ class TestDecisionRowValidation:
         assert row is not None
         assert row["outcome"] == "error"
         assert "resolved" in row["error"]
+
+    def test_decision_read_db_error_finalizes_error_not_orphan(self, tmp_path: Path) -> None:
+        """F06 — a sqlite error on the pre-region decision read finalizes 'error', exits 2.
+
+        The read happens on the contended library.db before the guarded stream
+        region; an unguarded error there would kill the process and leave the
+        route-reserved 'running' row orphaned forever.
+        """
+        import sqlite3
+
+        mock_config = _make_mock_config(tmp_path)
+        db_path = mock_config.indexer.db_path
+        _set_runner_env("run-uid-06", 1, "tmdb", 12345)
+
+        with (
+            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
+            patch(
+                "personalscraper.web.decisions.runner._read_decision_row",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ),
+            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from personalscraper.web.decisions.runner import main
+
+            main()
+
+        _clear_runner_env()
+        assert exc_info.value.code == 2
+        row = _select_row(db_path, "run-uid-06")
+        assert row is not None
+        assert row["outcome"] == "error", "the reserved row must be finalized, never left 'running'"
+        assert "read failed" in row["error"]
 
 
 # ---------------------------------------------------------------------------

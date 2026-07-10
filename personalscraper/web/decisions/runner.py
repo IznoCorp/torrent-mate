@@ -168,13 +168,15 @@ def _read_decision_row(db_path: str, decision_id: int) -> dict[str, object] | No
 # ---------------------------------------------------------------------------
 
 
-def _build_argv(staging_path: str, provider: str, provider_id: int) -> list[str]:
+def _build_argv(staging_path: str, provider: str, provider_id: int, via: str) -> list[str]:
     """Build the ``scrape-resolve`` CLI argument list.
 
     Args:
         staging_path: Absolute path to the staging item.
         provider: Metadata provider name (``'tmdb'`` or ``'tvdb'``).
         provider_id: Numeric identifier assigned by the provider.
+        via: Resolution provenance (``'pick'`` / ``'search_override'``),
+            forwarded so ``resolution_json.via`` is accurate (F09).
 
     Returns:
         A command-line argument list starting with ``sys.executable``,
@@ -190,6 +192,8 @@ def _build_argv(staging_path: str, provider: str, provider_id: int) -> list[str]
         provider,
         "--id",
         str(provider_id),
+        "--via",
+        via,
     ]
 
 
@@ -246,8 +250,36 @@ def main() -> None:
     options = {"decision_id": decision_id, "provider": provider, "provider_id": provider_id}
     options_json = json.dumps(options, sort_keys=True, separators=(",", ":"))
 
-    # 4. Read and validate the decision row.
-    decision = _read_decision_row(str(db_path), decision_id)
+    # Resolution provenance (optional — legacy spawners omit it). Defaults to
+    # 'pick' so an absent env var never breaks the run (F09).
+    via = os.environ.get("PERSONALSCRAPER_DECISION_VIA", "pick")
+
+    # 4. Read and validate the decision row.  This read happens on the
+    #    contended library.db BEFORE the guarded stream region — an unguarded
+    #    sqlite error here would kill the process and leave the route-reserved
+    #    'running' row orphaned forever, so finalize it 'error' first (F06).
+    try:
+        decision = _read_decision_row(str(db_path), decision_id)
+    except sqlite3.Error as exc:
+        writer_err = PipelineRunWriter(db_path)
+        writer_err.insert(
+            run_uid,
+            trigger="web",
+            dry_run=False,
+            pid=os.getpid(),
+            kind="maintenance",
+            command="scrape-resolve",
+            options_json=options_json,
+            if_absent=True,
+        )
+        writer_err.finalize(run_uid, OUTCOME_ERROR, error=f"Decision read failed: {exc}")
+        log.error(
+            "decision_runner_decision_read_failed",
+            run_uid=run_uid,
+            decision_id=decision_id,
+            error=str(exc),
+        )
+        sys.exit(2)
     if decision is None:
         writer_err = PipelineRunWriter(db_path)
         writer_err.insert(
@@ -296,7 +328,7 @@ def main() -> None:
     staging_path = cast(str, decision["staging_path"])
 
     # 5. Build CLI argv.
-    argv = _build_argv(staging_path, provider, provider_id)
+    argv = _build_argv(staging_path, provider, provider_id, via)
 
     # 6. Ensure the pipeline_run row exists (idempotent) and claim its pid.
     writer = PipelineRunWriter(db_path)

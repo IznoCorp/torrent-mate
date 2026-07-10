@@ -200,7 +200,8 @@
         "type": "object"
       },
       "DecisionCandidate": {
-        "description": "A single scored search-result candidate for a scrape-decision row.\n\nRepresents one provider match that the operator can inspect and\nresolve.  Stored as an element of the ``candidates_json`` JSON array\nin the ``scrape_decision`` table.\n\nAttributes:\n    provider: The metadata provider that returned this candidate\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the provider.\n    title: The candidate title as returned by the provider.\n    year: The release year, or ``None`` when the provider did not\n        return one.\n    score: The confidence score (0.0\u20131.0) assigned by the matching\n        engine.\n    poster_url: The provider poster URL, or ``None`` when no poster\n        is available.\n    overview: A short plot summary, or ``None`` when the provider\n        did not return one.",
+        "additionalProperties": false,
+        "description": "A single scored search-result candidate for a scrape-decision row.\n\nRepresents one provider match that the operator can inspect and\nresolve.  Stored as an element of the ``candidates_json`` JSON array\nin the ``scrape_decision`` table.\n\nAttributes:\n    provider: The metadata provider that returned this candidate\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the provider.\n    title: The candidate title as returned by the provider.\n    year: The release year, or ``None`` when the provider did not\n        return one.\n    score: The confidence score (0.0\u20131.0) assigned by the matching\n        engine.\n    poster_url: The provider poster URL (``http``/``https`` only), or\n        ``None`` when no poster is available or the URL had an untrusted\n        scheme.\n    overview: A short plot summary, or ``None`` when the provider\n        did not return one.",
         "properties": {
           "overview": {
             "anyOf": [
@@ -1061,7 +1062,7 @@
         "type": "object"
       },
       "ResolveRequest": {
-        "description": "Request body for ``POST /api/decisions/{id}/resolve``.\n\nPins a chosen provider identity and launches a targeted re-scrape.\n\nAttributes:\n    provider: The metadata provider to use for the re-scrape\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the chosen provider.",
+        "description": "Request body for ``POST /api/decisions/{id}/resolve``.\n\nPins a chosen provider identity and launches a targeted re-scrape.\n\nAttributes:\n    provider: The metadata provider to use for the re-scrape\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the chosen provider.\n    via: How the operator chose this identity \u2014 ``\"pick\"`` for a candidate\n        from the original queue snapshot, ``\"search_override\"`` for a\n        candidate returned by a live title/year search override.  Persisted\n        in ``resolution_json.via`` (coherence study F09/F40).",
         "properties": {
           "provider": {
             "enum": [
@@ -1074,6 +1075,15 @@
           "provider_id": {
             "title": "Provider Id",
             "type": "integer"
+          },
+          "via": {
+            "default": "pick",
+            "enum": [
+              "pick",
+              "search_override"
+            ],
+            "title": "Via",
+            "type": "string"
           }
         },
         "required": [
@@ -2108,7 +2118,7 @@
     },
     "/api/decisions/": {
       "get": {
-        "description": "Return a paginated list of scrape decisions.\n\nRuns :meth:`DecisionWriter.mark_superseded_orphans` before querying so\nrows whose staging path no longer exists are garbage-collected to\n``'superseded'`` before the list is built.\n\nArgs:\n    request: The incoming FastAPI request.\n    page: 1-indexed page number (default 1).\n    page_size: Items per page (default 50, capped at 200).\n    status: Filter by status (default ``'pending'``).\n\nReturns:\n    A :class:`DecisionsResponse` with items, ``pending_count``,\n    ``total``, ``page``, and ``page_size``.",
+        "description": "Return a paginated list of scrape decisions.\n\nRuns :meth:`DecisionWriter.mark_superseded_orphans` before querying so\nrows whose staging path no longer exists are garbage-collected to\n``'superseded'`` before the list is built \u2014 **except on the read-only\nstaging instance**, where a GET must not mutate the shared prod DB\n(ENV-SEP, coherence study F04).\n\nThe query params are OpenAPI-constrained (``page >= 1``,\n``1 <= page_size <= 200``, ``status`` a closed enum) so the typed frontend\ncontract can reject an out-of-range value at compile time and the backend\nreturns 422 on an invalid one (F42) instead of silently clamping.\n\nArgs:\n    request: The incoming FastAPI request.\n    page: 1-indexed page number (default 1, >= 1).\n    page_size: Items per page (default 50, 1..200).\n    status: Filter by status (default ``'pending'``).\n\nReturns:\n    A :class:`DecisionsResponse` with items, ``pending_count``,\n    ``total``, ``page``, and ``page_size``.",
         "operationId": "list_decisions_api_decisions__get",
         "parameters": [
           {
@@ -2117,6 +2127,7 @@
             "required": false,
             "schema": {
               "default": 1,
+              "minimum": 1,
               "title": "Page",
               "type": "integer"
             }
@@ -2127,6 +2138,8 @@
             "required": false,
             "schema": {
               "default": 50,
+              "maximum": 200,
+              "minimum": 1,
               "title": "Page Size",
               "type": "integer"
             }
@@ -2137,6 +2150,12 @@
             "required": false,
             "schema": {
               "default": "pending",
+              "enum": [
+                "pending",
+                "resolved",
+                "dismissed",
+                "superseded"
+              ],
               "title": "Status",
               "type": "string"
             }
@@ -2215,7 +2234,7 @@
     },
     "/api/decisions/{decision_id}/dismiss": {
       "post": {
-        "description": "Dismiss a decision (manual or MediaElch path).\n\nMarks the decision ``'dismissed'`` via :meth:`DecisionWriter.dismiss`.\nReturns the refreshed :class:`DecisionDetail` so the UI can update its\nrow without an extra round-trip.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    request: The incoming FastAPI request.\n\nReturns:\n    The refreshed :class:`DecisionDetail` with ``status='dismissed'``.\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.",
+        "description": "Dismiss a decision (manual or MediaElch path).\n\nMarks the decision ``'dismissed'`` via :meth:`DecisionWriter.dismiss`.\nReturns the refreshed :class:`DecisionDetail` so the UI can update its\nrow without an extra round-trip.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    request: The incoming FastAPI request.\n\nReturns:\n    The refreshed :class:`DecisionDetail` with ``status='dismissed'``.\n\nRaises:\n    404: The decision does not exist.\n    409: The decision is not ``'pending'`` (already resolved / dismissed).\n    410: The decision has status ``'superseded'``.\n    500: The dismiss write failed at the DB layer.",
         "operationId": "dismiss_decision_api_decisions__decision_id__dismiss_post",
         "parameters": [
           {
@@ -2258,7 +2277,7 @@
     },
     "/api/decisions/{decision_id}/resolve": {
       "post": {
-        "description": "Launch a targeted re-scrape for a decision.\n\nMirrors ``POST /api/maintenance/actions/{action_id}/run``: validates\npreconditions (pipeline lock, concurrent resolve), reserves a\n``pipeline_run`` row atomically, re-probes the lock, spawns the runner\nsubprocess, and returns ``202`` with the ``run_uid``.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    body: The request payload with ``provider`` and ``provider_id``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ResolveResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.\n    409: The pipeline lock is held, or a scrape-resolve is already running.\n    500: The runner subprocess failed to spawn.",
+        "description": "Launch a targeted re-scrape for a decision.\n\nMirrors ``POST /api/maintenance/actions/{action_id}/run``: validates\npreconditions (pipeline lock, concurrent resolve), reserves a\n``pipeline_run`` row atomically, re-probes the lock, spawns the runner\nsubprocess, and returns ``202`` with the ``run_uid``.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    body: The request payload with ``provider`` and ``provider_id``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ResolveResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.\n    409: The decision is not ``'pending'`` (already resolved / dismissed),\n        the pipeline lock is held, or a scrape-resolve is already running.\n    500: The runner subprocess failed to spawn.",
         "operationId": "resolve_decision_api_decisions__decision_id__resolve_post",
         "parameters": [
           {

@@ -26,18 +26,19 @@ import sys
 import uuid
 from contextlib import closing
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.scraper.decision_candidate import DecisionCandidate
-from personalscraper.scraper.decision_writer import DecisionWriter
+from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
 from personalscraper.web.decisions.reserve import _reserve_decision_run
 from personalscraper.web.deps import (
+    is_staging_role,
     require_not_staging,
     require_x_requested_with,
 )
@@ -194,20 +195,27 @@ def _guard_not_superseded(row: sqlite3.Row) -> None:
 @router.get("/", response_model=DecisionsResponse)
 def list_decisions(
     request: Request,
-    page: int = 1,
-    page_size: int = 50,
-    status: str = "pending",
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=_MAX_PAGE_SIZE),
+    status: Literal["pending", "resolved", "dismissed", "superseded"] = "pending",
 ) -> DecisionsResponse:
     """Return a paginated list of scrape decisions.
 
     Runs :meth:`DecisionWriter.mark_superseded_orphans` before querying so
     rows whose staging path no longer exists are garbage-collected to
-    ``'superseded'`` before the list is built.
+    ``'superseded'`` before the list is built — **except on the read-only
+    staging instance**, where a GET must not mutate the shared prod DB
+    (ENV-SEP, coherence study F04).
+
+    The query params are OpenAPI-constrained (``page >= 1``,
+    ``1 <= page_size <= 200``, ``status`` a closed enum) so the typed frontend
+    contract can reject an out-of-range value at compile time and the backend
+    returns 422 on an invalid one (F42) instead of silently clamping.
 
     Args:
         request: The incoming FastAPI request.
-        page: 1-indexed page number (default 1).
-        page_size: Items per page (default 50, capped at 200).
+        page: 1-indexed page number (default 1, >= 1).
+        page_size: Items per page (default 50, 1..200).
         status: Filter by status (default ``'pending'``).
 
     Returns:
@@ -216,11 +224,9 @@ def list_decisions(
     """
     db_path = _db_path(request)
 
-    # Cap page_size.
-    page_size = min(max(page_size, 1), _MAX_PAGE_SIZE)
-
-    # 1. Garbage-collect orphans before querying.
-    if db_path.exists():
+    # 1. Garbage-collect orphans before querying — prod only.  On staging this
+    #    GET must stay side-effect-free (shared library.db is prod-owned; F04).
+    if db_path.exists() and not is_staging_role():
         DecisionWriter(db_path).mark_superseded_orphans()
 
     if not db_path.exists():
@@ -317,12 +323,15 @@ def _build_provider_clients(request: Request) -> tuple[object, object]:
 
     try:
         app_context = _build_app_context(config, settings)
+        # provider_registry.get raises UnknownProviderError when a provider is
+        # not registered (disabled in the registry overlay) — keep it inside the
+        # try so it maps to the documented 502, not an untyped 500 (F03).
+        tmdb_client = app_context.provider_registry.get("tmdb")
+        tvdb_client = app_context.provider_registry.get("tvdb")
     except Exception as exc:
         logger.error("decisions_search_registry_failed", error=str(exc))
         raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
 
-    tmdb_client = app_context.provider_registry.get("tmdb")
-    tvdb_client = app_context.provider_registry.get("tvdb")
     return tmdb_client, tvdb_client
 
 
@@ -395,6 +404,7 @@ def _spawn_decision_runner(
     decision_id: int,
     provider: str,
     provider_id: int,
+    via: str,
 ) -> int:
     """Spawn the decision runner as a detached subprocess.
 
@@ -408,6 +418,8 @@ def _spawn_decision_runner(
         decision_id: The ``scrape_decision.id`` being resolved.
         provider: Metadata provider name (``'tmdb'`` or ``'tvdb'``).
         provider_id: Numeric identifier assigned by the provider.
+        via: Resolution provenance (``'pick'`` or ``'search_override'``),
+            threaded to the CLI so ``resolution_json.via`` is accurate (F09).
 
     Returns:
         The pid of the spawned runner process.
@@ -418,6 +430,7 @@ def _spawn_decision_runner(
         "PERSONALSCRAPER_DECISION_ID": str(decision_id),
         "PERSONALSCRAPER_DECISION_PROVIDER": provider,
         "PERSONALSCRAPER_DECISION_PROVIDER_ID": str(provider_id),
+        "PERSONALSCRAPER_DECISION_VIA": via,
     }
     logger.info(
         "decision_resolve_spawned",
@@ -463,15 +476,20 @@ def resolve_decision(
     Raises:
         404: The decision does not exist.
         410: The decision has status ``'superseded'``.
-        409: The pipeline lock is held, or a scrape-resolve is already running.
+        409: The decision is not ``'pending'`` (already resolved / dismissed),
+            the pipeline lock is held, or a scrape-resolve is already running.
         500: The runner subprocess failed to spawn.
     """
     db_path = _db_path(request)
     data_dir = _data_dir(request)
 
-    # 1. Fetch + guard the decision row.
+    # 1. Fetch + guard the decision row.  Reject a non-pending decision here
+    #    (409) rather than accepting a 202 whose run fails asynchronously with
+    #    an "expected 'pending'" error (F34/F46).
     row = _fetch_decision_row(db_path, decision_id)
     _guard_not_superseded(row)
+    if row["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Decision is '{row['status']}', not 'pending'")
 
     # 2. Pipeline-lock 409 (mirrors maintenance action_run).  A scrape-resolve
     #    writes to staging, so it must not run while the pipeline holds the lock.
@@ -504,7 +522,7 @@ def resolve_decision(
     #    live-pid (permanently blocking) one.  A spawn failure finalizes the
     #    reserved row 'error' so it never stays 'running'.
     try:
-        pid = _spawn_decision_runner(run_uid, decision_id, body.provider, body.provider_id)
+        pid = _spawn_decision_runner(run_uid, decision_id, body.provider, body.provider_id, body.via)
     except (OSError, ValueError) as exc:
         PipelineRunWriter(db_path).finalize(run_uid, "error", error=str(exc))
         logger.error(
@@ -545,16 +563,28 @@ def dismiss_decision(
 
     Raises:
         404: The decision does not exist.
+        409: The decision is not ``'pending'`` (already resolved / dismissed).
         410: The decision has status ``'superseded'``.
+        500: The dismiss write failed at the DB layer.
     """
     db_path = _db_path(request)
 
     # 1. Fetch + guard the decision row (before mutating so 404/410 fire first).
     row = _fetch_decision_row(db_path, decision_id)
     _guard_not_superseded(row)
+    if row["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Decision is '{row['status']}', not 'pending'")
 
-    # 2. Dismiss.
-    DecisionWriter(db_path).dismiss(decision_id)
+    # 2. Dismiss (pending-only at the writer layer; fail-loud on DB error).
+    try:
+        dismissed = DecisionWriter(db_path).dismiss(decision_id)
+    except DecisionWriteError as exc:
+        logger.error("decision_dismiss_failed", decision_id=decision_id, error=str(exc))
+        raise HTTPException(status_code=500, detail="Failed to dismiss decision") from exc
+    if not dismissed:
+        # Lost a race with a concurrent resolve/dismiss between the guard and
+        # the write — surface it rather than returning a stale 200.
+        raise HTTPException(status_code=409, detail="Decision is no longer pending")
 
     # 3. Re-fetch the refreshed row for the response.
     refreshed = _fetch_decision_row(db_path, decision_id)

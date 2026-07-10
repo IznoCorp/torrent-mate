@@ -285,6 +285,15 @@ def _query_pipeline_row(db_path: Path, run_uid: str) -> dict | None:
     return dict(row) if row is not None else None
 
 
+def _query_decision_row(db_path: Path, decision_id: int) -> dict | None:
+    """Return the ``scrape_decision`` row for *decision_id* as a dict, or ``None``."""
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM scrape_decision WHERE id = ?", (decision_id,)).fetchone()
+    conn.close()
+    return dict(row) if row is not None else None
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # GET / — list
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -377,8 +386,12 @@ class TestListDecisions:
         data = resp.json()
         assert len(data["items"]) == 1
 
-    def test_list_page_size_capped(self, test_config, tmp_path: Path) -> None:
-        """200 — page_size > 200 is capped at 200."""
+    def test_list_page_size_over_cap_rejected(self, test_config, tmp_path: Path) -> None:
+        """422 — page_size > 200 is rejected by the OpenAPI constraint (F42).
+
+        The param is ``Query(le=200)`` so an out-of-range value is a typed
+        422 the frontend contract can catch, not a silently-clamped 200.
+        """
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
@@ -389,9 +402,24 @@ class TestListDecisions:
         )
 
         resp = client.get("/api/decisions/?page_size=999")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["page_size"] == 200
+        assert resp.status_code == 422
+        # A valid max is accepted.
+        ok = client.get("/api/decisions/?page_size=200")
+        assert ok.status_code == 200
+        assert ok.json()["page_size"] == 200
+
+    def test_list_invalid_status_rejected(self, test_config, tmp_path: Path) -> None:
+        """422 — an unknown status filter is rejected by the Literal constraint (F42)."""
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        resp = client.get("/api/decisions/?status=Pending")  # wrong case
+        assert resp.status_code == 422
 
     def test_list_pending_count_independent_of_filter(self, test_config, tmp_path: Path) -> None:
         """200 — pending_count includes all pending rows regardless of status filter."""
@@ -1207,3 +1235,144 @@ class TestDecisionsRouterMount:
         # Without auth, the guarded_api's require_session fires 401.
         resp = client.get("/api/decisions/")
         assert resp.status_code == 401
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Coherence-study batch B regression tests (2026-07-10)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestDecisionStateMachineGuards:
+    """F28/F34/F46 — routes reject non-pending resolve/dismiss with a synchronous 409."""
+
+    def _client(self, test_config, tmp_path, seed_status: str):
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1, status=seed_status)
+        conn.close()
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        return _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+
+    def test_resolve_already_resolved_returns_409(self, test_config, tmp_path: Path) -> None:
+        """A resolve POST on an already-resolved decision → 409 (not a 202 + async error)."""
+        client = self._client(test_config, tmp_path, "resolved")
+        with patch("personalscraper.web.routes.decisions._spawn_decision_runner") as mock_spawn:
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 409
+        assert "not 'pending'" in resp.json()["detail"]
+        mock_spawn.assert_not_called()
+
+    def test_dismiss_already_dismissed_returns_409(self, test_config, tmp_path: Path) -> None:
+        """A dismiss POST on an already-dismissed decision → 409."""
+        client = self._client(test_config, tmp_path, "dismissed")
+        resp = client.post("/api/decisions/1/dismiss", headers={"X-Requested-With": "TorrentMate"})
+        assert resp.status_code == 409
+
+    def test_dismiss_resolved_returns_409_preserves_resolution(self, test_config, tmp_path: Path) -> None:
+        """Dismissing a resolved decision is refused (409) — the resolution is preserved (F28/F33)."""
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(
+            conn,
+            decision_id=1,
+            status="resolved",
+            resolution_json='{"provider":"tmdb","provider_id":9,"via":"pick"}',
+        )
+        conn.close()
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        resp = client.post("/api/decisions/1/dismiss", headers={"X-Requested-With": "TorrentMate"})
+        assert resp.status_code == 409
+        row = _query_decision_row(db_path, 1)
+        assert row["status"] == "resolved"
+        assert row["resolution_json"] is not None
+
+
+class TestResolveViaThreading:
+    """F09 — the resolve provenance (via) is threaded into the runner spawn."""
+
+    def test_resolve_passes_via_to_runner(self, test_config, tmp_path: Path) -> None:
+        """The via field of ResolveRequest is passed to _spawn_decision_runner."""
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1)
+        conn.close()
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        with patch("personalscraper.web.routes.decisions._spawn_decision_runner") as mock_spawn:
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550, "via": "search_override"},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
+        # _spawn_decision_runner(run_uid, decision_id, provider, provider_id, via)
+        assert mock_spawn.call_args[0][4] == "search_override"
+
+    def test_resolve_via_defaults_to_pick(self, test_config, tmp_path: Path) -> None:
+        """An absent via defaults to 'pick'."""
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1)
+        conn.close()
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        with patch("personalscraper.web.routes.decisions._spawn_decision_runner") as mock_spawn:
+            client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert mock_spawn.call_args[0][4] == "pick"
+
+
+class TestListStagingNoGC:
+    """F04 — GET /api/decisions does not GC (write) on the read-only staging instance."""
+
+    def test_list_skips_gc_on_staging(self, test_config, tmp_path: Path, monkeypatch) -> None:
+        """On staging the GET leaves a missing-path pending row untouched (no write)."""
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        # A pending row whose staging path does NOT exist — GC would supersede it.
+        _seed_decision(conn, decision_id=1, status="pending", staging_path="/gone/path")
+        conn.close()
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = client.get("/api/decisions/?status=pending")
+        assert resp.status_code == 200
+        # On staging the row must remain pending (no write side-effect).
+        row = _query_decision_row(db_path, 1)
+        assert row["status"] == "pending"
+
+    def test_list_runs_gc_on_prod(self, test_config, tmp_path: Path, monkeypatch) -> None:
+        """On prod the GET GCs a missing-path pending row to superseded."""
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1, status="pending", staging_path="/gone/path")
+        conn.close()
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        monkeypatch.delenv("PERSONALSCRAPER_WEB_ROLE", raising=False)
+        resp = client.get("/api/decisions/?status=pending")
+        assert resp.status_code == 200
+        # On prod the GC supersedes the missing-path row.
+        row = _query_decision_row(db_path, 1)
+        assert row["status"] == "superseded"

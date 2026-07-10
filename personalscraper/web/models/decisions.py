@@ -125,10 +125,15 @@ class ResolveRequest(BaseModel):
         provider: The metadata provider to use for the re-scrape
             (``"tmdb"`` or ``"tvdb"``).
         provider_id: The numeric identifier assigned by the chosen provider.
+        via: How the operator chose this identity — ``"pick"`` for a candidate
+            from the original queue snapshot, ``"search_override"`` for a
+            candidate returned by a live title/year search override.  Persisted
+            in ``resolution_json.via`` (coherence study F09/F40).
     """
 
     provider: Literal["tmdb", "tvdb"]
     provider_id: int
+    via: Literal["pick", "search_override"] = "pick"
 
 
 class ResolveResponse(BaseModel):
