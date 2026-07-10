@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 1 done (read routes). Continue with phase 2 (write routes).
+Phases 1-2 done (backend read + write). Continue with phase 3 (frontend client + hooks).
