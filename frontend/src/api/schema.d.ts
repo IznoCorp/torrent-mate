@@ -874,6 +874,12 @@ export interface paths {
          *     the pause sentinel.  The run process releases the lock and finalizes
          *     its history row as ``killed`` on its way out.
          *
+         *     Refuses (409) when the lock is held by a *maintenance* run (e.g. a
+         *     ``scrape-resolve`` resolution that self-acquired the lock, R11): this
+         *     endpoint targets pipeline runs, and SIGTERMing a maintenance child would
+         *     record its history row as ``error`` rather than ``killed`` (F32).  Such a
+         *     run must be stopped from its own surface.
+         *
          *     Returns the current pipeline status (fail-soft: if the lock is absent
          *     or unreadable, returns the idle status without error).
          */
@@ -2266,13 +2272,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2295,13 +2299,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
         };
     };

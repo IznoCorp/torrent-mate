@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.cli import app
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.lock import is_lock_held
 from tests.conftest import make_cli_runner
 
 # ---------------------------------------------------------------------------
@@ -671,3 +672,69 @@ class TestNFCNormalization:
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
         assert result.exit_code == 0
+
+
+class TestScrapeResolveLockLifecycle:
+    """Unmocked ``pipeline.lock`` self-acquisition proof (R11 / F52).
+
+    Every other happy-path test stubs ``cli_compat.acquire_lock`` /
+    ``release_lock`` so the lock is never really taken — a joint mock that
+    would let a broken self-lock ship green.  This test runs the REAL
+    ``acquire_lock`` / ``release_lock`` and asserts the lock file is held
+    *while the scrape body executes* and released once the command returns.
+    """
+
+    def test_lock_held_during_body_released_after(self, tmp_path: Path, test_config: Any) -> None:
+        """A real scrape-resolve holds ``pipeline.lock`` mid-body, frees it after.
+
+        Design: docs/reference/scraping.md#decision-queue-drain
+        Contract: scrape-resolve self-acquires the pipeline lock for its
+        lifetime (like library-rescrape) — the lock file exists and is held by
+        a live PID during the scrape/NFO body, and is removed when the command
+        exits, so concurrent runs and write/destructive maintenance actions are
+        serialised against it.
+        """
+        import os as _os
+
+        staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        lock_path = test_config.paths.data_dir / "pipeline.lock"
+        captured: dict[str, Any] = {}
+
+        def _lock_probe(*_args: Any, **_kwargs: Any) -> None:
+            """Record whether the pipeline lock is held while the body runs."""
+            captured["mid_body_held"] = is_lock_held(lock_path)
+            captured["mid_body_pid"] = lock_path.read_text().strip() if lock_path.exists() else None
+
+        mock_client = MagicMock()
+        mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
+
+        # NB: acquire_lock / release_lock are NOT patched here — they run for
+        # real against test_config's data_dir (via the patched loader).  Only
+        # the scrape body is replaced with the lock probe.
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch(
+                "personalscraper.commands.scrape_resolve._scrape_movie",
+                side_effect=_lock_probe,
+            ),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 0, result.output
+        # The lock was genuinely held (live PID) while the scrape body ran.
+        assert captured.get("mid_body_held") is True
+        assert captured.get("mid_body_pid") == str(_os.getpid())
+        # And released once the command returned (finally: release_lock()).
+        assert not is_lock_held(lock_path)
+        assert not lock_path.exists()

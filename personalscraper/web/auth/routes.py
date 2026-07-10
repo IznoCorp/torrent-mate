@@ -80,7 +80,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-@router.post("/login")
+@router.post("/login", status_code=204, response_class=Response)
 def login(body: LoginRequest, request: Request) -> Response:
     """Authenticate a user and set a session cookie.
 
@@ -162,7 +162,7 @@ def login(body: LoginRequest, request: Request) -> Response:
     return resp
 
 
-@router.post("/logout")
+@router.post("/logout", status_code=204, response_class=Response)
 def logout(session: Session = Depends(require_session)) -> Response:
     """Clear the session cookie (log out).
 

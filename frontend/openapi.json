@@ -1756,12 +1756,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -1786,12 +1781,7 @@
         "description": "Clear the session cookie (log out).\n\nRequires a valid session (guarded by ``require_session``).\n\nArgs:\n    session: The authenticated session injected by the guard.\n\nReturns:\n    A ``Response`` with status 204 and a cookie-clearing ``Set-Cookie`` header.",
         "operationId": "logout_api_auth_logout_post",
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "204": {
             "description": "Successful Response"
           }
         },
@@ -2663,7 +2653,7 @@
     },
     "/api/pipeline/kill": {
       "post": {
-        "description": "Kill the running pipeline subprocess with SIGTERM.\n\nReads the PID from ``pipeline.lock``, sends ``SIGTERM``, and clears\nthe pause sentinel.  The run process releases the lock and finalizes\nits history row as ``killed`` on its way out.\n\nReturns the current pipeline status (fail-soft: if the lock is absent\nor unreadable, returns the idle status without error).",
+        "description": "Kill the running pipeline subprocess with SIGTERM.\n\nReads the PID from ``pipeline.lock``, sends ``SIGTERM``, and clears\nthe pause sentinel.  The run process releases the lock and finalizes\nits history row as ``killed`` on its way out.\n\nRefuses (409) when the lock is held by a *maintenance* run (e.g. a\n``scrape-resolve`` resolution that self-acquired the lock, R11): this\nendpoint targets pipeline runs, and SIGTERMing a maintenance child would\nrecord its history row as ``error`` rather than ``killed`` (F32).  Such a\nrun must be stopped from its own surface.\n\nReturns the current pipeline status (fail-soft: if the lock is absent\nor unreadable, returns the idle status without error).",
         "operationId": "pipeline_kill_api_pipeline_kill_post",
         "responses": {
           "200": {

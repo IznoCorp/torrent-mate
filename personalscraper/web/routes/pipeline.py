@@ -129,6 +129,39 @@ def _build_status(data_dir: Path, db_path: Path) -> StatusResponse:
     )
 
 
+def _newest_running_kind(db_path: Path) -> str | None:
+    """Return the ``kind`` of the newest still-running ``pipeline_run`` row.
+
+    The lock holder is the run whose ``outcome`` is still ``'running'``.  Its
+    ``kind`` distinguishes a real pipeline run (``'pipeline'`` / ``NULL``) from
+    a maintenance run (``'maintenance'`` — e.g. a ``scrape-resolve`` resolution
+    that self-acquired the lock, R11).  Used by :func:`pipeline_kill` to refuse
+    to SIGTERM a maintenance child (which would record ``'error'`` on its way
+    out, not ``'killed'`` — F32).
+
+    Args:
+        db_path: Absolute path to the indexer SQLite database.
+
+    Returns:
+        The ``kind`` string of the newest running row (``'pipeline'`` when the
+        column is ``NULL``), or ``None`` when there is no running row or the
+        database read fails (fail-soft — the caller proceeds with the kill).
+    """
+    try:
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            _apply_pragmas(conn)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT kind FROM pipeline_run WHERE outcome = 'running' ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+    except sqlite3.Error:
+        logger.warning("pipeline_kill_kind_read_failed", exc_info=True)
+        return None
+    if row is None:
+        return None
+    return row["kind"] if row["kind"] is not None else "pipeline"
+
+
 def _data_dir(request: Request) -> Path:
     """Extract the configured ``data_dir`` from the application state.
 
@@ -238,17 +271,35 @@ def pipeline_kill(
     the pause sentinel.  The run process releases the lock and finalizes
     its history row as ``killed`` on its way out.
 
+    Refuses (409) when the lock is held by a *maintenance* run (e.g. a
+    ``scrape-resolve`` resolution that self-acquired the lock, R11): this
+    endpoint targets pipeline runs, and SIGTERMing a maintenance child would
+    record its history row as ``error`` rather than ``killed`` (F32).  Such a
+    run must be stopped from its own surface.
+
     Returns the current pipeline status (fail-soft: if the lock is absent
     or unreadable, returns the idle status without error).
     """
     data_dir = _data_dir(request)
     lock_path = data_dir / "pipeline.lock"
+    db_path = _db_path(request)
+
+    # A maintenance run (kind='maintenance') holding the lock is not a pipeline
+    # run — refuse rather than SIGTERM it under the wrong outcome (F32).
+    if _newest_running_kind(db_path) == "maintenance":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "A maintenance run (e.g. scrape-resolve) holds the pipeline "
+                "lock; it cannot be killed from the pipeline endpoint."
+            ),
+        )
 
     try:
         pid = int(lock_path.read_text().strip())
     except (FileNotFoundError, ValueError, OSError):
         # No lock or unreadable — nothing to kill.
-        return _build_status(data_dir, _db_path(request))
+        return _build_status(data_dir, db_path)
 
     try:
         os.kill(pid, signal.SIGTERM)
@@ -261,7 +312,7 @@ def pipeline_kill(
     # Clear the pause sentinel so a subsequent run is not blocked.
     (data_dir / "pipeline.pause").unlink(missing_ok=True)
 
-    return _build_status(data_dir, _db_path(request))
+    return _build_status(data_dir, db_path)
 
 
 @router.post("/watcher")
