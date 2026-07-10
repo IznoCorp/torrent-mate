@@ -14,6 +14,7 @@ import requests
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential_jitter
 
 from personalscraper.api._contracts import ApiError
+from personalscraper.api.metadata.registry._events import ProviderCallCompleted
 from personalscraper.api.transport._policy import TransportPolicy
 from personalscraper.api.transport._rate import RateLimiter
 from personalscraper.core.circuit import CircuitBreaker
@@ -61,6 +62,12 @@ class HttpTransport:
         """
         self._policy = policy
         self._log = get_logger(f"api.{policy.provider_name.lower()}")
+
+        # Event bus threading — the transport emits ProviderCallCompleted on
+        # the same bus the circuit uses so the web relay receives it.
+        self._event_bus = event_bus
+        self._last_latency_emit: float = 0.0
+        self._latency_emit_error_logged: bool = False
 
         self._session = requests.Session()
         self._session.headers["Accept"] = "application/json"
@@ -227,6 +234,40 @@ class HttpTransport:
 
     # -- Internal ------------------------------------------------------------
 
+    def _maybe_emit_latency(self, elapsed_ms: float, ok: bool) -> None:
+        """Emit :class:`ProviderCallCompleted` throttled to once per ~10 s.
+
+        Provider calls are high-frequency; a per-call emit would flood the
+        Redis stream and WS clients.  The throttle keeps the stream
+        dominated by rare circuit-transition events.
+
+        Fail-soft: a bus error is logged once per transport instance and
+        never breaks the HTTP call.
+
+        Args:
+            elapsed_ms: Wall-clock duration of the HTTP call in milliseconds.
+            ok: ``True`` on success, ``False`` on failure.
+        """
+        now = time.monotonic()
+        if now - self._last_latency_emit < 10.0:
+            return
+        self._last_latency_emit = now
+        try:
+            self._event_bus.emit(
+                ProviderCallCompleted(
+                    provider=self._policy.provider_name,
+                    latency_ms=elapsed_ms,
+                    ok=ok,
+                ),
+            )
+        except Exception:
+            if not self._latency_emit_error_logged:
+                self._log.warning(
+                    "latency_emit_failed",
+                    provider=self._policy.provider_name,
+                )
+                self._latency_emit_error_logged = True
+
     def _request_outer(
         self,
         method: str,
@@ -301,12 +342,14 @@ class HttpTransport:
         except (ApiError, requests.RequestException) as exc:
             elapsed_ms = (time.monotonic() - start) * 1000.0
             circuit._last_latency_ms = elapsed_ms
+            self._maybe_emit_latency(elapsed_ms, ok=False)
             if not self._policy.circuit.count_retries:
                 circuit.record_failure(exc)
             raise
 
         elapsed_ms = (time.monotonic() - start) * 1000.0
         circuit._last_latency_ms = elapsed_ms
+        self._maybe_emit_latency(elapsed_ms, ok=True)
         circuit.record_success()
         return result
 

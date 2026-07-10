@@ -137,6 +137,8 @@ async def read_stream_loop(
     redis_pool: aioredis.Redis,
     registry: ConnectionRegistry,
     stream_key: str,
+    *,
+    projection: Any = None,
 ) -> None:
     """Tail the Redis Stream and broadcast every new entry to all connected WebSockets.
 
@@ -145,10 +147,17 @@ async def read_stream_loop(
     background task.  Redis exceptions are logged once and retried after a short
     sleep — this loop **never crashes the app**.
 
+    When *projection* is provided, each successfully parsed entry is reduced
+    through ``projection.apply(msg["type"], msg["data"])`` so the server-side
+    health projection stays live (S6 reg-health).  A projection error is
+    logged once per entry and never wedges the loop.
+
     Args:
         redis_pool: An async Redis client from :func:`init_redis_pool`.
         registry: The connection registry for broadcasting.
         stream_key: The Redis Stream key to read from.
+        projection: Optional :class:`RegistryHealthProjection` instance to
+            feed with every relayed event.
     """
     last_id = "$"
     warned_down = False
@@ -174,6 +183,16 @@ async def read_stream_loop(
                             logger.warning("relay_entry_skipped", entry_id=entry_id, error=str(exc))
                             last_id = entry_id
                             continue
+                        # Feed the server-side health projection (S6 reg-health).
+                        if projection is not None:
+                            try:
+                                projection.apply(msg["type"], msg["data"])
+                            except Exception:  # noqa: BLE001 — fail-soft: never wedge the relay
+                                logger.warning(
+                                    "projection_apply_failed",
+                                    entry_id=entry_id,
+                                    event_type=msg.get("type"),
+                                )
                         await registry.broadcast(msg)
                         last_id = entry_id
         except asyncio.CancelledError:

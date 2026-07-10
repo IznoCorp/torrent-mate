@@ -275,11 +275,18 @@ from personalscraper.api._contracts import MediaType  # noqa: E402
 from personalscraper.api.metadata.registry import AttemptOutcome, ProviderMatch  # noqa: E402
 from personalscraper.api.metadata.registry._events import (  # noqa: E402
     LockedCapabilityUnresolved,
+    ProviderCallCompleted,
     ProviderExhaustedEvent,
     ProviderFallbackTriggered,
     RegistryBootValidated,
     RegistryFanOutCompleted,
 )
+
+
+@register_factory(ProviderCallCompleted)
+def make_provider_call_completed() -> ProviderCallCompleted:
+    """Realistic :class:`ProviderCallCompleted` factory (reg-health S6)."""
+    return ProviderCallCompleted(provider="tmdb", latency_ms=42.5, ok=True)
 
 
 @register_factory(ProviderFallbackTriggered)

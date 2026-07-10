@@ -10,6 +10,7 @@ import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, closing, suppress
 from pathlib import Path
+from typing import cast
 
 from fastapi import APIRouter, Depends, FastAPI
 
@@ -21,11 +22,13 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.logger import get_logger
 from personalscraper.web.auth.routes import router as auth_router
 from personalscraper.web.deps import is_staging_role, require_session
+from personalscraper.web.registry_projection import RegistryHealthProjection
 from personalscraper.web.routes.health import router as health_router
 from personalscraper.web.routes.version import router as version_router
 from personalscraper.web.static import mount_spa
 from personalscraper.web.ws.relay import (
     ConnectionRegistry,
+    _entry_to_message,
     init_redis_pool,
     read_stream_loop,
 )
@@ -103,8 +106,52 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     if config.web.enabled:
         redis_pool = await init_redis_pool(config.web)
         app.state.redis = redis_pool
-        relay_task = asyncio.create_task(read_stream_loop(redis_pool, registry, config.web.stream_key))
+        projection = app.state.registry_projection
+        relay_task = asyncio.create_task(
+            read_stream_loop(redis_pool, registry, config.web.stream_key, projection=projection),
+        )
         logger.info("relay_started", stream_key=config.web.stream_key)
+
+        # Boot warm-up: replay the Redis stream tail through the projection so
+        # the first REST hit reflects history (S6 reg-health §3.4).  Fail-soft:
+        # Redis down or empty stream → projection stays at its neutral baseline.
+        try:
+            # redis-py's return type is loosely typed (bytes|str|None); cast to
+            # the decoded shape the pool actually yields (decode_responses=True),
+            # mirroring read_stream_loop's cast of xread.
+            tail_entries = (
+                cast(
+                    "list[tuple[str, dict[str, str]]]",
+                    await redis_pool.xrevrange(
+                        config.web.stream_key,
+                        max="+",
+                        min="-",
+                        count=1000,
+                    ),
+                )
+                or []
+            )
+            # xrevrange returns newest-first; reverse for chronological order.
+            for entry_id, fields in reversed(tail_entries):
+                try:
+                    msg = _entry_to_message(entry_id, fields)
+                except (KeyError, ValueError, TypeError):
+                    continue
+                try:
+                    projection.apply(msg["type"], msg["data"])
+                except Exception:  # noqa: BLE001 — per-entry fail-soft
+                    logger.warning(
+                        "projection_warmup_entry_failed",
+                        entry_id=entry_id,
+                        event_type=msg.get("type"),
+                    )
+            logger.info(
+                "projection_warmed_up",
+                entries=len(tail_entries),
+                providers=len(projection.snapshot()),
+            )
+        except Exception:  # noqa: BLE001 — fail-soft: Redis down → skip warm-up
+            logger.warning("projection_warmup_failed", reason="redis unavailable")
     else:
         app.state.redis = None
         logger.info("relay_disabled", reason="web.enabled is False")
@@ -146,6 +193,7 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     # when it runs.
     app.state.ws_registry = ConnectionRegistry()
     app.state.redis = None
+    app.state.registry_projection = RegistryHealthProjection()
 
     # ── Public routes (no authentication required) ────────────────────
     # Health is the liveness probe — must stay public.
