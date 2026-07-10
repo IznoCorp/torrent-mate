@@ -28,6 +28,8 @@ import { useCallback, useMemo, useState, type ReactElement } from "react";
 
 import { getPipelineHistory, type HistoryParams } from "@/api/client";
 import type { components } from "@/api/schema";
+import { triggerLabel } from "@/components/pipeline/triggers";
+import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Table,
@@ -139,7 +141,9 @@ const COLUMNS: ColumnDef<RunSummary>[] = [
   {
     accessorKey: "trigger",
     header: "Déclencheur",
-    cell: ({ row }) => <span className="text-xs">{row.original.trigger}</span>,
+    cell: ({ row }) => (
+      <span className="text-xs">{triggerLabel(row.original.trigger)}</span>
+    ),
   },
   {
     id: "outcome",
@@ -385,6 +389,9 @@ export function RunHistoryTable({
           </div>
         </div>
       )}
+
+      {/* Trigger-label legend (webui-ux Phase 2.1). */}
+      <TriggerLegend />
     </section>
   );
 }

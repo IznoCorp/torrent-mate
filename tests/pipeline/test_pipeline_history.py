@@ -165,6 +165,87 @@ class TestPipelineRunWriterUpdateStep:
         assert steps[0]["status"] == "error"
 
 
+class TestPipelineRunWriterStepSummary:
+    """webui-ux Phase 2.2 — StepReport summary persistence in ``steps_json``."""
+
+    def test_update_step_persists_summary_counts(self, tmp_path: Path) -> None:
+        """Summary kwargs are folded into the ``steps_json`` entry."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-sum", trigger="cli", dry_run=False, pid=1)
+
+        writer.update_step(
+            "uid-sum",
+            "scrape",
+            100.0,
+            105.0,
+            "success",
+            success_count=3,
+            skip_count=1,
+            error_count=0,
+            unmatched_count=2,
+            counts={"downloaded": 3, "bot_detected": 1},
+        )
+
+        row = _select_row(db_path, "uid-sum")
+        assert row is not None
+        steps = json.loads(row["steps_json"])
+        assert steps[0]["success_count"] == 3
+        assert steps[0]["skip_count"] == 1
+        assert steps[0]["error_count"] == 0
+        assert steps[0]["unmatched_count"] == 2
+        assert steps[0]["counts"] == {"downloaded": 3, "bot_detected": 1}
+
+    def test_update_step_without_summary_omits_count_keys(self, tmp_path: Path) -> None:
+        """A timing-only call keeps the exact legacy entry shape (no count keys)."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-legacy", trigger="cli", dry_run=False, pid=1)
+
+        writer.update_step("uid-legacy", "ingest", 100.0, 101.0, "success")
+
+        row = _select_row(db_path, "uid-legacy")
+        assert row is not None
+        steps = json.loads(row["steps_json"])
+        assert steps[0] == {
+            "name": "ingest",
+            "started_at": 100.0,
+            "ended_at": 101.0,
+            "status": "success",
+        }
+
+    def test_update_step_empty_counts_omitted(self, tmp_path: Path) -> None:
+        """An empty ``counts`` dict is omitted; scalar zeros are still stored."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-empty", trigger="cli", dry_run=False, pid=1)
+
+        writer.update_step(
+            "uid-empty",
+            "sort",
+            100.0,
+            100.5,
+            "success",
+            success_count=0,
+            skip_count=0,
+            error_count=0,
+            unmatched_count=0,
+            counts={},
+        )
+
+        row = _select_row(db_path, "uid-empty")
+        assert row is not None
+        steps = json.loads(row["steps_json"])
+        assert "counts" not in steps[0]
+        assert steps[0]["success_count"] == 0
+        assert steps[0]["skip_count"] == 0
+        assert steps[0]["error_count"] == 0
+        assert steps[0]["unmatched_count"] == 0
+
+
 class TestPipelineRunWriterFinalize:
     """``finalize()`` tests."""
 

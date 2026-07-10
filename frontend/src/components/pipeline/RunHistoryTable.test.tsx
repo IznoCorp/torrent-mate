@@ -124,8 +124,8 @@ describe("RunHistoryTable", () => {
 
     // Outcome badge with French label.
     expect(await screen.findByText("Succès")).toBeInTheDocument();
-    // Trigger text.
-    expect(screen.getByText("cli")).toBeInTheDocument();
+    // Trigger rendered as its human label (cell + legend both list it → ≥1).
+    expect(screen.getAllByText("Ligne de commande").length).toBeGreaterThan(0);
     // Duration formatted as "2m 05s".
     expect(screen.getByText("2m 05s")).toBeInTheDocument();
   });
@@ -215,9 +215,14 @@ describe("RunHistoryTable", () => {
     const onSelect = vi.fn();
     renderTable(onSelect);
 
-    // Click the first data row (the cell containing the trigger "web").
-    await screen.findByText("web");
-    fireEvent.click(screen.getByText("web"));
+    // Click the first data row. The trigger "web" renders as its human label
+    // "Interface web" in both the row cell and the legend; the cell comes
+    // first in DOM order, so clicking [0] hits the row.
+    await screen.findByText("Succès");
+    const cells = screen.getAllByText("Interface web");
+    const cell = cells[0];
+    if (cell === undefined) throw new Error("trigger cell not rendered");
+    fireEvent.click(cell);
 
     expect(onSelect).toHaveBeenCalledWith("selected-uid");
   });

@@ -40,6 +40,11 @@ export default function Maintenance(): ReactElement {
         <IndexHealthPanel />
       </div>
 
+      {/* Pipeline run-history — relocated here from the Pipeline page
+          (webui-ux Phase 2.4 de-dup: the Pipeline page now shows only the
+          interpreted last-run summary, so pipeline history lives here). */}
+      <RunHistoryTable kind="pipeline" onSelect={setSelectedRun} />
+
       {/* Run-history panel filtered to maintenance runs (kind param → backend) */}
       <RunHistoryTable kind="maintenance" onSelect={setSelectedRun} />
 

@@ -2533,6 +2533,12 @@ export interface components {
          * StepTiming
          * @description Timing record for a single pipeline step within a run.
          *
+         *     The five count fields (webui-ux Phase 2.2) mirror the
+         *     :class:`~personalscraper.models.StepReport` summary persisted into
+         *     ``steps_json`` so the interpreted last-run report survives past the live
+         *     WS event stream. They are all optional and default to ``None`` for legacy
+         *     ``steps_json`` entries written before Phase 2.2 (fail-soft parsing).
+         *
          *     Attributes:
          *         name: Human-readable step name (e.g. ``"ingest"``, ``"sort"``).
          *         status: Step status (``"done"``, ``"running"``, ``"error"``, etc.).
@@ -2540,18 +2546,39 @@ export interface components {
          *         ended_at: ISO 8601 UTC timestamp of step end, or ``None``.
          *         elapsed_s: Step duration in seconds, or ``None`` if either timestamp
          *             is missing.
+         *         success_count: StepReport ``success_count``, or ``None`` for a legacy
+         *             entry that predates the persisted summary.
+         *         skip_count: StepReport ``skip_count``, or ``None`` for a legacy entry.
+         *         error_count: StepReport ``error_count``, or ``None`` for a legacy entry.
+         *         unmatched_count: Number of folders the scraper could not confidently
+         *             match (length of StepReport ``unmatched_paths``), or ``None`` for a
+         *             legacy entry.
+         *         counts: StepReport ``counts`` sub-category dict, or ``None`` when the
+         *             step tracks no sub-categories / for a legacy entry.
          */
         StepTiming: {
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            } | null;
             /** Elapsed S */
             elapsed_s?: number | null;
             /** Ended At */
             ended_at?: string | null;
+            /** Error Count */
+            error_count?: number | null;
             /** Name */
             name: string;
+            /** Skip Count */
+            skip_count?: number | null;
             /** Started At */
             started_at?: string | null;
             /** Status */
             status: string;
+            /** Success Count */
+            success_count?: number | null;
+            /** Unmatched Count */
+            unmatched_count?: number | null;
         };
         /**
          * TmpOrphan

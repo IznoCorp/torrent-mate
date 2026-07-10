@@ -279,6 +279,39 @@ class TestHistoryWriterUpdateStep:
                     assert s["status"] == "success"
                 assert s["started_at"] <= s["ended_at"]
 
+    def test_step_summary_threaded_into_steps_json(self) -> None:
+        """webui-ux 2.2: the StepReport summary is persisted per step.
+
+        The no-op steps return ``StepReport(success_count=1)``, so every
+        recorded step carries ``success_count=1`` in ``steps_json``. The
+        synthesized (skipped) dispatch step carries its own ``skip_count=1``.
+        A crashing step records ``error_count=1``.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "library.db"
+            _create_db(db_path)
+
+            app = _stub_app()
+            writer = PipelineRunWriter(db_path)
+            pipeline = Pipeline(app)
+
+            _run_with_writer(pipeline, _step_registry(raise_on="scrape"), writer)
+
+            row = _fetch_row(db_path, pipeline._run_uid)
+            assert row is not None
+            steps = json.loads(row["steps_json"])
+            by_name = {s["name"]: s for s in steps}
+
+            # A clean no-op step: success_count=1 threaded through.
+            assert by_name["ingest"]["success_count"] == 1
+            assert by_name["ingest"]["error_count"] == 0
+            assert by_name["ingest"]["unmatched_count"] == 0
+            # The crashing scrape step: error_count=1 from the error path.
+            assert by_name["scrape"]["error_count"] == 1
+            assert by_name["scrape"]["success_count"] == 0
+            # Synthesized dispatch (no verified items): skip_count=1.
+            assert by_name["dispatch"]["skip_count"] == 1
+
     def test_error_step_recorded_as_error(self) -> None:
         """A crashing non-critical step (scrape) is recorded with status 'error'."""
         with tempfile.TemporaryDirectory() as tmp:

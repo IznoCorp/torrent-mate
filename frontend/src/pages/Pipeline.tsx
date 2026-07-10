@@ -1,36 +1,51 @@
 /**
- * Pipeline supervision page (TorrentMateUI S2 — pipe-control).
+ * Pipeline supervision page (TorrentMateUI S2 — pipe-control; webui-ux Phase 2).
  *
- * Replaces the former {@link ComingSoon} stub at ``/pipeline``. The page polls
- * ``GET /api/pipeline/status`` every 5 seconds via TanStack Query and passes
- * the live status down to {@link PipelineControls}, {@link PipelineStepper},
- * and {@link RunLogFeed}.
+ * Polls ``GET /api/pipeline/status`` every 5 seconds via {@link usePipelineStatus}
+ * and feeds the live status to {@link PipelineControls} and {@link PipelineStepper}.
+ *
+ * webui-ux Phase 2 reworks the log area:
+ * - The DEFAULT view is the interpreted, plain-French run narrative
+ *   ({@link InterpretedRunFeed}) folded from the live WS event stream.
+ * - When no run is active, the interpreted feed shows the LAST run's summary
+ *   (reconstructed from the persisted per-step counts via
+ *   {@link useLastPipelineRun}) so the page never blanks.
+ * - The raw WS log ({@link RunLogFeed}) moves inside a collapsed {@link Accordion}.
+ * - The run-history table is removed here (it lives on the Maintenance page) to
+ *   de-duplicate; a small trigger legend explains the trigger labels.
  */
 
-import { useState, type ReactElement } from "react";
+import { type ReactElement } from "react";
 
+import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
-import { RunDetail } from "@/components/pipeline/RunDetail";
-import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
+import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useLastPipelineRun } from "@/hooks/useLastPipelineRun";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 
 /**
  * Pipeline — the authenticated pipeline supervision route (``/pipeline``).
- *
- * Delegates the status poll and live-event invalidation to
- * {@link usePipelineStatus}; the returned snapshot feeds the control bar,
- * stepper, and log feed without any inline query wiring. Phase 5 adds a
- * run-history table below the live section; clicking a row opens an inline
- * {@link RunDetail} view for that run.
  *
  * Returns:
  *   The pipeline page element.
  */
 export default function Pipeline(): ReactElement {
   const { snapshot: liveStatus } = usePipelineStatus();
-  const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  const activeRunUid = liveStatus.run_uid ?? null;
+  const isActive = liveStatus.state !== "idle" && activeRunUid !== null;
+
+  // When idle, reconstruct the last run's interpreted summary from history so
+  // the feed never blanks. `activeRunUid` as the refetch key means a
+  // freshly-finished run supersedes the previous summary.
+  const lastRun = useLastPipelineRun(activeRunUid ?? "idle");
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -40,20 +55,25 @@ export default function Pipeline(): ReactElement {
 
       <PipelineStepper currentStep={liveStatus.step ?? null} />
 
-      <RunLogFeed runUid={liveStatus.run_uid ?? null} />
-
-      {/* Phase 5: run-history table filtered to pipeline runs */}
-      <RunHistoryTable kind="pipeline" onSelect={setSelectedRun} />
-
-      {/* Phase 5: inline detail view when a row is selected */}
-      {selectedRun !== null && (
-        <RunDetail
-          runUid={selectedRun}
-          onClose={() => {
-            setSelectedRun(null);
-          }}
-        />
+      {/* Interpreted narrative — live for an active run, else the last run's
+          persisted summary (never blanks). */}
+      {isActive ? (
+        <InterpretedRunFeed runUid={activeRunUid} />
+      ) : (
+        <InterpretedRunFeed lines={lastRun.lines} label="Dernière exécution" />
       )}
+
+      {/* Raw WS log — collapsed by default inside the accordion. */}
+      <Accordion className="rounded-lg border border-border bg-card px-3">
+        <AccordionItem>
+          <AccordionTrigger>Journal brut (avancé)</AccordionTrigger>
+          <AccordionContent>
+            <RunLogFeed runUid={activeRunUid} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      <TriggerLegend />
     </section>
   );
 }

@@ -367,6 +367,78 @@ class TestUnifiedHistoryDetail:
         assert data["steps"][0]["name"] == "ingest"
         assert data["steps"][1]["name"] == "sort"
 
+    def test_detail_legacy_steps_have_null_summary(self, unified_history_client: TestClient) -> None:
+        """webui-ux 2.2: legacy ``steps_json`` (no counts) → summary fields null (fail-soft)."""
+        resp = unified_history_client.get("/api/pipeline/history/p1-aaa111")
+        assert resp.status_code == 200
+        data = resp.json()
+        # The seeded p1-aaa111 steps predate Phase 2.2 — the response still
+        # parses, with the new summary fields defaulting to None.
+        step = data["steps"][0]
+        assert step["success_count"] is None
+        assert step["skip_count"] is None
+        assert step["error_count"] is None
+        assert step["unmatched_count"] is None
+        assert step["counts"] is None
+
+    def test_detail_persisted_summary_round_trips(self, test_config, tmp_path: Path) -> None:
+        """webui-ux 2.2: a steps_json entry WITH counts surfaces on the detail read."""
+        db_path = tmp_path / "summary.db"
+        conn = sqlite3.connect(str(db_path))
+        migrations_dir = Path(_migrations_pkg.__file__).parent
+        apply_migrations(conn, migrations_dir)
+        steps = json.dumps(
+            [
+                {
+                    "name": "scrape",
+                    "status": "success",
+                    "started_at": _T0,
+                    "ended_at": _T0 + 5.0,
+                    "success_count": 3,
+                    "skip_count": 1,
+                    "error_count": 0,
+                    "unmatched_count": 2,
+                    "counts": {"downloaded": 3, "bot_detected": 1},
+                }
+            ]
+        )
+        conn.execute(
+            "INSERT INTO pipeline_run "
+            "(run_uid, trigger, dry_run, started_at, ended_at, outcome, "
+            "steps_json, error, pid, kind, command, options_json, output_tail) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "sum-run-1",
+                "web",
+                0,
+                _T0,
+                _T0 + 5.0,
+                "success",
+                steps,
+                None,
+                999,
+                "pipeline",
+                None,
+                None,
+                None,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        data_dir = tmp_path / ".data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        client = _make_client(test_config, db_path, data_dir)
+
+        resp = client.get("/api/pipeline/history/sum-run-1")
+        assert resp.status_code == 200
+        step = resp.json()["steps"][0]
+        assert step["success_count"] == 3
+        assert step["skip_count"] == 1
+        assert step["error_count"] == 0
+        assert step["unmatched_count"] == 2
+        assert step["counts"] == {"downloaded": 3, "bot_detected": 1}
+
     def test_detail_second_maintenance_run(self, unified_history_client: TestClient) -> None:
         """Detail of the second maintenance run → different command and options."""
         resp = unified_history_client.get("/api/pipeline/history/m2-eee555")
