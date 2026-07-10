@@ -16,7 +16,7 @@
 | #   | Phase                                | File                        | Status |
 | --- | ------------------------------------ | --------------------------- | ------ |
 | 1   | S6.0 contract freeze + latency field | phase-01-freeze-latency.md  | [x]    |
-| 2   | REST read route                      | phase-02-rest-route.md      | [ ]    |
+| 2   | REST read route                      | phase-02-rest-route.md      | [x]    |
 | 3   | Frontend typed client + hook         | phase-03-frontend-client.md | [ ]    |
 | 4   | Frontend page + nav                  | phase-04-frontend-page.md   | [ ]    |
 | 5   | Integration + ACC + docs             | phase-05-integration-acc.md | [ ]    |
@@ -27,4 +27,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 1 done. Continue with phase 2 (REST read route).
+Phases 1-2 done (event projection + REST). Continue with phase 3 (frontend typed client + hook).
