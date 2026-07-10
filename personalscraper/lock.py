@@ -220,7 +220,17 @@ def acquire_pipeline_lock(lock_file: Path, scrape_locks_dir: Path) -> bool:
     # starting concurrently will observe it in ITS post-claim check.  Only after
     # claiming do we check the scrape dir — if a resolve already registered its
     # item lock before we claimed, back off and release the global lock.
-    if any_scrape_resolve_active(scrape_locks_dir):
+    #
+    # The probe runs INSIDE try/except (SF5): if any_scrape_resolve_active raises
+    # an unexpected error (dir mutated mid-glob, a non-OSError FS failure), the
+    # just-claimed global lock must NOT be leaked — release it before re-raising
+    # so no exception path leaves pipeline.lock claimed on disk.
+    try:
+        scrape_active = any_scrape_resolve_active(scrape_locks_dir)
+    except Exception:
+        release_lock(lock_file)
+        raise
+    if scrape_active:
         release_lock(lock_file)
         log.warning("pipeline_lock_backoff_scrape_active", scrape_locks_dir=str(scrape_locks_dir))
         return False

@@ -47,7 +47,10 @@ describe("interpretRun", () => {
         details: { destination: "/staging/001-MOVIES/The.Movie.2024.1080p" },
       }),
       ev("StepStarted", { step: "clean" }),
-      ev("ItemProgressed", { step: "clean", item: "001-MOVIES", status: "recleaned" }),
+      // The backend emits status "cleaned"/"skipped"/"error" for a clean step —
+      // never "recleaned" (that is only a structlog detail key). Use the real
+      // vocab so this golden covers the actual code path.
+      ev("ItemProgressed", { step: "clean", item: "001-MOVIES", status: "cleaned" }),
       ev("StepStarted", { step: "scrape" }),
       ev("ItemProgressed", {
         step: "scrape",

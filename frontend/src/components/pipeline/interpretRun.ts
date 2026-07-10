@@ -218,7 +218,9 @@ function cleanLine(
   status: string,
   item: string,
 ): InterpretedLine | null {
-  if (status === "recleaned" || status === "cleaned") {
+  // "cleaned" is the real backend status; "recleaned" is tolerated dead input
+  // (it is a structlog detail key the backend never emits as an item status).
+  if (status === "cleaned" || status === "recleaned") {
     return { step, text: `Nettoyé : ${item}`, tone: "success" };
   }
   if (status === "skipped") {

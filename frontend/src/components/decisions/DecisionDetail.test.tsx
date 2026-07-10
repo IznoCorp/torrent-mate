@@ -49,6 +49,19 @@ const searchDecisionCandidatesMock = vi.mocked(searchDecisionCandidates);
 const dismissDecisionMock = vi.mocked(dismissDecision);
 
 // ---------------------------------------------------------------------------
+// Mock: run-detail poll (getPipelineRunDetail) — preserve the real ApiError.
+// ---------------------------------------------------------------------------
+
+vi.mock("@/api/client", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+  return { ...actual, getPipelineRunDetail: vi.fn() };
+});
+
+import { getPipelineRunDetail } from "@/api/client";
+const getPipelineRunDetailMock = vi.mocked(getPipelineRunDetail);
+
+// ---------------------------------------------------------------------------
 // Mock: RunLogFeed
 // ---------------------------------------------------------------------------
 
@@ -115,6 +128,22 @@ function makeDecision(
     created_at: 1_750_000_000,
     resolution_json: null,
     ...overrides,
+  };
+}
+
+/** Build a minimal RunDetail with a given outcome for the completion-poll mock. */
+function makeRunDetail(
+  outcome: "success" | "error" | "killed" | "running",
+): Awaited<ReturnType<typeof getPipelineRunDetail>> {
+  return {
+    run_uid: "run-abc-123",
+    outcome,
+    kind: "maintenance",
+    dry_run: false,
+    started_at: "2026-07-10T00:00:00Z",
+    ended_at: outcome === "running" ? null : "2026-07-10T00:01:00Z",
+    trigger: "web",
+    steps: [],
   };
 }
 
@@ -479,6 +508,96 @@ describe("DecisionDetail", () => {
     });
 
     expect(screen.getByText("Re-scraping en cours")).toBeInTheDocument();
+  });
+
+  // ---- Terminal-outcome badge + failure toast (SF1) --------------------------
+
+  it("affiche le badge succès quand le run se termine avec 'success' (SF1)", async () => {
+    resolveDecisionMock.mockResolvedValueOnce({ run_uid: "run-abc-123" });
+    getPipelineRunDetailMock.mockResolvedValue(makeRunDetail("success"));
+
+    renderDetail(makeDecision());
+
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Re-scraping terminé")).toBeInTheDocument();
+    });
+    // A successful run must NOT surface the danger label nor a failure toast.
+    expect(screen.queryByText("Re-scraping échoué")).not.toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("re-scraping a échoué"),
+    );
+  });
+
+  it("affiche le badge danger + un toast d'échec sur un run 'error' terminal (SF1)", async () => {
+    resolveDecisionMock.mockResolvedValueOnce({ run_uid: "run-abc-123" });
+    getPipelineRunDetailMock.mockResolvedValue(makeRunDetail("error"));
+
+    renderDetail(makeDecision());
+
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    // The terminal-error outcome surfaces the DANGER badge (not the neutral
+    // "terminé" that used to masquerade as success).
+    await waitFor(() => {
+      expect(screen.getByText("Re-scraping échoué")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Re-scraping terminé")).not.toBeInTheDocument();
+
+    // …and fires a single failure toast.
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("re-scraping a échoué"),
+      );
+    });
+  });
+
+  it("affiche le badge danger sur un run 'killed' terminal (SF1)", async () => {
+    resolveDecisionMock.mockResolvedValueOnce({ run_uid: "run-abc-123" });
+    getPipelineRunDetailMock.mockResolvedValue(makeRunDetail("killed"));
+
+    renderDetail(makeDecision());
+
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Re-scraping échoué")).toBeInTheDocument();
+    });
+  });
+
+  it("surface une erreur quand le suivi du run échoue en boucle (stuck-poll, SF1)", async () => {
+    resolveDecisionMock.mockResolvedValueOnce({ run_uid: "run-abc-123" });
+    // The run-detail GET persistently 404s (row never written) — the poll must
+    // stop and surface a failure rather than spin "en cours" forever.
+    getPipelineRunDetailMock.mockRejectedValue(new ApiError(404, "not found"));
+
+    renderDetail(makeDecision());
+
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    // runQuery uses retry: 2 (a fresh run row may briefly 404 before the runner
+    // writes it), so allow for the retry backoff before the error settles.
+    await waitFor(
+      () => {
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.stringContaining("Impossible de suivre le re-scraping"),
+        );
+      },
+      { timeout: 8000 },
+    );
+    // The stuck poll resolves to a failed terminal state (danger badge), not an
+    // eternal "en cours".
+    await waitFor(
+      () => {
+        expect(screen.getByText("Re-scraping échoué")).toBeInTheDocument();
+      },
+      { timeout: 8000 },
+    );
   });
 
   // ---- Dismissed local state -------------------------------------------------

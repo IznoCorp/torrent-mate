@@ -14,7 +14,23 @@
 --   * pre-1.0, single instance, no external consumers of loser ids;
 --   * every dependent FK (wanted.followed_id) is reattached first;
 --   * a leftover inactive duplicate would still violate the UNIQUE index.
+--
+-- Active-flag preservation: collapsing to MIN(id) alone would silently DROP a
+-- re-follow when the low-id survivor was unfollowed (active=0) and a higher-id
+-- duplicate re-followed it (active=1) — the survivor would keep active=0 and the
+-- active row would be deleted.  So BEFORE deleting the losers, promote the
+-- survivor to active=1 whenever ANY row in its media_ref_json group is active.
+-- This keeps the survivor id stable (MIN) while never dropping an active follow.
 PRAGMA user_version = 4;
+
+-- Step 0: preserve active-ness — set each survivor (MIN(id) per media_ref_json)
+-- active=1 when ANY duplicate in its group is active, so a re-follow on a
+-- higher-id row is not lost when the losers are deleted in Step 2.
+UPDATE followed_series
+SET active = 1
+WHERE id IN (
+    SELECT MIN(id) FROM followed_series GROUP BY media_ref_json HAVING MAX(active) = 1
+);
 
 -- Step 1: reattach dependent wanted rows from each loser to its survivor.
 -- The survivor is the MIN(id) row sharing the same media_ref_json.

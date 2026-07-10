@@ -971,6 +971,80 @@ class TestResolveLockReProbe:
         assert row["error"] == "Pipeline lock held"
         assert row["ended_at"] is not None
 
+    def test_finalize_raising_on_lock_reprobe_still_returns_409(self, test_config, tmp_path: Path) -> None:
+        """SF3 — a raising finalize on the lock-re-probe path must still 409.
+
+        If ``PipelineRunWriter.finalize`` raises (contended DB), the intended 409
+        must still fire — the finalize is fail-soft so a DB error cannot swallow
+        the HTTP response nor turn a 409 into an untyped 500.
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1)
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+
+        with (
+            patch(
+                "personalscraper.web.routes.decisions.is_lock_held",
+                side_effect=[False, True],
+            ),
+            patch(
+                "personalscraper.web.routes.decisions.PipelineRunWriter.finalize",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ),
+            patch("personalscraper.web.routes.decisions._spawn_decision_runner") as mock_spawn,
+        ):
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        # The intended 409 fires even though finalize raised (fail-soft).
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "Pipeline lock held"
+        mock_spawn.assert_not_called()
+
+    def test_finalize_raising_on_spawn_failure_still_returns_500(self, test_config, tmp_path: Path) -> None:
+        """SF3 — a raising finalize on the spawn-failure path must still 500.
+
+        The spawn OSError already maps to a 500; a subsequent raising finalize
+        (fail-soft) must not convert that into a different/untyped error.
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1)
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+
+        with (
+            patch("personalscraper.web.routes.decisions.subprocess.Popen", side_effect=OSError("spawn failed")),
+            patch(
+                "personalscraper.web.routes.decisions.PipelineRunWriter.finalize",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ),
+        ):
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+        # The intended 500 fires even though finalize raised (fail-soft).
+        assert resp.status_code == 500
+        assert "spawn" in resp.json()["detail"].lower()
+
 
 class TestResolveSecondConcurrent:
     """Finding C — second concurrent resolve gets 409."""

@@ -150,12 +150,21 @@ def scrape_resolve(
     the staging folder, and marks the matching ``scrape_decision`` row as
     ``resolved``.
 
-    Acquires a per-staging-item scrape lock for its lifetime (scoped, scrape-only
-    locking — webui-ux phase 4): distinct staging items resolve in PARALLEL, the
-    SAME item blocks (idempotent guard), and any global ``pipeline.lock`` holder
-    (full run / maintenance) makes the resolve back off.  Safe as both a direct
-    human invocation and a web-runner subprocess (still in ``_CLI_SELF_LOCKING`` —
-    the runner must NOT acquire the global lock on its behalf).
+    Acquires the SCOPED per-staging-item scrape lock
+    (:func:`~personalscraper.lock.acquire_scrape_resolve_lock`) for its lifetime —
+    it does NOT self-acquire the global ``pipeline.lock`` (two-tier scoped locking,
+    webui-ux phase 4).  Distinct staging items resolve in PARALLEL (distinct
+    per-item locks), the SAME item blocks (idempotent guard), and any global
+    ``pipeline.lock`` holder (full run / maintenance) makes the resolve back off —
+    the item lock is fail-closed against the global lock.  Safe as both a direct
+    human invocation and a web-runner subprocess.
+
+    Note: the ``"scrape-resolve"`` entry in
+    ``personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for
+    this command — the decisions runner
+    (:mod:`personalscraper.web.decisions.runner`) that spawns this CLI consults no
+    such set and never acquires the global lock on its behalf; the entry only
+    matters to the maintenance runner, which does not spawn scrape-resolve.
 
     Exit codes:
         0 — success (NFO written, artwork downloaded, decision resolved).

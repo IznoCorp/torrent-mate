@@ -413,5 +413,12 @@ describe("useAllDecisions", () => {
 
     expect(result.current.isError).toBe(false);
     expect(result.current.items.length).toBeGreaterThan(0);
+
+    // SF2: the failed status yields a null count (undetermined, NOT a false 0)
+    // and is listed in `errored`; a succeeded status keeps its real numeric count.
+    expect(result.current.counts.superseded).toBeNull();
+    expect(result.current.errored.has("superseded")).toBe(true);
+    expect(result.current.counts.pending).toBe(1);
+    expect(result.current.errored.has("pending")).toBe(false);
   });
 });

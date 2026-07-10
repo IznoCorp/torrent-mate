@@ -97,7 +97,13 @@ export default function Decisions(): ReactElement {
     counts,
     isLoading: listLoading,
     isError: listError,
+    errored,
   } = useAllDecisions(activeStatusesList);
+
+  // A partial failure on the core `pending` signal must be surfaced, not
+  // coerced to "0 pending" (SF2). This is distinct from `listError` (which is
+  // only true when EVERY status query failed).
+  const pendingFailed = errored.has("pending");
 
   const {
     data: detailData,
@@ -209,12 +215,19 @@ export default function Decisions(): ReactElement {
           {STATUS_FILTERS.map((status) => {
             const active = activeStatuses.has(status);
             const count = counts[status];
+            // A null count means that status's query failed — show "?" rather
+            // than a misleading "0" (SF2).
+            const countLabel = count == null ? "?" : String(count);
             return (
               <button
                 key={status}
                 type="button"
                 aria-pressed={active}
-                title={STATUS_TOOLTIP[status]}
+                title={
+                  count == null
+                    ? `${STATUS_TOOLTIP[status]} — échec du chargement`
+                    : STATUS_TOOLTIP[status]
+                }
                 onClick={() => {
                   handleToggleStatus(status);
                 }}
@@ -224,7 +237,7 @@ export default function Decisions(): ReactElement {
                   className="cursor-pointer"
                 >
                   {STATUS_SHORT_LABEL[status]}
-                  <span className="ml-1 opacity-70">({count})</span>
+                  <span className="ml-1 opacity-70">({countLabel})</span>
                 </Badge>
               </button>
             );
@@ -236,6 +249,17 @@ export default function Decisions(): ReactElement {
             : "Filtre actif — cliquez un statut pour l'activer/le désactiver."}
         </p>
       </div>
+
+      {/* ---- Partial-failure banner (SF2) ------------------------------------ */}
+      {/* When the core `pending` query fails but others succeed, the flat list
+          still renders — but the pending count would otherwise read a false "0".
+          Surface it explicitly so the operator knows the signal is unreliable. */}
+      {!listError && pendingFailed && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          Impossible de charger les décisions en attente — le nombre affiché
+          peut être incomplet. Réessayez.
+        </p>
+      )}
 
       {/* ---- Content area ---------------------------------------------------- */}
       {listError ? (

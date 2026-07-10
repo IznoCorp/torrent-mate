@@ -276,6 +276,38 @@ class TestMigration004Dedup:
         assert followed_ids[13] == 4, "wanted 13 (ref B →4) must be untouched"
         assert followed_ids[14] is None, "wanted 14 (NULL followed_id) must stay NULL"
 
+    def test_dedup_preserves_active_when_survivor_was_unfollowed(self, tmp_path: Path) -> None:
+        """004 promotes the MIN(id) survivor to active=1 when a higher-id dup is active.
+
+        A duplicate group where the low-id row is unfollowed (active=0) and a
+        higher-id row is re-followed (active=1) must NOT collapse to the inactive
+        row — that would silently drop the active follow.  The survivor keeps the
+        MIN id (1) but is promoted to active=1 (Step 0 of the migration).
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_003(conn, tmp_path)
+
+        # id=1 active=0 (unfollowed), id=2 active=1 (re-followed) — same ref.
+        conn.executescript(
+            f"""
+            INSERT INTO followed_series (id, media_ref_json, title, active, added_at)
+            VALUES
+              (1, '{self._REF_A}', 'Show A unfollowed', 0, 100),
+              (2, '{self._REF_A}', 'Show A refollowed', 1, 200);
+            """
+        )
+        conn.commit()
+
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        rows = conn.execute(
+            "SELECT id, active FROM followed_series WHERE media_ref_json = ? ORDER BY id",
+            (self._REF_A,),
+        ).fetchall()
+        # Survivor is the MIN id (1) — but active-ness of the group is preserved.
+        assert rows == [(1, 1)], "survivor must be id=1 with active=1 (active follow not dropped)"
+
     def test_unique_index_enforced_after_dedup(self, tmp_path: Path) -> None:
         """After 004, a second raw INSERT of a duplicate media_ref_json is rejected."""
         db_path = tmp_path / "acquire.db"

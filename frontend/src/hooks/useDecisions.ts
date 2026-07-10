@@ -88,12 +88,26 @@ const AGGREGATE_PAGE_SIZE = 200;
 export interface AllDecisionsResult {
   /** Merged, deduped, newest-first list across every status. */
   readonly items: readonly DecisionListItem[];
-  /** Per-status total row count (independent of the flat list length). */
-  readonly counts: Readonly<Record<DecisionStatus, number>>;
+  /**
+   * Per-status total row count (independent of the flat list length).
+   *
+   * ``null`` for a status whose query FAILED — so a transient 500 renders as
+   * "undetermined", not a misleading "0" (SF2). A successful query is always a
+   * number (``0`` genuinely means zero rows).
+   */
+  readonly counts: Readonly<Record<DecisionStatus, number | null>>;
   /** ``true`` while any of the four per-status queries is still loading. */
   readonly isLoading: boolean;
   /** ``true`` when every per-status query failed (partial success is tolerated). */
   readonly isError: boolean;
+  /**
+   * The set of statuses whose query FAILED (SF2).
+   *
+   * Lets the page distinguish "0 pending" (successful, empty) from "pending
+   * failed to load" (query errored) per status — a partial failure on the core
+   * ``pending`` signal must not be silently coerced to zero.
+   */
+  readonly errored: ReadonlySet<DecisionStatus>;
 }
 
 /**
@@ -148,9 +162,18 @@ export function useAllDecisions(
   });
 
   // Per-status totals for the chip counters (independent of the active filter).
-  const counts = {} as Record<DecisionStatus, number>;
+  // A FAILED query yields ``null`` (undetermined), NOT ``0`` — coercing a failed
+  // query to zero would render a transient 500 as a false "0 decisions" (SF2).
+  const counts = {} as Record<DecisionStatus, number | null>;
+  const errored = new Set<DecisionStatus>();
   ALL_STATUSES.forEach((status, idx) => {
-    counts[status] = results[idx]?.data?.total ?? 0;
+    const result = results[idx];
+    if (result?.isError === true) {
+      counts[status] = null;
+      errored.add(status);
+    } else {
+      counts[status] = result?.data?.total ?? 0;
+    }
   });
 
   // Merge only the statuses in scope, dedup by id, newest-first.
@@ -171,7 +194,7 @@ export function useAllDecisions(
   const isLoading = results.some((r) => r.isLoading);
   const isError = results.every((r) => r.isError);
 
-  return { items, counts, isLoading, isError };
+  return { items, counts, isLoading, isError, errored };
 }
 
 // NOTE (coherence study F12): the resolve / dismiss / search MUTATIONS live

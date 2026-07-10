@@ -23,6 +23,7 @@ import type {
   DecisionListItem,
   DecisionDetail as DecisionDetailType,
 } from "@/api/decisions";
+import type { DecisionStatus } from "@/components/decisions/triggers";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -79,14 +80,27 @@ vi.mock("@/hooks/useDecisions", () => ({
 }));
 
 // The page uses dismissDecision for the inline quick-dismiss mutation; stub it
-// so the mutation never hits the network (its success/error paths are covered
-// in DecisionDetail.test.tsx).
+// so the mutation never hits the network. Unlike DecisionDetail's dismiss, the
+// PAGE's own quickDismissMutation onError branches (410/409/generic/non-Api) +
+// the onSettled dismissingId reset are covered here (R3).
 vi.mock("@/api/decisions", async () => {
   const actual =
     await vi.importActual<typeof import("@/api/decisions")>("@/api/decisions");
   return { ...actual, dismissDecision: vi.fn() };
 });
 
+// The page emits sonner toasts from the inline quick-dismiss mutation; mock the
+// toast module so those branches are assertable without a real toast host.
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+import { toast } from "sonner";
+
+import { ApiError } from "@/api/client";
 import { dismissDecision } from "@/api/decisions";
 const dismissDecisionMock = vi.mocked(dismissDecision);
 
@@ -115,7 +129,8 @@ function setupDecisionsList(
     items?: DecisionListItem[];
     isLoading?: boolean;
     isError?: boolean;
-    counts?: Partial<Record<string, number>>;
+    counts?: Partial<Record<string, number | null>>;
+    errored?: DecisionStatus[];
   } = {},
 ): void {
   const {
@@ -123,6 +138,7 @@ function setupDecisionsList(
     isLoading = false,
     isError = false,
     counts = {},
+    errored = [],
   } = overrides;
 
   useAllDecisionsMock.mockReturnValue({
@@ -130,6 +146,7 @@ function setupDecisionsList(
     counts: { ...ZERO_COUNTS, ...counts },
     isLoading,
     isError,
+    errored: new Set(errored),
   });
 
   useDecisionDetailMock.mockReturnValue({
@@ -473,5 +490,112 @@ describe("Decisions", () => {
     expect(
       screen.getByText("Sélectionnez une décision pour voir les détails."),
     ).toBeInTheDocument();
+  });
+
+  // ---- Inline quick-dismiss error branches (R3) -----------------------------
+  // These exercise the page's OWN quickDismissMutation onError paths — a DIFFERENT
+  // code path from DecisionDetail's dismiss mutation (covered in its own suite).
+
+  it("affiche le message 410 sur échec du quick-dismiss inline", async () => {
+    dismissDecisionMock.mockRejectedValueOnce(new ApiError(410, "Superseded"));
+    setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
+    renderPage();
+
+    fireEvent.click(screen.getByText("Ignorer"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Cette décision a été remplacée par une version plus récente.",
+      );
+    });
+  });
+
+  it("affiche le message 409 sur échec du quick-dismiss inline", async () => {
+    dismissDecisionMock.mockRejectedValueOnce(
+      new ApiError(409, "No longer pending"),
+    );
+    setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
+    renderPage();
+
+    fireEvent.click(screen.getByText("Ignorer"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Cette décision n'est plus en attente.",
+      );
+    });
+  });
+
+  it("affiche le detail brut sur un autre statut ApiError du quick-dismiss inline", async () => {
+    dismissDecisionMock.mockRejectedValueOnce(
+      new ApiError(500, "Boom generic"),
+    );
+    setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
+    renderPage();
+
+    fireEvent.click(screen.getByText("Ignorer"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Boom generic");
+    });
+  });
+
+  it("affiche un message générique sur une erreur non-ApiError du quick-dismiss inline", async () => {
+    dismissDecisionMock.mockRejectedValueOnce(new Error("network down"));
+    setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
+    renderPage();
+
+    fireEvent.click(screen.getByText("Ignorer"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Erreur inattendue.");
+    });
+  });
+
+  it("réinitialise dismissingId après un quick-dismiss en échec (onSettled)", async () => {
+    dismissDecisionMock.mockRejectedValueOnce(new ApiError(409, "nope"));
+    setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
+    renderPage();
+
+    const dismissButton = screen.getByText("Ignorer");
+    fireEvent.click(dismissButton);
+
+    // While in flight the button shows the "…" spinner label (dismissingId set).
+    await waitFor(() => {
+      expect(screen.getByText("…")).toBeInTheDocument();
+    });
+
+    // onSettled resets dismissingId → the button returns to its "Ignorer" label
+    // and is re-enabled (proves the reset fires on the ERROR path too).
+    await waitFor(() => {
+      expect(screen.getByText("Ignorer")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Ignorer")).not.toBeDisabled();
+  });
+
+  // ---- Partial-failure: pending query failed (SF2) --------------------------
+
+  it("distingue « 0 pending » de « pending failed to load »", () => {
+    // The `pending` query errored (others succeeded). The page must NOT render a
+    // misleading "0 pending" — it shows a "?" count + an explicit error banner.
+    setupDecisionsList({
+      items: [makeListItem({ id: 2, status: "resolved" })],
+      counts: { pending: null, resolved: 7, dismissed: 0, superseded: 0 },
+      errored: ["pending"],
+    });
+    renderPage();
+
+    // An explicit alert surfaces the pending-load failure.
+    expect(
+      screen.getByText(/Impossible de charger les décisions en attente/),
+    ).toBeInTheDocument();
+
+    // The pending chip shows "?" (undetermined), NOT "(0)".
+    const group = screen.getByRole("group", {
+      name: /Filtrer les décisions par statut/,
+    });
+    expect(within(group).getByText("(?)")).toBeInTheDocument();
+    // The successful resolved chip still shows its real count.
+    expect(within(group).getByText("(7)")).toBeInTheDocument();
   });
 });

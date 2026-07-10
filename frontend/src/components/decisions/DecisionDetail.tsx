@@ -207,6 +207,13 @@ export function DecisionDetail({
   const [runDone, setRunDone] = useState(false);
   const invalidatedOnDone = useRef(false);
 
+  /**
+   * The terminal outcome of the launched run (``success`` / ``error`` /
+   * ``killed``), or ``null`` while still running / not yet launched.  Drives the
+   * badge tone + label so a failed run does not masquerade as success (SF1).
+   */
+  const [runOutcome, setRunOutcome] = useState<string | null>(null);
+
   const triggerLabel = TRIGGER_LABEL[decision.trigger] ?? decision.trigger;
   const triggerExplanation =
     TRIGGER_EXPLANATION[decision.trigger] ??
@@ -353,14 +360,24 @@ export function DecisionDetail({
   // ---- resolve-run completion poll (F19/F49) --------------------------------
   // Poll the launched run's history row; when it reaches a terminal outcome,
   // re-invalidate the decisions list (the row is now really resolved) and flip
-  // the in-progress badge. Stops polling once terminal.
+  // the in-progress badge. Stops polling once terminal — and also stops if the
+  // GET persistently errors, so a 404 (row never written) does not poll forever
+  // (SF1 stuck-poll guard).
   const runQuery = useQuery({
     queryKey: ["pipeline", "history", runUid],
     queryFn: () => getPipelineRunDetail(runUid ?? ""),
     enabled: runUid != null && !runDone,
+    // Do not retry a failing run-detail GET forever — surface it via isError
+    // instead so refetchInterval can stop the 2s poll.
+    retry: 2,
     refetchInterval: (query) => {
       const outcome = query.state.data?.outcome;
-      return outcome != null && TERMINAL_OUTCOMES.has(outcome) ? false : 2000;
+      if (outcome != null && TERMINAL_OUTCOMES.has(outcome)) return false;
+      // Stop polling once the query has settled into an error state (e.g. a
+      // persistent 404 for a run row that was never written) — otherwise the
+      // 2s interval would hammer a dead endpoint indefinitely (SF1).
+      if (query.state.status === "error") return false;
+      return 2000;
     },
   });
 
@@ -374,9 +391,32 @@ export function DecisionDetail({
     ) {
       invalidatedOnDone.current = true;
       setRunDone(true);
+      setRunOutcome(outcome);
+      // SF1: a terminal FAILURE (error/killed) must not look like success —
+      // fire a single error toast alongside the danger badge below.
+      if (outcome !== "success") {
+        toast.error(
+          "Le re-scraping a échoué. Consultez le journal ci-dessous.",
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
     }
   }, [runQuery.data?.outcome, runUid, queryClient]);
+
+  // ---- stuck-poll guard (SF1) -----------------------------------------------
+  // If the run-detail GET persistently errors (e.g. the run row was never
+  // written → 404), stop the poll and surface a failure instead of spinning the
+  // "en cours" badge forever.  Fires once (invalidatedOnDone latch).
+  useEffect(() => {
+    if (runUid != null && runQuery.isError && !invalidatedOnDone.current) {
+      invalidatedOnDone.current = true;
+      setRunDone(true);
+      setRunOutcome("error");
+      toast.error(
+        "Impossible de suivre le re-scraping (statut indisponible). Réessayez.",
+      );
+    }
+  }, [runQuery.isError, runUid]);
 
   // ---- event handlers --------------------------------------------------------
 
@@ -529,9 +569,21 @@ export function DecisionDetail({
         {runUid != null && (
           <div className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3">
             <div className="flex items-center gap-2">
-              <Badge tone={runDone ? "neutral" : "success"} dot={!runDone}>
-                {runDone ? "Re-scraping terminé" : "Re-scraping en cours"}
-              </Badge>
+              {/* SF1: a terminal FAILURE (error/killed) shows a danger badge —
+                  it must not look like the success "terminé" state. */}
+              {(() => {
+                if (!runDone) {
+                  return (
+                    <Badge tone="success" dot>
+                      Re-scraping en cours
+                    </Badge>
+                  );
+                }
+                if (runOutcome != null && runOutcome !== "success") {
+                  return <Badge tone="danger">Re-scraping échoué</Badge>;
+                }
+                return <Badge tone="success">Re-scraping terminé</Badge>;
+              })()}
               <span className="text-xs text-muted-foreground">
                 run_uid : <span className="font-mono">{runUid}</span>
               </span>

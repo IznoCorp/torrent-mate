@@ -17,6 +17,8 @@ both race, both back off (never both proceed).
 import os
 from pathlib import Path
 
+import pytest
+
 from personalscraper.lock import (
     acquire_pipeline_lock,
     acquire_scrape_resolve_lock,
@@ -138,6 +140,36 @@ def test_pipeline_lock_backs_off_when_scrape_active(tmp_path):
     assert result is False
     # The global lock the function transiently acquired must be released — it is
     # not leaked when the function backs off.
+    assert not pipeline_lock.exists()
+
+
+# ---------------------------------------------------------------------------
+# 4b. acquire_pipeline_lock releases the global lock if the post-claim probe raises
+# ---------------------------------------------------------------------------
+
+
+def test_pipeline_lock_released_when_scrape_probe_raises(tmp_path, monkeypatch):
+    """acquire_pipeline_lock releases pipeline.lock when the post-claim probe raises (SF5).
+
+    The scrape-active probe runs AFTER the global lock is claimed. If it raises
+    an unexpected exception (dir mutated mid-glob, non-OSError FS error), the
+    just-claimed global lock must be released before the exception propagates —
+    no exception path may leave pipeline.lock on disk.
+    """
+    pipeline_lock = tmp_path / "pipeline.lock"
+    scrape_dir = _scrape_dir(tmp_path)
+
+    import personalscraper.lock as lock_mod
+
+    def _boom(_scrape_locks_dir):
+        raise RuntimeError("dir mutated mid-glob")
+
+    monkeypatch.setattr(lock_mod, "any_scrape_resolve_active", _boom)
+
+    with pytest.raises(RuntimeError, match="dir mutated mid-glob"):
+        acquire_pipeline_lock(pipeline_lock, scrape_dir)
+
+    # Fail-safe cleanup: the transiently-claimed global lock is NOT leaked.
     assert not pipeline_lock.exists()
 
 
@@ -338,3 +370,75 @@ def test_pipeline_backs_off_when_resolve_appears_during_claim(tmp_path, monkeypa
     # claiming, sees the racing resolve, and backs off (releases the global lock).
     assert result is False
     assert not pipeline_lock.exists()
+
+
+# ---------------------------------------------------------------------------
+# Symmetric race — BOTH sides claim into the other's verify window → BOTH refuse
+#
+# The two order-inversion tests above each prove ONE direction backs off. Neither
+# proves the JOINT invariant "if both race, BOTH back off (never both proceed)".
+# Here we drive BOTH acquisitions under a single side-effect that plants the
+# OPPOSING claim during each claim, so each verify window observes the other's
+# LIVE claim → both must return refusal.
+# ---------------------------------------------------------------------------
+
+
+def test_symmetric_race_both_sides_back_off(tmp_path, monkeypatch):
+    """Both sides claim into the other's window → BOTH return refusal (joint proof).
+
+    A single ``acquire_lock`` side-effect reproduces the symmetric interleaving:
+
+    * when the RESOLVE claims its item lock, a racing pipeline holder appears
+      (``pipeline.lock`` written with a live pid);
+    * when the PIPELINE claims the global lock, a racing resolve appears (an item
+      ``racing.lock`` written with a live pid).
+
+    Driving both acquisitions proves the joint invariant that neither wins:
+
+    * the resolve's post-claim verify sees the racing ``pipeline.lock`` → returns
+      ``None`` and releases its item lock (no leaked item lock);
+    * the pipeline then cannot even claim ``pipeline.lock`` (the racing holder
+      still owns it) → returns ``False``.
+
+    Both refuse — never both proceed — which the two one-directional tests do not
+    jointly establish.
+    """
+    pipeline_lock = tmp_path / "pipeline.lock"
+    scrape_dir = _scrape_dir(tmp_path)
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    path = tmp_path / "item-a"
+
+    import personalscraper.lock as lock_mod
+
+    real_acquire = lock_mod.acquire_lock
+
+    def _acquire_and_race(lock_file, *args, **kwargs):
+        result = real_acquire(lock_file, *args, **kwargs)
+        if not result:
+            return result
+        if lock_file == pipeline_lock:
+            # The pipeline just claimed the global lock — a resolve races in with
+            # its item lock, in the pipeline's verify window.
+            (scrape_dir / "racing.lock").write_text(str(os.getpid()))
+        else:
+            # A resolve just claimed its item lock — a pipeline races in with the
+            # global lock, in the resolve's verify window.
+            if not pipeline_lock.exists():
+                pipeline_lock.write_text(str(os.getpid()))
+        return result
+
+    monkeypatch.setattr(lock_mod, "acquire_lock", _acquire_and_race)
+
+    # Side 1 — the resolve claims first; its verify sees the racing pipeline
+    # holder and backs off (no leaked item lock).
+    resolve_result = acquire_scrape_resolve_lock(path, pipeline_lock, scrape_dir)
+    assert resolve_result is None
+    assert list(scrape_dir.glob("*.lock")) == []
+
+    # Side 2 — the pipeline now tries: the racing pipeline.lock (live pid) still
+    # owns the global lock, so it cannot even claim it and backs off too.
+    pipeline_result = acquire_pipeline_lock(pipeline_lock, scrape_dir)
+    assert pipeline_result is False
+
+    # Joint invariant proven: neither side proceeded.
+    assert resolve_result is None and pipeline_result is False
