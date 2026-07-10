@@ -85,10 +85,12 @@ class StepReport:
             Consumed by run_process to revert reclean-renamed folders whose scrape
             subsequently yields ``skipped_low_confidence``.
         unmatched_paths: Folder names for which the scraper could not produce a
-            confident match (action ``skipped_low_confidence``). Consumed by
-            run_process to revert reclean renames so unmatched items keep their
-            original torrent name and remain rescrape-eligible. Populated as a
-            typed field instead of being parsed back from ``details`` strings.
+            confident match (action ``skipped_low_confidence``) or which were
+            enqueued for operator review (action ``queued_for_decision``).
+            Consumed by run_process to revert reclean renames so unmatched
+            items keep their original torrent name and remain rescrape-eligible.
+            Populated as a typed field instead of being parsed back from
+            ``details`` strings.
         details_payload: Optional structured per-step details stored as a
             JSON-safe ``dict[str, Any]``. Producers may pass a typed dataclass
             instance from :mod:`personalscraper.reports` (``IngestDetails`` etc.) —

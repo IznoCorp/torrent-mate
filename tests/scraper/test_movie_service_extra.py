@@ -172,7 +172,7 @@ class TestCorruptNfoBranch:
         # Corrupt: not parsable XML.
         nfo.write_text("<not_real_xml")
 
-        with patch("personalscraper.scraper.scraper.match_movie", return_value=None):
+        with patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(None, [])):
             result = scraper.scrape_movie(movie_dir)
 
         # Dry-run preview keeps the file in place.
@@ -187,7 +187,7 @@ class TestCorruptNfoBranch:
         nfo = movie_dir / "Bad Movie.nfo"
         nfo.write_text("<not_real_xml")  # corrupt → not complete
 
-        with patch("personalscraper.scraper.scraper.match_movie", return_value=None):
+        with patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(None, [])):
             scraper.scrape_movie(movie_dir)
 
         # Unlink ran during the corrupt-rescrape path.
@@ -221,7 +221,7 @@ class TestGetMovieException:
         movie_dir.mkdir()
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", side_effect=ConnectionError("API down")),
         ):
             result = scraper.scrape_movie(movie_dir)
@@ -247,7 +247,7 @@ class TestFolderRenameBranches:
         (movie_dir / "video.mkv").write_text("payload")
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -270,7 +270,7 @@ class TestFolderRenameBranches:
         target.mkdir()
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -294,7 +294,7 @@ class TestFolderRenameBranches:
         (tmp_path / "The Matrix (1999)").mkdir()
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -314,7 +314,7 @@ class TestFolderRenameBranches:
         movie_dir.mkdir()
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -335,7 +335,7 @@ class TestFolderRenameBranches:
         (tmp_path / "The Matrix (1999)").mkdir()
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -349,7 +349,7 @@ class TestFolderRenameBranches:
         movie_dir.mkdir()
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("pathlib.Path.rename", side_effect=OSError("EACCES")),
         ):
@@ -364,7 +364,7 @@ class TestFolderRenameBranches:
         (movie_dir / "video.mkv").write_text("payload")
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -394,7 +394,7 @@ class TestVideoRenameBranches:
         (movie_dir / "raw_video.mkv").write_text("payload")
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -414,7 +414,7 @@ class TestVideoRenameBranches:
         raw.write_text("payload")
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -470,7 +470,7 @@ class TestVideoOrphanCleanup:
         movie_dir, canonical, orphan = self._make_movie_dir_with_orphan(tmp_path)
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -491,7 +491,7 @@ class TestVideoOrphanCleanup:
         movie_dir, canonical, orphan = self._make_movie_dir_with_orphan(tmp_path)
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -515,7 +515,7 @@ class TestVideoOrphanCleanup:
             real_unlink(self, *args, **kwargs)  # type: ignore[arg-type]
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -565,7 +565,7 @@ class TestFlatTrailerNotUnlinked:
         os.utime(canonical, (2_000_000, 2_000_000))
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -646,7 +646,7 @@ class TestOrphanLoopRobustness:
         os.utime(bonus, (500_000, 500_000))
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -679,7 +679,7 @@ class TestOrphanLoopRobustness:
             real_unlink(self, *args, **kwargs)  # type: ignore[arg-type]
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -727,7 +727,7 @@ class TestOrphanLoopRobustness:
         os.utime(nested_canonical, (2_000_000, 2_000_000))
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
@@ -756,7 +756,7 @@ class TestNfoGenerationException:
         (movie_dir / "The Matrix.mkv").write_text("payload")
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(

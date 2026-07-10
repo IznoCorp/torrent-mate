@@ -157,7 +157,7 @@ def test_scrape_movie_chain_exhaustion_preserves_last_exception_in_result(tmp_pa
             message=last_exc_message,
         )
 
-    with patch("personalscraper.scraper.scraper.match_movie", side_effect=_always_raise):
+    with patch("personalscraper.scraper.confidence.match_movie_detailed", side_effect=_always_raise):
         results = scraper.process_movies(movies_dir)
 
     # --- result.error reaches legacy shape ---

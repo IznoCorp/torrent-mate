@@ -15,6 +15,16 @@ from personalscraper.web.models.config import (  # noqa: F401
     ValidateRequest,
     ValidateResponse,
 )
+from personalscraper.web.models.decisions import (  # noqa: F401
+    DecisionCandidate,
+    DecisionDetail,
+    DecisionListItem,
+    DecisionsResponse,
+    ResolveRequest,
+    ResolveResponse,
+    SearchRequest,
+    SearchResponse,
+)
 from personalscraper.web.models.pipeline import (  # noqa: F401
     PipelineOutcome,
     PipelineState,

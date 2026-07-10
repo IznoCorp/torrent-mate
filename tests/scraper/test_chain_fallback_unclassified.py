@@ -134,14 +134,14 @@ def test_movie_chain_continues_on_unclassified_exception() -> None:
         source="tmdb",
     )
 
-    def _match_movie(provider: Any, title: str, year: int | None) -> MatchResult | None:
+    def _match_movie(provider: Any, title: str, year: int | None) -> tuple[MatchResult | None, list[Any]]:
         if provider.provider_name == "tvdb":
             raise ValueError("malformed TVDB payload")
-        return winning_match
+        return winning_match, []
 
     result = ScrapeResult(media_path=Path("/tmp/movie"), media_type="movie")
-    with patch("personalscraper.scraper.scraper.match_movie", side_effect=_match_movie):
-        returned = mixin._match_movie_candidates("The Matrix", 1999, result)
+    with patch("personalscraper.scraper.confidence.match_movie_detailed", side_effect=_match_movie):
+        returned, _ = mixin._match_movie_candidates("The Matrix", 1999, result)
 
     assert returned is winning_match
     assert result.error is None  # fail-soft NOT triggered — chain succeeded
@@ -177,7 +177,7 @@ def test_movie_chain_exhausted_on_all_unclassified_raises() -> None:
 
     result = ScrapeResult(media_path=Path("/tmp/movie"), media_type="movie")
     with (
-        patch("personalscraper.scraper.scraper.match_movie", side_effect=_always_raise),
+        patch("personalscraper.scraper.confidence.match_movie_detailed", side_effect=_always_raise),
         pytest.raises(ProviderExhausted) as exc_info,
     ):
         mixin._match_movie_candidates("The Matrix", 1999, result)

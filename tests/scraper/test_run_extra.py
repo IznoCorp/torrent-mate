@@ -15,12 +15,14 @@ Targets the residual gaps in :func:`run_scrape`, :func:`_to_step_report`,
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.naming_patterns import PATTERNS
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.run import (
     _has_unscraped_items,
@@ -328,3 +330,792 @@ def test_to_step_report_unknown_skipped_action() -> None:
     # ``unmatched`` counter stays at zero — only ``skipped_low_confidence``
     # surfaces there.
     assert "unmatched" not in report.counts
+
+
+# ---------------------------------------------------------------------------
+# scrape-arbiter decision enqueue wiring (sub-phase 1.5b)
+# ---------------------------------------------------------------------------
+
+_MIGRATION_013_PATH = (
+    Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations" / "013_scrape_decision.sql"
+)
+
+
+def _create_decision_db(db_path: Path) -> None:
+    """Create a SQLite DB with the ``scrape_decision`` table.
+
+    Mirrors ``tests/scraper/test_decision_writer.py::_create_db``.
+    The migration 013 script references ``schema_version``; create that
+    table first, then run the full migration via ``executescript``.
+
+    Args:
+        db_path: Path to the on-disk SQLite database file to create.
+    """
+    import sqlite3
+
+    from personalscraper.core.sqlite._pragmas import apply_pragmas
+
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    apply_pragmas(conn)
+    conn.execute("CREATE TABLE schema_version (version INTEGER PRIMARY KEY)")
+    conn.commit()
+    migration_sql = _MIGRATION_013_PATH.read_text(encoding="utf-8")
+    conn.executescript(migration_sql)
+    conn.close()
+
+
+class TestDecisionEnqueue:
+    """Tests for scrape-arbiter decision enqueue wiring in ``run_scrape``."""
+
+    def test_enqueued_item_upserted_to_db(self, tmp_path: Path) -> None:
+        """Item with ``queued_for_decision`` action → row inserted in scrape_decision.
+
+        Design: docs/reference/scraping.md#batch-confidence--decision-queue-s5--scrape-arbiter
+        Contract: When run_scrape processes a ScrapeResult with
+        action='queued_for_decision', the item is upserted into the
+        scrape_decision table with status='pending', all extracted fields
+        populated, and candidates_json carrying the serialized candidate list.
+
+        Verifies that:
+        - The staging_path is NFC-normalized in the DB.
+        - All fields (media_kind, extracted_title, extracted_year, trigger,
+          candidates_json, status, run_uid, timestamps) are populated.
+        - The row is queryable after ``run_scrape`` returns.
+        """
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Inception (2010)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=27205,
+                title="Inception",
+                year=2010,
+                score=0.65,
+            ),
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=99999,
+                title="Inception 2",
+                year=2012,
+                score=0.55,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="mid_band",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT staging_path, media_kind, extracted_title, extracted_year, "
+            '"trigger", candidates_json, status, run_uid, created_at, updated_at '
+            "FROM scrape_decision WHERE staging_path = ?",
+            (str(movie_folder),),
+        ).fetchone()
+        conn.close()
+
+        assert row is not None, "Row should exist for the enqueued item"
+        (
+            staging_path_db,
+            media_kind,
+            title,
+            year,
+            trigger,
+            candidates_json,
+            status,
+            run_uid_val,
+            created_at,
+            updated_at,
+        ) = row
+        assert staging_path_db == str(movie_folder)  # NFC (already NFC here)
+        assert media_kind == "movie"
+        assert title == "Inception"
+        assert year == 2010
+        assert trigger == "mid_band"
+        assert status == "pending"
+        assert run_uid_val is None
+        assert created_at > 0
+        assert updated_at > 0
+        assert created_at == updated_at
+        parsed = json.loads(candidates_json)
+        assert len(parsed) == 2
+        assert parsed[0]["provider"] == "tmdb"
+        assert parsed[0]["provider_id"] == 27205
+
+    def test_no_db_path_no_crash(self, tmp_path: Path) -> None:
+        """config.indexer.db_path is None → enqueue is skipped, no crash."""
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Unknown (2024)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = None  # No DB → should skip gracefully
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=1,
+                title="Test",
+                year=2024,
+                score=0.30,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="below_threshold",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            report = run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        # Should return a valid StepReport without crashing.
+        assert report.name == "scrape"
+
+    def test_orphan_gc_called_after_enqueue(self, tmp_path: Path) -> None:
+        """``mark_superseded_orphans`` runs after enqueue when db_path is set.
+
+        We insert an orphan row (staging path that does not exist on disk)
+        before the run and assert it is superseded afterwards.
+        """
+        import sqlite3
+        import time
+
+        from personalscraper.core.sqlite._pragmas import apply_pragmas
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Real Movie (2024)"
+        movie_folder.mkdir()
+
+        # Pre-insert an orphan row for a path that does NOT exist.
+        orphan_path = str(movies_dir / "Deleted Movie (2021)")
+        now = time.time()
+        conn = sqlite3.connect(str(db_path), isolation_level=None)
+        apply_pragmas(conn)
+        conn.execute(
+            "INSERT INTO scrape_decision "
+            "(staging_path, media_kind, extracted_title, extracted_year, "
+            '"trigger", candidates_json, status, run_uid, created_at, updated_at) '
+            "VALUES (?, 'movie', 'Deleted Movie', 2021, 'mid_band', '[]', "
+            "'pending', NULL, ?, ?)",
+            (orphan_path, now, now),
+        )
+        conn.commit()
+        conn.close()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=1,
+                title="Real Movie",
+                year=2024,
+                score=0.65,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="mid_band",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        # Orphan row should be superseded.
+        conn = sqlite3.connect(str(db_path))
+        orphan_status = conn.execute(
+            "SELECT status FROM scrape_decision WHERE staging_path = ?",
+            (orphan_path,),
+        ).fetchone()
+        conn.close()
+        assert orphan_status is not None
+        assert orphan_status[0] == "superseded"
+
+    def test_skipped_low_confidence_with_candidates_also_enqueued(self, tmp_path: Path) -> None:
+        """``skipped_low_confidence`` with decision_candidates → enqueued additively.
+
+        Items below LOW_CONFIDENCE keep their ``skipped_low_confidence`` action
+        but carry ``decision_candidates`` for the additive decision queue row.
+        """
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Obscure Film (1999)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+
+        candidates = [
+            DecisionCandidate(
+                provider="tmdb",
+                provider_id=42,
+                title="Obscure Film",
+                year=1999,
+                score=0.30,
+            ),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="skipped_low_confidence",
+            decision_candidates=candidates,
+            decision_trigger="below_threshold",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            'SELECT extracted_title, media_kind, "trigger", status FROM scrape_decision WHERE staging_path = ?',
+            (str(movie_folder),),
+        ).fetchone()
+        conn.close()
+        assert row is not None, "Additive enqueue for skipped_low_confidence should create a row"
+        assert row[0] == "Obscure Film"
+        assert row[1] == "movie"
+        assert row[2] == "below_threshold"
+        assert row[3] == "pending"
+
+
+# ---------------------------------------------------------------------------
+# scrape-arbiter sub-phase 1.6 — StepReport counting + ItemProgressed emission
+# ---------------------------------------------------------------------------
+
+
+class TestQueuedForDecisionReporting:
+    """Tests for ``queued_for_decision`` counting and event emission."""
+
+    # -- _to_step_report ---------------------------------------------------
+
+    def test_to_step_report_counts_queued_for_decision(self) -> None:
+        """``queued_for_decision`` items counted in ``counts["queued_for_decision"]``.
+
+        Paths also appear in ``unmatched_paths`` for operator visibility.
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=1, title="T", year=2020, score=0.65),
+        ]
+        results = [
+            ScrapeResult(
+                media_path=Path("Mid Movie"),
+                media_type="movie",
+                action="queued_for_decision",
+                decision_candidates=candidates,
+                decision_trigger="mid_band",
+            ),
+        ]
+        report = _to_step_report(results)
+        assert report.counts.get("queued_for_decision") == 1
+        assert "queued_for_decision" not in report.counts.get("unmatched", {})
+        # Not counted as success: queued items are pending operator review.
+        assert report.success_count == 0
+        assert report.skip_count == 0
+        assert report.error_count == 0
+        assert "Mid Movie" in report.unmatched_paths
+        assert any("queued_for_decision" in d for d in report.details)
+
+    def test_to_step_report_additive_skipped_low_confidence(self) -> None:
+        """``skipped_low_confidence`` with candidates also counted in ``queued_for_decision``.
+
+        The item stays counted as both ``unmatched`` (existing behaviour) and
+        ``queued_for_decision`` (additive enqueue). The path appears once in
+        ``unmatched_paths`` (no double-append).
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=42, title="X", year=1999, score=0.30),
+        ]
+        results = [
+            ScrapeResult(
+                media_path=Path("Low Movie"),
+                media_type="movie",
+                action="skipped_low_confidence",
+                decision_candidates=candidates,
+                decision_trigger="below_threshold",
+            ),
+        ]
+        report = _to_step_report(results)
+        assert report.counts.get("unmatched") == 1  # existing counter
+        assert report.counts.get("queued_for_decision") == 1  # additive
+        assert report.skip_count == 1
+        assert report.success_count == 0
+        # Path appears exactly once in unmatched_paths.
+        assert report.unmatched_paths == ["Low Movie"]
+
+    def test_to_step_report_mixed_items(self) -> None:
+        """Mix of queued, skipped_low_confidence+candidates, and clean items.
+
+        Design: docs/reference/scraping.md#three-triggers
+        Contract: The three decision triggers (mid_band, below_threshold, and
+        ambiguous) each produce distinct queue entries with correct counting in
+        the StepReport — mid_band items queue via queued_for_decision,
+        below_threshold items queue additively alongside skipped_low_confidence,
+        and non-queued items are unaffected.
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        candidates_a = [
+            DecisionCandidate(provider="tmdb", provider_id=1, title="A", year=2020, score=0.65),
+        ]
+        candidates_b = [
+            DecisionCandidate(provider="tmdb", provider_id=2, title="B", year=2020, score=0.49),
+        ]
+        results = [
+            ScrapeResult(
+                media_path=Path("Mid A"),
+                media_type="movie",
+                action="queued_for_decision",
+                decision_candidates=candidates_a,
+                decision_trigger="mid_band",
+            ),
+            ScrapeResult(
+                media_path=Path("Low B"),
+                media_type="movie",
+                action="skipped_low_confidence",
+                decision_candidates=candidates_b,
+                decision_trigger="below_threshold",
+            ),
+            ScrapeResult(
+                media_path=Path("Clean C"),
+                media_type="movie",
+                action="scraped",
+                nfo_written=True,
+            ),
+            ScrapeResult(
+                media_path=Path("Low No Candidates D"),
+                media_type="movie",
+                action="skipped_low_confidence",
+                # No decision_candidates — not enqueued.
+            ),
+        ]
+        report = _to_step_report(results)
+        assert report.counts.get("queued_for_decision") == 2  # Mid A + Low B
+        assert report.counts.get("unmatched") == 2  # Low B + Low No Candidates D
+        assert report.success_count == 1  # Clean C
+        assert report.skip_count == 2  # Low B + Low No Candidates D
+        assert set(report.unmatched_paths) == {"Mid A", "Low B", "Low No Candidates D"}
+
+    # -- run_scrape event emission -----------------------------------------
+
+    def test_run_scrape_emits_item_progressed_queued(self, tmp_path: Path) -> None:
+        """``run_scrape`` emits one ``ItemProgressed(status="queued_for_decision")`` per enqueued item.
+
+        Design: docs/reference/scraping.md#event-emission
+        Contract: When a ScrapeResult carries action='queued_for_decision',
+        run_scrape emits an ItemProgressed event with status='queued_for_decision'
+        on the EventBus, with details containing trigger, candidates_count, and
+        the item path. The started event still fires first.
+
+        Each event carries ``trigger``, ``confidence``, and ``candidates_count``
+        in its ``details`` dict.  The ``started`` event still fires first
+        (existing behaviour).
+        """
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Mid Movie (2024)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = None  # skip DB wiring
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=1, title="Mid Movie", year=2024, score=0.65),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="mid_band",
+        )
+
+        bus = EventBus()
+        captured: list[ItemProgressed] = []
+        bus.subscribe(ItemProgressed, captured.append)
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            run_scrape(settings, config=config, event_bus=bus, registry=MagicMock())
+
+        queued_events = [e for e in captured if e.status == "queued_for_decision"]
+        assert len(queued_events) == 1, f"Expected 1 queued_for_decision event, got {len(queued_events)}"
+        event = queued_events[0]
+        assert event.step == "scrape"
+        assert event.item == "Mid Movie (2024)"
+        assert event.details is not None
+        assert event.details["trigger"] == "mid_band"
+        assert event.details["candidates_count"] == 1
+        # ``started`` event also emitted (existing behaviour).
+        started_events = [e for e in captured if e.status == "started"]
+        assert len(started_events) == 1
+
+    def test_run_scrape_queued_report_counts(self, tmp_path: Path) -> None:
+        """StepReport returned by ``run_scrape`` includes ``queued_for_decision`` count."""
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        movies_dir = staging / "001-MOVIES"
+        movies_dir.mkdir()
+        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        movie_folder = movies_dir / "Ambiguous Film (2023)"
+        movie_folder.mkdir()
+
+        settings = _make_settings()
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = None
+
+        candidates = [
+            DecisionCandidate(provider="tmdb", provider_id=10, title="Ambiguous Film", year=2023, score=0.85),
+            DecisionCandidate(provider="tmdb", provider_id=11, title="Ambiguous Film", year=2023, score=0.83),
+        ]
+        result = ScrapeResult(
+            media_path=movie_folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=candidates,
+            decision_trigger="ambiguous",
+        )
+
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            report = run_scrape(
+                settings,
+                config=config,
+                event_bus=EventBus(),
+                registry=MagicMock(),
+            )
+
+        assert report.counts.get("queued_for_decision") == 1
+        assert "Ambiguous Film (2023)" in report.unmatched_paths
+
+
+# ---------------------------------------------------------------------------
+# scrape-arbiter coherence-study fixes (2026-07-10) — batch A enqueue logic
+# ---------------------------------------------------------------------------
+
+
+class TestEnqueueCoherenceFixes:
+    """Regression tests for the coherence-study enqueue findings (F08/F10/F11/F16/F47)."""
+
+    def _run_one(self, tmp_path, config, result, *, dry_run=False, bus=None):
+        """Run run_scrape over a single mocked movie result."""
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            return run_scrape(
+                _make_settings(),
+                config=config,
+                dry_run=dry_run,
+                event_bus=bus or EventBus(),
+                registry=MagicMock(),
+            )
+
+    def _staged_config(self, tmp_path, db_path):
+        staging = tmp_path / "staging"
+        (staging / "001-MOVIES").mkdir(parents=True)
+        (staging / "002-TVSHOWS").mkdir(parents=True)
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+        return config, staging
+
+    def test_below_threshold_zero_candidates_still_enqueued(self, tmp_path: Path) -> None:
+        """F11/F18 — a below_threshold item with NO candidates is enqueued (candidates_json='[]').
+
+        These are the garbled-title, zero-provider-hit folders DESIGN §1 names as
+        'parked forever' — exactly the case that needs the search-override UI.
+        Before the fix the enqueue keyed on decision_candidates being truthy, so
+        an empty list left the item out of the queue entirely.
+        """
+        import sqlite3
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Zzgarbled Xyz (2099)"
+        folder.mkdir()
+
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="skipped_low_confidence",
+            decision_candidates=None,  # zero provider hits
+            decision_trigger="below_threshold",
+        )
+        self._run_one(tmp_path, config, result)
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            'SELECT candidates_json, "trigger", status FROM scrape_decision WHERE staging_path = ?',
+            (str(folder),),
+        ).fetchone()
+        conn.close()
+        assert row is not None, "zero-candidate below_threshold item must be enqueued"
+        assert row[0] == "[]"
+        assert row[1] == "below_threshold"
+        assert row[2] == "pending"
+
+    def test_restored_from_db_not_enqueued(self, tmp_path: Path) -> None:
+        """F10/F17 — a restored_from_db item is NOT enqueued even if it carried candidates.
+
+        Movie service now clears decision_candidates/decision_trigger on a
+        successful restore; the shared ``_is_enqueued`` predicate excludes it.
+        """
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Restored Film (2001)"
+        folder.mkdir()
+
+        # A restored item that (defensively) still carries a stray candidate but
+        # whose trigger was cleared — must NOT be enqueued.
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="restored_from_db",
+            decision_candidates=[DecisionCandidate(provider="tmdb", provider_id=5, title="R", year=2001, score=0.4)],
+            decision_trigger=None,
+        )
+        report = self._run_one(tmp_path, config, result)
+
+        conn = sqlite3.connect(str(db_path))
+        cnt = conn.execute("SELECT COUNT(*) FROM scrape_decision").fetchone()[0]
+        conn.close()
+        assert cnt == 0, "restored_from_db item must not create a decision row"
+        assert report.counts.get("queued_for_decision") is None
+
+    def test_below_threshold_emits_queued_for_decision_event(self, tmp_path: Path) -> None:
+        """F16/F26 — an enqueued below_threshold item emits queued_for_decision (WS badge)."""
+        config, staging = self._staged_config(tmp_path, None)
+        folder = staging / "001-MOVIES" / "Low Conf (2010)"
+        folder.mkdir()
+
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="skipped_low_confidence",
+            decision_candidates=None,
+            decision_trigger="below_threshold",
+        )
+        bus = EventBus()
+        captured: list[ItemProgressed] = []
+        bus.subscribe(ItemProgressed, captured.append)
+        self._run_one(tmp_path, config, result, bus=bus)
+
+        queued = [e for e in captured if e.status == "queued_for_decision"]
+        assert len(queued) == 1, "below_threshold enqueue must surface a queued_for_decision event"
+        assert queued[0].details is not None
+        assert queued[0].details["trigger"] == "below_threshold"
+        # No stray skipped_low_confidence event for an enqueued item.
+        assert not [e for e in captured if e.status == "skipped_low_confidence"]
+
+    def test_dry_run_does_not_write_decision_rows(self, tmp_path: Path) -> None:
+        """F47/F51 — a dry-run scrape never touches the decision queue."""
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        # Pre-seed a pending row to prove dry-run also does not flip it to superseded.
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "INSERT INTO scrape_decision (staging_path, media_kind, extracted_title, "
+            '"trigger", candidates_json, status, created_at, updated_at) '
+            "VALUES ('/gone/path', 'movie', 'Gone', 'mid_band', '[]', 'pending', 1.0, 1.0)"
+        )
+        conn.commit()
+        conn.close()
+
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Preview Film (2020)"
+        folder.mkdir()
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=[DecisionCandidate(provider="tmdb", provider_id=1, title="P", year=2020, score=0.65)],
+            decision_trigger="mid_band",
+        )
+        self._run_one(tmp_path, config, result, dry_run=True)
+
+        conn = sqlite3.connect(str(db_path))
+        new_row = conn.execute(
+            "SELECT COUNT(*) FROM scrape_decision WHERE staging_path = ?", (str(folder),)
+        ).fetchone()[0]
+        seeded_status = conn.execute("SELECT status FROM scrape_decision WHERE staging_path = '/gone/path'").fetchone()[
+            0
+        ]
+        conn.close()
+        assert new_row == 0, "dry-run must not insert a decision row"
+        assert seeded_status == "pending", "dry-run must not flip a pending row to superseded"
+
+    def test_run_uid_populated_from_correlation_id(self, tmp_path: Path) -> None:
+        """F08/F15 — the enqueue reads the run correlation id and stores its hex as run_uid."""
+        import sqlite3
+        import uuid
+
+        from personalscraper.core.event_bus import current_correlation_id
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Correlated Film (2015)"
+        folder.mkdir()
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=[DecisionCandidate(provider="tmdb", provider_id=1, title="C", year=2015, score=0.65)],
+            decision_trigger="mid_band",
+        )
+
+        run_id = uuid.uuid4()
+        token = current_correlation_id.set(str(run_id))
+        try:
+            self._run_one(tmp_path, config, result)
+        finally:
+            current_correlation_id.reset(token)
+
+        conn = sqlite3.connect(str(db_path))
+        stored = conn.execute("SELECT run_uid FROM scrape_decision WHERE staging_path = ?", (str(folder),)).fetchone()[
+            0
+        ]
+        conn.close()
+        assert stored == run_id.hex, "run_uid must be the hex form of the run correlation id"

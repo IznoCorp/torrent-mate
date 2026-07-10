@@ -410,6 +410,101 @@ class TestKillRoute:
         assert resp.json()["state"] == "running"
         assert not (pipeline_data_dir / "pipeline.pause").exists()
 
+    def test_kill_refuses_maintenance_run_with_409(
+        self,
+        pipeline_client: TestClient,
+        pipeline_data_dir: Path,
+        test_config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """F32 — the kill endpoint refuses to SIGTERM a maintenance lock holder.
+
+        A ``scrape-resolve`` (or any maintenance action) self-acquires
+        ``pipeline.lock`` and records a ``kind='maintenance'`` run row (R11).
+        SIGTERMing that child from the *pipeline* kill endpoint would finalize
+        its history row as ``error`` rather than ``killed`` — so the endpoint
+        must 409 and leave the child (and the pause sentinel) untouched.
+        """
+        db_path = test_config.indexer.db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path))
+        conn.executescript(
+            """
+            CREATE TABLE pipeline_run (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_uid    TEXT UNIQUE NOT NULL,
+                started_at REAL NOT NULL,
+                outcome    TEXT,
+                kind       TEXT NOT NULL DEFAULT 'pipeline',
+                steps_json TEXT
+            );
+            INSERT INTO pipeline_run (run_uid, started_at, outcome, kind)
+            VALUES ('maint-run', 1000.0, 'running', 'maintenance');
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.is_lock_held",
+            lambda _lock_file: True,
+        )
+        (pipeline_data_dir / "pipeline.lock").write_text("12345")
+        (pipeline_data_dir / "pipeline.pause").touch()
+
+        mock_kill = MagicMock()
+        monkeypatch.setattr("personalscraper.web.routes.pipeline.os.kill", mock_kill)
+
+        resp = pipeline_client.post("/api/pipeline/kill", headers=_xrw_headers())
+
+        assert resp.status_code == 409
+        assert "maintenance" in resp.json()["detail"].lower()
+        # The maintenance child was NOT signalled, and the sentinel is intact.
+        mock_kill.assert_not_called()
+        assert (pipeline_data_dir / "pipeline.pause").exists()
+
+    def test_kill_pipeline_run_still_sigterms(
+        self,
+        pipeline_client: TestClient,
+        pipeline_data_dir: Path,
+        test_config,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """F32 guard is narrow — a real pipeline run (kind='pipeline') is still killed."""
+        db_path = test_config.indexer.db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path))
+        conn.executescript(
+            """
+            CREATE TABLE pipeline_run (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_uid    TEXT UNIQUE NOT NULL,
+                started_at REAL NOT NULL,
+                outcome    TEXT,
+                kind       TEXT NOT NULL DEFAULT 'pipeline',
+                steps_json TEXT
+            );
+            INSERT INTO pipeline_run (run_uid, started_at, outcome, kind)
+            VALUES ('pipe-run', 1000.0, 'running', 'pipeline');
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.is_lock_held",
+            lambda _lock_file: True,
+        )
+        (pipeline_data_dir / "pipeline.lock").write_text("12345")
+
+        mock_kill = MagicMock()
+        monkeypatch.setattr("personalscraper.web.routes.pipeline.os.kill", mock_kill)
+
+        resp = pipeline_client.post("/api/pipeline/kill", headers=_xrw_headers())
+
+        assert resp.status_code == 200
+        mock_kill.assert_called_once_with(12345, signal.SIGTERM)
+
 
 # ── POST /watcher ────────────────────────────────────────────────────────────
 

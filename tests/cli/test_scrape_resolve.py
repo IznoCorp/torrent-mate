@@ -1,0 +1,740 @@
+"""Tests for ``personalscraper scrape-resolve`` CLI command.
+
+Covers:
+- Exit 0 (happy path — movie via TMDB, TV show via TVDB / TMDB).
+- Exit 1 (lock held, API failure).
+- Exit 2 (bad provider, missing DB, no decision row, non-pending decision,
+  invalid provider for media kind).
+- Resolution row written via the real DecisionWriter.
+
+Golden fixtures: realistic TMDB movie and TVDB series payloads so the
+fetch-by-ID path is exercised with data that matches real API shapes
+(vacuous-test lesson).
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3 as _sqlite3
+import time
+from contextlib import contextmanager
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.cli import app
+from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.lock import is_lock_held
+from tests.conftest import make_cli_runner
+
+# ---------------------------------------------------------------------------
+# Realistic golden fixtures (vacuous-test lesson)
+# ---------------------------------------------------------------------------
+
+REALISTIC_MOVIE_PAYLOAD: dict[str, Any] = {
+    "id": 550,
+    "title": "Fight Club",
+    "original_title": "Fight Club",
+    "overview": (
+        "A ticking-time-bomb insomniac and a slippery soap salesman "
+        "channel primal male aggression into a shocking new form of "
+        "therapy. Their concept catches on, with underground 'fight "
+        "clubs' forming in every town."
+    ),
+    "tagline": "Mischief. Mayhem. Soap.",
+    "poster_path": "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+    "backdrop_path": "/hZkgoQYus5gzQhH7AbJxE8AmzL.jpg",
+    "release_date": "1999-10-15",
+    "runtime": 139,
+    "budget": 63000000,
+    "revenue": 100853753,
+    "vote_average": 8.433,
+    "vote_count": 29651,
+    "genres": [
+        {"id": 18, "name": "Drama"},
+    ],
+    "production_companies": [
+        {"id": 508, "name": "Regency Enterprises"},
+        {"id": 25, "name": "20th Century Fox"},
+    ],
+    "production_countries": [
+        {"iso_3166_1": "US", "name": "United States of America"},
+    ],
+    "spoken_languages": [{"iso_639_1": "en", "name": "English"}],
+    "status": "Released",
+    "original_language": "en",
+    "credits": {
+        "cast": [
+            {
+                "id": 819,
+                "name": "Edward Norton",
+                "character": "The Narrator",
+                "profile_path": "/eIkFHNlrretLo0psa5OP1wqRArh.jpg",
+                "order": 0,
+            },
+            {
+                "id": 287,
+                "name": "Brad Pitt",
+                "character": "Tyler Durden",
+                "profile_path": "/cckcYc2v0yhKCoE3cmL8yAuuHwf.jpg",
+                "order": 1,
+            },
+        ],
+        "crew": [
+            {
+                "id": 7467,
+                "name": "David Fincher",
+                "job": "Director",
+                "department": "Directing",
+            },
+        ],
+    },
+    "images": {
+        "posters": [
+            {
+                "file_path": "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+                "iso_639_1": "en",
+                "vote_average": 5.8,
+            },
+        ],
+        "backdrops": [
+            {
+                "file_path": "/hZkgoQYus5gzQhH7AbJxE8AmzL.jpg",
+                "iso_639_1": None,
+                "vote_average": 5.7,
+            },
+        ],
+    },
+    "videos": {"results": []},
+    "recommendations": {"results": []},
+    "similar": {"results": []},
+    "external_ids": {"imdb_id": "tt0137523", "tvdb_id": 0},
+    "keywords": {"keywords": []},
+    "ratings": {"imdb": 8.8, "rotten_tomatoes": 80, "metacritic": 67, "trakt": 85, "tmdb": 84},
+    "content_ratings": {"results": [{"iso_3166_1": "US", "rating": "R"}]},
+    "release_dates": {
+        "results": [
+            {
+                "iso_3166_1": "US",
+                "release_dates": [{"certification": "R", "type": 3}],
+            },
+        ],
+    },
+}
+
+REALISTIC_TVDB_SERIES = MediaDetails(
+    provider="tvdb",
+    provider_id="255968",
+    title="Top Chef",
+    original_title="Top Chef",
+    year=2010,
+    overview=(
+        "Top Chef is a reality competition show where chefs compete "
+        "in culinary challenges judged by a panel of professional "
+        "chefs and other notable figures from the food and wine industry."
+    ),
+    genres=["Reality", "Food"],
+    external_ids={"tmdb": "12345", "imdb": "tt1234567"},
+)
+
+REALISTIC_TMDB_TV = SimpleNamespace(
+    id=12345,
+    name="Top Chef",
+    original_name="Top Chef",
+    overview="Same as above, from TMDB.",
+    first_air_date="2010-03-03",
+    poster_path="/abc.jpg",
+    backdrop_path="/def.jpg",
+    genres=[{"id": 10764, "name": "Reality"}],
+    vote_average=7.2,
+    vote_count=120,
+    number_of_seasons=22,
+    number_of_episodes=300,
+    status="Returning Series",
+    origin_country=["US"],
+    original_language="en",
+    networks=[{"id": 1, "name": "Bravo"}],
+    credits={"cast": [], "crew": []},
+    images={"posters": [], "backdrops": []},
+    videos={"results": []},
+    external_ids={"imdb_id": "tt1234567", "tvdb_id": 255968},
+    keywords={"results": []},
+    ratings={"imdb": 7.5, "tmdb": 72},
+    content_ratings={"results": [{"iso_3166_1": "US", "rating": "TV-PG"}]},
+)
+
+# Patch target for the eager config load in the CLI callback.
+_PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
+_PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
+
+runner = make_cli_runner()
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+SCRAPE_DECISION_DDL = """
+CREATE TABLE scrape_decision (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    staging_path    TEXT    UNIQUE NOT NULL,
+    media_kind      TEXT    NOT NULL,
+    extracted_title TEXT    NOT NULL,
+    extracted_year  INTEGER,
+    "trigger"       TEXT    NOT NULL,
+    candidates_json TEXT    NOT NULL,
+    status          TEXT    NOT NULL DEFAULT 'pending',
+    resolution_json TEXT,
+    run_uid         TEXT,
+    created_at      REAL    NOT NULL,
+    updated_at      REAL    NOT NULL,
+    resolved_at     REAL
+);
+CREATE INDEX idx_scrape_decision_status ON scrape_decision(status);
+"""
+
+
+def _create_db(db_path: Path) -> None:
+    """Create an on-disk SQLite DB with the ``scrape_decision`` table."""
+    conn = _sqlite3.connect(str(db_path), isolation_level=None)
+    apply_pragmas(conn)
+    conn.executescript(SCRAPE_DECISION_DDL)
+    conn.commit()
+    conn.close()
+
+
+def _insert_decision(
+    db_path: Path,
+    staging_path: str,
+    media_kind: str = "movie",
+    status: str = "pending",
+    extracted_title: str = "Fight Club",
+    extracted_year: int | None = 1999,
+    trigger: str = "mid_band",
+) -> int:
+    """Insert a decision row and return its id."""
+    now = time.time()
+    candidates = json.dumps(
+        [
+            {
+                "provider": "tmdb",
+                "provider_id": 550,
+                "title": "Fight Club",
+                "year": 1999,
+                "score": 0.65,
+                "poster_url": None,
+                "overview": None,
+            }
+        ]
+    )
+    conn = _sqlite3.connect(str(db_path), isolation_level=None)
+    apply_pragmas(conn)
+    cursor = conn.execute(
+        "INSERT INTO scrape_decision "
+        "(staging_path, media_kind, extracted_title, extracted_year, "
+        '"trigger", candidates_json, status, run_uid, created_at, updated_at) '
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            staging_path,
+            media_kind,
+            extracted_title,
+            extracted_year,
+            trigger,
+            candidates,
+            status,
+            "run-uid-test",
+            now,
+            now,
+        ),
+    )
+    row_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    assert row_id is not None
+    return row_id
+
+
+def _select_decision(db_path: Path, decision_id: int) -> dict | None:
+    """Return the decision row as a dict, or ``None``."""
+    conn = _sqlite3.connect(str(db_path), isolation_level=None)
+    apply_pragmas(conn)
+    conn.row_factory = _sqlite3.Row
+    row = conn.execute("SELECT * FROM scrape_decision WHERE id = ?", (decision_id,)).fetchone()
+    conn.close()
+    if row is None:
+        return None
+    return dict(row)
+
+
+def _make_mock_per_step_boundary(mock_client: Any) -> Any:
+    """Return a context-manager factory that yields a mock app_context."""
+
+    @contextmanager
+    def _cm(config: Any, settings: Any) -> Any:
+        mock_ctx = MagicMock()
+        mock_ctx.provider_registry = MagicMock()
+        mock_ctx.provider_registry.get.return_value = mock_client
+        yield mock_ctx
+
+    return _cm
+
+
+def _mock_nfo_generator() -> MagicMock:
+    """Return a pre-configured ``NFOGenerator`` mock instance.
+
+    ``generate_movie_nfo`` / ``generate_tvshow_nfo`` return a dummy XML
+    string so the call chain ``generate_*_nfo() → write_nfo()`` completes
+    without raising.
+    """
+    instance = MagicMock()
+    instance.generate_movie_nfo.return_value = "<movie/>"
+    instance.generate_tvshow_nfo.return_value = "<tvshow/>"
+    return instance
+
+
+def _mock_artwork_downloader() -> MagicMock:
+    """Return a pre-configured ``ArtworkDownloader`` mock instance."""
+    return MagicMock()
+
+
+# Patch targets for lazily-imported scraper classes.  The command imports
+# these inside its function body, so we patch at the source module level.
+_PATCH_NFO_GENERATOR = "personalscraper.scraper.nfo_generator.NFOGenerator"
+_PATCH_ARTWORK_DOWNLOADER = "personalscraper.scraper.artwork.ArtworkDownloader"
+_PATCH_EXTRACT_STREAM_INFO = "personalscraper.scraper.mediainfo.extract_stream_info"
+
+
+def _setup_command_args(staging_dir: Path, provider: str, provider_id: int) -> list[str]:
+    """Build CLI argv for the scrape-resolve command."""
+    return [
+        "scrape-resolve",
+        str(staging_dir),
+        "--provider",
+        provider,
+        "--id",
+        str(provider_id),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Exit-code 2 tests (misconfiguration)
+# ---------------------------------------------------------------------------
+
+
+class TestScrapeResolveExit2:
+    """Validation errors → exit code 2."""
+
+    def test_bad_provider_exits_2(self, tmp_path: Path, test_config: Any) -> None:
+        """An unknown provider (not 'tmdb' or 'tvdb') → exit 2."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        # Create DB so the provider check fires before the DB check.
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "imdb", 550))
+
+        assert result.exit_code == 2
+        assert "Invalid provider" in result.output
+
+    def test_missing_db_exits_2(self, tmp_path: Path, test_config: Any) -> None:
+        """A non-existent indexer DB → exit 2."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        # Ensure the DB does NOT exist.
+        db_path = test_config.indexer.db_path
+        if db_path.exists():
+            db_path.unlink()
+        # But the parent dir must exist.
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 2
+        assert "not found" in result.output
+
+    def test_no_decision_row_exits_2(self, tmp_path: Path, test_config: Any) -> None:
+        """No matching decision row for the staging path → exit 2."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        # Do NOT insert any decision row.
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 2
+        assert "No decision row found" in result.output
+
+    def test_already_resolved_exits_2(self, tmp_path: Path, test_config: Any) -> None:
+        """A non-pending decision → exit 2."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(test_config.indexer.db_path, str(staging.resolve()), status="resolved")
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 2
+        assert "already 'resolved'" in result.output
+
+    def test_movie_with_tvdb_provider_exits_2(self, tmp_path: Path, test_config: Any) -> None:
+        """Movies require provider 'tmdb' → exit 2 when 'tvdb' given."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(test_config.indexer.db_path, str(staging.resolve()), media_kind="movie")
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tvdb", 255968))
+
+        assert result.exit_code == 2
+        assert "Movies require provider 'tmdb'" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Exit-code 1 tests (lock held, API failure)
+# ---------------------------------------------------------------------------
+
+
+class TestScrapeResolveExit1:
+    """Operational errors → exit code 1."""
+
+    def test_lock_held_exits_1(self, tmp_path: Path, test_config: Any) -> None:
+        """When pipeline.lock is held → exit 1."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        # Pre-create the lock file with our own PID so acquire_lock refuses it.
+        (test_config.paths.data_dir / "pipeline.lock").write_text(str(__import__("os").getpid()))
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 1
+        assert "Another instance is running" in result.output
+
+    def test_api_failure_exits_1(self, tmp_path: Path, test_config: Any) -> None:
+        """When the API client raises → exit 1, decision stays pending."""
+        staging = tmp_path / "staging" / "test"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        decision_id = _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        mock_client = MagicMock()
+        mock_client.get_movie.side_effect = RuntimeError("TMDB API down")
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 1
+        # Decision must still be pending.
+        row = _select_decision(test_config.indexer.db_path, decision_id)
+        assert row is not None
+        assert row["status"] == "pending"
+
+
+# ---------------------------------------------------------------------------
+# Exit-code 0 tests (happy path — golden-fixture fetch-by-ID)
+# ---------------------------------------------------------------------------
+
+
+class TestScrapeResolveExit0:
+    """Happy-path tests with realistic golden-fixture payloads."""
+
+    def test_movie_fetch_by_id_succeeds(self, tmp_path: Path, test_config: Any) -> None:
+        """Movie via TMDB: golden payload → NFO + artwork → decision resolved.
+
+        Design: docs/reference/scraping.md#decision-queue-drain
+        Contract: The scrape-resolve CLI command fetches a movie by provider ID
+        via the TMDB API, generates NFO + artwork into the staging folder, marks
+        the decision row as resolved with resolution_json containing provider,
+        provider_id, and via='pick', and exits 0.
+        """
+        staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        decision_id = _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        mock_client = MagicMock()
+        mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
+            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
+            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
+            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 0
+        assert "Successfully resolved decision" in result.output
+
+        # Verify the decision row was resolved.
+        row = _select_decision(test_config.indexer.db_path, decision_id)
+        assert row is not None
+        assert row["status"] == "resolved"
+        resolution = json.loads(row["resolution_json"])
+        assert resolution["provider"] == "tmdb"
+        assert resolution["provider_id"] == 550
+        assert resolution["via"] == "pick"
+
+    def test_tvshow_via_tvdb_succeeds(self, tmp_path: Path, test_config: Any) -> None:
+        """TV show via TVDB: golden payload → NFO + artwork → decision resolved."""
+        staging = tmp_path / "staging" / "002-TVSHOWS" / "Top Chef (2010)"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        decision_id = _insert_decision(
+            test_config.indexer.db_path,
+            str(staging.resolve()),
+            media_kind="tvshow",
+            extracted_title="Top Chef",
+            extracted_year=2010,
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_series.return_value = REALISTIC_TVDB_SERIES
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
+            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tvdb", 255968))
+
+        assert result.exit_code == 0
+        assert "Successfully resolved decision" in result.output
+
+        row = _select_decision(test_config.indexer.db_path, decision_id)
+        assert row is not None
+        assert row["status"] == "resolved"
+        resolution = json.loads(row["resolution_json"])
+        assert resolution["provider"] == "tvdb"
+        assert resolution["provider_id"] == 255968
+        assert resolution["via"] == "pick"
+
+    def test_tvshow_via_tmdb_succeeds(self, tmp_path: Path, test_config: Any) -> None:
+        """TV show via TMDB: golden payload → NFO + artwork → decision resolved."""
+        staging = tmp_path / "staging" / "002-TVSHOWS" / "Top Chef (2010)"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        decision_id = _insert_decision(
+            test_config.indexer.db_path,
+            str(staging.resolve()),
+            media_kind="tvshow",
+            extracted_title="Top Chef",
+            extracted_year=2010,
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_tv.return_value = REALISTIC_TMDB_TV
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
+            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 12345))
+
+        assert result.exit_code == 0
+        assert "Successfully resolved decision" in result.output
+
+        row = _select_decision(test_config.indexer.db_path, decision_id)
+        assert row is not None
+        assert row["status"] == "resolved"
+        resolution = json.loads(row["resolution_json"])
+        assert resolution["provider"] == "tmdb"
+        assert resolution["provider_id"] == 12345
+        assert resolution["via"] == "pick"
+
+
+# ---------------------------------------------------------------------------
+# NFC normalization
+# ---------------------------------------------------------------------------
+
+
+class TestNFCNormalization:
+    """Staging paths are NFC-normalized before the DB lookup."""
+
+    def test_nfc_normalization_matches(self, tmp_path: Path, test_config: Any) -> None:
+        """A path stored as NFC is matched even when the filesystem returns NFD.
+
+        macOS / macFUSE ``iterdir()`` yields NFD; the DB stores NFC.  The
+        command normalizes the CLI argument before querying so the row is
+        found regardless.
+        """
+        import unicodedata
+
+        # Use a name with a combining accent so NFD ≠ NFC.
+        nfc_name = "Pokémon"  # é as precomposed (NFC)
+        staging = tmp_path / "staging" / nfc_name
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(
+            test_config.indexer.db_path,
+            unicodedata.normalize("NFC", str(staging.resolve())),
+            extracted_title="Pokémon",
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.acquire_lock", return_value=True),
+            patch("personalscraper.commands.scrape_resolve.cli_compat.release_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
+            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
+            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
+            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 0
+
+
+class TestScrapeResolveLockLifecycle:
+    """Unmocked ``pipeline.lock`` self-acquisition proof (R11 / F52).
+
+    Every other happy-path test stubs ``cli_compat.acquire_lock`` /
+    ``release_lock`` so the lock is never really taken — a joint mock that
+    would let a broken self-lock ship green.  This test runs the REAL
+    ``acquire_lock`` / ``release_lock`` and asserts the lock file is held
+    *while the scrape body executes* and released once the command returns.
+    """
+
+    def test_lock_held_during_body_released_after(self, tmp_path: Path, test_config: Any) -> None:
+        """A real scrape-resolve holds ``pipeline.lock`` mid-body, frees it after.
+
+        Design: docs/reference/scraping.md#decision-queue-drain
+        Contract: scrape-resolve self-acquires the pipeline lock for its
+        lifetime (like library-rescrape) — the lock file exists and is held by
+        a live PID during the scrape/NFO body, and is removed when the command
+        exits, so concurrent runs and write/destructive maintenance actions are
+        serialised against it.
+        """
+        import os as _os
+
+        staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        lock_path = test_config.paths.data_dir / "pipeline.lock"
+        captured: dict[str, Any] = {}
+
+        def _lock_probe(*_args: Any, **_kwargs: Any) -> None:
+            """Record whether the pipeline lock is held while the body runs."""
+            captured["mid_body_held"] = is_lock_held(lock_path)
+            captured["mid_body_pid"] = lock_path.read_text().strip() if lock_path.exists() else None
+
+        mock_client = MagicMock()
+        mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
+
+        # NB: acquire_lock / release_lock are NOT patched here — they run for
+        # real against test_config's data_dir (via the patched loader).  Only
+        # the scrape body is replaced with the lock probe.
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch(
+                "personalscraper.commands.scrape_resolve._scrape_movie",
+                side_effect=_lock_probe,
+            ),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 0, result.output
+        # The lock was genuinely held (live PID) while the scrape body ran.
+        assert captured.get("mid_body_held") is True
+        assert captured.get("mid_body_pid") == str(_os.getpid())
+        # And released once the command returned (finally: release_lock()).
+        assert not is_lock_held(lock_path)
+        assert not lock_path.exists()

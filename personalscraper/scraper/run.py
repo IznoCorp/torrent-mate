@@ -7,8 +7,10 @@ for the pipeline framework.
 Lock is acquired at the CLI level, not here.
 """
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -227,7 +229,26 @@ def run_scrape(
     for r in all_results:
         item_name = r.media_path.name
         event_bus.emit(ItemProgressed(step="scrape", item=item_name, status="started"))
-        if r.action in ("scraped", "artwork_recovered"):
+        if _is_enqueued(r):
+            # Every item that lands in the scrape-arbiter decision queue emits
+            # a single ``queued_for_decision`` event, whatever its action
+            # (``queued_for_decision`` for mid_band/ambiguous, or the additive
+            # ``skipped_low_confidence`` for below_threshold). The WS badge and
+            # the DESIGN §4 "emitted per enqueued item" contract both key on
+            # this status — a below_threshold item must surface it too (F16).
+            event_bus.emit(
+                ItemProgressed(
+                    step="scrape",
+                    item=item_name,
+                    status="queued_for_decision",
+                    details={
+                        "trigger": r.decision_trigger or "",
+                        "confidence": r.match.confidence if r.match else 0.0,
+                        "candidates_count": len(r.decision_candidates or []),
+                    },
+                )
+            )
+        elif r.action in ("scraped", "artwork_recovered"):
             event_bus.emit(
                 ItemProgressed(
                     step="scrape",
@@ -241,6 +262,8 @@ def run_scrape(
                 )
             )
         elif r.action == "skipped_low_confidence":
+            # Not enqueued (defensive — after F11 every below_threshold item is
+            # enqueued): a genuine unmatched skip with no decision row.
             event_bus.emit(
                 ItemProgressed(
                     step="scrape",
@@ -271,8 +294,76 @@ def run_scrape(
                 )
             )
 
+    # Enqueue ambiguous / mid-band / below-threshold items into the
+    # scrape-arbiter decision queue so the operator can later resolve them
+    # through the web UI (§5).  The DecisionWriter is fail-soft — a DB
+    # failure never aborts the pipeline.
+    #
+    # dry-run must NOT touch the DB (F47/F51): a preview classifies items
+    # identically but the standing operator rule is "always --dry-run first",
+    # so persisting rows / flipping pending→superseded during a preview would
+    # mutate durable state before the operator approved the real run.
+    db_path = config.indexer.db_path
+    if dry_run:
+        log.debug("scrape_arbiter_skip_dry_run", reason="dry-run does not mutate the decision queue")
+    elif not isinstance(db_path, Path):
+        log.debug("scrape_arbiter_skip_no_db", reason="indexer.db_path is not a Path")
+    else:
+        from personalscraper.core.event_bus import current_correlation_id
+        from personalscraper.scraper.decision_writer import DecisionWriter
+        from personalscraper.scraper.scraper import _parse_folder_name
+
+        # Correlate every enqueued/refreshed row with the run that produced it
+        # (DESIGN §3 run_uid contract, F08/F15). The pipeline binds the
+        # correlation ContextVar to str(run_id); the row stores the hex form
+        # to match ``pipeline_run.run_uid``.
+        run_uid: str | None = None
+        _corr = current_correlation_id.get()
+        if _corr:
+            try:
+                run_uid = UUID(str(_corr)).hex
+            except (ValueError, TypeError):
+                run_uid = None
+
+        writer = DecisionWriter(db_path)
+        for r in all_results:
+            if _is_enqueued(r):
+                title, year = _parse_folder_name(r.media_path.name)
+                candidates_json = (
+                    json.dumps([c.model_dump() for c in r.decision_candidates]) if r.decision_candidates else "[]"
+                )
+                writer.upsert(
+                    staging_path=r.media_path,
+                    media_kind=r.media_type,
+                    extracted_title=title,
+                    extracted_year=year,
+                    trigger=r.decision_trigger or "mid_band",
+                    candidates_json=candidates_json,
+                    run_uid=run_uid,
+                )
+        writer.mark_superseded_orphans()
+
     # Convert to StepReport
     return _to_step_report(all_results)
+
+
+def _is_enqueued(r: ScrapeResult) -> bool:
+    """Return ``True`` when *r* must be written to the scrape-arbiter queue.
+
+    A result is enqueued iff a decision trigger was assigned (``below_threshold``
+    / ``mid_band`` / ``ambiguous``) and the item was not recovered from the
+    local DB.  This is the single source of truth shared by the per-item event
+    emission, the ``DecisionWriter.upsert`` loop, and the ``StepReport`` count,
+    so a below-threshold item with zero candidates (F11) is enqueued while a
+    ``restored_from_db`` item (F10) is not.
+
+    Args:
+        r: The scrape result to classify.
+
+    Returns:
+        ``True`` when the item belongs in the decision queue.
+    """
+    return r.decision_trigger is not None and r.action != "restored_from_db"
 
 
 def _to_step_report(results: list[ScrapeResult]) -> StepReport:
@@ -326,6 +417,9 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
             unmatched += 1
             details.append(f"[unmatched] {name}")
             unmatched_paths.append(name)
+        elif r.action == "queued_for_decision":
+            details.append(f"[queued_for_decision] {name}")
+            unmatched_paths.append(name)
         elif r.action.startswith("skipped"):
             skipped += 1
             details.append(f"[skipped] {name} ({r.action})")
@@ -337,6 +431,12 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
     counts: dict[str, int] = {}
     if unmatched:
         counts["unmatched"] = unmatched
+    # Count all items enqueued for operator decision — the same predicate the
+    # enqueue loop uses (``_is_enqueued``): mid_band/ambiguous items plus the
+    # additive below_threshold tier, excluding restored-from-DB items.
+    queued = sum(1 for r in results if _is_enqueued(r))
+    if queued:
+        counts["queued_for_decision"] = queued
 
     return StepReport(
         name="scrape",

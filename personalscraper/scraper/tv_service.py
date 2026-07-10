@@ -14,7 +14,6 @@ from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
-from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -28,7 +27,6 @@ from personalscraper.scraper._tvdb_convert import (
     fetch_show_data,
 )
 from personalscraper.scraper.classifier import _parse_folder_name
-from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.episode_manager import (
     _file_season,
     create_season_dirs,
@@ -607,28 +605,76 @@ class TvServiceMixin:
         Returns:
             Success tuple or ``None``.
         """
-        # The chain raises ``ProviderExhausted`` when every eligible
-        # provider failed with a classified error (DESIGN §6.2 line 79).
-        # Catch and surface the original exception detail to preserve
-        # the ACC-13 legacy contract.
+        # Scrape-arbiter DESIGN §4: call the detailed variant to get both the
+        # best match and the scored candidate list for the three-tier trigger
+        # logic. TVDB is the primary provider; TMDB is a fallback only when
+        # TVDB returns no candidates. match_tvshow_detailed catches TVDB
+        # exceptions internally and falls through to TMDB; a TMDB exception
+        # propagates and is surfaced as a fail-soft ``result.error``.
+
+        from personalscraper.scraper.confidence import match_tvshow_detailed  # noqa: PLC0415
+
+        # Resolve TVDB and TMDB clients from the registry (fail-soft — a
+        # missing provider yields None, and match_tvshow_detailed handles
+        # both None branches gracefully).
         try:
-            match = self._match_tvshow_candidates(title, year, local_seasons, result)
-        except ProviderExhausted as exc:
-            detail = exc.last_exception if exc.last_exception is not None else exc
-            result.error = f"Match failed: {detail}"
+            tvdb_client = self._registry.get("tvdb")
+        except Exception:
+            tvdb_client = None
+        try:
+            tmdb_client = self._registry.get("tmdb")
+        except Exception:
+            tmdb_client = None
+
+        try:
+            match, candidates = match_tvshow_detailed(
+                tvdb_client,
+                tmdb_client,
+                title,
+                year,
+                local_seasons=local_seasons,
+            )
+        except Exception as exc:
+            result.error = f"Match failed: {exc}"
             result.action = "error"
             return None
-        if result.error:
-            return None
-        if match is None or match.confidence < LOW_CONFIDENCE:
-            result.action = "skipped_low_confidence"
-            log.warning(
-                "show_no_confident_match",
+
+        # Three-tier trigger logic delegates to the shared decision_triage
+        # module (scrape-arbiter DESIGN §4). Only the log event names are
+        # TV-specific.
+        from personalscraper.scraper.decision_triage import (  # noqa: PLC0415
+            apply_decision_to_result,
+            classify_decision_trigger,
+        )
+
+        trigger = classify_decision_trigger(match, candidates)
+        if trigger is not None:
+            apply_decision_to_result(result, match, candidates, trigger)
+            if trigger == "below_threshold":
+                log.warning(
+                    "show_no_confident_match",
+                    title=title,
+                    year=year,
+                    score=round(match.confidence if match else 0.0, 2),
+                )
+                return None
+            assert match is not None  # narrowed by classify_decision_trigger
+            extra: dict[str, Any] = {}
+            if trigger == "ambiguous" and candidates:
+                extra["runner_up_score"] = round(candidates[1].score, 2)
+            log.info(
+                "show_queued_for_decision",
                 title=title,
-                year=year,
-                score=round(match.confidence if match else 0.0, 2),
+                api_title=match.api_title,
+                source=match.source,
+                confidence=round(match.confidence, 2),
+                trigger=trigger,
+                **extra,
             )
             return None
+
+        # Clean >= HIGH_CONFIDENCE — proceed with full scrape path.
+        assert match is not None  # narrowed by classify_decision_trigger
         result.match = match
         log.info(
             "show_matched",

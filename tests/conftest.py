@@ -205,6 +205,7 @@ def _mock_cli_config_load(request, test_config):
         "test_logger_cli.py",
         "test_matrix_cli_refs.py",
         "test_init_canonical.py",
+        "test_scrape_resolve.py",
     }
     if request.fspath.basename not in cli_test_files:
         yield

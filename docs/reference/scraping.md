@@ -52,6 +52,80 @@ If NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO an
 
 External metadata scraper — used as manual fallback. Claude does not interact with it directly.
 
+## Batch Confidence & Decision Queue (S5 — scrape-arbiter)
+
+S5 (`feat/scrape-arbiter`, ticket #184) changes how the batch scraper handles
+uncertain matches. Before S5, the scraper auto-accepted every match with
+confidence ≥ 0.5 — wrong mid-band matches slipped through silently, and
+sub-0.5 items were parked in staging forever. S5 replaces the silent
+auto-accept with an async decision queue the operator drains via the web
+`/decisions` page or the `personalscraper scrape-resolve` CLI.
+
+### Threshold constants
+
+All thresholds live in [`personalscraper/scraper/confidence.py`](../personalscraper/scraper/confidence.py):
+
+| Constant          | Value  | Meaning                                                      |
+| ----------------- | ------ | ------------------------------------------------------------ |
+| `LOW_CONFIDENCE`  | `0.5`  | Below this → item is skipped; decision row is additive.      |
+| `HIGH_CONFIDENCE` | `0.8`  | At or above this → auto-accept (unless ambiguous).           |
+| `AMBIGUITY_DELTA` | `0.05` | Runner-up within this gap of the winner → ambiguous trigger. |
+
+### Three triggers
+
+Classification is centralized in
+[`personalscraper/scraper/decision_triage.py`](../personalscraper/scraper/decision_triage.py)
+(`classify_decision_trigger`), called by both `movie_service.py` and
+`tv_service.py`:
+
+| Trigger           | Condition                                                 | Batch behavior (S5)                                                                                                                                                              |
+| ----------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `below_threshold` | Best match confidence `< 0.5` or no match at all          | **Additive.** Item keeps `skipped_low_confidence` semantics (stays in staging). A `scrape_decision` row is created alongside so the operator can pick a provider ID manually.    |
+| `mid_band`        | Best match confidence `≥ 0.5` and `< 0.8`                 | **Behavior change.** Replaces the historical auto-accept — `action="queued_for_decision"`. The item enters the decision queue for operator review instead of being auto-scraped. |
+| `ambiguous`       | Best match `≥ 0.8` AND runner-up `≥ 0.5` AND gap `< 0.05` | **New for TV, existing for movies.** Both candidates are ≥ `LOW_CONFIDENCE` and too close to call — `action="queued_for_decision"`. Operator breaks the tie.                     |
+| _(clean)_         | Best match `≥ 0.8`, no close runner-up                    | **Unchanged.** Auto-accept proceeds to NFO/artwork write as before.                                                                                                              |
+
+### Detailed match variants
+
+The scraper exposes two families of match functions per media kind:
+
+- **`match_movie`** / **`match_tvshow`** — return only the best
+  `MatchResult` (or `None`). Used by the fast path and existing callers
+  that do not need the candidate list.
+- **`match_movie_detailed`** / **`match_tvshow_detailed`** — return
+  `(MatchResult | None, list[DecisionCandidate])` — the best match plus
+  a top-5 scored candidate snapshot. Used during batch enqueue (to populate
+  `candidates_json`) and by the `/api/decisions/{id}/search` endpoint
+  (live provider search for the operator).
+
+Both detailed variants live in `confidence.py` and follow the same
+`rapidfuzz` WRatio + year-validation scoring as their non-detailed
+counterparts. The candidate list is always at most 5 entries, sorted by
+descending score.
+
+### Decision queue drain
+
+Decisions are drained through two surfaces:
+
+1. **Web `/decisions` page** — operator reviews candidates, optionally
+   searches with a corrected title/year, picks a provider ID, and resolves.
+   See [`web-ui.md`](web-ui.md#interactive-scraping-s5--scrape-arbiter).
+2. **CLI** — `personalscraper scrape-resolve <staging_path> --provider
+tmdb|tvdb --id <provider_id>` fetches by ID through the existing service
+   paths, writes NFO + artwork into the staging folder, and marks the
+   decision `resolved`.
+
+On the next pipeline run, a resolved item (valid NFO present) is seen as
+`skipped_already_done` — verify/dispatch proceed normally.
+
+### Event emission
+
+Per enqueued item, an
+`ItemProgressed(step="scrape", status="queued_for_decision", details={trigger, confidence, candidates_count})`
+event is emitted on the EventBus. The `StepReport` counts `queued_for_decision`
+separately in `counts`, and the enqueued paths are listed alongside
+`unmatched_paths` for operator visibility.
+
 ## Three semantics (Provider Registry)
 
 The provider registry imposes the correct semantic per capability — a user CANNOT

@@ -19,11 +19,15 @@ from personalscraper.scraper.confidence import (
     _superstring_penalty,
     get_episode_titles,
     match_movie,
+    match_movie_detailed,
     match_tvshow,
+    match_tvshow_detailed,
     match_tvshow_tvdb,
+    match_tvshow_tvdb_detailed,
     prompt_user_choice,
     score_match,
 )  # noqa: F401
+from personalscraper.scraper.decision_candidate import DecisionCandidate  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Helpers — adapt legacy dict-shaped TMDB/TVDB responses to api-unify
@@ -102,7 +106,13 @@ class TestScoreMatch:
     """Tests for the confidence scoring algorithm."""
 
     def test_exact_match_with_year(self) -> None:
-        """Exact title + exact year should score >= HIGH_CONFIDENCE."""
+        """Exact title + exact year should score >= HIGH_CONFIDENCE.
+
+        Design: docs/reference/scraping.md#threshold-constants
+        Contract: score_match returns a value >= HIGH_CONFIDENCE (0.9) when
+        both the title and year match exactly, and the score is always clamped
+        within [0.0, 1.0].
+        """
         score = score_match("The Matrix", 1999, "The Matrix", 1999)
         assert score >= HIGH_CONFIDENCE
 
@@ -1372,3 +1382,348 @@ class TestAliasCollision:
             aliases=("The Office: Special Edition Extended",),
         )
         assert _score_result("The Office", 2005, exact) > _score_result("The Office", 2005, superstring)
+
+
+# ---------------------------------------------------------------------------
+# Detailed match variants — candidate surfacing (scrape-arbiter sub-phase 1.4)
+# ---------------------------------------------------------------------------
+
+
+class TestMatchMovieDetailed:
+    """Tests for match_movie_detailed() returning candidates alongside best match."""
+
+    def test_below_threshold_returns_candidates(self) -> None:
+        """Best < LOW_CONFIDENCE → match returned with low confidence, candidates non-empty.
+
+        Design: docs/reference/scraping.md#detailed-match-variants
+        Contract: match_movie_detailed returns a (match, candidates) tuple
+        where match is the best-scoring result (even if below threshold) and
+        candidates is a DecisionCandidate list sorted by score descending,
+        capped at 5 entries.
+        """
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = [
+            _sr_tmdb_movie({"id": 1, "title": "Totally Unrelated Movie", "release_date": "1985-01-01"}),
+        ]
+        match, candidates = match_movie_detailed(client, "The Matrix", 1999)
+        assert match is not None
+        assert match.confidence < LOW_CONFIDENCE
+        assert len(candidates) == 1
+        assert candidates[0].score < LOW_CONFIDENCE
+
+    def test_high_confidence_returns_candidates(self) -> None:
+        """High-confidence match → match + candidates with correct fields."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = [
+            _sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"}),
+        ]
+        match, candidates = match_movie_detailed(client, "The Matrix", 1999)
+        assert match is not None
+        assert match.confidence >= HIGH_CONFIDENCE
+        assert len(candidates) == 1
+        assert candidates[0].provider_id == 603
+        assert candidates[0].title == "The Matrix"
+        assert candidates[0].year == 1999
+
+    def test_no_results_returns_empty(self) -> None:
+        """No TMDB results → None + empty candidates list."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = []
+        match, candidates = match_movie_detailed(client, "xyznonexistent", 2024)
+        assert match is None
+        assert candidates == []
+
+    def test_candidates_sorted_by_score_desc(self) -> None:
+        """Candidates are ordered by score descending."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = [
+            _sr_tmdb_movie({"id": 1, "title": "Matrix Reloaded", "release_date": "2003-01-01"}),
+            _sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"}),
+            _sr_tmdb_movie({"id": 2, "title": "Matrix Revolutions", "release_date": "2003-10-01"}),
+        ]
+        match, candidates = match_movie_detailed(client, "The Matrix", 1999)
+        assert match is not None
+        assert len(candidates) >= 2
+        for i in range(len(candidates) - 1):
+            assert candidates[i].score >= candidates[i + 1].score, f"candidates[{i}].score < candidates[{i + 1}].score"
+
+
+class TestCandidateFields:
+    """Tests for DecisionCandidate field mapping from SearchResult."""
+
+    def test_fields_populated_from_search_result(self) -> None:
+        """All DecisionCandidate fields correctly mapped from SearchResult."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = [
+            SearchResult(
+                provider="tmdb",
+                provider_id="603",
+                title="The Matrix",
+                year=1999,
+                overview="A computer hacker learns...",
+                poster_url="https://image.tmdb.org/t/p/w500/matrix.jpg",
+            ),
+        ]
+        match, candidates = match_movie_detailed(client, "The Matrix", 1999)
+        assert len(candidates) == 1
+        c = candidates[0]
+        assert c.provider == "tmdb"
+        assert c.provider_id == 603
+        assert c.title == "The Matrix"
+        assert c.year == 1999
+        assert 0.0 <= c.score <= 1.0
+        assert c.poster_url == "https://image.tmdb.org/t/p/w500/matrix.jpg"
+        assert c.overview == "A computer hacker learns..."
+
+    def test_empty_poster_and_overview_become_none(self) -> None:
+        """Empty poster_url/overview in SearchResult → None in DecisionCandidate."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = [
+            _sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"}),
+        ]
+        match, candidates = match_movie_detailed(client, "The Matrix", 1999)
+        assert len(candidates) == 1
+        c = candidates[0]
+        assert c.poster_url is None
+        assert c.overview is None
+
+
+class TestCandidateCapping:
+    """Tests for top-5 candidate cap."""
+
+    def test_candidates_capped_at_5(self) -> None:
+        """More than 5 results → candidates list capped at 5."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        results = []
+        for i in range(7):
+            results.append({"id": i + 1, "title": f"Matrix Part {i}", "release_date": "1999-01-01"})
+        client.search_movie.return_value = [_sr_tmdb_movie(r) for r in results]
+        match, candidates = match_movie_detailed(client, "Matrix", 1999)
+        assert match is not None
+        assert len(candidates) == 5
+
+
+class TestMatchTvshowTvdbDetailed:
+    """Tests for match_tvshow_tvdb_detailed() returning candidates."""
+
+    def test_returns_match_and_candidates(self) -> None:
+        """TVDB match → match + candidates returned with correct provider."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"}),
+        ]
+        match, candidates = match_tvshow_tvdb_detailed(tvdb, "Breaking Bad", 2008)
+        assert match is not None
+        assert match.source == "tvdb"
+        assert len(candidates) == 1
+        assert candidates[0].provider_id == 81189
+        assert candidates[0].provider == "tvdb"
+
+    def test_no_results_returns_empty(self) -> None:
+        """No TVDB results → None + empty candidates."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+        match, candidates = match_tvshow_tvdb_detailed(tvdb, "nonexistent", 2024)
+        assert match is None
+        assert candidates == []
+
+    def test_content_aware_filter_respected_in_candidates(self) -> None:
+        """Candidates reflect post-filter survivors after content-aware season filter."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "346368", "name": "Top Chef France - Dans l'assiette", "year": "2016"}),
+            _sr_tvdb({"tvdb_id": "77081", "name": "Top Chef", "year": "2010"}),
+        ]
+        # Spin-off has only S01-S02; main show has S01-S17+
+        tvdb.get_series.side_effect = lambda tvdb_id: (
+            _md_tvdb_series(346368, [1, 2]) if tvdb_id == 346368 else _md_tvdb_series(77081, list(range(1, 18)))
+        )
+        match, candidates = match_tvshow_tvdb_detailed(tvdb, "Top Chef France", None, local_seasons={17})
+        assert match is not None
+        assert match.api_id == 77081
+        # Candidates should only contain the survivor
+        assert all(c.provider_id == 77081 for c in candidates)
+
+
+class TestMatchTvshowDetailed:
+    """Tests for match_tvshow_detailed() returning candidates."""
+
+    def test_tvdb_path_returns_candidates(self) -> None:
+        """TVDB found → returns TVDB match + candidates."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"}),
+        ]
+        tmdb = MagicMock()
+        match, candidates = match_tvshow_detailed(tvdb, tmdb, "Breaking Bad", 2008)
+        assert match is not None
+        assert match.source == "tvdb"
+        assert len(candidates) >= 1
+        assert candidates[0].provider == "tvdb"
+        # TMDB must not be queried when TVDB returned a match
+        tmdb.search_tv.assert_not_called()
+
+    def test_tmdb_fallback_returns_candidates(self) -> None:
+        """TVDB silent → TMDB fallback returns match + candidates."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+        tmdb = MagicMock()
+        tmdb.search_tv.return_value = [
+            _sr_tmdb_tv({"id": 67195, "name": "Lupin", "first_air_date": "2021-01-08"}),
+        ]
+        match, candidates = match_tvshow_detailed(tvdb, tmdb, "Lupin", 2021)
+        assert match is not None
+        assert match.source == "tmdb"
+        assert len(candidates) >= 1
+        assert candidates[0].provider == "tmdb"
+
+    def test_both_silent_returns_empty(self) -> None:
+        """Neither provider has results → None + empty candidates."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+        tmdb = MagicMock()
+        tmdb.search_tv.return_value = []
+        match, candidates = match_tvshow_detailed(tvdb, tmdb, "nonexistent", 2024)
+        assert match is None
+        assert candidates == []
+
+
+class TestTvAmbiguityDelta:
+    """Tests for TV ambiguity delta detection (tvshow_match_ambiguous)."""
+
+    def test_tvdb_ambiguous_emits_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Two TVDB candidates within AMBIGUITY_DELTA → tvshow_match_ambiguous warning."""
+        import logging
+
+        tvdb = MagicMock()
+        # Identical-name candidates from different providers produce the same
+        # score (WRatio + year-bonus + superstring-penalty are all equal),
+        # guaranteeing a gap of 0.0 < AMBIGUITY_DELTA without interference
+        # from superstring-penalty asymmetry (the "Similar Show A"/"Similar
+        # Show B" pair is NOT symmetric: "A" is a noise token → no penalty,
+        # "B" is not → -0.08 → gap 0.08 > 0.05, so the warning never fires).
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "100", "name": "Ambiguous Show", "year": "2020"}),
+            _sr_tvdb({"tvdb_id": "200", "name": "Ambiguous Show", "year": "2020"}),
+        ]
+        with caplog.at_level(logging.WARNING, logger="confidence"):
+            match, candidates = match_tvshow_tvdb_detailed(tvdb, "Ambiguous Show", 2020)
+        assert match is not None
+        warning_records = [
+            r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "tvshow_match_ambiguous"
+        ]
+        assert warning_records, "expected tvshow_match_ambiguous warning in caplog"
+        payload: dict[str, Any] = warning_records[0].msg  # type: ignore[assignment]
+        assert payload["title"] == "Ambiguous Show"
+        assert "top_score" in payload
+        assert "runner_up" in payload
+        assert payload["candidates_count"] >= 2
+
+    def test_tvdb_clean_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Single high-confidence candidate → no tvshow_match_ambiguous."""
+        import logging
+
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"}),
+        ]
+        with caplog.at_level(logging.WARNING, logger="confidence"):
+            match, candidates = match_tvshow_tvdb_detailed(tvdb, "Breaking Bad", 2008)
+        assert match is not None
+        ambiguous = [
+            r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "tvshow_match_ambiguous"
+        ]
+        assert not ambiguous
+
+    def test_tvdb_ambiguous_not_triggered_when_runner_up_below_threshold(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Ambiguity skipped when runner-up < LOW_CONFIDENCE."""
+        import logging
+
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "100", "name": "Exact Match Show", "year": "2020"}),
+            _sr_tvdb({"tvdb_id": "200", "name": "Completely Different", "year": "1980"}),
+        ]
+        with caplog.at_level(logging.WARNING, logger="confidence"):
+            match, candidates = match_tvshow_tvdb_detailed(tvdb, "Exact Match Show", 2020)
+        assert match is not None
+        ambiguous = [
+            r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "tvshow_match_ambiguous"
+        ]
+        assert not ambiguous
+
+
+class TestWrappersReturnDetailedFirst:
+    """Tests that existing wrappers return detailed()[0] — byte-identical behavior."""
+
+    def test_match_movie_wrapper(self) -> None:
+        """match_movie returns match_movie_detailed()[0]."""
+        client = MagicMock()
+        client._language = "fr-FR"
+        client._fallback_language = "en-US"
+        client.search_movie.return_value = [
+            _sr_tmdb_movie({"id": 603, "title": "The Matrix", "release_date": "1999-03-31"}),
+        ]
+        result = match_movie(client, "The Matrix", 1999)
+        detailed_match, detailed_candidates = match_movie_detailed(client, "The Matrix", 1999)
+        assert result is not None
+        assert detailed_match is not None
+        assert result.api_id == detailed_match.api_id
+        assert result.confidence == detailed_match.confidence
+        assert result.source == detailed_match.source
+
+    def test_match_tvshow_tvdb_wrapper(self) -> None:
+        """match_tvshow_tvdb returns match_tvshow_tvdb_detailed()[0]."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"}),
+        ]
+        result = match_tvshow_tvdb(tvdb, "Breaking Bad", 2008)
+        detailed_match, detailed_candidates = match_tvshow_tvdb_detailed(tvdb, "Breaking Bad", 2008)
+        assert result is not None
+        assert detailed_match is not None
+        assert result.api_id == detailed_match.api_id
+        assert result.confidence == detailed_match.confidence
+
+    def test_match_tvshow_wrapper(self) -> None:
+        """match_tvshow returns match_tvshow_detailed()[0]."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            _sr_tvdb({"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"}),
+        ]
+        tmdb = MagicMock()
+        result = match_tvshow(tvdb, tmdb, "Breaking Bad", 2008)
+        detailed_match, detailed_candidates = match_tvshow_detailed(tvdb, tmdb, "Breaking Bad", 2008)
+        assert result is not None
+        assert detailed_match is not None
+        assert result.api_id == detailed_match.api_id
+
+    def test_match_tvshow_wrapper_tmdb_fallback(self) -> None:
+        """Wrapper returns detailed()[0] for TMDB fallback path too."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+        tmdb = MagicMock()
+        tmdb.search_tv.return_value = [
+            _sr_tmdb_tv({"id": 67195, "name": "Lupin", "first_air_date": "2021-01-08"}),
+        ]
+        result = match_tvshow(tvdb, tmdb, "Lupin", 2021)
+        detailed_match, detailed_candidates = match_tvshow_detailed(tvdb, tmdb, "Lupin", 2021)
+        assert result is not None
+        assert detailed_match is not None
+        assert result.api_id == detailed_match.api_id

@@ -21,7 +21,7 @@ from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
-from personalscraper.scraper.confidence import LOW_CONFIDENCE
+from personalscraper.scraper.decision_triage import apply_decision_to_result, classify_decision_trigger
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
 from personalscraper.text_utils import sanitize_filename
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.confidence import MatchResult
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
     from personalscraper.scraper.nfo_generator import NFOGenerator
 
 log = get_logger("scraper")
@@ -506,7 +507,7 @@ class MovieServiceMixin:
         title: str,
         year: int | None,
         result: ScrapeResult,
-    ) -> MatchResult | None:
+    ) -> tuple[MatchResult | None, list[DecisionCandidate]]:
         """Search the configured movie chain for candidates matching title + year.
 
         Iterates ``self._registry.chain(MovieDetailsProvider)`` per DESIGN §6.2
@@ -534,9 +535,9 @@ class MovieServiceMixin:
         - Any other exception — set ``result.error``, log, return ``None``
           (preserves the legacy fail-soft contract used by orchestrator).
 
-        Returns the **first** provider's MatchResult (even if low-confidence
-        — the confidence threshold is the caller's responsibility, see
-        ``_select_best_candidate``).
+        Returns the **first** provider's MatchResult and scored candidate list
+        (even if low-confidence — the confidence threshold is the caller's
+        responsibility, see ``_select_best_candidate``).
 
         Args:
             title: Movie title to search for.
@@ -544,8 +545,9 @@ class MovieServiceMixin:
             result: ScrapeResult for error tracking.
 
         Returns:
-            MatchResult on the first successful provider call, or ``None``
-            when ``result.error`` was populated (unclassified exception)
+            Tuple of (MatchResult, top-5 DecisionCandidate list) on the first
+            successful provider call, or ``(None, [])`` when
+            ``result.error`` was populated (unclassified exception)
             or every chain provider returned an empty result (legacy
             ``skipped_low_confidence`` path).
 
@@ -555,17 +557,19 @@ class MovieServiceMixin:
                 no provider returned a match. The caller is responsible
                 for catching and surfacing the error in ``result.error``.
         """
-        from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+        from personalscraper.scraper.confidence import match_movie_detailed  # noqa: PLC0415
 
         item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "movie"}
         providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
         attempted: list[AttemptOutcome] = []
         last_exception: Exception | None = None
+        all_candidates: list[DecisionCandidate] = []
 
         for provider in providers:
             provider_name = getattr(provider, "provider_name", "?")
             try:
-                match = scraper_api.match_movie(provider, title, year)
+                best, candidates = match_movie_detailed(provider, title, year)
+                all_candidates = candidates
             except CircuitOpenError as exc:
                 last_exception = exc
                 attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open"))
@@ -636,7 +640,7 @@ class MovieServiceMixin:
                 )
                 continue
 
-            if match is None:
+            if best is None:
                 attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
                 log.debug(
                     "registry_provider_skip",
@@ -652,7 +656,7 @@ class MovieServiceMixin:
                 )
                 continue
 
-            return match
+            return best, all_candidates
 
         # All providers attempted and none produced a match.
         if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
@@ -682,7 +686,7 @@ class MovieServiceMixin:
         # Empty chain or all empty_result → legacy "no confident match"
         # path (caller branches on the None return to set
         # ``skipped_low_confidence`` and try ``_restore_from_db``).
-        return None
+        return None, []
 
     def _select_best_candidate(
         self,
@@ -690,28 +694,38 @@ class MovieServiceMixin:
         title: str,
         year: int | None,
         result: ScrapeResult,
+        candidates: list[DecisionCandidate] | None = None,
     ) -> bool:
-        """Check confidence of the matched candidate and reject low-confidence matches.
+        """Route a match through the three-tier decision logic (DESIGN §4).
 
-        Args:
-            match: MatchResult from TMDB (may be None).
-            title: Movie title for logging.
-            year: Optional release year for logging.
-            result: ScrapeResult for action tracking.
+        Delegates to :mod:`~personalscraper.scraper.decision_triage`.
 
         Returns:
-            True if the candidate is accepted and result.match is set,
-            False if skipped.
+            True for clean auto-accept, False otherwise.
         """
-        if match is None or match.confidence < LOW_CONFIDENCE:
-            result.action = "skipped_low_confidence"
-            log.warning(
-                "movie_no_confident_match",
-                title=title,
-                year=year,
-                score=round(match.confidence if match else 0.0, 2),
-            )
+        trigger = classify_decision_trigger(match, candidates)
+        if trigger is not None:
+            apply_decision_to_result(result, match, candidates, trigger)
+            if trigger == "below_threshold":
+                log.warning(
+                    "movie_no_confident_match",
+                    title=title,
+                    year=year,
+                    score=round(match.confidence if match else 0.0, 2),
+                )
+            else:
+                assert match is not None  # narrowed by classify_decision_trigger
+                log.info(
+                    "movie_queued_for_decision",
+                    title=title,
+                    api_title=match.api_title,
+                    source=match.source,
+                    confidence=round(match.confidence, 2),
+                    trigger=trigger,
+                    runner_up_score=(round(candidates[1].score, 2) if trigger == "ambiguous" and candidates else None),
+                )
             return False
+        assert match is not None  # narrowed by classify_decision_trigger
         result.match = match
         log.info(
             "movie_matched",
@@ -787,7 +801,7 @@ class MovieServiceMixin:
         # and surface the original exception detail in ``result.error``
         # to preserve the ACC-13 legacy contract.
         try:
-            match = self._match_movie_candidates(title, year, result)
+            match, candidates = self._match_movie_candidates(title, year, result)
         except ProviderExhausted as exc:
             detail = exc.last_exception if exc.last_exception is not None else exc
             result.error = f"Match failed: {detail}"
@@ -795,10 +809,25 @@ class MovieServiceMixin:
             return result
         if result.error:
             return result
-        if not self._select_best_candidate(match, title, year, result):
+        if not self._select_best_candidate(match, title, year, result, candidates):
+            # queued_for_decision items (mid_band, ambiguous) return early —
+            # no db restore, no NFO/artwork. The item stays in staging until
+            # the operator resolves the decision.
+            if result.action == "queued_for_decision":
+                return result
+            # below_threshold → try db restore (existing behavior), then
+            # additively set decision_candidates so the item lands in the
+            # decision queue even when restoration fails.
             outcome = _restore_from_db(self.config, self.dry_run, movie_dir, title, year)
             if isinstance(outcome, Restored):
                 result.action = "restored_from_db"
+                # A successful restore recovered a valid NFO (identity already
+                # known, item healthy + dispatchable) — it needs no operator
+                # decision.  Clear the additive decision fields set above so the
+                # enqueue path in run_scrape does not create a spurious pending
+                # row for it (F10/F17: restored items are not queued).
+                result.decision_candidates = None
+                result.decision_trigger = None
             else:
                 result.action = "skipped_low_confidence"
             return result

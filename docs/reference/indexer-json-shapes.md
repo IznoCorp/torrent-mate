@@ -329,3 +329,92 @@ Not currently written by any code path. When the item-level / release-
 level soft-delete worker lands the payload shape will be defined in a
 follow-up; do not rely on speculative shapes from earlier drafts of
 this document.
+
+---
+
+## `scrape_decision.candidates_json`
+
+**Pydantic model**: `DecisionCandidate`
+(`personalscraper/scraper/decision_candidate.py`)
+
+Each `scrape_decision` row stores a top-5 scored-candidate snapshot in
+`candidates_json`. The column is a JSON array where every element
+conforms to the `DecisionCandidate` model. Writers validate via
+`model_dump` / `model_validate` before persisting.
+
+```json
+[
+  {
+    "provider": "tmdb",
+    "provider_id": 27205,
+    "title": "Inception",
+    "year": 2010,
+    "score": 0.92,
+    "poster_url": "https://image.tmdb.org/t/p/w500/abc123.jpg",
+    "overview": "A thief who steals corporate secrets through dream-sharing technology."
+  },
+  {
+    "provider": "tvdb",
+    "provider_id": 78901,
+    "title": "Inception",
+    "year": 2010,
+    "score": 0.85,
+    "poster_url": null,
+    "overview": null
+  }
+]
+```
+
+| Field         | Type                 | Meaning                                                             |
+| ------------- | -------------------- | ------------------------------------------------------------------- |
+| `provider`    | `"tmdb"` or `"tvdb"` | The metadata provider that returned this candidate.                 |
+| `provider_id` | int                  | Numeric identifier assigned by the provider.                        |
+| `title`       | str                  | Candidate title as returned by the provider.                        |
+| `year`        | int \| null          | Release year, or `null` when the provider did not return one.       |
+| `score`       | float                | Confidence score (0.0–1.0) assigned by the matching engine.         |
+| `poster_url`  | str \| null          | Provider poster URL, or `null` when no poster is available.         |
+| `overview`    | str \| null          | Short plot summary, or `null` when the provider did not return one. |
+
+Notes:
+
+- The array length is at most 5 (top-5 candidates). A degenerate case
+  (only one candidate returned by the provider) produces a single-element
+  array.
+- The model explicitly sets `extra="forbid"` via
+  `model_config = ConfigDict(extra="forbid")` — unknown keys in
+  the JSON are rejected at validation time.
+- `year`, `poster_url`, and `overview` are nullable; they default
+  to `None` when omitted.
+
+---
+
+## `scrape_decision.resolution_json`
+
+**Written by**: `DecisionWriter.resolve`
+(`personalscraper/scraper/decision_writer.py`)
+
+Populated when the operator resolves a decision (web pick/search or CLI
+`scrape-resolve`). Stays `NULL` for `pending`, `dismissed`, and
+`superseded` rows.
+
+```json
+{
+  "provider": "tmdb",
+  "provider_id": 27205,
+  "via": "pick"
+}
+```
+
+| Field         | Type                            | Meaning                                                                                                                       |
+| ------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `provider`    | `"tmdb"` or `"tvdb"`            | The metadata provider chosen for the re-scrape.                                                                               |
+| `provider_id` | int                             | Numeric identifier assigned by the chosen provider.                                                                           |
+| `via`         | `"pick"` or `"search_override"` | `"pick"` when the operator selected an existing candidate; `"search_override"` when a live search returned a different match. |
+
+Notes:
+
+- This is a **flat dict** written via `json.dumps` — there is no Pydantic
+  model enforcing the shape at write time. The `DecisionDetail` Pydantic
+  response model (`personalscraper/web/models/decisions.py`) deserializes it
+  as `dict[str, Any] | None`.
+- `via` is informational only — the resolve machinery does not branch on it.

@@ -397,6 +397,197 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/decisions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Decisions
+         * @description Return a paginated list of scrape decisions.
+         *
+         *     Runs :meth:`DecisionWriter.mark_superseded_orphans` before querying so
+         *     rows whose staging path no longer exists are garbage-collected to
+         *     ``'superseded'`` before the list is built — **except on the read-only
+         *     staging instance**, where a GET must not mutate the shared prod DB
+         *     (ENV-SEP, coherence study F04).
+         *
+         *     The query params are OpenAPI-constrained (``page >= 1``,
+         *     ``1 <= page_size <= 200``, ``status`` a closed enum) so the typed frontend
+         *     contract can reject an out-of-range value at compile time and the backend
+         *     returns 422 on an invalid one (F42) instead of silently clamping.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         page: 1-indexed page number (default 1, >= 1).
+         *         page_size: Items per page (default 50, 1..200).
+         *         status: Filter by status (default ``'pending'``).
+         *
+         *     Returns:
+         *         A :class:`DecisionsResponse` with items, ``pending_count``,
+         *         ``total``, ``page``, and ``page_size``.
+         */
+        get: operations["list_decisions_api_decisions__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decisions/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Decision
+         * @description Return full detail for a single scrape decision.
+         *
+         *     Args:
+         *         decision_id: Primary key of the ``scrape_decision`` row.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`DecisionDetail` with the full candidate list and
+         *         optional resolution metadata.
+         *
+         *     Raises:
+         *         404: The decision does not exist.
+         *         410: The decision has status ``'superseded'``.
+         */
+        get: operations["get_decision_api_decisions__decision_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decisions/{decision_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Decision
+         * @description Dismiss a decision (manual or MediaElch path).
+         *
+         *     Marks the decision ``'dismissed'`` via :meth:`DecisionWriter.dismiss`.
+         *     Returns the refreshed :class:`DecisionDetail` so the UI can update its
+         *     row without an extra round-trip.
+         *
+         *     Args:
+         *         decision_id: Primary key of the ``scrape_decision`` row.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         The refreshed :class:`DecisionDetail` with ``status='dismissed'``.
+         *
+         *     Raises:
+         *         404: The decision does not exist.
+         *         409: The decision is not ``'pending'`` (already resolved / dismissed).
+         *         410: The decision has status ``'superseded'``.
+         *         500: The dismiss write failed at the DB layer.
+         */
+        post: operations["dismiss_decision_api_decisions__decision_id__dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decisions/{decision_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Decision
+         * @description Launch a targeted re-scrape for a decision.
+         *
+         *     Mirrors ``POST /api/maintenance/actions/{action_id}/run``: validates
+         *     preconditions (pipeline lock, concurrent resolve), reserves a
+         *     ``pipeline_run`` row atomically, re-probes the lock, spawns the runner
+         *     subprocess, and returns ``202`` with the ``run_uid``.
+         *
+         *     Args:
+         *         decision_id: Primary key of the ``scrape_decision`` row.
+         *         body: The request payload with ``provider`` and ``provider_id``.
+         *         request: The incoming FastAPI request (for ``app.state`` access).
+         *
+         *     Returns:
+         *         ``202`` with :class:`ResolveResponse` (``{"run_uid": "..."}``).
+         *
+         *     Raises:
+         *         404: The decision does not exist.
+         *         410: The decision has status ``'superseded'``.
+         *         409: The decision is not ``'pending'`` (already resolved / dismissed),
+         *             the pipeline lock is held, or a scrape-resolve is already running.
+         *         500: The runner subprocess failed to spawn.
+         */
+        post: operations["resolve_decision_api_decisions__decision_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decisions/{decision_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search Decision
+         * @description Search live providers for candidate matches.
+         *
+         *     Read-only — no state change.  Creates per-request provider clients
+         *     and delegates to the detailed confidence matchers
+         *     (:func:`~personalscraper.scraper.confidence.match_movie_detailed` or
+         *     :func:`~personalscraper.scraper.confidence.match_tvshow_detailed`) to
+         *     build a fresh candidate list.  The existing decision row is read only
+         *     to determine ``media_kind``; the search title/year come from the
+         *     request body so the operator can correct the extracted guess.
+         *
+         *     Args:
+         *         decision_id: Primary key of the ``scrape_decision`` row.
+         *         body: Search request with ``title`` and optional ``year``.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`SearchResponse` with fresh provider candidates.
+         *
+         *     Raises:
+         *         404: The decision does not exist.
+         *         410: The decision has status ``'superseded'``.
+         *         502: Provider API failure or client build failure.
+         */
+        post: operations["search_decision_api_decisions__decision_id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -682,6 +873,12 @@ export interface paths {
          *     Reads the PID from ``pipeline.lock``, sends ``SIGTERM``, and clears
          *     the pause sentinel.  The run process releases the lock and finalizes
          *     its history row as ``killed`` on its way out.
+         *
+         *     Refuses (409) when the lock is held by a *maintenance* run (e.g. a
+         *     ``scrape-resolve`` resolution that self-acquired the lock, R11): this
+         *     endpoint targets pipeline runs, and SIGTERMing a maintenance child would
+         *     record its history row as ``error`` rather than ``killed`` (F32).  Such a
+         *     run must be stopped from its own surface.
          *
          *     Returns the current pipeline status (fail-soft: if the lock is absent
          *     or unreadable, returns the idle status without error).
@@ -1019,6 +1216,155 @@ export interface components {
             role: string;
             /** Stale Files */
             stale_files: string[];
+        };
+        /**
+         * DecisionCandidate
+         * @description A single scored search-result candidate for a scrape-decision row.
+         *
+         *     Represents one provider match that the operator can inspect and
+         *     resolve.  Stored as an element of the ``candidates_json`` JSON array
+         *     in the ``scrape_decision`` table.
+         *
+         *     Attributes:
+         *         provider: The metadata provider that returned this candidate
+         *             (``"tmdb"`` or ``"tvdb"``).
+         *         provider_id: The numeric identifier assigned by the provider.
+         *         title: The candidate title as returned by the provider.
+         *         year: The release year, or ``None`` when the provider did not
+         *             return one.
+         *         score: The confidence score (0.0–1.0) assigned by the matching
+         *             engine.
+         *         poster_url: The provider poster URL (``http``/``https`` only), or
+         *             ``None`` when no poster is available or the URL had an untrusted
+         *             scheme.
+         *         overview: A short plot summary, or ``None`` when the provider
+         *             did not return one.
+         */
+        DecisionCandidate: {
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "tmdb" | "tvdb";
+            /** Provider Id */
+            provider_id: number;
+            /** Score */
+            score: number;
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /**
+         * DecisionDetail
+         * @description Full detail for a single ``scrape_decision`` row.
+         *
+         *     Extends :class:`DecisionListItem` with the full candidate list and the
+         *     resolution metadata (when resolved).
+         *
+         *     Attributes:
+         *         candidates: The full candidate list deserialized from
+         *             ``candidates_json``.
+         *         resolution_json: The resolution metadata deserialized from
+         *             ``resolution_json``, or ``None`` when the decision is still
+         *             pending, dismissed, or superseded.
+         */
+        DecisionDetail: {
+            /** Candidates */
+            candidates: components["schemas"]["DecisionCandidate"][];
+            /** Candidates Count */
+            candidates_count: number;
+            /** Created At */
+            created_at: number;
+            /** Extracted Title */
+            extracted_title: string;
+            /** Extracted Year */
+            extracted_year?: number | null;
+            /** Id */
+            id: number;
+            /** Media Kind */
+            media_kind: string;
+            /** Resolution Json */
+            resolution_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Staging Path */
+            staging_path: string;
+            /** Status */
+            status: string;
+            /** Trigger */
+            trigger: string;
+        };
+        /**
+         * DecisionListItem
+         * @description Summary row for the decisions list endpoint.
+         *
+         *     Represents one ``scrape_decision`` row at the list level, without the
+         *     full ``candidates_json`` payload.
+         *
+         *     Attributes:
+         *         id: The auto-increment primary key of the ``scrape_decision`` row.
+         *         staging_path: Absolute path to the staging folder, NFC-normalized.
+         *         media_kind: ``"movie"`` or ``"tvshow"``.
+         *         extracted_title: Title guessed from the folder name.
+         *         extracted_year: Release year guessed from the folder name, or
+         *             ``None`` when no year was extractable.
+         *         trigger: What caused the enqueue —
+         *             ``"below_threshold"``, ``"mid_band"``, or ``"ambiguous"``.
+         *         candidates_count: Number of candidates in ``candidates_json``
+         *             (computed at query time, not stored).
+         *         status: ``"pending"``, ``"resolved"``, ``"dismissed"``, or
+         *             ``"superseded"``.
+         *         created_at: Epoch seconds when the row was created (``time.time()``).
+         */
+        DecisionListItem: {
+            /** Candidates Count */
+            candidates_count: number;
+            /** Created At */
+            created_at: number;
+            /** Extracted Title */
+            extracted_title: string;
+            /** Extracted Year */
+            extracted_year?: number | null;
+            /** Id */
+            id: number;
+            /** Media Kind */
+            media_kind: string;
+            /** Staging Path */
+            staging_path: string;
+            /** Status */
+            status: string;
+            /** Trigger */
+            trigger: string;
+        };
+        /**
+         * DecisionsResponse
+         * @description Paginated response for the ``GET /api/decisions`` endpoint.
+         *
+         *     Attributes:
+         *         items: Decision list items for the current page.
+         *         pending_count: Total number of decisions with ``status='pending'``
+         *             (independent of pagination — the shell badge value).
+         *         total: Total number of decisions matching the current filter
+         *             (all statuses, for pagination).
+         *         page: Current page number (1-indexed).
+         *         page_size: Number of items per page.
+         */
+        DecisionsResponse: {
+            /** Items */
+            items: components["schemas"]["DecisionListItem"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Pending Count */
+            pending_count: number;
+            /** Total */
+            total: number;
         };
         /**
          * DiskInfo
@@ -1467,6 +1813,49 @@ export interface components {
             warnings: string[];
         };
         /**
+         * ResolveRequest
+         * @description Request body for ``POST /api/decisions/{id}/resolve``.
+         *
+         *     Pins a chosen provider identity and launches a targeted re-scrape.
+         *
+         *     Attributes:
+         *         provider: The metadata provider to use for the re-scrape
+         *             (``"tmdb"`` or ``"tvdb"``).
+         *         provider_id: The numeric identifier assigned by the chosen provider.
+         *         via: How the operator chose this identity — ``"pick"`` for a candidate
+         *             from the original queue snapshot, ``"search_override"`` for a
+         *             candidate returned by a live title/year search override.  Persisted
+         *             in ``resolution_json.via`` (coherence study F09/F40).
+         */
+        ResolveRequest: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "tmdb" | "tvdb";
+            /** Provider Id */
+            provider_id: number;
+            /**
+             * Via
+             * @default pick
+             * @enum {string}
+             */
+            via: "pick" | "search_override";
+        };
+        /**
+         * ResolveResponse
+         * @description Response body for a successful ``POST /api/decisions/{id}/resolve``.
+         *
+         *     Returned as HTTP 202 (Accepted) — the re-scrape is launched asynchronously.
+         *
+         *     Attributes:
+         *         run_uid: The unique identifier of the launched scrape-resolve run.
+         */
+        ResolveResponse: {
+            /** Run Uid */
+            run_uid: string;
+        };
+        /**
          * RestartResponse
          * @description Response body for ``POST /api/config/restart-web``.
          *
@@ -1605,6 +1994,37 @@ export interface components {
             started_at: string;
             /** Trigger */
             trigger: string;
+        };
+        /**
+         * SearchRequest
+         * @description Request body for ``POST /api/decisions/{id}/search``.
+         *
+         *     Triggers a live search against TMDB/TVDB for a given title and optional
+         *     year.  Read-only — no state change.
+         *
+         *     Attributes:
+         *         title: The title to search for on the metadata providers.
+         *         year: An optional release year to narrow the search.
+         */
+        SearchRequest: {
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /**
+         * SearchResponse
+         * @description Response body for ``POST /api/decisions/{id}/search``.
+         *
+         *     Wraps the fresh candidate list returned by the live provider search.
+         *
+         *     Attributes:
+         *         candidates: Fresh ``DecisionCandidate`` list from the live provider
+         *             search.
+         */
+        SearchResponse: {
+            /** Candidates */
+            candidates: components["schemas"]["DecisionCandidate"][];
         };
         /**
          * SecretEntry
@@ -1852,13 +2272,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1881,13 +2299,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
         };
     };
@@ -2140,6 +2556,171 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_decisions_api_decisions__get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                status?: "pending" | "resolved" | "dismissed" | "superseded";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_decision_api_decisions__decision_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_decision_api_decisions__decision_id__dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_decision_api_decisions__decision_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_decision_api_decisions__decision_id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

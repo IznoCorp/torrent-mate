@@ -5,10 +5,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.scraper.confidence import MatchResult
+
+if TYPE_CHECKING:
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 log = get_logger("scraper")
 
@@ -32,9 +36,20 @@ class ScrapeResult:
         episodes_renamed: Number of episodes renamed (0 for movies).
         action: Result action ("scraped", "skipped_low_confidence",
             "skipped_already_done", "artwork_recovered", "error",
-            "skipped_no_category").
+            "skipped_no_category", "queued_for_decision",
+            "restored_from_db").
         error: Error message if action is "error".
         warnings: Non-fatal issues (e.g. artwork download failure).
+        decision_candidates: Top-5 scored candidates for the scrape-arbiter
+            decision queue. Set when the item is enqueued for operator
+            review (action is "queued_for_decision") or additively when
+            below the confidence threshold ("skipped_low_confidence").
+            None when the match was clean (action "scraped").
+        decision_trigger: Reason the item was enqueued. One of
+            "below_threshold" (confidence < LOW_CONFIDENCE, additive),
+            "mid_band" (confidence between LOW and HIGH, replaces
+            auto-accept), or "ambiguous" (>= HIGH_CONFIDENCE but top two
+            candidates within AMBIGUITY_DELTA). None for clean matches.
     """
 
     media_path: Path
@@ -47,6 +62,8 @@ class ScrapeResult:
     action: str = "error"
     error: str | None = None
     warnings: list[str] = field(default_factory=list)
+    decision_candidates: list[DecisionCandidate] | None = None
+    decision_trigger: str | None = None
 
 
 def _find_video_file(directory: Path) -> Path | None:

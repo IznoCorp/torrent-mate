@@ -209,7 +209,7 @@ class TestScrapeSameTmdbMultiSource:
         older_dir, _older_video, newer_dir, _newer_video = _build_two_sources(staging)
 
         with (
-            patch("personalscraper.scraper.scraper.match_movie", return_value=_gourou_match()),
+            patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(_gourou_match(), [])),
             patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=gourou_movie_data),
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),

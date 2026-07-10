@@ -78,10 +78,12 @@ def test_migration_006_backfills_row_3_when_missing(tmp_path: Path) -> None:
     # Phase 3 — verify backfill + new rows.
     rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], f"After 006-012, expected [1..12], got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], (
+        f"After migrations through 013, expected [1..13], got {versions}"
+    )
 
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
-    assert user_version == 12, f"user_version must be 12, got {user_version}"
+    assert user_version == 13, f"user_version must be 13, got {user_version}"
 
     conn.close()
 
@@ -101,7 +103,7 @@ def test_migration_006_idempotent_on_fresh_db(tmp_path: Path) -> None:
 
     rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], f"Fresh DB, expected [1..12], got {versions}"
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], f"Fresh DB, expected [1..13], got {versions}"
 
     # Run apply_migrations a second time — must be a complete no-op.
     apply_migrations(conn, _MIGRATIONS_DIR)
