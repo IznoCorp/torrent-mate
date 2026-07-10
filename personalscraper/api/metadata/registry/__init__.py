@@ -158,6 +158,7 @@ class ProviderStatus:
     failure_count_recent: int
     last_success_at: datetime | None
     last_failure_at: datetime | None
+    last_latency_ms: float | None
 
     def __post_init__(self) -> None:
         """Validate failure_count_recent >= 0 after frozen dataclass init."""
@@ -622,6 +623,7 @@ class ProviderRegistry:
                 failure_count_recent=(getattr(circuit, "failure_count_recent", 0) if circuit else 0),
                 last_success_at=(getattr(circuit, "last_success_at", None) if circuit else None),
                 last_failure_at=(getattr(circuit, "last_failure_at", None) if circuit else None),
+                last_latency_ms=(getattr(circuit, "_last_latency_ms", None) if circuit else None),
             )
         return result
 

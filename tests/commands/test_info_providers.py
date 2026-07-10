@@ -27,6 +27,7 @@ def test_info_providers_lists_configured_providers(monkeypatch):
             failure_count_recent=0,
             last_success_at=None,
             last_failure_at=None,
+            last_latency_ms=None,
         ),
         "tvdb": ProviderStatus(
             provider_name=RegistryProviderName("tvdb"),
@@ -34,6 +35,7 @@ def test_info_providers_lists_configured_providers(monkeypatch):
             failure_count_recent=0,
             last_success_at=None,
             last_failure_at=None,
+            last_latency_ms=None,
         ),
     }
     mock_instance.close = MagicMock()

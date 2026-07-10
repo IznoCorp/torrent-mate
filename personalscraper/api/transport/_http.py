@@ -295,13 +295,18 @@ class HttpTransport:
                 stream=stream,
             )
 
+        start = time.monotonic()
         try:
             result = _attempt()
         except (ApiError, requests.RequestException) as exc:
+            elapsed_ms = (time.monotonic() - start) * 1000.0
+            circuit._last_latency_ms = elapsed_ms
             if not self._policy.circuit.count_retries:
                 circuit.record_failure(exc)
             raise
 
+        elapsed_ms = (time.monotonic() - start) * 1000.0
+        circuit._last_latency_ms = elapsed_ms
         circuit.record_success()
         return result
 
