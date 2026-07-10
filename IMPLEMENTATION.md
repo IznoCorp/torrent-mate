@@ -19,7 +19,7 @@
 | 2   | Pipeline page UX                     | phase-02-pipeline-ux.md   | [x]    |
 | 3   | Config SchemaForm redesign           | phase-03-config-form.md   | [x]    |
 | 4   | Scraping refonte + parallel scraping | phase-04-scraping.md      | [ ]    |
-| 5   | Dashboard reorg + scheduler overview | phase-05-dashboard.md     | [ ]    |
+| 5   | Dashboard reorg + scheduler overview | phase-05-dashboard.md     | [x]    |
 | 6   | Backend fold-in — follow dedup       | phase-06-follow-dedup.md  | [x]    |
 | 7   | Full-interface UX overhaul loop      | phase-07-overhaul-loop.md | [ ]    |
 
