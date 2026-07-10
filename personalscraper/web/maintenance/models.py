@@ -274,3 +274,53 @@ class ActionRunResponse(BaseModel):
     """
 
     run_uid: str
+
+
+class SchedulerItem(BaseModel):
+    """One scheduled agent (watcher or cron) in the scheduler overview.
+
+    Serves ``GET /api/maintenance/schedulers`` (webui-ux Phase 5). One row per
+    scheduled agent — the download-completion watcher plus each static cron job.
+
+    Attributes:
+        name: Stable machine identifier (the PM2 process name for crons, or
+            ``"personalscraper-watch"`` for the watcher). Never localised —
+            used as the React list key.
+        kind: ``"watcher"`` for the long-running completion watcher, ``"cron"``
+            for a scheduled cron job.
+        display_name: Human-readable French label for the panel.
+        schedule: Human-readable schedule string (crons), or ``None`` for the
+            watcher, which is event-driven rather than scheduled.
+        enabled: The watcher's enabled state (``True`` when the
+            ``watcher.paused`` sentinel is absent), or ``None`` for a cron
+            (whose enabled/disabled state is a PM2 concern the web process
+            cannot observe).
+        last_run_at: Unix-epoch seconds of the agent's last run, or ``None``
+            when no run is recorded. For the watcher this is
+            ``watch_state.last_successful_run_at``; for a cron it is the most
+            recent matching ``pipeline_run`` row's ``started_at`` (``None`` when
+            the job writes no ``pipeline_run`` row — the current reality, so
+            crons surface ``None`` fail-soft).
+        last_outcome: Final outcome of the last run (``"success"`` / ``"error"``
+            / ``"killed"``), or ``None`` when unknown. The watcher never carries
+            an outcome (its last-run timestamp records only *successful* runs).
+    """
+
+    name: str
+    kind: str  # "watcher" | "cron"
+    display_name: str
+    schedule: str | None = None
+    enabled: bool | None = None
+    last_run_at: float | None = None  # epoch seconds
+    last_outcome: str | None = None
+
+
+class SchedulersResponse(BaseModel):
+    """Response for ``GET /api/maintenance/schedulers``.
+
+    Attributes:
+        schedulers: One entry per scheduled agent (watcher first, then each
+            cron in schedule order).
+    """
+
+    schedulers: list[SchedulerItem]

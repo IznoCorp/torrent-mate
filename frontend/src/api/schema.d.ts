@@ -951,6 +951,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/maintenance/schedulers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Schedulers
+         * @description Return the scheduler overview: the watcher plus every static cron job.
+         *
+         *     Aggregates each scheduled agent's state from three fail-soft sources: the
+         *     ``watcher.paused`` sentinel + ``acquire.db`` ``watch_state`` (watcher), the
+         *     static :data:`CRON_JOBS` registry (schedule + display names), and the last
+         *     matching ``pipeline_run`` row per cron (``library.db``).  Read-only,
+         *     lock-free, per-request ``sqlite3`` connections (mirrors the acquisition
+         *     status read pattern).  Never 500s — a missing source DB yields
+         *     ``last_run_at=None`` rather than an error.
+         *
+         *     Returns:
+         *         A :class:`SchedulersResponse` with the watcher first, then each cron in
+         *         registry order.
+         */
+        get: operations["get_schedulers_api_maintenance_schedulers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pipeline/history": {
         parameters: {
             query?: never;
@@ -2398,6 +2430,64 @@ export interface components {
             trigger: string;
         };
         /**
+         * SchedulerItem
+         * @description One scheduled agent (watcher or cron) in the scheduler overview.
+         *
+         *     Serves ``GET /api/maintenance/schedulers`` (webui-ux Phase 5). One row per
+         *     scheduled agent — the download-completion watcher plus each static cron job.
+         *
+         *     Attributes:
+         *         name: Stable machine identifier (the PM2 process name for crons, or
+         *             ``"personalscraper-watch"`` for the watcher). Never localised —
+         *             used as the React list key.
+         *         kind: ``"watcher"`` for the long-running completion watcher, ``"cron"``
+         *             for a scheduled cron job.
+         *         display_name: Human-readable French label for the panel.
+         *         schedule: Human-readable schedule string (crons), or ``None`` for the
+         *             watcher, which is event-driven rather than scheduled.
+         *         enabled: The watcher's enabled state (``True`` when the
+         *             ``watcher.paused`` sentinel is absent), or ``None`` for a cron
+         *             (whose enabled/disabled state is a PM2 concern the web process
+         *             cannot observe).
+         *         last_run_at: Unix-epoch seconds of the agent's last run, or ``None``
+         *             when no run is recorded. For the watcher this is
+         *             ``watch_state.last_successful_run_at``; for a cron it is the most
+         *             recent matching ``pipeline_run`` row's ``started_at`` (``None`` when
+         *             the job writes no ``pipeline_run`` row — the current reality, so
+         *             crons surface ``None`` fail-soft).
+         *         last_outcome: Final outcome of the last run (``"success"`` / ``"error"``
+         *             / ``"killed"``), or ``None`` when unknown. The watcher never carries
+         *             an outcome (its last-run timestamp records only *successful* runs).
+         */
+        SchedulerItem: {
+            /** Display Name */
+            display_name: string;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Kind */
+            kind: string;
+            /** Last Outcome */
+            last_outcome?: string | null;
+            /** Last Run At */
+            last_run_at?: number | null;
+            /** Name */
+            name: string;
+            /** Schedule */
+            schedule?: string | null;
+        };
+        /**
+         * SchedulersResponse
+         * @description Response for ``GET /api/maintenance/schedulers``.
+         *
+         *     Attributes:
+         *         schedulers: One entry per scheduled agent (watcher first, then each
+         *             cron in schedule order).
+         */
+        SchedulersResponse: {
+            /** Schedulers */
+            schedulers: components["schemas"]["SchedulerItem"][];
+        };
+        /**
          * SearchRequest
          * @description Request body for ``POST /api/decisions/{id}/search``.
          *
@@ -3557,6 +3647,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LocksResponse"];
+                };
+            };
+        };
+    };
+    get_schedulers_api_maintenance_schedulers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulersResponse"];
                 };
             };
         };

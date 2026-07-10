@@ -52,6 +52,8 @@ from personalscraper.web.maintenance.models import (
     LocksResponse,
     LockState,
     NfoStats,
+    SchedulerItem,
+    SchedulersResponse,
     Sentinels,
     TmpOrphan,
 )
@@ -60,6 +62,7 @@ from personalscraper.web.maintenance.registry import (
     MaintenanceAction,
     canonical_options_json,
 )
+from personalscraper.web.schedulers.registry import CRON_JOBS, CronJob
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 logger = get_logger(__name__)
@@ -534,6 +537,153 @@ def get_index_health(
         soft_deleted=soft_deleted,
         canonical_null=canonical_null,
     )
+
+
+# ── GET /schedulers helpers ────────────────────────────────────────────────────
+
+
+def _watcher_scheduler(data_dir: Path, acquire_db_path: Path | None) -> SchedulerItem:
+    """Build the watcher :class:`SchedulerItem` from its sentinel + ``watch_state``.
+
+    The watcher is a long-running daemon (not a cron): its enabled state is the
+    absence of the ``watcher.paused`` sentinel, and its last run is the
+    ``last_successful_run_at`` KV value in ``acquire.db`` ``watch_state``.  Both
+    reads are fail-soft — a missing sentinel dir or DB yields ``enabled=True`` /
+    ``last_run_at=None`` rather than an error.
+
+    Args:
+        data_dir: The configured pipeline ``data_dir`` (holds ``watcher.paused``).
+        acquire_db_path: Absolute path to ``acquire.db``, or ``None`` when
+            unresolved.
+
+    Returns:
+        The watcher's :class:`SchedulerItem`.
+    """
+    enabled = not (data_dir / "watcher.paused").exists()
+
+    last_run_at: float | None = None
+    if acquire_db_path is not None and acquire_db_path.exists():
+        try:
+            with closing(sqlite3.connect(str(acquire_db_path))) as conn:
+                _apply_pragmas(conn)
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT value FROM watch_state WHERE key = ?",
+                    ("last_successful_run_at",),
+                ).fetchone()
+                if row is not None:
+                    last_run_at = float(row["value"])
+        except sqlite3.Error:
+            logger.warning("schedulers_watch_state_read_failed", exc_info=True)
+
+    return SchedulerItem(
+        name="personalscraper-watch",
+        kind="watcher",
+        display_name="Surveillance des téléchargements",
+        schedule=None,
+        enabled=enabled,
+        last_run_at=last_run_at,
+        last_outcome=None,
+    )
+
+
+def _cron_last_run(conn: sqlite3.Connection, job: CronJob) -> tuple[float | None, str | None]:
+    """Find the most recent ``pipeline_run`` row matching *job*.
+
+    Matches ``kind='pipeline'`` rows whose ``command`` starts with the job's
+    ``command_prefix``.  Returns ``(None, None)`` when no row matches — the
+    current reality for every cron, since none writes a ``pipeline_run`` row yet
+    (surfaced fail-soft).
+
+    Args:
+        conn: An open, read-only connection to ``library.db``.
+        job: The static cron job whose last run is being looked up.
+
+    Returns:
+        A ``(last_run_at, last_outcome)`` tuple.  ``last_run_at`` is the row's
+        ``started_at`` (epoch seconds); ``last_outcome`` is its ``outcome``.
+    """
+    row = conn.execute(
+        "SELECT started_at, outcome FROM pipeline_run "
+        "WHERE kind = 'pipeline' AND command LIKE ? "
+        "ORDER BY started_at DESC LIMIT 1",
+        (job.command_prefix + "%",),
+    ).fetchone()
+    if row is None:
+        return None, None
+    started_at = float(row["started_at"]) if row["started_at"] is not None else None
+    return started_at, row["outcome"]
+
+
+def _cron_schedulers(indexer_db_path: Path) -> list[SchedulerItem]:
+    """Build a :class:`SchedulerItem` for every static cron job.
+
+    Opens ONE read-only connection to ``library.db`` and looks up each cron's
+    last run.  When the DB is absent or a query fails, every cron is surfaced
+    with ``last_run_at=None`` (fail-soft) — the schedule + display name are
+    static, so the panel still renders.
+
+    Args:
+        indexer_db_path: Absolute path to ``library.db``.
+
+    Returns:
+        One :class:`SchedulerItem` per :data:`CRON_JOBS` entry, in registry
+        order.
+    """
+    last_runs: dict[str, tuple[float | None, str | None]] = {}
+    if indexer_db_path.exists():
+        try:
+            with closing(sqlite3.connect(str(indexer_db_path))) as conn:
+                _apply_pragmas(conn)
+                conn.row_factory = sqlite3.Row
+                for job in CRON_JOBS:
+                    last_runs[job.name] = _cron_last_run(conn, job)
+        except sqlite3.Error:
+            logger.warning("schedulers_cron_last_run_read_failed", exc_info=True)
+
+    items: list[SchedulerItem] = []
+    for job in CRON_JOBS:
+        last_run_at, last_outcome = last_runs.get(job.name, (None, None))
+        items.append(
+            SchedulerItem(
+                name=job.name,
+                kind="cron",
+                display_name=job.display_name,
+                schedule=job.schedule,
+                enabled=None,
+                last_run_at=last_run_at,
+                last_outcome=last_outcome,
+            )
+        )
+    return items
+
+
+# ── GET /schedulers ────────────────────────────────────────────────────────────
+
+
+@router.get("/schedulers", response_model=SchedulersResponse)
+def get_schedulers(request: Request) -> SchedulersResponse:
+    """Return the scheduler overview: the watcher plus every static cron job.
+
+    Aggregates each scheduled agent's state from three fail-soft sources: the
+    ``watcher.paused`` sentinel + ``acquire.db`` ``watch_state`` (watcher), the
+    static :data:`CRON_JOBS` registry (schedule + display names), and the last
+    matching ``pipeline_run`` row per cron (``library.db``).  Read-only,
+    lock-free, per-request ``sqlite3`` connections (mirrors the acquisition
+    status read pattern).  Never 500s — a missing source DB yields
+    ``last_run_at=None`` rather than an error.
+
+    Returns:
+        A :class:`SchedulersResponse` with the watcher first, then each cron in
+        registry order.
+    """
+    config = request.app.state.config
+    data_dir = _data_dir(request)
+
+    watcher = _watcher_scheduler(data_dir, config.acquire.db_path)
+    crons = _cron_schedulers(_db_path(request))
+
+    return SchedulersResponse(schedulers=[watcher, *crons])
 
 
 # ── POST /actions/{action_id}/run helpers ──────────────────────────────────────

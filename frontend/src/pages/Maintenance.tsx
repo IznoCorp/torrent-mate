@@ -9,12 +9,15 @@
 
 import { useState, type ReactElement } from "react";
 
+import { EventFeed } from "@/components/dashboard/EventFeed";
+import { RecentEventsTable } from "@/components/dashboard/RecentEventsTable";
 import { ActionCatalog } from "@/components/maintenance/ActionCatalog";
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
 import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
+import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /**
  * Maintenance — the authenticated maintenance dashboard route (``/maintenance``).
@@ -28,6 +31,9 @@ import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
  */
 export default function Maintenance(): ReactElement {
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  // Single shared live-event stream (same WebSocket the TopBar StatusDot reads);
+  // the feed + recent-events table moved here from the Dashboard (Phase 5.1).
+  const { events } = useEventStreamContext();
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -39,6 +45,11 @@ export default function Maintenance(): ReactElement {
         <LocksPanel />
         <IndexHealthPanel />
       </div>
+
+      {/* Live event feed + recent-events table (relocated from the Dashboard,
+          Phase 5.1). Both read the single shared stream above — no extra WS. */}
+      <EventFeed events={events} />
+      <RecentEventsTable events={events} />
 
       {/* Pipeline run-history — relocated here from the Pipeline page
           (webui-ux Phase 2.4 de-dup: the Pipeline page now shows only the

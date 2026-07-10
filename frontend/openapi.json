@@ -1813,6 +1813,91 @@
         "title": "RunSummary",
         "type": "object"
       },
+      "SchedulerItem": {
+        "description": "One scheduled agent (watcher or cron) in the scheduler overview.\n\nServes ``GET /api/maintenance/schedulers`` (webui-ux Phase 5). One row per\nscheduled agent \u2014 the download-completion watcher plus each static cron job.\n\nAttributes:\n    name: Stable machine identifier (the PM2 process name for crons, or\n        ``\"personalscraper-watch\"`` for the watcher). Never localised \u2014\n        used as the React list key.\n    kind: ``\"watcher\"`` for the long-running completion watcher, ``\"cron\"``\n        for a scheduled cron job.\n    display_name: Human-readable French label for the panel.\n    schedule: Human-readable schedule string (crons), or ``None`` for the\n        watcher, which is event-driven rather than scheduled.\n    enabled: The watcher's enabled state (``True`` when the\n        ``watcher.paused`` sentinel is absent), or ``None`` for a cron\n        (whose enabled/disabled state is a PM2 concern the web process\n        cannot observe).\n    last_run_at: Unix-epoch seconds of the agent's last run, or ``None``\n        when no run is recorded. For the watcher this is\n        ``watch_state.last_successful_run_at``; for a cron it is the most\n        recent matching ``pipeline_run`` row's ``started_at`` (``None`` when\n        the job writes no ``pipeline_run`` row \u2014 the current reality, so\n        crons surface ``None`` fail-soft).\n    last_outcome: Final outcome of the last run (``\"success\"`` / ``\"error\"``\n        / ``\"killed\"``), or ``None`` when unknown. The watcher never carries\n        an outcome (its last-run timestamp records only *successful* runs).",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Outcome"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "display_name"
+        ],
+        "title": "SchedulerItem",
+        "type": "object"
+      },
+      "SchedulersResponse": {
+        "description": "Response for ``GET /api/maintenance/schedulers``.\n\nAttributes:\n    schedulers: One entry per scheduled agent (watcher first, then each\n        cron in schedule order).",
+        "properties": {
+          "schedulers": {
+            "items": {
+              "$ref": "#/components/schemas/SchedulerItem"
+            },
+            "title": "Schedulers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schedulers"
+        ],
+        "title": "SchedulersResponse",
+        "type": "object"
+      },
       "SearchRequest": {
         "description": "Request body for ``POST /api/decisions/{id}/search``.\n\nTriggers a live search against TMDB/TVDB for a given title and optional\nyear.  Read-only \u2014 no state change.\n\nAttributes:\n    title: The title to search for on the metadata providers.\n    year: An optional release year to narrow the search.",
         "properties": {
@@ -3512,6 +3597,28 @@
           }
         },
         "summary": "Get Locks",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/schedulers": {
+      "get": {
+        "description": "Return the scheduler overview: the watcher plus every static cron job.\n\nAggregates each scheduled agent's state from three fail-soft sources: the\n``watcher.paused`` sentinel + ``acquire.db`` ``watch_state`` (watcher), the\nstatic :data:`CRON_JOBS` registry (schedule + display names), and the last\nmatching ``pipeline_run`` row per cron (``library.db``).  Read-only,\nlock-free, per-request ``sqlite3`` connections (mirrors the acquisition\nstatus read pattern).  Never 500s \u2014 a missing source DB yields\n``last_run_at=None`` rather than an error.\n\nReturns:\n    A :class:`SchedulersResponse` with the watcher first, then each cron in\n    registry order.",
+        "operationId": "get_schedulers_api_maintenance_schedulers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Schedulers",
         "tags": [
           "maintenance"
         ]

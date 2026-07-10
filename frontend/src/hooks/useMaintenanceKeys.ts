@@ -9,4 +9,5 @@ export const maintenanceKeys = {
   locks: ["maintenance", "locks"] as const,
   indexHealth: ["maintenance", "index-health"] as const,
   actions: ["maintenance", "actions"] as const,
+  schedulers: ["maintenance", "schedulers"] as const,
 };
