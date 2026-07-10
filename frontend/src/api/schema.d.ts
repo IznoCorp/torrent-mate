@@ -4,6 +4,174 @@
  */
 
 export interface paths {
+    "/api/acquisition/followed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Followed
+         * @description List followed series, filtered by active status.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         active: Filter: ``"active"`` (default), ``"all"``, or ``"inactive"``.
+         *
+         *     Returns:
+         *         A ``FollowedResponse`` with the matching items.
+         */
+        get: operations["get_followed_api_acquisition_followed_get"];
+        put?: never;
+        /**
+         * Create Follow
+         * @description Follow a new series (or reactivate an inactive one).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         body: The parsed :class:`CreateFollowRequest`.
+         *
+         *     Returns:
+         *         The created or reactivated :class:`FollowedSeriesItem`.
+         *
+         *     Raises:
+         *         HTTPException: 409 if the series is already actively followed.
+         */
+        post: operations["create_follow_api_acquisition_followed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/followed/{followed_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Follow
+         * @description Soft-unfollow a series (sets active=False).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *
+         *     Raises:
+         *         HTTPException: 404 if the followed_id does not exist.
+         */
+        delete: operations["delete_follow_api_acquisition_followed__followed_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Follow
+         * @description Update the active flag or cadence for a followed series.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *         body: The parsed :class:`UpdateFollowRequest`.
+         *
+         *     Returns:
+         *         The updated :class:`FollowedSeriesItem`.
+         *
+         *     Raises:
+         *         HTTPException: 404 if the followed_id does not exist.
+         */
+        patch: operations["update_follow_api_acquisition_followed__followed_id__patch"];
+        trace?: never;
+    };
+    "/api/acquisition/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Obligations
+         * @description List seed obligations with their current ratio state.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         status: Filter: ``"all"`` (default), ``"pending"``, ``"breached"``,
+         *             or ``"satisfied"``.
+         *
+         *     Returns:
+         *         An ``ObligationsResponse`` with matching items.  Each item LEFT JOINs
+         *         ``ratio_state`` on tracker name.
+         */
+        get: operations["get_obligations_api_acquisition_obligations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Acquisition Status
+         * @description Return the watcher status and recent watcher-triggered runs.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         An ``AcquisitionStatusResponse`` with watcher enabled state, last
+         *         successful run timestamp, and recent runs.
+         */
+        get: operations["get_acquisition_status_api_acquisition_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/wanted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Wanted
+         * @description List wanted items, paginated, with optional status filter.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         status: Filter by wanted status (default ``"all"``).
+         *         page: Page number (1-based, default 1).
+         *         page_size: Items per page (1–200, default 50).
+         *
+         *     Returns:
+         *         A ``WantedResponse`` with the matching items + pagination metadata.
+         */
+        get: operations["get_wanted_api_acquisition_wanted_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -1087,6 +1255,21 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AcquisitionStatusResponse
+         * @description Response for GET /api/acquisition/status.
+         */
+        AcquisitionStatusResponse: {
+            /** Last Successful Run At */
+            last_successful_run_at?: number | null;
+            /**
+             * Recent Runs
+             * @default []
+             */
+            recent_runs: components["schemas"]["RecentRun"][];
+            /** Watcher Enabled */
+            watcher_enabled: boolean;
+        };
+        /**
          * ActionOption
          * @description A single targeting option for a maintenance action.
          *
@@ -1202,6 +1385,18 @@ export interface components {
             };
         };
         /**
+         * CadenceShape
+         * @description Per-series search cadence override (editable).
+         *
+         *     The shape mirrors what the backend ``effective_cadence`` resolver consumes
+         *     from ``cadence_json``.  The PATCH endpoint validates incoming cadence
+         *     against this schema before writing to ``cadence_json``.
+         */
+        CadenceShape: {
+            /** Interval Minutes */
+            interval_minutes: number;
+        };
+        /**
          * ConfigSchemaResponse
          * @description Response body for ``GET /api/config/schema``.
          *
@@ -1252,6 +1447,25 @@ export interface components {
             role: string;
             /** Stale Files */
             stale_files: string[];
+        };
+        /**
+         * CreateFollowRequest
+         * @description Request body for POST /api/acquisition/followed.
+         *
+         *     At least one provider ID is required (422 otherwise).  *title* is optional
+         *     — when omitted the backend stores an empty string.  The web form will
+         *     always send a title, but the route accepts ``None`` for programmatic
+         *     clients.
+         */
+        CreateFollowRequest: {
+            /** Imdb Id */
+            imdb_id?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Tmdb Id */
+            tmdb_id?: number | null;
+            /** Tvdb Id */
+            tvdb_id?: number | null;
         };
         /**
          * DecisionCandidate
@@ -1502,6 +1716,39 @@ export interface components {
         FilesResponse: {
             /** Files */
             files: components["schemas"]["FileInfo"][];
+        };
+        /**
+         * FollowedResponse
+         * @description Response for GET /api/acquisition/followed.
+         */
+        FollowedResponse: {
+            /** Items */
+            items: components["schemas"]["FollowedSeriesItem"][];
+        };
+        /**
+         * FollowedSeriesItem
+         * @description A single followed series in the list response.
+         */
+        FollowedSeriesItem: {
+            /** Active */
+            active: boolean;
+            /** Added At */
+            added_at: number;
+            /** Cadence */
+            cadence?: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: number;
+            media_ref: components["schemas"]["MediaRefResponse"];
+            /** Quality Profile */
+            quality_profile?: {
+                [key: string]: unknown;
+            } | null;
+            /** Title */
+            title: string;
+            /** Wanted Pending */
+            wanted_pending: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1773,6 +2020,18 @@ export interface components {
             title: string;
         };
         /**
+         * MediaRefResponse
+         * @description Provider-ID key exposed in API responses (tvdb_id primary).
+         */
+        MediaRefResponse: {
+            /** Imdb Id */
+            imdb_id?: string | null;
+            /** Tmdb Id */
+            tmdb_id?: number | null;
+            /** Tvdb Id */
+            tvdb_id?: number | null;
+        };
+        /**
          * NfoStats
          * @description Aggregate NFO file status counts across the indexed library.
          *
@@ -1788,6 +2047,44 @@ export interface components {
             missing: number;
             /** Valid */
             valid: number;
+        };
+        /**
+         * ObligationItem
+         * @description A seed obligation with its current ratio state.
+         */
+        ObligationItem: {
+            /** Accumulated Seed Time S */
+            accumulated_seed_time_s?: number | null;
+            /** Added At */
+            added_at: number;
+            /** Breached At */
+            breached_at?: number | null;
+            /** Dispatched Path */
+            dispatched_path?: string | null;
+            /** Hnr Count */
+            hnr_count?: number | null;
+            /** Info Hash */
+            info_hash: string;
+            /** Min Ratio */
+            min_ratio: number;
+            /** Min Seed Time S */
+            min_seed_time_s: number;
+            /** Observed Ratio */
+            observed_ratio?: number | null;
+            /** Released At */
+            released_at?: number | null;
+            /** Satisfied At */
+            satisfied_at?: number | null;
+            /** Source Tracker */
+            source_tracker: string;
+        };
+        /**
+         * ObligationsResponse
+         * @description Response for GET /api/acquisition/obligations.
+         */
+        ObligationsResponse: {
+            /** Items */
+            items: components["schemas"]["ObligationItem"][];
         };
         /**
          * PipelineOutcome
@@ -1890,6 +2187,20 @@ export interface components {
             restart_required: boolean;
             /** Warnings */
             warnings: string[];
+        };
+        /**
+         * RecentRun
+         * @description A recent watcher-triggered pipeline run summary.
+         */
+        RecentRun: {
+            /** Ended At */
+            ended_at?: number | null;
+            /** Outcome */
+            outcome?: string | null;
+            /** Run Uid */
+            run_uid: string;
+            /** Started At */
+            started_at: number;
         };
         /**
          * RegistryStatusResponse
@@ -2264,6 +2575,20 @@ export interface components {
             prefix: string;
         };
         /**
+         * UpdateFollowRequest
+         * @description Request body for PATCH /api/acquisition/followed/{id}.
+         *
+         *     Every field is optional — only the provided fields are updated.
+         *     *cadence* is validated against :class:`CadenceShape` before writing to
+         *     ``cadence_json``.  ``quality_profile_json`` is intentionally ABSENT
+         *     (RP3a deferred — do NOT expose an editor until the backend consumes it).
+         */
+        UpdateFollowRequest: {
+            /** Active */
+            active?: boolean | null;
+            cadence?: components["schemas"]["CadenceShape"] | null;
+        };
+        /**
          * ValidateRequest
          * @description Request body for ``POST /api/config/validate``.
          *
@@ -2318,6 +2643,44 @@ export interface components {
             version: string;
         };
         /**
+         * WantedItemResponse
+         * @description A single wanted item in the paginated list.
+         */
+        WantedItemResponse: {
+            /** Attempts */
+            attempts: number;
+            /** Enqueued At */
+            enqueued_at: number;
+            /** Episode */
+            episode?: number | null;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Last Search At */
+            last_search_at?: number | null;
+            /** Season */
+            season?: number | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * WantedResponse
+         * @description Paginated response for GET /api/acquisition/wanted.
+         */
+        WantedResponse: {
+            /** Items */
+            items: components["schemas"]["WantedItemResponse"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /**
          * WatcherRequest
          * @description Request body for ``POST /api/pipeline/watcher``.
          *
@@ -2349,6 +2712,218 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_followed_api_acquisition_followed_get: {
+        parameters: {
+            query?: {
+                active?: "all" | "active" | "inactive";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_follow_api_acquisition_followed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFollowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowedSeriesItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_follow_api_acquisition_followed__followed_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_follow_api_acquisition_followed__followed_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFollowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowedSeriesItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_obligations_api_acquisition_obligations_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "pending" | "breached" | "satisfied";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_acquisition_status_api_acquisition_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcquisitionStatusResponse"];
+                };
+            };
+        };
+    };
+    get_wanted_api_acquisition_wanted_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned";
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WantedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_auth_login_post: {
         parameters: {
             query?: never;
