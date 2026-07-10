@@ -9,11 +9,19 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/webui-ux/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/webui-ux/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                | File                      | Status |
+| --- | ------------------------------------ | ------------------------- | ------ |
+| 1   | Quick presentation fixes             | phase-01-quick-fixes.md   | [ ]    |
+| 2   | Pipeline page UX                     | phase-02-pipeline-ux.md   | [ ]    |
+| 3   | Config SchemaForm redesign           | phase-03-config-form.md   | [ ]    |
+| 4   | Scraping refonte + parallel scraping | phase-04-scraping.md      | [ ]    |
+| 5   | Dashboard reorg + scheduler overview | phase-05-dashboard.md     | [ ]    |
+| 6   | Backend fold-in — follow dedup       | phase-06-follow-dedup.md  | [ ]    |
+| 7   | Full-interface UX overhaul loop      | phase-07-overhaul-loop.md | [ ]    |
 
 ## Review cycles
 
@@ -21,4 +29,4 @@ _(filled by implement:pr-review — max 5 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1.
