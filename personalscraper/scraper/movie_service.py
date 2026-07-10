@@ -821,6 +821,13 @@ class MovieServiceMixin:
             outcome = _restore_from_db(self.config, self.dry_run, movie_dir, title, year)
             if isinstance(outcome, Restored):
                 result.action = "restored_from_db"
+                # A successful restore recovered a valid NFO (identity already
+                # known, item healthy + dispatchable) — it needs no operator
+                # decision.  Clear the additive decision fields set above so the
+                # enqueue path in run_scrape does not create a spurious pending
+                # row for it (F10/F17: restored items are not queued).
+                result.decision_candidates = None
+                result.decision_trigger = None
             else:
                 result.action = "skipped_low_confidence"
             return result

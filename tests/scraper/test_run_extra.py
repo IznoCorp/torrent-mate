@@ -915,3 +915,207 @@ class TestQueuedForDecisionReporting:
 
         assert report.counts.get("queued_for_decision") == 1
         assert "Ambiguous Film (2023)" in report.unmatched_paths
+
+
+# ---------------------------------------------------------------------------
+# scrape-arbiter coherence-study fixes (2026-07-10) — batch A enqueue logic
+# ---------------------------------------------------------------------------
+
+
+class TestEnqueueCoherenceFixes:
+    """Regression tests for the coherence-study enqueue findings (F08/F10/F11/F16/F47)."""
+
+    def _run_one(self, tmp_path, config, result, *, dry_run=False, bus=None):
+        """Run run_scrape over a single mocked movie result."""
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
+            MockScraper.return_value.process_movies.return_value = [result]
+            MockScraper.return_value.process_tvshows.return_value = []
+            return run_scrape(
+                _make_settings(),
+                config=config,
+                dry_run=dry_run,
+                event_bus=bus or EventBus(),
+                registry=MagicMock(),
+            )
+
+    def _staged_config(self, tmp_path, db_path):
+        staging = tmp_path / "staging"
+        (staging / "001-MOVIES").mkdir(parents=True)
+        (staging / "002-TVSHOWS").mkdir(parents=True)
+        config = _make_config(tmp_path)
+        config.paths.staging_dir = staging
+        config.indexer.db_path = db_path
+        return config, staging
+
+    def test_below_threshold_zero_candidates_still_enqueued(self, tmp_path: Path) -> None:
+        """F11/F18 — a below_threshold item with NO candidates is enqueued (candidates_json='[]').
+
+        These are the garbled-title, zero-provider-hit folders DESIGN §1 names as
+        'parked forever' — exactly the case that needs the search-override UI.
+        Before the fix the enqueue keyed on decision_candidates being truthy, so
+        an empty list left the item out of the queue entirely.
+        """
+        import sqlite3
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Zzgarbled Xyz (2099)"
+        folder.mkdir()
+
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="skipped_low_confidence",
+            decision_candidates=None,  # zero provider hits
+            decision_trigger="below_threshold",
+        )
+        self._run_one(tmp_path, config, result)
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            'SELECT candidates_json, "trigger", status FROM scrape_decision WHERE staging_path = ?',
+            (str(folder),),
+        ).fetchone()
+        conn.close()
+        assert row is not None, "zero-candidate below_threshold item must be enqueued"
+        assert row[0] == "[]"
+        assert row[1] == "below_threshold"
+        assert row[2] == "pending"
+
+    def test_restored_from_db_not_enqueued(self, tmp_path: Path) -> None:
+        """F10/F17 — a restored_from_db item is NOT enqueued even if it carried candidates.
+
+        Movie service now clears decision_candidates/decision_trigger on a
+        successful restore; the shared ``_is_enqueued`` predicate excludes it.
+        """
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Restored Film (2001)"
+        folder.mkdir()
+
+        # A restored item that (defensively) still carries a stray candidate but
+        # whose trigger was cleared — must NOT be enqueued.
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="restored_from_db",
+            decision_candidates=[DecisionCandidate(provider="tmdb", provider_id=5, title="R", year=2001, score=0.4)],
+            decision_trigger=None,
+        )
+        report = self._run_one(tmp_path, config, result)
+
+        conn = sqlite3.connect(str(db_path))
+        cnt = conn.execute("SELECT COUNT(*) FROM scrape_decision").fetchone()[0]
+        conn.close()
+        assert cnt == 0, "restored_from_db item must not create a decision row"
+        assert report.counts.get("queued_for_decision") is None
+
+    def test_below_threshold_emits_queued_for_decision_event(self, tmp_path: Path) -> None:
+        """F16/F26 — an enqueued below_threshold item emits queued_for_decision (WS badge)."""
+        config, staging = self._staged_config(tmp_path, None)
+        folder = staging / "001-MOVIES" / "Low Conf (2010)"
+        folder.mkdir()
+
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="skipped_low_confidence",
+            decision_candidates=None,
+            decision_trigger="below_threshold",
+        )
+        bus = EventBus()
+        captured: list[ItemProgressed] = []
+        bus.subscribe(ItemProgressed, captured.append)
+        self._run_one(tmp_path, config, result, bus=bus)
+
+        queued = [e for e in captured if e.status == "queued_for_decision"]
+        assert len(queued) == 1, "below_threshold enqueue must surface a queued_for_decision event"
+        assert queued[0].details is not None
+        assert queued[0].details["trigger"] == "below_threshold"
+        # No stray skipped_low_confidence event for an enqueued item.
+        assert not [e for e in captured if e.status == "skipped_low_confidence"]
+
+    def test_dry_run_does_not_write_decision_rows(self, tmp_path: Path) -> None:
+        """F47/F51 — a dry-run scrape never touches the decision queue."""
+        import sqlite3
+
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        # Pre-seed a pending row to prove dry-run also does not flip it to superseded.
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "INSERT INTO scrape_decision (staging_path, media_kind, extracted_title, "
+            '"trigger", candidates_json, status, created_at, updated_at) '
+            "VALUES ('/gone/path', 'movie', 'Gone', 'mid_band', '[]', 'pending', 1.0, 1.0)"
+        )
+        conn.commit()
+        conn.close()
+
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Preview Film (2020)"
+        folder.mkdir()
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=[DecisionCandidate(provider="tmdb", provider_id=1, title="P", year=2020, score=0.65)],
+            decision_trigger="mid_band",
+        )
+        self._run_one(tmp_path, config, result, dry_run=True)
+
+        conn = sqlite3.connect(str(db_path))
+        new_row = conn.execute(
+            "SELECT COUNT(*) FROM scrape_decision WHERE staging_path = ?", (str(folder),)
+        ).fetchone()[0]
+        seeded_status = conn.execute("SELECT status FROM scrape_decision WHERE staging_path = '/gone/path'").fetchone()[
+            0
+        ]
+        conn.close()
+        assert new_row == 0, "dry-run must not insert a decision row"
+        assert seeded_status == "pending", "dry-run must not flip a pending row to superseded"
+
+    def test_run_uid_populated_from_correlation_id(self, tmp_path: Path) -> None:
+        """F08/F15 — the enqueue reads the run correlation id and stores its hex as run_uid."""
+        import sqlite3
+        import uuid
+
+        from personalscraper.core.event_bus import current_correlation_id
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        db_path = tmp_path / "library.db"
+        _create_decision_db(db_path)
+        config, staging = self._staged_config(tmp_path, db_path)
+        folder = staging / "001-MOVIES" / "Correlated Film (2015)"
+        folder.mkdir()
+        result = ScrapeResult(
+            media_path=folder,
+            media_type="movie",
+            action="queued_for_decision",
+            decision_candidates=[DecisionCandidate(provider="tmdb", provider_id=1, title="C", year=2015, score=0.65)],
+            decision_trigger="mid_band",
+        )
+
+        run_id = uuid.uuid4()
+        token = current_correlation_id.set(str(run_id))
+        try:
+            self._run_one(tmp_path, config, result)
+        finally:
+            current_correlation_id.reset(token)
+
+        conn = sqlite3.connect(str(db_path))
+        stored = conn.execute("SELECT run_uid FROM scrape_decision WHERE staging_path = ?", (str(folder),)).fetchone()[
+            0
+        ]
+        conn.close()
+        assert stored == run_id.hex, "run_uid must be the hex form of the run correlation id"
