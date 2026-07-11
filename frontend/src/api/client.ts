@@ -371,6 +371,24 @@ export function getPipelineStatus(): Promise<
   return apiFetch("/api/pipeline/status", { method: "get" });
 }
 
+/** Response type for ``GET /api/pipeline/stages`` (OBJ1 Flow Board). */
+export type StagesResponse = SuccessBody<
+  paths["/api/pipeline/stages"]["get"]["responses"]
+>;
+
+/**
+ * Fetch the aggregated Flow Board state: GET /api/pipeline/stages.
+ *
+ * Session-guarded read — no ``X-Requested-With`` header (R15). Returns the
+ * nine pipeline stages with live counts + derived ring states.
+ *
+ * Returns:
+ *   A {@link StagesResponse} with the nine stages in flow order.
+ */
+export function getPipelineStages(): Promise<StagesResponse> {
+  return apiFetch("/api/pipeline/stages", { method: "get" });
+}
+
 // ---------------------------------------------------------------------------
 // Pipeline history endpoints (S2 Phase 5)
 // ---------------------------------------------------------------------------

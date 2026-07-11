@@ -17,6 +17,7 @@
 
 import { type ReactElement } from "react";
 
+import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
@@ -50,6 +51,9 @@ export default function Pipeline(): ReactElement {
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
+
+      {/* OBJ1 living pipeline — the Flow Board of the nine stages. */}
+      <FlowBoard />
 
       <PipelineControls status={liveStatus} />
 
