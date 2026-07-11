@@ -2248,6 +2248,386 @@
         "title": "StagesResponse",
         "type": "object"
       },
+      "StagingCounts": {
+        "description": "Aggregate counts across the whole staging area (for filter chips).\n\nComputed over the full unpaginated set so the UI can label its filters\nwithout a second request.\n\nAttributes:\n    total: Total number of staged media folders.\n    matched: How many have a confident match (valid NFO + ids).\n    ambiguous: How many await an operator decision.\n    absent: How many are neither matched nor ambiguous.\n    scraped: How many carry an NFO.\n    with_trailer: How many have a trailer file.\n    awaiting_action: How many have at least one ``blocked`` timeline stage.",
+        "properties": {
+          "absent": {
+            "default": 0,
+            "title": "Absent",
+            "type": "integer"
+          },
+          "ambiguous": {
+            "default": 0,
+            "title": "Ambiguous",
+            "type": "integer"
+          },
+          "awaiting_action": {
+            "default": 0,
+            "title": "Awaiting Action",
+            "type": "integer"
+          },
+          "matched": {
+            "default": 0,
+            "title": "Matched",
+            "type": "integer"
+          },
+          "scraped": {
+            "default": 0,
+            "title": "Scraped",
+            "type": "integer"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "with_trailer": {
+            "default": 0,
+            "title": "With Trailer",
+            "type": "integer"
+          }
+        },
+        "title": "StagingCounts",
+        "type": "object"
+      },
+      "StagingDispatchTarget": {
+        "description": "Preview of where a staged media would be dispatched (opt-in).\n\nComputed only when the list endpoint is called with ``with_dispatch=true``\n(a filesystem/disk scan per item). Best-effort and fail-soft: any error\nyields ``mode=\"unknown\"`` with a ``reason`` rather than failing the whole\nresponse.\n\nAttributes:\n    mode: ``replace`` (movie whose folder already exists on a disk),\n        ``merge`` (TV show whose folder already exists \u2014 episodes are\n        merged), ``new`` (no existing folder \u2014 goes to the disk with the\n        most free space), or ``unknown`` (could not resolve).\n    disk: Target disk id, or ``None`` when unresolved.\n    category_id: Resolved storage category id (e.g. ``\"movies\"``), or\n        ``None``.\n    reason: Short human-readable explanation of the decision.",
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "disk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disk"
+          },
+          "mode": {
+            "enum": [
+              "replace",
+              "merge",
+              "new",
+              "unknown"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "reason"
+        ],
+        "title": "StagingDispatchTarget",
+        "type": "object"
+      },
+      "StagingMediaItem": {
+        "description": "One media folder currently present in the staging area.\n\nAttributes:\n    id: Stable URL-safe identifier \u2014 the truncated SHA-1 of the staging\n        path relative to ``staging_dir``. Used by the poster route to\n        resolve back to the folder without ever trusting a client path.\n    category: The staging subfolder the media sits in (e.g.\n        ``\"001-MOVIES\"``).\n    folder: The media folder name (e.g. ``\"Fight Club (1999)\"``).\n    relative_path: ``category/folder`` \u2014 the path relative to the staging\n        root (never an absolute path, so no host layout leaks).\n    media_kind: Kind of media (drives enrichment + grid filtering).\n    title: NFO ``<title>`` when scraped, else the folder name (year\n        stripped).\n    year: Release year from the NFO or the folder name, or ``None``.\n    overview: NFO ``<plot>`` (description), or ``None`` when unscraped.\n    provider_ids: Mapping of provider family \u2192 id string from the NFO\n        ``<uniqueid>`` rows (e.g. ``{\"tvdb\": \"475278\", \"tmdb\": \"315820\"}``).\n    match: Top-level matching verdict.\n    decision_id: The ``scrape_decision.id`` when ``match == \"ambiguous\"``,\n        else ``None`` (lets the grid deep-link to the resolution deck).\n    decision_trigger: The ambiguity trigger (``\"ambiguous\"`` /\n        ``\"below_threshold\"`` / ``\"mid_band\"``), or ``None``.\n    has_nfo: Whether a ``movie.nfo`` / ``tvshow.nfo`` is present.\n    has_poster: Whether a local ``poster.jpg``/``poster.png`` is present.\n    has_trailer: Whether a trailer file is present (Plex convention).\n    poster_url: The guarded local poster route\n        (``/api/staging/media/{id}/poster``) when a poster exists, else\n        ``None`` (the frontend ``MediaPoster`` shows its initials fallback).\n    seasons: Season breakdown for a TV show, or ``None`` for other kinds.\n    episode_count: Total episode video files across seasons (TV show), or\n        ``None``.\n    video_count: Number of video files anywhere in the media tree.\n    size_bytes: Total size of the media folder in bytes.\n    modified_at: Epoch seconds of the most recent file mtime in the tree\n        (drives the default ``recent`` sort).\n    stages: The nine-stage per-media pipeline timeline.\n    dispatch_target: Dispatch preview, or ``None`` unless requested.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
+          "decision_trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Trigger"
+          },
+          "dispatch_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StagingDispatchTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "episode_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode Count"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "has_nfo": {
+            "default": false,
+            "title": "Has Nfo",
+            "type": "boolean"
+          },
+          "has_poster": {
+            "default": false,
+            "title": "Has Poster",
+            "type": "boolean"
+          },
+          "has_trailer": {
+            "default": false,
+            "title": "Has Trailer",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "match": {
+            "enum": [
+              "matched",
+              "ambiguous",
+              "absent"
+            ],
+            "title": "Match",
+            "type": "string"
+          },
+          "media_kind": {
+            "enum": [
+              "movie",
+              "tvshow",
+              "ebook",
+              "audio",
+              "app",
+              "other",
+              "unsorted"
+            ],
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "modified_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified At"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "poster_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Url"
+          },
+          "provider_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Provider Ids",
+            "type": "object"
+          },
+          "relative_path": {
+            "title": "Relative Path",
+            "type": "string"
+          },
+          "seasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StagingSeason"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seasons"
+          },
+          "size_bytes": {
+            "default": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "stages": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StagingStageStep"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "video_count": {
+            "default": 0,
+            "title": "Video Count",
+            "type": "integer"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "folder",
+          "relative_path",
+          "media_kind",
+          "title",
+          "match"
+        ],
+        "title": "StagingMediaItem",
+        "type": "object"
+      },
+      "StagingMediaResponse": {
+        "description": "Response body for ``GET /api/staging/media``.\n\nAttributes:\n    items: The media items for the current page, already sorted/filtered.\n    counts: Aggregate counts over the full (unpaginated, unfiltered) set.\n    total: Number of items after filtering (for pagination).\n    page: 1-indexed page number echoed back.\n    page_size: Page size echoed back.",
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/StagingCounts"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StagingMediaItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "counts",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "StagingMediaResponse",
+        "type": "object"
+      },
+      "StagingSeason": {
+        "description": "A season subfolder of a staged TV show.\n\nAttributes:\n    season: Season number parsed from the ``Saison NN`` folder name.\n    label: The on-disk folder label (e.g. ``\"Saison 17\"``).\n    episode_count: Number of episode video files inside the season folder.",
+        "properties": {
+          "episode_count": {
+            "title": "Episode Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season",
+          "label",
+          "episode_count"
+        ],
+        "title": "StagingSeason",
+        "type": "object"
+      },
+      "StagingStageStep": {
+        "description": "One stage of a staged media's per-item pipeline timeline.\n\nAttributes:\n    key: Stable stage identifier (``arrival`` \u2026 ``dispatch``), aligned with\n        the OBJ1 Flow Board stage keys.\n    label: French display label (e.g. ``\"Scraping\"``).\n    state: Derived state of this stage for this media.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "done",
+              "active",
+              "blocked",
+              "pending",
+              "skipped"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "state"
+        ],
+        "title": "StagingStageStep",
+        "type": "object"
+      },
       "StatusResponse": {
         "description": "Response body for ``GET /api/pipeline/status``.\n\nReflects the live state of the pipeline engine, the pause sentinel,\nthe watcher sentinel, and the latest run metadata.\n\nAttributes:\n    state: The current pipeline run-state.\n    run_uid: The unique identifier of the latest or active run, or\n        ``None`` when idle.\n    step: The human-readable name of the current step, or ``None``\n        when idle.\n    paused: Whether the pipeline is currently paused at a step boundary.\n    watcher_enabled: Whether the directory watcher is currently active.\n    pid: The OS process ID of the running pipeline subprocess, or\n        ``None`` when idle.",
         "properties": {
@@ -4240,6 +4620,235 @@
         "summary": "Registry Status",
         "tags": [
           "registry"
+        ]
+      }
+    },
+    "/api/staging/media": {
+      "get": {
+        "description": "List staged media with pagination, sort, filters and aggregate counts.\n\nScans the staging tree once, enriches each media folder, computes the filter\nchip counts over the full set, then applies the filters, sort and\npagination. ``with_dispatch=true`` additionally computes a dispatch-target\npreview for the items on the returned page (a per-disk free-space + folder\nstat \u2014 off the hot path by default).\n\nAll query params are OpenAPI-constrained (closed enums, bounded page size)\nso the typed frontend contract rejects an invalid value and the backend\nreturns 422 rather than silently coercing.\n\nArgs:\n    request: The incoming FastAPI request.\n    page: 1-indexed page number.\n    page_size: Items per page (1..200).\n    category: Filter by staging subfolder (e.g. ``\"001-MOVIES\"``).\n    kind: Filter by media kind.\n    match: Filter by matching verdict.\n    stage: Keep items at/awaiting this timeline stage.\n    sort: Sort key (default ``recent``).\n    q: Case-insensitive title substring.\n    with_dispatch: Compute the dispatch preview for the page items.\n\nReturns:\n    A :class:`StagingMediaResponse` (page items, counts, total, page,\n    page_size). Fail-soft: an empty/absent staging tree yields an empty\n    list, never a 500.",
+        "operationId": "list_staging_media_api_staging_media_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "movie",
+                    "tvshow",
+                    "ebook",
+                    "audio",
+                    "app",
+                    "other",
+                    "unsorted"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "matched",
+                    "ambiguous",
+                    "absent"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Match"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "arrival",
+                    "staging",
+                    "cleaning",
+                    "sorting",
+                    "matching",
+                    "scraping",
+                    "trailers",
+                    "verify",
+                    "dispatch"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "recent",
+              "enum": [
+                "recent",
+                "title",
+                "year",
+                "size"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "with_dispatch",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "With Dispatch",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagingMediaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Staging Media",
+        "tags": [
+          "staging"
+        ]
+      }
+    },
+    "/api/staging/media/{media_id}/poster": {
+      "get": {
+        "description": "Serve the local poster image for a staged media, by its stable id.\n\nRe-derives the media folder from the id (matching freshly-computed ids, so\na client can never inject a path) and returns its ``poster.jpg`` with the\nright image content-type.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`FileResponse` streaming the poster file.\n\nRaises:\n    404: No staged media matches the id, or it has no local poster.",
+        "operationId": "get_staging_poster_api_staging_media__media_id__poster_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Staging Poster",
+        "tags": [
+          "staging"
         ]
       }
     },
