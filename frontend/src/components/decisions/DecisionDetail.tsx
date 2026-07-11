@@ -65,6 +65,35 @@ const TRIGGER_EXPLANATION: Record<string, string> = {
 const TERMINAL_OUTCOMES = new Set(["success", "error", "killed"]);
 
 /**
+ * Non-``pending`` decision status → its read-only result presentation.
+ *
+ * A decision that has already been handled (resolved / dismissed / superseded)
+ * must NOT re-offer the candidate picker + "Choisir" (that let an operator
+ * re-scrape an already-decided item and hit a confusing "not pending" 409).
+ * Instead the detail shows this read-only outcome.
+ */
+const STATUS_RESULT: Record<
+  string,
+  { tone: "success" | "neutral" | "warning"; label: string; desc: string }
+> = {
+  resolved: {
+    tone: "success",
+    label: "Résolue",
+    desc: "Un candidat a été choisi et le re-scraping ciblé a été lancé pour ce dossier.",
+  },
+  dismissed: {
+    tone: "neutral",
+    label: "Ignorée",
+    desc: "Cette décision a été ignorée — le résultat du scraping automatique est conservé.",
+  },
+  superseded: {
+    tone: "warning",
+    label: "Remplacée",
+    desc: "Cette décision a été remplacée par une version plus récente du dossier.",
+  },
+};
+
+/**
  * The two distinct 409 causes a resolve can return (§4.3).
  *
  * The scrape-resolve concurrency is now PER-DECISION: two DIFFERENT decisions
@@ -461,6 +490,58 @@ export function DecisionDetail({
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
             Cette décision a été ignorée.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // A non-pending decision is read-only: show its outcome, never the picker
+  // (issue: an already-resolved decision must show the result, not offer a
+  // re-scrape that fails with a "not pending" 409).
+  if (decision.status !== "pending") {
+    const meta = STATUS_RESULT[decision.status] ?? {
+      tone: "neutral" as const,
+      label: decision.status,
+      desc: "Cette décision a déjà été traitée.",
+    };
+    const resolution = decision.resolution_json as {
+      provider?: string;
+      provider_id?: number;
+      via?: string;
+    } | null;
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-lg">
+              {decision.extracted_title}{" "}
+              <span className="font-normal text-muted-foreground">
+                ({yearLabel})
+              </span>
+            </CardTitle>
+            <Badge tone={meta.tone}>{meta.label}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{meta.desc}</p>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {decision.status === "resolved" && resolution?.provider != null && (
+            <div className="rounded-md border border-border bg-muted p-3 text-sm">
+              <p className="font-medium">Correspondance retenue</p>
+              <p className="mt-1 text-muted-foreground">
+                {resolution.provider.toUpperCase()}
+                {resolution.provider_id != null
+                  ? ` #${String(resolution.provider_id)}`
+                  : ""}
+                {resolution.via != null
+                  ? ` — ${resolution.via === "search_override" ? "recherche manuelle" : "sélection"}`
+                  : ""}
+              </p>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Pour relancer un scraping sur ce dossier, passez par la maintenance
+            (re-scrape ciblé) — cette décision est clôturée.
           </p>
         </CardContent>
       </Card>
