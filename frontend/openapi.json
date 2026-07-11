@@ -1188,6 +1188,90 @@
         "title": "MediaRefResponse",
         "type": "object"
       },
+      "MediaSearchResponse": {
+        "description": "Response for GET /api/acquisition/search.\n\nAttributes:\n    results: The scored matches across the requested kind(s), best first.",
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/MediaSearchResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "MediaSearchResponse",
+        "type": "object"
+      },
+      "MediaSearchResult": {
+        "description": "One provider match returned by the acquisition media search.\n\nMirrors a ``DecisionCandidate`` (provider identity + poster/overview/score)\nplus a ``kind`` tag so the add-by-search cards can show film vs s\u00e9rie.\n\nAttributes:\n    provider: The metadata provider (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The provider's numeric identifier.\n    title: The matched title.\n    year: The release year, or ``None`` when the provider did not return one.\n    kind: ``\"movie\"`` or ``\"tv\"`` (which search chain produced the result).\n    poster_url: The provider poster URL, or ``None``.\n    overview: A short plot summary, or ``None``.\n    score: The matching-engine confidence score (0.0\u20131.0).",
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "poster_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Url"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "provider",
+          "provider_id",
+          "title",
+          "kind",
+          "score"
+        ],
+        "title": "MediaSearchResult",
+        "type": "object"
+      },
       "NfoStats": {
         "description": "Aggregate NFO file status counts across the indexed library.\n\nAttributes:\n    valid: Number of media items with a valid NFO file.\n    invalid: Number of media items with a structurally invalid NFO file.\n    missing: Number of media items without any NFO file.",
         "properties": {
@@ -2707,6 +2791,74 @@
           }
         },
         "summary": "Get Obligations",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/search": {
+      "get": {
+        "description": "Search live providers for media to follow (add-by-search, OBJ3).\n\nRead-only: builds per-request provider clients and delegates to the same\ndetailed confidence matchers the decisions search uses, tagging each result\nwith its ``kind``. Results are merged across the requested kind(s) and\nsorted best-score-first.\n\nArgs:\n    request: The incoming FastAPI request.\n    q: The title to search for.\n    kind: Optional ``\"movie\"``/``\"tv\"`` restriction (both when omitted).\n\nReturns:\n    A :class:`MediaSearchResponse` with the scored matches.\n\nRaises:\n    HTTPException: 502 on provider registry build or provider API failure.",
+        "operationId": "search_media_api_acquisition_search_get",
+        "parameters": [
+          {
+            "description": "Title to search for.",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Title to search for.",
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Restrict to movies or TV; omit to search both.",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "movie",
+                    "tv"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Restrict to movies or TV; omit to search both.",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Media",
         "tags": [
           "acquisition"
         ]

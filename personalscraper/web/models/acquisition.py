@@ -100,6 +100,43 @@ class AcquisitionStatusResponse(BaseModel):
     recent_runs: list[RecentRun] = []
 
 
+class MediaSearchResult(BaseModel):
+    """One provider match returned by the acquisition media search.
+
+    Mirrors a ``DecisionCandidate`` (provider identity + poster/overview/score)
+    plus a ``kind`` tag so the add-by-search cards can show film vs série.
+
+    Attributes:
+        provider: The metadata provider (``"tmdb"`` or ``"tvdb"``).
+        provider_id: The provider's numeric identifier.
+        title: The matched title.
+        year: The release year, or ``None`` when the provider did not return one.
+        kind: ``"movie"`` or ``"tv"`` (which search chain produced the result).
+        poster_url: The provider poster URL, or ``None``.
+        overview: A short plot summary, or ``None``.
+        score: The matching-engine confidence score (0.0–1.0).
+    """
+
+    provider: str
+    provider_id: int
+    title: str
+    year: int | None = None
+    kind: str
+    poster_url: str | None = None
+    overview: str | None = None
+    score: float
+
+
+class MediaSearchResponse(BaseModel):
+    """Response for GET /api/acquisition/search.
+
+    Attributes:
+        results: The scored matches across the requested kind(s), best first.
+    """
+
+    results: list[MediaSearchResult]
+
+
 # ── Request models (write routes) ────────────────────────────────────────
 
 

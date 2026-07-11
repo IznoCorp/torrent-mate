@@ -116,6 +116,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Media
+         * @description Search live providers for media to follow (add-by-search, OBJ3).
+         *
+         *     Read-only: builds per-request provider clients and delegates to the same
+         *     detailed confidence matchers the decisions search uses, tagging each result
+         *     with its ``kind``. Results are merged across the requested kind(s) and
+         *     sorted best-score-first.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         q: The title to search for.
+         *         kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+         *
+         *     Returns:
+         *         A :class:`MediaSearchResponse` with the scored matches.
+         *
+         *     Raises:
+         *         HTTPException: 502 on provider registry build or provider API failure.
+         */
+        get: operations["search_media_api_acquisition_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/status": {
         parameters: {
             query?: never;
@@ -2071,6 +2107,52 @@ export interface components {
             tvdb_id?: number | null;
         };
         /**
+         * MediaSearchResponse
+         * @description Response for GET /api/acquisition/search.
+         *
+         *     Attributes:
+         *         results: The scored matches across the requested kind(s), best first.
+         */
+        MediaSearchResponse: {
+            /** Results */
+            results: components["schemas"]["MediaSearchResult"][];
+        };
+        /**
+         * MediaSearchResult
+         * @description One provider match returned by the acquisition media search.
+         *
+         *     Mirrors a ``DecisionCandidate`` (provider identity + poster/overview/score)
+         *     plus a ``kind`` tag so the add-by-search cards can show film vs série.
+         *
+         *     Attributes:
+         *         provider: The metadata provider (``"tmdb"`` or ``"tvdb"``).
+         *         provider_id: The provider's numeric identifier.
+         *         title: The matched title.
+         *         year: The release year, or ``None`` when the provider did not return one.
+         *         kind: ``"movie"`` or ``"tv"`` (which search chain produced the result).
+         *         poster_url: The provider poster URL, or ``None``.
+         *         overview: A short plot summary, or ``None``.
+         *         score: The matching-engine confidence score (0.0–1.0).
+         */
+        MediaSearchResult: {
+            /** Kind */
+            kind: string;
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
+            /** Provider */
+            provider: string;
+            /** Provider Id */
+            provider_id: number;
+            /** Score */
+            score: number;
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /**
          * NfoStats
          * @description Aggregate NFO file status counts across the indexed library.
          *
@@ -2982,6 +3064,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObligationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_media_api_acquisition_search_get: {
+        parameters: {
+            query: {
+                /** @description Title to search for. */
+                q: string;
+                /** @description Restrict to movies or TV; omit to search both. */
+                kind?: ("movie" | "tv") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSearchResponse"];
                 };
             };
             /** @description Validation Error */

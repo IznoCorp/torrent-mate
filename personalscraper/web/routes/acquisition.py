@@ -29,7 +29,7 @@ import sqlite3
 import time
 from contextlib import closing
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -45,6 +45,8 @@ from personalscraper.web.models.acquisition import (
     FollowedResponse,
     FollowedSeriesItem,
     MediaRefResponse,
+    MediaSearchResponse,
+    MediaSearchResult,
     ObligationItem,
     ObligationsResponse,
     RecentRun,
@@ -52,6 +54,9 @@ from personalscraper.web.models.acquisition import (
     WantedItemResponse,
     WantedResponse,
 )
+
+if TYPE_CHECKING:
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 logger = get_logger(__name__)
@@ -416,6 +421,116 @@ def get_acquisition_status(request: Request) -> AcquisitionStatusResponse:
         watcher_enabled=watcher_enabled,
         recent_runs=recent_runs,
     )
+
+
+# ── media search (add-by-search, OBJ3) ───────────────────────────────────
+
+
+def _build_provider_clients(request: Request) -> tuple[object, object]:
+    """Build request-scoped TMDB + TVDB clients for a live media search.
+
+    Mirrors the decisions-search pattern: a fresh AppContext + ProviderRegistry
+    for this single request (never stored on ``app.state`` — the composition-
+    boundary rule). Live search is an infrequent operator action, not a hot
+    polling endpoint.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A ``(tmdb_client, tvdb_client)`` tuple of provider client objects.
+
+    Raises:
+        HTTPException: 502 when the provider registry cannot be built.
+    """
+    from personalscraper.cli_helpers import _build_app_context
+
+    config = request.app.state.config
+    settings = request.app.state.settings
+    try:
+        app_context = _build_app_context(config, settings)
+        tmdb_client = app_context.provider_registry.get("tmdb")
+        tvdb_client = app_context.provider_registry.get("tvdb")
+    except Exception as exc:
+        logger.error("acquisition_search_registry_failed", error=str(exc))
+        raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
+    return tmdb_client, tvdb_client
+
+
+def _to_search_result(candidate: "DecisionCandidate", kind: str) -> MediaSearchResult:
+    """Map a scored :class:`DecisionCandidate` to a :class:`MediaSearchResult`.
+
+    Args:
+        candidate: The scored provider candidate.
+        kind: ``"movie"`` or ``"tv"`` (which search chain produced it).
+
+    Returns:
+        The tagged search result.
+    """
+    return MediaSearchResult(
+        provider=candidate.provider,
+        provider_id=candidate.provider_id,
+        title=candidate.title,
+        year=candidate.year,
+        kind=kind,
+        poster_url=candidate.poster_url,
+        overview=candidate.overview,
+        score=candidate.score,
+    )
+
+
+@router.get("/search", response_model=MediaSearchResponse)
+def search_media(
+    request: Request,
+    q: str = Query(..., min_length=1, description="Title to search for."),
+    kind: Literal["movie", "tv"] | None = Query(
+        default=None,
+        description="Restrict to movies or TV; omit to search both.",
+    ),
+) -> MediaSearchResponse:
+    """Search live providers for media to follow (add-by-search, OBJ3).
+
+    Read-only: builds per-request provider clients and delegates to the same
+    detailed confidence matchers the decisions search uses, tagging each result
+    with its ``kind``. Results are merged across the requested kind(s) and
+    sorted best-score-first.
+
+    Args:
+        request: The incoming FastAPI request.
+        q: The title to search for.
+        kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+
+    Returns:
+        A :class:`MediaSearchResponse` with the scored matches.
+
+    Raises:
+        HTTPException: 502 on provider registry build or provider API failure.
+    """
+    tmdb_client, tvdb_client = _build_provider_clients(request)
+    results: list[MediaSearchResult] = []
+
+    if kind in (None, "movie"):
+        from personalscraper.scraper.confidence import match_movie_detailed
+
+        try:
+            _, movie_candidates = match_movie_detailed(tmdb_client, q, None)
+        except Exception as exc:
+            logger.error("acquisition_search_movie_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
+        results.extend(_to_search_result(c, "movie") for c in movie_candidates)
+
+    if kind in (None, "tv"):
+        from personalscraper.scraper.confidence import match_tvshow_detailed
+
+        try:
+            _, tv_candidates = match_tvshow_detailed(tvdb_client, tmdb_client, q, None)
+        except Exception as exc:
+            logger.error("acquisition_search_tvshow_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail=f"TV search failed: {exc}") from exc
+        results.extend(_to_search_result(c, "tv") for c in tv_candidates)
+
+    results.sort(key=lambda r: r.score, reverse=True)
+    return MediaSearchResponse(results=results)
 
 
 # ── helpers (write routes) ───────────────────────────────────────────────
