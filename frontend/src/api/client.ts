@@ -457,6 +457,51 @@ export function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
 }
 
 // ---------------------------------------------------------------------------
+// Staging read-model endpoints (webui-overhaul OBJ2A)
+// ---------------------------------------------------------------------------
+
+/** Response type for ``GET /api/staging/media``. */
+export type StagingMediaResponse = SuccessBody<
+  paths["/api/staging/media"]["get"]["responses"]
+>;
+
+/** One staged media item (grid card / timeline row). */
+export type StagingMediaItem = StagingMediaResponse["items"][number];
+
+/** One stage of a staged media's per-item pipeline timeline. */
+export type StagingStageStep = StagingMediaItem["stages"][number];
+
+/**
+ * Query parameters accepted by ``GET /api/staging/media`` — derived from the
+ * generated schema so a backend parameter change breaks compilation here (R15).
+ */
+export type StagingMediaParams = QueryParamsOf<
+  paths["/api/staging/media"]["get"]
+>;
+
+/**
+ * Fetch the staged-media read-model: GET /api/staging/media.
+ *
+ * Session-guarded read — no ``X-Requested-With`` header (R15). Returns one item
+ * per staged media folder with NFO metadata, matching state, and a per-media
+ * pipeline timeline, plus aggregate filter counts.
+ *
+ * Args:
+ *   params: Optional pagination / sort / filter query parameters.
+ *
+ * Returns:
+ *   A {@link StagingMediaResponse} for the requested page.
+ */
+export function getStagingMedia(
+  params: StagingMediaParams = {},
+): Promise<StagingMediaResponse> {
+  return apiFetch("/api/staging/media", {
+    method: "get",
+    params: { query: params },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Maintenance endpoints (S3 — maint-dash)
 // ---------------------------------------------------------------------------
 

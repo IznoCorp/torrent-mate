@@ -33,6 +33,10 @@ import {
   type StageState,
 } from "@/components/ds/StageStation";
 import { StatusBadge, type StatusTone } from "@/components/ds/StatusBadge";
+import {
+  StageMediaList,
+  type StageKey,
+} from "@/components/staging/StageMediaList";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -197,7 +201,7 @@ export function FlowBoard(): ReactElement {
           }
         }}
       >
-        <SheetContent className="flex flex-col gap-4">
+        <SheetContent className="flex flex-col gap-4 overflow-y-auto">
           {selected !== null && (
             <>
               <SheetHeader>
@@ -252,6 +256,20 @@ export function FlowBoard(): ReactElement {
                   Ouvrir la file de résolution
                 </Button>
               )}
+
+              {/* Per-media drill-down: the staged media at/awaiting this stage,
+                  each expanding to its full pipeline timeline (OBJ1 tail). */}
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Médias à cette étape
+                </span>
+                <StageMediaList
+                  stageKey={selected.key as StageKey}
+                  onOpenResolution={() => {
+                    void navigate("/scraping");
+                  }}
+                />
+              </div>
             </>
           )}
         </SheetContent>

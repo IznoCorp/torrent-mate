@@ -25,6 +25,7 @@ import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
 import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { StagingLibrary } from "@/components/staging/StagingLibrary";
 import {
   STATUS_SHORT_LABEL,
   STATUS_TOOLTIP,
@@ -78,8 +79,9 @@ function ListSkeleton(): ReactElement {
  */
 export default function Decisions(): ReactElement {
   const queryClient = useQueryClient();
-  // Primary view: the rapid resolution deck vs the full cross-status browse.
-  const [view, setView] = useState<"resolve" | "all">("resolve");
+  // Primary view: the media library grid, the rapid resolution deck, or the
+  // full cross-status decision browse.
+  const [view, setView] = useState<"library" | "resolve" | "all">("resolve");
   // Optional, multi-select status filter. Empty set = show ALL statuses (default).
   const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
     () => new Set(),
@@ -213,6 +215,16 @@ export default function Decisions(): ReactElement {
             <Button
               type="button"
               size="sm"
+              variant={view === "library" ? "default" : "ghost"}
+              onClick={() => {
+                setView("library");
+              }}
+            >
+              Bibliothèque
+            </Button>
+            <Button
+              type="button"
+              size="sm"
               variant={view === "resolve" ? "default" : "ghost"}
               onClick={() => {
                 setView("resolve");
@@ -235,7 +247,13 @@ export default function Decisions(): ReactElement {
         }
       />
 
-      {view === "resolve" ? (
+      {view === "library" ? (
+        <StagingLibrary
+          onOpenResolution={() => {
+            setView("resolve");
+          }}
+        />
+      ) : view === "resolve" ? (
         <ResolutionDeck />
       ) : (
         <>

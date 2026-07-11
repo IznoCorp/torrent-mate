@@ -21,6 +21,18 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
 }));
 
+// The stage drawer mounts StageMediaList → stub its data hook so no real query
+// (and no QueryClient/event context) is needed in this isolated board test.
+vi.mock("@/hooks/useStagingMedia", () => ({
+  useStagingMedia: () => ({
+    data: { items: [], counts: {}, total: 0, page: 1, page_size: 50 },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
+
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
 
 function stage(

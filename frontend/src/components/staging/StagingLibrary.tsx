@@ -1,0 +1,300 @@
+/**
+ * StagingLibrary — the OBJ2A rich media-library grid of staged media.
+ *
+ * A filterable, paginated poster grid over ``GET /api/staging/media``: match
+ * filter chips with live counts, a title search, a sort toggle, and a poster
+ * card per media. Clicking a card opens a detail drawer with the provider ids,
+ * season breakdown, dispatch preview, and the per-media pipeline timeline.
+ *
+ * Server-side pagination keeps the rendered grid bounded to one page
+ * (``PAGE_SIZE`` cards), so the DOM never grows past ~two dozen nodes — no
+ * client virtualization is needed at this scale.
+ */
+
+import { Film } from "lucide-react";
+import { useMemo, useState, type ReactElement } from "react";
+
+import type { StagingMediaItem, StagingMediaParams } from "@/api/client";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { ErrorState } from "@/components/ds/ErrorState";
+import { MediaCard } from "@/components/ds/MediaCard";
+import { StatusBadge } from "@/components/ds/StatusBadge";
+import { StagingMediaDetail } from "@/components/staging/StagingMediaDetail";
+import { matchBadge, posterKind } from "@/components/staging/meta";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useStagingMedia } from "@/hooks/useStagingMedia";
+
+/** Cards per page — bounds the rendered grid (no virtualization needed). */
+const PAGE_SIZE = 24;
+
+/** Match filter option: a value + French label + which count feeds its chip. */
+type MatchFilter = "all" | StagingMediaItem["match"];
+
+const MATCH_FILTERS: readonly { value: MatchFilter; label: string }[] = [
+  { value: "all", label: "Tous" },
+  { value: "matched", label: "Identifiés" },
+  { value: "ambiguous", label: "À résoudre" },
+  { value: "absent", label: "Non identifiés" },
+];
+
+/** Sort option: a value + French label. */
+const SORT_OPTIONS: readonly { value: NonNullable<StagingMediaParams["sort"]>; label: string }[] = [
+  { value: "recent", label: "Récents" },
+  { value: "title", label: "Titre" },
+  { value: "size", label: "Taille" },
+];
+
+/** Props for {@link StagingLibrary}. */
+export interface StagingLibraryProps {
+  /** Invoked when the operator opens the resolution deck for an ambiguous media. */
+  readonly onOpenResolution?: () => void;
+}
+
+/** A grid of skeleton poster cards shown while the first page loads. */
+function GridSkeleton(): ReactElement {
+  return (
+    <div
+      className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      aria-busy="true"
+    >
+      {Array.from({ length: 10 }).map((_, i) => (
+        <Skeleton key={`lib-sk-${String(i)}`} className="aspect-[2/3] w-full" />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * StagingLibrary — the staged-media library grid + detail drawer.
+ *
+ * Args:
+ *   onOpenResolution: Optional handler to switch to the resolution deck.
+ *
+ * Returns:
+ *   The library element.
+ */
+export function StagingLibrary({ onOpenResolution }: StagingLibraryProps): ReactElement {
+  const [match, setMatch] = useState<MatchFilter>("all");
+  const [sort, setSort] = useState<NonNullable<StagingMediaParams["sort"]>>("recent");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const params = useMemo<StagingMediaParams>(() => {
+    const p: StagingMediaParams = { sort, page, page_size: PAGE_SIZE };
+    if (match !== "all") p.match = match;
+    const trimmed = search.trim();
+    if (trimmed !== "") p.q = trimmed;
+    return p;
+  }, [match, sort, page, search]);
+
+  const query = useStagingMedia(params);
+  const data = query.data;
+  const items = data?.items ?? [];
+  const counts = data?.counts;
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const selected = items.find((i) => i.id === selectedId) ?? null;
+
+  /** Count feeding a match filter chip (undefined while loading → hidden). */
+  function chipCount(value: MatchFilter): number | undefined {
+    if (counts === undefined) return undefined;
+    if (value === "all") return counts.total;
+    return counts[value];
+  }
+
+  /** Apply a filter change and reset to the first page. */
+  function resetTo<T>(setter: (v: T) => void, value: T): void {
+    setter(value);
+    setPage(1);
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* ---- Controls ------------------------------------------------------- */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="search"
+            value={search}
+            placeholder="Rechercher un titre…"
+            className="h-9 w-full sm:max-w-xs"
+            onChange={(e) => {
+              resetTo(setSearch, e.target.value);
+            }}
+          />
+          <div
+            className="ml-auto flex items-center gap-1 rounded-md border border-border p-0.5"
+            role="group"
+            aria-label="Trier"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                type="button"
+                size="sm"
+                variant={sort === opt.value ? "default" : "ghost"}
+                onClick={() => {
+                  resetTo(setSort, opt.value);
+                }}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label="Filtrer par identification"
+        >
+          {MATCH_FILTERS.map((filter) => {
+            const active = match === filter.value;
+            const count = chipCount(filter.value);
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  resetTo(setMatch, filter.value);
+                }}
+              >
+                <Badge tone={active ? "solid" : "outline"} className="cursor-pointer">
+                  {filter.label}
+                  {count !== undefined && (
+                    <span className="ml-1 opacity-70">({count})</span>
+                  )}
+                </Badge>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ---- Content -------------------------------------------------------- */}
+      {query.isLoading ? (
+        <GridSkeleton />
+      ) : query.isError ? (
+        <ErrorState
+          title="Impossible de charger la bibliothèque"
+          {...(query.error instanceof Error ? { message: query.error.message } : {})}
+          onRetry={() => {
+            void query.refetch();
+          }}
+        />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={Film}
+          title="Aucun média en attente"
+          description={
+            match === "all"
+              ? "La zone de transit est vide — rien à trier pour le moment."
+              : "Aucun média ne correspond à ce filtre."
+          }
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {items.map((item) => {
+              const badge = matchBadge(item.match);
+              const kind = posterKind(item.media_kind);
+              const seasonCount = item.seasons?.length ?? 0;
+              return (
+                <MediaCard
+                  key={item.id}
+                  title={item.title}
+                  year={item.year ?? null}
+                  posterUrl={item.poster_url ?? null}
+                  {...(kind !== undefined ? { kind } : {})}
+                  overview={item.overview ?? null}
+                  onOpen={() => {
+                    setSelectedId(item.id);
+                  }}
+                  badges={
+                    <>
+                      <StatusBadge tone={badge.tone} label={badge.label} />
+                      {seasonCount > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {seasonCount} saison{seasonCount > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </>
+                  }
+                />
+              );
+            })}
+          </div>
+
+          {/* ---- Pagination ------------------------------------------------- */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => {
+                  setPage((p) => Math.max(1, p - 1));
+                }}
+              >
+                Précédent
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} / {totalPages}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={page >= totalPages}
+                onClick={() => {
+                  setPage((p) => Math.min(totalPages, p + 1));
+                }}
+              >
+                Suivant
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---- Detail drawer -------------------------------------------------- */}
+      <Sheet
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
+      >
+        <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
+          {selected !== null && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{selected.title}</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <StagingMediaDetail
+                  item={selected}
+                  {...(onOpenResolution !== undefined
+                    ? { onResolve: onOpenResolution }
+                    : {})}
+                />
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
