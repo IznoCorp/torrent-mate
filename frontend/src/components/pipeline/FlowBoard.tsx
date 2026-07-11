@@ -163,16 +163,17 @@ export function FlowBoard(): ReactElement {
       <div className="flex items-stretch gap-1 overflow-x-auto pb-2">
         {stages.map((stage, i) => {
           const split = toStationSplit(stage.split);
+          const icon = STAGE_ICON[stage.key];
           return (
             <Fragment key={stage.key}>
               <StageStation
                 label={stage.label}
                 count={stage.count}
                 state={stage.state}
-                icon={STAGE_ICON[stage.key]}
                 onClick={() => {
                   setSelectedKey(stage.key);
                 }}
+                {...(icon !== undefined ? { icon } : {})}
                 {...(split !== null ? { split } : {})}
               />
               {i < stages.length - 1 && (
