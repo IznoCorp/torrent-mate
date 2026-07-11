@@ -56,7 +56,10 @@ export function StageMediaList({
     return (
       <div className="flex flex-col gap-2" aria-busy="true">
         {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={`stage-media-sk-${String(i)}`} className="h-10 w-full" />
+          <Skeleton
+            key={`stage-media-sk-${String(i)}`}
+            className="h-10 w-full"
+          />
         ))}
       </div>
     );
@@ -73,7 +76,9 @@ export function StageMediaList({
   const items = query.data?.items ?? [];
   if (items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">Aucun média à cette étape.</p>
+      <p className="text-sm text-muted-foreground">
+        Aucun média à cette étape.
+      </p>
     );
   }
 
@@ -82,10 +87,13 @@ export function StageMediaList({
       {items.map((item) => {
         const badge = matchBadge(item.match);
         return (
-          <AccordionItem key={item.id} className="rounded-md border border-border">
+          <AccordionItem
+            key={item.id}
+            className="rounded-md border border-border"
+          >
             <AccordionTrigger className="px-3 py-2">
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                <span className="truncate text-sm">
+              <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate text-sm">
                   {item.title}
                   {item.year != null && (
                     <span className="ml-1 font-mono text-xs text-muted-foreground">
@@ -93,7 +101,9 @@ export function StageMediaList({
                     </span>
                   )}
                 </span>
-                <StatusBadge tone={badge.tone} label={badge.label} />
+                <span className="shrink-0">
+                  <StatusBadge tone={badge.tone} label={badge.label} />
+                </span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-3 pb-3">
