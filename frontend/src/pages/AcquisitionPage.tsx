@@ -379,7 +379,7 @@ function FollowedPanel({
           <TableRow>
             <TableHead>Titre</TableHead>
             <TableHead>ID TVDB</TableHead>
-            <TableHead>Actif</TableHead>
+            <TableHead>État</TableHead>
             <TableHead>Cadence</TableHead>
             <TableHead>En attente</TableHead>
             <TableHead>Qualité</TableHead>
@@ -394,9 +394,21 @@ function FollowedPanel({
                 {item.media_ref.tvdb_id ?? "—"}
               </TableCell>
               <TableCell>
-                <Badge tone={item.active ? "success" : "neutral"}>
-                  {item.active ? "Actif" : "Inactif"}
-                </Badge>
+                {/* Derived état: Désactivé (paused) / En cours (pending work) /
+                    À jour (active, nothing outstanding). */}
+                {!item.active ? (
+                  <Badge tone="neutral" dot>
+                    Désactivé
+                  </Badge>
+                ) : item.wanted_pending > 0 ? (
+                  <Badge tone="warning" dot>
+                    En cours
+                  </Badge>
+                ) : (
+                  <Badge tone="success" dot>
+                    À jour
+                  </Badge>
+                )}
               </TableCell>
               <TableCell className="font-mono text-xs">
                 {cadenceInterval(item.cadence) > 0
@@ -584,73 +596,73 @@ function WantedPanel(): ReactElement {
         </div>
       ) : (
         <>
-      {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Titre</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Saison</TableHead>
-            <TableHead>Épisode</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Tentatives</TableHead>
-            <TableHead>Ajouté</TableHead>
-            <TableHead>Dernière recherche</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => (
-            <TableRow key={`w-${String(item.id)}`}>
-              <TableCell className="font-medium">{item.title}</TableCell>
-              <TableCell className="text-xs">{item.kind}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.season ?? "—"}
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.episode ?? "—"}
-              </TableCell>
-              <TableCell>
-                <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
-                  {STATUS_LABEL[item.status] ?? item.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.attempts}
-              </TableCell>
-              <TableCell className="text-xs">
-                {relativeTime(item.enqueued_at)}
-              </TableCell>
-              <TableCell className="text-xs">
-                {relativeTime(item.last_search_at)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          {/* Table */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Titre</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Saison</TableHead>
+                <TableHead>Épisode</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Tentatives</TableHead>
+                <TableHead>Ajouté</TableHead>
+                <TableHead>Dernière recherche</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={`w-${String(item.id)}`}>
+                  <TableCell className="font-medium">{item.title}</TableCell>
+                  <TableCell className="text-xs">{item.kind}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.season ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.episode ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
+                      {STATUS_LABEL[item.status] ?? item.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.attempts}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {relativeTime(item.enqueued_at)}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {relativeTime(item.last_search_at)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => {
-            setPage((p) => Math.max(1, p - 1));
-          }}
-        >
-          ← Précédent
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page >= totalPages}
-          onClick={() => {
-            setPage((p) => p + 1);
-          }}
-        >
-          Suivant →
-        </Button>
-      </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => {
+                setPage((p) => Math.max(1, p - 1));
+              }}
+            >
+              ← Précédent
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => {
+                setPage((p) => p + 1);
+              }}
+            >
+              Suivant →
+            </Button>
+          </div>
         </>
       )}
     </div>

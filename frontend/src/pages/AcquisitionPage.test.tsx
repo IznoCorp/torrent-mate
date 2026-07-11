@@ -277,7 +277,12 @@ describe("AcquisitionPage", () => {
       isError: false,
       data: {
         items: [
-          makeFollowed({ id: 1, title: "Top Chef", media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null } }),
+          makeFollowed({
+            id: 1,
+            title: "Top Chef",
+            wanted_pending: 3,
+            media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
+          }),
           makeFollowed({
             id: 2,
             title: "Koh-Lanta",
@@ -296,9 +301,10 @@ describe("AcquisitionPage", () => {
     // TVDB IDs rendered (distinct values).
     expect(screen.getByText("255968")).toBeInTheDocument();
     expect(screen.getByText("12345")).toBeInTheDocument();
-    // Active/inactive badges ("Actif" also appears as the column header → getAll).
-    expect(screen.getAllByText("Actif").length).toBeGreaterThan(0);
-    expect(screen.getByText("Inactif")).toBeInTheDocument();
+    // Derived état badges: Top Chef (active + 3 pending) → "En cours";
+    // Koh-Lanta (inactive) → "Désactivé".
+    expect(screen.getByText("En cours")).toBeInTheDocument();
+    expect(screen.getByText("Désactivé")).toBeInTheDocument();
   });
 
   it("surfaces a followed-query error instead of the empty state", () => {
