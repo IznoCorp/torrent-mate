@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
 import {
   Table,
   TableBody,
@@ -1010,12 +1011,15 @@ export default function AcquisitionPage(): ReactElement {
       <Card>
         <CardContent className="pt-4">
           {activeTab === "followed" && (
-            <FollowedPanel
-              data={followedQuery.data?.items ?? []}
-              isLoading={followedQuery.isLoading}
-              isError={followedQuery.isError}
-              error={followedQuery.error}
-            />
+            <div className="flex flex-col gap-6">
+              <MediaSearchAdd />
+              <FollowedPanel
+                data={followedQuery.data?.items ?? []}
+                isLoading={followedQuery.isLoading}
+                isError={followedQuery.isError}
+                error={followedQuery.error}
+              />
+            </div>
           )}
           {activeTab === "wanted" && <WantedPanel />}
           {activeTab === "obligations" && <ObligationsPanel />}

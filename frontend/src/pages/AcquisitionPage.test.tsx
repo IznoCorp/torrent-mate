@@ -49,6 +49,13 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useObligations: (...args: unknown[]) => useObligationsMock(...args),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useAcquisitionStatus: () => useAcquisitionStatusMock(),
+  useMediaSearch: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: () => undefined,
+  }),
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
   useUpdateFollow: () => ({ mutate: updateFollowMutateFn, isPending: false }),
   useUnfollow: () => ({ mutate: unfollowMutateFn, isPending: false }),
