@@ -36,11 +36,16 @@ from personalscraper.web.deps import (
 from personalscraper.web.models.pipeline import (
     HistoryResponse,
     PipelineOutcome,
+    PipelineStage,
     PipelineState,
     RunDetail,
     RunRequest,
     RunResponse,
     RunSummary,
+    StageSplit,
+    StagesResponse,
+    StageStateT,
+    StageToneT,
     StatusResponse,
     StepTiming,
     WatcherRequest,
@@ -642,4 +647,251 @@ def pipeline_history_detail(
         command=row["command"],
         options_json=row["options_json"],
         output_tail=row["output_tail"],
+    )
+
+
+# ── GET /stages (OBJ1 Flow Board) ─────────────────────────────────────────────
+
+#: The nine Flow Board stages in left-to-right flow order, each mapped to the
+#: real pipeline step name(s) whose last-run summary feeds its counts. The
+#: ``matching`` stage is special-cased (sourced from the ``scrape_decision``
+#: queue) and maps to no step.  ``Tri`` (organisation) rolls up ``enforce``,
+#: which normalises folder structure and naming.
+_STAGE_DEFS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("arrival", "Arrivée", ("ingest",)),
+    ("staging", "Staging", ("sort",)),
+    ("cleaning", "Nettoyage", ("clean", "cleanup")),
+    ("sorting", "Tri", ("enforce",)),
+    ("matching", "Matching", ()),
+    ("scraping", "Scraping", ("scrape",)),
+    ("trailers", "Trailers", ("trailers",)),
+    ("verify", "Vérification", ("verify",)),
+    ("dispatch", "Dispatch", ("dispatch",)),
+)
+
+#: ``scrape_decision.trigger`` → (French label, tone) for the Matching split.
+_TRIGGER_SPLIT: tuple[tuple[str, str, str], ...] = (
+    ("ambiguous", "ambigu", "warning"),
+    ("below_threshold", "sans correspondance", "danger"),
+    ("mid_band", "incertain", "info"),
+)
+
+
+def _parse_steps(steps_raw: str | None) -> tuple[dict[str, dict[str, object]], str | None]:
+    """Parse ``steps_json`` into a name→summary map plus the current step name.
+
+    Args:
+        steps_raw: The raw ``pipeline_run.steps_json`` string (may be ``None``).
+
+    Returns:
+        A ``(by_name, current)`` tuple: ``by_name`` maps each step name to its
+        summary dict; ``current`` is the last step entry's name (the one a live
+        run is executing), or ``None`` for an empty/malformed payload.
+    """
+    by_name: dict[str, dict[str, object]] = {}
+    current: str | None = None
+    if not steps_raw:
+        return by_name, current
+    try:
+        steps = json.loads(steps_raw)
+    except (json.JSONDecodeError, TypeError):
+        return by_name, current
+    if isinstance(steps, list):
+        for s in steps:
+            if isinstance(s, dict):
+                name = s.get("name")
+                if isinstance(name, str):
+                    by_name[name] = s
+                    current = name  # last entry wins → the live/most-recent step
+    return by_name, current
+
+
+def _step_split(success: int, skip: int, error: int, unmatched: int) -> list[StageSplit] | None:
+    """Build a stage's sub-count split, or ``None`` when only successes exist.
+
+    A split is only worth showing when a secondary bucket (skipped, unmatched,
+    or errored) is non-zero — otherwise the headline count already says it all.
+
+    Args:
+        success: Items processed successfully.
+        skip: Items skipped (already done / not applicable).
+        error: Items that errored.
+        unmatched: Items the step could not confidently match.
+
+    Returns:
+        The ordered split (réussi first, then non-zero secondaries), or
+        ``None`` when there is nothing to break down.
+    """
+    secondaries: list[StageSplit] = []
+    if skip > 0:
+        secondaries.append(StageSplit(label="ignoré", count=skip, tone="neutral"))
+    if unmatched > 0:
+        secondaries.append(StageSplit(label="sans correspondance", count=unmatched, tone="warning"))
+    if error > 0:
+        secondaries.append(StageSplit(label="erreur", count=error, tone="danger"))
+    if not secondaries:
+        return None
+    return [StageSplit(label="réussi", count=success, tone="success"), *secondaries]
+
+
+def _build_step_stage(
+    key: str,
+    label: str,
+    step_names: tuple[str, ...],
+    steps_by_name: dict[str, dict[str, object]],
+    current_step: str | None,
+) -> PipelineStage:
+    """Aggregate the last-run summary of one or more steps into a stage.
+
+    Args:
+        key: Stable stage identifier.
+        label: French display label.
+        step_names: The real step name(s) this stage rolls up.
+        steps_by_name: The parsed ``steps_json`` name→summary map.
+        current_step: The step a live run is executing, or ``None`` when idle.
+
+    Returns:
+        The fully-derived :class:`PipelineStage`.
+    """
+    success = skip = error = unmatched = 0
+    present = False
+    is_current = False
+    for name in step_names:
+        summary = steps_by_name.get(name)
+        if summary is None:
+            continue
+        present = True
+        success += _opt_int(summary.get("success_count")) or 0
+        skip += _opt_int(summary.get("skip_count")) or 0
+        error += _opt_int(summary.get("error_count")) or 0
+        unmatched += _opt_int(summary.get("unmatched_count")) or 0
+        if current_step is not None and name == current_step:
+            is_current = True
+
+    if is_current:
+        state: str = "active"
+    elif error > 0:
+        state = "blocked"
+    elif unmatched > 0:
+        state = "attention"
+    elif present and success > 0:
+        state = "ok"
+    else:
+        state = "idle"
+
+    return PipelineStage(
+        key=key,
+        label=label,
+        count=success,
+        state=cast(StageStateT, state),
+        attention=unmatched,
+        blocked=error,
+        split=_step_split(success, skip, error, unmatched),
+    )
+
+
+def _build_matching_stage(db_path: Path) -> PipelineStage:
+    """Build the Matching stage from the live pending ``scrape_decision`` queue.
+
+    Unlike the step-backed stages, Matching reflects the *current* decision
+    backlog (not a past run's summary): pending decisions split by ``trigger``.
+
+    Args:
+        db_path: Absolute path to ``library.db``.
+
+    Returns:
+        The Matching :class:`PipelineStage`; ``idle`` with a zero count when the
+        queue is empty or the database read fails (fail-soft).
+    """
+    counts: dict[str, int] = {trig: 0 for trig, _, _ in _TRIGGER_SPLIT}
+    total = 0
+    try:
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            _apply_pragmas(conn)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT trigger, COUNT(*) AS n FROM scrape_decision "
+                "WHERE status = 'pending' GROUP BY trigger"
+            ).fetchall()
+        for row in rows:
+            n = int(row["n"])
+            total += n
+            trig = row["trigger"]
+            if trig in counts:
+                counts[trig] += n
+    except sqlite3.Error:
+        logger.warning("pipeline_stages_matching_read_failed", exc_info=True)
+
+    split = [
+        StageSplit(label=lbl, count=counts[trig], tone=cast("StageToneT", tone))
+        for trig, lbl, tone in _TRIGGER_SPLIT
+        if counts[trig] > 0
+    ] or None
+
+    return PipelineStage(
+        key="matching",
+        label="Matching",
+        count=total,
+        state="attention" if total > 0 else "idle",
+        attention=total,
+        blocked=0,
+        split=split,
+    )
+
+
+@router.get("/stages")
+def pipeline_stages(request: Request) -> StagesResponse:
+    """Return the aggregated Flow Board state (OBJ1 living pipeline).
+
+    Rolls up the *latest* pipeline run's per-step summaries and the live
+    ``scrape_decision`` queue into the nine Flow Board stations, plus the live
+    run state so the board can pulse the active stage.  Read-only — safe on the
+    staging instance (no mutation, no ``X-Requested-With`` requirement).
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`StagesResponse` with the nine stages in flow order.
+    """
+    db_path = _db_path(request)
+    data_dir = _data_dir(request)
+
+    run_uid: str | None = None
+    updated_at: float | None = None
+    steps_by_name: dict[str, dict[str, object]] = {}
+
+    # Latest media-pipeline run (excluding maintenance rows) for the step counts.
+    try:
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            _apply_pragmas(conn)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT run_uid, started_at, steps_json FROM pipeline_run "
+                "WHERE kind IS NULL OR kind = 'pipeline' "
+                "ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+        if row is not None:
+            run_uid = row["run_uid"]
+            updated_at = row["started_at"]
+            steps_by_name, _last = _parse_steps(row["steps_json"])
+    except sqlite3.Error:
+        logger.warning("pipeline_stages_run_read_failed", exc_info=True)
+
+    # Live run-state (lock/pause sentinels + running row) drives the active ring.
+    status = _build_status(data_dir, db_path)
+    current_step = status.step if status.state == PipelineState.running else None
+
+    stages: list[PipelineStage] = []
+    for key, label, step_names in _STAGE_DEFS:
+        if key == "matching":
+            stages.append(_build_matching_stage(db_path))
+        else:
+            stages.append(_build_step_stage(key, label, step_names, steps_by_name, current_step))
+
+    return StagesResponse(
+        stages=stages,
+        run_uid=run_uid,
+        run_state=status.state,
+        updated_at=updated_at,
     )

@@ -1204,6 +1204,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pipeline/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pipeline Stages
+         * @description Return the aggregated Flow Board state (OBJ1 living pipeline).
+         *
+         *     Rolls up the *latest* pipeline run's per-step summaries and the live
+         *     ``scrape_decision`` queue into the nine Flow Board stations, plus the live
+         *     run state so the board can pulse the active stage.  Read-only — safe on the
+         *     staging instance (no mutation, no ``X-Requested-With`` requirement).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`StagesResponse` with the nine stages in flow order.
+         */
+        get: operations["pipeline_stages_api_pipeline_stages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pipeline/status": {
         parameters: {
             query?: never;
@@ -2224,6 +2255,53 @@ export interface components {
          */
         PipelineOutcome: "success" | "error" | "killed" | "running" | "paused";
         /**
+         * PipelineStage
+         * @description Aggregated state of one Flow Board stage (OBJ1 living pipeline).
+         *
+         *     A stage rolls up one or more real pipeline steps (or, for ``matching``,
+         *     the pending ``scrape_decision`` queue) into a single station: a headline
+         *     ``count``, a derived ring ``state``, the ``attention`` / ``blocked`` item
+         *     counts feeding that state, and an optional ``split`` of sub-counts.
+         *
+         *     Attributes:
+         *         key: Stable machine identifier (e.g. ``"scraping"``).
+         *         label: French display label (e.g. ``"Scraping"``).
+         *         count: Headline item count at this stage (successfully processed, or
+         *             — for ``matching`` — the number of pending decisions).
+         *         state: Derived ring state (``idle`` / ``ok`` / ``active`` /
+         *             ``attention`` / ``blocked``).
+         *         attention: Number of items needing an operator look (soft signal —
+         *             unmatched folders, pending decisions).
+         *         blocked: Number of items that errored at this stage (hard signal).
+         *         split: Optional sub-counts (e.g. réussi / ignoré / erreur), or
+         *             ``None`` when the stage has nothing meaningful to break down.
+         */
+        PipelineStage: {
+            /**
+             * Attention
+             * @default 0
+             */
+            attention: number;
+            /**
+             * Blocked
+             * @default 0
+             */
+            blocked: number;
+            /** Count */
+            count: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Split */
+            split?: components["schemas"]["StageSplit"][] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "ok" | "active" | "attention" | "blocked";
+        };
+        /**
          * PipelineState
          * @description Current run-state of the pipeline process.
          *
@@ -2676,6 +2754,55 @@ export interface components {
             watcher_paused: boolean;
             /** Watcher Paused Age S */
             watcher_paused_age_s?: number | null;
+        };
+        /**
+         * StageSplit
+         * @description One sub-count shown inside a Flow Board station.
+         *
+         *     Example: the Matching station splits its pending decisions into
+         *     ``ambigu`` / ``sans correspondance`` / ``incertain`` buckets, each a
+         *     :class:`StageSplit` with its own tone.
+         *
+         *     Attributes:
+         *         label: Human-readable French sub-count label.
+         *         count: Number of items in this sub-bucket.
+         *         tone: Semantic tone driving the dot colour on the station.
+         */
+        StageSplit: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+            /**
+             * Tone
+             * @enum {string}
+             */
+            tone: "success" | "warning" | "danger" | "info" | "neutral";
+        };
+        /**
+         * StagesResponse
+         * @description Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).
+         *
+         *     Aggregates the last pipeline run's per-step summaries and the live
+         *     ``scrape_decision`` queue into the nine Flow Board stations, plus the
+         *     live run state so the board can pulse the active stage.
+         *
+         *     Attributes:
+         *         stages: The nine stages in board (left-to-right flow) order.
+         *         run_uid: The run these counts are sourced from, or ``None`` when no
+         *             pipeline run has ever been recorded.
+         *         run_state: Live pipeline run-state (``idle`` / ``running`` /
+         *             ``paused``) — drives whether the active stage pulses.
+         *         updated_at: Epoch seconds of the source run's start, or ``None``.
+         */
+        StagesResponse: {
+            run_state: components["schemas"]["PipelineState"];
+            /** Run Uid */
+            run_uid?: string | null;
+            /** Stages */
+            stages: components["schemas"]["PipelineStage"][];
+            /** Updated At */
+            updated_at?: number | null;
         };
         /**
          * StatusResponse
@@ -3948,6 +4075,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pipeline_stages_api_pipeline_stages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagesResponse"];
                 };
             };
         };

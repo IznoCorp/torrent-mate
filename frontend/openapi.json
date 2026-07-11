@@ -1436,6 +1436,66 @@
         "title": "PipelineOutcome",
         "type": "string"
       },
+      "PipelineStage": {
+        "description": "Aggregated state of one Flow Board stage (OBJ1 living pipeline).\n\nA stage rolls up one or more real pipeline steps (or, for ``matching``,\nthe pending ``scrape_decision`` queue) into a single station: a headline\n``count``, a derived ring ``state``, the ``attention`` / ``blocked`` item\ncounts feeding that state, and an optional ``split`` of sub-counts.\n\nAttributes:\n    key: Stable machine identifier (e.g. ``\"scraping\"``).\n    label: French display label (e.g. ``\"Scraping\"``).\n    count: Headline item count at this stage (successfully processed, or\n        \u2014 for ``matching`` \u2014 the number of pending decisions).\n    state: Derived ring state (``idle`` / ``ok`` / ``active`` /\n        ``attention`` / ``blocked``).\n    attention: Number of items needing an operator look (soft signal \u2014\n        unmatched folders, pending decisions).\n    blocked: Number of items that errored at this stage (hard signal).\n    split: Optional sub-counts (e.g. r\u00e9ussi / ignor\u00e9 / erreur), or\n        ``None`` when the stage has nothing meaningful to break down.",
+        "properties": {
+          "attention": {
+            "default": 0,
+            "title": "Attention",
+            "type": "integer"
+          },
+          "blocked": {
+            "default": 0,
+            "title": "Blocked",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "split": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StageSplit"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split"
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "ok",
+              "active",
+              "attention",
+              "blocked"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "count",
+          "state"
+        ],
+        "title": "PipelineStage",
+        "type": "object"
+      },
       "PipelineState": {
         "description": "Current run-state of the pipeline process.\n\nAttributes:\n    idle: No pipeline run is in progress.\n    running: A pipeline run is actively executing.\n    paused: A pipeline run is in progress but paused at a step boundary.",
         "enum": [
@@ -2112,6 +2172,80 @@
           }
         },
         "title": "Sentinels",
+        "type": "object"
+      },
+      "StageSplit": {
+        "description": "One sub-count shown inside a Flow Board station.\n\nExample: the Matching station splits its pending decisions into\n``ambigu`` / ``sans correspondance`` / ``incertain`` buckets, each a\n:class:`StageSplit` with its own tone.\n\nAttributes:\n    label: Human-readable French sub-count label.\n    count: Number of items in this sub-bucket.\n    tone: Semantic tone driving the dot colour on the station.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "tone": {
+            "enum": [
+              "success",
+              "warning",
+              "danger",
+              "info",
+              "neutral"
+            ],
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "count",
+          "tone"
+        ],
+        "title": "StageSplit",
+        "type": "object"
+      },
+      "StagesResponse": {
+        "description": "Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).\n\nAggregates the last pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the\nlive run state so the board can pulse the active stage.\n\nAttributes:\n    stages: The nine stages in board (left-to-right flow) order.\n    run_uid: The run these counts are sourced from, or ``None`` when no\n        pipeline run has ever been recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the source run's start, or ``None``.",
+        "properties": {
+          "run_state": {
+            "$ref": "#/components/schemas/PipelineState"
+          },
+          "run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Uid"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineStage"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "stages",
+          "run_state"
+        ],
+        "title": "StagesResponse",
         "type": "object"
       },
       "StatusResponse": {
@@ -3996,6 +4130,28 @@
           }
         },
         "summary": "Pipeline Run",
+        "tags": [
+          "pipeline"
+        ]
+      }
+    },
+    "/api/pipeline/stages": {
+      "get": {
+        "description": "Return the aggregated Flow Board state (OBJ1 living pipeline).\n\nRolls up the *latest* pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the live\nrun state so the board can pulse the active stage.  Read-only \u2014 safe on the\nstaging instance (no mutation, no ``X-Requested-With`` requirement).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`StagesResponse` with the nine stages in flow order.",
+        "operationId": "pipeline_stages_api_pipeline_stages_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline Stages",
         "tags": [
           "pipeline"
         ]
