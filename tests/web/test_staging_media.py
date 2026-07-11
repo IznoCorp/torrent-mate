@@ -274,6 +274,29 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert _stage(unmatched, "scraping") == "pending"
 
 
+def test_detects_mediaelch_named_artwork(test_config, tmp_path: Path) -> None:
+    """A movie scraped with MediaElch naming ({name}-poster.jpg, {name}.nfo) is detected."""
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    movie = staging / "001-MOVIES" / "Heat (1995)"
+    movie.mkdir(parents=True)
+    # Non-canonical, movie-name-prefixed artwork + NFO (MediaElch fallback).
+    (movie / "Heat.nfo").write_text(_MOVIE_NFO, encoding="utf-8")
+    (movie / "Heat-poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    _write_video(movie / "Heat (1995).mkv", size=2048)
+
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+    items = _by_folder(client.get("/api/staging/media").json())
+    heat = items["Heat (1995)"]
+    assert heat["has_nfo"] is True
+    assert heat["has_poster"] is True
+    assert heat["poster_url"] is not None
+    assert heat["match"] == "matched"
+    assert heat["provider_ids"] == {"tmdb": "550"}
+
+
 def test_counts_reflect_full_set(test_config, tmp_path: Path) -> None:
     """The counts block aggregates over the whole staging set."""
     staging = tmp_path / "staging"

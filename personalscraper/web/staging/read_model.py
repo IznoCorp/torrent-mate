@@ -40,7 +40,6 @@ from personalscraper.web.models.staging import (
 )
 from personalscraper.web.staging.nfo import (
     NfoMetadata,
-    nfo_path_for,
     read_nfo_metadata,
 )
 
@@ -88,8 +87,11 @@ _FILE_TYPE_TO_KIND: dict[str, StagingMediaKind] = {
 #: through match/scrape/trailer/verify). Other kinds skip those stages.
 _SCRAPABLE_KINDS: frozenset[str] = frozenset({"movie", "tvshow"})
 
-#: Local poster file names the scraper may emit, in preference order.
-_POSTER_NAMES: tuple[str, ...] = ("poster.jpg", "poster.png", "poster.jpeg", "folder.jpg")
+#: Poster file matcher — accepts the personalscraper name (``poster.jpg``), the
+#: Kodi ``folder.jpg``, AND the MediaElch movie-prefixed form
+#: (``{Movie Name}-poster.jpg``) so a media scraped via the MediaElch fallback
+#: is not reported poster-less.
+_POSTER_RE = re.compile(r"(?:^|.+-)(?:poster|folder)\.(?:jpe?g|png)$", re.IGNORECASE)
 
 #: ``Saison NN`` season-folder pattern (French library convention).
 _SEASON_RE = re.compile(r"^Saison\s+(\d+)$", re.IGNORECASE)
@@ -176,17 +178,55 @@ def _year_from_folder(folder: str) -> int | None:
 def _find_poster(media_dir: Path) -> Path | None:
     """Return the first local poster file in a media folder, or ``None``.
 
+    Matches ``poster.jpg`` / ``folder.jpg`` (personalscraper / Kodi) as well as
+    the MediaElch ``{name}-poster.jpg`` form (see :data:`_POSTER_RE`). The
+    canonical ``poster.*`` is preferred when several match.
+
     Args:
         media_dir: The media folder in staging.
 
     Returns:
-        The poster ``Path`` (first of ``_POSTER_NAMES`` that exists), or ``None``.
+        The poster ``Path``, or ``None`` when none match.
     """
-    for name in _POSTER_NAMES:
-        candidate = media_dir / name
-        if candidate.is_file():
+    try:
+        matches = [c for c in media_dir.iterdir() if c.is_file() and _POSTER_RE.match(c.name)]
+    except OSError:
+        return None
+    if not matches:
+        return None
+    # Prefer the exact ``poster.*`` over a prefixed ``{name}-poster.*``.
+    matches.sort(key=lambda p: (not p.name.lower().startswith("poster."), p.name))
+    return matches[0]
+
+
+def find_nfo(media_dir: Path, media_kind: str) -> Path | None:
+    """Return the media's NFO file, tolerant of scraper naming variants.
+
+    Uses the canonical :func:`~personalscraper.nfo_utils.glob_nfo_candidates`
+    (any ``*.nfo`` at the folder root, AppleDouble-filtered). Prefers the
+    canonical ``movie.nfo`` / ``tvshow.nfo`` when present, else falls back to the
+    first root ``.nfo`` — so a MediaElch ``{name}.nfo`` is still detected. Only
+    ``movie``/``tvshow`` carry an NFO; other kinds return ``None``.
+
+    Args:
+        media_dir: The media folder in staging.
+        media_kind: ``"movie"`` or ``"tvshow"`` (other kinds → ``None``).
+
+    Returns:
+        The NFO ``Path``, or ``None`` when the kind has no NFO / none exists.
+    """
+    if media_kind not in _SCRAPABLE_KINDS:
+        return None
+    from personalscraper.nfo_utils import glob_nfo_candidates  # local: avoid import cycle
+
+    candidates = glob_nfo_candidates(media_dir)
+    if not candidates:
+        return None
+    canonical = "tvshow.nfo" if media_kind == "tvshow" else "movie.nfo"
+    for candidate in candidates:
+        if candidate.name == canonical:
             return candidate
-    return None
+    return candidates[0]
 
 
 def _is_episode_video(path: Path) -> bool:
@@ -397,8 +437,8 @@ def _build_item(
     episode_count: int | None = None
 
     if scrapable:
-        nfo_path = nfo_path_for(media_dir, media_kind)
-        if nfo_path is not None and nfo_path.is_file():
+        nfo_path = find_nfo(media_dir, media_kind)
+        if nfo_path is not None:
             has_nfo = True
             meta = read_nfo_metadata(nfo_path)
         has_poster = _find_poster(media_dir) is not None

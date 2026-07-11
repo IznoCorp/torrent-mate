@@ -38,8 +38,9 @@ from personalscraper.web.staging.dispatch_preview import (
     build_free_space_by_id,
     preview_dispatch,
 )
-from personalscraper.web.staging.nfo import nfo_path_for, read_nfo_metadata
+from personalscraper.web.staging.nfo import read_nfo_metadata
 from personalscraper.web.staging.read_model import (
+    find_nfo,
     poster_file_for,
     resolve_media_dir,
     scan_staging_media,
@@ -205,7 +206,7 @@ def _dispatch_for_item(config: Config, item: StagingMediaItem, free: dict[str, f
     media_dir = Path(config.paths.staging_dir) / item.relative_path
     category_hint: str | None = None
     if item.has_nfo:
-        nfo_path = nfo_path_for(media_dir, item.media_kind)
+        nfo_path = find_nfo(media_dir, item.media_kind)
         if nfo_path is not None:
             category_hint = read_nfo_metadata(nfo_path).category_id
     return preview_dispatch(
