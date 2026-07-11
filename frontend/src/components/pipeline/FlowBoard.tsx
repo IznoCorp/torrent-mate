@@ -125,9 +125,15 @@ export function FlowBoard(): ReactElement {
 
   if (query.isLoading) {
     return (
-      <div className="flex gap-2 overflow-x-auto pb-2" aria-busy="true">
+      <div
+        className="flex flex-col gap-2 pb-2 sm:flex-row sm:gap-2 sm:overflow-x-auto"
+        aria-busy="true"
+      >
         {Array.from({ length: 9 }).map((_, i) => (
-          <Skeleton key={`stage-sk-${String(i)}`} className="h-28 min-w-36" />
+          <Skeleton
+            key={`stage-sk-${String(i)}`}
+            className="h-20 w-full sm:h-28 sm:w-auto sm:min-w-36"
+          />
         ))}
       </div>
     );
@@ -149,6 +155,26 @@ export function FlowBoard(): ReactElement {
 
   const data = query.data;
   const stages: readonly ApiStage[] = data?.stages ?? [];
+
+  // Defensive: a settled query that yielded no stages (undefined data / a
+  // truncated response) must never paint a blank board — fall back to the
+  // skeleton so the section reads as "loading", not "broken".
+  if (stages.length === 0) {
+    return (
+      <div
+        className="flex flex-col gap-2 pb-2 sm:flex-row sm:gap-2 sm:overflow-x-auto"
+        aria-busy="true"
+      >
+        {Array.from({ length: 9 }).map((_, i) => (
+          <Skeleton
+            key={`stage-empty-sk-${String(i)}`}
+            className="h-20 w-full sm:h-28 sm:w-auto sm:min-w-36"
+          />
+        ))}
+      </div>
+    );
+  }
+
   const runBadge = data
     ? RUN_STATE_BADGE[data.run_state]
     : RUN_STATE_BADGE.idle;
@@ -163,8 +189,9 @@ export function FlowBoard(): ReactElement {
         <StatusBadge tone={runBadge.tone} label={runBadge.label} />
       </div>
 
-      {/* Horizontal station row — scrolls on narrow viewports. */}
-      <div className="flex items-stretch gap-1 overflow-x-auto pb-2">
+      {/* Stations stack vertically on mobile (readable + tappable, no lateral
+          scroll); a horizontal scroll row on sm+ where the flow reads L→R. */}
+      <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-stretch sm:gap-1 sm:overflow-x-auto">
         {stages.map((stage, i) => {
           const split = toStationSplit(stage.split);
           const icon = STAGE_ICON[stage.key];
@@ -180,9 +207,10 @@ export function FlowBoard(): ReactElement {
                 {...(icon !== undefined ? { icon } : {})}
                 {...(split !== null ? { split } : {})}
               />
+              {/* Connector chevron only makes sense in the horizontal (sm+) flow. */}
               {i < stages.length - 1 && (
                 <div
-                  className="flex shrink-0 items-center self-center text-muted-foreground/50"
+                  className="hidden shrink-0 items-center self-center text-muted-foreground/50 sm:flex"
                   aria-hidden="true"
                 >
                   <ChevronRight className="size-4" />

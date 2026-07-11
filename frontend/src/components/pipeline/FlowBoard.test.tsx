@@ -125,6 +125,21 @@ describe("FlowBoard", () => {
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
+  it("falls back to the skeleton when a settled query yields no stages", () => {
+    // Regression: a settled query with empty stages must not paint a blank
+    // board (the mobile 'FLUX DU PIPELINE with an empty void' report).
+    stagesMock.mockReturnValue({
+      data: { stages: [], run_uid: null, run_state: "idle", updated_at: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    const { container } = render(<FlowBoard />);
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByText("Arrivée")).not.toBeInTheDocument();
+  });
+
   it("shows an error state with a retry action on failure", () => {
     const refetch = vi.fn();
     stagesMock.mockReturnValue({

@@ -128,8 +128,10 @@ export function StageStation({
     </>
   );
 
+  // Full-width on mobile (stations stack vertically in the Flow Board); a fixed
+  // min-width on sm+ where the board is a horizontal scroll row.
   const cls = cn(
-    "flex min-w-36 flex-col gap-1.5 rounded-lg border bg-card p-3",
+    "flex w-full flex-col gap-1.5 rounded-lg border bg-card p-3 sm:w-auto sm:min-w-36",
     STATE_RING[state],
   );
 
