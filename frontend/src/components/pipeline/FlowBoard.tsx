@@ -201,17 +201,17 @@ export function FlowBoard(): ReactElement {
           }
         }}
       >
-        <SheetContent className="flex flex-col gap-4 overflow-y-auto">
+        <SheetContent className="flex w-full flex-col gap-4 overflow-y-auto px-6 pb-6 sm:max-w-md">
           {selected !== null && (
             <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center justify-between gap-2">
-                  <span>{selected.label}</span>
+              <SheetHeader className="pr-8">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SheetTitle>{selected.label}</SheetTitle>
                   <StatusBadge
                     tone={STATE_BADGE[selected.state].tone}
                     label={STATE_BADGE[selected.state].label}
                   />
-                </SheetTitle>
+                </div>
                 <SheetDescription>
                   {STAGE_DESC[selected.key] ?? ""}
                 </SheetDescription>

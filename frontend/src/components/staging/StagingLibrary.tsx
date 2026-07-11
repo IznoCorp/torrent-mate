@@ -47,7 +47,10 @@ const MATCH_FILTERS: readonly { value: MatchFilter; label: string }[] = [
 ];
 
 /** Sort option: a value + French label. */
-const SORT_OPTIONS: readonly { value: NonNullable<StagingMediaParams["sort"]>; label: string }[] = [
+const SORT_OPTIONS: readonly {
+  value: NonNullable<StagingMediaParams["sort"]>;
+  label: string;
+}[] = [
   { value: "recent", label: "Récents" },
   { value: "title", label: "Titre" },
   { value: "size", label: "Taille" },
@@ -82,9 +85,12 @@ function GridSkeleton(): ReactElement {
  * Returns:
  *   The library element.
  */
-export function StagingLibrary({ onOpenResolution }: StagingLibraryProps): ReactElement {
+export function StagingLibrary({
+  onOpenResolution,
+}: StagingLibraryProps): ReactElement {
   const [match, setMatch] = useState<MatchFilter>("all");
-  const [sort, setSort] = useState<NonNullable<StagingMediaParams["sort"]>>("recent");
+  const [sort, setSort] =
+    useState<NonNullable<StagingMediaParams["sort"]>>("recent");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -171,7 +177,10 @@ export function StagingLibrary({ onOpenResolution }: StagingLibraryProps): React
                   resetTo(setMatch, filter.value);
                 }}
               >
-                <Badge tone={active ? "solid" : "outline"} className="cursor-pointer">
+                <Badge
+                  tone={active ? "solid" : "outline"}
+                  className="cursor-pointer"
+                >
                   {filter.label}
                   {count !== undefined && (
                     <span className="ml-1 opacity-70">({count})</span>
@@ -189,7 +198,9 @@ export function StagingLibrary({ onOpenResolution }: StagingLibraryProps): React
       ) : query.isError ? (
         <ErrorState
           title="Impossible de charger la bibliothèque"
-          {...(query.error instanceof Error ? { message: query.error.message } : {})}
+          {...(query.error instanceof Error
+            ? { message: query.error.message }
+            : {})}
           onRetry={() => {
             void query.refetch();
           }}
@@ -277,10 +288,10 @@ export function StagingLibrary({ onOpenResolution }: StagingLibraryProps): React
           if (!open) setSelectedId(null);
         }}
       >
-        <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
+        <SheetContent className="w-full gap-0 overflow-y-auto px-6 pb-6 sm:max-w-md">
           {selected !== null && (
             <>
-              <SheetHeader>
+              <SheetHeader className="pr-8">
                 <SheetTitle>{selected.title}</SheetTitle>
               </SheetHeader>
               <div className="mt-4">
