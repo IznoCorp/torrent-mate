@@ -45,6 +45,11 @@ def grab(
         "-n",
         help="Maximum number of wanted items to process. Default: all pending.",
     ),
+    followed_id: int | None = typer.Option(
+        None,
+        "--followed-id",
+        help="Restrict the run to one followed series' pending items (OBJ3 manual trigger).",
+    ),
 ) -> None:
     """Run the grab loop — search trackers and add top-ranked torrents."""
     config = ctx.obj.config
@@ -61,7 +66,7 @@ def grab(
                 raise typer.Exit(1)
 
             if dry_run:
-                _run_dry(acquire, console, limit=limit)
+                _run_dry(acquire, console, limit=limit, followed_id=followed_id)
             else:
                 grab_core = acquire.grab
                 if grab_core is None:
@@ -69,7 +74,7 @@ def grab(
                         "[red]No torrent client configured — cannot run grab. Check config or use --dry-run.[/red]"
                     )
                     raise typer.Exit(1)
-                summary = grab_core.service.run(limit=limit)
+                summary = grab_core.service.run(limit=limit, followed_id=followed_id)
                 console.print(
                     f"[green]Grab complete:[/green] "
                     f"{summary.grabbed} grabbed, "
@@ -87,6 +92,7 @@ def _run_dry(
     console: Console,
     *,
     limit: int | None,
+    followed_id: int | None = None,
 ) -> None:
     """Dry-run: search + filter + dedup + rank, print top candidates. No add.
 
@@ -94,6 +100,8 @@ def _run_dry(
         acquire: :class:`~personalscraper.acquire.context.AcquireContext`.
         console: Rich Console for output.
         limit: Max items to inspect.
+        followed_id: When set, restrict the dry-run to one followed series'
+            pending items (mirrors the real run's OBJ3 per-series scoping).
     """
     from personalscraper.acquire._dedup import dedup  # noqa: PLC0415
     from personalscraper.acquire._filters import apply_hard_filters  # noqa: PLC0415
@@ -106,6 +114,8 @@ def _run_dry(
         return
 
     pending = store.wanted.list_pending()
+    if followed_id is not None:
+        pending = [item for item in pending if item.followed_id == followed_id]
     if limit is not None:
         pending = pending[:limit]
 

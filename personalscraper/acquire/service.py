@@ -160,7 +160,7 @@ class AcquisitionService:
         self._event_bus = event_bus
         self._config = config
 
-    def run(self, *, limit: int | None = None) -> RunSummary:
+    def run(self, *, limit: int | None = None, followed_id: int | None = None) -> RunSummary:
         """Process the pending + stale-searching wanted queue.
 
         For each item: atomically claim it; if the claim is lost (concurrent
@@ -172,6 +172,11 @@ class AcquisitionService:
         Args:
             limit: Maximum number of items to attempt this run; ``None`` = all
                 pending + stale items.
+            followed_id: When set, restrict the run to wanted items belonging to
+                that followed series (webui-overhaul OBJ3 per-series manual
+                trigger). Items with a different — or ``None`` — ``followed_id``
+                are skipped. Applied BEFORE ``limit`` so the cap counts only the
+                targeted series' items.
 
         Returns:
             A :class:`RunSummary` of outcome counts.
@@ -189,6 +194,13 @@ class AcquisitionService:
             if item.id is not None and item.id not in seen_ids:
                 seen_ids.add(item.id)
                 queue.append(item)
+
+        # Per-series scoping (OBJ3): keep only this series' items. The wanted
+        # queue is small, so an in-memory filter avoids a bespoke scoped store
+        # query. Applied before the limit so `limit` caps the series, not the
+        # whole queue.
+        if followed_id is not None:
+            queue = [item for item in queue if item.followed_id == followed_id]
 
         if limit is not None:
             queue = queue[:limit]
