@@ -810,8 +810,7 @@ def _build_matching_stage(db_path: Path) -> PipelineStage:
             _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT trigger, COUNT(*) AS n FROM scrape_decision "
-                "WHERE status = 'pending' GROUP BY trigger"
+                "SELECT trigger, COUNT(*) AS n FROM scrape_decision WHERE status = 'pending' GROUP BY trigger"
             ).fetchall()
         for row in rows:
             n = int(row["n"])

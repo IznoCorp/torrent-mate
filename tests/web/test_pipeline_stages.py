@@ -120,7 +120,7 @@ def _insert_decision(
     """Insert one ``scrape_decision`` row (candidates_json is a minimal stub)."""
     conn = sqlite3.connect(str(db_path))
     conn.execute(
-        'INSERT INTO scrape_decision '
+        "INSERT INTO scrape_decision "
         '(staging_path, media_kind, extracted_title, extracted_year, "trigger", '
         "candidates_json, status, created_at, updated_at) "
         "VALUES (?, 'movie', 'Some Title', 2020, ?, '[]', ?, ?, ?)",
