@@ -71,12 +71,15 @@ function makeDetail(
 
 const useAllDecisionsMock = vi.fn();
 const useDecisionDetailMock = vi.fn();
+const useDecisionsMock = vi.fn();
 
 vi.mock("@/hooks/useDecisions", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useAllDecisions: (...args: unknown[]) => useAllDecisionsMock(...args),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useDecisionDetail: (...args: unknown[]) => useDecisionDetailMock(...args),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useDecisions: (...args: unknown[]) => useDecisionsMock(...args),
 }));
 
 // The page uses dismissDecision for the inline quick-dismiss mutation; stub it
@@ -155,9 +158,25 @@ function setupDecisionsList(
     isError: false,
     error: null,
   });
+
+  // The ResolutionDeck (default "À résoudre" view) calls useDecisions; give it a
+  // benign empty pending page so it mounts without crashing when a test starts
+  // on the deck before switching to the "Toutes" browse.
+  useDecisionsMock.mockReturnValue({
+    data: { items: [], pending_count: 0, total: 0, page: 1, page_size: 200 },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  });
 }
 
-function renderPage(): void {
+/**
+ * Render the page. Defaults to the "Toutes" browse view (where the flat-list /
+ * filter / detail assertions live); pass ``"resolve"`` to stay on the default
+ * resolution deck.
+ */
+function renderPage(view: "all" | "resolve" = "all"): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -168,6 +187,9 @@ function renderPage(): void {
     </QueryClientProvider>
   );
   render(tree);
+  if (view === "all") {
+    fireEvent.click(screen.getByRole("button", { name: "Toutes" }));
+  }
 }
 
 /** Find a button whose text includes the given string, or throw. */

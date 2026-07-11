@@ -23,6 +23,8 @@ import { decisionsKeys, dismissDecision } from "@/api/decisions";
 import { useAllDecisions, useDecisionDetail } from "@/hooks/useDecisions";
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
+import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
+import { PageHeader } from "@/components/ds/PageHeader";
 import {
   STATUS_SHORT_LABEL,
   STATUS_TOOLTIP,
@@ -76,6 +78,8 @@ function ListSkeleton(): ReactElement {
  */
 export default function Decisions(): ReactElement {
   const queryClient = useQueryClient();
+  // Primary view: the rapid resolution deck vs the full cross-status browse.
+  const [view, setView] = useState<"resolve" | "all">("resolve");
   // Optional, multi-select status filter. Empty set = show ALL statuses (default).
   const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
     () => new Set(),
@@ -104,6 +108,7 @@ export default function Decisions(): ReactElement {
   // coerced to "0 pending" (SF2). This is distinct from `listError` (which is
   // only true when EVERY status query failed).
   const pendingFailed = errored.has("pending");
+  const pendingCount = counts.pending ?? 0;
 
   const {
     data: detailData,
@@ -201,11 +206,40 @@ export default function Decisions(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">
-        Décisions de scraping
-      </h1>
+      <PageHeader
+        title="Décisions de scraping"
+        actions={
+          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "resolve" ? "default" : "ghost"}
+              onClick={() => {
+                setView("resolve");
+              }}
+            >
+              À résoudre
+              {pendingCount > 0 ? ` (${String(pendingCount)})` : ""}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "all" ? "default" : "ghost"}
+              onClick={() => {
+                setView("all");
+              }}
+            >
+              Toutes
+            </Button>
+          </div>
+        }
+      />
 
-      {/* ---- Optional status filter chips ------------------------------------ */}
+      {view === "resolve" ? (
+        <ResolutionDeck />
+      ) : (
+        <>
+          {/* ---- Optional status filter chips ------------------------------------ */}
       <div className="flex flex-col gap-1.5">
         <div
           className="flex flex-wrap items-center gap-2"
@@ -325,6 +359,8 @@ export default function Decisions(): ReactElement {
             )}
           </div>
         </div>
+      )}
+        </>
       )}
     </section>
   );

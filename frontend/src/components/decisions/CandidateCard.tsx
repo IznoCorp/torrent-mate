@@ -152,6 +152,11 @@ export function CandidateCard({
               {candidate.year}
             </span>
           )}
+          {candidate.overview != null && candidate.overview !== "" && (
+            <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">
+              {candidate.overview}
+            </p>
+          )}
         </div>
 
         {/* Score bar */}
