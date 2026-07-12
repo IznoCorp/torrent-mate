@@ -861,6 +861,7 @@ def pipeline_stages(request: Request) -> StagesResponse:
 
     run_uid: str | None = None
     updated_at: float | None = None
+    run_trigger: str | None = None
     steps_by_name: dict[str, dict[str, object]] = {}
 
     # Latest media-pipeline run (excluding maintenance rows) for the step counts.
@@ -869,13 +870,14 @@ def pipeline_stages(request: Request) -> StagesResponse:
             _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT run_uid, started_at, steps_json FROM pipeline_run "
+                'SELECT run_uid, started_at, "trigger", steps_json FROM pipeline_run '
                 "WHERE kind IS NULL OR kind = 'pipeline' "
                 "ORDER BY started_at DESC LIMIT 1"
             ).fetchone()
         if row is not None:
             run_uid = row["run_uid"]
             updated_at = row["started_at"]
+            run_trigger = row["trigger"]
             steps_by_name, _last = _parse_steps(row["steps_json"])
     except sqlite3.Error:
         logger.warning("pipeline_stages_run_read_failed", exc_info=True)
@@ -896,4 +898,5 @@ def pipeline_stages(request: Request) -> StagesResponse:
         run_uid=run_uid,
         run_state=status.state,
         updated_at=updated_at,
+        run_trigger=run_trigger,
     )

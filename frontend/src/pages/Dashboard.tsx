@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { HealthCard } from "@/components/dashboard/HealthCard";
 import { SchedulersPanel } from "@/components/dashboard/SchedulersPanel";
 import { VersionCard } from "@/components/dashboard/VersionCard";
+import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 
 /**
  * Dashboard — the authenticated home page (`/`), the supervision landing view.
@@ -20,6 +21,9 @@ export default function Dashboard(): ReactElement {
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Tableau de bord</h1>
+
+      {/* Compact human-action banner (C5) — leads to the resolution deck. */}
+      <PipelineActionBanner compact />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <HealthCard />

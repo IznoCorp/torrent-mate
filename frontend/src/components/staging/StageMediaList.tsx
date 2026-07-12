@@ -9,9 +9,11 @@
  * background.
  */
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import type { StagingMediaParams } from "@/api/client";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
 import { matchBadge } from "@/components/staging/meta";
@@ -50,7 +52,8 @@ export function StageMediaList({
   stageKey,
   onOpenResolution,
 }: StageMediaListProps): ReactElement {
-  const query = useStagingMedia({ stage: stageKey, page_size: 50 });
+  const [limit, setLimit] = useState(50);
+  const query = useStagingMedia({ stage: stageKey, page_size: limit });
 
   if (query.isLoading) {
     return (
@@ -67,23 +70,30 @@ export function StageMediaList({
 
   if (query.isError) {
     return (
-      <p className="text-sm text-danger" role="alert">
-        Impossible de charger les médias de cette étape.
-      </p>
+      <ErrorState
+        title="Impossible de charger les médias de cette étape."
+        {...(query.error instanceof Error
+          ? { message: query.error.message }
+          : {})}
+        onRetry={() => {
+          void query.refetch();
+        }}
+      />
     );
   }
 
   const items = query.data?.items ?? [];
+  const total = query.data?.total ?? items.length;
   if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Aucun média à cette étape.
-      </p>
-    );
+    return <EmptyState compact title="Aucun média à cette étape." />;
   }
 
   return (
-    <Accordion className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
+      <span className="text-[length:var(--text-2xs)] uppercase tracking-wide text-muted-foreground">
+        {total} média{total > 1 ? "s" : ""}
+      </span>
+      <Accordion className="flex flex-col gap-1">
       {items.map((item) => {
         const badge = matchBadge(item.match);
         return (
@@ -122,6 +132,20 @@ export function StageMediaList({
           </AccordionItem>
         );
       })}
-    </Accordion>
+      </Accordion>
+      {items.length < total && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            setLimit((n) => n + 50);
+          }}
+        >
+          Voir plus
+        </Button>
+      )}
+    </div>
   );
 }

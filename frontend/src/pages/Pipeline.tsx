@@ -20,6 +20,7 @@
 import { type ReactElement } from "react";
 
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
+import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
@@ -53,6 +54,9 @@ export default function Pipeline(): ReactElement {
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
+
+      {/* Human-action banner — impossible to miss when decisions await (C5). */}
+      <PipelineActionBanner />
 
       {/* OBJ1 living pipeline — the Flow Board of the nine stages. */}
       <FlowBoard />

@@ -3001,9 +3001,13 @@ export interface components {
          *         run_state: Live pipeline run-state (``idle`` / ``running`` /
          *             ``paused``) — drives whether the active stage pulses.
          *         updated_at: Epoch seconds of the source run's start, or ``None``.
+         *         run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /
+         *             ``cron``), or ``None`` — lets the board caption its provenance.
          */
         StagesResponse: {
             run_state: components["schemas"]["PipelineState"];
+            /** Run Trigger */
+            run_trigger?: string | null;
             /** Run Uid */
             run_uid?: string | null;
             /** Stages */

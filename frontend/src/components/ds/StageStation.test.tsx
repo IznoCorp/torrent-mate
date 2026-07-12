@@ -36,4 +36,37 @@ describe("StageStation", () => {
     fireEvent.click(screen.getByRole("button"));
     expect(onClick).toHaveBeenCalledOnce();
   });
+
+  it("shows an error pastille when blocked with a non-zero count", () => {
+    render(
+      <StageStation label="Scraping" count={4} state="blocked" blocked={2} />,
+    );
+    expect(screen.getByText(/2 erreurs/)).toBeInTheDocument();
+  });
+
+  it("surfaces a temporal caption", () => {
+    render(
+      <StageStation
+        label="Scraping"
+        count={4}
+        state="ok"
+        timeframe="dernier run"
+      />,
+    );
+    expect(screen.getByText("dernier run")).toBeInTheDocument();
+  });
+
+  it("exposes a dialog-opening a11y label when clickable (C20)", () => {
+    render(
+      <StageStation
+        label="Matching"
+        count={3}
+        state="attention"
+        onClick={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole("button");
+    expect(btn).toHaveAttribute("aria-haspopup", "dialog");
+    expect(btn.getAttribute("aria-label")).toContain("Matching");
+  });
 });

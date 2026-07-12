@@ -2352,10 +2352,21 @@
         "type": "object"
       },
       "StagesResponse": {
-        "description": "Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).\n\nAggregates the last pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the\nlive run state so the board can pulse the active stage.\n\nAttributes:\n    stages: The nine stages in board (left-to-right flow) order.\n    run_uid: The run these counts are sourced from, or ``None`` when no\n        pipeline run has ever been recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the source run's start, or ``None``.",
+        "description": "Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).\n\nAggregates the last pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the\nlive run state so the board can pulse the active stage.\n\nAttributes:\n    stages: The nine stages in board (left-to-right flow) order.\n    run_uid: The run these counts are sourced from, or ``None`` when no\n        pipeline run has ever been recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the source run's start, or ``None``.\n    run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /\n        ``cron``), or ``None`` \u2014 lets the board caption its provenance.",
         "properties": {
           "run_state": {
             "$ref": "#/components/schemas/PipelineState"
+          },
+          "run_trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Trigger"
           },
           "run_uid": {
             "anyOf": [
