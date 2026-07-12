@@ -17,6 +17,7 @@ import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
 import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
+import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /**
@@ -59,6 +60,10 @@ export default function Maintenance(): ReactElement {
 
       {/* Run-history panel filtered to maintenance runs (kind param → backend) */}
       <RunHistoryTable kind="maintenance" onSelect={setSelectedRun} />
+
+      {/* One shared trigger-label legend for both history tables above (it used
+          to render inside each RunHistoryTable → duplicated on this page). */}
+      <TriggerLegend />
 
       {/* Inline detail view when a history row is selected */}
       {selectedRun !== null && (

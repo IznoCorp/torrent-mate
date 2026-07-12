@@ -1414,6 +1414,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staging/media/{media_id}/enqueue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enqueue Staging Decision
+         * @description Enqueue a non-identified staged item as a pending scrape decision.
+         *
+         *     Lets the operator send an item that never got a match (``absent`` — no search
+         *     button otherwise) into the resolution deck, where the deck's manual search +
+         *     validate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The
+         *     id is re-derived from the staging tree (no client path); only ``movie``/
+         *     ``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an
+         *     existing pending row and never overrides a resolved/dismissed verdict.
+         *
+         *     Args:
+         *         media_id: The stable media id from a list item.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         An :class:`EnqueueDecisionResponse`.
+         *
+         *     Raises:
+         *         404: No scrapable staged media matches the id.
+         *         503: No indexer DB configured.
+         */
+        post: operations["enqueue_staging_decision_api_staging_media__media_id__enqueue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staging/media/{media_id}/poster": {
         parameters: {
             query?: never;
@@ -1885,6 +1923,26 @@ export interface components {
         DisksResponse: {
             /** Disks */
             disks: components["schemas"]["DiskInfo"][];
+        };
+        /**
+         * EnqueueDecisionResponse
+         * @description Response body for ``POST /api/staging/media/{id}/enqueue``.
+         *
+         *     Attributes:
+         *         ok: ``True`` when the item was enqueued as a pending scrape decision.
+         *         media_kind: The kind of the enqueued item (``movie``/``tvshow``).
+         *         title: The folder-derived title enqueued for resolution.
+         */
+        EnqueueDecisionResponse: {
+            /**
+             * Media Kind
+             * @enum {string}
+             */
+            media_kind: "movie" | "tvshow" | "ebook" | "audio" | "app" | "other" | "unsorted";
+            /** Ok */
+            ok: boolean;
+            /** Title */
+            title: string;
         };
         /**
          * FileContent
@@ -4640,6 +4698,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StagingMediaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enqueue_staging_decision_api_staging_media__media_id__enqueue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnqueueDecisionResponse"];
                 };
             };
             /** @description Validation Error */

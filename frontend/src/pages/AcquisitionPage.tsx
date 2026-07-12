@@ -21,6 +21,12 @@ import {
   type ObligationItem,
 } from "@/api/acquisition";
 import { ApiError, setWatcher } from "@/api/client";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -365,44 +371,50 @@ function FollowedPanel({
   }
 
   // ── Add form (always visible) ──────────────────────────────────────────
+  // Manual add-by-ID is the power-user fallback to the primary title search
+  // above; collapsed by default so it does not compete with it. Inputs stack on
+  // mobile (ID, then title, then a full-width Suivre) and inline on sm+.
   const addForm = (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-0 flex-1">
-            <Label htmlFor="follow-tvdb-id">ID TVDB</Label>
-            <Input
-              id="follow-tvdb-id"
-              type="number"
-              placeholder="ex: 255968"
-              value={tvdbId}
-              onChange={(e) => {
-                setTvdbId(e.target.value);
-              }}
-            />
+    <Accordion className="rounded-lg border border-border bg-card px-3">
+      <AccordionItem>
+        <AccordionTrigger>Ajouter par ID TVDB</AccordionTrigger>
+        <AccordionContent>
+          <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-end">
+            <div className="flex flex-col gap-1 sm:w-36">
+              <Label htmlFor="follow-tvdb-id">ID TVDB</Label>
+              <Input
+                id="follow-tvdb-id"
+                type="number"
+                placeholder="ex: 255968"
+                value={tvdbId}
+                onChange={(e) => {
+                  setTvdbId(e.target.value);
+                }}
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-1">
+              <Label htmlFor="follow-title">Titre (optionnel)</Label>
+              <Input
+                id="follow-title"
+                type="text"
+                placeholder="ex: Top Chef"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                }}
+              />
+            </div>
+            <Button
+              className="w-full sm:w-auto sm:shrink-0"
+              disabled={!tvdbId.trim() || followMutation.isPending}
+              onClick={handleAdd}
+            >
+              {followMutation.isPending ? "Ajout…" : "Suivre"}
+            </Button>
           </div>
-          <div className="min-w-0 flex-[2]">
-            <Label htmlFor="follow-title">Titre (optionnel)</Label>
-            <Input
-              id="follow-title"
-              type="text"
-              placeholder="ex: Top Chef"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-              }}
-            />
-          </div>
-          <Button
-            size="sm"
-            disabled={!tvdbId.trim() || followMutation.isPending}
-            onClick={handleAdd}
-          >
-            {followMutation.isPending ? "Ajout…" : "Suivre"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 
   // ── Empty ──────────────────────────────────────────────────────────────
@@ -1096,8 +1108,9 @@ export default function AcquisitionPage(): ReactElement {
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Acquisition</h1>
 
-      {/* Tabs */}
-      <div role="tablist" className="flex gap-1 rounded-lg bg-muted p-1">
+      {/* Tabs — wrap to 2-per-row on narrow screens (4 tabs overflowed a single
+          row at ~390px, clipping "Watcher"); a single filled row on sm+. */}
+      <div role="tablist" className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -1106,7 +1119,7 @@ export default function AcquisitionPage(): ReactElement {
             onClick={() => {
               setActiveTab(tab.id);
             }}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex-1 basis-[calc(50%-0.125rem)] whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors sm:basis-0 ${
               activeTab === tab.id
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

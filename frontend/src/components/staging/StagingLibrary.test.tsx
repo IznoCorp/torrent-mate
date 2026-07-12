@@ -5,6 +5,7 @@
  * error / empty branches, and the card→detail drawer are tested in isolation.
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -70,6 +71,17 @@ function response(items: StagingMediaItem[]): StagingMediaResponse {
   };
 }
 
+/** Render StagingLibrary inside a QueryClientProvider (its detail drawer's
+ *  manual-resolve action uses a mutation). */
+function renderLib(): ReturnType<typeof render> {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <StagingLibrary />
+    </QueryClientProvider>,
+  );
+}
+
 beforeEach(() => {
   stagingMock.mockReturnValue({
     data: response([
@@ -90,7 +102,7 @@ afterEach(() => {
 
 describe("StagingLibrary", () => {
   it("renders a card per media with a match chip", () => {
-    render(<StagingLibrary />);
+    renderLib();
     expect(screen.getByText("Fight Club")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     // Match verdict chips on the cards.
@@ -99,7 +111,7 @@ describe("StagingLibrary", () => {
   });
 
   it("shows match filter chips with counts", () => {
-    render(<StagingLibrary />);
+    renderLib();
     // "Identifiés (1)" filter chip built from the counts block.
     expect(screen.getByText("Identifiés")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /À résoudre/ })).toHaveAttribute(
@@ -109,7 +121,7 @@ describe("StagingLibrary", () => {
   });
 
   it("toggles a match filter chip to pressed", () => {
-    render(<StagingLibrary />);
+    renderLib();
     const chip = screen.getByRole("button", { name: /Non identifiés/ });
     fireEvent.click(chip);
     expect(chip).toHaveAttribute("aria-pressed", "true");
@@ -123,7 +135,7 @@ describe("StagingLibrary", () => {
       error: null,
       refetch: vi.fn(),
     });
-    const { container } = render(<StagingLibrary />);
+    const { container } = renderLib();
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
@@ -136,7 +148,7 @@ describe("StagingLibrary", () => {
       error: new Error("boom"),
       refetch,
     });
-    render(<StagingLibrary />);
+    renderLib();
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     expect(refetch).toHaveBeenCalled();
   });
@@ -149,14 +161,23 @@ describe("StagingLibrary", () => {
       error: null,
       refetch: vi.fn(),
     });
-    render(<StagingLibrary />);
+    renderLib();
     expect(screen.getByText("Aucun média en attente")).toBeInTheDocument();
   });
 
   it("opens the detail drawer with the pipeline timeline on card click", () => {
-    render(<StagingLibrary />);
+    renderLib();
     fireEvent.click(screen.getByRole("button", { name: /Fight Club/ }));
     // The drawer shows the per-media timeline section.
     expect(screen.getByText("Parcours pipeline")).toBeInTheDocument();
+  });
+
+  it("offers manual resolution on a non-identified item's detail", () => {
+    renderLib();
+    fireEvent.click(screen.getByRole("button", { name: /Unknown/ }));
+    // An 'absent' movie has no auto-match → a manual-resolve action to the deck.
+    expect(
+      screen.getByRole("button", { name: /Rechercher \/ résoudre manuellement/ }),
+    ).toBeInTheDocument();
   });
 });

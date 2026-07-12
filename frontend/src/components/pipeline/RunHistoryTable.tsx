@@ -29,7 +29,6 @@ import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { getPipelineHistory, type HistoryParams } from "@/api/client";
 import type { components } from "@/api/schema";
 import { triggerLabel } from "@/components/pipeline/triggers";
-import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Table,
@@ -390,8 +389,6 @@ export function RunHistoryTable({
         </div>
       )}
 
-      {/* Trigger-label legend (webui-ux Phase 2.1). */}
-      <TriggerLegend />
     </section>
   );
 }

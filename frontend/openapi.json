@@ -630,6 +630,39 @@
         "title": "DisksResponse",
         "type": "object"
       },
+      "EnqueueDecisionResponse": {
+        "description": "Response body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    ok: ``True`` when the item was enqueued as a pending scrape decision.\n    media_kind: The kind of the enqueued item (``movie``/``tvshow``).\n    title: The folder-derived title enqueued for resolution.",
+        "properties": {
+          "media_kind": {
+            "enum": [
+              "movie",
+              "tvshow",
+              "ebook",
+              "audio",
+              "app",
+              "other",
+              "unsorted"
+            ],
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "media_kind",
+          "title"
+        ],
+        "title": "EnqueueDecisionResponse",
+        "type": "object"
+      },
       "FileContent": {
         "additionalProperties": false,
         "description": "Response body for ``GET /api/config/files/{name}``.\n\nAttributes:\n    name: Config file basename.\n    values: Parsed JSON5 contents keyed by top-level key.\n    sha256: Hex digest of the file contents on disk.\n    shadowed_keys: Keys in this file overridden by ``local.json5``.",
@@ -4962,6 +4995,49 @@
           }
         },
         "summary": "List Staging Media",
+        "tags": [
+          "staging"
+        ]
+      }
+    },
+    "/api/staging/media/{media_id}/enqueue": {
+      "post": {
+        "description": "Enqueue a non-identified staged item as a pending scrape decision.\n\nLets the operator send an item that never got a match (``absent`` \u2014 no search\nbutton otherwise) into the resolution deck, where the deck's manual search +\nvalidate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The\nid is re-derived from the staging tree (no client path); only ``movie``/\n``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an\nexisting pending row and never overrides a resolved/dismissed verdict.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    An :class:`EnqueueDecisionResponse`.\n\nRaises:\n    404: No scrapable staged media matches the id.\n    503: No indexer DB configured.",
+        "operationId": "enqueue_staging_decision_api_staging_media__media_id__enqueue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnqueueDecisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enqueue Staging Decision",
         "tags": [
           "staging"
         ]

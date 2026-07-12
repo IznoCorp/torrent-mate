@@ -20,13 +20,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal, cast
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
+from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.pipeline import PipelineState
 from personalscraper.web.models.staging import (
+    EnqueueDecisionResponse,
     StagingCounts,
     StagingDispatchTarget,
     StagingMatch,
@@ -43,6 +45,7 @@ from personalscraper.web.staging.read_model import (
     find_nfo,
     poster_file_for,
     resolve_media_dir,
+    resolve_scrapable_item,
     scan_staging_media,
 )
 
@@ -321,3 +324,54 @@ def get_staging_poster(media_id: str, request: Request) -> FileResponse:
     if poster is None:
         raise HTTPException(status_code=404, detail="No poster for this media")
     return FileResponse(str(poster))
+
+
+@router.post(
+    "/media/{media_id}/enqueue",
+    response_model=EnqueueDecisionResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def enqueue_staging_decision(media_id: str, request: Request) -> EnqueueDecisionResponse:
+    """Enqueue a non-identified staged item as a pending scrape decision.
+
+    Lets the operator send an item that never got a match (``absent`` — no search
+    button otherwise) into the resolution deck, where the deck's manual search +
+    validate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The
+    id is re-derived from the staging tree (no client path); only ``movie``/
+    ``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an
+    existing pending row and never overrides a resolved/dismissed verdict.
+
+    Args:
+        media_id: The stable media id from a list item.
+        request: The incoming FastAPI request.
+
+    Returns:
+        An :class:`EnqueueDecisionResponse`.
+
+    Raises:
+        404: No scrapable staged media matches the id.
+        503: No indexer DB configured.
+    """
+    config = _config(request)
+    resolved = resolve_scrapable_item(config, media_id)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="No scrapable media matches this id")
+    media_dir, media_kind, title, year = resolved
+
+    db_path = config.indexer.db_path
+    if db_path is None:
+        raise HTTPException(status_code=503, detail="No indexer database configured")
+
+    from personalscraper.scraper.decision_writer import DecisionWriter
+
+    DecisionWriter(db_path).upsert(
+        staging_path=media_dir,
+        media_kind=media_kind,
+        extracted_title=title,
+        extracted_year=year,
+        trigger="manual",
+        candidates_json="[]",
+        run_uid=None,
+    )
+    logger.info("staging_enqueue_decision", media_id=media_id, title=title, media_kind=media_kind)
+    return EnqueueDecisionResponse(ok=True, media_kind=cast("StagingMediaKind", media_kind), title=title)

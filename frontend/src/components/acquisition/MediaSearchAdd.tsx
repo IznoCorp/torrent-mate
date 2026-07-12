@@ -77,7 +77,9 @@ export function MediaSearchAdd(): ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
-      <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
+      {/* Full-width input on mobile (its own line), the kind filter + Chercher on
+          a second row; a single inline row on sm+. */}
+      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex flex-1 flex-col gap-1">
           <label
             htmlFor="acq-search"
@@ -94,25 +96,28 @@ export function MediaSearchAdd(): ReactElement {
             placeholder="Titre (film ou série)"
           />
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
-          {(["all", "tv", "movie"] as const).map((k) => (
-            <Button
-              key={k}
-              type="button"
-              size="sm"
-              variant={kind === k ? "default" : "ghost"}
-              onClick={() => {
-                setKind(k);
-              }}
-            >
-              {k === "all" ? "Tout" : k === "tv" ? "Séries" : "Films"}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-1 rounded-md border border-border p-0.5 sm:flex-none">
+            {(["all", "tv", "movie"] as const).map((k) => (
+              <Button
+                key={k}
+                type="button"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                variant={kind === k ? "default" : "ghost"}
+                onClick={() => {
+                  setKind(k);
+                }}
+              >
+                {k === "all" ? "Tout" : k === "tv" ? "Séries" : "Films"}
+              </Button>
+            ))}
+          </div>
+          <Button type="submit" className="shrink-0">
+            <Search className="size-4" aria-hidden="true" />
+            Chercher
+          </Button>
         </div>
-        <Button type="submit">
-          <Search className="size-4" aria-hidden="true" />
-          Chercher
-        </Button>
       </form>
 
       {query === "" ? (

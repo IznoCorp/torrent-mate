@@ -513,6 +513,32 @@ export function getStagingMedia(
   });
 }
 
+/** Response of POST /api/staging/media/{id}/enqueue. */
+export type EnqueueDecisionResponse = SuccessBody<
+  paths["/api/staging/media/{media_id}/enqueue"]["post"]["responses"]
+>;
+
+/**
+ * Enqueue a non-identified staged item as a pending scrape decision so it shows
+ * up in the resolution deck: POST /api/staging/media/{id}/enqueue. Mutating —
+ * carries ``X-Requested-With``.
+ *
+ * Args:
+ *   mediaId: The stable staged-media id.
+ *
+ * Returns:
+ *   The {@link EnqueueDecisionResponse}.
+ */
+export function enqueueStagingDecision(
+  mediaId: string,
+): Promise<EnqueueDecisionResponse> {
+  return apiFetch("/api/staging/media/{media_id}/enqueue", {
+    method: "post",
+    params: { path: { media_id: mediaId } },
+    headers: XRW_HEADERS,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Maintenance endpoints (S3 — maint-dash)
 // ---------------------------------------------------------------------------
