@@ -875,6 +875,17 @@
             ],
             "title": "Season Count"
           },
+          "status": {
+            "description": "Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX:\n\n- ``disabled``: the series is paused (not active).\n- ``pending``: at least one wanted search is in flight.\n- ``up_to_date``: active with nothing pending.\n\nReturns:\n    The derived lifecycle status.",
+            "enum": [
+              "disabled",
+              "pending",
+              "up_to_date"
+            ],
+            "readOnly": true,
+            "title": "Status",
+            "type": "string"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -901,7 +912,8 @@
           "media_ref",
           "active",
           "added_at",
-          "wanted_pending"
+          "wanted_pending",
+          "status"
         ],
         "title": "FollowedSeriesItem",
         "type": "object"

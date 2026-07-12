@@ -82,7 +82,7 @@ import AcquisitionPage from "@/pages/AcquisitionPage";
 
 /** A single followed-series item matching FollowedSeriesItem shape. */
 function makeFollowed(overrides: Record<string, unknown> = {}) {
-  return {
+  const merged = {
     id: 1,
     title: "Top Chef",
     active: true,
@@ -93,6 +93,14 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
     media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
     ...overrides,
   };
+  // Mirror the backend-derived status (C14) so the fixture matches the real
+  // response shape; an explicit `status` override still wins.
+  const status = !merged.active
+    ? "disabled"
+    : merged.wanted_pending > 0
+      ? "pending"
+      : "up_to_date";
+  return { status, ...merged };
 }
 
 /** A single wanted item matching WantedItemResponse shape. */
@@ -201,9 +209,7 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Suivis" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("tab", { name: "Recherches" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Recherches" })).toBeInTheDocument();
     expect(
       screen.getByRole("tab", { name: "Obligations" }),
     ).toBeInTheDocument();
@@ -218,9 +224,7 @@ describe("AcquisitionPage", () => {
       "aria-selected",
       "true",
     );
-    expect(
-      screen.getByText(/aucune série suivie/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune série suivie/i)).toBeInTheDocument();
   });
 
   it("switches to the Wanted panel when clicking the Recherches tab", async () => {
@@ -263,9 +267,7 @@ describe("AcquisitionPage", () => {
       "aria-selected",
       "true",
     );
-    expect(
-      await screen.findByText(/état du watcher/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/état du watcher/i)).toBeInTheDocument();
   });
 
   // ── Followed panel — table ──────────────────────────────────────────────
@@ -305,6 +307,33 @@ describe("AcquisitionPage", () => {
     // Koh-Lanta (inactive) → "Désactivé".
     expect(screen.getByText("En cours")).toBeInTheDocument();
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
+  });
+
+  it("maps the backend-derived status verbatim without re-deriving it (C14)", () => {
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [
+          // Contradictory flags on purpose: the raw active/pending would read
+          // as "En cours", but the backend-derived status says up_to_date. The
+          // UI must trust `status` (no JSX derivation) → "À jour".
+          makeFollowed({
+            id: 1,
+            title: "Top Chef",
+            active: true,
+            wanted_pending: 4,
+            status: "up_to_date",
+          }),
+        ],
+      },
+      error: null,
+    });
+    renderPage();
+
+    expect(screen.getByText("À jour")).toBeInTheDocument();
+    expect(screen.queryByText("En cours")).not.toBeInTheDocument();
   });
 
   it("shows a per-series 'Déclencher' trigger, disabled for an inactive series", () => {
@@ -370,14 +399,22 @@ describe("AcquisitionPage", () => {
       isLoading: false,
       isError: false,
       data: {
-        items: [makeFollowed({ active: true, next_search_at: soon, cadence_tier: "warm" })],
+        items: [
+          makeFollowed({
+            active: true,
+            next_search_at: soon,
+            cadence_tier: "warm",
+          }),
+        ],
       },
       error: null,
     });
     renderPage();
 
     // Next-search caption rendered with a relative "dans ~N h" estimate.
-    expect(screen.getByText(/Prochaine recherche dans ~3\s?h/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Prochaine recherche dans ~3\s?h/),
+    ).toBeInTheDocument();
   });
 
   it('shows "Personnalisé" badge when quality_profile is set', () => {
@@ -420,19 +457,21 @@ describe("AcquisitionPage", () => {
     renderPage();
     // The manual add-by-ID form is a collapsed accordion (secondary to the
     // primary title search) — expand it before asserting its inputs.
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     expect(screen.getByLabelText("ID TVDB")).toBeInTheDocument();
     expect(screen.getByLabelText(/titre/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Suivre" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeInTheDocument();
   });
 
   it("calls useFollow().mutate on form submit", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     fireEvent.change(screen.getByLabelText("ID TVDB"), {
       target: { value: "255968" },
@@ -454,7 +493,9 @@ describe("AcquisitionPage", () => {
   it("disables the Follow button when tvdb_id is empty", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
   });
@@ -627,12 +668,8 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
 
-    expect(
-      screen.getByRole("button", { name: "← Précédent" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Suivant →" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "← Précédent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Suivant →" })).toBeDisabled();
   });
 
   it("calls useWanted with status filter when changed", async () => {
@@ -751,9 +788,7 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByText("Jamais")).toBeInTheDocument();
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
-    expect(
-      screen.getByText(/aucune exécution récente/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune exécution récente/i)).toBeInTheDocument();
   });
 
   it("renders recent watcher runs in a table", () => {
@@ -796,9 +831,7 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
 
-    expect(
-      screen.getByText(/aucune recherche en file/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune recherche en file/i)).toBeInTheDocument();
   });
 
   it("shows empty state for obligations panel when no items", () => {
@@ -806,9 +839,7 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
 
-    expect(
-      screen.getByText(/aucune obligation de seed/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune obligation de seed/i)).toBeInTheDocument();
   });
 
   // ── Error states ────────────────────────────────────────────────────────
@@ -1000,7 +1031,9 @@ describe("AcquisitionPage", () => {
   it("add form inputs have associated labels", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     const tvdbInput = screen.getByLabelText("ID TVDB");
     expect(tvdbInput).toBeInTheDocument();

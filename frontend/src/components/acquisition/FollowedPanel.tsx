@@ -41,7 +41,14 @@ import {
   useUpdateFollow,
 } from "@/hooks/useAcquisition";
 
-import { cadenceInterval, TEMP_COLOR, TIER_LABEL, untilLabel } from "./meta";
+import {
+  cadenceInterval,
+  FOLLOW_STATUS_LABEL,
+  FOLLOW_STATUS_TONE,
+  TEMP_COLOR,
+  TIER_LABEL,
+  untilLabel,
+} from "./meta";
 
 /** Props for the Followed panel sub-component. */
 export interface FollowedPanelProps {
@@ -250,20 +257,11 @@ export function FollowedPanel({
               overview={item.overview ?? null}
               badges={
                 <>
-                  {/* Derived état: Désactivé / En cours / À jour. */}
-                  {!item.active ? (
-                    <Badge tone="neutral" dot>
-                      Désactivé
-                    </Badge>
-                  ) : item.wanted_pending > 0 ? (
-                    <Badge tone="warning" dot>
-                      En cours
-                    </Badge>
-                  ) : (
-                    <Badge tone="success" dot>
-                      À jour
-                    </Badge>
-                  )}
+                  {/* Backend-derived lifecycle status (C14): the UI only maps
+                      status → tone/label, no business derivation in JSX. */}
+                  <Badge tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"} dot>
+                    {FOLLOW_STATUS_LABEL[item.status] ?? item.status}
+                  </Badge>
                   {/* TVDB id kept as its own node (test + operator reference). */}
                   {item.media_ref.tvdb_id != null && (
                     <span className="font-mono text-xs text-muted-foreground">

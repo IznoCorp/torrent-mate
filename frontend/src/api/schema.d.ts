@@ -2042,6 +2042,22 @@ export interface components {
             } | null;
             /** Season Count */
             season_count?: number | null;
+            /**
+             * Status
+             * @description Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).
+             *
+             *     Single server-side source of truth so the UI maps status → tone/label
+             *     without re-deriving business state in JSX:
+             *
+             *     - ``disabled``: the series is paused (not active).
+             *     - ``pending``: at least one wanted search is in flight.
+             *     - ``up_to_date``: active with nothing pending.
+             *
+             *     Returns:
+             *         The derived lifecycle status.
+             * @enum {string}
+             */
+            readonly status: "disabled" | "pending" | "up_to_date";
             /** Title */
             title: string;
             /** Wanted Pending */
