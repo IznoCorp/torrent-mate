@@ -5,11 +5,12 @@
  * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged.
  */
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import {
+  acqKeys,
   triggerFollowedSearch,
   type CreateFollowRequest,
   type FollowedSeriesItem,
@@ -35,6 +36,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   useFollow,
   useUnfollow,
@@ -78,6 +80,7 @@ export function FollowedPanel({
   isError,
   error,
 }: FollowedPanelProps): ReactElement {
+  const queryClient = useQueryClient();
   const followMutation = useFollow();
   const unfollowMutation = useUnfollow();
   const updateMutation = useUpdateFollow();
@@ -90,11 +93,14 @@ export function FollowedPanel({
     null;
 
   // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
-  // grab run; feedback is a toast (409 = already running, 404 = gone).
+  // grab run; feedback is a toast (409 = already running, 404 = gone). On
+  // success we also refresh the acquisition views (C16) so the card's pending
+  // count / status reflect the freshly enqueued search without a manual reload.
   const triggerMutation = useMutation({
     mutationFn: (id: number) => triggerFollowedSearch(id),
     onSuccess: () => {
       toast.success("Recherche lancée pour cette série.");
+      void queryClient.invalidateQueries({ queryKey: acqKeys.all });
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {
@@ -134,6 +140,12 @@ export function FollowedPanel({
 
   const handleUnfollow = (id: number): void => {
     unfollowMutation.mutate(id);
+  };
+
+  // Toggle active/paused in place (C16) — the update hook invalidates the
+  // acquisition views, so the status badge follows without leaving the card.
+  const handleToggleActive = (id: number, active: boolean): void => {
+    updateMutation.mutate({ id, body: { active } });
   };
 
   const openEditCadence = (item: FollowedSeriesItem): void => {
@@ -330,7 +342,9 @@ export function FollowedPanel({
                 </>
               }
               footer={
-                <>
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  {/* C16: primary in-card action — launch a search now, with a
+                      spinner + toast + refresh (see triggerMutation). */}
                   <Button
                     size="sm"
                     onClick={() => {
@@ -349,8 +363,8 @@ export function FollowedPanel({
                   >
                     {triggerMutation.isPending &&
                     triggerMutation.variables === item.id
-                      ? "Lancement…"
-                      : "Déclencher"}
+                      ? "Recherche…"
+                      : "Rechercher maintenant"}
                   </Button>
                   <Button
                     size="sm"
@@ -371,7 +385,29 @@ export function FollowedPanel({
                   >
                     Retirer
                   </Button>
-                </>
+                  {/* C16: activate/pause the series in place. */}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <Switch
+                      id={`follow-active-${String(item.id)}`}
+                      checked={item.active}
+                      onCheckedChange={(checked) => {
+                        handleToggleActive(item.id, checked);
+                      }}
+                      disabled={updateMutation.isPending}
+                      aria-label={
+                        item.active
+                          ? `Désactiver le suivi de ${item.title}`
+                          : `Activer le suivi de ${item.title}`
+                      }
+                    />
+                    <label
+                      htmlFor={`follow-active-${String(item.id)}`}
+                      className="text-xs text-muted-foreground"
+                    >
+                      {item.active ? "Actif" : "Inactif"}
+                    </label>
+                  </div>
+                </div>
               }
             />
           );

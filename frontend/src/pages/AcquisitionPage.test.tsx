@@ -404,7 +404,7 @@ describe("AcquisitionPage", () => {
     expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
   });
 
-  it("shows a per-series 'Déclencher' trigger, disabled for an inactive series", () => {
+  it("shows a per-series 'Rechercher maintenant' action, disabled for an inactive series", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -419,11 +419,37 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    const triggers = screen.getAllByRole("button", { name: "Déclencher" });
+    const triggers = screen.getAllByRole("button", {
+      name: "Rechercher maintenant",
+    });
     expect(triggers).toHaveLength(2);
     // Active series → enabled; inactive → disabled (can't grab a paused series).
     expect(triggers[0]).not.toBeDisabled();
     expect(triggers[1]).toBeDisabled();
+  });
+
+  it("toggles a followed series active/paused in place via updateFollow (C16)", () => {
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [makeFollowed({ id: 7, title: "Top Chef", active: true })],
+      },
+      error: null,
+    });
+    renderPage();
+
+    // The active toggle carries an accessible label reflecting the next action.
+    const toggle = screen.getByRole("switch", {
+      name: /Désactiver le suivi de Top Chef/,
+    });
+    expect(toggle).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(updateFollowMutateFn).toHaveBeenCalledWith({
+      id: 7,
+      body: { active: false },
+    });
   });
 
   it("surfaces a followed-query error instead of the empty state", () => {
@@ -1092,7 +1118,7 @@ describe("AcquisitionPage", () => {
     // its actions render.
     expect(screen.getByText("Carded Show")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Déclencher" }),
+      screen.getByRole("button", { name: "Rechercher maintenant" }),
     ).toBeInTheDocument();
   });
 
