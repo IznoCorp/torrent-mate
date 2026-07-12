@@ -24,7 +24,11 @@ type SuccessBody<T> = T extends {
   200: { content: { "application/json": infer B } };
 }
   ? B
-  : never;
+  : T extends {
+        202: { content: { "application/json": infer B } };
+      }
+    ? B
+    : never;
 
 /** The optional query parameters declared by an operation. */
 type QueryParamsOf<Op> = Op extends { parameters: { query?: infer Q } }
@@ -293,6 +297,34 @@ export function updateFollow(
   return apiFetch("/api/acquisition/followed/{followed_id}", {
     method: "patch",
     body,
+    headers: XRW_HEADERS,
+    params: { path: { followed_id: id } },
+  });
+}
+
+/** Response type for POST /api/acquisition/followed/{id}/search (OBJ3). */
+export type GrabTriggerResponse = SuccessBody<
+  paths["/api/acquisition/followed/{followed_id}/search"]["post"]["responses"]
+>;
+
+/**
+ * Launch a targeted grab for one followed series (OBJ3 manual trigger).
+ *
+ * Sends ``POST /api/acquisition/followed/{followed_id}/search`` with the
+ * ``X-Requested-With`` header. Returns ``202`` with the launched ``run_uid``.
+ *
+ * Args:
+ *   id: Rowid of the ``followed_series`` row.
+ *
+ * Returns:
+ *   The {@link GrabTriggerResponse} with the launched ``run_uid``.
+ *
+ * Raises:
+ *   ApiError: 404 (unknown series) / 409 (a grab for this series is running).
+ */
+export function triggerFollowedSearch(id: number): Promise<GrabTriggerResponse> {
+  return apiFetch("/api/acquisition/followed/{followed_id}/search", {
+    method: "post",
     headers: XRW_HEADERS,
     params: { path: { followed_id: id } },
   });

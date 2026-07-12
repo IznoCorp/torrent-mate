@@ -307,6 +307,28 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
   });
 
+  it("shows a per-series 'Déclencher' trigger, disabled for an inactive series", () => {
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [
+          makeFollowed({ id: 1, title: "Top Chef", active: true }),
+          makeFollowed({ id: 2, title: "Koh-Lanta", active: false }),
+        ],
+      },
+      error: null,
+    });
+    renderPage();
+
+    const triggers = screen.getAllByRole("button", { name: "Déclencher" });
+    expect(triggers).toHaveLength(2);
+    // Active series → enabled; inactive → disabled (can't grab a paused series).
+    expect(triggers[0]).not.toBeDisabled();
+    expect(triggers[1]).toBeDisabled();
+  });
+
   it("surfaces a followed-query error instead of the empty state", () => {
     // Adversarial-review regression: on a failed followed query (e.g. 401) the
     // panel must show an error, NOT "aucune série suivie" (data illusion).

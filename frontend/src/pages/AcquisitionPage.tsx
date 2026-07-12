@@ -11,14 +11,16 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactElement } from "react";
+import { toast } from "sonner";
 
 import {
   acqKeys,
+  triggerFollowedSearch,
   type CreateFollowRequest,
   type FollowedSeriesItem,
   type ObligationItem,
 } from "@/api/acquisition";
-import { setWatcher } from "@/api/client";
+import { ApiError, setWatcher } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -244,6 +246,28 @@ function FollowedPanel({
   const unfollowMutation = useUnfollow();
   const updateMutation = useUpdateFollow();
 
+  // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
+  // grab run; feedback is a toast (409 = already running, 404 = gone).
+  const triggerMutation = useMutation({
+    mutationFn: (id: number) => triggerFollowedSearch(id),
+    onSuccess: () => {
+      toast.success("Recherche lancée pour cette série.");
+    },
+    onError: (err: unknown) => {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          toast.error("Une recherche est déjà en cours pour cette série.");
+        } else if (err.status === 404) {
+          toast.error("Série introuvable.");
+        } else {
+          toast.error(err.detail);
+        }
+      } else {
+        toast.error("Erreur lors du lancement de la recherche.");
+      }
+    },
+  });
+
   // Add-form state
   const [tvdbId, setTvdbId] = useState("");
   const [title, setTitle] = useState("");
@@ -430,7 +454,28 @@ function FollowedPanel({
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
+                <div className="flex flex-wrap justify-end gap-1">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      triggerMutation.mutate(item.id);
+                    }}
+                    disabled={
+                      !item.active ||
+                      (triggerMutation.isPending &&
+                        triggerMutation.variables === item.id)
+                    }
+                    title={
+                      item.active
+                        ? "Lancer une recherche maintenant pour cette série"
+                        : "Série désactivée — réactivez-la pour lancer une recherche"
+                    }
+                  >
+                    {triggerMutation.isPending &&
+                    triggerMutation.variables === item.id
+                      ? "Lancement…"
+                      : "Déclencher"}
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
