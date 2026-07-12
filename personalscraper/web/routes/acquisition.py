@@ -794,8 +794,7 @@ def _guard_no_running_grab(db_path: Path, options_json: str) -> None:
             apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT pid FROM pipeline_run "
-                "WHERE command = 'grab' AND ended_at IS NULL AND options_json = ?",
+                "SELECT pid FROM pipeline_run WHERE command = 'grab' AND ended_at IS NULL AND options_json = ?",
                 (options_json,),
             ).fetchall()
     except sqlite3.Error:
