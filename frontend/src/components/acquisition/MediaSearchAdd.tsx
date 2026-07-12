@@ -26,9 +26,16 @@ type KindFilter = "all" | "movie" | "tv";
 
 /** Build the follow request body from a search result (provider → id field). */
 function toFollowBody(result: MediaSearchResult): CreateFollowRequest {
+  // Carry the candidate's card metadata so the watch-list card can show a
+  // poster / description / year without a later provider call (OBJ3).
+  const meta = {
+    ...(result.poster_url != null ? { poster_url: result.poster_url } : {}),
+    ...(result.overview != null ? { overview: result.overview } : {}),
+    ...(result.year != null ? { year: result.year } : {}),
+  };
   return result.provider === "tvdb"
-    ? { tvdb_id: result.provider_id, title: result.title }
-    : { tmdb_id: result.provider_id, title: result.title };
+    ? { tvdb_id: result.provider_id, title: result.title, ...meta }
+    : { tmdb_id: result.provider_id, title: result.title, ...meta };
 }
 
 /**

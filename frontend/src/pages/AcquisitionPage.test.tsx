@@ -359,7 +359,8 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    expect(screen.getByText("3")).toBeInTheDocument();
+    // The follow card shows the pending count as a "N en attente" badge.
+    expect(screen.getByText("3 en attente")).toBeInTheDocument();
   });
 
   it('shows "Personnalisé" badge when quality_profile is set', () => {
@@ -956,18 +957,22 @@ describe("AcquisitionPage", () => {
     expect(tabs).toHaveLength(4);
   });
 
-  it("renders tables with semantic roles", () => {
+  it("renders the followed watch list as cards", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
       isError: false,
-      data: { items: [makeFollowed()] },
+      data: { items: [makeFollowed({ title: "Carded Show" })] },
       error: null,
     });
     renderPage();
 
-    const tables = screen.getAllByRole("table");
-    expect(tables.length).toBeGreaterThan(0);
+    // The Suivis panel is a MediaCard grid (not a table): the series title +
+    // its actions render.
+    expect(screen.getByText("Carded Show")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Déclencher" }),
+    ).toBeInTheDocument();
   });
 
   it("add form inputs have associated labels", () => {

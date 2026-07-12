@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MediaCard } from "@/components/ds/MediaCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -397,64 +398,68 @@ function FollowedPanel({
     <div className="space-y-4">
       {addForm}
 
-      {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Titre</TableHead>
-            <TableHead>ID TVDB</TableHead>
-            <TableHead>État</TableHead>
-            <TableHead>Cadence</TableHead>
-            <TableHead>En attente</TableHead>
-            <TableHead>Qualité</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <TableRow key={`f-${String(item.id)}`}>
-              <TableCell className="font-medium">{item.title}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.media_ref.tvdb_id ?? "—"}
-              </TableCell>
-              <TableCell>
-                {/* Derived état: Désactivé (paused) / En cours (pending work) /
-                    À jour (active, nothing outstanding). */}
-                {!item.active ? (
-                  <Badge tone="neutral" dot>
-                    Désactivé
-                  </Badge>
-                ) : item.wanted_pending > 0 ? (
-                  <Badge tone="warning" dot>
-                    En cours
-                  </Badge>
-                ) : (
-                  <Badge tone="success" dot>
-                    À jour
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {cadenceInterval(item.cadence) > 0
-                  ? `${String(cadenceInterval(item.cadence))} min`
-                  : "—"}
-              </TableCell>
-              <TableCell>
-                {item.wanted_pending > 0 ? (
-                  <Badge tone="warning">{String(item.wanted_pending)}</Badge>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell>
-                {item.quality_profile != null ? (
-                  <Badge tone="info">Personnalisé</Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Défaut</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex flex-wrap justify-end gap-1">
+      {/* Automatic-search cadence caption (grab cron — see schedulers registry). */}
+      <p className="text-xs text-muted-foreground">
+        Recherche automatique : tous les jours à 03:20 et 15:20.
+      </p>
+
+      {/* Card grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {data.map((item) => {
+          const interval = cadenceInterval(item.cadence);
+          const seasons = item.season_count ?? 0;
+          return (
+            <MediaCard
+              key={`f-${String(item.id)}`}
+              title={item.title}
+              year={item.year ?? null}
+              kind="tv"
+              posterUrl={item.poster_url ?? null}
+              overview={item.overview ?? null}
+              badges={
+                <>
+                  {/* Derived état: Désactivé / En cours / À jour. */}
+                  {!item.active ? (
+                    <Badge tone="neutral" dot>
+                      Désactivé
+                    </Badge>
+                  ) : item.wanted_pending > 0 ? (
+                    <Badge tone="warning" dot>
+                      En cours
+                    </Badge>
+                  ) : (
+                    <Badge tone="success" dot>
+                      À jour
+                    </Badge>
+                  )}
+                  {/* TVDB id kept as its own node (test + operator reference). */}
+                  {item.media_ref.tvdb_id != null && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {String(item.media_ref.tvdb_id)}
+                    </span>
+                  )}
+                  {seasons > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {seasons} saison{seasons > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {item.wanted_pending > 0 && (
+                    <Badge tone="warning">
+                      {String(item.wanted_pending)} en attente
+                    </Badge>
+                  )}
+                  {interval > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      cadence {String(interval)} min
+                    </span>
+                  )}
+                  {item.quality_profile != null && (
+                    <Badge tone="info">Personnalisé</Badge>
+                  )}
+                </>
+              }
+              footer={
+                <>
                   <Button
                     size="sm"
                     onClick={() => {
@@ -495,12 +500,12 @@ function FollowedPanel({
                   >
                     Retirer
                   </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </>
+              }
+            />
+          );
+        })}
+      </div>
 
       {/* Edit-cadence dialog */}
       <Dialog

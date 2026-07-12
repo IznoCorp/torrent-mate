@@ -68,8 +68,10 @@ describe("MediaSearchAdd", () => {
     expect(screen.getByText("Dune")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    // The candidate's card metadata (year/overview; poster_url is null → omitted)
+    // is carried into the follow body so the watch-list card can show it (OBJ3).
     expect(followMutate).toHaveBeenCalledWith(
-      { tvdb_id: 1, title: "Dune" },
+      { tvdb_id: 1, title: "Dune", overview: "Sur Arrakis.", year: 2021 },
       expect.anything(),
     );
   });
