@@ -76,3 +76,131 @@
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
 }
+
+/* ── Expressive motion (LOT A/B) ─────────────────────────────────────────────
+   Keyframes + utility classes for the living pipeline board, flow connectors
+   and the deck resolve flip. Durations/easings come from the `--motion-*` /
+   `--ease-*` tokens (spacing.css), so components apply a class and never a
+   literal duration. All are neutralised under `prefers-reduced-motion` by the
+   global reset in `ps/tokens/base.css`. Continuous-loop durations live here in
+   the DS motion layer (not in components). */
+@keyframes ps-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes ps-count-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes ps-shimmer {
+  from {
+    background-position: -160% 0;
+  }
+  to {
+    background-position: 260% 0;
+  }
+}
+@keyframes ps-flow {
+  to {
+    background-position: 16px 0;
+  }
+}
+@keyframes ps-flow-vertical {
+  to {
+    background-position: 0 16px;
+  }
+}
+@keyframes ps-resolve-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+/* Active station: a soft breathing pulse on its status dot. */
+.ps-pulse {
+  animation: ps-pulse-soft var(--motion-slow) var(--ease-in-out) infinite;
+}
+/* Count changed: a single scale pop. */
+.ps-count-pop {
+  animation: ps-count-pop var(--motion-base) var(--ease-out);
+}
+/* Running station: an ambre progress shimmer swept across the top edge. */
+.ps-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    var(--primary),
+    transparent
+  );
+  background-size: 55% 100%;
+  background-repeat: no-repeat;
+  animation: ps-shimmer 1.6s linear infinite;
+}
+/* Flow connector between a done and the active stage (horizontal). */
+.ps-flow-line {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--primary) 0 8px,
+    transparent 8px 16px
+  );
+  animation: ps-flow 0.7s linear infinite;
+}
+/* Flow connector, vertical (mobile stack). */
+.ps-flow-line-vertical {
+  background-image: repeating-linear-gradient(
+    180deg,
+    var(--primary) 0 8px,
+    transparent 8px 16px
+  );
+  animation: ps-flow-vertical 0.7s linear infinite;
+}
+/* Deck card leaving on a confident resolve. */
+.ps-resolve-out {
+  animation: ps-resolve-out var(--motion-slow) var(--ease-out) forwards;
+}
+/* New row arriving in a live list (EventFeed, RecentResolutions) — a gentle
+   fade + rise so freshly-pushed entries read as "just arrived" (C21). */
+@keyframes ps-enter-row {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ps-enter-row {
+  animation: ps-enter-row var(--motion-base) var(--ease-out);
+}
+
+/* Motion tokens honour the reduced-motion preference: collapse every DS
+   animation to an instant state change (C21 / prefers-reduced-motion). */
+@media (prefers-reduced-motion: reduce) {
+  .ps-pulse,
+  .ps-count-pop,
+  .ps-shimmer,
+  .ps-flow-line,
+  .ps-flow-line-vertical,
+  .ps-resolve-out,
+  .ps-enter-row {
+    animation: none;
+  }
+}

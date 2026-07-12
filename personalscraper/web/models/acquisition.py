@@ -6,7 +6,13 @@ models serve.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, model_validator
+from typing import Literal
+
+from pydantic import BaseModel, computed_field, model_validator
+
+#: Followed-series lifecycle status, derived server-side (C14) so the UI paints
+#: without re-deriving business state in JSX.
+FollowStatus = Literal["disabled", "pending", "up_to_date"]
 
 
 class MediaRefResponse(BaseModel):
@@ -41,6 +47,27 @@ class FollowedSeriesItem(BaseModel):
     # ``None`` when nothing is pending (the series is up to date).
     next_search_at: float | None = None
     cadence_tier: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def status(self) -> FollowStatus:
+        """Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).
+
+        Single server-side source of truth so the UI maps status → tone/label
+        without re-deriving business state in JSX:
+
+        - ``disabled``: the series is paused (not active).
+        - ``pending``: at least one wanted search is in flight.
+        - ``up_to_date``: active with nothing pending.
+
+        Returns:
+            The derived lifecycle status.
+        """
+        if not self.active:
+            return "disabled"
+        if self.wanted_pending > 0:
+            return "pending"
+        return "up_to_date"
 
 
 class FollowedResponse(BaseModel):

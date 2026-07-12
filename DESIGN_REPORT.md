@@ -64,3 +64,39 @@ PR #251 **squash-merged** → `main` (`82134341`); prod autodeployed it (`/api/v
 - **S-2** library density control.
 
 These are enhancement-level or data-blocked; none regress the shipped product. The operator's core grievance — card quality ("cards sans âme"), board readability, and the #3/Obsession-Ferrari state — is fixed and verified on prod.
+
+## 6. v2 polish pass (C1–C25) — `feat/webui-polish` (2026-07-13)
+
+A prescriptive second pass raised the interface to the brief's ambition and
+closed the §5 reliquats. 25 corrections across four lots; each with a
+`constat → fait → preuve` in `docs/analysis/2026-07-12-pr251-review.md`. Every
+lot pushed with full gates green (`tsc -b`, `vitest`, `npm run build`, `eslint`,
+`lint:ds` + new `lint:tokens`, backend `ruff`/`mypy`/`pytest`, OpenAPI drift).
+
+**Lot A — Flow Board vivant.** Motion-token scale (C1); expressive stations with
+attention/blocked washes + tonal counts + count-pop (C2); run-active shimmer +
+animated connectors (C3); temporal legends + `run_trigger` (C4, contract);
+impossible-to-miss pending-decisions banner (C5, closes P-6); DS states in the
+stage drawer (C6).
+
+**Lot B — Resolution Deck frictions.** Focus released after manual search + first
+result preselected (C7, on the enqueue nominal path — live-verified); resolve
+flip (C8, closes S-6); skip wrap + count (C9); scroll-into-view + live region
+(C10); mobile thumb bar + coarse-pointer hint hiding (C11, closes S-8).
+
+**Lot C — Acquisition cohérence & dette.** Monolith split to a 136-line shell +
+panels (C12); single add flow re-verified (C13); backend-derived follow `status`
+(C14, contract); scheduler-driven cron caption (C15); the follow card tells the
+whole story — search-now/toggle/cadence in place (C16).
+
+**Lot D — Bibliothèque, perf & transverse.** Adjustable density (C17, closes
+S-2/P-7); filter warning tone + ambiguous/enqueue jump the deck to their decision
+(C18, closes P-2/P-5; `decision_id` contract); `lint:tokens` DS guard (C19);
+board/deck a11y (C20); motion coherence + reduced-motion (C21); **`/locks` cold
+sweep decoupled to a background thread — locks <1 s, sweep skeleton** (C25,
+closes T-2, measured on a staging cold boot).
+
+**Still open after this pass:** the deck 20-in-2-min chrono + a live grab (need a
+writable prod queue of ambiguous decisions — post-merge); and two operator
+follow-ups filed 2026-07-12 for after this pass — the illegible mobile Scraping
+nav badge and route-ifying detail views so browser Back closes them.

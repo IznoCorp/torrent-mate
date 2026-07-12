@@ -9,9 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "lint:ds": "oxlint -c oxlintrc.json src",
+    "lint:ds": "oxlint -c oxlintrc.json src && npm run lint:tokens",
     "gen-api": "openapi-typescript openapi.json -o src/api/schema.d.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "lint:tokens": "bash scripts/lint-tokens.sh"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.1",

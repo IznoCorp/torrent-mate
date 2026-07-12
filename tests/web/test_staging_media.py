@@ -507,14 +507,17 @@ def test_enqueue_non_identified_creates_pending_decision(test_config, tmp_path: 
     assert body["ok"] is True
     assert body["media_kind"] == "movie"
     assert body["title"] == "Mystery Film"
+    # C18: the response carries the created decision id so the client can open
+    # the resolution deck positioned on it.
+    assert isinstance(body["decision_id"], int)
 
     conn = sqlite3.connect(str(db_path))
     row = conn.execute(
-        'SELECT media_kind, status, "trigger" FROM scrape_decision WHERE staging_path LIKE ?',
+        'SELECT id, media_kind, status, "trigger" FROM scrape_decision WHERE staging_path LIKE ?',
         ("%Mystery Film (2021)",),
     ).fetchone()
     conn.close()
-    assert row == ("movie", "pending", "manual")
+    assert row == (body["decision_id"], "movie", "pending", "manual")
 
 
 def test_enqueue_requires_x_requested_with(test_config, tmp_path: Path) -> None:

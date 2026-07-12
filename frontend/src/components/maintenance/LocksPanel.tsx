@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 
 // ---------------------------------------------------------------------------
@@ -96,7 +97,10 @@ export function LocksPanel(): ReactElement {
   const { data, isLoading, isError }: UseQueryResult<LocksResponse> = useQuery({
     queryKey: maintenanceKeys.locks,
     queryFn: getLocks,
-    refetchInterval: 10_000,
+    // C25: while the background disk sweep is pending, poll quickly so the
+    // orphans panel fills in as soon as it lands; back off to 10 s once ready.
+    refetchInterval: (query) =>
+      query.state.data?.sweep.status === "pending" ? 1_500 : 10_000,
     refetchOnWindowFocus: true,
   });
 
@@ -104,7 +108,9 @@ export function LocksPanel(): ReactElement {
 
   const lock = data?.pipeline_lock;
   const sentinels: Sentinels | undefined = data?.sentinels;
-  const orphans = data?.tmp_orphans ?? [];
+  const sweep = data?.sweep;
+  const sweepPending = sweep?.status === "pending";
+  const orphans = sweep?.orphans ?? [];
 
   const lockInfo = lock != null ? lockStatus(lock) : null;
 
@@ -160,8 +166,24 @@ export function LocksPanel(): ReactElement {
               </div>
             </div>
 
-            {/* Tmp orphans */}
+            {/* Tmp orphans — the disk sweep runs in the background (C25): while
+                it is pending only THIS panel shows a skeleton, the locks above
+                are already live. */}
             <div className="flex flex-col gap-1">
+              {sweepPending ? (
+                <>
+                  <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Orphelins tmp
+                    <span className="normal-case text-muted-foreground/70">
+                      analyse en cours…
+                    </span>
+                  </span>
+                  <div className="rounded-md border border-border bg-muted/30 p-2">
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </>
+              ) : (
+                <>
               <button
                 type="button"
                 onClick={() => {
@@ -197,6 +219,8 @@ export function LocksPanel(): ReactElement {
                     </ul>
                   )}
                 </div>
+              )}
+                </>
               )}
             </div>
           </>

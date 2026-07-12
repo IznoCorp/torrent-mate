@@ -1011,15 +1011,17 @@ export interface paths {
         };
         /**
          * Get Locks
-         * @description Return pipeline lock state, sentinels, and bounded tmp-orphan sweep.
+         * @description Return pipeline lock state, sentinels, and the tmp-orphan sweep state.
          *
-         *     Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused``
-         *     from the configured ``data_dir``, then performs a bounded filesystem
-         *     sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries
-         *     across staging and disk roots (capped at 100 entries, depth ≤ 2).
+         *     Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the
+         *     configured ``data_dir`` and returns them immediately. The bounded filesystem
+         *     sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at
+         *     100 entries, depth ≤ 2) runs on a background thread (C25): the response
+         *     carries ``sweep.status = "pending"`` on the cold first read and the cached
+         *     result thereafter, so ``/locks`` never blocks on the slow disk walk.
          *
          *     Returns:
-         *         A :class:`LocksResponse` with lock, sentinel, and orphan data.
+         *         A :class:`LocksResponse` with lock, sentinel, and sweep state.
          */
         get: operations["get_locks_api_maintenance_locks_get"];
         put?: never;
@@ -1932,8 +1934,13 @@ export interface components {
          *         ok: ``True`` when the item was enqueued as a pending scrape decision.
          *         media_kind: The kind of the enqueued item (``movie``/``tvshow``).
          *         title: The folder-derived title enqueued for resolution.
+         *         decision_id: The ``scrape_decision.id`` of the enqueued row, so the
+         *             client can open the resolution deck positioned on it (C18 — same
+         *             grammar as an ambiguous card). ``None`` if the id could not be read.
          */
         EnqueueDecisionResponse: {
+            /** Decision Id */
+            decision_id?: number | null;
             /**
              * Media Kind
              * @enum {string}
@@ -2042,6 +2049,22 @@ export interface components {
             } | null;
             /** Season Count */
             season_count?: number | null;
+            /**
+             * Status
+             * @description Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).
+             *
+             *     Single server-side source of truth so the UI maps status → tone/label
+             *     without re-deriving business state in JSX:
+             *
+             *     - ``disabled``: the series is paused (not active).
+             *     - ``pending``: at least one wanted search is in flight.
+             *     - ``up_to_date``: active with nothing pending.
+             *
+             *     Returns:
+             *         The derived lifecycle status.
+             * @enum {string}
+             */
+            readonly status: "disabled" | "pending" | "up_to_date";
             /** Title */
             title: string;
             /** Wanted Pending */
@@ -2243,14 +2266,13 @@ export interface components {
          *     Attributes:
          *         pipeline_lock: State of the main ``pipeline.lock`` file.
          *         sentinels: State of the pause and watcher-paused sentinels.
-         *         tmp_orphans: List of temporary orphan files or directories found
-         *             during a bounded sweep (capped at 100 entries).
+         *         sweep: The tmp-orphan sweep — its state and (when ready) the entries
+         *             found during a bounded background sweep (C25).
          */
         LocksResponse: {
             pipeline_lock: components["schemas"]["LockState"];
             sentinels: components["schemas"]["Sentinels"];
-            /** Tmp Orphans */
-            tmp_orphans: components["schemas"]["TmpOrphan"][];
+            sweep: components["schemas"]["TmpOrphanSweep"];
         };
         /**
          * LoginRequest
@@ -3001,9 +3023,13 @@ export interface components {
          *         run_state: Live pipeline run-state (``idle`` / ``running`` /
          *             ``paused``) — drives whether the active stage pulses.
          *         updated_at: Epoch seconds of the source run's start, or ``None``.
+         *         run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /
+         *             ``cron``), or ``None`` — lets the board caption its provenance.
          */
         StagesResponse: {
             run_state: components["schemas"]["PipelineState"];
+            /** Run Trigger */
+            run_trigger?: string | null;
             /** Run Uid */
             run_uid?: string | null;
             /** Stages */
@@ -3375,6 +3401,37 @@ export interface components {
             path: string;
             /** Prefix */
             prefix: string;
+        };
+        /**
+         * TmpOrphanSweep
+         * @description The tmp-orphan sweep state, decoupled from the fast lock read (C25).
+         *
+         *     The disk sweep walks slow macFUSE/NTFS roots (~31 s cold), so it runs in a
+         *     background thread instead of blocking ``GET /locks``. The route returns
+         *     ``status="pending"`` on the cold first read (the UI shows a skeleton on the
+         *     sweep panel only, then invalidates once the sweep lands) and serves cached
+         *     data — refreshing it in the background when stale — thereafter.
+         *
+         *     Attributes:
+         *         status: ``"pending"`` while the first background sweep runs and no
+         *             cached data exists yet; ``"ready"`` once ``orphans`` reflects a
+         *             completed sweep (fresh, or stale-while-revalidating).
+         *         orphans: The orphan entries (empty while pending; capped at 100).
+         *         age_s: Age in seconds of the sweep data when ready, else ``None``.
+         */
+        TmpOrphanSweep: {
+            /** Age S */
+            age_s?: number | null;
+            /**
+             * Orphans
+             * @default []
+             */
+            orphans: components["schemas"]["TmpOrphan"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "ready";
         };
         /**
          * UpdateFollowRequest

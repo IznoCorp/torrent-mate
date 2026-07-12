@@ -217,3 +217,17 @@ live; mobile via mobile-first class reads — the MCP window can't shrink below 
 read-only (writes 403) → write-flow correctness validated via unit/e2e + prod spot-check.
 
 **Deploy/verify loop:** push `feat/webui-overhaul` → `staging` per integrated lot → Chrome-verify.
+
+## Motion direction (v2 polish, C1)
+
+Motion is now a first-class part of the DS, not ad-hoc per component. A single
+scale lives in tokens — durations `--motion-fast/base/slow` (150/250/400 ms) and
+easings `--ease-out` / `--ease-in-out` — consumed only via `.ps-*` utility
+classes (`ps-pulse`, `ps-count-pop`, `ps-shimmer`, `ps-flow(-vertical)`,
+`ps-resolve-out`, `ps-enter-row`). Components apply a class, never a literal
+duration/easing (enforced in spirit by the `lint:tokens` guard for colours, and
+by review for motion). Motion is **meaningful, not decorative**: it signals state
+(active shimmer, count pop), progress (flow connectors during a run), resolution
+(deck flip), and arrival (new live-list rows) — and it always respects
+`prefers-reduced-motion` (all `.ps-*` collapse to none). The intent is a board
+and deck that feel _alive and legible_ at Linear/Plex level, never busy.

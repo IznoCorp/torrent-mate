@@ -51,13 +51,13 @@ function makeLocksResponse(
   overrides: Partial<{
     pipeline_lock: LocksResponse["pipeline_lock"];
     sentinels: LocksResponse["sentinels"];
-    tmp_orphans: LocksResponse["tmp_orphans"];
+    sweep: LocksResponse["sweep"];
   }> = {},
 ): LocksResponse {
   return {
     pipeline_lock: makeLockState(),
     sentinels: makeSentinels(),
-    tmp_orphans: [],
+    sweep: { status: "ready", orphans: [], age_s: 0 },
     ...overrides,
   };
 }
@@ -183,10 +183,18 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockResolvedValue(
       makeLocksResponse({
-        tmp_orphans: [
-          { path: "/tmp/_tmp_dispatch_abc", prefix: "_tmp_dispatch_", age_s: 300 },
-          { path: "/tmp/_tmp_ingest_xyz", prefix: "_tmp_ingest_", age_s: 600 },
-        ],
+        sweep: {
+          status: "ready",
+          age_s: 1,
+          orphans: [
+            {
+              path: "/tmp/_tmp_dispatch_abc",
+              prefix: "_tmp_dispatch_",
+              age_s: 300,
+            },
+            { path: "/tmp/_tmp_ingest_xyz", prefix: "_tmp_ingest_", age_s: 600 },
+          ],
+        },
       }),
     );
     renderPanel();
@@ -210,5 +218,19 @@ describe("LocksPanel", () => {
     const toggle = await screen.findByText("Orphelins tmp (0)");
     fireEvent.click(toggle);
     expect(screen.getByText("Aucun.")).toBeInTheDocument();
+  });
+
+  it("montre l'analyse en cours (skeleton) tant que le sweep est pending (C25)", async () => {
+    const fn = await mockGetLocks();
+    fn.mockResolvedValue(
+      makeLocksResponse({ sweep: { status: "pending", orphans: [] } }),
+    );
+    renderPanel();
+
+    // The locks header is present immediately; the orphans panel shows a
+    // pending caption instead of a count toggle.
+    expect(await screen.findByText("Pipeline lock")).toBeInTheDocument();
+    expect(screen.getByText("analyse en cours…")).toBeInTheDocument();
+    expect(screen.queryByText(/Orphelins tmp \(/)).not.toBeInTheDocument();
   });
 });

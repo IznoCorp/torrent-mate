@@ -57,6 +57,7 @@ from personalscraper.web.maintenance.models import (
     SchedulersResponse,
     Sentinels,
     TmpOrphan,
+    TmpOrphanSweep,
 )
 from personalscraper.web.maintenance.registry import (
     REGISTRY,
@@ -298,37 +299,72 @@ def _sweep_tmp_orphans(config: Config) -> list[TmpOrphan]:
 
 
 #: TTL for the tmp-orphan sweep cache. The sweep walks the storage disk roots
-#: (slow macFUSE/NTFS mounts — up to ~27 s), so caching it keeps GET /locks
-#: responsive: lock state + sentinels stay real-time, orphan data is at most
-#: this stale (a maintenance signal, not a live metric).
+#: (slow macFUSE/NTFS mounts — up to ~31 s), so its result is cached and the
+#: sweep itself runs OFF the request path (C25): lock state + sentinels stay
+#: real-time, orphan data is at most this stale (a maintenance signal, not a
+#: live metric).
 _ORPHAN_CACHE_TTL_S = 60.0
 _orphan_lock = threading.Lock()
-_orphan_cache: dict[str, object] = {"ts": 0.0, "data": []}
+_orphan_cache: dict[str, object] = {"ts": 0.0, "data": [], "computing": False}
 
 
-def _sweep_tmp_orphans_cached(config: Config) -> list[TmpOrphan]:
-    """Return the tmp-orphan sweep, cached for :data:`_ORPHAN_CACHE_TTL_S`.
+def _compute_sweep_bg(config: Config) -> None:
+    """Background worker: run the disk sweep and populate the cache (C25).
 
-    The lock is held across the scan so a burst of concurrent ``/locks`` calls
-    triggers exactly one disk walk (the rest wait, then read the fresh cache)
-    instead of a thundering herd of 27 s sweeps. A sync route runs in the
-    threadpool, so blocking here never stalls the event loop.
+    Runs on a daemon thread so the ~31 s macFUSE/NTFS walk never blocks the
+    ``GET /locks`` request path. Clears the ``computing`` flag on completion
+    (even on failure) so a later stale read can trigger a fresh sweep.
+
+    Args:
+        config: The application :class:`Config`.
+    """
+    try:
+        data = _sweep_tmp_orphans(config)
+    except Exception:
+        logger.warning("tmp_orphan_sweep_failed", exc_info=True)
+        data = []
+    with _orphan_lock:
+        _orphan_cache["data"] = data
+        _orphan_cache["ts"] = time.time()
+        _orphan_cache["computing"] = False
+
+
+def _sweep_state(config: Config) -> TmpOrphanSweep:
+    """Return the tmp-orphan sweep state, sweeping in the background (C25).
+
+    Never blocks the request: the cold first read (no cached data) returns
+    ``status="pending"`` and kicks off a background sweep; once data exists it
+    is served immediately (``status="ready"``) and refreshed in the background
+    when stale (stale-while-revalidate — no hot-cache regression).
 
     Args:
         config: The application :class:`Config`.
 
     Returns:
-        The (possibly cached) list of :class:`TmpOrphan` entries.
+        A :class:`TmpOrphanSweep` reflecting the current cache state.
     """
     now = time.time()
+    start_bg = False
     with _orphan_lock:
         ts = cast(float, _orphan_cache["ts"])
-        if ts > 0 and now - ts < _ORPHAN_CACHE_TTL_S:
-            return cast("list[TmpOrphan]", _orphan_cache["data"])
-        data = _sweep_tmp_orphans(config)
-        _orphan_cache["ts"] = time.time()
-        _orphan_cache["data"] = data
-        return data
+        data = cast("list[TmpOrphan]", _orphan_cache["data"])
+        fresh = ts > 0 and now - ts < _ORPHAN_CACHE_TTL_S
+        if not fresh and not cast(bool, _orphan_cache["computing"]):
+            _orphan_cache["computing"] = True
+            start_bg = True
+    # Spawn the worker OUTSIDE the lock so it can grab it on completion.
+    if start_bg:
+        threading.Thread(
+            target=_compute_sweep_bg,
+            args=(config,),
+            daemon=True,
+            name="tmp-orphan-sweep",
+        ).start()
+    if ts > 0:
+        # Serve the cached data (fresh, or stale while a refresh runs).
+        return TmpOrphanSweep(status="ready", orphans=data, age_s=now - ts)
+    # Never computed → skeleton on the sweep panel while the sweep runs.
+    return TmpOrphanSweep(status="pending")
 
 
 # ── GET /locks ────────────────────────────────────────────────────────────
@@ -338,15 +374,17 @@ def _sweep_tmp_orphans_cached(config: Config) -> list[TmpOrphan]:
 def get_locks(
     request: Request,
 ) -> LocksResponse:
-    """Return pipeline lock state, sentinels, and bounded tmp-orphan sweep.
+    """Return pipeline lock state, sentinels, and the tmp-orphan sweep state.
 
-    Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused``
-    from the configured ``data_dir``, then performs a bounded filesystem
-    sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries
-    across staging and disk roots (capped at 100 entries, depth ≤ 2).
+    Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the
+    configured ``data_dir`` and returns them immediately. The bounded filesystem
+    sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at
+    100 entries, depth ≤ 2) runs on a background thread (C25): the response
+    carries ``sweep.status = "pending"`` on the cold first read and the cached
+    result thereafter, so ``/locks`` never blocks on the slow disk walk.
 
     Returns:
-        A :class:`LocksResponse` with lock, sentinel, and orphan data.
+        A :class:`LocksResponse` with lock, sentinel, and sweep state.
     """
     data_dir = _data_dir(request)
     config = request.app.state.config
@@ -363,12 +401,10 @@ def get_locks(
         watcher_paused_age_s=watcher_age,
     )
 
-    tmp_orphans = _sweep_tmp_orphans_cached(config)
-
     return LocksResponse(
         pipeline_lock=lock_state,
         sentinels=sentinels,
-        tmp_orphans=tmp_orphans,
+        sweep=_sweep_state(config),
     )
 
 

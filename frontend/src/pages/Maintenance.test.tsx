@@ -43,7 +43,7 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
           pause: false,
           watcher_paused: false,
         },
-        tmp_orphans: [],
+        sweep: { status: "ready", orphans: [], age_s: 0 },
       }),
     );
   }

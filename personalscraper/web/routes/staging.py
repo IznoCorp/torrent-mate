@@ -364,7 +364,7 @@ def enqueue_staging_decision(media_id: str, request: Request) -> EnqueueDecision
 
     from personalscraper.scraper.decision_writer import DecisionWriter
 
-    DecisionWriter(db_path).upsert(
+    decision_id = DecisionWriter(db_path).upsert(
         staging_path=media_dir,
         media_kind=media_kind,
         extracted_title=title,
@@ -374,4 +374,9 @@ def enqueue_staging_decision(media_id: str, request: Request) -> EnqueueDecision
         run_uid=None,
     )
     logger.info("staging_enqueue_decision", media_id=media_id, title=title, media_kind=media_kind)
-    return EnqueueDecisionResponse(ok=True, media_kind=cast("StagingMediaKind", media_kind), title=title)
+    return EnqueueDecisionResponse(
+        ok=True,
+        media_kind=cast("StagingMediaKind", media_kind),
+        title=title,
+        decision_id=decision_id,
+    )

@@ -58,8 +58,12 @@ const SORT_OPTIONS: readonly {
 
 /** Props for {@link StagingLibrary}. */
 export interface StagingLibraryProps {
-  /** Invoked when the operator opens the resolution deck for an ambiguous media. */
-  readonly onOpenResolution?: () => void;
+  /**
+   * Invoked when the operator sends a media to the resolution deck. Receives the
+   * ``scrape_decision.id`` to open on (C18) — the ambiguous card's own
+   * ``decision_id`` or the id returned by enqueuing a non-identified item.
+   */
+  readonly onOpenResolution?: (decisionId?: number) => void;
 }
 
 /** A grid of skeleton poster cards shown while the first page loads. */
@@ -94,6 +98,17 @@ export function StagingLibrary({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // C17: comfortable (default) vs compact grid density.
+  const [density, setDensity] = useState<"comfortable" | "compact">(
+    "comfortable",
+  );
+
+  // Compact packs more columns and drops the overview (via MediaCard density);
+  // comfortable keeps the roomy 2→5 grid. No per-card overrides (C17).
+  const gridClass =
+    density === "compact"
+      ? "grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7"
+      : "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
 
   const params = useMemo<StagingMediaParams>(() => {
     const p: StagingMediaParams = { sort, page, page_size: PAGE_SIZE };
@@ -139,24 +154,52 @@ export function StagingLibrary({
               resetTo(setSearch, e.target.value);
             }}
           />
-          <div
-            className="ml-auto flex items-center gap-1 rounded-md border border-border p-0.5"
-            role="group"
-            aria-label="Trier"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <Button
-                key={opt.value}
-                type="button"
-                size="sm"
-                variant={sort === opt.value ? "default" : "ghost"}
-                onClick={() => {
-                  resetTo(setSort, opt.value);
-                }}
-              >
-                {opt.label}
-              </Button>
-            ))}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Density toggle (C17) — comfortable vs compact grid. */}
+            <div
+              className="flex items-center gap-1 rounded-md border border-border p-0.5"
+              role="group"
+              aria-label="Densité d'affichage"
+            >
+              {(
+                [
+                  { value: "comfortable", label: "Confortable" },
+                  { value: "compact", label: "Compact" },
+                ] as const
+              ).map((opt) => (
+                <Button
+                  key={opt.value}
+                  type="button"
+                  size="sm"
+                  variant={density === opt.value ? "default" : "ghost"}
+                  aria-pressed={density === opt.value}
+                  onClick={() => {
+                    setDensity(opt.value);
+                  }}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+            <div
+              className="flex items-center gap-1 rounded-md border border-border p-0.5"
+              role="group"
+              aria-label="Trier"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <Button
+                  key={opt.value}
+                  type="button"
+                  size="sm"
+                  variant={sort === opt.value ? "default" : "ghost"}
+                  onClick={() => {
+                    resetTo(setSort, opt.value);
+                  }}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -168,6 +211,15 @@ export function StagingLibrary({
           {MATCH_FILTERS.map((filter) => {
             const active = match === filter.value;
             const count = chipCount(filter.value);
+            // C18: an idle "À résoudre" chip with a non-zero count wears the
+            // warning tone so pending ambiguities call for attention.
+            const pendingAmbiguous =
+              filter.value === "ambiguous" && (count ?? 0) > 0;
+            const tone = active
+              ? "solid"
+              : pendingAmbiguous
+                ? "warning"
+                : "outline";
             return (
               <button
                 key={filter.value}
@@ -177,10 +229,7 @@ export function StagingLibrary({
                   resetTo(setMatch, filter.value);
                 }}
               >
-                <Badge
-                  tone={active ? "solid" : "outline"}
-                  className="cursor-pointer"
-                >
+                <Badge tone={tone} className="cursor-pointer">
                   {filter.label}
                   {count !== undefined && (
                     <span className="ml-1 opacity-70">({count})</span>
@@ -217,7 +266,7 @@ export function StagingLibrary({
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className={gridClass}>
             {items.map((item) => {
               const badge = matchBadge(item.match);
               const kind = posterKind(item.media_kind);
@@ -230,6 +279,7 @@ export function StagingLibrary({
                   posterUrl={item.poster_url ?? null}
                   {...(kind !== undefined ? { kind } : {})}
                   overview={item.overview ?? null}
+                  density={density}
                   onOpen={() => {
                     setSelectedId(item.id);
                   }}

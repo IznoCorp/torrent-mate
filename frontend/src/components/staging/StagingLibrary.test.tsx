@@ -120,11 +120,49 @@ describe("StagingLibrary", () => {
     );
   });
 
+  it("gives the 'À résoudre' chip a warning tone when ambiguities are pending (C18)", () => {
+    stagingMock.mockReturnValue({
+      data: response([
+        item({ id: "amb1", title: "Ambiguous One", match: "ambiguous" }),
+      ]),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderLib();
+    // Both the filter chip and the ambiguous card carry "À résoudre"; the chip
+    // is the one with aria-pressed.
+    const chip = screen
+      .getAllByRole("button", { name: /À résoudre/ })
+      .find((b) => b.hasAttribute("aria-pressed"));
+    // The Badge wears the warning tone (its DS class references --warning).
+    expect(chip?.querySelector("span")?.className).toMatch(/--warning/);
+  });
+
   it("toggles a match filter chip to pressed", () => {
     renderLib();
     const chip = screen.getByRole("button", { name: /Non identifiés/ });
     fireEvent.click(chip);
     expect(chip).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("hides overviews when switched to compact density (C17)", () => {
+    renderLib();
+    // Comfortable by default → overviews are visible.
+    expect(
+      screen.getAllByText("An insomniac forms a club.").length,
+    ).toBeGreaterThan(0);
+    // Switching to Compact drops the overviews (denser grid).
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
+    expect(
+      screen.queryAllByText("An insomniac forms a club."),
+    ).toHaveLength(0);
+    // And back to Confortable restores them.
+    fireEvent.click(screen.getByRole("button", { name: "Confortable" }));
+    expect(
+      screen.getAllByText("An insomniac forms a club.").length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows a loading skeleton grid", () => {

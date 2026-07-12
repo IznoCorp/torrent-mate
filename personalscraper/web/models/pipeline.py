@@ -310,9 +310,12 @@ class StagesResponse(BaseModel):
         run_state: Live pipeline run-state (``idle`` / ``running`` /
             ``paused``) — drives whether the active stage pulses.
         updated_at: Epoch seconds of the source run's start, or ``None``.
+        run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /
+            ``cron``), or ``None`` — lets the board caption its provenance.
     """
 
     stages: list[PipelineStage]
     run_uid: str | None = None
     run_state: PipelineState
     updated_at: float | None = None
+    run_trigger: str | None = None

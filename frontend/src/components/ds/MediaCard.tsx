@@ -23,6 +23,12 @@ export interface MediaCardProps {
   readonly selected?: boolean;
   /** When given, the poster+meta region becomes a button firing this. */
   readonly onOpen?: () => void;
+  /**
+   * Layout density (C17). ``"compact"`` tightens the meta padding and hides the
+   * overview so more cards fit per row; ``"comfortable"`` (default) keeps the
+   * full card. The grid column count is the caller's responsibility.
+   */
+  readonly density?: "comfortable" | "compact";
 }
 
 /**
@@ -54,7 +60,9 @@ export function MediaCard({
   footer,
   selected = false,
   onOpen,
+  density = "comfortable",
 }: MediaCardProps): ReactElement {
+  const isCompact = density === "compact";
   const meta = (
     <>
       <MediaPoster
@@ -62,7 +70,7 @@ export function MediaCard({
         src={posterUrl ?? null}
         {...(kind !== undefined ? { kind } : {})}
       />
-      <div className="flex flex-col gap-1 p-3">
+      <div className={cn("flex flex-col gap-1", isCompact ? "p-2" : "p-3")}>
         <div className="flex items-baseline justify-between gap-2">
           <span className="line-clamp-2 text-sm font-medium">{title}</span>
           {year != null && (
@@ -74,7 +82,8 @@ export function MediaCard({
         {badges !== undefined && (
           <div className="flex flex-wrap items-center gap-1">{badges}</div>
         )}
-        {overview != null && overview !== "" && (
+        {/* Compact hides the overview so more cards fit per row (C17). */}
+        {!isCompact && overview != null && overview !== "" && (
           <p className="line-clamp-3 text-xs text-muted-foreground">
             {overview}
           </p>

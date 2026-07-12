@@ -38,6 +38,8 @@ const useEventStreamContextMock = vi.fn((): { events: EventMessage[] } => ({
   events: [],
 }));
 
+const useSchedulersMock = vi.fn();
+
 const setWatcherMock = vi.fn();
 
 vi.mock("@/hooks/useAcquisition", () => ({
@@ -65,6 +67,11 @@ vi.mock("@/hooks/useEventStreamContext", () => ({
   useEventStreamContext: () => useEventStreamContextMock(),
 }));
 
+vi.mock("@/hooks/useSchedulers", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useSchedulers: () => useSchedulersMock(),
+}));
+
 vi.mock("@/api/client", async () => {
   const actual = await vi.importActual("@/api/client");
   return {
@@ -82,7 +89,7 @@ import AcquisitionPage from "@/pages/AcquisitionPage";
 
 /** A single followed-series item matching FollowedSeriesItem shape. */
 function makeFollowed(overrides: Record<string, unknown> = {}) {
-  return {
+  const merged = {
     id: 1,
     title: "Top Chef",
     active: true,
@@ -93,6 +100,14 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
     media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
     ...overrides,
   };
+  // Mirror the backend-derived status (C14) so the fixture matches the real
+  // response shape; an explicit `status` override still wins.
+  const status = !merged.active
+    ? "disabled"
+    : merged.wanted_pending > 0
+      ? "pending"
+      : "up_to_date";
+  return { status, ...merged };
 }
 
 /** A single wanted item matching WantedItemResponse shape. */
@@ -178,6 +193,22 @@ function mockAllEmpty(): void {
     },
     error: null,
   });
+  // Default: the grab scheduler is present with its live schedule (C15).
+  useSchedulersMock.mockReturnValue({
+    data: {
+      schedulers: [
+        {
+          name: "personalscraper-grab",
+          display_name: "Récupération (grab)",
+          kind: "cron",
+          schedule: "Tous les jours à 03:20 et 15:20",
+          enabled: true,
+          last_run_at: null,
+          last_outcome: null,
+        },
+      ],
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -201,9 +232,7 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Suivis" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("tab", { name: "Recherches" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Recherches" })).toBeInTheDocument();
     expect(
       screen.getByRole("tab", { name: "Obligations" }),
     ).toBeInTheDocument();
@@ -218,9 +247,7 @@ describe("AcquisitionPage", () => {
       "aria-selected",
       "true",
     );
-    expect(
-      screen.getByText(/aucune série suivie/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune série suivie/i)).toBeInTheDocument();
   });
 
   it("switches to the Wanted panel when clicking the Recherches tab", async () => {
@@ -263,9 +290,7 @@ describe("AcquisitionPage", () => {
       "aria-selected",
       "true",
     );
-    expect(
-      await screen.findByText(/état du watcher/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/état du watcher/i)).toBeInTheDocument();
   });
 
   // ── Followed panel — table ──────────────────────────────────────────────
@@ -307,7 +332,79 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
   });
 
-  it("shows a per-series 'Déclencher' trigger, disabled for an inactive series", () => {
+  it("maps the backend-derived status verbatim without re-deriving it (C14)", () => {
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [
+          // Contradictory flags on purpose: the raw active/pending would read
+          // as "En cours", but the backend-derived status says up_to_date. The
+          // UI must trust `status` (no JSX derivation) → "À jour".
+          makeFollowed({
+            id: 1,
+            title: "Top Chef",
+            active: true,
+            wanted_pending: 4,
+            status: "up_to_date",
+          }),
+        ],
+      },
+      error: null,
+    });
+    renderPage();
+
+    expect(screen.getByText("À jour")).toBeInTheDocument();
+    expect(screen.queryByText("En cours")).not.toBeInTheDocument();
+  });
+
+  it("builds the automatic-search caption from the live grab scheduler (C15)", () => {
+    mockAllEmpty();
+    useSchedulersMock.mockReturnValue({
+      data: {
+        schedulers: [
+          {
+            name: "personalscraper-grab",
+            display_name: "Récupération (grab)",
+            kind: "cron",
+            schedule: "Le lundi à 09:00",
+            enabled: true,
+            last_run_at: null,
+            last_outcome: null,
+          },
+        ],
+      },
+    });
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [makeFollowed({ id: 1 })] },
+      error: null,
+    });
+    renderPage();
+
+    // The caption reflects the scheduler's live schedule, not a hardcoded one.
+    expect(
+      screen.getByText(/Recherche automatique : Le lundi à 09:00\./),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the automatic-search caption when the grab scheduler is absent (C15)", () => {
+    mockAllEmpty();
+    useSchedulersMock.mockReturnValue({ data: { schedulers: [] } });
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [makeFollowed({ id: 1 })] },
+      error: null,
+    });
+    renderPage();
+
+    expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
+  });
+
+  it("shows a per-series 'Rechercher maintenant' action, disabled for an inactive series", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -322,11 +419,37 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    const triggers = screen.getAllByRole("button", { name: "Déclencher" });
+    const triggers = screen.getAllByRole("button", {
+      name: "Rechercher maintenant",
+    });
     expect(triggers).toHaveLength(2);
     // Active series → enabled; inactive → disabled (can't grab a paused series).
     expect(triggers[0]).not.toBeDisabled();
     expect(triggers[1]).toBeDisabled();
+  });
+
+  it("toggles a followed series active/paused in place via updateFollow (C16)", () => {
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [makeFollowed({ id: 7, title: "Top Chef", active: true })],
+      },
+      error: null,
+    });
+    renderPage();
+
+    // The active toggle carries an accessible label reflecting the next action.
+    const toggle = screen.getByRole("switch", {
+      name: /Désactiver le suivi de Top Chef/,
+    });
+    expect(toggle).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(updateFollowMutateFn).toHaveBeenCalledWith({
+      id: 7,
+      body: { active: false },
+    });
   });
 
   it("surfaces a followed-query error instead of the empty state", () => {
@@ -370,14 +493,22 @@ describe("AcquisitionPage", () => {
       isLoading: false,
       isError: false,
       data: {
-        items: [makeFollowed({ active: true, next_search_at: soon, cadence_tier: "warm" })],
+        items: [
+          makeFollowed({
+            active: true,
+            next_search_at: soon,
+            cadence_tier: "warm",
+          }),
+        ],
       },
       error: null,
     });
     renderPage();
 
     // Next-search caption rendered with a relative "dans ~N h" estimate.
-    expect(screen.getByText(/Prochaine recherche dans ~3\s?h/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Prochaine recherche dans ~3\s?h/),
+    ).toBeInTheDocument();
   });
 
   it('shows "Personnalisé" badge when quality_profile is set', () => {
@@ -420,19 +551,21 @@ describe("AcquisitionPage", () => {
     renderPage();
     // The manual add-by-ID form is a collapsed accordion (secondary to the
     // primary title search) — expand it before asserting its inputs.
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     expect(screen.getByLabelText("ID TVDB")).toBeInTheDocument();
     expect(screen.getByLabelText(/titre/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Suivre" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeInTheDocument();
   });
 
   it("calls useFollow().mutate on form submit", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     fireEvent.change(screen.getByLabelText("ID TVDB"), {
       target: { value: "255968" },
@@ -454,7 +587,9 @@ describe("AcquisitionPage", () => {
   it("disables the Follow button when tvdb_id is empty", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
   });
@@ -627,12 +762,8 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
 
-    expect(
-      screen.getByRole("button", { name: "← Précédent" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Suivant →" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "← Précédent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Suivant →" })).toBeDisabled();
   });
 
   it("calls useWanted with status filter when changed", async () => {
@@ -751,9 +882,7 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByText("Jamais")).toBeInTheDocument();
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
-    expect(
-      screen.getByText(/aucune exécution récente/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune exécution récente/i)).toBeInTheDocument();
   });
 
   it("renders recent watcher runs in a table", () => {
@@ -796,9 +925,7 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
 
-    expect(
-      screen.getByText(/aucune recherche en file/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune recherche en file/i)).toBeInTheDocument();
   });
 
   it("shows empty state for obligations panel when no items", () => {
@@ -806,9 +933,7 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
 
-    expect(
-      screen.getByText(/aucune obligation de seed/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/aucune obligation de seed/i)).toBeInTheDocument();
   });
 
   // ── Error states ────────────────────────────────────────────────────────
@@ -993,14 +1118,16 @@ describe("AcquisitionPage", () => {
     // its actions render.
     expect(screen.getByText("Carded Show")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Déclencher" }),
+      screen.getByRole("button", { name: "Rechercher maintenant" }),
     ).toBeInTheDocument();
   });
 
   it("add form inputs have associated labels", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Ajouter par ID TVDB/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+    );
 
     const tvdbInput = screen.getByLabelText("ID TVDB");
     expect(tvdbInput).toBeInTheDocument();

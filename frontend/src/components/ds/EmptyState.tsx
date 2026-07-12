@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 /** Props for {@link EmptyState}. */
 export interface EmptyStateProps {
   /** Optional lucide icon shown above the title. */
@@ -11,6 +13,8 @@ export interface EmptyStateProps {
   readonly description?: string;
   /** Optional primary action (e.g. a Button). */
   readonly action?: ReactNode;
+  /** Tighter padding + smaller icon for in-drawer / in-panel use. */
+  readonly compact?: boolean;
 }
 
 /**
@@ -34,11 +38,23 @@ export function EmptyState({
   title,
   description,
   action,
+  compact = false,
 }: EmptyStateProps): ReactElement {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-8 text-center">
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-center",
+        compact ? "p-4" : "p-8",
+      )}
+    >
       {Icon !== undefined && (
-        <Icon className="size-8 text-muted-foreground" aria-hidden="true" />
+        <Icon
+          className={cn(
+            "text-muted-foreground",
+            compact ? "size-5" : "size-8",
+          )}
+          aria-hidden="true"
+        />
       )}
       <p className="text-sm font-medium">{title}</p>
       {description !== undefined && (

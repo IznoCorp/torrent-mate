@@ -269,6 +269,8 @@ class TestFollowedEndpoint:
         assert item_a["media_ref"]["tmdb_id"] == 1001
         assert item_a["wanted_pending"] == 2  # pending + searching
         assert item_a["added_at"] > 0
+        # C14: status is derived server-side (active + pending → "pending").
+        assert item_a["status"] == "pending"
 
         # Inactive item must NOT be present.
         ids = {it["id"] for it in items}

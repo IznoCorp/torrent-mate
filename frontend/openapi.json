@@ -631,8 +631,19 @@
         "type": "object"
       },
       "EnqueueDecisionResponse": {
-        "description": "Response body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    ok: ``True`` when the item was enqueued as a pending scrape decision.\n    media_kind: The kind of the enqueued item (``movie``/``tvshow``).\n    title: The folder-derived title enqueued for resolution.",
+        "description": "Response body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    ok: ``True`` when the item was enqueued as a pending scrape decision.\n    media_kind: The kind of the enqueued item (``movie``/``tvshow``).\n    title: The folder-derived title enqueued for resolution.\n    decision_id: The ``scrape_decision.id`` of the enqueued row, so the\n        client can open the resolution deck positioned on it (C18 \u2014 same\n        grammar as an ambiguous card). ``None`` if the id could not be read.",
         "properties": {
+          "decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
           "media_kind": {
             "enum": [
               "movie",
@@ -875,6 +886,17 @@
             ],
             "title": "Season Count"
           },
+          "status": {
+            "description": "Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX:\n\n- ``disabled``: the series is paused (not active).\n- ``pending``: at least one wanted search is in flight.\n- ``up_to_date``: active with nothing pending.\n\nReturns:\n    The derived lifecycle status.",
+            "enum": [
+              "disabled",
+              "pending",
+              "up_to_date"
+            ],
+            "readOnly": true,
+            "title": "Status",
+            "type": "string"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -901,7 +923,8 @@
           "media_ref",
           "active",
           "added_at",
-          "wanted_pending"
+          "wanted_pending",
+          "status"
         ],
         "title": "FollowedSeriesItem",
         "type": "object"
@@ -1182,7 +1205,7 @@
         "type": "object"
       },
       "LocksResponse": {
-        "description": "Top-level response for the locks and orphans monitoring panel.\n\nAttributes:\n    pipeline_lock: State of the main ``pipeline.lock`` file.\n    sentinels: State of the pause and watcher-paused sentinels.\n    tmp_orphans: List of temporary orphan files or directories found\n        during a bounded sweep (capped at 100 entries).",
+        "description": "Top-level response for the locks and orphans monitoring panel.\n\nAttributes:\n    pipeline_lock: State of the main ``pipeline.lock`` file.\n    sentinels: State of the pause and watcher-paused sentinels.\n    sweep: The tmp-orphan sweep \u2014 its state and (when ready) the entries\n        found during a bounded background sweep (C25).",
         "properties": {
           "pipeline_lock": {
             "$ref": "#/components/schemas/LockState"
@@ -1190,18 +1213,14 @@
           "sentinels": {
             "$ref": "#/components/schemas/Sentinels"
           },
-          "tmp_orphans": {
-            "items": {
-              "$ref": "#/components/schemas/TmpOrphan"
-            },
-            "title": "Tmp Orphans",
-            "type": "array"
+          "sweep": {
+            "$ref": "#/components/schemas/TmpOrphanSweep"
           }
         },
         "required": [
           "pipeline_lock",
           "sentinels",
-          "tmp_orphans"
+          "sweep"
         ],
         "title": "LocksResponse",
         "type": "object"
@@ -2352,10 +2371,21 @@
         "type": "object"
       },
       "StagesResponse": {
-        "description": "Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).\n\nAggregates the last pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the\nlive run state so the board can pulse the active stage.\n\nAttributes:\n    stages: The nine stages in board (left-to-right flow) order.\n    run_uid: The run these counts are sourced from, or ``None`` when no\n        pipeline run has ever been recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the source run's start, or ``None``.",
+        "description": "Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).\n\nAggregates the last pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the\nlive run state so the board can pulse the active stage.\n\nAttributes:\n    stages: The nine stages in board (left-to-right flow) order.\n    run_uid: The run these counts are sourced from, or ``None`` when no\n        pipeline run has ever been recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the source run's start, or ``None``.\n    run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /\n        ``cron``), or ``None`` \u2014 lets the board caption its provenance.",
         "properties": {
           "run_state": {
             "$ref": "#/components/schemas/PipelineState"
+          },
+          "run_trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Trigger"
           },
           "run_uid": {
             "anyOf": [
@@ -2962,6 +2992,43 @@
           "age_s"
         ],
         "title": "TmpOrphan",
+        "type": "object"
+      },
+      "TmpOrphanSweep": {
+        "description": "The tmp-orphan sweep state, decoupled from the fast lock read (C25).\n\nThe disk sweep walks slow macFUSE/NTFS roots (~31 s cold), so it runs in a\nbackground thread instead of blocking ``GET /locks``. The route returns\n``status=\"pending\"`` on the cold first read (the UI shows a skeleton on the\nsweep panel only, then invalidates once the sweep lands) and serves cached\ndata \u2014 refreshing it in the background when stale \u2014 thereafter.\n\nAttributes:\n    status: ``\"pending\"`` while the first background sweep runs and no\n        cached data exists yet; ``\"ready\"`` once ``orphans`` reflects a\n        completed sweep (fresh, or stale-while-revalidating).\n    orphans: The orphan entries (empty while pending; capped at 100).\n    age_s: Age in seconds of the sweep data when ready, else ``None``.",
+        "properties": {
+          "age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age S"
+          },
+          "orphans": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TmpOrphan"
+            },
+            "title": "Orphans",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TmpOrphanSweep",
         "type": "object"
       },
       "UpdateFollowRequest": {
@@ -4437,7 +4504,7 @@
     },
     "/api/maintenance/locks": {
       "get": {
-        "description": "Return pipeline lock state, sentinels, and bounded tmp-orphan sweep.\n\nReads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused``\nfrom the configured ``data_dir``, then performs a bounded filesystem\nsweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries\nacross staging and disk roots (capped at 100 entries, depth \u2264 2).\n\nReturns:\n    A :class:`LocksResponse` with lock, sentinel, and orphan data.",
+        "description": "Return pipeline lock state, sentinels, and the tmp-orphan sweep state.\n\nReads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the\nconfigured ``data_dir`` and returns them immediately. The bounded filesystem\nsweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at\n100 entries, depth \u2264 2) runs on a background thread (C25): the response\ncarries ``sweep.status = \"pending\"`` on the cold first read and the cached\nresult thereafter, so ``/locks`` never blocks on the slow disk walk.\n\nReturns:\n    A :class:`LocksResponse` with lock, sentinel, and sweep state.",
         "operationId": "get_locks_api_maintenance_locks_get",
         "responses": {
           "200": {

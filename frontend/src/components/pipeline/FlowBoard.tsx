@@ -33,6 +33,7 @@ import {
   type StageState,
 } from "@/components/ds/StageStation";
 import { StatusBadge, type StatusTone } from "@/components/ds/StatusBadge";
+import { triggerLabel } from "@/components/pipeline/triggers";
 import {
   StageMediaList,
   type StageKey,
@@ -97,6 +98,30 @@ const RUN_STATE_BADGE: Record<
   running: { tone: "info", label: "En cours" },
   paused: { tone: "warning", label: "En pause" },
 };
+
+/** Relative "il y a …" label for a past epoch-seconds instant. */
+function agoLabel(epochSec: number): string {
+  const mins = Math.max(0, Math.round(Date.now() / 1000 - epochSec) / 60);
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return `il y a ${String(Math.round(mins))} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `il y a ${String(hours)} h`;
+  return `il y a ${String(Math.round(hours / 24))} j`;
+}
+
+/** The board's run-provenance caption ("Run en cours" / "Dernier run · …").
+ *  The trigger label reuses the canonical {@link triggerLabel} map. */
+function runCaption(
+  data: StagesResponse | undefined,
+  running: boolean,
+): string {
+  if (running) return "Run en cours";
+  if (data?.updated_at == null) return "Aucun run enregistré";
+  const trig = data.run_trigger
+    ? ` · déclenché par ${triggerLabel(data.run_trigger).toLowerCase()}`
+    : "";
+  return `Dernier run · ${agoLabel(data.updated_at)}${trig}`;
+}
 
 /** Map an API stage's split to the {@link StageStation} split prop shape. */
 function toStationSplit(
@@ -180,12 +205,23 @@ export function FlowBoard(): ReactElement {
     : RUN_STATE_BADGE.idle;
   const selected = stages.find((s) => s.key === selectedKey) ?? null;
 
+  // Run context drives the connectors + station shimmer: during a run, the
+  // connector entering the active stage animates (flow), passed connectors are
+  // solid ambre, later ones stay neutral. At rest the board is calm.
+  const running = data?.run_state === "running";
+  const activeIndex = stages.findIndex((s) => s.state === "active");
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Flux du pipeline
-        </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Flux du pipeline
+          </h2>
+          <span className="text-[length:var(--text-2xs)] text-muted-foreground/80">
+            {runCaption(data, running)}
+          </span>
+        </div>
         <StatusBadge tone={runBadge.tone} label={runBadge.label} />
       </div>
 
@@ -195,27 +231,69 @@ export function FlowBoard(): ReactElement {
         {stages.map((stage, i) => {
           const split = toStationSplit(stage.split);
           const icon = STAGE_ICON[stage.key];
+          // A step-derived station shows the last run's throughput; matching
+          // shows the live pending stock. Surface which, on non-empty stations.
+          const timeframe =
+            stage.count > 0
+              ? stage.key === "matching"
+                ? "en attente"
+                : "dernier run"
+              : undefined;
+          const conn: "flow" | "done" | "todo" =
+            running && activeIndex >= 0
+              ? i + 1 === activeIndex
+                ? "flow"
+                : i + 1 < activeIndex
+                  ? "done"
+                  : "todo"
+              : "todo";
           return (
             <Fragment key={stage.key}>
               <StageStation
                 label={stage.label}
                 count={stage.count}
                 state={stage.state}
+                blocked={stage.blocked}
                 onClick={() => {
                   setSelectedKey(stage.key);
                 }}
+                {...(timeframe !== undefined ? { timeframe } : {})}
                 {...(icon !== undefined ? { icon } : {})}
                 {...(split !== null ? { split } : {})}
               />
-              {/* Connector chevron only makes sense in the horizontal (sm+) flow. */}
-              {i < stages.length - 1 && (
-                <div
-                  className="hidden shrink-0 items-center self-center text-muted-foreground/50 sm:flex"
-                  aria-hidden="true"
-                >
-                  <ChevronRight className="size-4" />
-                </div>
-              )}
+              {i < stages.length - 1 &&
+                (running ? (
+                  // During a run: a flow rail (vertical on mobile, horizontal on sm+).
+                  <div
+                    className="flex shrink-0 items-center justify-center self-center py-0.5 sm:py-0"
+                    aria-hidden="true"
+                  >
+                    {conn === "flow" ? (
+                      <>
+                        <span className="ps-flow-line-vertical h-4 w-0.5 rounded-full sm:hidden" />
+                        <span className="ps-flow-line hidden h-0.5 w-6 rounded-full sm:block" />
+                      </>
+                    ) : conn === "done" ? (
+                      <>
+                        <span className="h-4 w-0.5 rounded-full bg-primary/50 sm:hidden" />
+                        <span className="hidden h-0.5 w-6 rounded-full bg-primary/50 sm:block" />
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-4 w-0.5 rounded-full bg-border sm:hidden" />
+                        <ChevronRight className="hidden size-4 text-muted-foreground/40 sm:block" />
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  // At rest: a subtle chevron on the horizontal (sm+) flow only.
+                  <div
+                    className="hidden shrink-0 items-center self-center text-muted-foreground/40 sm:flex"
+                    aria-hidden="true"
+                  >
+                    <ChevronRight className="size-4" />
+                  </div>
+                ))}
             </Fragment>
           );
         })}

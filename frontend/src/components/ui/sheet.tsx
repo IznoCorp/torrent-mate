@@ -97,7 +97,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 pt-[env(safe-area-inset-top)] shadow-lg transition duration-300 ease-in-out",
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 pt-[env(safe-area-inset-top)] shadow-lg transition duration-[var(--motion-base)] ease-[var(--ease-in-out)]",
           SHEET_SIDE_CLASSES[side],
           className,
         )}
