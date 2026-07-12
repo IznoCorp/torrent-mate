@@ -28,6 +28,13 @@ class FollowedSeriesItem(BaseModel):
     added_at: float  # epoch seconds
     wanted_pending: int  # COUNT from wanted table
     quality_profile: dict[str, object] | None = None  # read-only, parsed from quality_profile_json
+    # Card display metadata (webui-overhaul OBJ3): cached at follow time from the
+    # search candidate (poster_url = remote provider image URL); year + season_count
+    # additionally backfilled from the indexer when absent. All nullable.
+    poster_url: str | None = None
+    overview: str | None = None
+    year: int | None = None
+    season_count: int | None = None
 
 
 class FollowedResponse(BaseModel):
@@ -153,6 +160,10 @@ class CreateFollowRequest(BaseModel):
     tmdb_id: int | None = None
     imdb_id: str | None = None
     title: str | None = None
+    # Optional card metadata captured from the add-by-search candidate (OBJ3).
+    poster_url: str | None = None
+    overview: str | None = None
+    year: int | None = None
 
     @model_validator(mode="after")
     def _at_least_one_id(self) -> "CreateFollowRequest":

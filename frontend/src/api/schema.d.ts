@@ -1683,12 +1683,18 @@ export interface components {
         CreateFollowRequest: {
             /** Imdb Id */
             imdb_id?: string | null;
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
             /** Title */
             title?: string | null;
             /** Tmdb Id */
             tmdb_id?: number | null;
             /** Tvdb Id */
             tvdb_id?: number | null;
+            /** Year */
+            year?: number | null;
         };
         /**
          * DecisionCandidate
@@ -1964,14 +1970,22 @@ export interface components {
             /** Id */
             id: number;
             media_ref: components["schemas"]["MediaRefResponse"];
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
             /** Quality Profile */
             quality_profile?: {
                 [key: string]: unknown;
             } | null;
+            /** Season Count */
+            season_count?: number | null;
             /** Title */
             title: string;
             /** Wanted Pending */
             wanted_pending: number;
+            /** Year */
+            year?: number | null;
         };
         /**
          * GrabTriggerResponse

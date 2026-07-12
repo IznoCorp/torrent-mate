@@ -228,6 +228,34 @@ class TestCreateFollow:
         acquire_path = tmp_path / "acquire.db"
         _assert_row_active(acquire_path, data["id"], True)
 
+    def test_create_captures_card_metadata(self, client: TestClient, tmp_path: Path) -> None:
+        """poster_url/overview/year from the search candidate are stored + echoed (OBJ3)."""
+        resp = client.post(
+            "/api/acquisition/followed",
+            json={
+                "tvdb_id": 777,
+                "title": "Rich Show",
+                "poster_url": "https://img.example/poster.jpg",
+                "overview": "A great series.",
+                "year": 2021,
+            },
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["poster_url"] == "https://img.example/poster.jpg"
+        assert data["overview"] == "A great series."
+        assert data["year"] == 2021
+
+        # Persisted on the followed_series row.
+        conn = sqlite3.connect(str(tmp_path / "acquire.db"))
+        row = conn.execute(
+            "SELECT poster_url, overview, year FROM followed_series WHERE id = ?", (data["id"],)
+        ).fetchone()
+        conn.close()
+        assert row == ("https://img.example/poster.jpg", "A great series.", 2021)
+
     def test_create_no_title_returns_201(self, client: TestClient, tmp_path: Path) -> None:
         """Sending a tvdb_id without title is accepted (title defaults to empty)."""
         resp = client.post(

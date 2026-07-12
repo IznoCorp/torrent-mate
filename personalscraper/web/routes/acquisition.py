@@ -124,6 +124,102 @@ def _parse_json_dict(raw: str | None) -> dict[str, object] | None:
         return None
 
 
+def _row_col(row: sqlite3.Row, name: str) -> object | None:
+    """Return a row column by name, or ``None`` when the column is absent.
+
+    Tolerates a pre-migration ``followed_series`` (the OBJ3 metadata columns
+    may not exist yet on the shared acquire.db until the first write applies
+    migration 005) so a read never raises.
+
+    Args:
+        row: A ``sqlite3.Row``.
+        name: The column name to read.
+
+    Returns:
+        The column value, or ``None`` when the column does not exist.
+    """
+    return row[name] if name in row.keys() else None
+
+
+def _backfill_from_indexer(
+    indexer_db_path: Path | None,
+    tvdb_id: int | None,
+    tmdb_id: int | None,
+) -> tuple[int | None, int | None]:
+    """Look up ``(year, season_count)`` for a followed series in the indexer.
+
+    Matches a ``media_item`` (kind='show') by its TVDB or TMDB series id
+    (``external_ids_json`` → ``$.<provider>.series_id``) and counts its seasons.
+    Fail-soft: any error / no match yields ``(None, None)`` — the card simply
+    shows less.
+
+    Args:
+        indexer_db_path: Absolute path to ``library.db``, or ``None``.
+        tvdb_id: The followed series' TVDB id, or ``None``.
+        tmdb_id: The followed series' TMDB id, or ``None``.
+
+    Returns:
+        ``(year, season_count)`` — either may be ``None``.
+    """
+    if indexer_db_path is None or not Path(indexer_db_path).exists():
+        return None, None
+    lookups: list[tuple[str, str]] = []
+    if tvdb_id is not None:
+        lookups.append(("$.tvdb.series_id", str(tvdb_id)))
+    if tmdb_id is not None:
+        lookups.append(("$.tmdb.series_id", str(tmdb_id)))
+    if not lookups:
+        return None, None
+    try:
+        with closing(sqlite3.connect(str(indexer_db_path))) as conn:
+            apply_pragmas(conn)
+            for path_expr, value in lookups:
+                row = conn.execute(
+                    "SELECT id, year FROM media_item "
+                    "WHERE kind = 'show' AND json_extract(external_ids_json, ?) = ? LIMIT 1",
+                    (path_expr, value),
+                ).fetchone()
+                if row is None:
+                    continue
+                item_id, year = row[0], row[1]
+                season_count = conn.execute("SELECT COUNT(*) FROM season WHERE item_id = ?", (item_id,)).fetchone()[0]
+                return year, season_count
+    except sqlite3.Error:
+        logger.warning("acquisition_indexer_backfill_failed", exc_info=True)
+    return None, None
+
+
+def _write_follow_metadata(
+    acquire_db_path: Path | None,
+    followed_id: int,
+    body: CreateFollowRequest,
+) -> None:
+    """Persist the card metadata captured from the add-by-search candidate (OBJ3).
+
+    A no-op when nothing was supplied. Fail-soft: a DB error is logged and
+    swallowed — the follow itself already succeeded, the metadata is a nicety.
+
+    Args:
+        acquire_db_path: Absolute path to ``acquire.db``, or ``None``.
+        followed_id: The row to update.
+        body: The create request carrying optional ``poster_url``/``overview``/``year``.
+    """
+    if acquire_db_path is None:
+        return
+    if body.poster_url is None and body.overview is None and body.year is None:
+        return
+    try:
+        with closing(sqlite3.connect(str(acquire_db_path))) as conn:
+            apply_pragmas(conn)
+            conn.execute(
+                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
+                (body.poster_url, body.overview, body.year, followed_id),
+            )
+            conn.commit()
+    except sqlite3.Error:
+        logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
+
+
 # ── /api/acquisition/followed ──────────────────────────────────────────
 
 
@@ -157,6 +253,7 @@ def get_followed(
             else:
                 rows = conn.execute("SELECT * FROM followed_series WHERE active = 1 ORDER BY id").fetchall()
 
+            indexer_db_path = request.app.state.config.indexer.db_path
             items: list[FollowedSeriesItem] = []
             for row in rows:
                 # COUNT wanted pending for this series.
@@ -164,16 +261,35 @@ def get_followed(
                     "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status IN ('pending', 'searching')",
                     (row["id"],),
                 ).fetchone()[0]
+
+                # Card metadata (OBJ3): cached columns first; year + season_count
+                # backfilled from the indexer when the cache is empty.
+                media_ref = _parse_media_ref(row["media_ref_json"])
+                poster_url = cast("str | None", _row_col(row, "poster_url"))
+                overview = cast("str | None", _row_col(row, "overview"))
+                year = cast("int | None", _row_col(row, "year"))
+                season_count = cast("int | None", _row_col(row, "season_count"))
+                if year is None or season_count is None:
+                    bf_year, bf_seasons = _backfill_from_indexer(indexer_db_path, media_ref.tvdb_id, media_ref.tmdb_id)
+                    if year is None:
+                        year = bf_year
+                    if season_count is None:
+                        season_count = bf_seasons
+
                 items.append(
                     FollowedSeriesItem(
                         id=row["id"],
                         title=row["title"],
-                        media_ref=_parse_media_ref(row["media_ref_json"]),
+                        media_ref=media_ref,
                         active=bool(row["active"]),
                         cadence=_parse_json_dict(row["cadence_json"]),
                         added_at=float(row["added_at"]),
                         wanted_pending=pending,
                         quality_profile=_parse_json_dict(row["quality_profile_json"]),
+                        poster_url=poster_url,
+                        overview=overview,
+                        year=year,
+                        season_count=season_count,
                     )
                 )
             return FollowedResponse(items=items)
@@ -654,7 +770,13 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
-        return _item_from_followed(created)
+        # Persist + echo the card metadata captured from the search candidate.
+        _write_follow_metadata(config.acquire.db_path, new_id, body)
+        item = _item_from_followed(created)
+        item.poster_url = body.poster_url
+        item.overview = body.overview
+        item.year = body.year
+        return item
     finally:
         store.close()
 

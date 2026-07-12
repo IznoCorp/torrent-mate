@@ -260,6 +260,28 @@
             ],
             "title": "Imdb Id"
           },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "poster_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Url"
+          },
           "title": {
             "anyOf": [
               {
@@ -292,6 +314,17 @@
               }
             ],
             "title": "Tvdb Id"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
           }
         },
         "title": "CreateFollowRequest",
@@ -742,6 +775,28 @@
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
           },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "poster_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster Url"
+          },
           "quality_profile": {
             "anyOf": [
               {
@@ -754,6 +809,17 @@
             ],
             "title": "Quality Profile"
           },
+          "season_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Count"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -761,6 +827,17 @@
           "wanted_pending": {
             "title": "Wanted Pending",
             "type": "integer"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
           }
         },
         "required": [
