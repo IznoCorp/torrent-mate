@@ -12,7 +12,8 @@
  */
 
 import { Film } from "lucide-react";
-import { useMemo, useState, type ReactElement } from "react";
+import { useCallback, useMemo, useState, type ReactElement } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import type { StagingMediaItem, StagingMediaParams } from "@/api/client";
 import { EmptyState } from "@/components/ds/EmptyState";
@@ -97,7 +98,35 @@ export function StagingLibrary({
     useState<NonNullable<StagingMediaParams["sort"]>>("recent");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The open media detail is URL-addressable (?media=<id>) so the browser/router
+  // Back button closes it like any route. Opening pushes a history entry;
+  // closing replaces it (Escape/overlay/X leave no dangling entry, and Back on
+  // an open detail pops straight to the grid).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get("media");
+  const openDetail = useCallback(
+    (id: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("media", id);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeDetail = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("media");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
   // C17: comfortable (default) vs compact grid density.
   const [density, setDensity] = useState<"comfortable" | "compact">(
     "comfortable",
@@ -281,7 +310,7 @@ export function StagingLibrary({
                   overview={item.overview ?? null}
                   density={density}
                   onOpen={() => {
-                    setSelectedId(item.id);
+                    openDetail(item.id);
                   }}
                   badges={
                     <>
@@ -335,7 +364,7 @@ export function StagingLibrary({
       <Sheet
         open={selected !== null}
         onOpenChange={(open) => {
-          if (!open) setSelectedId(null);
+          if (!open) closeDetail();
         }}
       >
         <SheetContent className="w-full gap-0 overflow-y-auto px-6 pb-6 sm:max-w-md">
@@ -348,7 +377,14 @@ export function StagingLibrary({
                 <StagingMediaDetail
                   item={selected}
                   {...(onOpenResolution !== undefined
-                    ? { onResolve: onOpenResolution }
+                    ? {
+                        onResolve: (decisionId?: number) => {
+                          // Drop the ?media param so the detail doesn't reopen
+                          // when the operator returns from the deck.
+                          closeDetail();
+                          onOpenResolution(decisionId);
+                        },
+                      }
                     : {})}
                 />
               </div>
