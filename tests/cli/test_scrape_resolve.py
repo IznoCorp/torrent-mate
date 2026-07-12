@@ -283,13 +283,16 @@ def _make_mock_per_step_boundary(mock_client: Any) -> Any:
 def _mock_nfo_generator() -> MagicMock:
     """Return a pre-configured ``NFOGenerator`` mock instance.
 
-    ``generate_movie_nfo`` / ``generate_tvshow_nfo`` return a dummy XML
-    string so the call chain ``generate_*_nfo() → write_nfo()`` completes
-    without raising.
+    ``generate_movie_nfo`` / ``generate_tvshow_nfo`` return a dummy XML string
+    and ``write_nfo`` actually writes it to the given path — the real generator
+    lands a file on disk, and the command now asserts an NFO exists before
+    marking the decision resolved (webui-overhaul #3), so the mock must leave a
+    real NFO too.
     """
     instance = MagicMock()
     instance.generate_movie_nfo.return_value = "<movie/>"
     instance.generate_tvshow_nfo.return_value = "<tvshow/>"
+    instance.write_nfo.side_effect = lambda xml, path: Path(path).write_text(str(xml))
     return instance
 
 
@@ -541,6 +544,54 @@ class TestScrapeResolveExit0:
         assert resolution["provider_id"] == 550
         assert resolution["via"] == "pick"
 
+    def test_no_nfo_written_exits_1_and_stays_pending(self, tmp_path: Path, test_config: Any) -> None:
+        """A scrape that leaves no NFO on disk must NOT mark the decision resolved.
+
+        Contract (webui-overhaul #3): 'resolved' implies a scraped folder. If the
+        NFO write is a no-op (write no-op / removed mid-flight), the command exits
+        1 and the decision stays 'pending' so the operator can retry — it must not
+        report a false success and leave a 'resolved' item with no metadata.
+        """
+        staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
+        staging.mkdir(parents=True)
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        _create_db(test_config.indexer.db_path)
+        decision_id = _insert_decision(test_config.indexer.db_path, str(staging.resolve()))
+
+        mock_client = MagicMock()
+        mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
+
+        # NFO generator whose write_nfo is a NO-OP → no NFO lands on disk.
+        noop_nfo = MagicMock()
+        noop_nfo.generate_movie_nfo.return_value = "<movie/>"
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
+            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
+            patch(_PATCH_NFO_GENERATOR, return_value=noop_nfo),
+            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 1, result.output
+        assert "No NFO on disk" in result.output
+        # The decision must stay pending (retryable), not falsely resolved.
+        row = _select_decision(test_config.indexer.db_path, decision_id)
+        assert row is not None
+        assert row["status"] == "pending"
+
     def test_tvshow_via_tvdb_succeeds(self, tmp_path: Path, test_config: Any) -> None:
         """TV show via TVDB: golden payload → NFO + artwork → decision resolved."""
         staging = tmp_path / "staging" / "002-TVSHOWS" / "Top Chef (2010)"
@@ -728,12 +779,15 @@ class TestScrapeResolveLockLifecycle:
         captured: dict[str, Any] = {}
 
         def _lock_probe(*_args: Any, **_kwargs: Any) -> None:
-            """Record lock state while the scrape body runs."""
+            """Record lock state while the scrape body runs (and land an NFO)."""
             item_locks = sorted(scrape_dir.glob("*.lock")) if scrape_dir.is_dir() else []
             captured["item_lock_held"] = any(is_lock_held(p) for p in item_locks)
             captured["item_lock_pid"] = item_locks[0].read_text().strip() if item_locks else None
             # The GLOBAL pipeline.lock must NOT be taken by scrape-resolve.
             captured["pipeline_lock_held"] = is_lock_held(pipeline_lock_path)
+            # The real scrape body writes an NFO; the command now asserts one
+            # exists before marking resolved (webui-overhaul #3), so mimic it.
+            (staging / "movie.nfo").write_text("<movie/>")
 
         mock_client = MagicMock()
         mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
