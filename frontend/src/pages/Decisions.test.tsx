@@ -17,6 +17,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -182,9 +183,11 @@ function renderPage(view: "all" | "resolve" = "all"): void {
   });
 
   const tree: ReactElement = (
-    <QueryClientProvider client={qc}>
-      <Decisions />
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={["/scraping"]}>
+      <QueryClientProvider client={qc}>
+        <Decisions />
+      </QueryClientProvider>
+    </MemoryRouter>
   );
   render(tree);
   if (view === "all") {

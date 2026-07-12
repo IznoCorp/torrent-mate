@@ -15,7 +15,14 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
@@ -89,9 +96,40 @@ export default function Decisions(): ReactElement {
   const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
     () => new Set(),
   );
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  // When true on mobile, the detail panel replaces the list.
-  const [showDetailMobile, setShowDetailMobile] = useState(false);
+  // The open decision detail is URL-addressable (?decision=<id>) so the
+  // browser/router Back button closes it like any route (on mobile it replaces
+  // the list). Opening pushes a history entry; closing replaces it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawDecision = searchParams.get("decision");
+  const selectedId =
+    rawDecision != null && /^\d+$/.test(rawDecision)
+      ? Number(rawDecision)
+      : null;
+  // On mobile the detail replaces the list whenever a decision is selected.
+  const showDetailMobile = selectedId != null;
+  const openDecision = useCallback(
+    (id: number) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("decision", String(id));
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeDecision = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("decision");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
   // The decision id whose inline "Ignorer" quick-dismiss is in flight.
   const [dismissingId, setDismissingId] = useState<number | null>(null);
 
@@ -156,18 +194,15 @@ export default function Decisions(): ReactElement {
   // ---- event handlers --------------------------------------------------------
 
   function handleSelect(id: number): void {
-    setSelectedId(id);
-    setShowDetailMobile(true);
+    openDecision(id);
   }
 
   function handleDecisionHandled(): void {
-    setSelectedId(null);
-    setShowDetailMobile(false);
+    closeDecision();
   }
 
   function handleBackToList(): void {
-    setSelectedId(null);
-    setShowDetailMobile(false);
+    closeDecision();
   }
 
   function handleQuickDismiss(id: number): void {
@@ -188,8 +223,7 @@ export default function Decisions(): ReactElement {
     });
     // A filter change can drop the selected row from view; deselect to avoid a
     // stale detail panel (matches the previous status-tab reset behaviour).
-    setSelectedId(null);
-    setShowDetailMobile(false);
+    closeDecision();
   }
 
   // A detail GET can 410 when the row was superseded between the list render
@@ -203,9 +237,8 @@ export default function Decisions(): ReactElement {
       );
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
     }
-    setSelectedId(null);
-    setShowDetailMobile(false);
-  }, [detailError, detailErrorObj, queryClient]);
+    closeDecision();
+  }, [detailError, detailErrorObj, queryClient, closeDecision]);
 
   // ---- render ----------------------------------------------------------------
 
