@@ -18,8 +18,11 @@ type SheetSide = "left" | "right" | "bottom";
  */
 const SHEET_SIDE_CLASSES: Record<SheetSide, string> = {
   left: "inset-y-0 left-0 h-full w-3/4 max-w-sm border-r border-border pl-[env(safe-area-inset-left)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
+  // A right-edge panel is a full-screen page on mobile (a partial drawer that
+  // shows the page behind + clips its content is broken on a phone) and a
+  // bordered drawer only from `sm` up.
   right:
-    "inset-y-0 right-0 h-full w-3/4 max-w-sm border-l border-border pr-[env(safe-area-inset-right)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+    "inset-y-0 right-0 h-full w-full max-w-none border-border pr-[env(safe-area-inset-right)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:w-3/4 sm:max-w-sm sm:border-l",
   bottom:
     "inset-x-0 bottom-0 h-auto max-h-[80vh] border-t border-border pb-[env(safe-area-inset-bottom)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
 };
