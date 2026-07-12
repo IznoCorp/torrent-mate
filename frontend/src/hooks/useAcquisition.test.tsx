@@ -51,6 +51,7 @@ const FOLLOWED: FollowedResponse = {
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 3,
+      status: "pending",
       media_ref: {
         tvdb_id: 123,
         tmdb_id: null,
