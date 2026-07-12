@@ -318,6 +318,9 @@ export function ResolutionDeck(): ReactElement {
             <Kbd>d</Kbd> ignorer
           </span>
           <span className="flex items-center gap-1">
+            <Kbd>n</Kbd> passer
+          </span>
+          <span className="flex items-center gap-1">
             <Kbd>s</Kbd> chercher
           </span>
         </div>

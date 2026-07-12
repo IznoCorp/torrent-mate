@@ -1,3 +1,4 @@
+import { Clapperboard, Film, Tv } from "lucide-react";
 import { useState, type ReactElement } from "react";
 
 import { cn } from "@/lib/utils";
@@ -47,6 +48,8 @@ export function MediaPoster({
 }: MediaPosterProps): ReactElement {
   const [broken, setBroken] = useState(false);
   const showImage = src != null && src !== "" && !broken;
+  const FallbackIcon =
+    kind === "movie" ? Film : kind === "tv" ? Tv : Clapperboard;
 
   return (
     <div
@@ -67,11 +70,18 @@ export function MediaPoster({
         />
       ) : (
         <div
-          className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-card"
+          className="relative flex size-full items-center justify-center overflow-hidden bg-gradient-to-br from-accent/50 via-card to-muted"
           aria-label={title}
           role="img"
         >
-          <span className="font-mono text-2xl font-semibold text-muted-foreground">
+          {/* Faint media-kind watermark so a poster-less card reads as designed,
+              not empty — the initials sit above it. */}
+          <FallbackIcon
+            className="absolute -bottom-4 -right-3 size-2/3 text-foreground/[0.05]"
+            strokeWidth={1.25}
+            aria-hidden
+          />
+          <span className="relative font-mono text-3xl font-semibold tracking-tight text-muted-foreground/90">
             {initialsOf(title)}
           </span>
         </div>

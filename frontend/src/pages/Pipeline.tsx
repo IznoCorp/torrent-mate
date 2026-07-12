@@ -2,7 +2,9 @@
  * Pipeline supervision page (TorrentMateUI S2 — pipe-control; webui-ux Phase 2).
  *
  * Polls ``GET /api/pipeline/status`` every 5 seconds via {@link usePipelineStatus}
- * and feeds the live status to {@link PipelineControls} and {@link PipelineStepper}.
+ * and feeds the live status to {@link PipelineControls}. The nine-stage
+ * {@link FlowBoard} is the single canonical pipeline view (OBJ1) — the legacy
+ * linear stepper was retired to avoid two parallel stage models on one page.
  *
  * webui-ux Phase 2 reworks the log area:
  * - The DEFAULT view is the interpreted, plain-French run narrative
@@ -20,7 +22,6 @@ import { type ReactElement } from "react";
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
-import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
@@ -57,8 +58,6 @@ export default function Pipeline(): ReactElement {
       <FlowBoard />
 
       <PipelineControls status={liveStatus} />
-
-      <PipelineStepper currentStep={liveStatus.step ?? null} />
 
       {/* Interpreted narrative — live for an active run, else the last run's
           persisted summary (never blanks). */}
