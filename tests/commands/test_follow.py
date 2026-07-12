@@ -671,3 +671,23 @@ def test_follow_detect_wires_publisher_and_closes(tmp_path: Path, monkeypatch, t
     assert mock_build.call_args[0][1].enabled is True
     mock_publisher.close.assert_called_once()
     acquire.store.close()  # type: ignore[union-attr]
+
+
+def test_candidate_matching_id_never_guesses() -> None:
+    """`_candidate_matching_id` matches strictly by provider id — no rank fallback."""
+    from types import SimpleNamespace
+
+    from personalscraper.commands.follow import _candidate_matching_id
+
+    cands = [
+        SimpleNamespace(provider="tvdb", provider_id=999, poster_url="a"),
+        SimpleNamespace(provider="tvdb", provider_id=275274, poster_url="b"),
+        SimpleNamespace(provider="tmdb", provider_id=42, poster_url="c"),
+    ]
+    # Exact TVDB id → that candidate (int vs str tolerant).
+    assert _candidate_matching_id(cands, 275274, None).poster_url == "b"
+    # TMDB id when no tvdb match.
+    assert _candidate_matching_id(cands, None, 42).poster_url == "c"
+    # No id-matched candidate → None (skip, never a wrong poster) — NOT the top rank.
+    assert _candidate_matching_id(cands, 111111, 222222) is None
+    assert _candidate_matching_id([], 275274, None) is None

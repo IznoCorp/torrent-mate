@@ -419,7 +419,132 @@ def follow_detect(
                 redis_publisher.close()
 
 
+def _candidate_matching_id(
+    candidates: list[object],
+    tvdb_id: int | None,
+    tmdb_id: int | None,
+) -> object | None:
+    """Return the candidate whose provider id equals the follow's own id, or None.
+
+    Matching strictly by id (never by rank/title) so a follow with no id-matched
+    candidate is skipped rather than assigned a wrong poster.
+
+    Args:
+        candidates: Scored provider candidates from a detailed match.
+        tvdb_id: The follow's TVDB id, or None.
+        tmdb_id: The follow's TMDB id, or None.
+
+    Returns:
+        The matching candidate, or None.
+    """
+    for candidate in candidates:
+        provider = getattr(candidate, "provider", None)
+        provider_id = str(getattr(candidate, "provider_id", ""))
+        if provider == "tvdb" and tvdb_id is not None and str(tvdb_id) == provider_id:
+            return candidate
+        if provider == "tmdb" and tmdb_id is not None and str(tmdb_id) == provider_id:
+            return candidate
+    return None
+
+
+@follow_app.command("backfill-metadata")
+@handle_cli_errors
+def follow_backfill_metadata(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing."),
+) -> None:
+    """Backfill ``poster_url`` + ``overview`` for follows added before those columns.
+
+    For each follow missing a poster and/or overview, searches the provider by
+    title and takes ONLY the candidate whose provider id matches the follow's own
+    id — a follow with no id-matched candidate is skipped, so a wrong poster is
+    impossible. Idempotent (follows that already have both are untouched) and
+    additive (``COALESCE`` never overwrites an existing value). Read-only under
+    ``--dry-run``.
+    """
+    import json as _json
+    import sqlite3
+
+    from personalscraper.core.sqlite._pragmas import apply_pragmas
+    from personalscraper.scraper.confidence import match_tvshow_detailed
+
+    config = ctx.obj.config
+    assert config is not None  # noqa: S101 — set by the CLI root callback
+    console: Console = state["console"]
+    settings = cli_compat.get_settings()
+    db_path = config.acquire.db_path
+    if db_path is None:
+        console.print("[red]No acquire DB configured.[/red]")
+        raise typer.Exit(1)
+
+    with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
+        registry = app_context.provider_registry
+        tmdb_client = registry.get("tmdb")
+        tvdb_client = registry.get("tvdb")
+
+        conn = sqlite3.connect(str(db_path))
+        apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+        try:
+            # The poster_url/overview columns land with acquire migration 005; on a
+            # DB still at an earlier version (e.g. prod before this feature merges)
+            # this command is a clean no-op rather than an OperationalError.
+            columns = {r[1] for r in conn.execute("PRAGMA table_info(followed_series)").fetchall()}
+            if "poster_url" not in columns or "overview" not in columns:
+                console.print(
+                    "[yellow]followed_series has no poster_url/overview columns yet "
+                    "(acquire migration 005 not applied) — nothing to backfill.[/yellow]"
+                )
+                return
+            rows = conn.execute(
+                "SELECT id, title, media_ref_json, poster_url, overview FROM followed_series"
+            ).fetchall()
+            updated = 0
+            skipped = 0
+            for row in rows:
+                if row["poster_url"] and row["overview"]:
+                    continue
+                ref = _json.loads(row["media_ref_json"]) if row["media_ref_json"] else {}
+                tvdb_id, tmdb_id = ref.get("tvdb_id"), ref.get("tmdb_id")
+                # year is a migration-005 column too; search by title only (year is
+                # an optional disambiguator) and match strictly by provider id.
+                _, candidates = match_tvshow_detailed(tvdb_client, tmdb_client, row["title"], None)
+                match = _candidate_matching_id(list(candidates), tvdb_id, tmdb_id)
+                if match is None:
+                    skipped += 1
+                    log.info("cli.follow.backfill.no_id_match", followed_id=row["id"], title=row["title"])
+                    continue
+                new_poster = getattr(match, "poster_url", None) if not row["poster_url"] else None
+                new_overview = getattr(match, "overview", None) if not row["overview"] else None
+                if not new_poster and not new_overview:
+                    skipped += 1
+                    continue
+                console.print(
+                    f"[green]{row['title']}[/green] ← poster={'yes' if new_poster else '—'} "
+                    f"overview={'yes' if new_overview else '—'}"
+                )
+                if not dry_run:
+                    conn.execute(
+                        "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
+                        "overview = COALESCE(?, overview) WHERE id = ?",
+                        (new_poster, new_overview, row["id"]),
+                    )
+                    updated += 1
+            if not dry_run:
+                conn.commit()
+            console.print(f"[bold]{'(dry-run) ' if dry_run else ''}Backfilled {updated}, skipped {skipped}.[/bold]")
+        finally:
+            conn.close()
+
+
 # Register the follow sub-group on the root Typer app (import side-effect, called by cli.py).
 _root_app.add_typer(follow_app, name="follow")
 
-__all__ = ["follow_add", "follow_app", "follow_detect", "follow_list", "follow_remove"]
+__all__ = [
+    "follow_add",
+    "follow_app",
+    "follow_backfill_metadata",
+    "follow_detect",
+    "follow_list",
+    "follow_remove",
+]
