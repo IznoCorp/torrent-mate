@@ -42,14 +42,19 @@ vi.mock("@/api/decisions", async () => {
 });
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-import { dismissDecision, resolveDecision } from "@/api/decisions";
+import {
+  dismissDecision,
+  resolveDecision,
+  searchDecisionCandidates,
+} from "@/api/decisions";
 import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
 
 const resolveMock = vi.mocked(resolveDecision);
 const dismissMock = vi.mocked(dismissDecision);
+const searchMock = vi.mocked(searchDecisionCandidates);
 
 function candidate(overrides: Partial<DecisionCandidate> = {}): DecisionCandidate {
   return {
@@ -183,5 +188,63 @@ describe("ResolutionDeck", () => {
     expect(search).toBeInTheDocument();
     // Seeded from the extracted title.
     expect(within(document.body).getByDisplayValue("Inception")).toBeDefined();
+  });
+
+  it("releases the search input and preselects the first result, so a pure keyboard flow validates the override (C7)", async () => {
+    setup({});
+    renderDeck();
+    const search = screen.getByLabelText("Recherche manuelle");
+    search.focus();
+    expect(document.activeElement).toBe(search);
+    // A manual search returns one fresh candidate (a different provider id).
+    searchMock.mockResolvedValueOnce({
+      candidates: [candidate({ provider_id: 99999, title: "Inception (VF)" })],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+    await waitFor(() => {
+      expect(screen.getByText("Inception (VF)")).toBeInTheDocument();
+    });
+    // C7: focus left the input — the deck now owns the keyboard.
+    expect(document.activeElement).not.toBe(search);
+    // The fresh result is preselected (index === baseCandidates.length), so a
+    // bare Enter validates it as a search override without any arrow press.
+    fireEvent.keyDown(window, { key: "Enter" });
+    await waitFor(() => {
+      expect(resolveMock).toHaveBeenCalledWith(1, {
+        provider: "tmdb",
+        provider_id: 99999,
+        via: "search_override",
+      });
+    });
+  });
+
+  it("Escape inside the search input releases focus back to the deck (C7)", () => {
+    setup({});
+    renderDeck();
+    const search = screen.getByLabelText("Recherche manuelle");
+    search.focus();
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(document.activeElement).not.toBe(search);
+  });
+
+  it("wraps to the head of the queue on skip and counts the pass (C9)", () => {
+    setup({
+      items: [listItem({ id: 1 }), listItem({ id: 2, extracted_title: "Dune" })],
+    });
+    renderDeck();
+    // Two decisions remain, none skipped yet.
+    expect(screen.getByText(/2 restante\(s\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/passée\(s\)/)).not.toBeInTheDocument();
+    // Skip once → the counter shows one pass.
+    fireEvent.keyDown(window, { key: "n" });
+    expect(screen.getByText(/1 passée\(s\)/)).toBeInTheDocument();
+  });
+
+  it("exposes a polite live region announcing the current selection (C10)", () => {
+    setup({});
+    renderDeck();
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status.textContent).toContain("Inception");
   });
 });
