@@ -18,12 +18,24 @@ import type { components, paths } from "./schema";
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
+  /** True for the staging read-only write guard (403 `read-only`). */
+  readonly isReadOnly: boolean;
 
   constructor(status: number, detail: string) {
-    super(`${String(status)}: ${detail}`);
+    const isReadOnly = status === 403 && detail.toLowerCase().includes("read-only");
+    // The staging read-only guard is a *consultation* state, not an error the
+    // operator did wrong — surface a clean French notice instead of the raw
+    // "403: read-only" so a write click on the read-only staging instance reads
+    // as "not available here", never a broken action.
+    super(
+      isReadOnly
+        ? "Instance de consultation (staging) — écriture désactivée."
+        : `${String(status)}: ${detail}`,
+    );
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.isReadOnly = isReadOnly;
   }
 }
 

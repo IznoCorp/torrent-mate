@@ -1222,7 +1222,7 @@ via `useEventStreamContext` with the R13 new-events-only ref pattern.
 | Code  | Condition                            | UI treatment                                          |
 | ----- | ------------------------------------ | ----------------------------------------------------- |
 | `401` | No session cookie or expired JWT     | Redirect to /login (guarded route perimeter).         |
-| `403` | Staging environment (write attempt)  | Write buttons disabled; staging banner already shown. |
+| `403` | Staging environment (write attempt)  | Clean « consultation (staging) — écriture désactivée » toast (`ApiError.isReadOnly`, never a raw `403: read-only`); staging banner already shown. |
 | `404` | Unknown followed_id on PATCH/DELETE  | Toast « Série introuvable ».                          |
 | `409` | Duplicate follow (already active)    | Toast « Cette série est déjà suivie ».                |
 | `422` | No provider ID (Pydantic validation) | Inline form error on the add-follow dialog.           |
