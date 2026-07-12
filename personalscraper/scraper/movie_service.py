@@ -650,23 +650,17 @@ class MovieServiceMixin:
             log.info("nfo_valid", action=result.action, directory=movie_dir.name)
             return result
 
-        # Corrupt NFO: delete before re-scrape.  Honor dry_run -- without
-        # this guard a dry-run pass that detected drift would still
-        # unlink the file, leaving the next real run thinking the NFO is
-        # missing from the start (and downstream verify reports it as
-        # blocked).  In dry_run mode we log the would-be deletion and
-        # leave the file in place so the staging area is unchanged.
-        if nfo_path.exists():
-            if self.dry_run:
-                log.info("nfo_corrupt_rescrape_would_delete", filename=nfo_path.name)
-            else:
-                log.warning("nfo_corrupt_rescrape", filename=nfo_path.name)
-                try:
-                    nfo_path.unlink()
-                except OSError as exc:
-                    result.error = f"Cannot delete corrupt NFO: {exc}"
-                    log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
-                    return result
+        # Corrupt/drifted NFO: do NOT delete it up front.  A confident
+        # re-scrape overwrites it atomically (``write_nfo`` → ``atomic_write_text``)
+        # further down, so the pre-emptive unlink was unnecessary there — and
+        # harmful when the re-match turns out AMBIGUOUS: that path returns early
+        # (``queued_for_decision``) WITHOUT writing a fresh NFO, so unlinking here
+        # left the folder with no NFO at all while a decision waited (webui-overhaul
+        # #3 — 'resolved but unscraped'). Keeping the drifted NFO means the item is
+        # never worse off than before the re-scrape: the confident path replaces it,
+        # every early-return path preserves it.
+        if nfo_path.exists() and not _is_nfo_complete(nfo_path):
+            log.warning("nfo_drift_detected", filename=nfo_path.name)
 
         # Match against TMDB. The chain raises ``ProviderExhausted`` when
         # every eligible provider failed with a classified error

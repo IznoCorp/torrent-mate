@@ -1090,24 +1090,29 @@ class TestScrapeTvshowDriftAndFastPath:
         assert (show / "tvshow.nfo").exists()
         assert res.action == "skipped_low_confidence"
 
-    def test_corrupt_nfo_delete_failure_returns_error(self, tmp_path: Path) -> None:
-        """Corrupt NFO unlink failure short-circuits with an error."""
+    def test_corrupt_nfo_preserved_on_failed_lookup(self, tmp_path: Path) -> None:
+        """A drifted show NFO is preserved when the re-scrape does not resolve.
+
+        Regression (webui-overhaul #3): the corrupt NFO is no longer unlinked up
+        front, so a non-confident lookup leaves the drifted NFO in place rather
+        than emptying the folder of metadata while a decision waits.
+        """
         show = tmp_path / "Show (2020)"
         show.mkdir()
-        (show / "tvshow.nfo").write_text("<bad/>")
+        nfo = show / "tvshow.nfo"
+        nfo.write_text("<bad/>")
         mixin = _make_scrape_mocks()
         with (
             patch(
                 "personalscraper.scraper.tv_service._is_nfo_complete",
                 return_value=False,
             ),
-            patch(
-                "pathlib.Path.unlink",
-                side_effect=OSError("perm"),
-            ),
+            patch.object(mixin, "_lookup_series", return_value=None),
         ):
             res = mixin.scrape_tvshow(show)
-        assert res.error is not None and "Cannot delete corrupt NFO" in res.error
+        # The drifted NFO survives the non-confident outcome (no pre-emptive unlink).
+        assert nfo.exists()
+        assert res.error is None
 
 
 class TestScrapeTvshowFullPath:
