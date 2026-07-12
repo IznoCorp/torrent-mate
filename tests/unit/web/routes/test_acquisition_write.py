@@ -544,3 +544,93 @@ class TestDeleteFollow:
             headers=_xrw_headers(),
         )
         assert resp.status_code == 403, resp.text
+
+
+# ---------------------------------------------------------------------------
+# Test cases — POST /api/acquisition/followed/{id}/search (OBJ3 manual grab)
+# ---------------------------------------------------------------------------
+
+
+class TestTriggerFollowedSearch:
+    """POST /api/acquisition/followed/{id}/search — per-series manual grab."""
+
+    def _create_follow(self, client: TestClient) -> int:
+        """Create a followed series via the API and return its id."""
+        resp = client.post(
+            "/api/acquisition/followed",
+            json={"tvdb_id": 555, "title": "Grab Me"},
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        return int(resp.json()["id"])
+
+    def test_trigger_unknown_returns_404(self, client: TestClient) -> None:
+        """Triggering a grab for an unknown series → 404."""
+        resp = client.post(
+            "/api/acquisition/followed/99999/search",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 404, resp.text
+
+    def test_trigger_spawns_and_returns_202(self, client: TestClient, tmp_path: Path) -> None:
+        """A valid trigger reserves a grab run, spawns the runner, returns 202."""
+        from unittest.mock import MagicMock, patch
+
+        followed_id = self._create_follow(client)
+        proc = MagicMock()
+        proc.pid = 4242
+        with patch(
+            "personalscraper.web.routes.acquisition.subprocess.Popen",
+            return_value=proc,
+        ) as popen:
+            resp = client.post(
+                f"/api/acquisition/followed/{followed_id}/search",
+                cookies=_auth_cookies(),
+                headers=_xrw_headers(),
+            )
+        assert resp.status_code == 202, resp.text
+        run_uid = resp.json()["run_uid"]
+        assert run_uid
+        popen.assert_called_once()
+        # A grab pipeline_run row was reserved for this series.
+        conn = sqlite3.connect(str(tmp_path / "library.db"))
+        row = conn.execute("SELECT command, options_json FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
+        conn.close()
+        assert row is not None
+        assert row[0] == "grab"
+        assert row[1] == f'{{"followed_id":{followed_id}}}'
+
+    def test_trigger_409_when_grab_already_running(self, client: TestClient, tmp_path: Path) -> None:
+        """A live grab for the same series makes a second trigger 409."""
+        import os
+        import time
+
+        followed_id = self._create_follow(client)
+        # Insert a live (ended_at NULL) grab run for THIS series with our own pid.
+        conn = sqlite3.connect(str(tmp_path / "library.db"))
+        apply_pragmas(conn)
+        conn.execute(
+            "INSERT INTO pipeline_run "
+            "(run_uid, trigger, dry_run, started_at, ended_at, outcome, pid, kind, command, options_json) "
+            "VALUES ('live-grab', 'web', 0, ?, NULL, 'running', ?, 'maintenance', 'grab', ?)",
+            (time.time(), os.getpid(), f'{{"followed_id":{followed_id}}}'),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/followed/{followed_id}/search",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 409, resp.text
+
+    def test_trigger_missing_xrw_returns_400(self, client: TestClient) -> None:
+        """A trigger without the X-Requested-With header → 400."""
+        resp = client.post(
+            "/api/acquisition/followed/1/search",
+            cookies=_auth_cookies(),
+        )
+        assert resp.status_code == 400, resp.text

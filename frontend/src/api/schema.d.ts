@@ -87,6 +87,42 @@ export interface paths {
         patch: operations["update_follow_api_acquisition_followed__followed_id__patch"];
         trace?: never;
     };
+    "/api/acquisition/followed/{followed_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Followed Search
+         * @description Launch a targeted grab for one followed series (OBJ3 manual trigger).
+         *
+         *     Reserves a ``pipeline_run`` row, spawns the grab runner (which runs
+         *     ``grab --followed-id <id>`` over that series' pending wanted items), and
+         *     returns ``202`` with the ``run_uid`` so the UI can track the outcome.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *
+         *     Returns:
+         *         ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+         *
+         *     Raises:
+         *         404: The followed series does not exist.
+         *         409: A grab for this series is already running.
+         *         500: The runner subprocess failed to spawn.
+         */
+        post: operations["trigger_followed_search_api_acquisition_followed__followed_id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -1937,6 +1973,20 @@ export interface components {
             /** Wanted Pending */
             wanted_pending: number;
         };
+        /**
+         * GrabTriggerResponse
+         * @description Response body for ``POST /api/acquisition/followed/{id}/search`` (OBJ3).
+         *
+         *     Returned ``202`` when a per-series manual grab has been launched.
+         *
+         *     Attributes:
+         *         run_uid: The unique identifier of the launched grab run — the frontend
+         *             polls ``GET /api/pipeline/history/{run_uid}`` for its outcome.
+         */
+        GrabTriggerResponse: {
+            /** Run Uid */
+            run_uid: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -3503,6 +3553,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FollowedSeriesItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_followed_search_api_acquisition_followed__followed_id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
                 };
             };
             /** @description Validation Error */

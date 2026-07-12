@@ -193,3 +193,16 @@ class UpdateFollowRequest(BaseModel):
 
     active: bool | None = None
     cadence: CadenceShape | None = None
+
+
+class GrabTriggerResponse(BaseModel):
+    """Response body for ``POST /api/acquisition/followed/{id}/search`` (OBJ3).
+
+    Returned ``202`` when a per-series manual grab has been launched.
+
+    Attributes:
+        run_uid: The unique identifier of the launched grab run — the frontend
+            polls ``GET /api/pipeline/history/{run_uid}`` for its outcome.
+    """
+
+    run_uid: str
