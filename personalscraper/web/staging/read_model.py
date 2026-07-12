@@ -87,6 +87,9 @@ _FILE_TYPE_TO_KIND: dict[str, StagingMediaKind] = {
 #: through match/scrape/trailer/verify). Other kinds skip those stages.
 _SCRAPABLE_KINDS: frozenset[str] = frozenset({"movie", "tvshow"})
 
+#: Timeline stages a non-scrapable kind skips entirely (shown ``skipped``).
+_SCRAPABLE_STAGE_KEYS: frozenset[str] = frozenset({"matching", "scraping", "trailers", "verify"})
+
 #: Poster file matcher — accepts the personalscraper name (``poster.jpg``), the
 #: Kodi ``folder.jpg``, AND the MediaElch movie-prefixed form
 #: (``{Movie Name}-poster.jpg``) so a media scraped via the MediaElch fallback
@@ -345,27 +348,35 @@ def _compute_stages(
     scrapable: bool,
     has_nfo: bool,
     has_poster: bool,
-    has_trailer: bool,
     is_ambiguous: bool,
     is_matched: bool,
     has_videos: bool,
     live_stage_key: str | None,
 ) -> list[StagingStageStep]:
-    """Derive the nine-stage timeline for one staged media.
+    """Derive the nine-stage timeline for one staged media — strictly monotonic.
 
-    States are inferred from the filesystem artefacts + matching state — there
-    is no per-item stage table. ``cleaning``/``sorting`` are ``done`` once an
-    item sits in a category dir (inferred from placement, not re-verified);
-    ``dispatch`` is always ``pending`` (a staged item has not been dispatched).
-    A ``pending`` stage flips to ``active`` when the live run's current step
-    maps to it (``live_stage_key``).
+    States are inferred from filesystem artefacts + matching state (there is no
+    per-item stage table), but the nine stages are ordered, so the timeline is
+    kept monotonic: a stage is ``done`` only when every earlier (non-skipped)
+    stage is ``done`` too. The first incomplete stage is the *frontier*
+    (``blocked`` when a decision is pending, else ``pending``/``active``); every
+    later stage is ``pending`` regardless of stray artefacts — a legacy folder
+    that holds a poster or trailer but no NFO never shows ``trailers`` done while
+    ``matching``/``scraping`` are still pending (the drift-unlink #3 symptom).
+
+    ``trailers`` completion is gated on the scrape (NFO), **not** on a trailer
+    file: the trailers step legitimately produces no file for most media, so its
+    absence must not read as "not run" and strand ``verify`` behind it.
+    ``cleaning``/``sorting`` are ``done`` once the item sits in a category dir
+    (inferred from placement); ``dispatch`` is always ``pending`` (a staged item
+    has not been dispatched). A ``pending`` stage flips to ``active`` when the
+    live run's current step maps to it (``live_stage_key``).
 
     Args:
         in_ingest: Whether the item is still in the ingest dir (pre-sort).
         scrapable: Whether the kind flows through match/scrape/trailer/verify.
         has_nfo: Whether an NFO is present.
         has_poster: Whether a local poster is present.
-        has_trailer: Whether a trailer file is present.
         is_ambiguous: Whether a pending decision blocks matching.
         is_matched: Whether the media has a confident match.
         has_videos: Whether the tree contains at least one episode/movie video.
@@ -374,25 +385,37 @@ def _compute_stages(
     Returns:
         The ordered list of :class:`StagingStageStep` for the timeline.
     """
+    # A confident scrape (matched + NFO on disk) is the gate for every downstream
+    # stage — trailers/verify can only have run once the scrape produced an NFO.
+    scraped = has_nfo and is_matched
 
-    def _skip_or(state: str) -> str:
-        return state if scrapable else "skipped"
-
-    states: dict[str, str] = {
-        "arrival": "done",
-        "staging": "done",
-        "cleaning": "pending" if in_ingest else "done",
-        "sorting": "pending" if in_ingest else "done",
-        "matching": _skip_or("blocked" if is_ambiguous else "done" if is_matched else "pending"),
-        "scraping": _skip_or("done" if has_nfo else "pending"),
-        "trailers": _skip_or("done" if has_trailer else "pending"),
-        "verify": _skip_or("done" if (has_nfo and has_poster and has_videos) else "pending"),
-        "dispatch": "pending",
+    #: Per-stage "the pipeline has completed this stage" signal, in board order.
+    completed: dict[str, bool] = {
+        "arrival": True,
+        "staging": True,
+        "cleaning": not in_ingest,
+        "sorting": not in_ingest,
+        "matching": is_matched and not is_ambiguous,
+        "scraping": scraped,
+        "trailers": scraped,
+        "verify": scraped and has_poster and has_videos,
+        "dispatch": False,
     }
 
     steps: list[StagingStageStep] = []
+    frontier_passed = False
     for key, label in STAGE_DEFS:
-        state = states[key]
+        if not scrapable and key in _SCRAPABLE_STAGE_KEYS:
+            state = "skipped"
+        elif frontier_passed:
+            state = "pending"
+        elif completed[key]:
+            state = "done"
+        else:
+            # First incomplete stage: the frontier. A pending decision blocks it.
+            state = "blocked" if (key == "matching" and is_ambiguous) else "pending"
+            frontier_passed = True
+        # The live run's current step lights up its (pending) stage as active.
         if state == "pending" and live_stage_key == key:
             state = "active"
         steps.append(StagingStageStep(key=key, label=label, state=state))  # type: ignore[arg-type]
@@ -460,7 +483,6 @@ def _build_item(
         scrapable=scrapable,
         has_nfo=has_nfo,
         has_poster=has_poster,
-        has_trailer=has_trailer,
         is_ambiguous=is_ambiguous,
         is_matched=is_matched,
         has_videos=has_videos,

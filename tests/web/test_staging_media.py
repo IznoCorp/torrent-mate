@@ -263,7 +263,10 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert bb["seasons"] == [{"season": 1, "label": "Saison 01", "episode_count": 1}]
     assert bb["episode_count"] == 1
     assert bb["has_trailer"] is False
-    assert _stage(bb, "trailers") == "pending"
+    # Fully scraped: the trailers step has run even though it produced no trailer
+    # file, so it is ``done`` (not ``pending``) — a missing trailer must not
+    # strand the downstream ``verify`` behind it (timeline monotonicity).
+    assert _stage(bb, "trailers") == "done"
     assert _stage(bb, "verify") == "done"
 
     unmatched = items["Unknown Film (2020)"]
@@ -272,6 +275,54 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert unmatched["year"] == 2020
     assert _stage(unmatched, "matching") == "pending"
     assert _stage(unmatched, "scraping") == "pending"
+
+
+def _assert_monotonic(item: dict) -> None:
+    """Assert a timeline never shows ``done`` after an earlier non-``done`` stage."""
+    seen_incomplete = False
+    for step in item["stages"]:
+        if step["state"] == "skipped":
+            continue
+        if step["state"] != "done":
+            seen_incomplete = True
+        elif seen_incomplete:
+            raise AssertionError(
+                f"stage {step['key']!r} is 'done' after an earlier incomplete stage: "
+                f"{[(s['key'], s['state']) for s in item['stages']]}"
+            )
+
+
+def test_timeline_monotonic_with_stray_downstream_artifacts(test_config, tmp_path: Path) -> None:
+    """A legacy folder with a poster + trailer but no NFO keeps ``trailers`` pending.
+
+    Regression for the drift-unlink #3 symptom: stray downstream artefacts
+    (a leftover poster/trailer from a partial scrape) must not light a later
+    stage ``done`` while ``matching``/``scraping`` are still pending. The whole
+    timeline is asserted monotonic.
+    """
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    # Legacy partial scrape: artwork + trailer on disk, but no NFO → unmatched.
+    partial = movies / "Obsession (2026)"
+    partial.mkdir(parents=True)
+    (partial / "poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    _write_video(partial / "Obsession (2026).mkv", size=2048)
+    _write_video(partial / "Obsession (2026)-trailer.mp4", size=32)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    item = _by_folder(client.get("/api/staging/media").json())["Obsession (2026)"]
+    assert item["match"] == "absent"
+    assert item["has_poster"] is True
+    assert item["has_trailer"] is True
+    # No NFO → the stray trailer/poster must NOT push a downstream stage to done.
+    assert _stage(item, "matching") == "pending"
+    assert _stage(item, "scraping") == "pending"
+    assert _stage(item, "trailers") == "pending"
+    assert _stage(item, "verify") == "pending"
+    _assert_monotonic(item)
 
 
 def test_detects_mediaelch_named_artwork(test_config, tmp_path: Path) -> None:
