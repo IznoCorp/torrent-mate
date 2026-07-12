@@ -1219,14 +1219,14 @@ via `useEventStreamContext` with the R13 new-events-only ref pattern.
 
 ### Error handling (frontend)
 
-| Code  | Condition                            | UI treatment                                          |
-| ----- | ------------------------------------ | ----------------------------------------------------- |
-| `401` | No session cookie or expired JWT     | Redirect to /login (guarded route perimeter).         |
+| Code  | Condition                            | UI treatment                                                                                                                                      |
+| ----- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401` | No session cookie or expired JWT     | Redirect to /login (guarded route perimeter).                                                                                                     |
 | `403` | Staging environment (write attempt)  | Clean « consultation (staging) — écriture désactivée » toast (`ApiError.isReadOnly`, never a raw `403: read-only`); staging banner already shown. |
-| `404` | Unknown followed_id on PATCH/DELETE  | Toast « Série introuvable ».                          |
-| `409` | Duplicate follow (already active)    | Toast « Cette série est déjà suivie ».                |
-| `422` | No provider ID (Pydantic validation) | Inline form error on the add-follow dialog.           |
-| —     | Empty `items: []` (fail-soft)        | Empty state per tab (e.g. « Aucune série suivie »).   |
+| `404` | Unknown followed_id on PATCH/DELETE  | Toast « Série introuvable ».                                                                                                                      |
+| `409` | Duplicate follow (already active)    | Toast « Cette série est déjà suivie ».                                                                                                            |
+| `422` | No provider ID (Pydantic validation) | Inline form error on the add-follow dialog.                                                                                                       |
+| —     | Empty `items: []` (fail-soft)        | Empty state per tab (e.g. « Aucune série suivie »).                                                                                               |
 
 ## UX/UI overhaul (webui-overhaul)
 
@@ -1290,3 +1290,26 @@ aggregate counts, and an opt-in dispatch preview (`with_dispatch=true`).
 
 Any route/signature/docstring change here still requires `make openapi` +
 committing the regenerated `openapi.json` + `schema.d.ts`.
+
+### v2 polish contract deltas (2026-07-13, `feat/webui-polish`)
+
+- **C4 — `GET /api/pipeline/stages`** → `StagesResponse.run_trigger: str | None`
+  (the last run's `trigger`), so the Flow Board caption reads "déclenché par
+  {trigger}" without a second call.
+- **C14 — `GET /api/acquisition/followed`** → `FollowedSeriesItem.status:
+"disabled" | "pending" | "up_to_date"`, a computed field derived server-side
+  from `active` + `wanted_pending`. The UI maps status → badge tone/label and no
+  longer derives lifecycle state in JSX.
+- **C18 — `POST /api/staging/media/{id}/enqueue`** →
+  `EnqueueDecisionResponse.decision_id: int | None` (the created/refreshed
+  `scrape_decision.id`, via `DecisionWriter.upsert` now returning its row id), so
+  the client opens the resolution deck positioned on it — the same grammar as an
+  ambiguous card (whose `decision_id` the staging read-model already exposes).
+  `ResolutionDeck` accepts an optional `initialDecisionId`.
+- **C25 — `GET /api/maintenance/locks`** → the `tmp_orphans` list is replaced by
+  `sweep: { status: "pending" | "ready", orphans: TmpOrphan[], age_s: float |
+null }`. The slow disk sweep runs on a daemon thread (`_compute_sweep_bg`); the
+  route returns locks/sentinels immediately with `sweep.status="pending"` on the
+  cold first read, then serves the cached result (stale-while-revalidate). The
+  panel shows a skeleton on the sweep sub-panel only and polls at 1.5 s while
+  pending.
