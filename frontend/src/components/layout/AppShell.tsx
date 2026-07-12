@@ -6,7 +6,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { NavSections } from "@/components/layout/NavSections";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
-import { Badge } from "@/components/ui/badge";
+import { NavCountBadge } from "@/components/ds/NavCountBadge";
 import { BrandMark } from "@/components/ds/BrandMark";
 import {
   Sheet,
@@ -70,7 +70,7 @@ function AppShellInner(): ReactElement {
     () =>
       pendingCount > 0
         ? {
-            "/scraping": <Badge tone="danger">{String(pendingCount)}</Badge>,
+            "/scraping": <NavCountBadge count={pendingCount} />,
           }
         : undefined,
     [pendingCount],

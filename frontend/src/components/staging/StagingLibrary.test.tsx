@@ -7,6 +7,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StagingMediaItem, StagingMediaResponse } from "@/api/client";
@@ -73,12 +74,16 @@ function response(items: StagingMediaItem[]): StagingMediaResponse {
 
 /** Render StagingLibrary inside a QueryClientProvider (its detail drawer's
  *  manual-resolve action uses a mutation). */
-function renderLib(): ReturnType<typeof render> {
+function renderLib(
+  initialEntries: string[] = ["/scraping"],
+): ReturnType<typeof render> {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={qc}>
-      <StagingLibrary />
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={initialEntries}>
+      <QueryClientProvider client={qc}>
+        <StagingLibrary />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -207,6 +212,13 @@ describe("StagingLibrary", () => {
     renderLib();
     fireEvent.click(screen.getByRole("button", { name: /Fight Club/ }));
     // The drawer shows the per-media timeline section.
+    expect(screen.getByText("Parcours pipeline")).toBeInTheDocument();
+  });
+
+  it("opens the detail directly from a ?media= URL param — it is a route (#20)", () => {
+    // Deep-linking the media id opens the detail with no click, so the browser
+    // Back button (which drops the param) closes it like any route.
+    renderLib(["/scraping?media=abc123"]);
     expect(screen.getByText("Parcours pipeline")).toBeInTheDocument();
   });
 
