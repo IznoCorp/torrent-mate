@@ -13,6 +13,14 @@ import { type ObligationItem } from "@/api/acquisition";
 /** Tab ids for the four panels. */
 export type TabId = "followed" | "wanted" | "obligations" | "watcher";
 
+/**
+ * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
+ *
+ * The followed-search cadence caption is built from this scheduler's live
+ * ``schedule`` string — never hardcoded — and omitted when the job is absent.
+ */
+export const GRAB_JOB_NAME = "personalscraper-grab";
+
 /** Event types the page listens for (DESIGN §Live invalidation). */
 export const ACQ_EVENT_TYPES = new Set([
   "SeriesFollowed",

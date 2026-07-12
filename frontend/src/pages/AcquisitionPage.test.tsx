@@ -38,6 +38,8 @@ const useEventStreamContextMock = vi.fn((): { events: EventMessage[] } => ({
   events: [],
 }));
 
+const useSchedulersMock = vi.fn();
+
 const setWatcherMock = vi.fn();
 
 vi.mock("@/hooks/useAcquisition", () => ({
@@ -63,6 +65,11 @@ vi.mock("@/hooks/useAcquisition", () => ({
 
 vi.mock("@/hooks/useEventStreamContext", () => ({
   useEventStreamContext: () => useEventStreamContextMock(),
+}));
+
+vi.mock("@/hooks/useSchedulers", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useSchedulers: () => useSchedulersMock(),
 }));
 
 vi.mock("@/api/client", async () => {
@@ -185,6 +192,22 @@ function mockAllEmpty(): void {
       recent_runs: [],
     },
     error: null,
+  });
+  // Default: the grab scheduler is present with its live schedule (C15).
+  useSchedulersMock.mockReturnValue({
+    data: {
+      schedulers: [
+        {
+          name: "personalscraper-grab",
+          display_name: "Récupération (grab)",
+          kind: "cron",
+          schedule: "Tous les jours à 03:20 et 15:20",
+          enabled: true,
+          last_run_at: null,
+          last_outcome: null,
+        },
+      ],
+    },
   });
 }
 
@@ -334,6 +357,51 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByText("À jour")).toBeInTheDocument();
     expect(screen.queryByText("En cours")).not.toBeInTheDocument();
+  });
+
+  it("builds the automatic-search caption from the live grab scheduler (C15)", () => {
+    mockAllEmpty();
+    useSchedulersMock.mockReturnValue({
+      data: {
+        schedulers: [
+          {
+            name: "personalscraper-grab",
+            display_name: "Récupération (grab)",
+            kind: "cron",
+            schedule: "Le lundi à 09:00",
+            enabled: true,
+            last_run_at: null,
+            last_outcome: null,
+          },
+        ],
+      },
+    });
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [makeFollowed({ id: 1 })] },
+      error: null,
+    });
+    renderPage();
+
+    // The caption reflects the scheduler's live schedule, not a hardcoded one.
+    expect(
+      screen.getByText(/Recherche automatique : Le lundi à 09:00\./),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the automatic-search caption when the grab scheduler is absent (C15)", () => {
+    mockAllEmpty();
+    useSchedulersMock.mockReturnValue({ data: { schedulers: [] } });
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [makeFollowed({ id: 1 })] },
+      error: null,
+    });
+    renderPage();
+
+    expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
   });
 
   it("shows a per-series 'Déclencher' trigger, disabled for an inactive series", () => {

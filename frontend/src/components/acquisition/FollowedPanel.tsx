@@ -40,11 +40,13 @@ import {
   useUnfollow,
   useUpdateFollow,
 } from "@/hooks/useAcquisition";
+import { useSchedulers } from "@/hooks/useSchedulers";
 
 import {
   cadenceInterval,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  GRAB_JOB_NAME,
   TEMP_COLOR,
   TIER_LABEL,
   untilLabel,
@@ -79,6 +81,13 @@ export function FollowedPanel({
   const followMutation = useFollow();
   const unfollowMutation = useUnfollow();
   const updateMutation = useUpdateFollow();
+
+  // C15: the automatic-search cadence caption is read from the live grab
+  // scheduler, never hardcoded — and omitted entirely when the job is absent.
+  const { data: schedulers } = useSchedulers();
+  const grabSchedule =
+    schedulers?.schedulers.find((s) => s.name === GRAB_JOB_NAME)?.schedule ??
+    null;
 
   // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
   // grab run; feedback is a toast (409 = already running, 404 = gone).
@@ -237,10 +246,14 @@ export function FollowedPanel({
     <div className="space-y-4">
       {addForm}
 
-      {/* Automatic-search cadence caption (grab cron — see schedulers registry). */}
-      <p className="text-xs text-muted-foreground">
-        Recherche automatique : tous les jours à 03:20 et 15:20.
-      </p>
+      {/* Automatic-search cadence caption, built from the live grab scheduler
+          (C15). Omitted entirely when the scheduler is unavailable — never a
+          hardcoded/invented value. */}
+      {grabSchedule != null && (
+        <p className="text-xs text-muted-foreground">
+          Recherche automatique : {grabSchedule}.
+        </p>
+      )}
 
       {/* Card grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -259,7 +272,10 @@ export function FollowedPanel({
                 <>
                   {/* Backend-derived lifecycle status (C14): the UI only maps
                       status → tone/label, no business derivation in JSX. */}
-                  <Badge tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"} dot>
+                  <Badge
+                    tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
+                    dot
+                  >
                     {FOLLOW_STATUS_LABEL[item.status] ?? item.status}
                   </Badge>
                   {/* TVDB id kept as its own node (test + operator reference). */}
