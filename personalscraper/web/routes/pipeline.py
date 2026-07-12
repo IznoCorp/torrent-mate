@@ -782,7 +782,10 @@ def _build_step_stage(
     return PipelineStage(
         key=key,
         label=label,
-        count=success,
+        # Total items processed at this stage — so the station hero reconciles with
+        # its own split (réussi + ignoré + sans correspondance + erreur), instead of
+        # a bare "réussi" count that reads as smaller than the breakdown beneath it.
+        count=success + skip + error + unmatched,
         state=cast(StageStateT, state),
         attention=unmatched,
         blocked=error,

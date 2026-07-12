@@ -209,18 +209,21 @@ def test_stages_rolls_up_last_run_counts(test_config, tmp_path: Path) -> None:
     assert stages["arrival"]["state"] == "ok"
     assert stages["arrival"]["split"] is None
 
-    # Staging (sort): success + skip → split réussi/ignoré, state ok.
-    assert stages["staging"]["count"] == 8
+    # Staging (sort): the hero count is the TOTAL processed (success 8 + skip 2)
+    # so it reconciles with its own split, not a bare "réussi" that reads smaller.
+    assert stages["staging"]["count"] == 10
     assert stages["staging"]["state"] == "ok"
     split_labels = {s["label"]: s["count"] for s in stages["staging"]["split"]}
     assert split_labels == {"réussi": 8, "ignoré": 2}
+    assert stages["staging"]["count"] == sum(split_labels.values())
 
-    # Scraping (scrape): unmatched → attention state + attention count.
-    assert stages["scraping"]["count"] == 5
+    # Scraping (scrape): total = réussi 5 + sans correspondance 3 = 8 (reconciled).
+    assert stages["scraping"]["count"] == 8
     assert stages["scraping"]["state"] == "attention"
     assert stages["scraping"]["attention"] == 3
     scrape_split = {s["label"]: s["count"] for s in stages["scraping"]["split"]}
     assert scrape_split == {"réussi": 5, "sans correspondance": 3}
+    assert stages["scraping"]["count"] == sum(scrape_split.values())
 
     # Dispatch: pure success → ok.
     assert stages["dispatch"]["count"] == 5
