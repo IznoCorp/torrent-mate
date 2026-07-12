@@ -175,3 +175,32 @@
 .ps-resolve-out {
   animation: ps-resolve-out var(--motion-slow) var(--ease-out) forwards;
 }
+/* New row arriving in a live list (EventFeed, RecentResolutions) — a gentle
+   fade + rise so freshly-pushed entries read as "just arrived" (C21). */
+@keyframes ps-enter-row {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ps-enter-row {
+  animation: ps-enter-row var(--motion-base) var(--ease-out);
+}
+
+/* Motion tokens honour the reduced-motion preference: collapse every DS
+   animation to an instant state change (C21 / prefers-reduced-motion). */
+@media (prefers-reduced-motion: reduce) {
+  .ps-pulse,
+  .ps-count-pop,
+  .ps-shimmer,
+  .ps-flow-line,
+  .ps-flow-line-vertical,
+  .ps-resolve-out,
+  .ps-enter-row {
+    animation: none;
+  }
+}

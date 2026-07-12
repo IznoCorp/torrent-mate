@@ -20,6 +20,7 @@ import {
 
 import type { EventMessage } from "@/api/events";
 import { EventRow } from "@/components/dashboard/EventRow";
+import { cn } from "@/lib/utils";
 
 /** Fixed row height, in px — a constant estimate keeps virtualization cheap. */
 const ROW_HEIGHT = 28;
@@ -73,6 +74,16 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
 
   const items = rowVirtualizer.getVirtualItems();
 
+  // C21: gently animate only a genuinely new arrival (the newest id changed),
+  // never on scroll — the newest event is the last element (append order).
+  const newestId = events.at(-1)?.id;
+  const prevNewestRef = useRef<EventMessage["id"] | undefined>(undefined);
+  const justArrivedId =
+    newestId !== prevNewestRef.current ? newestId : undefined;
+  useEffect(() => {
+    prevNewestRef.current = newestId;
+  }, [newestId]);
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -117,7 +128,10 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
               return (
                 <div
                   key={event.id}
-                  className="absolute left-0 top-0 w-full"
+                  className={cn(
+                    "absolute left-0 top-0 w-full",
+                    event.id === justArrivedId && "ps-enter-row",
+                  )}
                   style={{
                     height: `${String(virtualRow.size)}px`,
                     transform: `translateY(${String(virtualRow.start)}px)`,

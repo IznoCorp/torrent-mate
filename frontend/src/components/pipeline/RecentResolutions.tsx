@@ -49,7 +49,7 @@ export function RecentResolutions(): ReactElement | null {
         {items.map((d) => (
           <li
             key={d.id}
-            className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border/60 py-1 text-sm last:border-b-0"
+            className="ps-enter-row flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border/60 py-1 text-sm last:border-b-0"
           >
             <span className="min-w-0 truncate">
               {d.extracted_title}

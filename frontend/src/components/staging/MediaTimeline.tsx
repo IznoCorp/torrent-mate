@@ -9,7 +9,7 @@ const STATE_META: Record<
   { dot: string; label: string; muted: boolean }
 > = {
   done: { dot: "bg-success", label: "Fait", muted: false },
-  active: { dot: "bg-info animate-pulse", label: "En cours", muted: false },
+  active: { dot: "bg-info ps-pulse", label: "En cours", muted: false },
   blocked: { dot: "bg-danger", label: "Bloqué", muted: false },
   pending: { dot: "bg-muted-foreground/40", label: "En attente", muted: true },
   skipped: { dot: "bg-muted-foreground/20", label: "Non applicable", muted: true },
