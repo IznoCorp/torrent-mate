@@ -2,7 +2,7 @@ import { Menu } from "lucide-react";
 import type { ReactElement } from "react";
 import { Link } from "react-router-dom";
 
-import { BRAND_ICON } from "@/lib/env";
+import { BrandMark } from "@/components/ds/BrandMark";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -85,7 +85,7 @@ export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
       </button>
       {/* Wordmark is redundant with the sidebar brand on desktop → mobile only. */}
       <Link to="/" className="flex items-center gap-2 md:hidden">
-        <img src={BRAND_ICON} alt="" className="size-7" />
+        <BrandMark className="size-7" />
         <span className="text-sm font-semibold tracking-tight">
           Torrent<span className="text-primary">Mate</span>
         </span>

@@ -121,29 +121,26 @@ describe("CandidateCard", () => {
     expect(card).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("affiche l'image poster quand l'URL est fournie", () => {
+  it("affiche l'image poster (via MediaPoster) quand l'URL est fournie", () => {
     renderCard(makeCandidate({ poster_url: "https://example.com/poster.jpg" }));
-    const img = screen.getByAltText("Affiche de Inception");
+    const img = screen.getByAltText("Inception");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("loading", "lazy");
   });
 
-  it("affiche le fallback quand poster_url est null", () => {
+  it("affiche le fallback initiales quand poster_url est null", () => {
     renderCard(makeCandidate({ poster_url: null }));
-    expect(screen.getByText("Aucune affiche")).toBeInTheDocument();
-    expect(
-      screen.queryByAltText("Affiche de Inception"),
-    ).not.toBeInTheDocument();
+    // MediaPoster fallback: title initials over the branded gradient, no <img>.
+    expect(screen.getByText("I")).toBeInTheDocument();
+    expect(screen.queryByAltText("Inception")).not.toBeInTheDocument();
   });
 
-  it("affiche le fallback après une erreur de chargement du poster", () => {
+  it("bascule vers le fallback après une erreur de chargement du poster", () => {
     renderCard(makeCandidate({ poster_url: "https://example.com/broken.jpg" }));
-    const img = screen.getByAltText("Affiche de Inception");
+    const img = screen.getByAltText("Inception");
     fireEvent.error(img);
-    expect(screen.getByText("Aucune affiche")).toBeInTheDocument();
-    expect(
-      screen.queryByAltText("Affiche de Inception"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("I")).toBeInTheDocument();
+    expect(screen.queryByAltText("Inception")).not.toBeInTheDocument();
   });
 
   it("affiche la barre de score avec la bonne couleur pour un score élevé", () => {

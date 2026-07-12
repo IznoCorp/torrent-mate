@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 
-import { BRAND_ICON } from "@/lib/env";
+import { BrandMark } from "@/components/ds/BrandMark";
 import { useAuthContext } from "@/hooks/useAuthContext";
 import { LoginForm } from "@/components/LoginForm";
 import {
@@ -69,7 +69,7 @@ export default function Login(): ReactElement {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-6 font-sans text-foreground">
       <div className="flex flex-col items-center gap-3">
-        <img src={BRAND_ICON} alt="" className="size-12" />
+        <BrandMark className="size-12" />
         <span className="text-2xl font-semibold tracking-tight">
           Torrent<span className="text-primary">Mate</span>
         </span>

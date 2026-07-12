@@ -7,7 +7,7 @@ import { NavSections } from "@/components/layout/NavSections";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { Badge } from "@/components/ui/badge";
-import { BRAND_ICON } from "@/lib/env";
+import { BrandMark } from "@/components/ds/BrandMark";
 import {
   Sheet,
   SheetContent,
@@ -95,7 +95,7 @@ function AppShellInner(): ReactElement {
         <SheetContent side="left" className="w-72 gap-0 p-0">
           <SheetHeader className="border-b border-sidebar-border">
             <SheetTitle className="flex items-center gap-2 text-sm tracking-tight">
-              <img src={BRAND_ICON} alt="" className="size-7 shrink-0" />
+              <BrandMark className="shrink-0" />
               <span>
                 Torrent<span className="text-primary">Mate</span>
               </span>
