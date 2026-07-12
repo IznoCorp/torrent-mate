@@ -203,3 +203,17 @@ class StagingMediaResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class EnqueueDecisionResponse(BaseModel):
+    """Response body for ``POST /api/staging/media/{id}/enqueue``.
+
+    Attributes:
+        ok: ``True`` when the item was enqueued as a pending scrape decision.
+        media_kind: The kind of the enqueued item (``movie``/``tvshow``).
+        title: The folder-derived title enqueued for resolution.
+    """
+
+    ok: bool
+    media_kind: StagingMediaKind
+    title: str

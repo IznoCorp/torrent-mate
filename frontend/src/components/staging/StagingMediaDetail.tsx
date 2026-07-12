@@ -1,6 +1,9 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { toast } from "sonner";
 
-import type { StagingMediaItem } from "@/api/client";
+import { enqueueStagingDecision, type StagingMediaItem } from "@/api/client";
+import { decisionsKeys } from "@/api/decisions";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
@@ -65,6 +68,24 @@ export function StagingMediaDetail({
   const badge = matchBadge(item.match);
   const kind = posterKind(item.media_kind);
   const dispatch = item.dispatch_target;
+  const queryClient = useQueryClient();
+
+  // A non-identified (absent) movie/tvshow has no pending decision and therefore
+  // no resolve path — enqueue it as a decision so it appears in the deck, then
+  // jump there (the deck's manual search resolves it via the #3-fixed scrape).
+  const canManualResolve =
+    item.match === "absent" && (item.media_kind === "movie" || item.media_kind === "tvshow");
+  const enqueueMut = useMutation({
+    mutationFn: () => enqueueStagingDecision(item.id),
+    onSuccess: () => {
+      toast.success("Ajouté à la file de résolution — recherchez un match dans le deck");
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      onResolve?.();
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Échec de la mise en file");
+    },
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,6 +180,22 @@ export function StagingMediaDetail({
       {item.match === "ambiguous" && onResolve !== undefined && (
         <Button type="button" onClick={onResolve}>
           Résoudre le matching
+        </Button>
+      )}
+
+      {/* Manual resolution for a non-identified (absent) item — no auto match, so
+          send it to the deck and search there. */}
+      {canManualResolve && (
+        <Button
+          type="button"
+          disabled={enqueueMut.isPending}
+          onClick={() => {
+            enqueueMut.mutate();
+          }}
+        >
+          {enqueueMut.isPending
+            ? "Envoi…"
+            : "Rechercher / résoudre manuellement"}
         </Button>
       )}
     </div>

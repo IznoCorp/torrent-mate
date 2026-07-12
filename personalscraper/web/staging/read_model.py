@@ -605,6 +605,43 @@ def resolve_media_dir(config: Config, media_id: str) -> tuple[str, Path] | None:
     return None
 
 
+def resolve_scrapable_item(config: Config, media_id: str) -> tuple[Path, str, str, int | None] | None:
+    """Re-derive a scrapable staged item for the manual-resolve enqueue.
+
+    Like :func:`resolve_media_dir` (id matched against freshly-computed ids — a
+    client can never inject a path), but also carries the media kind (from the
+    category's ``file_type``) and the folder-derived title/year. Returns ``None``
+    when the id does not match, or the item is not a ``movie``/``tvshow`` (only
+    those flow through a scrape decision).
+
+    Args:
+        config: The loaded config.
+        media_id: The stable media id from a list item.
+
+    Returns:
+        A ``(media_dir, media_kind, title, year)`` tuple, or ``None``.
+    """
+    for entry in config.staging_dirs:
+        category = folder_name(entry)
+        category_dir = staging_path(config, entry)
+        if not category_dir.is_dir():
+            continue
+        media_kind = _kind_for_entry(entry.file_type, entry.role)
+        if media_kind not in _SCRAPABLE_KINDS:
+            continue
+        try:
+            children = category_dir.iterdir()
+        except OSError:
+            continue
+        for child in children:
+            if not child.is_dir():
+                continue
+            if media_id_for(f"{category}/{child.name}") == media_id:
+                folder = child.name
+                return child, media_kind, _title_from_folder(folder), _year_from_folder(folder)
+    return None
+
+
 def poster_file_for(media_dir: Path) -> Path | None:
     """Return the servable local poster file in a media folder, or ``None``.
 

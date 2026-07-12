@@ -480,3 +480,54 @@ def test_poster_route_serves_and_404s(test_config, tmp_path: Path) -> None:
     assert client.get(f"/api/staging/media/{unmatched_id}/poster").status_code == 404
     # An unknown id → 404 (never a path-traversal escape).
     assert client.get("/api/staging/media/deadbeefdeadbeef/poster").status_code == 404
+
+
+def test_enqueue_non_identified_creates_pending_decision(test_config, tmp_path: Path) -> None:
+    """POST .../enqueue turns an absent movie into a pending 'manual' scrape decision."""
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    unknown = movies / "Mystery Film (2021)"
+    unknown.mkdir(parents=True)
+    _write_video(unknown / "Mystery Film (2021).mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Mystery Film (2021)")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/enqueue",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["media_kind"] == "movie"
+    assert body["title"] == "Mystery Film"
+
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute(
+        'SELECT media_kind, status, "trigger" FROM scrape_decision WHERE staging_path LIKE ?',
+        ("%Mystery Film (2021)",),
+    ).fetchone()
+    conn.close()
+    assert row == ("movie", "pending", "manual")
+
+
+def test_enqueue_requires_x_requested_with(test_config, tmp_path: Path) -> None:
+    """The enqueue POST is CSRF-guarded — 400 without X-Requested-With."""
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    (movies / "NoHeader (2021)").mkdir(parents=True)
+    _write_video(movies / "NoHeader (2021)" / "NoHeader (2021).mkv", size=512)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+    media_id = media_id_for("001-MOVIES/NoHeader (2021)")
+    assert client.post(f"/api/staging/media/{media_id}/enqueue").status_code == 400
