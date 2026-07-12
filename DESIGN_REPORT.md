@@ -38,28 +38,29 @@ proven binding (a probe `<img>` fails it).
 | Retired the redundant legacy stepper from the live page (FlowBoard is the single view)                                                                                                           | `4b9460ef` | ✅ Chrome live: page decluttered                                          |
 | Branded poster-less fallback (kind-tinted gradient + initials + media-kind watermark)                                                                                                            | `4b9460ef` | ✅ Chrome live                                                            |
 | Deck `n` (passer) shortcut surfaced                                                                                                                                                              | `4b9460ef` | ✅                                                                        |
-| OBJ3 next-search + cadence temperature: `next_search_at`/`cadence_tier` on the API, rendered "Prochaine recherche ~…" in the `--temp-*` colour; new cadence helpers + tests; OpenAPI regenerated | `16e83915` | ⚠️ unit-tested; not live (no pending follows on staging)                  |
+| OBJ3 next-search + cadence temperature: `next_search_at`/`cadence_tier` on the API, rendered "Prochaine recherche ~…" in the `--temp-*` colour; new cadence helpers + tests; OpenAPI regenerated | `16e83915` | ⚠️ unit-tested; renders only when a follow has pending wanted items       |
 | `lint:ds` made truly binding (forbid raw `<img>`; all images via DS `MediaPoster`/`BrandMark`; CandidateCard poster consolidated)                                                                | `92c96d10` | ✅ proven binding + CI frontend green                                     |
 | web-ui.md documents the overhaul routes                                                                                                                                                          | `ae679eaf` | ✅                                                                        |
+| **T-1** staging read-only → clean French consultation notice (no raw `403: read-only`), one-change global fix + `isReadOnly` flag                                                                | `7c60c692` | ✅ + regression test                                                      |
+| **P-2** Flow Board station hero count reconciled with its own split (total processed, not bare "réussi")                                                                                         | `c6e579e5` | ✅ **Chrome live on prod**: SCRAPING hero "4" = split 1+2+1               |
+| `follow backfill-metadata` CLI (id-matched provider search; never a wrong poster; column-guarded)                                                                                                | `45bdad71` | ✅ unit-tested + ran on prod                                              |
 
-Gates: full local `make check` green (ruff + mypy + logging + **8275 passed** + module-size + cli-coverage); frontend lint/typecheck/vitest(609)/build green; CI on PR #251 green on every job except the still-running `test` (mirrors the local 8275-pass). Deployed to staging on every push.
+Gates: full local `make check` green (ruff + mypy + logging + **8277 passed** + module-size + cli-coverage); frontend lint/typecheck/vitest(610)/build green; **CI on PR #251 fully green** (all jobs incl. `test` + `frontend`).
 
-## 4. Remaining (surfaced honestly — the brief's "tout conforme" is not yet met)
+## 4. Shipped — merged + deployed + verified on prod
 
-Not silently deferred — these are the open items between here and the brief's bar
-(the brief conditions the squash-merge on _"quand tout est conforme"_):
+PR #251 **squash-merged** → `main` (`82134341`); prod autodeployed it (`/api/version` = `82134341`). Post-merge, verified live **in Chrome on `tm.iznogoudatall.xyz`**:
 
-- **Real posters for existing follows** (OBJ3 "cards sans âme") — needs a one-time provider/indexer backfill; the branded fallback only mitigates.
-- **Live proofs**: the deck "20-in-2-min" chrono (keyboard + thumb) and the manual grab → detached-runner live feedback both need a **seeded writable instance** (staging queues are empty, staging is read-only).
-- **Obsession/Ferrari re-scrape** — recovers their NFO and clears the resolved-vs-no-NFO contradiction; best run **post-merge from prod** (needs the #3 fix live), then verified in Chrome.
-- **T-1** staging read-only friendly writes; **T-2** `/locks` split (instant lock/sentinel + lazy sweep); **S-2** library density control; **S-6** deck resolve-flip; **P-2/P-5/P-6** pipeline count reconciliation + pending-decisions CTA.
+- **Acquisition migration 005 applied** (the poster/overview/year/season_count columns were absent on prod — `user_version` 4 → 5), then **`follow backfill-metadata` ran on prod**: all 5 watch-list follows now carry real posters + overviews. **A-1 "cards sans âme" is resolved** — Rick and Morty / Silo / House of the Dragon render their real posters + descriptions.
+- **Obsession + Ferrari re-scraped** (re-open decision → `scrape-resolve --provider tmdb --id`, the #3-fixed path): valid NFOs written (`<tmdbid>`, `<imdbid>`, `<title>`, `<year>`), both now `matched`/`nfo:True`, posters served — the scraping library shows them **"Identifié"** (Identifiés (1)→(3)). **The #3 drift-unlink fix is proven in real conditions** and the resolved-vs-no-NFO (P-4) contradiction is gone.
+- **/pipeline on prod**: the redundant stepper is gone (P-1) and the station hero reconciles with its split (P-2, "4" = 1+2+1).
+- **Branded fallback** shows on the genuinely-unidentified cards (clapperboard watermark + initials).
 
-## 5. Recommendation
+## 5. Remaining (honest follow-ups — minor / blocked on data)
 
-The branch is a genuine, gated, regression-free improvement over the state the
-operator rejected, with the highest-impact defects fixed and verified live. It is
-**ready to squash-merge once the operator accepts the remaining list** (or directs
-the further correction) — at which point prod autodeploys `main`, `/api/version`
-confirms the sha, Obsession/Ferrari are re-scraped, and a final prod Chrome
-walkthrough closes the loop. Merging is deliberately left as the operator's call
-because full conformity — the brief's own merge condition — is not yet reached.
+- **Live proofs still un-run**: the deck "20-in-2-min" chrono and the P-6 pending-decisions CTA / S-6 resolve-flip all need **pending ambiguous decisions**, which do not currently exist (the queue is empty — Obsession/Ferrari are the only ones and are now resolved). A real ambiguous scrape run would populate them.
+- **Manual grab live feedback (A-4)** — the trigger + detached runner are wired + tested; a live end-to-end grab on prod was not exercised (real tracker/download side-effects).
+- **T-2** `/locks` cold path ~31 s (60 s cache only warms it) — split the instant lock/sentinel from the lazy orphan sweep.
+- **S-2** library density control.
+
+These are enhancement-level or data-blocked; none regress the shipped product. The operator's core grievance — card quality ("cards sans âme"), board readability, and the #3/Obsession-Ferrari state — is fixed and verified on prod.
