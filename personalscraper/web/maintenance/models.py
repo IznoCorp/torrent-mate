@@ -13,6 +13,8 @@ accept untrusted user input.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from personalscraper.web.maintenance.registry import MaintenanceAction
@@ -113,19 +115,41 @@ class TmpOrphan(BaseModel):
     age_s: float
 
 
+class TmpOrphanSweep(BaseModel):
+    """The tmp-orphan sweep state, decoupled from the fast lock read (C25).
+
+    The disk sweep walks slow macFUSE/NTFS roots (~31 s cold), so it runs in a
+    background thread instead of blocking ``GET /locks``. The route returns
+    ``status="pending"`` on the cold first read (the UI shows a skeleton on the
+    sweep panel only, then invalidates once the sweep lands) and serves cached
+    data — refreshing it in the background when stale — thereafter.
+
+    Attributes:
+        status: ``"pending"`` while the first background sweep runs and no
+            cached data exists yet; ``"ready"`` once ``orphans`` reflects a
+            completed sweep (fresh, or stale-while-revalidating).
+        orphans: The orphan entries (empty while pending; capped at 100).
+        age_s: Age in seconds of the sweep data when ready, else ``None``.
+    """
+
+    status: Literal["pending", "ready"]
+    orphans: list[TmpOrphan] = []
+    age_s: float | None = None
+
+
 class LocksResponse(BaseModel):
     """Top-level response for the locks and orphans monitoring panel.
 
     Attributes:
         pipeline_lock: State of the main ``pipeline.lock`` file.
         sentinels: State of the pause and watcher-paused sentinels.
-        tmp_orphans: List of temporary orphan files or directories found
-            during a bounded sweep (capped at 100 entries).
+        sweep: The tmp-orphan sweep — its state and (when ready) the entries
+            found during a bounded background sweep (C25).
     """
 
     pipeline_lock: LockState
     sentinels: Sentinels
-    tmp_orphans: list[TmpOrphan]
+    sweep: TmpOrphanSweep
 
 
 class NfoStats(BaseModel):

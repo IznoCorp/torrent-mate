@@ -1011,15 +1011,17 @@ export interface paths {
         };
         /**
          * Get Locks
-         * @description Return pipeline lock state, sentinels, and bounded tmp-orphan sweep.
+         * @description Return pipeline lock state, sentinels, and the tmp-orphan sweep state.
          *
-         *     Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused``
-         *     from the configured ``data_dir``, then performs a bounded filesystem
-         *     sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries
-         *     across staging and disk roots (capped at 100 entries, depth ≤ 2).
+         *     Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the
+         *     configured ``data_dir`` and returns them immediately. The bounded filesystem
+         *     sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at
+         *     100 entries, depth ≤ 2) runs on a background thread (C25): the response
+         *     carries ``sweep.status = "pending"`` on the cold first read and the cached
+         *     result thereafter, so ``/locks`` never blocks on the slow disk walk.
          *
          *     Returns:
-         *         A :class:`LocksResponse` with lock, sentinel, and orphan data.
+         *         A :class:`LocksResponse` with lock, sentinel, and sweep state.
          */
         get: operations["get_locks_api_maintenance_locks_get"];
         put?: never;
@@ -2264,14 +2266,13 @@ export interface components {
          *     Attributes:
          *         pipeline_lock: State of the main ``pipeline.lock`` file.
          *         sentinels: State of the pause and watcher-paused sentinels.
-         *         tmp_orphans: List of temporary orphan files or directories found
-         *             during a bounded sweep (capped at 100 entries).
+         *         sweep: The tmp-orphan sweep — its state and (when ready) the entries
+         *             found during a bounded background sweep (C25).
          */
         LocksResponse: {
             pipeline_lock: components["schemas"]["LockState"];
             sentinels: components["schemas"]["Sentinels"];
-            /** Tmp Orphans */
-            tmp_orphans: components["schemas"]["TmpOrphan"][];
+            sweep: components["schemas"]["TmpOrphanSweep"];
         };
         /**
          * LoginRequest
@@ -3400,6 +3401,37 @@ export interface components {
             path: string;
             /** Prefix */
             prefix: string;
+        };
+        /**
+         * TmpOrphanSweep
+         * @description The tmp-orphan sweep state, decoupled from the fast lock read (C25).
+         *
+         *     The disk sweep walks slow macFUSE/NTFS roots (~31 s cold), so it runs in a
+         *     background thread instead of blocking ``GET /locks``. The route returns
+         *     ``status="pending"`` on the cold first read (the UI shows a skeleton on the
+         *     sweep panel only, then invalidates once the sweep lands) and serves cached
+         *     data — refreshing it in the background when stale — thereafter.
+         *
+         *     Attributes:
+         *         status: ``"pending"`` while the first background sweep runs and no
+         *             cached data exists yet; ``"ready"`` once ``orphans`` reflects a
+         *             completed sweep (fresh, or stale-while-revalidating).
+         *         orphans: The orphan entries (empty while pending; capped at 100).
+         *         age_s: Age in seconds of the sweep data when ready, else ``None``.
+         */
+        TmpOrphanSweep: {
+            /** Age S */
+            age_s?: number | null;
+            /**
+             * Orphans
+             * @default []
+             */
+            orphans: components["schemas"]["TmpOrphan"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "ready";
         };
         /**
          * UpdateFollowRequest

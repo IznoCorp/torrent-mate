@@ -194,11 +194,35 @@ class TestLocksRoute:
 
     @pytest.fixture(autouse=True)
     def _reset_orphan_cache(self) -> None:
-        """Clear the module-level tmp-orphan TTL cache so each test scans fresh."""
+        """Clear the module-level tmp-orphan cache so each test sweeps fresh."""
         from personalscraper.web.routes import maintenance as _maint
 
         _maint._orphan_cache["ts"] = 0.0
         _maint._orphan_cache["data"] = []
+        _maint._orphan_cache["computing"] = False
+
+    @staticmethod
+    def _wait_for_sweep(client, timeout_s: float = 5.0) -> dict:
+        """GET /locks until the background sweep lands (C25), returning the body."""
+        deadline = time.time() + timeout_s
+        data: dict = {}
+        while time.time() < deadline:
+            data = client.get("/api/maintenance/locks").json()
+            if data["sweep"]["status"] == "ready":
+                return data
+            time.sleep(0.02)
+        raise AssertionError(f"sweep never became ready: {data.get('sweep')}")
+
+    def test_locks_returns_pending_sweep_on_cold_read(self, test_config, tmp_path: Path) -> None:
+        """C25 — the cold first read returns locks immediately + a pending sweep."""
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client(test_config, tmp_path)
+
+        data = client.get("/api/maintenance/locks").json()
+        # Locks are present right away; the slow disk sweep is still pending.
+        assert data["pipeline_lock"]["held"] is False
+        assert data["sweep"]["status"] == "pending"
+        assert data["sweep"]["orphans"] == []
 
     def test_locks_idle(self, test_config, tmp_path: Path) -> None:
         """200 — no lock file → ``held=False``, sentinels absent, no orphans."""
@@ -206,9 +230,7 @@ class TestLocksRoute:
 
         client = _build_authenticated_client(test_config, tmp_path)
 
-        resp = client.get("/api/maintenance/locks")
-        assert resp.status_code == 200
-        data = resp.json()
+        data = self._wait_for_sweep(client)
 
         lock = data["pipeline_lock"]
         assert lock["held"] is False
@@ -223,7 +245,8 @@ class TestLocksRoute:
         assert sentinels["watcher_paused"] is False
         assert sentinels["watcher_paused_age_s"] is None
 
-        assert data["tmp_orphans"] == []
+        assert data["sweep"]["status"] == "ready"
+        assert data["sweep"]["orphans"] == []
 
     def test_locks_stale(self, test_config, tmp_path: Path) -> None:
         """Lock file with a dead PID → ``stale=True``, ``pid_alive=False``.
@@ -258,11 +281,10 @@ class TestLocksRoute:
         assert isinstance(lock["age_s"], (int, float))
 
     def test_locks_tmp_orphans(self, test_config, tmp_path: Path) -> None:
-        """``_tmp_dispatch_*`` dirs in the staging root appear in ``tmp_orphans``.
+        """``_tmp_dispatch_*`` dirs in the staging root land in ``sweep.orphans``.
 
-        Creates 3 temporary dirs and asserts they are all reported,
-        demonstrating the cap is respected at a small count (the 100-entry
-        cap itself does not need a 100-file test).
+        Creates 3 temporary dirs and asserts the background sweep reports them
+        all (once it lands), demonstrating the cap holds at a small count.
         """
         staging = test_config.paths.staging_dir
         staging.mkdir(parents=True, exist_ok=True)
@@ -276,21 +298,20 @@ class TestLocksRoute:
 
         client = _build_authenticated_client(test_config, tmp_path)
 
-        resp = client.get("/api/maintenance/locks")
-        assert resp.status_code == 200
-        data = resp.json()
+        data = self._wait_for_sweep(client)
+        orphans = data["sweep"]["orphans"]
 
-        reported_paths = [e["path"] for e in data["tmp_orphans"]]
-        reported_prefixes = [e["prefix"] for e in data["tmp_orphans"]]
+        reported_paths = [e["path"] for e in orphans]
+        reported_prefixes = [e["prefix"] for e in orphans]
 
-        assert len(data["tmp_orphans"]) == 3
+        assert len(orphans) == 3
         for created_path in orphans_created:
             assert created_path in reported_paths
         for prefix in reported_prefixes:
             assert prefix == "_tmp_dispatch_"
 
     def test_locks_orphan_sweep_is_cached(self, test_config, tmp_path: Path) -> None:
-        """Two /locks calls within the TTL trigger exactly one disk sweep (L9 perf)."""
+        """The disk walk runs once per TTL — reads within it hit the cache (C25)."""
         from unittest.mock import patch
 
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
@@ -300,9 +321,11 @@ class TestLocksRoute:
             "personalscraper.web.routes.maintenance._sweep_tmp_orphans",
             return_value=[],
         ) as sweep:
+            # The first (cold) read triggers exactly one background sweep; once
+            # it lands, further reads within the TTL serve the cache, not a walk.
+            self._wait_for_sweep(client)
             assert client.get("/api/maintenance/locks").status_code == 200
             assert client.get("/api/maintenance/locks").status_code == 200
-        # The expensive disk walk ran once; the second call read the TTL cache.
         assert sweep.call_count == 1
 
     def test_locks_unauthenticated(self, test_config, tmp_path: Path) -> None:
