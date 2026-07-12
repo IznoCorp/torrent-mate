@@ -1227,3 +1227,66 @@ via `useEventStreamContext` with the R13 new-events-only ref pattern.
 | `409` | Duplicate follow (already active)    | Toast « Cette série est déjà suivie ».                |
 | `422` | No provider ID (Pydantic validation) | Inline form error on the add-follow dialog.           |
 | —     | Empty `items: []` (fail-soft)        | Empty state per tab (e.g. « Aucune série suivie »).   |
+
+## UX/UI overhaul (webui-overhaul)
+
+A UX/UI overhaul over the shipped S1–S7 waves, backend-as-source-of-truth. All
+new read routes are fail-soft (missing DB / unmounted disk / malformed NFO →
+empty/partial, never 500) and inside the single `guarded_api` perimeter.
+
+### OBJ1 — living pipeline (`/api/pipeline/stages`)
+
+`GET /api/pipeline/stages` → `StagesResponse` (`run_uid`, `run_state`,
+`updated_at`, `stages[]`). Aggregates the last `pipeline_run.steps_json` + the
+live `scrape_decision` queue into **nine typed stations** (`arrival`, `staging`,
+`cleaning`, `sorting`, `matching`, `scraping`, `trailers`, `verify`, `dispatch`),
+each with a backend-derived `state` (`idle`/`ok`/`active`/`attention`/`blocked`)
+and a `count`. Read-only, staging-safe. The frontend `FlowBoard` is the single
+canonical pipeline view (the legacy linear stepper was retired from `/pipeline`;
+it survives only in `RunDetail` for historical runs).
+
+### OBJ2A — staging read-model (`/api/staging/media`)
+
+`GET /api/staging/media` (`web/staging/read_model.py`) → one item per media
+folder under `staging_dirs`, enriched with NFO metadata, matching state (joined
+from `scrape_decision`, NFC-normalized), poster/trailer presence, season
+breakdown, a **per-media nine-stage timeline**, pagination/sort/filters +
+aggregate counts, and an opt-in dispatch preview (`with_dispatch=true`).
+
+- **Timeline monotonicity** (`_compute_stages`): the nine stages are ordered, so
+  a stage is `done` only when every earlier non-skipped stage is `done`; the
+  first incomplete stage is the frontier (`blocked` when a decision is pending).
+  `trailers` completion gates on the scrape (NFO), not on a trailer file — a
+  legacy folder with a stray poster/trailer but no NFO never shows a downstream
+  stage `done` ahead of `matching`/`scraping`.
+- **Poster route**: `GET /api/staging/media/{id}/poster` → `FileResponse` of the
+  on-disk poster, resolved by re-deriving the folder from the stable id
+  (`resolve_media_dir` enumerates `staging_dirs` and matches freshly-computed
+  ids — a client can never inject a path); 404 when absent. Detection covers the
+  canonical `poster.*`/`folder.*` and the MediaElch `{Title}-poster.*` form.
+
+### OBJ2B — resolution deck
+
+`ResolutionDeck` (keyboard: ←/→ select · ⏎ validate · `d` dismiss · `n` skip ·
+`s` search) resolves pending decisions one at a time via the existing
+`/api/decisions/{id}` search/resolve/dismiss endpoints (all carry
+`X-Requested-With` + `require_not_staging`). Resolved decisions render read-only
+(outcome, not the re-scrape picker).
+
+### OBJ3 — per-series trigger + cadence readout
+
+- `POST /api/acquisition/followed/{id}/search` → `GrabTriggerResponse` (202 +
+  `run_uid`). Reserves a tracked `pipeline_run` (`kind='maintenance'`,
+  `command='grab'`) and spawns a detached runner (`web/acquisition/runner.py`)
+  that runs `grab --followed-id N`. The runner holds **no** `pipeline.lock` (grab
+  claims each wanted item atomically, like the scheduled grab cron) and finalizes
+  the run row on every exit path. `require_not_staging` + `require_x_requested_with`
+  - a per-series 409 guard.
+- `GET /api/acquisition/followed` — `FollowedSeriesItem` additionally exposes
+  `next_search_at` (soonest next-due epoch across the series' pending wanted
+  items) and `cadence_tier` (`hot`/`warm`/`cold`/`cutoff`), derived from the
+  `acquire/cadence.py` engine; both `None` when nothing is pending. The card
+  renders "Prochaine recherche ~…" coloured by the DS `--temp-*` token.
+
+Any route/signature/docstring change here still requires `make openapi` +
+committing the regenerated `openapi.json` + `schema.d.ts`.
