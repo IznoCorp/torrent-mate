@@ -21,6 +21,7 @@ import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
+import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import {
@@ -66,6 +67,10 @@ export default function Pipeline(): ReactElement {
       ) : (
         <InterpretedRunFeed lines={lastRun.lines} label="Dernière exécution" />
       )}
+
+      {/* Fold the operator's resolved ambiguous-match choices into the summary
+          — the last-run narrative predates them (webui-overhaul #4). */}
+      <RecentResolutions />
 
       {/* Raw WS log — collapsed by default inside the accordion. */}
       <Accordion className="rounded-lg border border-border bg-card px-3">
