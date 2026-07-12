@@ -195,7 +195,7 @@ describe("AppShell pending-count badge", () => {
     // At least one badge must appear — filtering to <span> elements with
     // data-slot="badge" confirms these are Badge components.
     const badgeSpans = badges.filter(
-      (el) => el.getAttribute("data-slot") === "badge",
+      (el) => el.getAttribute("data-slot") === "nav-count",
     );
     expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
   });
@@ -261,7 +261,7 @@ describe("AppShell pending-count badge", () => {
     // and the badge should appear on both nav surfaces.
     const badges = await screen.findAllByText("5");
     const badgeSpans = badges.filter(
-      (el) => el.getAttribute("data-slot") === "badge",
+      (el) => el.getAttribute("data-slot") === "nav-count",
     );
     expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
   });
