@@ -183,7 +183,7 @@ export function StagingLibrary({
               resetTo(setSearch, e.target.value);
             }}
           />
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
             {/* Density toggle (C17) — comfortable vs compact grid. */}
             <div
               className="flex items-center gap-1 rounded-md border border-border p-0.5"
