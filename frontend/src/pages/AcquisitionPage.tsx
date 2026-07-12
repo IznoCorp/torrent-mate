@@ -11,14 +11,16 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactElement } from "react";
+import { toast } from "sonner";
 
 import {
   acqKeys,
+  triggerFollowedSearch,
   type CreateFollowRequest,
   type FollowedSeriesItem,
   type ObligationItem,
 } from "@/api/acquisition";
-import { setWatcher } from "@/api/client";
+import { ApiError, setWatcher } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MediaCard } from "@/components/ds/MediaCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
 import {
   Table,
   TableBody,
@@ -215,6 +219,33 @@ function cadenceInterval(
   return typeof v === "number" ? v : 0;
 }
 
+/** Cadence temperature token colour (DS `--temp-*`), by tier. */
+const TEMP_COLOR: Record<string, string> = {
+  hot: "var(--temp-hot)",
+  warm: "var(--temp-warm)",
+  cold: "var(--temp-cold)",
+  cutoff: "var(--temp-cutoff)",
+};
+
+/** French label for a cadence temperature tier. */
+const TIER_LABEL: Record<string, string> = {
+  hot: "recherche fréquente",
+  warm: "recherche régulière",
+  cold: "recherche espacée",
+  cutoff: "abandonnée",
+};
+
+/** Relative human label until an epoch-seconds instant ("imminente" when due). */
+function untilLabel(epochSec: number, nowMs: number): string {
+  const deltaMs = epochSec * 1000 - nowMs;
+  if (deltaMs <= 60_000) return "imminente";
+  const mins = Math.round(deltaMs / 60_000);
+  if (mins < 60) return `dans ~${String(mins)} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `dans ~${String(hours)} h`;
+  return `dans ~${String(Math.round(hours / 24))} j`;
+}
+
 /** Truncate a long string for table display, appending "…" when cut. */
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -242,6 +273,28 @@ function FollowedPanel({
   const followMutation = useFollow();
   const unfollowMutation = useUnfollow();
   const updateMutation = useUpdateFollow();
+
+  // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
+  // grab run; feedback is a toast (409 = already running, 404 = gone).
+  const triggerMutation = useMutation({
+    mutationFn: (id: number) => triggerFollowedSearch(id),
+    onSuccess: () => {
+      toast.success("Recherche lancée pour cette série.");
+    },
+    onError: (err: unknown) => {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          toast.error("Une recherche est déjà en cours pour cette série.");
+        } else if (err.status === 404) {
+          toast.error("Série introuvable.");
+        } else {
+          toast.error(err.detail);
+        }
+      } else {
+        toast.error("Erreur lors du lancement de la recherche.");
+      }
+    },
+  });
 
   // Add-form state
   const [tvdbId, setTvdbId] = useState("");
@@ -372,52 +425,110 @@ function FollowedPanel({
     <div className="space-y-4">
       {addForm}
 
-      {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Titre</TableHead>
-            <TableHead>ID TVDB</TableHead>
-            <TableHead>Actif</TableHead>
-            <TableHead>Cadence</TableHead>
-            <TableHead>En attente</TableHead>
-            <TableHead>Qualité</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <TableRow key={`f-${String(item.id)}`}>
-              <TableCell className="font-medium">{item.title}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.media_ref.tvdb_id ?? "—"}
-              </TableCell>
-              <TableCell>
-                <Badge tone={item.active ? "success" : "neutral"}>
-                  {item.active ? "Actif" : "Inactif"}
-                </Badge>
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {cadenceInterval(item.cadence) > 0
-                  ? `${String(cadenceInterval(item.cadence))} min`
-                  : "—"}
-              </TableCell>
-              <TableCell>
-                {item.wanted_pending > 0 ? (
-                  <Badge tone="warning">{String(item.wanted_pending)}</Badge>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell>
-                {item.quality_profile != null ? (
-                  <Badge tone="info">Personnalisé</Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Défaut</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
+      {/* Automatic-search cadence caption (grab cron — see schedulers registry). */}
+      <p className="text-xs text-muted-foreground">
+        Recherche automatique : tous les jours à 03:20 et 15:20.
+      </p>
+
+      {/* Card grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {data.map((item) => {
+          const interval = cadenceInterval(item.cadence);
+          const seasons = item.season_count ?? 0;
+          return (
+            <MediaCard
+              key={`f-${String(item.id)}`}
+              title={item.title}
+              year={item.year ?? null}
+              kind="tv"
+              posterUrl={item.poster_url ?? null}
+              overview={item.overview ?? null}
+              badges={
+                <>
+                  {/* Derived état: Désactivé / En cours / À jour. */}
+                  {!item.active ? (
+                    <Badge tone="neutral" dot>
+                      Désactivé
+                    </Badge>
+                  ) : item.wanted_pending > 0 ? (
+                    <Badge tone="warning" dot>
+                      En cours
+                    </Badge>
+                  ) : (
+                    <Badge tone="success" dot>
+                      À jour
+                    </Badge>
+                  )}
+                  {/* TVDB id kept as its own node (test + operator reference). */}
+                  {item.media_ref.tvdb_id != null && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {String(item.media_ref.tvdb_id)}
+                    </span>
+                  )}
+                  {seasons > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {seasons} saison{seasons > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {item.wanted_pending > 0 && (
+                    <Badge tone="warning">
+                      {String(item.wanted_pending)} en attente
+                    </Badge>
+                  )}
+                  {item.active &&
+                  item.cadence_tier != null &&
+                  item.next_search_at != null ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium"
+                      style={{
+                        color: TEMP_COLOR[item.cadence_tier] ?? "var(--muted-foreground)",
+                      }}
+                      title={TIER_LABEL[item.cadence_tier] ?? item.cadence_tier}
+                    >
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{
+                          backgroundColor: TEMP_COLOR[item.cadence_tier] ?? "currentColor",
+                        }}
+                        aria-hidden
+                      />
+                      Prochaine recherche {untilLabel(item.next_search_at, Date.now())}
+                    </span>
+                  ) : (
+                    interval > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        cadence {String(interval)} min
+                      </span>
+                    )
+                  )}
+                  {item.quality_profile != null && (
+                    <Badge tone="info">Personnalisé</Badge>
+                  )}
+                </>
+              }
+              footer={
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      triggerMutation.mutate(item.id);
+                    }}
+                    disabled={
+                      !item.active ||
+                      (triggerMutation.isPending &&
+                        triggerMutation.variables === item.id)
+                    }
+                    title={
+                      item.active
+                        ? "Lancer une recherche maintenant pour cette série"
+                        : "Série désactivée — réactivez-la pour lancer une recherche"
+                    }
+                  >
+                    {triggerMutation.isPending &&
+                    triggerMutation.variables === item.id
+                      ? "Lancement…"
+                      : "Déclencher"}
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -437,12 +548,12 @@ function FollowedPanel({
                   >
                     Retirer
                   </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </>
+              }
+            />
+          );
+        })}
+      </div>
 
       {/* Edit-cadence dialog */}
       <Dialog
@@ -583,73 +694,73 @@ function WantedPanel(): ReactElement {
         </div>
       ) : (
         <>
-      {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Titre</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Saison</TableHead>
-            <TableHead>Épisode</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Tentatives</TableHead>
-            <TableHead>Ajouté</TableHead>
-            <TableHead>Dernière recherche</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => (
-            <TableRow key={`w-${String(item.id)}`}>
-              <TableCell className="font-medium">{item.title}</TableCell>
-              <TableCell className="text-xs">{item.kind}</TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.season ?? "—"}
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.episode ?? "—"}
-              </TableCell>
-              <TableCell>
-                <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
-                  {STATUS_LABEL[item.status] ?? item.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {item.attempts}
-              </TableCell>
-              <TableCell className="text-xs">
-                {relativeTime(item.enqueued_at)}
-              </TableCell>
-              <TableCell className="text-xs">
-                {relativeTime(item.last_search_at)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          {/* Table */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Titre</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Saison</TableHead>
+                <TableHead>Épisode</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Tentatives</TableHead>
+                <TableHead>Ajouté</TableHead>
+                <TableHead>Dernière recherche</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={`w-${String(item.id)}`}>
+                  <TableCell className="font-medium">{item.title}</TableCell>
+                  <TableCell className="text-xs">{item.kind}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.season ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.episode ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone={STATUS_TONE[item.status] ?? "neutral"}>
+                      {STATUS_LABEL[item.status] ?? item.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.attempts}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {relativeTime(item.enqueued_at)}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {relativeTime(item.last_search_at)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => {
-            setPage((p) => Math.max(1, p - 1));
-          }}
-        >
-          ← Précédent
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page >= totalPages}
-          onClick={() => {
-            setPage((p) => p + 1);
-          }}
-        >
-          Suivant →
-        </Button>
-      </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => {
+                setPage((p) => Math.max(1, p - 1));
+              }}
+            >
+              ← Précédent
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => {
+                setPage((p) => p + 1);
+              }}
+            >
+              Suivant →
+            </Button>
+          </div>
         </>
       )}
     </div>
@@ -1010,12 +1121,15 @@ export default function AcquisitionPage(): ReactElement {
       <Card>
         <CardContent className="pt-4">
           {activeTab === "followed" && (
-            <FollowedPanel
-              data={followedQuery.data?.items ?? []}
-              isLoading={followedQuery.isLoading}
-              isError={followedQuery.isError}
-              error={followedQuery.error}
-            />
+            <div className="flex flex-col gap-6">
+              <MediaSearchAdd />
+              <FollowedPanel
+                data={followedQuery.data?.items ?? []}
+                isLoading={followedQuery.isLoading}
+                isError={followedQuery.isError}
+                error={followedQuery.error}
+              />
+            </div>
           )}
           {activeTab === "wanted" && <WantedPanel />}
           {activeTab === "obligations" && <ObligationsPanel />}

@@ -25,26 +25,36 @@ carries ``require_not_staging`` (staging → 403) and
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import subprocess
+import sys
 import time
+import uuid
 from contextlib import closing
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from personalscraper.acquire.cadence import Cadence, next_search_at, tier_name
+from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionStatusResponse,
     CreateFollowRequest,
     FollowedResponse,
     FollowedSeriesItem,
+    GrabTriggerResponse,
     MediaRefResponse,
+    MediaSearchResponse,
+    MediaSearchResult,
     ObligationItem,
     ObligationsResponse,
     RecentRun,
@@ -52,6 +62,9 @@ from personalscraper.web.models.acquisition import (
     WantedItemResponse,
     WantedResponse,
 )
+
+if TYPE_CHECKING:
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 logger = get_logger(__name__)
@@ -113,6 +126,144 @@ def _parse_json_dict(raw: str | None) -> dict[str, object] | None:
         return None
 
 
+def _row_col(row: sqlite3.Row, name: str) -> object | None:
+    """Return a row column by name, or ``None`` when the column is absent.
+
+    Tolerates a pre-migration ``followed_series`` (the OBJ3 metadata columns
+    may not exist yet on the shared acquire.db until the first write applies
+    migration 005) so a read never raises.
+
+    Args:
+        row: A ``sqlite3.Row``.
+        name: The column name to read.
+
+    Returns:
+        The column value, or ``None`` when the column does not exist.
+    """
+    return row[name] if name in row.keys() else None
+
+
+def _backfill_from_indexer(
+    indexer_db_path: Path | None,
+    tvdb_id: int | None,
+    tmdb_id: int | None,
+) -> tuple[int | None, int | None]:
+    """Look up ``(year, season_count)`` for a followed series in the indexer.
+
+    Matches a ``media_item`` (kind='show') by its TVDB or TMDB series id
+    (``external_ids_json`` → ``$.<provider>.series_id``) and counts its seasons.
+    Fail-soft: any error / no match yields ``(None, None)`` — the card simply
+    shows less.
+
+    Args:
+        indexer_db_path: Absolute path to ``library.db``, or ``None``.
+        tvdb_id: The followed series' TVDB id, or ``None``.
+        tmdb_id: The followed series' TMDB id, or ``None``.
+
+    Returns:
+        ``(year, season_count)`` — either may be ``None``.
+    """
+    if indexer_db_path is None or not Path(indexer_db_path).exists():
+        return None, None
+    lookups: list[tuple[str, str]] = []
+    if tvdb_id is not None:
+        lookups.append(("$.tvdb.series_id", str(tvdb_id)))
+    if tmdb_id is not None:
+        lookups.append(("$.tmdb.series_id", str(tmdb_id)))
+    if not lookups:
+        return None, None
+    try:
+        with closing(sqlite3.connect(str(indexer_db_path))) as conn:
+            apply_pragmas(conn)
+            for path_expr, value in lookups:
+                row = conn.execute(
+                    "SELECT id, year FROM media_item "
+                    "WHERE kind = 'show' AND json_extract(external_ids_json, ?) = ? LIMIT 1",
+                    (path_expr, value),
+                ).fetchone()
+                if row is None:
+                    continue
+                item_id, year = row[0], row[1]
+                season_count = conn.execute("SELECT COUNT(*) FROM season WHERE item_id = ?", (item_id,)).fetchone()[0]
+                return year, season_count
+    except sqlite3.Error:
+        logger.warning("acquisition_indexer_backfill_failed", exc_info=True)
+    return None, None
+
+
+#: Temperature ranks used to pick a series' governing (hottest) tier.
+_TIER_RANK: dict[str, int] = {"hot": 0, "warm": 1, "cold": 2, "cutoff": 3}
+
+
+def _cadence_readout(
+    timings: list[tuple[int, int | None]],
+    cadence: Cadence,
+    now: int,
+) -> tuple[float | None, str | None]:
+    """Derive a series' ``(next_search_at, cadence_tier)`` from its pending items.
+
+    The next automatic search for the series is the soonest next-due among its
+    pending wanted items; the reported tier is the hottest (most-active) tier
+    across them. Past-cutoff items are ignored. Returns ``(None, None)`` when the
+    series has no pending/searchable item (it is up to date).
+
+    Args:
+        timings: ``(enqueued_at, last_search_at)`` pairs for the series' pending
+            wanted items.
+        cadence: The effective cadence policy for the series.
+        now: Current unix epoch seconds.
+
+    Returns:
+        A ``(next_search_at, cadence_tier)`` tuple, either element ``None``.
+    """
+    soonest: int | None = None
+    best_tier: str | None = None
+    best_rank = 99
+    for enqueued_at, last_search_at in timings:
+        due = next_search_at(cadence, now=now, enqueued_at=enqueued_at, last_search_at=last_search_at)
+        if due is None:  # past cutoff — no longer searched
+            continue
+        if soonest is None or due < soonest:
+            soonest = due
+        tier = tier_name(cadence, now=now, enqueued_at=enqueued_at)
+        rank = _TIER_RANK.get(tier, 99)
+        if rank < best_rank:
+            best_rank = rank
+            best_tier = tier
+    return (float(soonest) if soonest is not None else None, best_tier)
+
+
+def _write_follow_metadata(
+    acquire_db_path: Path | None,
+    followed_id: int,
+    body: CreateFollowRequest,
+) -> None:
+    """Persist the card metadata captured from the add-by-search candidate (OBJ3).
+
+    A no-op when nothing was supplied. Fail-soft: a DB error is logged and
+    swallowed — the follow itself already succeeded, the metadata is a nicety.
+
+    Args:
+        acquire_db_path: Absolute path to ``acquire.db``, or ``None``.
+        followed_id: The row to update.
+        body: The create request carrying optional ``poster_url``/``overview``/``year``.
+    """
+    if acquire_db_path is None:
+        return
+    if body.poster_url is None and body.overview is None and body.year is None:
+        return
+    try:
+        with closing(sqlite3.connect(str(acquire_db_path))) as conn:
+            apply_pragmas(conn)
+            conn.execute(
+                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
+                (body.poster_url, body.overview, body.year, followed_id),
+            )
+            conn.commit()
+    except sqlite3.Error:
+        logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
+
+
 # ── /api/acquisition/followed ──────────────────────────────────────────
 
 
@@ -146,6 +297,25 @@ def get_followed(
             else:
                 rows = conn.execute("SELECT * FROM followed_series WHERE active = 1 ORDER BY id").fetchall()
 
+            indexer_db_path = request.app.state.config.indexer.db_path
+
+            # Cadence readout (OBJ3): resolve the global default once and batch the
+            # pending wanted timings per series, so the next-search estimate + the
+            # governing tier cost a single extra query for the whole list.
+            now = int(time.time())
+            try:
+                global_cadence: Cadence | None = cadence_from_config(request.app.state.config.acquire.cadence)
+            except (ValueError, AttributeError):  # a malformed cadence config must not 500 the list
+                global_cadence = None
+            timings_by_series: dict[int, list[tuple[int, int | None]]] = {}
+            if global_cadence is not None:
+                for w in conn.execute(
+                    "SELECT followed_id, enqueued_at, last_search_at FROM wanted "
+                    "WHERE followed_id IS NOT NULL AND status IN ('pending', 'searching')"
+                ).fetchall():
+                    last = None if w["last_search_at"] is None else int(w["last_search_at"])
+                    timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
+
             items: list[FollowedSeriesItem] = []
             for row in rows:
                 # COUNT wanted pending for this series.
@@ -153,16 +323,44 @@ def get_followed(
                     "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status IN ('pending', 'searching')",
                     (row["id"],),
                 ).fetchone()[0]
+
+                # Card metadata (OBJ3): cached columns first; year + season_count
+                # backfilled from the indexer when the cache is empty.
+                media_ref = _parse_media_ref(row["media_ref_json"])
+                poster_url = cast("str | None", _row_col(row, "poster_url"))
+                overview = cast("str | None", _row_col(row, "overview"))
+                year = cast("int | None", _row_col(row, "year"))
+                season_count = cast("int | None", _row_col(row, "season_count"))
+                if year is None or season_count is None:
+                    bf_year, bf_seasons = _backfill_from_indexer(indexer_db_path, media_ref.tvdb_id, media_ref.tmdb_id)
+                    if year is None:
+                        year = bf_year
+                    if season_count is None:
+                        season_count = bf_seasons
+
+                # Next-search estimate + governing tier from the series' pending items.
+                next_due: float | None = None
+                cadence_tier: str | None = None
+                if global_cadence is not None:
+                    effective = effective_cadence(cadence_from_json(row["cadence_json"]), global_cadence)
+                    next_due, cadence_tier = _cadence_readout(timings_by_series.get(row["id"], []), effective, now)
+
                 items.append(
                     FollowedSeriesItem(
                         id=row["id"],
                         title=row["title"],
-                        media_ref=_parse_media_ref(row["media_ref_json"]),
+                        media_ref=media_ref,
                         active=bool(row["active"]),
                         cadence=_parse_json_dict(row["cadence_json"]),
                         added_at=float(row["added_at"]),
                         wanted_pending=pending,
                         quality_profile=_parse_json_dict(row["quality_profile_json"]),
+                        poster_url=poster_url,
+                        overview=overview,
+                        year=year,
+                        season_count=season_count,
+                        next_search_at=next_due,
+                        cadence_tier=cadence_tier,
                     )
                 )
             return FollowedResponse(items=items)
@@ -418,6 +616,116 @@ def get_acquisition_status(request: Request) -> AcquisitionStatusResponse:
     )
 
 
+# ── media search (add-by-search, OBJ3) ───────────────────────────────────
+
+
+def _build_provider_clients(request: Request) -> tuple[object, object]:
+    """Build request-scoped TMDB + TVDB clients for a live media search.
+
+    Mirrors the decisions-search pattern: a fresh AppContext + ProviderRegistry
+    for this single request (never stored on ``app.state`` — the composition-
+    boundary rule). Live search is an infrequent operator action, not a hot
+    polling endpoint.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A ``(tmdb_client, tvdb_client)`` tuple of provider client objects.
+
+    Raises:
+        HTTPException: 502 when the provider registry cannot be built.
+    """
+    from personalscraper.cli_helpers import _build_app_context
+
+    config = request.app.state.config
+    settings = request.app.state.settings
+    try:
+        app_context = _build_app_context(config, settings)
+        tmdb_client = app_context.provider_registry.get("tmdb")
+        tvdb_client = app_context.provider_registry.get("tvdb")
+    except Exception as exc:
+        logger.error("acquisition_search_registry_failed", error=str(exc))
+        raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
+    return tmdb_client, tvdb_client
+
+
+def _to_search_result(candidate: "DecisionCandidate", kind: str) -> MediaSearchResult:
+    """Map a scored :class:`DecisionCandidate` to a :class:`MediaSearchResult`.
+
+    Args:
+        candidate: The scored provider candidate.
+        kind: ``"movie"`` or ``"tv"`` (which search chain produced it).
+
+    Returns:
+        The tagged search result.
+    """
+    return MediaSearchResult(
+        provider=candidate.provider,
+        provider_id=candidate.provider_id,
+        title=candidate.title,
+        year=candidate.year,
+        kind=kind,
+        poster_url=candidate.poster_url,
+        overview=candidate.overview,
+        score=candidate.score,
+    )
+
+
+@router.get("/search", response_model=MediaSearchResponse)
+def search_media(
+    request: Request,
+    q: str = Query(..., min_length=1, description="Title to search for."),
+    kind: Literal["movie", "tv"] | None = Query(
+        default=None,
+        description="Restrict to movies or TV; omit to search both.",
+    ),
+) -> MediaSearchResponse:
+    """Search live providers for media to follow (add-by-search, OBJ3).
+
+    Read-only: builds per-request provider clients and delegates to the same
+    detailed confidence matchers the decisions search uses, tagging each result
+    with its ``kind``. Results are merged across the requested kind(s) and
+    sorted best-score-first.
+
+    Args:
+        request: The incoming FastAPI request.
+        q: The title to search for.
+        kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+
+    Returns:
+        A :class:`MediaSearchResponse` with the scored matches.
+
+    Raises:
+        HTTPException: 502 on provider registry build or provider API failure.
+    """
+    tmdb_client, tvdb_client = _build_provider_clients(request)
+    results: list[MediaSearchResult] = []
+
+    if kind in (None, "movie"):
+        from personalscraper.scraper.confidence import match_movie_detailed
+
+        try:
+            _, movie_candidates = match_movie_detailed(tmdb_client, q, None)
+        except Exception as exc:
+            logger.error("acquisition_search_movie_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
+        results.extend(_to_search_result(c, "movie") for c in movie_candidates)
+
+    if kind in (None, "tv"):
+        from personalscraper.scraper.confidence import match_tvshow_detailed
+
+        try:
+            _, tv_candidates = match_tvshow_detailed(tvdb_client, tmdb_client, q, None)
+        except Exception as exc:
+            logger.error("acquisition_search_tvshow_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail=f"TV search failed: {exc}") from exc
+        results.extend(_to_search_result(c, "tv") for c in tv_candidates)
+
+    results.sort(key=lambda r: r.score, reverse=True)
+    return MediaSearchResponse(results=results)
+
+
 # ── helpers (write routes) ───────────────────────────────────────────────
 
 
@@ -533,7 +841,13 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
-        return _item_from_followed(created)
+        # Persist + echo the card metadata captured from the search candidate.
+        _write_follow_metadata(config.acquire.db_path, new_id, body)
+        item = _item_from_followed(created)
+        item.poster_url = body.poster_url
+        item.overview = body.overview
+        item.year = body.year
+        return item
     finally:
         store.close()
 
@@ -634,3 +948,160 @@ def delete_follow(request: Request, followed_id: int) -> None:
         store.follow.set_active(followed_id, False)
     finally:
         store.close()
+
+
+# ── POST /api/acquisition/followed/{id}/search — per-series manual grab (OBJ3) ──
+
+
+def _grab_options_json(followed_id: int) -> str:
+    """Canonical ``options_json`` for a per-series grab run (stable string).
+
+    Args:
+        followed_id: The followed series id.
+
+    Returns:
+        ``'{"followed_id":N}'`` — the exact form the runner writes, so the
+        concurrency guard can match it precisely.
+    """
+    return json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
+
+
+def _guard_no_running_grab(db_path: Path, options_json: str) -> None:
+    """Raise 409 when a live grab for this series is already running.
+
+    Scans ``pipeline_run`` for an un-ended ``command='grab'`` row whose
+    ``options_json`` matches (same followed series) and whose pid is still
+    alive. A dead/NULL pid is a stale row (crashed runner) and is ignored.
+
+    Args:
+        db_path: Absolute path to ``library.db``.
+        options_json: The canonical grab options string for this series.
+
+    Raises:
+        HTTPException: 409 when a live grab for the series is already running.
+    """
+    if not db_path.exists():
+        return
+    try:
+        with closing(sqlite3.connect(str(db_path))) as conn:
+            apply_pragmas(conn)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT pid FROM pipeline_run WHERE command = 'grab' AND ended_at IS NULL AND options_json = ?",
+                (options_json,),
+            ).fetchall()
+    except sqlite3.Error:
+        logger.warning("grab_guard_query_failed", exc_info=True)
+        return
+    for row in rows:
+        pid = row["pid"]
+        if pid is None:
+            continue
+        try:
+            os.kill(int(pid), 0)
+        except ProcessLookupError:
+            continue  # dead pid → stale row
+        except PermissionError:
+            pass  # alive, owned by another user
+        raise HTTPException(status_code=409, detail="A grab is already running for this series")
+
+
+def _spawn_grab_runner(run_uid: str, followed_id: int) -> int:
+    """Spawn the grab runner as a detached subprocess.
+
+    Args:
+        run_uid: The reserved run's unique identifier.
+        followed_id: The followed series to scope the grab to.
+
+    Returns:
+        The pid of the spawned runner process.
+    """
+    env = {
+        **os.environ,
+        "PERSONALSCRAPER_RUN_UID": run_uid,
+        "PERSONALSCRAPER_GRAB_FOLLOWED_ID": str(followed_id),
+    }
+    logger.info("grab_trigger_spawned", run_uid=run_uid, followed_id=followed_id)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+        start_new_session=True,
+        env=env,
+    )
+    return proc.pid
+
+
+@router.post(
+    "/followed/{followed_id}/search",
+    status_code=202,
+    response_model=GrabTriggerResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerResponse:
+    """Launch a targeted grab for one followed series (OBJ3 manual trigger).
+
+    Reserves a ``pipeline_run`` row, spawns the grab runner (which runs
+    ``grab --followed-id <id>`` over that series' pending wanted items), and
+    returns ``202`` with the ``run_uid`` so the UI can track the outcome.
+
+    Args:
+        request: The incoming FastAPI request.
+        followed_id: Rowid of the ``followed_series`` row.
+
+    Returns:
+        ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+
+    Raises:
+        404: The followed series does not exist.
+        409: A grab for this series is already running.
+        500: The runner subprocess failed to spawn.
+    """
+    config = request.app.state.config
+    db_path = cast(Path, config.indexer.db_path)
+
+    # 1. Verify the series exists (404 before any run reservation).
+    store = build_acquire_store(config.acquire)
+    try:
+        existing = store.follow.get(followed_id)
+    finally:
+        store.close()
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Followed series not found")
+
+    options_json = _grab_options_json(followed_id)
+
+    # 2. Reject a duplicate concurrent grab for the same series (409).
+    _guard_no_running_grab(db_path, options_json)
+
+    # 3. Reserve the pipeline_run row with the web process pid (guaranteed alive
+    #    until the runner claims its own pid), then spawn the runner.
+    run_uid = uuid.uuid4().hex
+    writer = PipelineRunWriter(db_path)
+    writer.insert(
+        run_uid,
+        trigger="web",
+        dry_run=False,
+        pid=os.getpid(),
+        kind="maintenance",
+        command="grab",
+        options_json=options_json,
+        if_absent=True,
+    )
+
+    try:
+        pid = _spawn_grab_runner(run_uid, followed_id)
+    except (OSError, ValueError) as exc:
+        # Never leave the reserved row 'running' on a spawn failure (fail-soft).
+        try:
+            writer.finalize(run_uid, "error", error=str(exc))
+        except sqlite3.Error:
+            logger.warning("grab_trigger_finalize_failed", run_uid=run_uid)
+        logger.error("grab_trigger_spawn_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
+        raise HTTPException(status_code=500, detail="Failed to spawn grab runner") from exc
+
+    if isinstance(pid, int):
+        try:
+            writer.update_pid(run_uid, pid)
+        except sqlite3.Error:
+            logger.warning("grab_trigger_update_pid_failed", run_uid=run_uid)
+
+    return GrabTriggerResponse(run_uid=run_uid)

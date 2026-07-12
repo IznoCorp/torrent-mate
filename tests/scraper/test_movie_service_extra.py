@@ -161,10 +161,16 @@ class TestValidNfoFastPath:
 
 
 class TestCorruptNfoBranch:
-    """Cover the corrupt-NFO unlink + dry_run + OSError lines."""
+    """Cover the corrupt/drifted-NFO handling (webui-overhaul #3).
 
-    def test_corrupt_nfo_dry_run_does_not_delete(self, scraper: Scraper, tmp_path: Path) -> None:
-        """Dry-run preserves the corrupt NFO file (no unlink)."""
+    A drifted NFO is NO LONGER unlinked up front: a confident re-scrape overwrites
+    it atomically, and every non-confident early-return path (failed match /
+    ambiguous ``queued_for_decision``) PRESERVES it — so a re-scrape never leaves
+    the folder with no NFO while a decision waits.
+    """
+
+    def test_corrupt_nfo_dry_run_preserved(self, scraper: Scraper, tmp_path: Path) -> None:
+        """Dry-run preserves the corrupt NFO file (no delete)."""
         scraper.dry_run = True
         movie_dir = tmp_path / "Bad Movie (2024)"
         movie_dir.mkdir()
@@ -180,31 +186,24 @@ class TestCorruptNfoBranch:
         # Match returned None so the result is the low-confidence skip.
         assert result.action == "skipped_low_confidence"
 
-    def test_corrupt_nfo_unlink_success(self, scraper: Scraper, tmp_path: Path) -> None:
-        """Real run unlinks the corrupt NFO before retrying the match."""
+    def test_corrupt_nfo_preserved_on_failed_match(self, scraper: Scraper, tmp_path: Path) -> None:
+        """A real run PRESERVES the drifted NFO when the re-match does not resolve.
+
+        Regression (webui-overhaul #3): unlinking up front left an ambiguous /
+        unmatched item with no NFO at all. The drifted NFO must survive a
+        non-confident outcome so the item is never worse off than before.
+        """
         movie_dir = tmp_path / "Bad Movie (2024)"
         movie_dir.mkdir()
         nfo = movie_dir / "Bad Movie.nfo"
         nfo.write_text("<not_real_xml")  # corrupt → not complete
 
         with patch("personalscraper.scraper.confidence.match_movie_detailed", return_value=(None, [])):
-            scraper.scrape_movie(movie_dir)
-
-        # Unlink ran during the corrupt-rescrape path.
-        assert not nfo.exists()
-
-    def test_corrupt_nfo_unlink_oserror_returns_error(self, scraper: Scraper, tmp_path: Path) -> None:
-        """An OSError on unlink short-circuits with ``result.error``."""
-        movie_dir = tmp_path / "Bad Movie (2024)"
-        movie_dir.mkdir()
-        nfo = movie_dir / "Bad Movie.nfo"
-        nfo.write_text("<not_real_xml")  # corrupt
-
-        with patch("pathlib.Path.unlink", side_effect=OSError("EACCES")):
             result = scraper.scrape_movie(movie_dir)
 
-        assert result.error is not None
-        assert "Cannot delete corrupt NFO" in result.error
+        # The drifted NFO is preserved (no pre-emptive unlink).
+        assert nfo.exists()
+        assert result.action == "skipped_low_confidence"
 
 
 # ---------------------------------------------------------------------------

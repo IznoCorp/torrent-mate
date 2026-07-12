@@ -529,3 +529,85 @@ class TestStatusEndpoint:
         assert data["last_successful_run_at"] is None
         assert isinstance(data["watcher_enabled"], bool)
         assert data["recent_runs"] == []
+
+
+class TestSearchEndpoint:
+    """GET /api/acquisition/search — live add-by-search (OBJ3)."""
+
+    @staticmethod
+    def _patch_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+        """Patch the provider-clients builder so no real registry is built."""
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        monkeypatch.setattr(acq_routes, "_build_provider_clients", lambda _request: (object(), object()))
+
+    def test_search_both_kinds_sorted(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Both matchers run; results are kind-tagged and best-score-first."""
+        import personalscraper.scraper.confidence as confidence
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        self._patch_providers(monkeypatch)
+        movie = DecisionCandidate(
+            provider="tmdb",
+            provider_id=438631,
+            title="Dune",
+            year=2021,
+            score=0.95,
+            poster_url="https://img/dune.jpg",
+            overview="Sur Arrakis.",
+        )
+        tv = DecisionCandidate(
+            provider="tvdb",
+            provider_id=1,
+            title="Dune: Prophecy",
+            year=2024,
+            score=0.42,
+            poster_url=None,
+            overview=None,
+        )
+        monkeypatch.setattr(confidence, "match_movie_detailed", lambda _c, _t, _y: (None, [movie]))
+        monkeypatch.setattr(
+            confidence,
+            "match_tvshow_detailed",
+            lambda _tv, _tm, _t, _y: (None, [tv]),
+        )
+
+        resp = client.get("/api/acquisition/search?q=dune", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        results = resp.json()["results"]
+        assert len(results) == 2
+        # Sorted best-score-first: movie (0.95) before tv (0.42).
+        assert results[0]["kind"] == "movie"
+        assert results[0]["title"] == "Dune"
+        assert results[0]["poster_url"] == "https://img/dune.jpg"
+        assert results[1]["kind"] == "tv"
+
+    def test_search_kind_filter_movie_only(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """kind=movie only runs the movie matcher (tv matcher must not fire)."""
+        import personalscraper.scraper.confidence as confidence
+        from personalscraper.scraper.decision_candidate import DecisionCandidate
+
+        self._patch_providers(monkeypatch)
+        movie = DecisionCandidate(provider="tmdb", provider_id=1, title="Dune", year=2021, score=0.9)
+
+        def _tv_must_not_run(*_a: object, **_k: object) -> object:
+            raise AssertionError("tv matcher must not run for kind=movie")
+
+        monkeypatch.setattr(confidence, "match_movie_detailed", lambda _c, _t, _y: (None, [movie]))
+        monkeypatch.setattr(confidence, "match_tvshow_detailed", _tv_must_not_run)
+
+        resp = client.get("/api/acquisition/search?q=dune&kind=movie", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        results = resp.json()["results"]
+        assert len(results) == 1
+        assert results[0]["kind"] == "movie"
+
+    def test_search_requires_auth(self, client: TestClient) -> None:
+        """Unauthenticated search is rejected (401)."""
+        resp = client.get("/api/acquisition/search?q=dune")
+        assert resp.status_code == 401
+
+    def test_search_rejects_empty_query(self, client: TestClient) -> None:
+        """An empty q is a 422 (min_length=1)."""
+        resp = client.get("/api/acquisition/search?q=", cookies=_make_auth_cookie())
+        assert resp.status_code == 422

@@ -92,4 +92,15 @@ describe("apiFetch params (R15)", () => {
       runMaintenanceAction("library-gc", { options: {}, dry_run: false }),
     ).rejects.toThrow(ApiError);
   });
+
+  it("maps the staging read-only 403 to a friendly consultation message", () => {
+    const readOnly = new ApiError(403, "read-only");
+    expect(readOnly.isReadOnly).toBe(true);
+    expect(readOnly.message).toContain("consultation");
+    expect(readOnly.message).not.toContain("403");
+    // A non-read-only error keeps the raw "status: detail" message.
+    const other = new ApiError(409, "Pipeline lock held");
+    expect(other.isReadOnly).toBe(false);
+    expect(other.message).toBe("409: Pipeline lock held");
+  });
 });

@@ -2,7 +2,9 @@
  * Pipeline supervision page (TorrentMateUI S2 — pipe-control; webui-ux Phase 2).
  *
  * Polls ``GET /api/pipeline/status`` every 5 seconds via {@link usePipelineStatus}
- * and feeds the live status to {@link PipelineControls} and {@link PipelineStepper}.
+ * and feeds the live status to {@link PipelineControls}. The nine-stage
+ * {@link FlowBoard} is the single canonical pipeline view (OBJ1) — the legacy
+ * linear stepper was retired to avoid two parallel stage models on one page.
  *
  * webui-ux Phase 2 reworks the log area:
  * - The DEFAULT view is the interpreted, plain-French run narrative
@@ -17,9 +19,10 @@
 
 import { type ReactElement } from "react";
 
+import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
-import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
+import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import {
@@ -51,9 +54,10 @@ export default function Pipeline(): ReactElement {
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
 
-      <PipelineControls status={liveStatus} />
+      {/* OBJ1 living pipeline — the Flow Board of the nine stages. */}
+      <FlowBoard />
 
-      <PipelineStepper currentStep={liveStatus.step ?? null} />
+      <PipelineControls status={liveStatus} />
 
       {/* Interpreted narrative — live for an active run, else the last run's
           persisted summary (never blanks). */}
@@ -62,6 +66,10 @@ export default function Pipeline(): ReactElement {
       ) : (
         <InterpretedRunFeed lines={lastRun.lines} label="Dernière exécution" />
       )}
+
+      {/* Fold the operator's resolved ambiguous-match choices into the summary
+          — the last-run narrative predates them (webui-overhaul #4). */}
+      <RecentResolutions />
 
       {/* Raw WS log — collapsed by default inside the accordion. */}
       <Accordion className="rounded-lg border border-border bg-card px-3">

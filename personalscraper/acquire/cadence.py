@@ -140,6 +140,81 @@ def is_due_by_cadence(
     return (now - last_search_at) >= tier.interval_s
 
 
+#: Human temperature names for tier positions (Hot → Warm → Cold); any tier
+#: beyond the third keeps the coldest name. Past cutoff is reported separately.
+TIER_NAMES: tuple[str, ...] = ("hot", "warm", "cold")
+
+
+def _tier_index_for_age(cadence: Cadence, age: int) -> int:
+    """Return the index of the tier governing an item of the given age.
+
+    Mirrors :func:`is_due_by_cadence`'s tier selection: the first tier whose
+    ``max_age_s`` exceeds ``age``, else the last (slowest/Cold) tier.
+
+    Args:
+        cadence: The effective cadence policy.
+        age: The item's age in seconds (``now - enqueued_at``).
+
+    Returns:
+        The 0-based tier index.
+    """
+    for i, tier in enumerate(cadence.tiers):
+        if age < tier.max_age_s:
+            return i
+    return len(cadence.tiers) - 1
+
+
+def tier_name(cadence: Cadence, *, now: int, enqueued_at: int) -> str:
+    """Return the temperature name of the tier governing an item.
+
+    ``"hot"``/``"warm"``/``"cold"`` by tier position, or ``"cutoff"`` once the
+    item's age has reached the cutoff (it is no longer searched).
+
+    Args:
+        cadence: The effective cadence policy.
+        now: Current unix epoch seconds.
+        enqueued_at: Unix epoch seconds when the item was enqueued.
+
+    Returns:
+        One of ``"hot"``, ``"warm"``, ``"cold"``, ``"cutoff"``.
+    """
+    if is_past_cutoff(cadence, now=now, enqueued_at=enqueued_at):
+        return "cutoff"
+    idx = _tier_index_for_age(cadence, now - enqueued_at)
+    return TIER_NAMES[min(idx, len(TIER_NAMES) - 1)]
+
+
+def next_search_at(
+    cadence: Cadence,
+    *,
+    now: int,
+    enqueued_at: int,
+    last_search_at: int | None,
+) -> int | None:
+    """Return the unix epoch at which an item next becomes due, or ``None``.
+
+    ``None`` once the item is past cutoff (abandoned — never searched again). A
+    never-searched item is due immediately (``now``). Otherwise the next-due is
+    ``last_search_at + interval`` for the current tier (which may already be in
+    the past, meaning "due now").
+
+    Args:
+        cadence: The effective cadence policy.
+        now: Current unix epoch seconds.
+        enqueued_at: Unix epoch seconds when the item was enqueued.
+        last_search_at: Unix epoch seconds of the last search, or ``None``.
+
+    Returns:
+        The next-due unix epoch, or ``None`` when past cutoff.
+    """
+    if is_past_cutoff(cadence, now=now, enqueued_at=enqueued_at):
+        return None
+    if last_search_at is None:
+        return now
+    tier = cadence.tiers[_tier_index_for_age(cadence, now - enqueued_at)]
+    return last_search_at + tier.interval_s
+
+
 def is_past_cutoff(cadence: Cadence, *, now: int, enqueued_at: int) -> bool:
     """Return True iff the item's age has reached or exceeded the cutoff.
 
@@ -154,4 +229,12 @@ def is_past_cutoff(cadence: Cadence, *, now: int, enqueued_at: int) -> bool:
     return (now - enqueued_at) >= cadence.cutoff_s
 
 
-__all__ = ["Cadence", "CadenceTier", "is_due_by_cadence", "is_past_cutoff"]
+__all__ = [
+    "TIER_NAMES",
+    "Cadence",
+    "CadenceTier",
+    "is_due_by_cadence",
+    "is_past_cutoff",
+    "next_search_at",
+    "tier_name",
+]

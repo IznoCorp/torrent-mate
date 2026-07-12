@@ -39,8 +39,9 @@ export default function Maintenance(): ReactElement {
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Maintenance</h1>
 
-      {/* Monitoring panels: 1 col mobile → 2 tablet → 4 desktop */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* Monitoring panels: 1 col mobile → 2 tablet → 3 desktop (there are
+          exactly 3 panels; a 4th column left a dead third on wide screens). */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <DisksPanel />
         <LocksPanel />
         <IndexHealthPanel />

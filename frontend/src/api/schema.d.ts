@@ -87,6 +87,42 @@ export interface paths {
         patch: operations["update_follow_api_acquisition_followed__followed_id__patch"];
         trace?: never;
     };
+    "/api/acquisition/followed/{followed_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Followed Search
+         * @description Launch a targeted grab for one followed series (OBJ3 manual trigger).
+         *
+         *     Reserves a ``pipeline_run`` row, spawns the grab runner (which runs
+         *     ``grab --followed-id <id>`` over that series' pending wanted items), and
+         *     returns ``202`` with the ``run_uid`` so the UI can track the outcome.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *
+         *     Returns:
+         *         ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+         *
+         *     Raises:
+         *         404: The followed series does not exist.
+         *         409: A grab for this series is already running.
+         *         500: The runner subprocess failed to spawn.
+         */
+        post: operations["trigger_followed_search_api_acquisition_followed__followed_id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -108,6 +144,42 @@ export interface paths {
          *         ``ratio_state`` on tracker name.
          */
         get: operations["get_obligations_api_acquisition_obligations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Media
+         * @description Search live providers for media to follow (add-by-search, OBJ3).
+         *
+         *     Read-only: builds per-request provider clients and delegates to the same
+         *     detailed confidence matchers the decisions search uses, tagging each result
+         *     with its ``kind``. Results are merged across the requested kind(s) and
+         *     sorted best-score-first.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         q: The title to search for.
+         *         kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+         *
+         *     Returns:
+         *         A :class:`MediaSearchResponse` with the scored matches.
+         *
+         *     Raises:
+         *         HTTPException: 502 on provider registry build or provider API failure.
+         */
+        get: operations["search_media_api_acquisition_search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1168,6 +1240,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pipeline/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pipeline Stages
+         * @description Return the aggregated Flow Board state (OBJ1 living pipeline).
+         *
+         *     Rolls up the *latest* pipeline run's per-step summaries and the live
+         *     ``scrape_decision`` queue into the nine Flow Board stations, plus the live
+         *     run state so the board can pulse the active stage.  Read-only — safe on the
+         *     staging instance (no mutation, no ``X-Requested-With`` requirement).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`StagesResponse` with the nine stages in flow order.
+         */
+        get: operations["pipeline_stages_api_pipeline_stages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pipeline/status": {
         parameters: {
             query?: never;
@@ -1256,6 +1359,87 @@ export interface paths {
          *         observed provider, sorted by ``provider_name``.
          */
         get: operations["registry_status_api_registry_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Staging Media
+         * @description List staged media with pagination, sort, filters and aggregate counts.
+         *
+         *     Scans the staging tree once, enriches each media folder, computes the filter
+         *     chip counts over the full set, then applies the filters, sort and
+         *     pagination. ``with_dispatch=true`` additionally computes a dispatch-target
+         *     preview for the items on the returned page (a per-disk free-space + folder
+         *     stat — off the hot path by default).
+         *
+         *     All query params are OpenAPI-constrained (closed enums, bounded page size)
+         *     so the typed frontend contract rejects an invalid value and the backend
+         *     returns 422 rather than silently coercing.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         page: 1-indexed page number.
+         *         page_size: Items per page (1..200).
+         *         category: Filter by staging subfolder (e.g. ``"001-MOVIES"``).
+         *         kind: Filter by media kind.
+         *         match: Filter by matching verdict.
+         *         stage: Keep items at/awaiting this timeline stage.
+         *         sort: Sort key (default ``recent``).
+         *         q: Case-insensitive title substring.
+         *         with_dispatch: Compute the dispatch preview for the page items.
+         *
+         *     Returns:
+         *         A :class:`StagingMediaResponse` (page items, counts, total, page,
+         *         page_size). Fail-soft: an empty/absent staging tree yields an empty
+         *         list, never a 500.
+         */
+        get: operations["list_staging_media_api_staging_media_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/media/{media_id}/poster": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Staging Poster
+         * @description Serve the local poster image for a staged media, by its stable id.
+         *
+         *     Re-derives the media folder from the id (matching freshly-computed ids, so
+         *     a client can never inject a path) and returns its ``poster.jpg`` with the
+         *     right image content-type.
+         *
+         *     Args:
+         *         media_id: The stable media id from a list item.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`FileResponse` streaming the poster file.
+         *
+         *     Raises:
+         *         404: No staged media matches the id, or it has no local poster.
+         */
+        get: operations["get_staging_poster_api_staging_media__media_id__poster_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1499,12 +1683,18 @@ export interface components {
         CreateFollowRequest: {
             /** Imdb Id */
             imdb_id?: string | null;
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
             /** Title */
             title?: string | null;
             /** Tmdb Id */
             tmdb_id?: number | null;
             /** Tvdb Id */
             tvdb_id?: number | null;
+            /** Year */
+            year?: number | null;
         };
         /**
          * DecisionCandidate
@@ -1777,17 +1967,43 @@ export interface components {
             cadence?: {
                 [key: string]: unknown;
             } | null;
+            /** Cadence Tier */
+            cadence_tier?: string | null;
             /** Id */
             id: number;
             media_ref: components["schemas"]["MediaRefResponse"];
+            /** Next Search At */
+            next_search_at?: number | null;
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
             /** Quality Profile */
             quality_profile?: {
                 [key: string]: unknown;
             } | null;
+            /** Season Count */
+            season_count?: number | null;
             /** Title */
             title: string;
             /** Wanted Pending */
             wanted_pending: number;
+            /** Year */
+            year?: number | null;
+        };
+        /**
+         * GrabTriggerResponse
+         * @description Response body for ``POST /api/acquisition/followed/{id}/search`` (OBJ3).
+         *
+         *     Returned ``202`` when a per-series manual grab has been launched.
+         *
+         *     Attributes:
+         *         run_uid: The unique identifier of the launched grab run — the frontend
+         *             polls ``GET /api/pipeline/history/{run_uid}`` for its outcome.
+         */
+        GrabTriggerResponse: {
+            /** Run Uid */
+            run_uid: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2071,6 +2287,52 @@ export interface components {
             tvdb_id?: number | null;
         };
         /**
+         * MediaSearchResponse
+         * @description Response for GET /api/acquisition/search.
+         *
+         *     Attributes:
+         *         results: The scored matches across the requested kind(s), best first.
+         */
+        MediaSearchResponse: {
+            /** Results */
+            results: components["schemas"]["MediaSearchResult"][];
+        };
+        /**
+         * MediaSearchResult
+         * @description One provider match returned by the acquisition media search.
+         *
+         *     Mirrors a ``DecisionCandidate`` (provider identity + poster/overview/score)
+         *     plus a ``kind`` tag so the add-by-search cards can show film vs série.
+         *
+         *     Attributes:
+         *         provider: The metadata provider (``"tmdb"`` or ``"tvdb"``).
+         *         provider_id: The provider's numeric identifier.
+         *         title: The matched title.
+         *         year: The release year, or ``None`` when the provider did not return one.
+         *         kind: ``"movie"`` or ``"tv"`` (which search chain produced the result).
+         *         poster_url: The provider poster URL, or ``None``.
+         *         overview: A short plot summary, or ``None``.
+         *         score: The matching-engine confidence score (0.0–1.0).
+         */
+        MediaSearchResult: {
+            /** Kind */
+            kind: string;
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
+            /** Provider */
+            provider: string;
+            /** Provider Id */
+            provider_id: number;
+            /** Score */
+            score: number;
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /**
          * NfoStats
          * @description Aggregate NFO file status counts across the indexed library.
          *
@@ -2141,6 +2403,53 @@ export interface components {
          * @enum {string}
          */
         PipelineOutcome: "success" | "error" | "killed" | "running" | "paused";
+        /**
+         * PipelineStage
+         * @description Aggregated state of one Flow Board stage (OBJ1 living pipeline).
+         *
+         *     A stage rolls up one or more real pipeline steps (or, for ``matching``,
+         *     the pending ``scrape_decision`` queue) into a single station: a headline
+         *     ``count``, a derived ring ``state``, the ``attention`` / ``blocked`` item
+         *     counts feeding that state, and an optional ``split`` of sub-counts.
+         *
+         *     Attributes:
+         *         key: Stable machine identifier (e.g. ``"scraping"``).
+         *         label: French display label (e.g. ``"Scraping"``).
+         *         count: Headline item count at this stage (successfully processed, or
+         *             — for ``matching`` — the number of pending decisions).
+         *         state: Derived ring state (``idle`` / ``ok`` / ``active`` /
+         *             ``attention`` / ``blocked``).
+         *         attention: Number of items needing an operator look (soft signal —
+         *             unmatched folders, pending decisions).
+         *         blocked: Number of items that errored at this stage (hard signal).
+         *         split: Optional sub-counts (e.g. réussi / ignoré / erreur), or
+         *             ``None`` when the stage has nothing meaningful to break down.
+         */
+        PipelineStage: {
+            /**
+             * Attention
+             * @default 0
+             */
+            attention: number;
+            /**
+             * Blocked
+             * @default 0
+             */
+            blocked: number;
+            /** Count */
+            count: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Split */
+            split?: components["schemas"]["StageSplit"][] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "ok" | "active" | "attention" | "blocked";
+        };
         /**
          * PipelineState
          * @description Current run-state of the pipeline process.
@@ -2596,6 +2905,317 @@ export interface components {
             watcher_paused_age_s?: number | null;
         };
         /**
+         * StageSplit
+         * @description One sub-count shown inside a Flow Board station.
+         *
+         *     Example: the Matching station splits its pending decisions into
+         *     ``ambigu`` / ``sans correspondance`` / ``incertain`` buckets, each a
+         *     :class:`StageSplit` with its own tone.
+         *
+         *     Attributes:
+         *         label: Human-readable French sub-count label.
+         *         count: Number of items in this sub-bucket.
+         *         tone: Semantic tone driving the dot colour on the station.
+         */
+        StageSplit: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+            /**
+             * Tone
+             * @enum {string}
+             */
+            tone: "success" | "warning" | "danger" | "info" | "neutral";
+        };
+        /**
+         * StagesResponse
+         * @description Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).
+         *
+         *     Aggregates the last pipeline run's per-step summaries and the live
+         *     ``scrape_decision`` queue into the nine Flow Board stations, plus the
+         *     live run state so the board can pulse the active stage.
+         *
+         *     Attributes:
+         *         stages: The nine stages in board (left-to-right flow) order.
+         *         run_uid: The run these counts are sourced from, or ``None`` when no
+         *             pipeline run has ever been recorded.
+         *         run_state: Live pipeline run-state (``idle`` / ``running`` /
+         *             ``paused``) — drives whether the active stage pulses.
+         *         updated_at: Epoch seconds of the source run's start, or ``None``.
+         */
+        StagesResponse: {
+            run_state: components["schemas"]["PipelineState"];
+            /** Run Uid */
+            run_uid?: string | null;
+            /** Stages */
+            stages: components["schemas"]["PipelineStage"][];
+            /** Updated At */
+            updated_at?: number | null;
+        };
+        /**
+         * StagingCounts
+         * @description Aggregate counts across the whole staging area (for filter chips).
+         *
+         *     Computed over the full unpaginated set so the UI can label its filters
+         *     without a second request.
+         *
+         *     Attributes:
+         *         total: Total number of staged media folders.
+         *         matched: How many have a confident match (valid NFO + ids).
+         *         ambiguous: How many await an operator decision.
+         *         absent: How many are neither matched nor ambiguous.
+         *         scraped: How many carry an NFO.
+         *         with_trailer: How many have a trailer file.
+         *         awaiting_action: How many have at least one ``blocked`` timeline stage.
+         */
+        StagingCounts: {
+            /**
+             * Absent
+             * @default 0
+             */
+            absent: number;
+            /**
+             * Ambiguous
+             * @default 0
+             */
+            ambiguous: number;
+            /**
+             * Awaiting Action
+             * @default 0
+             */
+            awaiting_action: number;
+            /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
+            /**
+             * Scraped
+             * @default 0
+             */
+            scraped: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * With Trailer
+             * @default 0
+             */
+            with_trailer: number;
+        };
+        /**
+         * StagingDispatchTarget
+         * @description Preview of where a staged media would be dispatched (opt-in).
+         *
+         *     Computed only when the list endpoint is called with ``with_dispatch=true``
+         *     (a filesystem/disk scan per item). Best-effort and fail-soft: any error
+         *     yields ``mode="unknown"`` with a ``reason`` rather than failing the whole
+         *     response.
+         *
+         *     Attributes:
+         *         mode: ``replace`` (movie whose folder already exists on a disk),
+         *             ``merge`` (TV show whose folder already exists — episodes are
+         *             merged), ``new`` (no existing folder — goes to the disk with the
+         *             most free space), or ``unknown`` (could not resolve).
+         *         disk: Target disk id, or ``None`` when unresolved.
+         *         category_id: Resolved storage category id (e.g. ``"movies"``), or
+         *             ``None``.
+         *         reason: Short human-readable explanation of the decision.
+         */
+        StagingDispatchTarget: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Disk */
+            disk?: string | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "replace" | "merge" | "new" | "unknown";
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * StagingMediaItem
+         * @description One media folder currently present in the staging area.
+         *
+         *     Attributes:
+         *         id: Stable URL-safe identifier — the truncated SHA-1 of the staging
+         *             path relative to ``staging_dir``. Used by the poster route to
+         *             resolve back to the folder without ever trusting a client path.
+         *         category: The staging subfolder the media sits in (e.g.
+         *             ``"001-MOVIES"``).
+         *         folder: The media folder name (e.g. ``"Fight Club (1999)"``).
+         *         relative_path: ``category/folder`` — the path relative to the staging
+         *             root (never an absolute path, so no host layout leaks).
+         *         media_kind: Kind of media (drives enrichment + grid filtering).
+         *         title: NFO ``<title>`` when scraped, else the folder name (year
+         *             stripped).
+         *         year: Release year from the NFO or the folder name, or ``None``.
+         *         overview: NFO ``<plot>`` (description), or ``None`` when unscraped.
+         *         provider_ids: Mapping of provider family → id string from the NFO
+         *             ``<uniqueid>`` rows (e.g. ``{"tvdb": "475278", "tmdb": "315820"}``).
+         *         match: Top-level matching verdict.
+         *         decision_id: The ``scrape_decision.id`` when ``match == "ambiguous"``,
+         *             else ``None`` (lets the grid deep-link to the resolution deck).
+         *         decision_trigger: The ambiguity trigger (``"ambiguous"`` /
+         *             ``"below_threshold"`` / ``"mid_band"``), or ``None``.
+         *         has_nfo: Whether a ``movie.nfo`` / ``tvshow.nfo`` is present.
+         *         has_poster: Whether a local ``poster.jpg``/``poster.png`` is present.
+         *         has_trailer: Whether a trailer file is present (Plex convention).
+         *         poster_url: The guarded local poster route
+         *             (``/api/staging/media/{id}/poster``) when a poster exists, else
+         *             ``None`` (the frontend ``MediaPoster`` shows its initials fallback).
+         *         seasons: Season breakdown for a TV show, or ``None`` for other kinds.
+         *         episode_count: Total episode video files across seasons (TV show), or
+         *             ``None``.
+         *         video_count: Number of video files anywhere in the media tree.
+         *         size_bytes: Total size of the media folder in bytes.
+         *         modified_at: Epoch seconds of the most recent file mtime in the tree
+         *             (drives the default ``recent`` sort).
+         *         stages: The nine-stage per-media pipeline timeline.
+         *         dispatch_target: Dispatch preview, or ``None`` unless requested.
+         */
+        StagingMediaItem: {
+            /** Category */
+            category: string;
+            /** Decision Id */
+            decision_id?: number | null;
+            /** Decision Trigger */
+            decision_trigger?: string | null;
+            dispatch_target?: components["schemas"]["StagingDispatchTarget"] | null;
+            /** Episode Count */
+            episode_count?: number | null;
+            /** Folder */
+            folder: string;
+            /**
+             * Has Nfo
+             * @default false
+             */
+            has_nfo: boolean;
+            /**
+             * Has Poster
+             * @default false
+             */
+            has_poster: boolean;
+            /**
+             * Has Trailer
+             * @default false
+             */
+            has_trailer: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Match
+             * @enum {string}
+             */
+            match: "matched" | "ambiguous" | "absent";
+            /**
+             * Media Kind
+             * @enum {string}
+             */
+            media_kind: "movie" | "tvshow" | "ebook" | "audio" | "app" | "other" | "unsorted";
+            /** Modified At */
+            modified_at?: number | null;
+            /** Overview */
+            overview?: string | null;
+            /** Poster Url */
+            poster_url?: string | null;
+            /**
+             * Provider Ids
+             * @default {}
+             */
+            provider_ids: {
+                [key: string]: string;
+            };
+            /** Relative Path */
+            relative_path: string;
+            /** Seasons */
+            seasons?: components["schemas"]["StagingSeason"][] | null;
+            /**
+             * Size Bytes
+             * @default 0
+             */
+            size_bytes: number;
+            /**
+             * Stages
+             * @default []
+             */
+            stages: components["schemas"]["StagingStageStep"][];
+            /** Title */
+            title: string;
+            /**
+             * Video Count
+             * @default 0
+             */
+            video_count: number;
+            /** Year */
+            year?: number | null;
+        };
+        /**
+         * StagingMediaResponse
+         * @description Response body for ``GET /api/staging/media``.
+         *
+         *     Attributes:
+         *         items: The media items for the current page, already sorted/filtered.
+         *         counts: Aggregate counts over the full (unpaginated, unfiltered) set.
+         *         total: Number of items after filtering (for pagination).
+         *         page: 1-indexed page number echoed back.
+         *         page_size: Page size echoed back.
+         */
+        StagingMediaResponse: {
+            counts: components["schemas"]["StagingCounts"];
+            /** Items */
+            items: components["schemas"]["StagingMediaItem"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * StagingSeason
+         * @description A season subfolder of a staged TV show.
+         *
+         *     Attributes:
+         *         season: Season number parsed from the ``Saison NN`` folder name.
+         *         label: The on-disk folder label (e.g. ``"Saison 17"``).
+         *         episode_count: Number of episode video files inside the season folder.
+         */
+        StagingSeason: {
+            /** Episode Count */
+            episode_count: number;
+            /** Label */
+            label: string;
+            /** Season */
+            season: number;
+        };
+        /**
+         * StagingStageStep
+         * @description One stage of a staged media's per-item pipeline timeline.
+         *
+         *     Attributes:
+         *         key: Stable stage identifier (``arrival`` … ``dispatch``), aligned with
+         *             the OBJ1 Flow Board stage keys.
+         *         label: French display label (e.g. ``"Scraping"``).
+         *         state: Derived state of this stage for this media.
+         */
+        StagingStageStep: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "done" | "active" | "blocked" | "pending" | "skipped";
+        };
+        /**
          * StatusResponse
          * @description Response body for ``GET /api/pipeline/status``.
          *
@@ -2964,6 +3584,37 @@ export interface operations {
             };
         };
     };
+    trigger_followed_search_api_acquisition_followed__followed_id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_obligations_api_acquisition_obligations_get: {
         parameters: {
             query?: {
@@ -2982,6 +3633,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObligationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_media_api_acquisition_search_get: {
+        parameters: {
+            query: {
+                /** @description Title to search for. */
+                q: string;
+                /** @description Restrict to movies or TV; omit to search both. */
+                kind?: ("movie" | "tv") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSearchResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3836,6 +4521,26 @@ export interface operations {
             };
         };
     };
+    pipeline_stages_api_pipeline_stages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagesResponse"];
+                };
+            };
+        };
+    };
     pipeline_status_api_pipeline_status_get: {
         parameters: {
             query?: never;
@@ -3905,6 +4610,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RegistryStatusResponse"];
+                };
+            };
+        };
+    };
+    list_staging_media_api_staging_media_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                category?: string | null;
+                kind?: ("movie" | "tvshow" | "ebook" | "audio" | "app" | "other" | "unsorted") | null;
+                match?: ("matched" | "ambiguous" | "absent") | null;
+                stage?: ("arrival" | "staging" | "cleaning" | "sorting" | "matching" | "scraping" | "trailers" | "verify" | "dispatch") | null;
+                sort?: "recent" | "title" | "year" | "size";
+                q?: string | null;
+                with_dispatch?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingMediaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_staging_poster_api_staging_media__media_id__poster_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

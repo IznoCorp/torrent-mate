@@ -1014,6 +1014,87 @@ describe("SchemaForm — sections repliables (Accordion)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Section labels (F6) + collapsible description (F7)
+// ---------------------------------------------------------------------------
+
+describe("SchemaForm — libellés de section + description (F6/F7)", () => {
+  it("n'affiche jamais le nom de classe Pydantic d'une section connue (F6)", () => {
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: {
+            scraper: {
+              type: "object",
+              title: "ScraperConfig", // Pydantic sets a nested title = class name
+              properties: { language: { type: "string" } },
+            },
+          },
+        }}
+        values={{ scraper: { language: "fr-FR" } }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Scraper" })).toBeInTheDocument();
+    expect(screen.queryByText("ScraperConfig")).not.toBeInTheDocument();
+  });
+
+  it("humanise la clé d'une section inconnue plutôt que son nom de classe (F6)", () => {
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: {
+            widget_bar: {
+              type: "object",
+              title: "WidgetBarConfig",
+              properties: { x: { type: "string" } },
+            },
+          },
+        }}
+        values={{ widget_bar: {} }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Widget bar" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("WidgetBarConfig")).not.toBeInTheDocument();
+  });
+
+  it("tronque une longue docstring de section à sa première phrase (F7)", () => {
+    const longDoc =
+      "Scraper runtime tunables.\n\nAttributes:\n    language: primary metadata language (e.g. fr-FR).\n    fallback_language: secondary.";
+    render(
+      <SchemaForm
+        schema={{
+          type: "object",
+          properties: {
+            scraper: {
+              type: "object",
+              title: "ScraperConfig",
+              description: longDoc,
+              properties: { language: { type: "string" } },
+            },
+          },
+        }}
+        values={{ scraper: {} }}
+        onChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Scraper" }));
+    // Only the first sentence shows; the "Attributes:" wall stays hidden.
+    expect(screen.getByText("Scraper runtime tunables.")).toBeInTheDocument();
+    expect(screen.queryByText(/Attributes:/)).not.toBeInTheDocument();
+    // "En savoir plus" reveals the full docstring (Attributes block included).
+    fireEvent.click(screen.getByRole("button", { name: "En savoir plus" }));
+    expect(
+      screen.getByText(/fallback_language: secondary/),
+    ).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Schema title preference + inline validation (3.2 / 3.3)
 // ---------------------------------------------------------------------------
 

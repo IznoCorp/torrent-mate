@@ -119,6 +119,26 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the heavy, rarely-changing vendor libraries into their own
+        // chunks so an app-only deploy does not invalidate them in the PWA
+        // precache — the browser reuses the cached vendor chunks and only
+        // re-fetches the small app chunk. Also lands the single-bundle size
+        // under the 500 kB advisory warning.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/.test(id)) {
+            return 'vendor-react'
+          }
+          if (id.includes('@radix-ui')) return 'vendor-radix'
+          if (id.includes('@tanstack')) return 'vendor-tanstack'
+          return 'vendor'
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

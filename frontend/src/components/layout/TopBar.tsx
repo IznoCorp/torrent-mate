@@ -2,7 +2,7 @@ import { Menu } from "lucide-react";
 import type { ReactElement } from "react";
 import { Link } from "react-router-dom";
 
-import { BRAND_ICON } from "@/lib/env";
+import { BrandMark } from "@/components/ds/BrandMark";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -83,14 +83,21 @@ export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
       >
         <Menu className="size-5" aria-hidden="true" />
       </button>
-      <Link to="/" className="flex items-center gap-2">
-        <img src={BRAND_ICON} alt="" className="size-7" />
+      {/* Wordmark is redundant with the sidebar brand on desktop → mobile only. */}
+      <Link to="/" className="flex items-center gap-2 md:hidden">
+        <BrandMark className="size-7" />
         <span className="text-sm font-semibold tracking-tight">
           Torrent<span className="text-primary">Mate</span>
         </span>
       </Link>
       <div className="ml-auto flex items-center gap-3">
-        <span title={display.title}>
+        {/* Hide the connection label under sm so the longest state
+            ("Reconnexion…") can't overflow the 375px header — the coloured dot
+            and the title tooltip still carry the state. */}
+        <span
+          title={display.title}
+          className="[&_.ps-dot__label]:hidden sm:[&_.ps-dot__label]:inline"
+        >
           <StatusDot status={display.status} label={display.label} />
         </span>
         <UserMenu />

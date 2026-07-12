@@ -24,7 +24,11 @@ type SuccessBody<T> = T extends {
   200: { content: { "application/json": infer B } };
 }
   ? B
-  : never;
+  : T extends {
+        202: { content: { "application/json": infer B } };
+      }
+    ? B
+    : never;
 
 /** The optional query parameters declared by an operation. */
 type QueryParamsOf<Op> = Op extends { parameters: { query?: infer Q } }
@@ -79,6 +83,19 @@ export type AcquisitionStatusResponse = SuccessBody<
   paths["/api/acquisition/status"]["get"]["responses"]
 >;
 
+/** Response type for GET /api/acquisition/search */
+export type MediaSearchResponse = SuccessBody<
+  paths["/api/acquisition/search"]["get"]["responses"]
+>;
+
+/** A single media search result from the array */
+export type MediaSearchResult = MediaSearchResponse["results"][number];
+
+/** Query params for GET /api/acquisition/search (``q`` required, ``kind`` optional). */
+export type MediaSearchParams = QueryParamsOf<
+  paths["/api/acquisition/search"]["get"]
+>;
+
 /** Request body for POST /api/acquisition/followed */
 export type CreateFollowRequest =
   paths["/api/acquisition/followed"]["post"]["requestBody"]["content"]["application/json"];
@@ -116,6 +133,10 @@ export const acqKeys = {
 
   /** Acquisition status query key: ``['acquisition', 'status']``. */
   status: () => [...acqKeys.all, "status"] as const,
+
+  /** Media search query key: ``['acquisition', 'search', {q, kind}]``. */
+  search: (params: MediaSearchParams) =>
+    [...acqKeys.all, "search", params] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -200,6 +221,27 @@ export function getAcquisitionStatus(): Promise<AcquisitionStatusResponse> {
   return apiFetch("/api/acquisition/status", { method: "get" });
 }
 
+/**
+ * Search live providers for media to follow (add-by-search, OBJ3).
+ *
+ * Sends ``GET /api/acquisition/search`` with a title ``q`` and optional
+ * ``kind``.  Read-only — no ``X-Requested-With`` header.
+ *
+ * Args:
+ *   params: ``q`` (title to search) + optional ``kind`` (``"movie"``/``"tv"``).
+ *
+ * Returns:
+ *   A {@link MediaSearchResponse} with scored ``results``.
+ */
+export function searchMedia(
+  params: MediaSearchParams,
+): Promise<MediaSearchResponse> {
+  return apiFetch("/api/acquisition/search", {
+    method: "get",
+    params: { query: params },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Mutating endpoints
 // ---------------------------------------------------------------------------
@@ -255,6 +297,34 @@ export function updateFollow(
   return apiFetch("/api/acquisition/followed/{followed_id}", {
     method: "patch",
     body,
+    headers: XRW_HEADERS,
+    params: { path: { followed_id: id } },
+  });
+}
+
+/** Response type for POST /api/acquisition/followed/{id}/search (OBJ3). */
+export type GrabTriggerResponse = SuccessBody<
+  paths["/api/acquisition/followed/{followed_id}/search"]["post"]["responses"]
+>;
+
+/**
+ * Launch a targeted grab for one followed series (OBJ3 manual trigger).
+ *
+ * Sends ``POST /api/acquisition/followed/{followed_id}/search`` with the
+ * ``X-Requested-With`` header. Returns ``202`` with the launched ``run_uid``.
+ *
+ * Args:
+ *   id: Rowid of the ``followed_series`` row.
+ *
+ * Returns:
+ *   The {@link GrabTriggerResponse} with the launched ``run_uid``.
+ *
+ * Raises:
+ *   ApiError: 404 (unknown series) / 409 (a grab for this series is running).
+ */
+export function triggerFollowedSearch(id: number): Promise<GrabTriggerResponse> {
+  return apiFetch("/api/acquisition/followed/{followed_id}/search", {
+    method: "post",
     headers: XRW_HEADERS,
     params: { path: { followed_id: id } },
   });

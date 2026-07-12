@@ -224,6 +224,27 @@ describe("DecisionDetail", () => {
     ).toBeInTheDocument();
   });
 
+  it("affiche une décision résolue en lecture seule (sans re-scrape)", () => {
+    // Regression: an already-resolved decision must show its result, not the
+    // candidate picker + "Choisir" (which hit a confusing "not pending" 409).
+    renderDetail(
+      makeDecision({
+        status: "resolved",
+        resolution_json: { provider: "tmdb", provider_id: 550, via: "pick" },
+      }),
+    );
+    expect(screen.getByText("Résolue")).toBeInTheDocument();
+    expect(screen.getByText("Correspondance retenue")).toBeInTheDocument();
+    expect(screen.getByText(/TMDB #550/)).toBeInTheDocument();
+    // No resolve/dismiss controls on a closed decision.
+    expect(
+      screen.queryByRole("button", { name: "Choisir" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Re-chercher" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("affiche le formulaire de recherche manuelle avec les valeurs extraites", () => {
     renderDetail(
       makeDecision({ extracted_title: "Inception", extracted_year: 2010 }),

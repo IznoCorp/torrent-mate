@@ -15,6 +15,8 @@ import { LogLine, type LogLevel } from "@/components/ds/LogLine";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 
 import {
+  eventSummary,
+  eventTypeLabel,
   formatEventTime,
   severityForEventType,
   type Severity,
@@ -75,9 +77,14 @@ export function EventRow({ event }: EventRowProps): ReactElement {
     <LogLine level={display.level} time={formatEventTime(event.id)}>
       <span className="flex min-w-0 items-center gap-2">
         <StatusDot status={display.dot} showLabel={false} />
-        <span className="font-medium whitespace-nowrap">{event.type}</span>
-        <span className="min-w-0 flex-1 truncate text-muted-foreground">
-          {previewData(event.data)}
+        <span className="font-medium whitespace-nowrap" title={event.type}>
+          {eventTypeLabel(event.type)}
+        </span>
+        <span
+          className="min-w-0 flex-1 truncate text-muted-foreground"
+          title={previewData(event.data)}
+        >
+          {eventSummary(event.data)}
         </span>
       </span>
     </LogLine>

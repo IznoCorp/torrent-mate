@@ -20,6 +20,8 @@ import { useMemo, useState, type ReactElement } from "react";
 
 import type { EventMessage } from "@/api/events";
 import {
+  eventSummary,
+  eventTypeLabel,
   formatEventTime,
   severityForEventType,
   type Severity,
@@ -54,8 +56,12 @@ interface EventRowData {
   readonly id: string;
   /** Millisecond epoch parsed from the stream cursor (sort key for "heure"). */
   readonly time: number;
+  /** Raw event class name — sort key + tooltip; the cell shows a French label. */
   readonly type: string;
+  /** Condensed, human-readable payload summary (never raw JSON, F4). */
   readonly summary: string;
+  /** Full JSON payload, surfaced only as the summary cell's tooltip. */
+  readonly rawJson: string;
   /** Severity bucket driving the "Niveau" badge (and its sort). */
   readonly severity: Severity;
 }
@@ -69,10 +75,8 @@ function toRowData(event: EventMessage): EventRowData {
     id: event.id,
     time: Number.isFinite(ms) ? ms : 0,
     type: event.type,
-    summary:
-      json.length <= SUMMARY_MAX_CHARS
-        ? json
-        : `${json.slice(0, SUMMARY_MAX_CHARS)}…`,
+    summary: eventSummary(event.data),
+    rawJson: json.length <= SUMMARY_MAX_CHARS ? json : `${json.slice(0, SUMMARY_MAX_CHARS)}…`,
     severity: severityForEventType(event.type),
   };
 }
@@ -92,14 +96,17 @@ const columns: ColumnDef<EventRowData>[] = [
     accessorKey: "type",
     header: "Événement",
     cell: ({ row }) => (
-      <span className="font-mono">{row.original.type}</span>
+      <span title={row.original.type}>{eventTypeLabel(row.original.type)}</span>
     ),
   },
   {
     accessorKey: "summary",
     header: "Détail",
     cell: ({ row }) => (
-      <span className="font-mono text-xs text-muted-foreground">
+      <span
+        className="text-xs text-muted-foreground"
+        title={row.original.rawJson}
+      >
         {row.original.summary}
       </span>
     ),

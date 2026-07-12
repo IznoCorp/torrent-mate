@@ -342,20 +342,14 @@ class TvServiceMixin:
                 log.info("nfo_valid", action=result.action, directory=show_dir.name)
                 return result
 
-        # Corrupt NFO: delete before re-scrape.  Same dry_run guard as
-        # the movie branch above — a dry-run pass should not mutate
-        # staging.
-        if nfo_path.exists():
-            if self.dry_run:
-                log.info("nfo_corrupt_rescrape_would_delete", filename=nfo_path.name)
-            else:
-                log.warning("nfo_corrupt_rescrape", filename=nfo_path.name)
-                try:
-                    nfo_path.unlink()
-                except OSError as exc:
-                    result.error = f"Cannot delete corrupt NFO: {exc}"
-                    log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
-                    return result
+        # Corrupt/drifted NFO: do NOT delete it up front (mirrors the movie
+        # branch, webui-overhaul #3). A confident re-scrape overwrites it
+        # atomically below; a non-confident lookup returns early WITHOUT writing
+        # a fresh NFO, so unlinking here would leave the show folder with no NFO
+        # at all while a decision waits. Keeping the drifted NFO means the item
+        # is never worse off than before the re-scrape.
+        if nfo_path.exists() and not _is_nfo_complete(nfo_path):
+            log.warning("nfo_drift_detected", filename=nfo_path.name)
 
         # Collect seasons present in the folder's video files — feeds
         # content-aware candidate disambiguation in match_tvshow_tvdb.

@@ -7,6 +7,7 @@ models serve.
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -236,3 +237,82 @@ class HistoryResponse(BaseModel):
 
     runs: list[RunSummary]
     total: int
+
+
+#: The five ring-states a Flow Board station can be in (mirrors the frontend
+#: ``StageState`` union in ``StageStation.tsx``).
+StageStateT = Literal["idle", "ok", "active", "attention", "blocked"]
+
+#: The five sub-count tones (mirrors the frontend ``StatusTone`` union).
+StageToneT = Literal["success", "warning", "danger", "info", "neutral"]
+
+
+class StageSplit(BaseModel):
+    """One sub-count shown inside a Flow Board station.
+
+    Example: the Matching station splits its pending decisions into
+    ``ambigu`` / ``sans correspondance`` / ``incertain`` buckets, each a
+    :class:`StageSplit` with its own tone.
+
+    Attributes:
+        label: Human-readable French sub-count label.
+        count: Number of items in this sub-bucket.
+        tone: Semantic tone driving the dot colour on the station.
+    """
+
+    label: str
+    count: int
+    tone: StageToneT
+
+
+class PipelineStage(BaseModel):
+    """Aggregated state of one Flow Board stage (OBJ1 living pipeline).
+
+    A stage rolls up one or more real pipeline steps (or, for ``matching``,
+    the pending ``scrape_decision`` queue) into a single station: a headline
+    ``count``, a derived ring ``state``, the ``attention`` / ``blocked`` item
+    counts feeding that state, and an optional ``split`` of sub-counts.
+
+    Attributes:
+        key: Stable machine identifier (e.g. ``"scraping"``).
+        label: French display label (e.g. ``"Scraping"``).
+        count: Headline item count at this stage (successfully processed, or
+            — for ``matching`` — the number of pending decisions).
+        state: Derived ring state (``idle`` / ``ok`` / ``active`` /
+            ``attention`` / ``blocked``).
+        attention: Number of items needing an operator look (soft signal —
+            unmatched folders, pending decisions).
+        blocked: Number of items that errored at this stage (hard signal).
+        split: Optional sub-counts (e.g. réussi / ignoré / erreur), or
+            ``None`` when the stage has nothing meaningful to break down.
+    """
+
+    key: str
+    label: str
+    count: int
+    state: StageStateT
+    attention: int = 0
+    blocked: int = 0
+    split: list[StageSplit] | None = None
+
+
+class StagesResponse(BaseModel):
+    """Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).
+
+    Aggregates the last pipeline run's per-step summaries and the live
+    ``scrape_decision`` queue into the nine Flow Board stations, plus the
+    live run state so the board can pulse the active stage.
+
+    Attributes:
+        stages: The nine stages in board (left-to-right flow) order.
+        run_uid: The run these counts are sourced from, or ``None`` when no
+            pipeline run has ever been recorded.
+        run_state: Live pipeline run-state (``idle`` / ``running`` /
+            ``paused``) — drives whether the active stage pulses.
+        updated_at: Epoch seconds of the source run's start, or ``None``.
+    """
+
+    stages: list[PipelineStage]
+    run_uid: str | None = None
+    run_state: PipelineState
+    updated_at: float | None = None

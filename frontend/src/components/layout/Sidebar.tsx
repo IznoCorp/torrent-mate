@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { BRAND_ICON } from "@/lib/env";
+import { BrandMark } from "@/components/ds/BrandMark";
 import { NavSections } from "@/components/layout/NavSections";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +77,7 @@ export function Sidebar({
           collapsed && "justify-center px-0",
         )}
       >
-        <img src={BRAND_ICON} alt="" className="size-7 shrink-0" />
+        <BrandMark className="shrink-0" />
         {!collapsed && (
           <span className="text-sm font-semibold tracking-tight">
             Torrent<span className="text-primary">Mate</span>

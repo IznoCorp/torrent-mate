@@ -18,12 +18,24 @@ import type { components, paths } from "./schema";
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
+  /** True for the staging read-only write guard (403 `read-only`). */
+  readonly isReadOnly: boolean;
 
   constructor(status: number, detail: string) {
-    super(`${String(status)}: ${detail}`);
+    const isReadOnly = status === 403 && detail.toLowerCase().includes("read-only");
+    // The staging read-only guard is a *consultation* state, not an error the
+    // operator did wrong — surface a clean French notice instead of the raw
+    // "403: read-only" so a write click on the read-only staging instance reads
+    // as "not available here", never a broken action.
+    super(
+      isReadOnly
+        ? "Instance de consultation (staging) — écriture désactivée."
+        : `${String(status)}: ${detail}`,
+    );
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.isReadOnly = isReadOnly;
   }
 }
 
@@ -371,6 +383,24 @@ export function getPipelineStatus(): Promise<
   return apiFetch("/api/pipeline/status", { method: "get" });
 }
 
+/** Response type for ``GET /api/pipeline/stages`` (OBJ1 Flow Board). */
+export type StagesResponse = SuccessBody<
+  paths["/api/pipeline/stages"]["get"]["responses"]
+>;
+
+/**
+ * Fetch the aggregated Flow Board state: GET /api/pipeline/stages.
+ *
+ * Session-guarded read — no ``X-Requested-With`` header (R15). Returns the
+ * nine pipeline stages with live counts + derived ring states.
+ *
+ * Returns:
+ *   A {@link StagesResponse} with the nine stages in flow order.
+ */
+export function getPipelineStages(): Promise<StagesResponse> {
+  return apiFetch("/api/pipeline/stages", { method: "get" });
+}
+
 // ---------------------------------------------------------------------------
 // Pipeline history endpoints (S2 Phase 5)
 // ---------------------------------------------------------------------------
@@ -435,6 +465,51 @@ export function getPipelineRunDetail(runUid: string): Promise<RunDetail> {
   return apiFetch("/api/pipeline/history/{run_uid}", {
     method: "get",
     params: { path: { run_uid: runUid } },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Staging read-model endpoints (webui-overhaul OBJ2A)
+// ---------------------------------------------------------------------------
+
+/** Response type for ``GET /api/staging/media``. */
+export type StagingMediaResponse = SuccessBody<
+  paths["/api/staging/media"]["get"]["responses"]
+>;
+
+/** One staged media item (grid card / timeline row). */
+export type StagingMediaItem = StagingMediaResponse["items"][number];
+
+/** One stage of a staged media's per-item pipeline timeline. */
+export type StagingStageStep = StagingMediaItem["stages"][number];
+
+/**
+ * Query parameters accepted by ``GET /api/staging/media`` — derived from the
+ * generated schema so a backend parameter change breaks compilation here (R15).
+ */
+export type StagingMediaParams = QueryParamsOf<
+  paths["/api/staging/media"]["get"]
+>;
+
+/**
+ * Fetch the staged-media read-model: GET /api/staging/media.
+ *
+ * Session-guarded read — no ``X-Requested-With`` header (R15). Returns one item
+ * per staged media folder with NFO metadata, matching state, and a per-media
+ * pipeline timeline, plus aggregate filter counts.
+ *
+ * Args:
+ *   params: Optional pagination / sort / filter query parameters.
+ *
+ * Returns:
+ *   A {@link StagingMediaResponse} for the requested page.
+ */
+export function getStagingMedia(
+  params: StagingMediaParams = {},
+): Promise<StagingMediaResponse> {
+  return apiFetch("/api/staging/media", {
+    method: "get",
+    params: { query: params },
   });
 }
 

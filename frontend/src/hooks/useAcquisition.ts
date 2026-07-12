@@ -16,9 +16,11 @@ import {
   getFollowed,
   getObligations,
   getWanted,
+  searchMedia,
   updateFollow,
   type CreateFollowRequest,
   type FollowedParams,
+  type MediaSearchParams,
   type ObligationsParams,
   type UpdateFollowRequest,
   type WantedParams,
@@ -45,6 +47,30 @@ export function useFollowed(params: FollowedParams = {}) {
   return useQuery({
     queryKey: acqKeys.followed(params),
     queryFn: () => getFollowed(params),
+  });
+}
+
+/**
+ * Search live providers for media to follow (add-by-search, OBJ3).
+ *
+ * Disabled until ``q`` is non-empty so no request fires on an empty box.
+ * Query key: ``['acquisition', 'search', {q, kind}]``.
+ *
+ * Args:
+ *   q: The title to search for.
+ *   kind: Optional ``"movie"``/``"tv"`` restriction.
+ *
+ * Returns:
+ *   The TanStack Query result for a {@link MediaSearchResponse}.
+ */
+export function useMediaSearch(q: string, kind?: "movie" | "tv") {
+  const trimmed = q.trim();
+  const params: MediaSearchParams =
+    kind != null ? { q: trimmed, kind } : { q: trimmed };
+  return useQuery({
+    queryKey: acqKeys.search(params),
+    queryFn: () => searchMedia(params),
+    enabled: trimmed.length > 0,
   });
 }
 

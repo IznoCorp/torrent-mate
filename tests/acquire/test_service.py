@@ -284,6 +284,51 @@ def test_run_respects_limit(store: ConcreteAcquireStore) -> None:
     assert summary.grabbed == 2
 
 
+def _pending_item_for(followed_id: int, tvdb_id: int) -> WantedItem:
+    """A pending WantedItem bound to *followed_id* (OBJ3 per-series scoping).
+
+    Uses ``kind="movie"`` (like :func:`_pending_item`) so the item is due under
+    the pinned clock without airing-date gating — the test isolates the
+    followed_id scoping, not episode airing logic.
+    """
+    return WantedItem(
+        media_ref=MediaRef(tvdb_id=tvdb_id),
+        kind="movie",
+        status="pending",
+        enqueued_at=1_700_000_000,
+        followed_id=followed_id,
+    )
+
+
+def test_run_scopes_to_followed_id(store: ConcreteAcquireStore) -> None:
+    """run(followed_id=X) grabs only that series' items; others stay pending (OBJ3)."""
+    # Real followed_series rows so the wanted FK is satisfied.
+    fid_a = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=100), title="Series A", added_at=1_700_000_000))
+    fid_b = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=200), title="Series B", added_at=1_700_000_000))
+    a1 = store.wanted.add(_pending_item_for(followed_id=fid_a, tvdb_id=1))
+    a2 = store.wanted.add(_pending_item_for(followed_id=fid_a, tvdb_id=2))
+    other = store.wanted.add(_pending_item_for(followed_id=fid_b, tvdb_id=3))
+    orphan = store.wanted.add(_pending_item(tvdb_id=4))  # followed_id=None
+
+    orch = _success_orch(info_hash="hh")
+    service = _service(store, orch)
+    summary = service.run(followed_id=fid_a)
+
+    # Only series A's two items were attempted + grabbed.
+    assert orch.grab.call_count == 2
+    assert summary.grabbed == 2
+    for wid in (a1, a2):
+        item = store.wanted.get(wid)
+        assert item is not None
+        assert item.status == "grabbed"
+
+    # The other series' item and the un-followed orphan are untouched (pending).
+    for wid in (other, orphan):
+        item = store.wanted.get(wid)
+        assert item is not None
+        assert item.status == "pending"
+
+
 def test_run_retryable_resets_to_pending(store: ConcreteAcquireStore) -> None:
     """RETRYABLE outcome → row back to 'pending' and re-listed next run."""
     rowid = store.wanted.add(_pending_item())

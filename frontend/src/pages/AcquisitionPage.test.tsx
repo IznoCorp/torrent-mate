@@ -49,6 +49,13 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useObligations: (...args: unknown[]) => useObligationsMock(...args),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useAcquisitionStatus: () => useAcquisitionStatusMock(),
+  useMediaSearch: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: () => undefined,
+  }),
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
   useUpdateFollow: () => ({ mutate: updateFollowMutateFn, isPending: false }),
   useUnfollow: () => ({ mutate: unfollowMutateFn, isPending: false }),
@@ -270,7 +277,12 @@ describe("AcquisitionPage", () => {
       isError: false,
       data: {
         items: [
-          makeFollowed({ id: 1, title: "Top Chef", media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null } }),
+          makeFollowed({
+            id: 1,
+            title: "Top Chef",
+            wanted_pending: 3,
+            media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
+          }),
           makeFollowed({
             id: 2,
             title: "Koh-Lanta",
@@ -289,9 +301,32 @@ describe("AcquisitionPage", () => {
     // TVDB IDs rendered (distinct values).
     expect(screen.getByText("255968")).toBeInTheDocument();
     expect(screen.getByText("12345")).toBeInTheDocument();
-    // Active/inactive badges ("Actif" also appears as the column header → getAll).
-    expect(screen.getAllByText("Actif").length).toBeGreaterThan(0);
-    expect(screen.getByText("Inactif")).toBeInTheDocument();
+    // Derived état badges: Top Chef (active + 3 pending) → "En cours";
+    // Koh-Lanta (inactive) → "Désactivé".
+    expect(screen.getByText("En cours")).toBeInTheDocument();
+    expect(screen.getByText("Désactivé")).toBeInTheDocument();
+  });
+
+  it("shows a per-series 'Déclencher' trigger, disabled for an inactive series", () => {
+    mockAllEmpty();
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [
+          makeFollowed({ id: 1, title: "Top Chef", active: true }),
+          makeFollowed({ id: 2, title: "Koh-Lanta", active: false }),
+        ],
+      },
+      error: null,
+    });
+    renderPage();
+
+    const triggers = screen.getAllByRole("button", { name: "Déclencher" });
+    expect(triggers).toHaveLength(2);
+    // Active series → enabled; inactive → disabled (can't grab a paused series).
+    expect(triggers[0]).not.toBeDisabled();
+    expect(triggers[1]).toBeDisabled();
   });
 
   it("surfaces a followed-query error instead of the empty state", () => {
@@ -324,7 +359,25 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    expect(screen.getByText("3")).toBeInTheDocument();
+    // The follow card shows the pending count as a "N en attente" badge.
+    expect(screen.getByText("3 en attente")).toBeInTheDocument();
+  });
+
+  it("shows a next-search caption coloured by cadence tier (OBJ3)", () => {
+    mockAllEmpty();
+    const soon = Math.floor(Date.now() / 1000) + 3 * 3600; // ~3h out
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [makeFollowed({ active: true, next_search_at: soon, cadence_tier: "warm" })],
+      },
+      error: null,
+    });
+    renderPage();
+
+    // Next-search caption rendered with a relative "dans ~N h" estimate.
+    expect(screen.getByText(/Prochaine recherche dans ~3\s?h/)).toBeInTheDocument();
   });
 
   it('shows "Personnalisé" badge when quality_profile is set', () => {
@@ -921,18 +974,22 @@ describe("AcquisitionPage", () => {
     expect(tabs).toHaveLength(4);
   });
 
-  it("renders tables with semantic roles", () => {
+  it("renders the followed watch list as cards", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
       isError: false,
-      data: { items: [makeFollowed()] },
+      data: { items: [makeFollowed({ title: "Carded Show" })] },
       error: null,
     });
     renderPage();
 
-    const tables = screen.getAllByRole("table");
-    expect(tables.length).toBeGreaterThan(0);
+    // The Suivis panel is a MediaCard grid (not a table): the series title +
+    // its actions render.
+    expect(screen.getByText("Carded Show")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Déclencher" }),
+    ).toBeInTheDocument();
   });
 
   it("add form inputs have associated labels", () => {

@@ -277,6 +277,21 @@ def scrape_resolve(
                     patterns,
                 )
 
+            # ── 5b. Verify an NFO actually landed before marking resolved ──
+            # 'resolved' must imply a scraped folder (an NFO on disk). A scrape
+            # that left no NFO — a write no-op, or an NFO removed mid-flight —
+            # must NOT report success, else the library shows a 'resolved' item
+            # as unscraped and the operator cannot tell it needs re-doing
+            # (webui-overhaul #3). glob_nfo_candidates finds any root *.nfo.
+            from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
+
+            if not glob_nfo_candidates(staging_path):
+                console.print(
+                    f"[red]No NFO on disk after scraping '{staging_path.name}' — "
+                    f"not marking decision {decision_id} resolved (it stays pending).[/red]"
+                )
+                raise typer.Exit(1)
+
             # ── 6. Mark decision resolved ─────────────────────────────────
             # Fail-loud (F05): the NFO/artwork are already on disk, but if the
             # status write does not land the decision must NOT report success —

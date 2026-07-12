@@ -7,9 +7,10 @@
  * selected state is shown with a ring highlight.
  */
 
-import { useState, type ReactElement } from "react";
+import { type ReactElement } from "react";
 
 import type { DecisionCandidate } from "@/api/decisions";
+import { MediaPoster } from "@/components/ds/MediaPoster";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -98,8 +99,6 @@ export function CandidateCard({
   isSelected,
   onClick,
 }: CandidateCardProps): ReactElement {
-  const [posterFailed, setPosterFailed] = useState(false);
-
   const scorePct = Math.round(Math.min(1, Math.max(0, candidate.score)) * 100);
   const barColor = scoreBarColor(candidate.score);
   const providerLabel =
@@ -123,24 +122,8 @@ export function CandidateCard({
       )}
     >
       <CardContent className="flex flex-col gap-3 p-3">
-        {/* Poster */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-muted">
-          {candidate.poster_url && !posterFailed ? (
-            <img
-              src={candidate.poster_url}
-              alt={`Affiche de ${candidate.title}`}
-              loading="lazy"
-              onError={() => {
-                setPosterFailed(true);
-              }}
-              className="absolute inset-0 size-full object-cover"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-              Aucune affiche
-            </div>
-          )}
-        </div>
+        {/* Poster — via the DS MediaPoster (lazy load, branded fallback, alt). */}
+        <MediaPoster title={candidate.title} src={candidate.poster_url ?? null} />
 
         {/* Title + year */}
         <div className="flex flex-col gap-0.5">
@@ -151,6 +134,11 @@ export function CandidateCard({
             <span className="text-xs text-muted-foreground">
               {candidate.year}
             </span>
+          )}
+          {candidate.overview != null && candidate.overview !== "" && (
+            <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">
+              {candidate.overview}
+            </p>
           )}
         </div>
 

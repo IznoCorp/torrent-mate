@@ -146,7 +146,7 @@ function OptionsDisplay({ raw }: { readonly raw: string }): ReactElement {
         return <p className="text-xs text-muted-foreground">—</p>;
       }
       return (
-        <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           {entries.map(([key, value]) => (
             <Fragment key={key}>
               <span className="font-mono font-medium text-muted-foreground">

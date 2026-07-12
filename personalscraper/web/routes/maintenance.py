@@ -22,6 +22,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from contextlib import closing
@@ -296,6 +297,40 @@ def _sweep_tmp_orphans(config: Config) -> list[TmpOrphan]:
     return orphans
 
 
+#: TTL for the tmp-orphan sweep cache. The sweep walks the storage disk roots
+#: (slow macFUSE/NTFS mounts — up to ~27 s), so caching it keeps GET /locks
+#: responsive: lock state + sentinels stay real-time, orphan data is at most
+#: this stale (a maintenance signal, not a live metric).
+_ORPHAN_CACHE_TTL_S = 60.0
+_orphan_lock = threading.Lock()
+_orphan_cache: dict[str, object] = {"ts": 0.0, "data": []}
+
+
+def _sweep_tmp_orphans_cached(config: Config) -> list[TmpOrphan]:
+    """Return the tmp-orphan sweep, cached for :data:`_ORPHAN_CACHE_TTL_S`.
+
+    The lock is held across the scan so a burst of concurrent ``/locks`` calls
+    triggers exactly one disk walk (the rest wait, then read the fresh cache)
+    instead of a thundering herd of 27 s sweeps. A sync route runs in the
+    threadpool, so blocking here never stalls the event loop.
+
+    Args:
+        config: The application :class:`Config`.
+
+    Returns:
+        The (possibly cached) list of :class:`TmpOrphan` entries.
+    """
+    now = time.time()
+    with _orphan_lock:
+        ts = cast(float, _orphan_cache["ts"])
+        if ts > 0 and now - ts < _ORPHAN_CACHE_TTL_S:
+            return cast("list[TmpOrphan]", _orphan_cache["data"])
+        data = _sweep_tmp_orphans(config)
+        _orphan_cache["ts"] = time.time()
+        _orphan_cache["data"] = data
+        return data
+
+
 # ── GET /locks ────────────────────────────────────────────────────────────
 
 
@@ -328,7 +363,7 @@ def get_locks(
         watcher_paused_age_s=watcher_age,
     )
 
-    tmp_orphans = _sweep_tmp_orphans(config)
+    tmp_orphans = _sweep_tmp_orphans_cached(config)
 
     return LocksResponse(
         pipeline_lock=lock_state,

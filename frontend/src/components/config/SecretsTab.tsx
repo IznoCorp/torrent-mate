@@ -55,7 +55,7 @@ export function SecretsTab({
 
   if (secrets.isError) {
     return (
-      <p className="text-sm text-[var(--danger)] py-4" role="alert">
+      <p className="text-sm text-danger py-4" role="alert">
         Erreur lors du chargement des secrets.
       </p>
     );
@@ -161,7 +161,7 @@ export function SecretsTab({
         </Button>
 
         {saved && (
-          <span className="text-sm text-[var(--success)]">
+          <span className="text-sm text-success">
             ✓ Secrets enregistrés — un redémarrage peut être requis.
           </span>
         )}
