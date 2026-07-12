@@ -60,13 +60,28 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === "input" || tag === "textarea" || target.isContentEditable;
 }
 
+/** Props for {@link ResolutionDeck}. */
+export interface ResolutionDeckProps {
+  /**
+   * When set, the deck opens positioned on this ``scrape_decision.id`` once it
+   * is present in the loaded pending queue (C18) — the target of both the
+   * ambiguous-card "Résoudre" and the non-identified enqueue flows.
+   */
+  readonly initialDecisionId?: number;
+}
+
 /**
  * ResolutionDeck — one-at-a-time keyboard resolution of pending decisions.
+ *
+ * Args:
+ *   initialDecisionId: Optional decision to open on (C18).
  *
  * Returns:
  *   The resolution deck element.
  */
-export function ResolutionDeck(): ReactElement {
+export function ResolutionDeck({
+  initialDecisionId,
+}: ResolutionDeckProps = {}): ReactElement {
   const queryClient = useQueryClient();
   const pendingQuery = useDecisions({ status: "pending", page_size: 200 });
   const queue = useMemo(
@@ -89,6 +104,20 @@ export function ResolutionDeck(): ReactElement {
     visible.length === 0 ? 0 : Math.min(cursor, visible.length - 1);
   const current = visible[clampedCursor];
   const currentId = current?.id;
+
+  // C18: jump to a requested decision once it appears in the loaded queue, and
+  // only once per id — so navigating away within the deck afterwards is not
+  // yanked back.
+  const appliedInitialRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (initialDecisionId == null) return;
+    if (appliedInitialRef.current === initialDecisionId) return;
+    const idx = visible.findIndex((d) => d.id === initialDecisionId);
+    if (idx >= 0) {
+      setCursor(idx);
+      appliedInitialRef.current = initialDecisionId;
+    }
+  }, [initialDecisionId, visible]);
 
   const detailQuery = useDecisionDetail(currentId ?? 0);
   const baseCandidates = useMemo<readonly DecisionCandidate[]>(
@@ -382,155 +411,159 @@ export function ResolutionDeck(): ReactElement {
             />
           </div>
         )}
-      {/* Header: extracted media + trigger + progress + shortcuts */}
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-semibold">
-              {current.extracted_title}
-            </span>
-            {current.extracted_year != null && (
-              <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                {current.extracted_year}
+        {/* Header: extracted media + trigger + progress + shortcuts */}
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-semibold">
+                {current.extracted_title}
               </span>
-            )}
-            <Badge tone={TRIGGER_TONE[current.trigger] ?? "neutral"} dot>
-              {TRIGGER_LABEL[current.trigger] ?? current.trigger}
-            </Badge>
-          </div>
-          <span className="font-mono text-xs text-muted-foreground">
-            {current.media_kind === "movie" ? "Film" : "Série"} ·{" "}
-            {String(visible.length)} restante(s)
-            {skipped > 0 && ` · ${String(skipped)} passée(s)`}
-          </span>
-        </div>
-        <div className="hidden flex-wrap items-center gap-3 text-xs text-muted-foreground pointer-fine:flex">
-          <span className="flex items-center gap-1">
-            <Kbd>←</Kbd>
-            <Kbd>→</Kbd> choisir
-          </span>
-          <span className="flex items-center gap-1">
-            <Kbd>⏎</Kbd> valider
-          </span>
-          <span className="flex items-center gap-1">
-            <Kbd>d</Kbd> ignorer
-          </span>
-          <span className="flex items-center gap-1">
-            <Kbd>n</Kbd> passer
-          </span>
-          <span className="flex items-center gap-1">
-            <Kbd>s</Kbd> chercher
-          </span>
-        </div>
-      </div>
-
-      {/* Manual search override */}
-      <form
-        onSubmit={handleSearchSubmit}
-        className="flex flex-wrap items-end gap-2"
-      >
-        <div className="flex flex-1 flex-col gap-1">
-          <label
-            htmlFor="deck-search-title"
-            className="text-xs font-medium text-muted-foreground"
-          >
-            Recherche manuelle
-          </label>
-          <Input
-            id="deck-search-title"
-            ref={searchRef}
-            value={searchTitle}
-            onChange={(e) => {
-              setSearchTitle(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              // C7: Échap releases the search input and hands keyboard control
-              // back to the deck (arrows/Entrée) instead of trapping the user.
-              if (e.key === "Escape") {
-                e.preventDefault();
-                searchRef.current?.blur();
-                deckRef.current?.focus();
-              }
-            }}
-            placeholder="Titre à rechercher"
-          />
-        </div>
-        <div className="flex w-24 flex-col gap-1">
-          <label
-            htmlFor="deck-search-year"
-            className="text-xs font-medium text-muted-foreground"
-          >
-            Année
-          </label>
-          <Input
-            id="deck-search-year"
-            value={searchYear}
-            inputMode="numeric"
-            onChange={(e) => {
-              setSearchYear(e.target.value);
-            }}
-            placeholder="2024"
-          />
-        </div>
-        <Button type="submit" variant="outline" disabled={searchMut.isPending}>
-          Chercher
-        </Button>
-      </form>
-
-      {/* Candidates */}
-      {candidates.length === 0 ? (
-        <EmptyState
-          title="Aucun candidat"
-          description="Aucun match automatique — utilise la recherche manuelle ci-dessus ou ignore ce dossier."
-        />
-      ) : (
-        <div
-          ref={gridRef}
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-        >
-          {candidates.map((candidate, idx) => (
-            <div
-              key={`${candidate.provider}-${String(candidate.provider_id)}-${String(idx)}`}
-              data-candidate-idx={idx}
-            >
-              <CandidateCard
-                candidate={candidate}
-                isSelected={idx === selected}
-                onClick={() => {
-                  setSelected(idx);
-                }}
-              />
+              {current.extracted_year != null && (
+                <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                  {current.extracted_year}
+                </span>
+              )}
+              <Badge tone={TRIGGER_TONE[current.trigger] ?? "neutral"} dot>
+                {TRIGGER_LABEL[current.trigger] ?? current.trigger}
+              </Badge>
             </div>
-          ))}
+            <span className="font-mono text-xs text-muted-foreground">
+              {current.media_kind === "movie" ? "Film" : "Série"} ·{" "}
+              {String(visible.length)} restante(s)
+              {skipped > 0 && ` · ${String(skipped)} passée(s)`}
+            </span>
+          </div>
+          <div className="hidden flex-wrap items-center gap-3 text-xs text-muted-foreground pointer-fine:flex">
+            <span className="flex items-center gap-1">
+              <Kbd>←</Kbd>
+              <Kbd>→</Kbd> choisir
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>⏎</Kbd> valider
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>d</Kbd> ignorer
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>n</Kbd> passer
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>s</Kbd> chercher
+            </span>
+          </div>
         </div>
-      )}
 
-      {/* Actions — a thumb-reachable sticky bar on mobile (C11), inline on ≥sm */}
-      <div className="sticky bottom-0 z-10 -mx-1 flex items-center gap-2 border-t border-border bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
-        <Button
-          className="flex-1 sm:flex-none"
-          onClick={handleResolve}
-          disabled={busy || candidates.length === 0}
+        {/* Manual search override */}
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-wrap items-end gap-2"
         >
-          Valider le choix
-        </Button>
-        <Button
-          className="flex-1 sm:flex-none"
-          variant="outline"
-          onClick={handleDismiss}
-          disabled={busy}
-        >
-          Ignorer
-        </Button>
-        <Button
-          className="flex-1 sm:flex-none"
-          variant="ghost"
-          onClick={handleSkip}
-          disabled={busy}
-        >
-          Passer
-        </Button>
-      </div>
+          <div className="flex flex-1 flex-col gap-1">
+            <label
+              htmlFor="deck-search-title"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Recherche manuelle
+            </label>
+            <Input
+              id="deck-search-title"
+              ref={searchRef}
+              value={searchTitle}
+              onChange={(e) => {
+                setSearchTitle(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                // C7: Échap releases the search input and hands keyboard control
+                // back to the deck (arrows/Entrée) instead of trapping the user.
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  searchRef.current?.blur();
+                  deckRef.current?.focus();
+                }
+              }}
+              placeholder="Titre à rechercher"
+            />
+          </div>
+          <div className="flex w-24 flex-col gap-1">
+            <label
+              htmlFor="deck-search-year"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Année
+            </label>
+            <Input
+              id="deck-search-year"
+              value={searchYear}
+              inputMode="numeric"
+              onChange={(e) => {
+                setSearchYear(e.target.value);
+              }}
+              placeholder="2024"
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={searchMut.isPending}
+          >
+            Chercher
+          </Button>
+        </form>
+
+        {/* Candidates */}
+        {candidates.length === 0 ? (
+          <EmptyState
+            title="Aucun candidat"
+            description="Aucun match automatique — utilise la recherche manuelle ci-dessus ou ignore ce dossier."
+          />
+        ) : (
+          <div
+            ref={gridRef}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+          >
+            {candidates.map((candidate, idx) => (
+              <div
+                key={`${candidate.provider}-${String(candidate.provider_id)}-${String(idx)}`}
+                data-candidate-idx={idx}
+              >
+                <CandidateCard
+                  candidate={candidate}
+                  isSelected={idx === selected}
+                  onClick={() => {
+                    setSelected(idx);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions — a thumb-reachable sticky bar on mobile (C11), inline on ≥sm */}
+        <div className="sticky bottom-0 z-10 -mx-1 flex items-center gap-2 border-t border-border bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+          <Button
+            className="flex-1 sm:flex-none"
+            onClick={handleResolve}
+            disabled={busy || candidates.length === 0}
+          >
+            Valider le choix
+          </Button>
+          <Button
+            className="flex-1 sm:flex-none"
+            variant="outline"
+            onClick={handleDismiss}
+            disabled={busy}
+          >
+            Ignorer
+          </Button>
+          <Button
+            className="flex-1 sm:flex-none"
+            variant="ghost"
+            onClick={handleSkip}
+            disabled={busy}
+          >
+            Passer
+          </Button>
+        </div>
       </div>
     </div>
   );

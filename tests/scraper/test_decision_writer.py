@@ -142,6 +142,41 @@ class TestDecisionWriterUpsert:
         assert row["resolution_json"] is None
         assert row["resolved_at"] is None
 
+    def test_upsert_returns_the_affected_row_id(self, tmp_path: Path) -> None:
+        """``upsert()`` returns the affected ``scrape_decision.id`` (C18).
+
+        The web enqueue path uses this id to open the resolution deck on the
+        freshly enqueued decision.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = DecisionWriter(db_path)
+
+        staging = tmp_path / "001-MOVIES" / "Inception (2010)"
+        staging.mkdir(parents=True)
+        first_id = writer.upsert(
+            staging_path=staging,
+            media_kind="movie",
+            extracted_title="Inception",
+            extracted_year=2010,
+            trigger="manual",
+            candidates_json="[]",
+            run_uid=None,
+        )
+        assert first_id == 1
+        # Refreshing the same path returns the SAME id, not a new row.
+        same_id = writer.upsert(
+            staging_path=staging,
+            media_kind="movie",
+            extracted_title="Inception",
+            extracted_year=2010,
+            trigger="manual",
+            candidates_json="[]",
+            run_uid=None,
+        )
+        assert same_id == first_id
+        assert _count_rows(db_path) == 1
+
     def test_upsert_with_nullable_fields_none(self, tmp_path: Path) -> None:
         """``extracted_year=None`` and ``run_uid=None`` are stored as NULL."""
         db_path = tmp_path / "library.db"

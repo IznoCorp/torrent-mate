@@ -113,13 +113,15 @@ function setup(opts: {
   });
 }
 
-function renderDeck(): void {
+function renderDeck(initialDecisionId?: number): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <ResolutionDeck />
+      <ResolutionDeck
+        {...(initialDecisionId != null ? { initialDecisionId } : {})}
+      />
     </QueryClientProvider>
   );
   render(tree);
@@ -246,5 +248,22 @@ describe("ResolutionDeck", () => {
     const status = screen.getByRole("status");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status.textContent).toContain("Inception");
+  });
+
+  it("opens positioned on initialDecisionId when it is in the queue (C18)", () => {
+    setup({
+      items: [
+        listItem({ id: 1, extracted_title: "Inception" }),
+        listItem({ id: 2, extracted_title: "Interstellar" }),
+      ],
+    });
+    // Without a target the head (Inception) would show; targeting id 2 jumps
+    // the deck to Interstellar.
+    renderDeck(2);
+    expect(
+      screen.getByRole("group", { name: /résolution/i }),
+    ).toBeInTheDocument();
+    // The header shows the targeted decision's extracted title.
+    expect(screen.getAllByText("Interstellar").length).toBeGreaterThan(0);
   });
 });

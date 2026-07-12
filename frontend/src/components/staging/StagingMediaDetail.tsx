@@ -20,8 +20,12 @@ import { Button } from "@/components/ui/button";
 export interface StagingMediaDetailProps {
   /** The staged media to detail. */
   readonly item: StagingMediaItem;
-  /** Invoked when the operator asks to resolve an ambiguous match (opens the deck). */
-  readonly onResolve?: () => void;
+  /**
+   * Invoked to open the resolution deck on a decision (C18): the ambiguous
+   * item's own ``decision_id``, or the id returned by enqueuing a
+   * non-identified item.
+   */
+  readonly onResolve?: (decisionId?: number) => void;
 }
 
 /** One labelled provider-id chip (tvdb / tmdb / imdb). */
@@ -35,7 +39,13 @@ function IdChip({ family, id }: { family: string; id: string }): ReactElement {
 }
 
 /** One labelled meta cell (label over value). */
-function MetaCell({ label, value }: { label: string; value: string }): ReactElement {
+function MetaCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
   return (
     <div className="flex flex-col">
       <span className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -74,16 +84,23 @@ export function StagingMediaDetail({
   // no resolve path — enqueue it as a decision so it appears in the deck, then
   // jump there (the deck's manual search resolves it via the #3-fixed scrape).
   const canManualResolve =
-    item.match === "absent" && (item.media_kind === "movie" || item.media_kind === "tvshow");
+    item.match === "absent" &&
+    (item.media_kind === "movie" || item.media_kind === "tvshow");
   const enqueueMut = useMutation({
     mutationFn: () => enqueueStagingDecision(item.id),
-    onSuccess: () => {
-      toast.success("Ajouté à la file de résolution — recherchez un match dans le deck");
+    onSuccess: (data) => {
+      toast.success(
+        "Ajouté à la file de résolution — recherchez un match dans le deck",
+      );
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      onResolve?.();
+      // C18: same grammar as an ambiguous card — jump the deck to the freshly
+      // enqueued decision.
+      onResolve?.(data.decision_id ?? undefined);
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Échec de la mise en file");
+      toast.error(
+        err instanceof Error ? err.message : "Échec de la mise en file",
+      );
     },
   });
 
@@ -100,7 +117,9 @@ export function StagingMediaDetail({
         </div>
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex items-baseline gap-2">
-            <h3 className="text-lg font-semibold leading-tight">{item.title}</h3>
+            <h3 className="text-lg font-semibold leading-tight">
+              {item.title}
+            </h3>
             {item.year != null && (
               <span className="shrink-0 font-mono text-sm tabular-nums text-muted-foreground">
                 {item.year}
@@ -109,7 +128,9 @@ export function StagingMediaDetail({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={badge.tone} label={badge.label} />
-            <span className="text-xs text-muted-foreground">{kindLabel(item.media_kind)}</span>
+            <span className="text-xs text-muted-foreground">
+              {kindLabel(item.media_kind)}
+            </span>
           </div>
           {Object.keys(item.provider_ids).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -164,7 +185,9 @@ export function StagingMediaDetail({
               {dispatch.disk != null ? ` → ${dispatch.disk}` : ""}
             </span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{dispatch.reason}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {dispatch.reason}
+          </p>
         </div>
       )}
 
@@ -176,9 +199,15 @@ export function StagingMediaDetail({
         <MediaTimeline stages={item.stages} />
       </div>
 
-      {/* Resolution jump for an ambiguous match. */}
+      {/* Resolution jump for an ambiguous match — opens the deck on THIS
+          decision (C18). */}
       {item.match === "ambiguous" && onResolve !== undefined && (
-        <Button type="button" onClick={onResolve}>
+        <Button
+          type="button"
+          onClick={() => {
+            onResolve(item.decision_id ?? undefined);
+          }}
+        >
           Résoudre le matching
         </Button>
       )}

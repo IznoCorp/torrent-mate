@@ -58,8 +58,12 @@ const SORT_OPTIONS: readonly {
 
 /** Props for {@link StagingLibrary}. */
 export interface StagingLibraryProps {
-  /** Invoked when the operator opens the resolution deck for an ambiguous media. */
-  readonly onOpenResolution?: () => void;
+  /**
+   * Invoked when the operator sends a media to the resolution deck. Receives the
+   * ``scrape_decision.id`` to open on (C18) — the ambiguous card's own
+   * ``decision_id`` or the id returned by enqueuing a non-identified item.
+   */
+  readonly onOpenResolution?: (decisionId?: number) => void;
 }
 
 /** A grid of skeleton poster cards shown while the first page loads. */
@@ -207,6 +211,15 @@ export function StagingLibrary({
           {MATCH_FILTERS.map((filter) => {
             const active = match === filter.value;
             const count = chipCount(filter.value);
+            // C18: an idle "À résoudre" chip with a non-zero count wears the
+            // warning tone so pending ambiguities call for attention.
+            const pendingAmbiguous =
+              filter.value === "ambiguous" && (count ?? 0) > 0;
+            const tone = active
+              ? "solid"
+              : pendingAmbiguous
+                ? "warning"
+                : "outline";
             return (
               <button
                 key={filter.value}
@@ -216,10 +229,7 @@ export function StagingLibrary({
                   resetTo(setMatch, filter.value);
                 }}
               >
-                <Badge
-                  tone={active ? "solid" : "outline"}
-                  className="cursor-pointer"
-                >
+                <Badge tone={tone} className="cursor-pointer">
                   {filter.label}
                   {count !== undefined && (
                     <span className="ml-1 opacity-70">({count})</span>

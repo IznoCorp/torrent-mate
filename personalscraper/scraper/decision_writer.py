@@ -86,7 +86,7 @@ class DecisionWriter:
         trigger: str,
         candidates_json: str,
         run_uid: str | None,
-    ) -> None:
+    ) -> int | None:
         """Insert a new pending row or refresh an existing pending row.
 
         Normalizes *staging_path* to NFC before the upsert.  Uses
@@ -114,9 +114,15 @@ class DecisionWriter:
             candidates_json: JSON array of scored
                 :class:`DecisionCandidate` objects.
             run_uid: Run identifier that enqueued the row, or ``None``.
+
+        Returns:
+            The ``scrape_decision.id`` of the affected row (looked up by
+            ``staging_path``), or ``None`` if the write failed. Callers that
+            do not need the id may ignore it (existing pipeline behaviour).
         """
         now = time.time()
         normalized = unicodedata.normalize("NFC", str(staging_path))
+        decision_id: int | None = None
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
@@ -154,6 +160,13 @@ class DecisionWriter:
                 ),
             )
             conn.commit()
+            # Look the row back up by its unique staging_path so the id is
+            # returned whether the statement inserted, revived or refreshed it.
+            row = conn.execute(
+                "SELECT id FROM scrape_decision WHERE staging_path = ?",
+                (normalized,),
+            ).fetchone()
+            decision_id = int(row[0]) if row is not None else None
         except Exception:
             log.warning(
                 "decision_writer.upsert_failed",
@@ -168,6 +181,7 @@ class DecisionWriter:
                 conn.close()
             except Exception:
                 pass
+        return decision_id
 
     def mark_superseded_orphans(self) -> None:
         """Mark pending rows whose staging path no longer exists on disk.

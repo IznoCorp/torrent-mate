@@ -82,6 +82,9 @@ export default function Decisions(): ReactElement {
   // Primary view: the media library grid, the rapid resolution deck, or the
   // full cross-status decision browse.
   const [view, setView] = useState<"library" | "resolve" | "all">("resolve");
+  // C18: the decision the deck should open on, set when the operator resolves a
+  // specific card (ambiguous or freshly enqueued). Null = open at the head.
+  const [deckDecisionId, setDeckDecisionId] = useState<number | null>(null);
   // Optional, multi-select status filter. Empty set = show ALL statuses (default).
   const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
     () => new Set(),
@@ -249,135 +252,140 @@ export default function Decisions(): ReactElement {
 
       {view === "library" ? (
         <StagingLibrary
-          onOpenResolution={() => {
+          onOpenResolution={(decisionId) => {
+            setDeckDecisionId(decisionId ?? null);
             setView("resolve");
           }}
         />
       ) : view === "resolve" ? (
-        <ResolutionDeck />
+        <ResolutionDeck
+          {...(deckDecisionId != null
+            ? { initialDecisionId: deckDecisionId }
+            : {})}
+        />
       ) : (
         <>
           {/* ---- Optional status filter chips ------------------------------------ */}
-      <div className="flex flex-col gap-1.5">
-        <div
-          className="flex flex-wrap items-center gap-2"
-          role="group"
-          aria-label="Filtrer les décisions par statut (optionnel)"
-        >
-          {STATUS_FILTERS.map((status) => {
-            const active = activeStatuses.has(status);
-            const count = counts[status];
-            // A null count means that status's query failed — show "?" rather
-            // than a misleading "0" (SF2).
-            const countLabel = count == null ? "?" : String(count);
-            return (
-              <button
-                key={status}
-                type="button"
-                aria-pressed={active}
-                title={
-                  count == null
-                    ? `${STATUS_TOOLTIP[status]} — échec du chargement`
-                    : STATUS_TOOLTIP[status]
-                }
-                onClick={() => {
-                  handleToggleStatus(status);
-                }}
-              >
-                <Badge
-                  tone={active ? "solid" : "outline"}
-                  className="cursor-pointer"
-                >
-                  {STATUS_SHORT_LABEL[status]}
-                  <span className="ml-1 opacity-70">({countLabel})</span>
-                </Badge>
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {activeStatuses.size === 0
-            ? "Toutes les décisions sont affichées — cliquez un statut pour filtrer."
-            : "Filtre actif — cliquez un statut pour l'activer/le désactiver."}
-        </p>
-      </div>
+          <div className="flex flex-col gap-1.5">
+            <div
+              className="flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Filtrer les décisions par statut (optionnel)"
+            >
+              {STATUS_FILTERS.map((status) => {
+                const active = activeStatuses.has(status);
+                const count = counts[status];
+                // A null count means that status's query failed — show "?" rather
+                // than a misleading "0" (SF2).
+                const countLabel = count == null ? "?" : String(count);
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    aria-pressed={active}
+                    title={
+                      count == null
+                        ? `${STATUS_TOOLTIP[status]} — échec du chargement`
+                        : STATUS_TOOLTIP[status]
+                    }
+                    onClick={() => {
+                      handleToggleStatus(status);
+                    }}
+                  >
+                    <Badge
+                      tone={active ? "solid" : "outline"}
+                      className="cursor-pointer"
+                    >
+                      {STATUS_SHORT_LABEL[status]}
+                      <span className="ml-1 opacity-70">({countLabel})</span>
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {activeStatuses.size === 0
+                ? "Toutes les décisions sont affichées — cliquez un statut pour filtrer."
+                : "Filtre actif — cliquez un statut pour l'activer/le désactiver."}
+            </p>
+          </div>
 
-      {/* ---- Partial-failure banner (SF2) ------------------------------------ */}
-      {/* When the core `pending` query fails but others succeed, the flat list
+          {/* ---- Partial-failure banner (SF2) ------------------------------------ */}
+          {/* When the core `pending` query fails but others succeed, the flat list
           still renders — but the pending count would otherwise read a false "0".
           Surface it explicitly so the operator knows the signal is unreliable. */}
-      {!listError && pendingFailed && (
-        <p role="alert" className="text-sm text-danger">
-          Impossible de charger les décisions en attente — le nombre affiché
-          peut être incomplet. Réessayez.
-        </p>
-      )}
+          {!listError && pendingFailed && (
+            <p role="alert" className="text-sm text-danger">
+              Impossible de charger les décisions en attente — le nombre affiché
+              peut être incomplet. Réessayez.
+            </p>
+          )}
 
-      {/* ---- Content area ---------------------------------------------------- */}
-      {listError ? (
-        <p className="text-sm text-danger">
-          Erreur lors du chargement des décisions.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          {/* List panel — hidden on mobile when detail is showing, always visible on desktop */}
-          <div className={showDetailMobile ? "hidden lg:block" : "block"}>
-            {listLoading && items.length === 0 ? (
-              <ListSkeleton />
-            ) : (
-              <DecisionList
-                items={items}
-                onSelect={handleSelect}
-                onQuickDismiss={handleQuickDismiss}
-                dismissingId={dismissingId}
-              />
-            )}
-          </div>
-
-          {/* Detail panel — a SINGLE DecisionDetail instance (F36): shown on
-              mobile when selected (with a back button), side-by-side on desktop,
-              and replaced by the placeholder when nothing is selected. */}
-          <div
-            className={
-              selectedId != null
-                ? showDetailMobile
-                  ? "block"
-                  : "hidden lg:block"
-                : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8"
-            }
-          >
-            {selectedId != null ? (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mb-2 lg:hidden"
-                  onClick={handleBackToList}
-                >
-                  ← Retour à la liste
-                </Button>
-
-                {detailLoading || detailData == null ? (
-                  <Skeleton className="h-64 w-full" />
+          {/* ---- Content area ---------------------------------------------------- */}
+          {listError ? (
+            <p className="text-sm text-danger">
+              Erreur lors du chargement des décisions.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              {/* List panel — hidden on mobile when detail is showing, always visible on desktop */}
+              <div className={showDetailMobile ? "hidden lg:block" : "block"}>
+                {listLoading && items.length === 0 ? (
+                  <ListSkeleton />
                 ) : (
-                  // key={id} resets DecisionDetail's local state per decision
-                  // so a search / runUid from one never leaks onto another (F02).
-                  <DecisionDetail
-                    key={detailData.id}
-                    decision={detailData}
-                    onDecisionHandled={handleDecisionHandled}
+                  <DecisionList
+                    items={items}
+                    onSelect={handleSelect}
+                    onQuickDismiss={handleQuickDismiss}
+                    dismissingId={dismissingId}
                   />
                 )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Sélectionnez une décision pour voir les détails.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+              </div>
+
+              {/* Detail panel — a SINGLE DecisionDetail instance (F36): shown on
+              mobile when selected (with a back button), side-by-side on desktop,
+              and replaced by the placeholder when nothing is selected. */}
+              <div
+                className={
+                  selectedId != null
+                    ? showDetailMobile
+                      ? "block"
+                      : "hidden lg:block"
+                    : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8"
+                }
+              >
+                {selectedId != null ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mb-2 lg:hidden"
+                      onClick={handleBackToList}
+                    >
+                      ← Retour à la liste
+                    </Button>
+
+                    {detailLoading || detailData == null ? (
+                      <Skeleton className="h-64 w-full" />
+                    ) : (
+                      // key={id} resets DecisionDetail's local state per decision
+                      // so a search / runUid from one never leaks onto another (F02).
+                      <DecisionDetail
+                        key={detailData.id}
+                        decision={detailData}
+                        onDecisionHandled={handleDecisionHandled}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Sélectionnez une décision pour voir les détails.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </section>

@@ -212,8 +212,12 @@ class EnqueueDecisionResponse(BaseModel):
         ok: ``True`` when the item was enqueued as a pending scrape decision.
         media_kind: The kind of the enqueued item (``movie``/``tvshow``).
         title: The folder-derived title enqueued for resolution.
+        decision_id: The ``scrape_decision.id`` of the enqueued row, so the
+            client can open the resolution deck positioned on it (C18 — same
+            grammar as an ambiguous card). ``None`` if the id could not be read.
     """
 
     ok: bool
     media_kind: StagingMediaKind
     title: str
+    decision_id: int | None = None
