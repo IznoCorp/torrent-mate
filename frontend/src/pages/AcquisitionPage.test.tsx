@@ -363,6 +363,23 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText("3 en attente")).toBeInTheDocument();
   });
 
+  it("shows a next-search caption coloured by cadence tier (OBJ3)", () => {
+    mockAllEmpty();
+    const soon = Math.floor(Date.now() / 1000) + 3 * 3600; // ~3h out
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [makeFollowed({ active: true, next_search_at: soon, cadence_tier: "warm" })],
+      },
+      error: null,
+    });
+    renderPage();
+
+    // Next-search caption rendered with a relative "dans ~N h" estimate.
+    expect(screen.getByText(/Prochaine recherche dans ~3\s?h/)).toBeInTheDocument();
+  });
+
   it('shows "Personnalisé" badge when quality_profile is set', () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({

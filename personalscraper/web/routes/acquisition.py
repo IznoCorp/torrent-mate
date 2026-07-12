@@ -37,6 +37,8 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from personalscraper.acquire.cadence import Cadence, next_search_at, tier_name
+from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.identity import MediaRef
@@ -189,6 +191,48 @@ def _backfill_from_indexer(
     return None, None
 
 
+#: Temperature ranks used to pick a series' governing (hottest) tier.
+_TIER_RANK: dict[str, int] = {"hot": 0, "warm": 1, "cold": 2, "cutoff": 3}
+
+
+def _cadence_readout(
+    timings: list[tuple[int, int | None]],
+    cadence: Cadence,
+    now: int,
+) -> tuple[float | None, str | None]:
+    """Derive a series' ``(next_search_at, cadence_tier)`` from its pending items.
+
+    The next automatic search for the series is the soonest next-due among its
+    pending wanted items; the reported tier is the hottest (most-active) tier
+    across them. Past-cutoff items are ignored. Returns ``(None, None)`` when the
+    series has no pending/searchable item (it is up to date).
+
+    Args:
+        timings: ``(enqueued_at, last_search_at)`` pairs for the series' pending
+            wanted items.
+        cadence: The effective cadence policy for the series.
+        now: Current unix epoch seconds.
+
+    Returns:
+        A ``(next_search_at, cadence_tier)`` tuple, either element ``None``.
+    """
+    soonest: int | None = None
+    best_tier: str | None = None
+    best_rank = 99
+    for enqueued_at, last_search_at in timings:
+        due = next_search_at(cadence, now=now, enqueued_at=enqueued_at, last_search_at=last_search_at)
+        if due is None:  # past cutoff — no longer searched
+            continue
+        if soonest is None or due < soonest:
+            soonest = due
+        tier = tier_name(cadence, now=now, enqueued_at=enqueued_at)
+        rank = _TIER_RANK.get(tier, 99)
+        if rank < best_rank:
+            best_rank = rank
+            best_tier = tier
+    return (float(soonest) if soonest is not None else None, best_tier)
+
+
 def _write_follow_metadata(
     acquire_db_path: Path | None,
     followed_id: int,
@@ -254,6 +298,24 @@ def get_followed(
                 rows = conn.execute("SELECT * FROM followed_series WHERE active = 1 ORDER BY id").fetchall()
 
             indexer_db_path = request.app.state.config.indexer.db_path
+
+            # Cadence readout (OBJ3): resolve the global default once and batch the
+            # pending wanted timings per series, so the next-search estimate + the
+            # governing tier cost a single extra query for the whole list.
+            now = int(time.time())
+            try:
+                global_cadence: Cadence | None = cadence_from_config(request.app.state.config.acquire.cadence)
+            except (ValueError, AttributeError):  # a malformed cadence config must not 500 the list
+                global_cadence = None
+            timings_by_series: dict[int, list[tuple[int, int | None]]] = {}
+            if global_cadence is not None:
+                for w in conn.execute(
+                    "SELECT followed_id, enqueued_at, last_search_at FROM wanted "
+                    "WHERE followed_id IS NOT NULL AND status IN ('pending', 'searching')"
+                ).fetchall():
+                    last = None if w["last_search_at"] is None else int(w["last_search_at"])
+                    timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
+
             items: list[FollowedSeriesItem] = []
             for row in rows:
                 # COUNT wanted pending for this series.
@@ -276,6 +338,13 @@ def get_followed(
                     if season_count is None:
                         season_count = bf_seasons
 
+                # Next-search estimate + governing tier from the series' pending items.
+                next_due: float | None = None
+                cadence_tier: str | None = None
+                if global_cadence is not None:
+                    effective = effective_cadence(cadence_from_json(row["cadence_json"]), global_cadence)
+                    next_due, cadence_tier = _cadence_readout(timings_by_series.get(row["id"], []), effective, now)
+
                 items.append(
                     FollowedSeriesItem(
                         id=row["id"],
@@ -290,6 +359,8 @@ def get_followed(
                         overview=overview,
                         year=year,
                         season_count=season_count,
+                        next_search_at=next_due,
+                        cadence_tier=cadence_tier,
                     )
                 )
             return FollowedResponse(items=items)

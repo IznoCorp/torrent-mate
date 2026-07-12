@@ -768,12 +768,34 @@
             ],
             "title": "Cadence"
           },
+          "cadence_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadence Tier"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
           },
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
+          },
+          "next_search_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Search At"
           },
           "overview": {
             "anyOf": [

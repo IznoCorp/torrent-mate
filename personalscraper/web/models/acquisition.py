@@ -35,6 +35,12 @@ class FollowedSeriesItem(BaseModel):
     overview: str | None = None
     year: int | None = None
     season_count: int | None = None
+    # Cadence readout (webui-overhaul OBJ3): the next epoch at which an automatic
+    # search becomes due for this series (min over its pending wanted items), and
+    # the governing temperature tier ("hot"/"warm"/"cold"/"cutoff"). Both are
+    # ``None`` when nothing is pending (the series is up to date).
+    next_search_at: float | None = None
+    cadence_tier: str | None = None
 
 
 class FollowedResponse(BaseModel):

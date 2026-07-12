@@ -447,3 +447,37 @@ def test_cadence_module_imports_are_pure() -> None:
             module = node.module or ""
             top = module.split(".")[0]
             assert top in allowed, f"Forbidden import in cadence.py: {module}"
+
+
+def test_tier_name_by_age():
+    """tier_name returns hot/warm/cold by age band, cutoff past the cutoff."""
+    from personalscraper.acquire.cadence import tier_name
+
+    c = _canon()
+    assert tier_name(c, now=NOW, enqueued_at=NOW) == "hot"  # age 0
+    assert tier_name(c, now=NOW, enqueued_at=NOW - (HOT_MAX + 1)) == "warm"  # age 72h+
+    assert tier_name(c, now=NOW, enqueued_at=NOW - (WARM_MAX + 1)) == "cold"  # age 14d+
+    assert tier_name(c, now=NOW, enqueued_at=NOW - COLD_MAX) == "cutoff"  # age = cutoff
+
+
+def test_next_search_at_never_searched_is_now():
+    """A never-searched item within the window is due immediately (now)."""
+    from personalscraper.acquire.cadence import next_search_at
+
+    assert next_search_at(_canon(), now=NOW, enqueued_at=NOW, last_search_at=None) == NOW
+
+
+def test_next_search_at_hot_interval():
+    """Next-due = last_search_at + the current (Hot) tier interval."""
+    from personalscraper.acquire.cadence import next_search_at
+
+    last = NOW - 1800  # searched 30 min ago
+    assert next_search_at(_canon(), now=NOW, enqueued_at=NOW, last_search_at=last) == last + HOT_S
+
+
+def test_next_search_at_past_cutoff_is_none():
+    """Past cutoff → no further search is scheduled (None)."""
+    from personalscraper.acquire.cadence import next_search_at
+
+    enqueued = NOW - COLD_MAX  # age = cutoff → abandoned
+    assert next_search_at(_canon(), now=NOW, enqueued_at=enqueued, last_search_at=NOW - 100) is None

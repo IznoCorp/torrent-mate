@@ -219,6 +219,33 @@ function cadenceInterval(
   return typeof v === "number" ? v : 0;
 }
 
+/** Cadence temperature token colour (DS `--temp-*`), by tier. */
+const TEMP_COLOR: Record<string, string> = {
+  hot: "var(--temp-hot)",
+  warm: "var(--temp-warm)",
+  cold: "var(--temp-cold)",
+  cutoff: "var(--temp-cutoff)",
+};
+
+/** French label for a cadence temperature tier. */
+const TIER_LABEL: Record<string, string> = {
+  hot: "recherche fréquente",
+  warm: "recherche régulière",
+  cold: "recherche espacée",
+  cutoff: "abandonnée",
+};
+
+/** Relative human label until an epoch-seconds instant ("imminente" when due). */
+function untilLabel(epochSec: number, nowMs: number): string {
+  const deltaMs = epochSec * 1000 - nowMs;
+  if (deltaMs <= 60_000) return "imminente";
+  const mins = Math.round(deltaMs / 60_000);
+  if (mins < 60) return `dans ~${String(mins)} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `dans ~${String(hours)} h`;
+  return `dans ~${String(Math.round(hours / 24))} j`;
+}
+
 /** Truncate a long string for table display, appending "…" when cut. */
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
@@ -448,10 +475,31 @@ function FollowedPanel({
                       {String(item.wanted_pending)} en attente
                     </Badge>
                   )}
-                  {interval > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      cadence {String(interval)} min
+                  {item.active &&
+                  item.cadence_tier != null &&
+                  item.next_search_at != null ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium"
+                      style={{
+                        color: TEMP_COLOR[item.cadence_tier] ?? "var(--muted-foreground)",
+                      }}
+                      title={TIER_LABEL[item.cadence_tier] ?? item.cadence_tier}
+                    >
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{
+                          backgroundColor: TEMP_COLOR[item.cadence_tier] ?? "currentColor",
+                        }}
+                        aria-hidden
+                      />
+                      Prochaine recherche {untilLabel(item.next_search_at, Date.now())}
                     </span>
+                  ) : (
+                    interval > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        cadence {String(interval)} min
+                      </span>
+                    )
                   )}
                   {item.quality_profile != null && (
                     <Badge tone="info">Personnalisé</Badge>

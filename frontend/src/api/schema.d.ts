@@ -1967,9 +1967,13 @@ export interface components {
             cadence?: {
                 [key: string]: unknown;
             } | null;
+            /** Cadence Tier */
+            cadence_tier?: string | null;
             /** Id */
             id: number;
             media_ref: components["schemas"]["MediaRefResponse"];
+            /** Next Search At */
+            next_search_at?: number | null;
             /** Overview */
             overview?: string | null;
             /** Poster Url */
