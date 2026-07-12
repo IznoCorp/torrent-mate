@@ -127,6 +127,24 @@ describe("StagingLibrary", () => {
     expect(chip).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("hides overviews when switched to compact density (C17)", () => {
+    renderLib();
+    // Comfortable by default → overviews are visible.
+    expect(
+      screen.getAllByText("An insomniac forms a club.").length,
+    ).toBeGreaterThan(0);
+    // Switching to Compact drops the overviews (denser grid).
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
+    expect(
+      screen.queryAllByText("An insomniac forms a club."),
+    ).toHaveLength(0);
+    // And back to Confortable restores them.
+    fireEvent.click(screen.getByRole("button", { name: "Confortable" }));
+    expect(
+      screen.getAllByText("An insomniac forms a club.").length,
+    ).toBeGreaterThan(0);
+  });
+
   it("shows a loading skeleton grid", () => {
     stagingMock.mockReturnValue({
       data: undefined,
