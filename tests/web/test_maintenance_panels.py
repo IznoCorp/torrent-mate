@@ -192,6 +192,14 @@ class TestDisksRoute:
 class TestLocksRoute:
     """``GET /api/maintenance/locks`` — pipeline lock, sentinels, orphans."""
 
+    @pytest.fixture(autouse=True)
+    def _reset_orphan_cache(self) -> None:
+        """Clear the module-level tmp-orphan TTL cache so each test scans fresh."""
+        from personalscraper.web.routes import maintenance as _maint
+
+        _maint._orphan_cache["ts"] = 0.0
+        _maint._orphan_cache["data"] = []
+
     def test_locks_idle(self, test_config, tmp_path: Path) -> None:
         """200 — no lock file → ``held=False``, sentinels absent, no orphans."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
@@ -280,6 +288,22 @@ class TestLocksRoute:
             assert created_path in reported_paths
         for prefix in reported_prefixes:
             assert prefix == "_tmp_dispatch_"
+
+    def test_locks_orphan_sweep_is_cached(self, test_config, tmp_path: Path) -> None:
+        """Two /locks calls within the TTL trigger exactly one disk sweep (L9 perf)."""
+        from unittest.mock import patch
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        client = _build_authenticated_client(test_config, tmp_path)
+
+        with patch(
+            "personalscraper.web.routes.maintenance._sweep_tmp_orphans",
+            return_value=[],
+        ) as sweep:
+            assert client.get("/api/maintenance/locks").status_code == 200
+            assert client.get("/api/maintenance/locks").status_code == 200
+        # The expensive disk walk ran once; the second call read the TTL cache.
+        assert sweep.call_count == 1
 
     def test_locks_unauthenticated(self, test_config, tmp_path: Path) -> None:
         """401 — no session cookie."""
