@@ -1,0 +1,416 @@
+/**
+ * FollowedPanel — the "Suivis" tab: followed-series cards with add-by-ID,
+ * per-series manual grab, cadence editing and unfollow.
+ *
+ * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged.
+ */
+
+import { useMutation } from "@tanstack/react-query";
+import { useState, type ReactElement } from "react";
+import { toast } from "sonner";
+
+import {
+  triggerFollowedSearch,
+  type CreateFollowRequest,
+  type FollowedSeriesItem,
+} from "@/api/acquisition";
+import { ApiError } from "@/api/client";
+import { MediaCard } from "@/components/ds/MediaCard";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useFollow,
+  useUnfollow,
+  useUpdateFollow,
+} from "@/hooks/useAcquisition";
+
+import { cadenceInterval, TEMP_COLOR, TIER_LABEL, untilLabel } from "./meta";
+
+/** Props for the Followed panel sub-component. */
+export interface FollowedPanelProps {
+  readonly data: readonly FollowedSeriesItem[];
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly error: unknown;
+}
+
+/**
+ * FollowedPanel — followed-series management surface.
+ *
+ * Args:
+ *   data: The followed-series items.
+ *   isLoading: Whether the followed query is loading.
+ *   isError: Whether the followed query failed.
+ *   error: The query error, if any.
+ *
+ * Returns:
+ *   The followed panel element.
+ */
+export function FollowedPanel({
+  data,
+  isLoading,
+  isError,
+  error,
+}: FollowedPanelProps): ReactElement {
+  const followMutation = useFollow();
+  const unfollowMutation = useUnfollow();
+  const updateMutation = useUpdateFollow();
+
+  // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
+  // grab run; feedback is a toast (409 = already running, 404 = gone).
+  const triggerMutation = useMutation({
+    mutationFn: (id: number) => triggerFollowedSearch(id),
+    onSuccess: () => {
+      toast.success("Recherche lancée pour cette série.");
+    },
+    onError: (err: unknown) => {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          toast.error("Une recherche est déjà en cours pour cette série.");
+        } else if (err.status === 404) {
+          toast.error("Série introuvable.");
+        } else {
+          toast.error(err.detail);
+        }
+      } else {
+        toast.error("Erreur lors du lancement de la recherche.");
+      }
+    },
+  });
+
+  // Add-form state
+  const [tvdbId, setTvdbId] = useState("");
+  const [title, setTitle] = useState("");
+
+  // Edit-cadence dialog state
+  const [editTarget, setEditTarget] = useState<FollowedSeriesItem | null>(null);
+  const [editInterval, setEditInterval] = useState("");
+
+  const handleAdd = (): void => {
+    const tvdb = tvdbId.trim() ? Number(tvdbId.trim()) : null;
+    if (tvdb === null || !Number.isFinite(tvdb)) return;
+    const body: CreateFollowRequest = { tvdb_id: tvdb };
+    if (title.trim()) body.title = title.trim();
+    followMutation.mutate(body, {
+      onSuccess: () => {
+        setTvdbId("");
+        setTitle("");
+      },
+    });
+  };
+
+  const handleUnfollow = (id: number): void => {
+    unfollowMutation.mutate(id);
+  };
+
+  const openEditCadence = (item: FollowedSeriesItem): void => {
+    setEditTarget(item);
+    setEditInterval(String(cadenceInterval(item.cadence)));
+  };
+
+  const handleSaveCadence = (): void => {
+    if (editTarget === null) return;
+    const interval = Number(editInterval);
+    if (!Number.isFinite(interval) || interval < 0) return;
+    updateMutation.mutate(
+      { id: editTarget.id, body: { cadence: { interval_minutes: interval } } },
+      {
+        onSuccess: () => {
+          setEditTarget(null);
+        },
+      },
+    );
+  };
+
+  // ── Loading ────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <Skeleton key={`sk-f-${String(idx)}`} className="h-12 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  // ── Error ──────────────────────────────────────────────────────────────
+  // Surface a real error instead of the empty state — otherwise a failed
+  // query (e.g. an expired session → 401) would read as "you follow nothing"
+  // and could trigger duplicate re-adds (adversarial-review finding).
+  if (isError) {
+    return (
+      <p className="py-4 text-muted-foreground">
+        Erreur de chargement des séries suivies :{" "}
+        {error instanceof Error ? error.message : "Inconnue"}
+      </p>
+    );
+  }
+
+  // ── Add form (always visible) ──────────────────────────────────────────
+  // Manual add-by-ID is the power-user fallback to the primary title search
+  // above; collapsed by default so it does not compete with it. Inputs stack on
+  // mobile (ID, then title, then a full-width Suivre) and inline on sm+.
+  const addForm = (
+    <Accordion className="rounded-lg border border-border bg-card px-3">
+      <AccordionItem>
+        <AccordionTrigger>Ajouter par ID TVDB</AccordionTrigger>
+        <AccordionContent>
+          <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-end">
+            <div className="flex flex-col gap-1 sm:w-36">
+              <Label htmlFor="follow-tvdb-id">ID TVDB</Label>
+              <Input
+                id="follow-tvdb-id"
+                type="number"
+                placeholder="ex: 255968"
+                value={tvdbId}
+                onChange={(e) => {
+                  setTvdbId(e.target.value);
+                }}
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-1">
+              <Label htmlFor="follow-title">Titre (optionnel)</Label>
+              <Input
+                id="follow-title"
+                type="text"
+                placeholder="ex: Top Chef"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                }}
+              />
+            </div>
+            <Button
+              className="w-full sm:w-auto sm:shrink-0"
+              disabled={!tvdbId.trim() || followMutation.isPending}
+              onClick={handleAdd}
+            >
+              {followMutation.isPending ? "Ajout…" : "Suivre"}
+            </Button>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+
+  // ── Empty ──────────────────────────────────────────────────────────────
+  if (data.length === 0) {
+    return (
+      <div className="space-y-4">
+        {addForm}
+        <div className="py-8 text-center">
+          <p className="text-muted-foreground">
+            Aucune série suivie. Ajoutez une série avec son identifiant TVDB
+            pour commencer.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal ─────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4">
+      {addForm}
+
+      {/* Automatic-search cadence caption (grab cron — see schedulers registry). */}
+      <p className="text-xs text-muted-foreground">
+        Recherche automatique : tous les jours à 03:20 et 15:20.
+      </p>
+
+      {/* Card grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {data.map((item) => {
+          const interval = cadenceInterval(item.cadence);
+          const seasons = item.season_count ?? 0;
+          return (
+            <MediaCard
+              key={`f-${String(item.id)}`}
+              title={item.title}
+              year={item.year ?? null}
+              kind="tv"
+              posterUrl={item.poster_url ?? null}
+              overview={item.overview ?? null}
+              badges={
+                <>
+                  {/* Derived état: Désactivé / En cours / À jour. */}
+                  {!item.active ? (
+                    <Badge tone="neutral" dot>
+                      Désactivé
+                    </Badge>
+                  ) : item.wanted_pending > 0 ? (
+                    <Badge tone="warning" dot>
+                      En cours
+                    </Badge>
+                  ) : (
+                    <Badge tone="success" dot>
+                      À jour
+                    </Badge>
+                  )}
+                  {/* TVDB id kept as its own node (test + operator reference). */}
+                  {item.media_ref.tvdb_id != null && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {String(item.media_ref.tvdb_id)}
+                    </span>
+                  )}
+                  {seasons > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {seasons} saison{seasons > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {item.wanted_pending > 0 && (
+                    <Badge tone="warning">
+                      {String(item.wanted_pending)} en attente
+                    </Badge>
+                  )}
+                  {item.active &&
+                  item.cadence_tier != null &&
+                  item.next_search_at != null ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium"
+                      style={{
+                        color:
+                          TEMP_COLOR[item.cadence_tier] ??
+                          "var(--muted-foreground)",
+                      }}
+                      title={TIER_LABEL[item.cadence_tier] ?? item.cadence_tier}
+                    >
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            TEMP_COLOR[item.cadence_tier] ?? "currentColor",
+                        }}
+                        aria-hidden
+                      />
+                      Prochaine recherche{" "}
+                      {untilLabel(item.next_search_at, Date.now())}
+                    </span>
+                  ) : (
+                    interval > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        cadence {String(interval)} min
+                      </span>
+                    )
+                  )}
+                  {item.quality_profile != null && (
+                    <Badge tone="info">Personnalisé</Badge>
+                  )}
+                </>
+              }
+              footer={
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      triggerMutation.mutate(item.id);
+                    }}
+                    disabled={
+                      !item.active ||
+                      (triggerMutation.isPending &&
+                        triggerMutation.variables === item.id)
+                    }
+                    title={
+                      item.active
+                        ? "Lancer une recherche maintenant pour cette série"
+                        : "Série désactivée — réactivez-la pour lancer une recherche"
+                    }
+                  >
+                    {triggerMutation.isPending &&
+                    triggerMutation.variables === item.id
+                      ? "Lancement…"
+                      : "Déclencher"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      openEditCadence(item);
+                    }}
+                  >
+                    Cadence
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      handleUnfollow(item.id);
+                    }}
+                    disabled={unfollowMutation.isPending}
+                  >
+                    Retirer
+                  </Button>
+                </>
+              }
+            />
+          );
+        })}
+      </div>
+
+      {/* Edit-cadence dialog */}
+      <Dialog
+        open={editTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier la cadence</DialogTitle>
+            <DialogDescription>
+              {editTarget?.title ?? ""} — définissez l&apos;intervalle en
+              minutes entre deux vérifications.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div>
+              <Label htmlFor="cadence-interval">Intervalle (minutes)</Label>
+              <Input
+                id="cadence-interval"
+                type="number"
+                min={0}
+                value={editInterval}
+                onChange={(e) => {
+                  setEditInterval(e.target.value);
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditTarget(null);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveCadence}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
