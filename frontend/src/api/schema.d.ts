@@ -1433,18 +1433,24 @@ export interface paths {
          *     button otherwise) into the resolution deck, where the deck's manual search +
          *     validate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The
          *     id is re-derived from the staging tree (no client path); only ``movie``/
-         *     ``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an
+         *     ``tvshow`` items qualify directly; an item in an ``other`` (unsorted / AUTRES)
+         *     category qualifies too when *body* names the type the sort got wrong, and is
+         *     physically reclassed into it. Idempotent: ``DecisionWriter.upsert`` refreshes an
          *     existing pending row and never overrides a resolved/dismissed verdict.
          *
          *     Args:
          *         media_id: The stable media id from a list item.
          *         request: The incoming FastAPI request.
+         *         body: Optional request body; its ``media_kind`` is required for an item in an
+         *             ``other`` (AUTRES) category and ignored for movie/tvshow items.
          *
          *     Returns:
          *         An :class:`EnqueueDecisionResponse`.
          *
          *     Raises:
+         *         400: The item is unsorted (AUTRES) and no ``media_kind`` was supplied.
          *         404: No scrapable staged media matches the id.
+         *         409: The reclass destination already exists in the target category.
          *         503: No indexer DB configured.
          */
         post: operations["enqueue_staging_decision_api_staging_media__media_id__enqueue_post"];
@@ -1925,6 +1931,21 @@ export interface components {
         DisksResponse: {
             /** Disks */
             disks: components["schemas"]["DiskInfo"][];
+        };
+        /**
+         * EnqueueDecisionRequest
+         * @description Request body for ``POST /api/staging/media/{id}/enqueue``.
+         *
+         *     Attributes:
+         *         media_kind: The type to resolve the item as. Optional for movie/tvshow items
+         *             (their kind is derived from the category), but MANDATORY for an item that
+         *             sits in an ``other`` (unsorted / AUTRES) category — the operator picks the
+         *             type the sort got wrong, and the item is physically reclassed into it.
+         *             Only ``"movie"`` / ``"tvshow"`` are accepted.
+         */
+        EnqueueDecisionRequest: {
+            /** Media Kind */
+            media_kind?: ("movie" | "tvshow") | null;
         };
         /**
          * EnqueueDecisionResponse
@@ -4793,7 +4814,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EnqueueDecisionRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

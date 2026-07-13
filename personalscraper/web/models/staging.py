@@ -205,6 +205,20 @@ class StagingMediaResponse(BaseModel):
     page_size: int
 
 
+class EnqueueDecisionRequest(BaseModel):
+    """Request body for ``POST /api/staging/media/{id}/enqueue``.
+
+    Attributes:
+        media_kind: The type to resolve the item as. Optional for movie/tvshow items
+            (their kind is derived from the category), but MANDATORY for an item that
+            sits in an ``other`` (unsorted / AUTRES) category — the operator picks the
+            type the sort got wrong, and the item is physically reclassed into it.
+            Only ``"movie"`` / ``"tvshow"`` are accepted.
+    """
+
+    media_kind: Literal["movie", "tvshow"] | None = None
+
+
 class EnqueueDecisionResponse(BaseModel):
     """Response body for ``POST /api/staging/media/{id}/enqueue``.
 

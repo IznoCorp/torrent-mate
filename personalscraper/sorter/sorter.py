@@ -161,84 +161,7 @@ class Sorter:
                 file_type = detect_dir_type(item)
             else:
                 file_type = detect_file_type(item)
-
-            # Get destination via strategy
-            strategy = _get_strategy(file_type)
-            dest_dir = strategy.get_destination(item.name, dest_root, self.cleaner, self.config)
-
-            # Extract metadata for the SortResult
-            title = self.cleaner.clean(item.name)
-            year = self.cleaner.extract_year(item.name)
-            season, episode = self.cleaner.extract_season_episode(item.name)
-
-            # Compute final destination path
-            if file_type == FileType.MOVIE and item.is_dir():
-                # Directory movies: move the whole dir into {movies_dir}/
-                dest_path = dest_dir
-            else:
-                # Files, TV shows, and all other types go INTO the target dir
-                dest_path = dest_dir / item.name
-
-            # Movie dirs replace existing; everything else skips
-            is_movie_dir_replace = item.is_dir() and file_type == FileType.MOVIE and dest_path.exists()
-            if dest_path.exists() and not is_movie_dir_replace:
-                log.warning("sort_item_exists", dest=str(dest_path))
-                return SortResult(
-                    source=item,
-                    destination=dest_path,
-                    media_type=file_type.value,
-                    title=title,
-                    year=year,
-                    season=season,
-                    episode=episode,
-                    status="skipped",
-                    message="Already exists at destination",
-                )
-
-            if self.dry_run:
-                action = "replace" if is_movie_dir_replace else "move"
-                log.info("sort_dry_run", action=action, source=str(item), dest=str(dest_path))
-                return SortResult(
-                    source=item,
-                    destination=dest_path,
-                    media_type=file_type.value,
-                    title=title,
-                    year=year,
-                    season=season,
-                    episode=episode,
-                    status="dry-run",
-                    message=None,
-                )
-
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-            if is_movie_dir_replace:
-                # Crash-safe replace: backup old, move new, cleanup
-                backup = dest_path.parent / f"{dest_path.name}.old.tmp"
-                try:
-                    os.rename(dest_path, backup)
-                    shutil.move(str(item), str(dest_path))
-                    shutil.rmtree(backup)
-                except OSError:
-                    if backup.exists() and not dest_path.exists():
-                        os.rename(backup, dest_path)
-                    raise
-            else:
-                shutil.move(str(item), str(dest_path))
-
-            log.info("sort_item_moved", source=str(item), dest=str(dest_path))
-            return SortResult(
-                source=item,
-                destination=dest_path,
-                media_type=file_type.value,
-                title=title,
-                year=year,
-                season=season,
-                episode=episode,
-                status="moved",
-                message=None,
-            )
-
+            return self._place_item(item, dest_root, file_type)
         except Exception as exc:
             log.error("sort_item_error", source=str(item), exc_info=True, error=str(exc))
             return SortResult(
@@ -252,3 +175,131 @@ class Sorter:
                 status="error",
                 message=str(exc),
             )
+
+    def reclass_item(self, item: Path, dest_root: Path, file_type: FileType) -> SortResult:
+        """Place *item* into the category for an OPERATOR-CHOSEN *file_type*.
+
+        Rescues an item the sort mis-typed into 098-AUTRES: the operator picks the
+        real type (movie/tvshow) and the item is placed exactly as a normal sort
+        would — cleaned to ``Title (Year)`` for movies — so it later scrapes and
+        dispatches under the right name (dispatch derives the on-disk folder from the
+        *staging* folder name, so a raw release name must not survive the move).
+        Reuses :meth:`_place_item`, so there is one move implementation, never a
+        parallel one.
+
+        Args:
+            item: The staging folder to reclass (currently under 098-AUTRES).
+            dest_root: The staging root under which the category dirs live.
+            file_type: The operator-chosen type (``FileType.MOVIE`` / ``TVSHOW``).
+
+        Returns:
+            A :class:`SortResult` describing the move (``status='moved'`` on success,
+            or ``'error'`` when the move fails).
+        """
+        try:
+            return self._place_item(item, dest_root, file_type)
+        except Exception as exc:
+            log.error("reclass_item_error", source=str(item), exc_info=True, error=str(exc))
+            return SortResult(
+                source=item,
+                destination=Path(),
+                media_type="unknown",
+                title=item.name,
+                year=None,
+                season=None,
+                episode=None,
+                status="error",
+                message=str(exc),
+            )
+
+    def _place_item(self, item: Path, dest_root: Path, file_type: FileType) -> SortResult:
+        """Compute the destination for *file_type* and move *item* there.
+
+        The shared core of :meth:`sort_item` (detected type) and :meth:`reclass_item`
+        (operator-forced type). Raises on an I/O error; callers wrap it to return an
+        ``error`` :class:`SortResult`.
+
+        Args:
+            item: The file or directory to place.
+            dest_root: Root directory where category subdirectories live.
+            file_type: The resolved media type deciding the destination category.
+
+        Returns:
+            A :class:`SortResult` (``moved`` / ``skipped`` / ``dry-run``).
+        """
+        # Get destination via strategy
+        strategy = _get_strategy(file_type)
+        dest_dir = strategy.get_destination(item.name, dest_root, self.cleaner, self.config)
+
+        # Extract metadata for the SortResult
+        title = self.cleaner.clean(item.name)
+        year = self.cleaner.extract_year(item.name)
+        season, episode = self.cleaner.extract_season_episode(item.name)
+
+        # Compute final destination path
+        if file_type == FileType.MOVIE and item.is_dir():
+            # Directory movies: move the whole dir into {movies_dir}/
+            dest_path = dest_dir
+        else:
+            # Files, TV shows, and all other types go INTO the target dir
+            dest_path = dest_dir / item.name
+
+        # Movie dirs replace existing; everything else skips
+        is_movie_dir_replace = item.is_dir() and file_type == FileType.MOVIE and dest_path.exists()
+        if dest_path.exists() and not is_movie_dir_replace:
+            log.warning("sort_item_exists", dest=str(dest_path))
+            return SortResult(
+                source=item,
+                destination=dest_path,
+                media_type=file_type.value,
+                title=title,
+                year=year,
+                season=season,
+                episode=episode,
+                status="skipped",
+                message="Already exists at destination",
+            )
+
+        if self.dry_run:
+            action = "replace" if is_movie_dir_replace else "move"
+            log.info("sort_dry_run", action=action, source=str(item), dest=str(dest_path))
+            return SortResult(
+                source=item,
+                destination=dest_path,
+                media_type=file_type.value,
+                title=title,
+                year=year,
+                season=season,
+                episode=episode,
+                status="dry-run",
+                message=None,
+            )
+
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if is_movie_dir_replace:
+            # Crash-safe replace: backup old, move new, cleanup
+            backup = dest_path.parent / f"{dest_path.name}.old.tmp"
+            try:
+                os.rename(dest_path, backup)
+                shutil.move(str(item), str(dest_path))
+                shutil.rmtree(backup)
+            except OSError:
+                if backup.exists() and not dest_path.exists():
+                    os.rename(backup, dest_path)
+                raise
+        else:
+            shutil.move(str(item), str(dest_path))
+
+        log.info("sort_item_moved", source=str(item), dest=str(dest_path))
+        return SortResult(
+            source=item,
+            destination=dest_path,
+            media_type=file_type.value,
+            title=title,
+            year=year,
+            season=season,
+            episode=episode,
+            status="moved",
+            message=None,
+        )

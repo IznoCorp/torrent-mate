@@ -29,6 +29,7 @@ from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.pipeline import PipelineState
 from personalscraper.web.models.staging import (
+    EnqueueDecisionRequest,
     EnqueueDecisionResponse,
     StagingCounts,
     StagingDispatchTarget,
@@ -46,6 +47,7 @@ from personalscraper.web.staging.read_model import (
     find_nfo,
     poster_file_for,
     resolve_media_dir,
+    resolve_other_item,
     resolve_scrapable_item,
     scan_staging_media,
 )
@@ -327,37 +329,95 @@ def get_staging_poster(media_id: str, request: Request) -> FileResponse:
     return FileResponse(str(poster))
 
 
+def _reclass_other_item(config: Config, media_dir: Path, media_kind: str) -> Path:
+    """Move an unsorted (AUTRES) item into the operator-chosen category.
+
+    Reuses the sorter's move authority (:meth:`Sorter.reclass_item`) so the item is
+    placed exactly as a normal sort would — cleaned to ``Title (Year)`` for movies —
+    and later dispatches under the right on-disk name (dispatch derives the on-disk
+    folder from the staging folder name, so a raw release name must not survive).
+
+    Args:
+        config: The loaded config (staging layout + paths).
+        media_dir: The item's current folder under an ``other`` category.
+        media_kind: The operator-chosen kind (``"movie"`` or ``"tvshow"``).
+
+    Returns:
+        The item's new folder path under the chosen category.
+
+    Raises:
+        HTTPException: 409 when the destination already exists, 500 on move failure.
+    """
+    from personalscraper.core.media_types import FileType
+    from personalscraper.sorter.sorter import Sorter
+
+    file_type = FileType.MOVIE if media_kind == "movie" else FileType.TVSHOW
+    result = Sorter(config, dry_run=False).reclass_item(media_dir, config.paths.staging_dir, file_type)
+    if result.status == "moved":
+        return result.destination
+    if result.status == "skipped":
+        raise HTTPException(
+            status_code=409,
+            detail=f"A '{result.destination.name}' folder already exists in the target category",
+        )
+    raise HTTPException(status_code=500, detail=f"Could not reclass item: {result.message}")
+
+
 @router.post(
     "/media/{media_id}/enqueue",
     response_model=EnqueueDecisionResponse,
     dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
 )
-def enqueue_staging_decision(media_id: str, request: Request) -> EnqueueDecisionResponse:
+def enqueue_staging_decision(
+    media_id: str, request: Request, body: EnqueueDecisionRequest | None = None
+) -> EnqueueDecisionResponse:
     """Enqueue a non-identified staged item as a pending scrape decision.
 
     Lets the operator send an item that never got a match (``absent`` — no search
     button otherwise) into the resolution deck, where the deck's manual search +
     validate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The
     id is re-derived from the staging tree (no client path); only ``movie``/
-    ``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an
+    ``tvshow`` items qualify directly; an item in an ``other`` (unsorted / AUTRES)
+    category qualifies too when *body* names the type the sort got wrong, and is
+    physically reclassed into it. Idempotent: ``DecisionWriter.upsert`` refreshes an
     existing pending row and never overrides a resolved/dismissed verdict.
 
     Args:
         media_id: The stable media id from a list item.
         request: The incoming FastAPI request.
+        body: Optional request body; its ``media_kind`` is required for an item in an
+            ``other`` (AUTRES) category and ignored for movie/tvshow items.
 
     Returns:
         An :class:`EnqueueDecisionResponse`.
 
     Raises:
+        400: The item is unsorted (AUTRES) and no ``media_kind`` was supplied.
         404: No scrapable staged media matches the id.
+        409: The reclass destination already exists in the target category.
         503: No indexer DB configured.
     """
     config = _config(request)
     resolved = resolve_scrapable_item(config, media_id)
-    if resolved is None:
-        raise HTTPException(status_code=404, detail="No scrapable media matches this id")
-    media_dir, media_kind, title, year = resolved
+    if resolved is not None:
+        media_dir, media_kind, title, year = resolved
+    else:
+        # The item may sit in an 'other' (unsorted / AUTRES) category the sort could
+        # not type. It is resolvable only when the operator supplies the type the sort
+        # got wrong (§3 safety net), and is then physically reclassed into that
+        # category so it scrapes + dispatches under a clean name.
+        other = resolve_other_item(config, media_id)
+        if other is None:
+            raise HTTPException(status_code=404, detail="No scrapable media matches this id")
+        chosen = body.media_kind if body is not None else None
+        if chosen is None:
+            raise HTTPException(
+                status_code=400,
+                detail="This item is unsorted (AUTRES); choose a type (movie/tvshow) to resolve it",
+            )
+        other_dir, title, year = other
+        media_kind = chosen
+        media_dir = _reclass_other_item(config, other_dir, media_kind)
 
     db_path = config.indexer.db_path
     if db_path is None:

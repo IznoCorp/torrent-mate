@@ -630,6 +630,28 @@
         "title": "DisksResponse",
         "type": "object"
       },
+      "EnqueueDecisionRequest": {
+        "description": "Request body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    media_kind: The type to resolve the item as. Optional for movie/tvshow items\n        (their kind is derived from the category), but MANDATORY for an item that\n        sits in an ``other`` (unsorted / AUTRES) category \u2014 the operator picks the\n        type the sort got wrong, and the item is physically reclassed into it.\n        Only ``\"movie\"`` / ``\"tvshow\"`` are accepted.",
+        "properties": {
+          "media_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "movie",
+                  "tvshow"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Kind"
+          }
+        },
+        "title": "EnqueueDecisionRequest",
+        "type": "object"
+      },
       "EnqueueDecisionResponse": {
         "description": "Response body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    ok: ``True`` when the item was enqueued as a pending scrape decision.\n    media_kind: The kind of the enqueued item (``movie``/``tvshow``).\n    title: The folder-derived title enqueued for resolution.\n    decision_id: The ``scrape_decision.id`` of the enqueued row, so the\n        client can open the resolution deck positioned on it (C18 \u2014 same\n        grammar as an ambiguous card). ``None`` if the id could not be read.\n    candidates_count: Number of provider candidates seeded at enqueue time\n        (product-intent.md \u00a73 \u2014 the deck opens WITH proposals, not empty).\n    candidates_seeded: ``True`` when the provider search ran and produced the\n        candidates; ``False`` when providers were unavailable and the decision\n        was enqueued fail-soft with an empty candidate list (the UI then shows\n        an explicit \"no automatic proposal\" state + a prefilled manual search).",
         "properties": {
@@ -5079,7 +5101,7 @@
     },
     "/api/staging/media/{media_id}/enqueue": {
       "post": {
-        "description": "Enqueue a non-identified staged item as a pending scrape decision.\n\nLets the operator send an item that never got a match (``absent`` \u2014 no search\nbutton otherwise) into the resolution deck, where the deck's manual search +\nvalidate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The\nid is re-derived from the staging tree (no client path); only ``movie``/\n``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an\nexisting pending row and never overrides a resolved/dismissed verdict.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    An :class:`EnqueueDecisionResponse`.\n\nRaises:\n    404: No scrapable staged media matches the id.\n    503: No indexer DB configured.",
+        "description": "Enqueue a non-identified staged item as a pending scrape decision.\n\nLets the operator send an item that never got a match (``absent`` \u2014 no search\nbutton otherwise) into the resolution deck, where the deck's manual search +\nvalidate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The\nid is re-derived from the staging tree (no client path); only ``movie``/\n``tvshow`` items qualify directly; an item in an ``other`` (unsorted / AUTRES)\ncategory qualifies too when *body* names the type the sort got wrong, and is\nphysically reclassed into it. Idempotent: ``DecisionWriter.upsert`` refreshes an\nexisting pending row and never overrides a resolved/dismissed verdict.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n    body: Optional request body; its ``media_kind`` is required for an item in an\n        ``other`` (AUTRES) category and ignored for movie/tvshow items.\n\nReturns:\n    An :class:`EnqueueDecisionResponse`.\n\nRaises:\n    400: The item is unsorted (AUTRES) and no ``media_kind`` was supplied.\n    404: No scrapable staged media matches the id.\n    409: The reclass destination already exists in the target category.\n    503: No indexer DB configured.",
         "operationId": "enqueue_staging_decision_api_staging_media__media_id__enqueue_post",
         "parameters": [
           {
@@ -5092,6 +5114,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/EnqueueDecisionRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
