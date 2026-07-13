@@ -157,6 +157,19 @@ export function StagingMediaDetail({
         </div>
       </div>
 
+      {/* Blocked-before-dispatch callout: the real verify gate refuses this item
+          (e.g. unrenamed episodes). Shown even for a "matched" media so the
+          operator is never misled by an "Identifié" badge on a stuck item
+          (product-intent.md §méthode rule 6). */}
+      {item.blocked_reason != null && item.blocked_reason !== "" && (
+        <div
+          role="alert"
+          className="rounded-md border border-danger bg-danger/10 p-3 text-sm text-danger"
+        >
+          {item.blocked_reason}
+        </div>
+      )}
+
       {item.overview != null && item.overview !== "" && (
         <p className="text-sm text-muted-foreground">{item.overview}</p>
       )}

@@ -134,6 +134,11 @@ class StagingMediaItem(BaseModel):
         modified_at: Epoch seconds of the most recent file mtime in the tree
             (drives the default ``recent`` sort).
         stages: The nine-stage per-media pipeline timeline.
+        blocked_reason: A human-readable French reason when the item is stuck at
+            the real ``verify`` gate (e.g. ``"Bloqué : épisodes non renommés …"``),
+            or ``None`` when the item is dispatchable / not yet scraped. Reflects
+            the SAME gate that authorizes dispatch — never the looser read-model
+            heuristic (product-intent.md §méthode rule 6).
         dispatch_target: Dispatch preview, or ``None`` unless requested.
     """
 
@@ -159,6 +164,7 @@ class StagingMediaItem(BaseModel):
     size_bytes: int = 0
     modified_at: float | None = None
     stages: list[StagingStageStep] = []
+    blocked_reason: str | None = None
     dispatch_target: StagingDispatchTarget | None = None
 
 
