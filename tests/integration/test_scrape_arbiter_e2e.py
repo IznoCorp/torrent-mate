@@ -332,10 +332,15 @@ class TestScrapeArbiterE2E:
         assert result.exit_code == 0
         assert "Successfully resolved decision" in result.output
 
-        # NFO file must exist.
-        nfo_path = staging / "Fight Club (1999).nfo"
+        # NFO must be written under the CANONICAL name (parsed title, no "(Year)"),
+        # exactly as the automatic scrape does — so the pipeline's enforce/verify steps
+        # recognise it and never re-un-identify the item. Regression (operator loop): it
+        # used to be written as "Fight Club (1999).nfo", which enforce deletes as an
+        # "extra NFO" and verify never finds (it looks for "Fight Club.nfo").
+        nfo_path = staging / "Fight Club.nfo"
         assert nfo_path.exists(), f"NFO file not found at {nfo_path}"
         assert nfo_path.read_text(encoding="utf-8") == "<movie/>"
+        assert not (staging / "Fight Club (1999).nfo").exists()
 
         # Decision row must be resolved.
         row = _select_decision(test_config.indexer.db_path, decision_id)
