@@ -101,6 +101,30 @@ Ces règles sont **gravées** : elles s'appliquent à tout agent (humain ou LLM)
    présente comme **point ouvert**, jamais étiqueté « non-bloquant » / « follow-up » de sa propre
    initiative.
 5. **Préserver l'existant sain.** On réaligne sur la constitution, on ne rase pas les acquis.
+6. **Preuve par contrôle exécutable, jamais par œil.** Un item scrapé / dispatché n'est « OK »
+   qu'avec **`scripts/check-media-complete.py`** vert dessus — pas sur un cas chanceux, sur
+   **tous** les items concernés (voir le garde-fou ci-dessous). Le read-model UI (« Identifié »,
+   « Vérification : Fait ») est **plus laxiste** que le `verify` du pipeline (nommage
+   poster/épisode) qui, lui, décide du dispatch : ne jamais s'y fier.
+
+### Garde-fou exécutable — `scripts/check-media-complete.py`
+
+Définition **exécutable** de « scrapé / dispatchable », qui est l'unique preuve recevable pour
+tout verdict sur le scraping ou le dispatch (`§méthode` règle 6) :
+
+- Il lance le **`verify` réel du pipeline** (le gate qui autorise le dispatch : NFO, nommage
+  poster/landscape, et pour les séries le renommage des épisodes + NFO par épisode) **plus** un
+  contrôle du **renommage de la vidéo** film (`Title.ext`, jamais le nom de release brut) que
+  `verify` ne couvre pas.
+- Il **échoue bruyamment** (code de sortie = nombre d'items incomplets) sur le moindre artefact
+  manquant. Aucun « dispatché OK » n'est valide sans ce script **vert sur chaque item concerné**.
+- Usage : `python scripts/check-media-complete.py` (tout le staging) ou
+  `python scripts/check-media-complete.py --only "Titre*"`.
+
+C'est la réponse durable au dérapage « resolve → jamais dispatché » : la résolution manuelle a
+longtemps produit un écrit **partiel** (NFO + artwork seuls, dossier/vidéo/épisodes non renommés)
+et se déclarait « fait » sans jamais éprouver le dispatch. Deux garde-fous verrouillent la
+régression : ce script, et les tests `tests/scraper/test_scrape_forced.py`.
 
 ### Post-mortem fondateur (pourquoi ce document existe)
 

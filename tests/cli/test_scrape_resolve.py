@@ -280,32 +280,50 @@ def _make_mock_per_step_boundary(mock_client: Any) -> Any:
     return _cm
 
 
-def _mock_nfo_generator() -> MagicMock:
-    """Return a pre-configured ``NFOGenerator`` mock instance.
+# Patch targets for the delegated forced-scrape entry points (webui-overhaul /
+# product-intent). The scrape-resolve command now delegates to the SAME scrape
+# services as the automatic pipeline via ``Scraper.scrape_{movie,tvshow}_forced``
+# (a forced provider match), so the CLI-contract tests stub those methods. The
+# command imports ``Scraper`` inside its body, so patching at the class source
+# module takes effect at call time. The full canonical write (folder + video +
+# episode rename) is proven in tests/scraper/test_scrape_forced.py and in prod.
+_PATCH_SCRAPER_MOVIE_FORCED = "personalscraper.scraper.orchestrator.Scraper.scrape_movie_forced"
+_PATCH_SCRAPER_TVSHOW_FORCED = "personalscraper.scraper.orchestrator.Scraper.scrape_tvshow_forced"
 
-    ``generate_movie_nfo`` / ``generate_tvshow_nfo`` return a dummy XML string
-    and ``write_nfo`` actually writes it to the given path — the real generator
-    lands a file on disk, and the command now asserts an NFO exists before
-    marking the decision resolved (webui-overhaul #3), so the mock must leave a
-    real NFO too.
+
+def _forced_movie_ok(staging_path: Path, provider_id: int) -> Any:
+    """Stub ``Scraper.scrape_movie_forced``: land ``<Title>.nfo`` + return scraped.
+
+    Honours the command's observable contract (an NFO on disk so the NFO-gate
+    passes, ``action='scraped'``) without re-running the internal scrape. Patched
+    on the class, so it is called WITHOUT ``self`` (MagicMock is not a descriptor).
     """
-    instance = MagicMock()
-    instance.generate_movie_nfo.return_value = "<movie/>"
-    instance.generate_tvshow_nfo.return_value = "<tvshow/>"
-    instance.write_nfo.side_effect = lambda xml, path: Path(path).write_text(str(xml))
-    return instance
+    from personalscraper.scraper._shared import ScrapeResult
+
+    title = staging_path.name.rsplit(" (", 1)[0]
+    (staging_path / f"{title}.nfo").write_text("<movie/>")
+    result = ScrapeResult(media_path=staging_path, media_type="movie")
+    result.action = "scraped"
+    return result
 
 
-def _mock_artwork_downloader() -> MagicMock:
-    """Return a pre-configured ``ArtworkDownloader`` mock instance."""
-    return MagicMock()
+def _forced_show_ok(staging_path: Path, source: str, provider_id: int) -> Any:
+    """Stub ``Scraper.scrape_tvshow_forced``: land ``tvshow.nfo`` + return scraped."""
+    from personalscraper.scraper._shared import ScrapeResult
+
+    (staging_path / "tvshow.nfo").write_text("<tvshow/>")
+    result = ScrapeResult(media_path=staging_path, media_type="tvshow")
+    result.action = "scraped"
+    return result
 
 
-# Patch targets for lazily-imported scraper classes.  The command imports
-# these inside its function body, so we patch at the source module level.
-_PATCH_NFO_GENERATOR = "personalscraper.scraper.nfo_generator.NFOGenerator"
-_PATCH_ARTWORK_DOWNLOADER = "personalscraper.scraper.artwork.ArtworkDownloader"
-_PATCH_EXTRACT_STREAM_INFO = "personalscraper.scraper.mediainfo.extract_stream_info"
+def _forced_no_nfo(staging_path: Path, *args: Any) -> Any:
+    """Stub a forced scrape that lands NO NFO (write no-op) — command must exit 1."""
+    from personalscraper.scraper._shared import ScrapeResult
+
+    result = ScrapeResult(media_path=staging_path, media_type="movie")
+    result.action = "scraped"
+    return result
 
 
 def _setup_command_args(staging_dir: Path, provider: str, provider_id: int) -> list[str]:
@@ -525,10 +543,7 @@ class TestScrapeResolveExit0:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
-            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
-            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
-            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+            patch(_PATCH_SCRAPER_MOVIE_FORCED, side_effect=_forced_movie_ok),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
@@ -562,10 +577,6 @@ class TestScrapeResolveExit0:
         mock_client = MagicMock()
         mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
 
-        # NFO generator whose write_nfo is a NO-OP → no NFO lands on disk.
-        noop_nfo = MagicMock()
-        noop_nfo.generate_movie_nfo.return_value = "<movie/>"
-
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=test_config),
@@ -578,10 +589,7 @@ class TestScrapeResolveExit0:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
-            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
-            patch(_PATCH_NFO_GENERATOR, return_value=noop_nfo),
-            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+            patch(_PATCH_SCRAPER_MOVIE_FORCED, side_effect=_forced_no_nfo),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
@@ -622,8 +630,7 @@ class TestScrapeResolveExit0:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
-            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+            patch(_PATCH_SCRAPER_TVSHOW_FORCED, side_effect=_forced_show_ok),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tvdb", 255968))
 
@@ -668,8 +675,7 @@ class TestScrapeResolveExit0:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
-            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+            patch(_PATCH_SCRAPER_TVSHOW_FORCED, side_effect=_forced_show_ok),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 12345))
 
@@ -730,10 +736,7 @@ class TestNFCNormalization:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
-            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
-            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator()),
-            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=_mock_artwork_downloader()),
+            patch(_PATCH_SCRAPER_MOVIE_FORCED, side_effect=_forced_movie_ok),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
@@ -778,16 +781,20 @@ class TestScrapeResolveLockLifecycle:
         scrape_dir = scrape_locks_dir_for(test_config.paths.data_dir)
         captured: dict[str, Any] = {}
 
-        def _lock_probe(*_args: Any, **_kwargs: Any) -> None:
+        def _lock_probe(staging_path: Path, provider_id: int) -> Any:
             """Record lock state while the scrape body runs (and land an NFO)."""
             item_locks = sorted(scrape_dir.glob("*.lock")) if scrape_dir.is_dir() else []
             captured["item_lock_held"] = any(is_lock_held(p) for p in item_locks)
             captured["item_lock_pid"] = item_locks[0].read_text().strip() if item_locks else None
             # The GLOBAL pipeline.lock must NOT be taken by scrape-resolve.
             captured["pipeline_lock_held"] = is_lock_held(pipeline_lock_path)
-            # The real scrape body writes an NFO; the command now asserts one
-            # exists before marking resolved (webui-overhaul #3), so mimic it.
+            # The real forced scrape writes an NFO; the command now asserts one
+            # exists before marking resolved (webui-overhaul #3), so mimic it and
+            # return a scraped result the way the real forced method does.
             (staging / "movie.nfo").write_text("<movie/>")
+            from personalscraper.scraper._shared import ScrapeResult
+
+            return ScrapeResult(media_path=staging, media_type="movie", action="scraped")
 
         mock_client = MagicMock()
         mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
@@ -803,7 +810,7 @@ class TestScrapeResolveLockLifecycle:
                 _make_mock_per_step_boundary(mock_client),
             ),
             patch(
-                "personalscraper.commands.scrape_resolve._scrape_movie",
+                _PATCH_SCRAPER_MOVIE_FORCED,
                 side_effect=_lock_probe,
             ),
         ):

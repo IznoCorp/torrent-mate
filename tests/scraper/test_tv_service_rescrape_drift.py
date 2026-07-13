@@ -19,11 +19,17 @@ import pytest
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
+from personalscraper.scraper.tv_service_write import TvServiceWriteMixin
+
+
+class _ScrapeTvMixin(TvServiceMixin, TvServiceNfoMixin, TvServiceWriteMixin):
+    """Combined mixin mirroring ``Scraper`` MRO for the forced-scrape write path."""
 
 
 def _make_mixin(**kwargs: Any) -> TvServiceMixin:
     """Build a ``TvServiceMixin`` with the minimum attributes the methods touch."""
-    mixin = TvServiceMixin.__new__(TvServiceMixin)
+    mixin = _ScrapeTvMixin.__new__(_ScrapeTvMixin)
     mixin.dry_run = kwargs.get("dry_run", False)
     mixin._tvdb = kwargs.get("tvdb", MagicMock())
     mixin._tmdb = kwargs.get("tmdb", MagicMock())
