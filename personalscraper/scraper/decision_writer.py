@@ -86,6 +86,7 @@ class DecisionWriter:
         trigger: str,
         candidates_json: str,
         run_uid: str | None,
+        reopen: bool = False,
     ) -> int | None:
         """Insert a new pending row or refresh an existing pending row.
 
@@ -114,6 +115,13 @@ class DecisionWriter:
             candidates_json: JSON array of scored
                 :class:`DecisionCandidate` objects.
             run_uid: Run identifier that enqueued the row, or ``None``.
+            reopen: When ``True`` (the operator's explicit manual enqueue), re-open an
+                existing decision of ANY status — including a prior ``'resolved'`` /
+                ``'dismissed'`` verdict — to ``'pending'`` with the fresh candidates,
+                clearing the stale verdict and resetting ``created_at``. When ``False``
+                (default, the pipeline's automatic path), a resolved/dismissed operator
+                verdict is never touched (F07). Lets the operator re-resolve a legacy item
+                that was resolved once but is still non-identified (no NFO).
 
         Returns:
             The ``scrape_decision.id`` of the affected row (looked up by
@@ -126,27 +134,47 @@ class DecisionWriter:
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)
-            conn.execute(
-                "INSERT INTO scrape_decision "
-                "(staging_path, media_kind, extracted_title, extracted_year, "
-                '"trigger", candidates_json, status, run_uid, created_at, updated_at) '
-                "VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?) "
-                "ON CONFLICT(staging_path) DO UPDATE SET "
+            # Common SET list for the ON CONFLICT UPDATE: refresh the candidates /
+            # trigger / run_uid, bump updated_at, and re-open to 'pending'.
+            base_update = (
                 "candidates_json = excluded.candidates_json, "
                 '"trigger" = excluded."trigger", '
                 "run_uid = excluded.run_uid, "
                 "updated_at = excluded.updated_at, "
-                # Revive a superseded row (F07): reset status + created_at and
-                # clear the stale resolution fields. A pending row keeps its
-                # own values (no-op branch).
                 "status = 'pending', "
-                "created_at = CASE WHEN scrape_decision.status = 'superseded' "
-                "THEN excluded.created_at ELSE scrape_decision.created_at END, "
-                "resolution_json = CASE WHEN scrape_decision.status = 'superseded' "
-                "THEN NULL ELSE scrape_decision.resolution_json END, "
-                "resolved_at = CASE WHEN scrape_decision.status = 'superseded' "
-                "THEN NULL ELSE scrape_decision.resolved_at END "
-                "WHERE scrape_decision.status IN ('pending', 'superseded')",
+            )
+            if reopen:
+                # Operator's explicit manual re-resolve: re-open ANY existing decision —
+                # including a prior 'resolved'/'dismissed' verdict — with the fresh
+                # candidates, clearing the stale verdict and resetting created_at. No
+                # WHERE guard: this only ever runs from the manual enqueue path, so an
+                # operator verdict is re-opened solely at the operator's request.
+                conflict_clause = (
+                    "ON CONFLICT(staging_path) DO UPDATE SET " + base_update + "created_at = excluded.created_at, "
+                    "resolution_json = NULL, "
+                    "resolved_at = NULL"
+                )
+            else:
+                # Automatic (pipeline) path: revive a superseded row (F07) — reset
+                # created_at + clear the stale resolution fields — but NEVER touch a
+                # resolved/dismissed operator verdict (the WHERE clause ignores it); a
+                # pending row keeps its own values.
+                conflict_clause = (
+                    "ON CONFLICT(staging_path) DO UPDATE SET "
+                    + base_update
+                    + "created_at = CASE WHEN scrape_decision.status = 'superseded' "
+                    "THEN excluded.created_at ELSE scrape_decision.created_at END, "
+                    "resolution_json = CASE WHEN scrape_decision.status = 'superseded' "
+                    "THEN NULL ELSE scrape_decision.resolution_json END, "
+                    "resolved_at = CASE WHEN scrape_decision.status = 'superseded' "
+                    "THEN NULL ELSE scrape_decision.resolved_at END "
+                    "WHERE scrape_decision.status IN ('pending', 'superseded')"
+                )
+            conn.execute(
+                "INSERT INTO scrape_decision "
+                "(staging_path, media_kind, extracted_title, extracted_year, "
+                '"trigger", candidates_json, status, run_uid, created_at, updated_at) '
+                "VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?) " + conflict_clause,
                 (
                     normalized,
                     media_kind,

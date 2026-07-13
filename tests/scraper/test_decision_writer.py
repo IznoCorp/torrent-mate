@@ -373,6 +373,54 @@ class TestDecisionWriterUpsertNonResurrection:
         row = _select_row(db_path, 1)
         assert row["status"] == "resolved"  # still resolved
 
+    def test_upsert_reopen_resurrects_resolved_row(self, tmp_path: Path) -> None:
+        """``reopen=True`` re-opens a RESOLVED row to pending with fresh candidates.
+
+        Root-cause regression (operator report): a legacy item resolved long ago but
+        still non-identified (no NFO) must stay re-resolvable. The manual enqueue passes
+        ``reopen=True`` so the resolved verdict is re-opened; without it the upsert
+        no-ops (``WHERE status IN ('pending','superseded')``) and the item never
+        re-enters the ``À résoudre`` deck. The pipeline's automatic upsert (reopen=False,
+        the default) keeps the F07 protection — asserted by
+        ``test_upsert_does_not_resurrect_resolved_row``.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = DecisionWriter(db_path)
+
+        staging = tmp_path / "001-MOVIES" / "Legacy Movie (2020)"
+        staging.mkdir(parents=True)
+
+        writer.upsert(
+            staging_path=staging,
+            media_kind="movie",
+            extracted_title="Legacy Movie",
+            extracted_year=2020,
+            trigger="ambiguous",
+            candidates_json='[{"provider":"tmdb","provider_id":1,"title":"Legacy Movie","year":2020,"score":0.7}]',
+            run_uid="run-001",
+        )
+        writer.resolve(1, provider="tmdb", provider_id=1)
+        assert _select_row(db_path, 1)["status"] == "resolved"
+
+        # Operator explicitly re-resolves via the manual enqueue → reopen re-opens it.
+        writer.upsert(
+            staging_path=staging,
+            media_kind="movie",
+            extracted_title="Legacy Movie",
+            extracted_year=2020,
+            trigger="manual",
+            candidates_json='[{"provider":"tmdb","provider_id":42,"title":"Legacy Movie","year":2020,"score":0.95}]',
+            run_uid=None,
+            reopen=True,
+        )
+
+        row = _select_row(db_path, 1)
+        assert row["status"] == "pending"  # re-opened
+        assert "42" in row["candidates_json"]  # fresh candidates persisted
+        assert row["resolution_json"] is None  # stale verdict cleared
+        assert row["resolved_at"] is None
+
     def test_upsert_revives_superseded_row(self, tmp_path: Path) -> None:
         """F07 — a superseded row IS revived to pending when re-enqueued.
 
