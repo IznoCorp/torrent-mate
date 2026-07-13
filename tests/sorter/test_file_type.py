@@ -200,3 +200,20 @@ class TestDetectDirType:
         (d / "info.nfo").touch()
         (d / "hashes.sfv").touch()
         assert detect_dir_type(d) == FileType.OTHER
+
+    def test_archive_only_non_media_pack_stays_other(self, tmp_path):
+        """A RAR pack with a filmish name but NO video-release token stays OTHER (AUTRES).
+
+        Mirror over-reach guard (§méthode rule 4 arbitrage): the archive fallback must
+        not route EVERY non-episode archive dir to MOVIE — a game/app RePack (no
+        resolution/source/codec token) would then pollute 001-MOVIES and be scraped
+        as a film. It stays OTHER (→ 098-AUTRES), where it is interactively resolvable
+        if it turns out to be media. The RAR-packed MOVIE case (with a 1080p/WEB/h264
+        signal) still routes to MOVIE — that path is unchanged.
+        """
+        d = tmp_path / "Cyberpunk.2077.Update.v2.1.RePack-FitGirl"
+        d.mkdir()
+        (d / "fitgirl.rar").touch()
+        (d / "fitgirl.r00").touch()
+        (d / "fitgirl.sfv").touch()
+        assert detect_dir_type(d) == FileType.OTHER
