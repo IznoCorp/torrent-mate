@@ -31,6 +31,7 @@ import { useAllDecisions, useDecisionDetail } from "@/hooks/useDecisions";
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
 import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
+import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
 import {
@@ -282,6 +283,8 @@ export default function Decisions(): ReactElement {
           </div>
         }
       />
+
+      <ScrapeActivityPanel />
 
       {view === "library" ? (
         <StagingLibrary

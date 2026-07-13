@@ -37,12 +37,15 @@ from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.scraper.decision_candidate import DecisionCandidate
 from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
 from personalscraper.web.decisions.reserve import _reserve_decision_run
+from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
 from personalscraper.web.deps import (
     is_staging_role,
     require_not_staging,
     require_x_requested_with,
 )
 from personalscraper.web.models.decisions import (
+    DecisionActivityItem,
+    DecisionActivityResponse,
     DecisionDetail,
     DecisionListItem,
     DecisionsResponse,
@@ -263,6 +266,66 @@ def list_decisions(
     )
 
 
+# ── GET /activity ────────────────────────────────────────────────────────────
+
+
+@router.get("/activity", response_model=DecisionActivityResponse)
+def decision_activity(request: Request) -> DecisionActivityResponse:
+    """Live scraping activity — the scrapes running now + the pending queue size.
+
+    Reuses data that already exists: each resolve reserves a ``pipeline_run`` row
+    (``command='scrape-resolve'``); a row with no ``ended_at`` is a scrape in flight.
+    The queue size is the count of ``pending`` decisions. No new state is written —
+    this is the read surface the operator was missing next to true-parallel scraping
+    (product-intent.md §3: the file/scrapes-in-progress must be visible).
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`DecisionActivityResponse` with the in-progress scrapes and the
+        pending-queue count.
+    """
+    db_path = _db_path(request)
+    if not db_path.exists():
+        return DecisionActivityResponse(in_progress=[], pending_count=0)
+
+    in_progress: list[DecisionActivityItem] = []
+    with closing(sqlite3.connect(str(db_path))) as conn:
+        _apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+
+        runs = conn.execute(
+            "SELECT started_at, options_json FROM pipeline_run "
+            "WHERE command = 'scrape-resolve' AND ended_at IS NULL "
+            "ORDER BY started_at DESC"
+        ).fetchall()
+        for run in runs:
+            try:
+                options = json.loads(run["options_json"]) if run["options_json"] else {}
+            except (json.JSONDecodeError, TypeError):
+                options = {}
+            decision_id = options.get("decision_id")
+            if not isinstance(decision_id, int):
+                continue
+            drow = conn.execute(
+                "SELECT extracted_title FROM scrape_decision WHERE id = ?",
+                (decision_id,),
+            ).fetchone()
+            in_progress.append(
+                DecisionActivityItem(
+                    decision_id=decision_id,
+                    title=drow["extracted_title"] if drow else "?",
+                    started_at=run["started_at"],
+                )
+            )
+
+        pending_row = conn.execute("SELECT COUNT(*) FROM scrape_decision WHERE status = 'pending'").fetchone()
+        pending_count: int = pending_row[0] if pending_row else 0
+
+    return DecisionActivityResponse(in_progress=in_progress, pending_count=pending_count)
+
+
 # ── GET /{id} ────────────────────────────────────────────────────────────────
 
 
@@ -292,47 +355,6 @@ def get_decision(
 
 
 # ── POST /{id}/search ────────────────────────────────────────────────────────
-
-
-def _build_provider_clients(request: Request) -> tuple[object, object]:
-    """Create request-scoped TMDB and TVDB clients for a search.
-
-    Builds a fresh :class:`AppContext` with a :class:`ProviderRegistry`
-    for this single request — never stored on ``app.state`` (composition-
-    boundary rule).  The returned clients are raw provider objects; the
-    caller casts them to the specific types it needs.
-
-    The AppContext builds are expensive relative to a pure-db route, but
-    live-provider search is an infrequent operator action, not a hot
-    polling endpoint.
-
-    Args:
-        request: The incoming FastAPI request.
-
-    Returns:
-        A ``(tmdb_client, tvdb_client)`` tuple of provider client objects.
-
-    Raises:
-        HTTPException: 502 when the provider registry cannot be built
-            (missing API keys or misconfigured providers section).
-    """
-    from personalscraper.cli_helpers import _build_app_context
-
-    config = request.app.state.config
-    settings = request.app.state.settings
-
-    try:
-        app_context = _build_app_context(config, settings)
-        # provider_registry.get raises UnknownProviderError when a provider is
-        # not registered (disabled in the registry overlay) — keep it inside the
-        # try so it maps to the documented 502, not an untyped 500 (F03).
-        tmdb_client = app_context.provider_registry.get("tmdb")
-        tvdb_client = app_context.provider_registry.get("tvdb")
-    except Exception as exc:
-        logger.error("decisions_search_registry_failed", error=str(exc))
-        raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
-
-    return tmdb_client, tvdb_client
 
 
 @router.post("/{decision_id}/search", response_model=SearchResponse)
@@ -372,26 +394,9 @@ def search_decision(
     media_kind: str = row["media_kind"]
 
     try:
-        tmdb_client, tvdb_client = _build_provider_clients(request)
-    except HTTPException:
-        raise  # Re-raise the 502 from _build_provider_clients.
-
-    if media_kind == "movie":
-        from personalscraper.scraper.confidence import match_movie_detailed
-
-        try:
-            _, candidates = match_movie_detailed(tmdb_client, body.title, body.year)
-        except Exception as exc:
-            logger.error("decisions_search_movie_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"TMDB search failed: {exc}") from exc
-    else:
-        from personalscraper.scraper.confidence import match_tvshow_detailed
-
-        try:
-            _, candidates = match_tvshow_detailed(tvdb_client, tmdb_client, body.title, body.year)
-        except Exception as exc:
-            logger.error("decisions_search_tvshow_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"Provider search failed: {exc}") from exc
+        candidates = search_candidates(request, media_kind, body.title, body.year)
+    except ProviderSearchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return SearchResponse(candidates=candidates)
 

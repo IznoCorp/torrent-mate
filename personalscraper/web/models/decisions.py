@@ -70,6 +70,32 @@ class DecisionsResponse(BaseModel):
     page_size: int
 
 
+class DecisionActivityItem(BaseModel):
+    """One scrape currently in progress (a running scrape-resolve run).
+
+    Attributes:
+        decision_id: The ``scrape_decision.id`` being resolved.
+        title: The folder-derived title shown to the operator.
+        started_at: Unix-epoch seconds when the resolve run started.
+    """
+
+    decision_id: int
+    title: str
+    started_at: float
+
+
+class DecisionActivityResponse(BaseModel):
+    """Live activity for the scraping surface: what runs now + how many wait.
+
+    Attributes:
+        in_progress: The scrapes running right now (most recent first).
+        pending_count: Number of decisions still waiting in the queue.
+    """
+
+    in_progress: list[DecisionActivityItem]
+    pending_count: int
+
+
 class DecisionDetail(DecisionListItem):
     """Full detail for a single ``scrape_decision`` row.
 

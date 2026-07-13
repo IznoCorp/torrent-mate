@@ -68,6 +68,7 @@ def _staging_dirs() -> list[StagingDirConfig]:
         StagingDirConfig(id=1, name="movies", file_type="movie"),
         StagingDirConfig(id=2, name="tvshows", file_type="tvshow"),
         StagingDirConfig(id=97, name="temp", role="ingest"),
+        StagingDirConfig(id=98, name="autres", file_type="other"),
     ]
 
 
@@ -534,3 +535,182 @@ def test_enqueue_requires_x_requested_with(test_config, tmp_path: Path) -> None:
     client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
     media_id = media_id_for("001-MOVIES/NoHeader (2021)")
     assert client.post(f"/api/staging/media/{media_id}/enqueue").status_code == 400
+
+
+def test_enqueue_seeds_candidates_from_provider(test_config, tmp_path: Path) -> None:
+    """§3 guard — enqueue seeds provider candidates so the deck opens WITH proposals.
+
+    Regression (product-intent post-mortem): the enqueue path hard-coded
+    ``candidates_json="[]"`` and returned no candidate info, so a manually-resolved item
+    opened the resolution deck on an EMPTY grid. Enqueue must now run the same provider
+    search helper as ``POST /decisions/{id}/search`` and persist the result. This test
+    fails on the old implementation (no ``candidates_seeded`` field; ``candidates_json``
+    stays ``"[]"``).
+    """
+    from unittest.mock import patch
+
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    (movies / "Mystery Film (2021)").mkdir(parents=True)
+    _write_video(movies / "Mystery Film (2021)" / "Mystery Film (2021).mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Mystery Film (2021)")
+    dummy = [DecisionCandidate(provider="tmdb", provider_id=1234, title="Mystery Film", year=2021, score=0.88)]
+    # Patch the shared search helper (bypasses the provider stack) — proves enqueue
+    # reuses it and persists its result, deterministically.
+    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/enqueue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["candidates_seeded"] is True
+    assert body["candidates_count"] == 1
+
+    # Candidates persisted on the decision row → the deck opens WITH proposals.
+    conn = sqlite3.connect(str(db_path))
+    (candidates_json,) = conn.execute(
+        "SELECT candidates_json FROM scrape_decision WHERE id = ?",
+        (body["decision_id"],),
+    ).fetchone()
+    conn.close()
+    seeded = json.loads(candidates_json)
+    assert len(seeded) == 1
+    assert seeded[0]["title"] == "Mystery Film"
+
+
+def test_enqueue_fail_soft_when_provider_unavailable(test_config, tmp_path: Path) -> None:
+    """§3 fail-soft — a provider outage still enqueues, but ``candidates_seeded=False``.
+
+    The decision is created (never lost) with an empty candidate list so the UI can show
+    an explicit "no automatic proposal" state instead of a success it cannot back.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.decisions.search import ProviderSearchError
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    (movies / "Offline Film (2019)").mkdir(parents=True)
+    _write_video(movies / "Offline Film (2019)" / "Offline Film (2019).mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Offline Film (2019)")
+    with patch(
+        "personalscraper.web.decisions.search.search_candidates",
+        side_effect=ProviderSearchError("TMDB down"),
+    ):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/enqueue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["candidates_seeded"] is False
+    assert body["candidates_count"] == 0
+
+    conn = sqlite3.connect(str(db_path))
+    (candidates_json,) = conn.execute(
+        "SELECT candidates_json FROM scrape_decision WHERE id = ?",
+        (body["decision_id"],),
+    ).fetchone()
+    conn.close()
+    assert json.loads(candidates_json) == []
+
+
+def test_enqueue_other_without_kind_returns_400(test_config, tmp_path: Path) -> None:
+    """T1.2 — an unsorted (AUTRES) item cannot be enqueued without the operator's type.
+
+    The sort mis-typed it into 098-AUTRES; only the operator can say what it really is.
+    Without a media_kind the request is a 400 and the folder is left untouched.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "Mystery.Blob.2020-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "blob.mkv", size=512)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/Mystery.Blob.2020-GRP")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/enqueue",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 400
+    assert "AUTRES" in resp.json()["detail"]
+    assert item.exists()  # left untouched
+
+
+def test_enqueue_other_with_kind_reclasses_to_movies_and_seeds(test_config, tmp_path: Path) -> None:
+    """T1.2 — an AUTRES item + operator type is physically reclassed to MOVIES and seeded.
+
+    Guards the §3 safety net end to end: the folder leaves 098-AUTRES for 001-MOVIES
+    under a clean 'Title (Year)' name (so it later dispatches correctly), the decision
+    points at the new location, and candidates are seeded. Red on the old impl, which
+    had no resolve path for 'other' items at all.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    (staging / "001-MOVIES").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "Some.Unsorted.Movie.2021.1080p-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "movie.mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/Some.Unsorted.Movie.2021.1080p-GRP")
+    dummy = [DecisionCandidate(provider="tmdb", provider_id=42, title="Some Unsorted Movie", year=2021, score=0.9)]
+    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/enqueue",
+            json={"media_kind": "movie"},
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["media_kind"] == "movie"
+    assert body["candidates_seeded"] is True
+
+    # Physically reclassed: gone from AUTRES, now under MOVIES with a clean name.
+    assert not item.exists()
+    moved = list((staging / "001-MOVIES").iterdir())
+    assert len(moved) == 1
+    assert "Some Unsorted Movie" in moved[0].name
+
+    # The decision points at the new location under MOVIES.
+    conn = sqlite3.connect(str(db_path))
+    (staging_path_val,) = conn.execute(
+        "SELECT staging_path FROM scrape_decision WHERE id = ?",
+        (body["decision_id"],),
+    ).fetchone()
+    conn.close()
+    assert "001-MOVIES" in staging_path_val

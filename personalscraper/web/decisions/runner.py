@@ -452,6 +452,21 @@ def main() -> None:
                 rc=rc,
                 lines=seq,
             )
+            # §4 — resolving a decision must not stop at the NFO: the media has to
+            # FINISH its pipeline (trailers → verify → dispatch) and leave staging.
+            # Trigger a continuation run through the single trigger authority
+            # (pipeline.lock is the sole gate). If a run already holds the lock, the
+            # freshly-scraped item is picked up by that run — no second mechanism.
+            from personalscraper.web.pipeline_trigger import spawn_pipeline_run
+
+            continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason="scrape-resolve")
+            log.info(
+                "decision_runner_continuation",
+                run_uid=run_uid,
+                decision_id=decision_id,
+                continuation_run_uid=continuation_uid,
+                deferred=continuation_uid is None,
+            )
         else:
             # On failure, capture the last portion of output as the error context.
             error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail

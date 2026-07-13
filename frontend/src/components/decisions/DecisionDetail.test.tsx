@@ -394,7 +394,9 @@ describe("DecisionDetail", () => {
       );
     });
 
-    expect(toast.success).toHaveBeenCalledWith("Re-scraping lancé.");
+    expect(toast.success).toHaveBeenCalledWith(
+      "Résolu — le média poursuit son pipeline jusqu'au dispatch.",
+    );
   });
 
   it("affiche un message 'pipeline occupé' sur un 409 pipeline-lock (§4.3)", async () => {

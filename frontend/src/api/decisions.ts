@@ -79,6 +79,11 @@ export type ResolveResponse = SuccessBody<
   paths["/api/decisions/{decision_id}/resolve"]["post"]["responses"]
 >;
 
+/** Live scraping activity for ``GET /api/decisions/activity``. */
+export type DecisionActivityResponse = SuccessBody<
+  paths["/api/decisions/activity"]["get"]["responses"]
+>;
+
 // ---------------------------------------------------------------------------
 // Parameter / request-body types
 // ---------------------------------------------------------------------------
@@ -121,6 +126,9 @@ export const decisionsKeys = {
 
   /** Detail query key factory: ``['decisions', id]``. */
   detail: (id: number) => ["decisions", id] as const,
+
+  /** Live-activity key: ``['decisions', 'activity']``. */
+  activity: ["decisions", "activity"] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -147,6 +155,20 @@ export function fetchDecisions(
   return apiFetch("/api/decisions/", {
     method: "get",
     params: { query: params },
+  });
+}
+
+/**
+ * Fetch live scraping activity — the scrapes running now and the pending-queue
+ * size. Read-only; polled by the /scraping activity panel (§3 — the file and the
+ * in-progress scrapes must be visible).
+ *
+ * Returns:
+ *   A {@link DecisionActivityResponse} with ``in_progress`` and ``pending_count``.
+ */
+export function fetchDecisionActivity(): Promise<DecisionActivityResponse> {
+  return apiFetch("/api/decisions/activity", {
+    method: "get",
   });
 }
 

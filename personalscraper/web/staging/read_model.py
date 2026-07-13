@@ -642,6 +642,43 @@ def resolve_scrapable_item(config: Config, media_id: str) -> tuple[Path, str, st
     return None
 
 
+def resolve_other_item(config: Config, media_id: str) -> tuple[Path, str, int | None] | None:
+    """Re-derive a staged item that landed in an ``other`` (unsorted / AUTRES) category.
+
+    Mirror of :func:`resolve_scrapable_item` for items the sort could not type into
+    movie/tvshow (they sit under a category whose ``file_type`` maps to ``"other"``,
+    e.g. 098-AUTRES). The operator supplies the real kind at enqueue; this resolver
+    only re-derives the folder + title/year (id matched against freshly-computed ids,
+    so a client can never inject a path).
+
+    Args:
+        config: The loaded config.
+        media_id: The stable media id from a list item.
+
+    Returns:
+        A ``(media_dir, title, year)`` tuple, or ``None`` when the id does not match an
+        item in an ``other`` category.
+    """
+    for entry in config.staging_dirs:
+        category = folder_name(entry)
+        category_dir = staging_path(config, entry)
+        if not category_dir.is_dir():
+            continue
+        if _kind_for_entry(entry.file_type, entry.role) != "other":
+            continue
+        try:
+            children = category_dir.iterdir()
+        except OSError:
+            continue
+        for child in children:
+            if not child.is_dir():
+                continue
+            if media_id_for(f"{category}/{child.name}") == media_id:
+                folder = child.name
+                return child, _title_from_folder(folder), _year_from_folder(folder)
+    return None
+
+
 def poster_file_for(media_dir: Path) -> Path | None:
     """Return the servable local poster file in a media folder, or ``None``.
 

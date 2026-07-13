@@ -131,12 +131,12 @@ class TestRunRoute:
     ) -> None:
         """A free lock → 202 with a ``run_uid``."""
         monkeypatch.setattr(
-            "personalscraper.web.routes.pipeline.is_lock_held",
+            "personalscraper.web.pipeline_trigger.is_lock_held",
             lambda _lock_file: False,
         )
         mock_popen = MagicMock(spec=subprocess.Popen)
         monkeypatch.setattr(
-            "personalscraper.web.routes.pipeline.subprocess.Popen",
+            "personalscraper.web.pipeline_trigger.subprocess.Popen",
             mock_popen,
         )
 
@@ -165,12 +165,12 @@ class TestRunRoute:
     ) -> None:
         """``dry_run: true`` adds ``--dry-run`` to the subprocess command."""
         monkeypatch.setattr(
-            "personalscraper.web.routes.pipeline.is_lock_held",
+            "personalscraper.web.pipeline_trigger.is_lock_held",
             lambda _lock_file: False,
         )
         mock_popen = MagicMock(spec=subprocess.Popen)
         monkeypatch.setattr(
-            "personalscraper.web.routes.pipeline.subprocess.Popen",
+            "personalscraper.web.pipeline_trigger.subprocess.Popen",
             mock_popen,
         )
 
@@ -190,7 +190,7 @@ class TestRunRoute:
     ) -> None:
         """A held lock → 409 Conflict."""
         monkeypatch.setattr(
-            "personalscraper.web.routes.pipeline.is_lock_held",
+            "personalscraper.web.pipeline_trigger.is_lock_held",
             lambda _lock_file: True,
         )
 

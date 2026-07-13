@@ -167,7 +167,9 @@ export function ResolutionDeck({
     mutationFn: (vars: { id: number; body: ResolveRequest }) =>
       resolveDecision(vars.id, vars.body),
     onSuccess: (_data, vars) => {
-      toast.success("Décision validée — re-scraping lancé");
+      toast.success(
+        "Décision validée — le média poursuit son pipeline (scraping → trailers → vérification → dispatch)",
+      );
       // C8: fade the resolved decision out (~400 ms) before the next slides in.
       // A rafale of validations finalises any in-flight flip immediately so the
       // flow never slows down — only the last one gets to play out in full.

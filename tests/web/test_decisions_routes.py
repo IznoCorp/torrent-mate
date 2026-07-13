@@ -572,6 +572,46 @@ class TestGetDecision:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+class TestDecisionActivity:
+    """``GET /api/decisions/activity`` — in-progress scrapes + pending-queue size."""
+
+    def test_activity_lists_running_scrapes_and_pending(self, test_config, tmp_path: Path) -> None:
+        """A running scrape-resolve surfaces as in_progress; pending decisions are counted."""
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1, media_kind="movie", extracted_title="Fight Club")
+        _seed_running_resolve(conn, decision_id=1, run_uid="run-live-1")
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        resp = client.get("/api/decisions/activity")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["pending_count"] == 1
+        assert len(data["in_progress"]) == 1
+        assert data["in_progress"][0]["decision_id"] == 1
+        assert data["in_progress"][0]["title"] == "Fight Club"
+        assert data["in_progress"][0]["started_at"] > 0
+
+    def test_activity_empty_when_nothing_running(self, test_config, tmp_path: Path) -> None:
+        """No running scrape and no pending decision → empty activity (not a 4xx)."""
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        _create_library_db(db_path).close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        resp = client.get("/api/decisions/activity")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["pending_count"] == 0
+        assert data["in_progress"] == []
+
+
 class TestSearchDecision:
     """``POST /api/decisions/{id}/search`` — 200 (mocked clients), 502, 404, 410."""
 

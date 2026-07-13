@@ -23,6 +23,7 @@ from personalscraper.core.media_types import (
     EBOOK_EXTENSIONS,
     VIDEO_EXTENSIONS,
     FileType,
+    is_archive_filename,
 )
 
 APP_EXTENSIONS: frozenset[str] = frozenset(
@@ -113,26 +114,52 @@ def detect_dir_type(path: Path) -> FileType:
     Non-video children are ignored for the vote (subtitles, NFOs, images
     travel with their parent).
 
+    Archive-only fallback: a scene release ships the real video packed inside
+    a multi-part RAR set (e.g. "Movie.2026.1080p.WEB-GRP/" holding only
+    .rar/.r00…/.nfo/.sfv), so extension voting finds no video child. Rather
+    than typing it OTHER — which strands the release in 098-AUTRES, out of
+    reach of the Phase-3 RAR extraction that only scans the movies/tvshows
+    dirs — the type is resolved from the directory NAME via guessit.
+
     Args:
         path: Path to an existing directory.
 
     Returns:
-        The detected FileType. Returns OTHER for empty directories.
+        The detected FileType. Returns OTHER for empty directories or
+        directories holding only non-media, non-archive files.
     """
     # Directory name itself may contain TV markers (e.g. "Show.S03.1080p/")
     if _has_tvshow_markers(path.name):
         return FileType.TVSHOW
 
-    # Tally types from children
+    # Tally types from children; note whether a direct child is an archive part.
     type_counts: dict[FileType, int] = {}
+    has_archive_child = False
     for child in path.iterdir():
         if child.is_file():
+            if is_archive_filename(child.name):
+                has_archive_child = True
             ft = detect_file_type(child)
             # Only count meaningful types for the vote (skip OTHER like .nfo, .jpg)
             if ft in (FileType.MOVIE, FileType.TVSHOW, FileType.EBOOK, FileType.AUDIO, FileType.APP):
                 type_counts[ft] = type_counts.get(ft, 0) + 1
 
     if not type_counts:
+        # No direct video child. If the release is archive-packed (RAR set), the
+        # video is hidden inside the archive — fall back to name-based typing via
+        # guessit (the tie-breaker NameCleaner.get_media_type documents) so the
+        # release is sorted into MOVIES/TVSHOWS and later extracted, scraped and
+        # dispatched instead of being lost in 098-AUTRES. 'episode' → TVSHOW,
+        # otherwise MOVIE: staging holds media torrents, so a mistype is recoverable
+        # via interactive resolution while a film silently stranded in AUTRES is not.
+        if has_archive_child:
+            # Local import: keeps guessit off the module-load path for the many
+            # callers that only type plain files, and sidesteps any import ordering
+            # concern between the sorter's cleaner and file_type modules.
+            from personalscraper.sorter.cleaner import NameCleaner
+
+            media_type = NameCleaner().get_media_type(path.name)
+            return FileType.TVSHOW if media_type == "episode" else FileType.MOVIE
         return FileType.OTHER
 
     return max(type_counts, key=type_counts.get)  # type: ignore[arg-type]

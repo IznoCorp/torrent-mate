@@ -678,6 +678,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/decisions/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decision Activity
+         * @description Live scraping activity — the scrapes running now + the pending queue size.
+         *
+         *     Reuses data that already exists: each resolve reserves a ``pipeline_run`` row
+         *     (``command='scrape-resolve'``); a row with no ``ended_at`` is a scrape in flight.
+         *     The queue size is the count of ``pending`` decisions. No new state is written —
+         *     this is the read surface the operator was missing next to true-parallel scraping
+         *     (product-intent.md §3: the file/scrapes-in-progress must be visible).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`DecisionActivityResponse` with the in-progress scrapes and the
+         *         pending-queue count.
+         */
+        get: operations["decision_activity_api_decisions_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/decisions/{decision_id}": {
         parameters: {
             query?: never;
@@ -1433,18 +1466,24 @@ export interface paths {
          *     button otherwise) into the resolution deck, where the deck's manual search +
          *     validate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The
          *     id is re-derived from the staging tree (no client path); only ``movie``/
-         *     ``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an
+         *     ``tvshow`` items qualify directly; an item in an ``other`` (unsorted / AUTRES)
+         *     category qualifies too when *body* names the type the sort got wrong, and is
+         *     physically reclassed into it. Idempotent: ``DecisionWriter.upsert`` refreshes an
          *     existing pending row and never overrides a resolved/dismissed verdict.
          *
          *     Args:
          *         media_id: The stable media id from a list item.
          *         request: The incoming FastAPI request.
+         *         body: Optional request body; its ``media_kind`` is required for an item in an
+         *             ``other`` (AUTRES) category and ignored for movie/tvshow items.
          *
          *     Returns:
          *         An :class:`EnqueueDecisionResponse`.
          *
          *     Raises:
+         *         400: The item is unsorted (AUTRES) and no ``media_kind`` was supplied.
          *         404: No scrapable staged media matches the id.
+         *         409: The reclass destination already exists in the target category.
          *         503: No indexer DB configured.
          */
         post: operations["enqueue_staging_decision_api_staging_media__media_id__enqueue_post"];
@@ -1737,6 +1776,37 @@ export interface components {
             year?: number | null;
         };
         /**
+         * DecisionActivityItem
+         * @description One scrape currently in progress (a running scrape-resolve run).
+         *
+         *     Attributes:
+         *         decision_id: The ``scrape_decision.id`` being resolved.
+         *         title: The folder-derived title shown to the operator.
+         *         started_at: Unix-epoch seconds when the resolve run started.
+         */
+        DecisionActivityItem: {
+            /** Decision Id */
+            decision_id: number;
+            /** Started At */
+            started_at: number;
+            /** Title */
+            title: string;
+        };
+        /**
+         * DecisionActivityResponse
+         * @description Live activity for the scraping surface: what runs now + how many wait.
+         *
+         *     Attributes:
+         *         in_progress: The scrapes running right now (most recent first).
+         *         pending_count: Number of decisions still waiting in the queue.
+         */
+        DecisionActivityResponse: {
+            /** In Progress */
+            in_progress: components["schemas"]["DecisionActivityItem"][];
+            /** Pending Count */
+            pending_count: number;
+        };
+        /**
          * DecisionCandidate
          * @description A single scored search-result candidate for a scrape-decision row.
          *
@@ -1927,6 +1997,21 @@ export interface components {
             disks: components["schemas"]["DiskInfo"][];
         };
         /**
+         * EnqueueDecisionRequest
+         * @description Request body for ``POST /api/staging/media/{id}/enqueue``.
+         *
+         *     Attributes:
+         *         media_kind: The type to resolve the item as. Optional for movie/tvshow items
+         *             (their kind is derived from the category), but MANDATORY for an item that
+         *             sits in an ``other`` (unsorted / AUTRES) category — the operator picks the
+         *             type the sort got wrong, and the item is physically reclassed into it.
+         *             Only ``"movie"`` / ``"tvshow"`` are accepted.
+         */
+        EnqueueDecisionRequest: {
+            /** Media Kind */
+            media_kind?: ("movie" | "tvshow") | null;
+        };
+        /**
          * EnqueueDecisionResponse
          * @description Response body for ``POST /api/staging/media/{id}/enqueue``.
          *
@@ -1937,8 +2022,24 @@ export interface components {
          *         decision_id: The ``scrape_decision.id`` of the enqueued row, so the
          *             client can open the resolution deck positioned on it (C18 — same
          *             grammar as an ambiguous card). ``None`` if the id could not be read.
+         *         candidates_count: Number of provider candidates seeded at enqueue time
+         *             (product-intent.md §3 — the deck opens WITH proposals, not empty).
+         *         candidates_seeded: ``True`` when the provider search ran and produced the
+         *             candidates; ``False`` when providers were unavailable and the decision
+         *             was enqueued fail-soft with an empty candidate list (the UI then shows
+         *             an explicit "no automatic proposal" state + a prefilled manual search).
          */
         EnqueueDecisionResponse: {
+            /**
+             * Candidates Count
+             * @default 0
+             */
+            candidates_count: number;
+            /**
+             * Candidates Seeded
+             * @default false
+             */
+            candidates_seeded: boolean;
             /** Decision Id */
             decision_id?: number | null;
             /**
@@ -4191,6 +4292,26 @@ export interface operations {
             };
         };
     };
+    decision_activity_api_decisions_activity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionActivityResponse"];
+                };
+            };
+        };
+    };
     get_decision_api_decisions__decision_id__get: {
         parameters: {
             query?: never;
@@ -4777,7 +4898,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EnqueueDecisionRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

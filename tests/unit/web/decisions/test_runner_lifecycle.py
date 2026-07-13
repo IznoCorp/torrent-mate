@@ -285,6 +285,43 @@ class TestRunnerLifecycleIntegration:
         assert "line1" in row["output_tail"]
         assert "line2" in row["output_tail"]
 
+    def test_success_triggers_pipeline_continuation(self, tmp_path: Path) -> None:
+        """§4 — a successful resolve triggers a pipeline continuation run.
+
+        Resolving must not stop at the NFO: the runner reuses the single trigger
+        authority (``spawn_pipeline_run``) so the media finishes trailers → verify →
+        dispatch. Guards that the continuation fires on rc==0, tagged 'scrape-resolve'.
+        Fails on the old implementation, which stopped after marking the decision
+        resolved and left the media stranded in staging.
+        """
+        staging_dir = tmp_path / "staging" / "test-item"
+        staging_dir.mkdir(parents=True)
+        mock_config = _make_mock_config(tmp_path, staging_dir=staging_dir)
+        _insert_decision_row(
+            mock_config.indexer.db_path,
+            decision_id=self.DECISION_ID,
+            staging_path=str(staging_dir.resolve()),
+        )
+        argv = self._trivial_argv("print('ok')")
+
+        with (
+            patch("personalscraper.web.decisions.runner._build_argv", return_value=argv),
+            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch(
+                "personalscraper.web.pipeline_trigger.spawn_pipeline_run",
+                return_value="cont-uid",
+            ) as mock_spawn,
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from personalscraper.web.decisions.runner import main
+
+            main()
+
+        assert exc_info.value.code == 0
+        mock_spawn.assert_called_once()
+        assert mock_spawn.call_args.kwargs["trigger_reason"] == "scrape-resolve"
+
     # ── Lifecycle: error ───────────────────────────────────────────────────
 
     def test_lifecycle_error(self, tmp_path: Path) -> None:

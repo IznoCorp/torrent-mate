@@ -330,6 +330,52 @@
         "title": "CreateFollowRequest",
         "type": "object"
       },
+      "DecisionActivityItem": {
+        "description": "One scrape currently in progress (a running scrape-resolve run).\n\nAttributes:\n    decision_id: The ``scrape_decision.id`` being resolved.\n    title: The folder-derived title shown to the operator.\n    started_at: Unix-epoch seconds when the resolve run started.",
+        "properties": {
+          "decision_id": {
+            "title": "Decision Id",
+            "type": "integer"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_id",
+          "title",
+          "started_at"
+        ],
+        "title": "DecisionActivityItem",
+        "type": "object"
+      },
+      "DecisionActivityResponse": {
+        "description": "Live activity for the scraping surface: what runs now + how many wait.\n\nAttributes:\n    in_progress: The scrapes running right now (most recent first).\n    pending_count: Number of decisions still waiting in the queue.",
+        "properties": {
+          "in_progress": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionActivityItem"
+            },
+            "title": "In Progress",
+            "type": "array"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "in_progress",
+          "pending_count"
+        ],
+        "title": "DecisionActivityResponse",
+        "type": "object"
+      },
       "DecisionCandidate": {
         "additionalProperties": false,
         "description": "A single scored search-result candidate for a scrape-decision row.\n\nRepresents one provider match that the operator can inspect and\nresolve.  Stored as an element of the ``candidates_json`` JSON array\nin the ``scrape_decision`` table.\n\nAttributes:\n    provider: The metadata provider that returned this candidate\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the provider.\n    title: The candidate title as returned by the provider.\n    year: The release year, or ``None`` when the provider did not\n        return one.\n    score: The confidence score (0.0\u20131.0) assigned by the matching\n        engine.\n    poster_url: The provider poster URL (``http``/``https`` only), or\n        ``None`` when no poster is available or the URL had an untrusted\n        scheme.\n    overview: A short plot summary, or ``None`` when the provider\n        did not return one.",
@@ -630,9 +676,41 @@
         "title": "DisksResponse",
         "type": "object"
       },
-      "EnqueueDecisionResponse": {
-        "description": "Response body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    ok: ``True`` when the item was enqueued as a pending scrape decision.\n    media_kind: The kind of the enqueued item (``movie``/``tvshow``).\n    title: The folder-derived title enqueued for resolution.\n    decision_id: The ``scrape_decision.id`` of the enqueued row, so the\n        client can open the resolution deck positioned on it (C18 \u2014 same\n        grammar as an ambiguous card). ``None`` if the id could not be read.",
+      "EnqueueDecisionRequest": {
+        "description": "Request body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    media_kind: The type to resolve the item as. Optional for movie/tvshow items\n        (their kind is derived from the category), but MANDATORY for an item that\n        sits in an ``other`` (unsorted / AUTRES) category \u2014 the operator picks the\n        type the sort got wrong, and the item is physically reclassed into it.\n        Only ``\"movie\"`` / ``\"tvshow\"`` are accepted.",
         "properties": {
+          "media_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "movie",
+                  "tvshow"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Kind"
+          }
+        },
+        "title": "EnqueueDecisionRequest",
+        "type": "object"
+      },
+      "EnqueueDecisionResponse": {
+        "description": "Response body for ``POST /api/staging/media/{id}/enqueue``.\n\nAttributes:\n    ok: ``True`` when the item was enqueued as a pending scrape decision.\n    media_kind: The kind of the enqueued item (``movie``/``tvshow``).\n    title: The folder-derived title enqueued for resolution.\n    decision_id: The ``scrape_decision.id`` of the enqueued row, so the\n        client can open the resolution deck positioned on it (C18 \u2014 same\n        grammar as an ambiguous card). ``None`` if the id could not be read.\n    candidates_count: Number of provider candidates seeded at enqueue time\n        (product-intent.md \u00a73 \u2014 the deck opens WITH proposals, not empty).\n    candidates_seeded: ``True`` when the provider search ran and produced the\n        candidates; ``False`` when providers were unavailable and the decision\n        was enqueued fail-soft with an empty candidate list (the UI then shows\n        an explicit \"no automatic proposal\" state + a prefilled manual search).",
+        "properties": {
+          "candidates_count": {
+            "default": 0,
+            "title": "Candidates Count",
+            "type": "integer"
+          },
+          "candidates_seeded": {
+            "default": false,
+            "title": "Candidates Seeded",
+            "type": "boolean"
+          },
           "decision_id": {
             "anyOf": [
               {
@@ -4169,6 +4247,28 @@
         ]
       }
     },
+    "/api/decisions/activity": {
+      "get": {
+        "description": "Live scraping activity \u2014 the scrapes running now + the pending queue size.\n\nReuses data that already exists: each resolve reserves a ``pipeline_run`` row\n(``command='scrape-resolve'``); a row with no ``ended_at`` is a scrape in flight.\nThe queue size is the count of ``pending`` decisions. No new state is written \u2014\nthis is the read surface the operator was missing next to true-parallel scraping\n(product-intent.md \u00a73: the file/scrapes-in-progress must be visible).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`DecisionActivityResponse` with the in-progress scrapes and the\n    pending-queue count.",
+        "operationId": "decision_activity_api_decisions_activity_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionActivityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Decision Activity",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
     "/api/decisions/{decision_id}": {
       "get": {
         "description": "Return full detail for a single scrape decision.\n\nArgs:\n    decision_id: Primary key of the ``scrape_decision`` row.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`DecisionDetail` with the full candidate list and\n    optional resolution metadata.\n\nRaises:\n    404: The decision does not exist.\n    410: The decision has status ``'superseded'``.",
@@ -5069,7 +5169,7 @@
     },
     "/api/staging/media/{media_id}/enqueue": {
       "post": {
-        "description": "Enqueue a non-identified staged item as a pending scrape decision.\n\nLets the operator send an item that never got a match (``absent`` \u2014 no search\nbutton otherwise) into the resolution deck, where the deck's manual search +\nvalidate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The\nid is re-derived from the staging tree (no client path); only ``movie``/\n``tvshow`` items qualify. Idempotent: ``DecisionWriter.upsert`` refreshes an\nexisting pending row and never overrides a resolved/dismissed verdict.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    An :class:`EnqueueDecisionResponse`.\n\nRaises:\n    404: No scrapable staged media matches the id.\n    503: No indexer DB configured.",
+        "description": "Enqueue a non-identified staged item as a pending scrape decision.\n\nLets the operator send an item that never got a match (``absent`` \u2014 no search\nbutton otherwise) into the resolution deck, where the deck's manual search +\nvalidate resolves it (writing the NFO via the #3-fixed ``scrape-resolve``). The\nid is re-derived from the staging tree (no client path); only ``movie``/\n``tvshow`` items qualify directly; an item in an ``other`` (unsorted / AUTRES)\ncategory qualifies too when *body* names the type the sort got wrong, and is\nphysically reclassed into it. Idempotent: ``DecisionWriter.upsert`` refreshes an\nexisting pending row and never overrides a resolved/dismissed verdict.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n    body: Optional request body; its ``media_kind`` is required for an item in an\n        ``other`` (AUTRES) category and ignored for movie/tvshow items.\n\nReturns:\n    An :class:`EnqueueDecisionResponse`.\n\nRaises:\n    400: The item is unsorted (AUTRES) and no ``media_kind`` was supplied.\n    404: No scrapable staged media matches the id.\n    409: The reclass destination already exists in the target category.\n    503: No indexer DB configured.",
         "operationId": "enqueue_staging_decision_api_staging_media__media_id__enqueue_post",
         "parameters": [
           {
@@ -5082,6 +5182,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnqueueDecisionRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
