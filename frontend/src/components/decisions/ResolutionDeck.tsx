@@ -51,6 +51,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDecisionDetail, useDecisions } from "@/hooks/useDecisions";
+import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
+import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 import { cn } from "@/lib/utils";
 
 /** Whether the current focus is a text field (so shortcuts don't hijack typing). */
@@ -170,6 +172,13 @@ export function ResolutionDeck({
       toast.success(
         "Décision validée — le média poursuit son pipeline (scraping → trailers → vérification → dispatch)",
       );
+      // §4 — the runner spawns a continuation run through the single trigger
+      // authority; refresh the Flow Board + staging grid so the operator SEES the
+      // media advance and leave staging now, not only on the next WS tick / poll.
+      void queryClient.invalidateQueries({
+        queryKey: pipelineStagesKeys.stages,
+      });
+      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
       // C8: fade the resolved decision out (~400 ms) before the next slides in.
       // A rafale of validations finalises any in-flight flip immediately so the
       // flow never slows down — only the last one gets to play out in full.
