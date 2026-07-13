@@ -215,9 +215,17 @@ class EnqueueDecisionResponse(BaseModel):
         decision_id: The ``scrape_decision.id`` of the enqueued row, so the
             client can open the resolution deck positioned on it (C18 — same
             grammar as an ambiguous card). ``None`` if the id could not be read.
+        candidates_count: Number of provider candidates seeded at enqueue time
+            (product-intent.md §3 — the deck opens WITH proposals, not empty).
+        candidates_seeded: ``True`` when the provider search ran and produced the
+            candidates; ``False`` when providers were unavailable and the decision
+            was enqueued fail-soft with an empty candidate list (the UI then shows
+            an explicit "no automatic proposal" state + a prefilled manual search).
     """
 
     ok: bool
     media_kind: StagingMediaKind
     title: str
     decision_id: int | None = None
+    candidates_count: int = 0
+    candidates_seeded: bool = False

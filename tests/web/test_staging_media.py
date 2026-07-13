@@ -534,3 +534,101 @@ def test_enqueue_requires_x_requested_with(test_config, tmp_path: Path) -> None:
     client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
     media_id = media_id_for("001-MOVIES/NoHeader (2021)")
     assert client.post(f"/api/staging/media/{media_id}/enqueue").status_code == 400
+
+
+def test_enqueue_seeds_candidates_from_provider(test_config, tmp_path: Path) -> None:
+    """§3 guard — enqueue seeds provider candidates so the deck opens WITH proposals.
+
+    Regression (product-intent post-mortem): the enqueue path hard-coded
+    ``candidates_json="[]"`` and returned no candidate info, so a manually-resolved item
+    opened the resolution deck on an EMPTY grid. Enqueue must now run the same provider
+    search helper as ``POST /decisions/{id}/search`` and persist the result. This test
+    fails on the old implementation (no ``candidates_seeded`` field; ``candidates_json``
+    stays ``"[]"``).
+    """
+    from unittest.mock import patch
+
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    (movies / "Mystery Film (2021)").mkdir(parents=True)
+    _write_video(movies / "Mystery Film (2021)" / "Mystery Film (2021).mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Mystery Film (2021)")
+    dummy = [DecisionCandidate(provider="tmdb", provider_id=1234, title="Mystery Film", year=2021, score=0.88)]
+    # Patch the shared search helper (bypasses the provider stack) — proves enqueue
+    # reuses it and persists its result, deterministically.
+    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/enqueue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["candidates_seeded"] is True
+    assert body["candidates_count"] == 1
+
+    # Candidates persisted on the decision row → the deck opens WITH proposals.
+    conn = sqlite3.connect(str(db_path))
+    (candidates_json,) = conn.execute(
+        "SELECT candidates_json FROM scrape_decision WHERE id = ?",
+        (body["decision_id"],),
+    ).fetchone()
+    conn.close()
+    seeded = json.loads(candidates_json)
+    assert len(seeded) == 1
+    assert seeded[0]["title"] == "Mystery Film"
+
+
+def test_enqueue_fail_soft_when_provider_unavailable(test_config, tmp_path: Path) -> None:
+    """§3 fail-soft — a provider outage still enqueues, but ``candidates_seeded=False``.
+
+    The decision is created (never lost) with an empty candidate list so the UI can show
+    an explicit "no automatic proposal" state instead of a success it cannot back.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.decisions.search import ProviderSearchError
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    (movies / "Offline Film (2019)").mkdir(parents=True)
+    _write_video(movies / "Offline Film (2019)" / "Offline Film (2019).mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Offline Film (2019)")
+    with patch(
+        "personalscraper.web.decisions.search.search_candidates",
+        side_effect=ProviderSearchError("TMDB down"),
+    ):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/enqueue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["candidates_seeded"] is False
+    assert body["candidates_count"] == 0
+
+    conn = sqlite3.connect(str(db_path))
+    (candidates_json,) = conn.execute(
+        "SELECT candidates_json FROM scrape_decision WHERE id = ?",
+        (body["decision_id"],),
+    ).fetchone()
+    conn.close()
+    assert json.loads(candidates_json) == []

@@ -37,6 +37,7 @@ from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.scraper.decision_candidate import DecisionCandidate
 from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
 from personalscraper.web.decisions.reserve import _reserve_decision_run
+from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
 from personalscraper.web.deps import (
     is_staging_role,
     require_not_staging,
@@ -294,47 +295,6 @@ def get_decision(
 # ── POST /{id}/search ────────────────────────────────────────────────────────
 
 
-def _build_provider_clients(request: Request) -> tuple[object, object]:
-    """Create request-scoped TMDB and TVDB clients for a search.
-
-    Builds a fresh :class:`AppContext` with a :class:`ProviderRegistry`
-    for this single request — never stored on ``app.state`` (composition-
-    boundary rule).  The returned clients are raw provider objects; the
-    caller casts them to the specific types it needs.
-
-    The AppContext builds are expensive relative to a pure-db route, but
-    live-provider search is an infrequent operator action, not a hot
-    polling endpoint.
-
-    Args:
-        request: The incoming FastAPI request.
-
-    Returns:
-        A ``(tmdb_client, tvdb_client)`` tuple of provider client objects.
-
-    Raises:
-        HTTPException: 502 when the provider registry cannot be built
-            (missing API keys or misconfigured providers section).
-    """
-    from personalscraper.cli_helpers import _build_app_context
-
-    config = request.app.state.config
-    settings = request.app.state.settings
-
-    try:
-        app_context = _build_app_context(config, settings)
-        # provider_registry.get raises UnknownProviderError when a provider is
-        # not registered (disabled in the registry overlay) — keep it inside the
-        # try so it maps to the documented 502, not an untyped 500 (F03).
-        tmdb_client = app_context.provider_registry.get("tmdb")
-        tvdb_client = app_context.provider_registry.get("tvdb")
-    except Exception as exc:
-        logger.error("decisions_search_registry_failed", error=str(exc))
-        raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
-
-    return tmdb_client, tvdb_client
-
-
 @router.post("/{decision_id}/search", response_model=SearchResponse)
 def search_decision(
     decision_id: int,
@@ -372,26 +332,9 @@ def search_decision(
     media_kind: str = row["media_kind"]
 
     try:
-        tmdb_client, tvdb_client = _build_provider_clients(request)
-    except HTTPException:
-        raise  # Re-raise the 502 from _build_provider_clients.
-
-    if media_kind == "movie":
-        from personalscraper.scraper.confidence import match_movie_detailed
-
-        try:
-            _, candidates = match_movie_detailed(tmdb_client, body.title, body.year)
-        except Exception as exc:
-            logger.error("decisions_search_movie_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"TMDB search failed: {exc}") from exc
-    else:
-        from personalscraper.scraper.confidence import match_tvshow_detailed
-
-        try:
-            _, candidates = match_tvshow_detailed(tvdb_client, tmdb_client, body.title, body.year)
-        except Exception as exc:
-            logger.error("decisions_search_tvshow_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"Provider search failed: {exc}") from exc
+        candidates = search_candidates(request, media_kind, body.title, body.year)
+    except ProviderSearchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return SearchResponse(candidates=candidates)
 

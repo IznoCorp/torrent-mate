@@ -17,6 +17,7 @@ write, so the read-only staging web instance serves them unchanged.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Literal, cast
 
@@ -362,6 +363,28 @@ def enqueue_staging_decision(media_id: str, request: Request) -> EnqueueDecision
     if db_path is None:
         raise HTTPException(status_code=503, detail="No indexer database configured")
 
+    # §3 — seed candidates so the item enters the resolution deck WITH proposals,
+    # never an empty shell. Reuse the very same provider matchers as
+    # POST /api/decisions/{id}/search (one search path, not a second mechanism).
+    # Fail-soft: a provider outage still enqueues the decision, but with
+    # candidates_seeded=False so the UI shows an explicit "no automatic proposal"
+    # state (+ prefilled manual search) instead of a silently empty grid.
+    from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
+
+    candidates_seeded = False
+    try:
+        candidates = search_candidates(request, media_kind, title, year)
+        candidates_seeded = True
+    except ProviderSearchError as exc:
+        logger.warning(
+            "staging_enqueue_candidate_seed_failed",
+            media_id=media_id,
+            title=title,
+            error=str(exc),
+        )
+        candidates = []
+    candidates_json = json.dumps([c.model_dump() for c in candidates])
+
     from personalscraper.scraper.decision_writer import DecisionWriter
 
     decision_id = DecisionWriter(db_path).upsert(
@@ -370,13 +393,22 @@ def enqueue_staging_decision(media_id: str, request: Request) -> EnqueueDecision
         extracted_title=title,
         extracted_year=year,
         trigger="manual",
-        candidates_json="[]",
+        candidates_json=candidates_json,
         run_uid=None,
     )
-    logger.info("staging_enqueue_decision", media_id=media_id, title=title, media_kind=media_kind)
+    logger.info(
+        "staging_enqueue_decision",
+        media_id=media_id,
+        title=title,
+        media_kind=media_kind,
+        candidates_count=len(candidates),
+        candidates_seeded=candidates_seeded,
+    )
     return EnqueueDecisionResponse(
         ok=True,
         media_kind=cast("StagingMediaKind", media_kind),
         title=title,
         decision_id=decision_id,
+        candidates_count=len(candidates),
+        candidates_seeded=candidates_seeded,
     )
