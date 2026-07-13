@@ -320,7 +320,7 @@ export function DecisionDetail({
       setRunUid(data.run_uid);
       setRunDone(false);
       invalidatedOnDone.current = false;
-      toast.success("Re-scraping lancé.");
+      toast.success("Résolu — le média poursuit son pipeline jusqu'au dispatch.");
       // Optimistic invalidation at 202. The row is still 'pending' until the
       // detached runner marks it resolved — the completion poll below fires a
       // second invalidation once the run is terminal (F19/F49).
