@@ -320,9 +320,7 @@ def decision_activity(request: Request) -> DecisionActivityResponse:
                 )
             )
 
-        pending_row = conn.execute(
-            "SELECT COUNT(*) FROM scrape_decision WHERE status = 'pending'"
-        ).fetchone()
+        pending_row = conn.execute("SELECT COUNT(*) FROM scrape_decision WHERE status = 'pending'").fetchone()
         pending_count: int = pending_row[0] if pending_row else 0
 
     return DecisionActivityResponse(in_progress=in_progress, pending_count=pending_count)
