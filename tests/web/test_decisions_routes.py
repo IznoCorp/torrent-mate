@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import subprocess
+import sys
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -581,7 +583,9 @@ class TestDecisionActivity:
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
         _seed_decision(conn, decision_id=1, media_kind="movie", extracted_title="Fight Club")
-        _seed_running_resolve(conn, decision_id=1, run_uid="run-live-1")
+        # A truly in-flight scrape has a LIVE pid (the runner claims its own pid on
+        # spawn) — the activity endpoint only shows pid-alive rows (§3 visibility).
+        _seed_running_resolve(conn, decision_id=1, run_uid="run-live-1", pid=os.getpid())
         conn.close()
 
         client = _build_authenticated_client_with_decisions(
@@ -595,6 +599,35 @@ class TestDecisionActivity:
         assert data["in_progress"][0]["decision_id"] == 1
         assert data["in_progress"][0]["title"] == "Fight Club"
         assert data["in_progress"][0]["started_at"] > 0
+
+    def test_activity_hides_phantom_scrape(self, test_config, tmp_path: Path) -> None:
+        """A scrape-resolve row whose runner is dead / never claimed a pid is NOT shown.
+
+        Regression for product-intent.md §3: a runner killed by SIGKILL / a machine
+        crash never finalizes, so ``ended_at`` stays NULL forever. Without a pid
+        liveness check the panel would show that dead scrape "in progress"
+        indefinitely — a false visibility. Both a NULL-pid row (crashed before
+        claiming its pid) and a dead-pid row (SIGKILLed after) must be filtered out.
+        """
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1, media_kind="movie", extracted_title="Ghost Scrape")
+        # A reaped child pid is deterministically dead (SIGKILL-after-claim case).
+        dead = subprocess.Popen([sys.executable, "-c", "pass"])
+        dead.wait()
+        _seed_running_resolve(conn, decision_id=1, run_uid="run-dead", pid=dead.pid)
+        # NULL pid: crashed before claiming a pid (pre-pid-migration equivalent).
+        _seed_running_resolve(conn, decision_id=1, run_uid="run-null", pid=None)
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        data = client.get("/api/decisions/activity").json()
+        assert data["in_progress"] == []
+        # The decision is still pending, so it is still counted in the queue.
+        assert data["pending_count"] == 1
 
     def test_activity_empty_when_nothing_running(self, test_config, tmp_path: Path) -> None:
         """No running scrape and no pending decision → empty activity (not a 4xx)."""

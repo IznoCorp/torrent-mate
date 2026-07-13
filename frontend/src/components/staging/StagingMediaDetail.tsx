@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 import { enqueueStagingDecision, type StagingMediaItem } from "@/api/client";
 import { decisionsKeys } from "@/api/decisions";
+import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
+import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
@@ -107,7 +109,16 @@ export function StagingMediaDetail({
           "Ajouté à la file — aucune proposition automatique. Ajustez le titre / l'année et relancez la recherche dans le deck.",
         );
       }
+      // Invalidate every surface the new decision touches: the deck/queue, the
+      // staging grid chip (absent → ambiguous), and the per-media pipeline stages
+      // (the matching frontier is now a pending decision). Without the staging +
+      // stages invalidation the grid keeps showing the item as 'absent' until an
+      // unrelated refetch (§3 — the queue/matching state must reflect reality now).
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
+      void queryClient.invalidateQueries({
+        queryKey: pipelineStagesKeys.stages,
+      });
       // C18: same grammar as an ambiguous card — jump the deck to the freshly
       // enqueued decision.
       onResolve?.(data.decision_id ?? undefined);

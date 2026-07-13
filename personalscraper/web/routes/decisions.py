@@ -86,6 +86,32 @@ def _db_path(request: Request) -> Path:
     return cast(Path, request.app.state.config.indexer.db_path)
 
 
+def _pid_alive(pid: object) -> bool:
+    """Return whether *pid* names a live process (a NULL / dead pid → ``False``).
+
+    Mirrors the liveness check in ``web.decisions.reserve`` so the activity panel
+    and the reservation guard agree on what counts as an in-flight scrape: a row
+    whose runner died (SIGKILL / crash) or never claimed a pid is stale, not live.
+
+    Args:
+        pid: The ``pipeline_run.pid`` value (``int`` when claimed, else ``None``).
+
+    Returns:
+        ``True`` when *pid* is a positive int naming a live process, else ``False``.
+    """
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False  # No such process → the runner is dead.
+    except PermissionError:
+        return True  # Exists but owned by another user → still alive.
+    except OSError:
+        return False
+    return True
+
+
 def _row_to_list_item(row: sqlite3.Row) -> DecisionListItem:
     """Convert a ``scrape_decision`` row to a :class:`DecisionListItem`.
 
@@ -296,11 +322,18 @@ def decision_activity(request: Request) -> DecisionActivityResponse:
         conn.row_factory = sqlite3.Row
 
         runs = conn.execute(
-            "SELECT started_at, options_json FROM pipeline_run "
+            "SELECT started_at, options_json, pid FROM pipeline_run "
             "WHERE command = 'scrape-resolve' AND ended_at IS NULL "
             "ORDER BY started_at DESC"
         ).fetchall()
         for run in runs:
+            # Skip phantom rows: a runner killed by SIGKILL / a machine crash never
+            # runs its finalize, so ended_at stays NULL forever. Only a scrape whose
+            # pid is still alive is truly in progress (mirrors reserve.py's liveness
+            # guard) — otherwise the panel shows a dead scrape "in progress"
+            # indefinitely, which breaks §3's "visibility must be TRUE" invariant.
+            if not _pid_alive(run["pid"]):
+                continue
             try:
                 options = json.loads(run["options_json"]) if run["options_json"] else {}
             except (json.JSONDecodeError, TypeError):
