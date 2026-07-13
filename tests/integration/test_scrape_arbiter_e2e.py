@@ -308,7 +308,12 @@ class TestScrapeArbiterE2E:
         mock_client = MagicMock()
         mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
 
-        artwork_mock = _mock_artwork_downloader()
+        # True E2E: the command delegates to the REAL ``Scraper.scrape_movie_forced``
+        # (which runs the SAME canonical write as the automatic scrape). Only the
+        # artwork METHOD is patched on the class — this affects the Scraper's real
+        # ArtworkDownloader instance, so no network I/O happens while still proving
+        # the delegation reaches artwork. The real NFOGenerator writes the NFO.
+        art_mock = MagicMock(return_value=[])
 
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
@@ -322,14 +327,11 @@ class TestScrapeArbiterE2E:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch("personalscraper.commands.scrape_resolve._find_largest_video", return_value=None),
-            patch(_PATCH_EXTRACT_STREAM_INFO, return_value=None),
-            patch(_PATCH_NFO_GENERATOR, return_value=_mock_nfo_generator_that_writes()),
-            patch(_PATCH_ARTWORK_DOWNLOADER, return_value=artwork_mock),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader.download_movie_artwork", art_mock),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
         assert "Successfully resolved decision" in result.output
 
         # NFO must be written under the CANONICAL name (parsed title, no "(Year)"),
@@ -339,7 +341,6 @@ class TestScrapeArbiterE2E:
         # "extra NFO" and verify never finds (it looks for "Fight Club.nfo").
         nfo_path = staging / "Fight Club.nfo"
         assert nfo_path.exists(), f"NFO file not found at {nfo_path}"
-        assert nfo_path.read_text(encoding="utf-8") == "<movie/>"
         assert not (staging / "Fight Club (1999).nfo").exists()
 
         # Decision row must be resolved.
@@ -351,8 +352,8 @@ class TestScrapeArbiterE2E:
         assert resolution["provider_id"] == 550
         assert resolution["via"] == "pick"
 
-        # Artwork calls were attempted.
-        assert artwork_mock.download_movie_artwork.call_count >= 1, "artwork downloader was not called"
+        # The real delegation reached artwork download.
+        assert art_mock.call_count >= 1, "artwork downloader was not called"
 
     def test_provider_failure_leaves_decision_pending(self, tmp_path: Path, test_config: Any) -> None:
         """Provider raises → exit 1, decision stays ``'pending'``.

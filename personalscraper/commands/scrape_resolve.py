@@ -16,16 +16,13 @@ from __future__ import annotations
 import sqlite3 as _sqlite3
 import unicodedata
 from pathlib import Path
-from typing import Any, cast
 
 import typer
 
 from personalscraper import cli as cli_compat
-from personalscraper._fs_utils import is_apple_double
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.lock import (
     acquire_scrape_resolve_lock,
@@ -43,35 +40,6 @@ _VALID_VIA = frozenset({"pick", "search_override"})
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _find_largest_video(media_dir: Path) -> Path | None:
-    """Find the largest video file in a directory for stream-info extraction.
-
-    Args:
-        media_dir: Path to search recursively.
-
-    Returns:
-        Path to the largest video file by size, or ``None`` when no video
-        files are found.
-    """
-    largest: Path | None = None
-    largest_size = 0
-    for f in media_dir.rglob("*"):
-        if not f.is_file():
-            continue
-        if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
-            continue
-        if is_apple_double(f.name):
-            continue
-        try:
-            size = f.stat().st_size
-            if size > largest_size:
-                largest = f
-                largest_size = size
-        except OSError:
-            continue
-    return largest
 
 
 def _lookup_decision(db_path: Path, staging_path: Path) -> tuple[int, str, str] | None:
@@ -243,51 +211,52 @@ def scrape_resolve(
 
         console.print(f"[bold]Scrape-resolving '{staging_path.name}' via {provider}:{provider_id}...[/bold]")
 
-        scraper_config = config.scraper
         patterns = NamingPatterns()
 
-        from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
-        from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
-
-        nfo_gen = NFOGenerator(db_path=db_path)
-        artwork_dl = ArtworkDownloader(
-            dry_run=False,
-            artwork_language=scraper_config.artwork_language,
-            db_path=db_path,
-        )
-
         with per_step_boundary(config, settings) as app_context:
+            # Delegate to the SAME scrape services as the automatic pipeline via
+            # a forced provider match (the operator has already asserted the
+            # identity). This produces a COMPLETE canonical result — folder +
+            # video rename for movies, episode rename + per-episode NFOs for TV,
+            # plus the NFO and artwork — instead of the previous NFO-only write
+            # that left the folder/video/episodes unrenamed and the pipeline's
+            # ``verify`` step blocking dispatch (product-intent §méthode; the
+            # resolve-but-never-dispatch loop the operator reported).
+            from personalscraper.scraper.orchestrator import Scraper  # noqa: PLC0415
+
+            scraper = Scraper(
+                settings=settings,
+                patterns=patterns,
+                dry_run=False,
+                config=config,
+                event_bus=app_context.event_bus,
+                registry=app_context.provider_registry,
+            )
             if media_kind == "movie":
-                _scrape_movie(
-                    app_context,
-                    provider_id,
-                    staging_path,
-                    nfo_gen,
-                    artwork_dl,
-                    patterns,
-                )
+                scrape_result = scraper.scrape_movie_forced(staging_path, provider_id)
             else:
-                _scrape_tvshow(
-                    app_context,
-                    provider,
-                    provider_id,
-                    staging_path,
-                    nfo_gen,
-                    artwork_dl,
-                    patterns,
-                )
+                scrape_result = scraper.scrape_tvshow_forced(staging_path, provider, provider_id)
+
+            if scrape_result.error or scrape_result.action == "error":
+                detail = scrape_result.error or scrape_result.action
+                console.print(f"[red]Scrape failed for '{staging_path.name}': {detail}[/red]")
+                raise typer.Exit(1)
 
             # ── 5b. Verify an NFO actually landed before marking resolved ──
-            # 'resolved' must imply a scraped folder (an NFO on disk). A scrape
-            # that left no NFO — a write no-op, or an NFO removed mid-flight —
-            # must NOT report success, else the library shows a 'resolved' item
-            # as unscraped and the operator cannot tell it needs re-doing
-            # (webui-overhaul #3). glob_nfo_candidates finds any root *.nfo.
+            # 'resolved' must imply a scraped folder (an NFO on disk). The forced
+            # write may have RENAMED the folder to its canonical ``Title (Year)``
+            # form, so check the RESULT's ``media_path`` (the post-rename path),
+            # not the original ``staging_path`` — otherwise a renamed-but-scraped
+            # item looks unscraped. A scrape that left no NFO — a write no-op, or
+            # an NFO removed mid-flight — must NOT report success, else the
+            # library shows a 'resolved' item as unscraped and the operator
+            # cannot tell it needs re-doing (webui-overhaul #3).
             from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
 
-            if not glob_nfo_candidates(staging_path):
+            final_path = scrape_result.media_path
+            if not glob_nfo_candidates(final_path):
                 console.print(
-                    f"[red]No NFO on disk after scraping '{staging_path.name}' — "
+                    f"[red]No NFO on disk after scraping '{final_path.name}' — "
                     f"not marking decision {decision_id} resolved (it stays pending).[/red]"
                 )
                 raise typer.Exit(1)
@@ -319,173 +288,3 @@ def scrape_resolve(
 
     finally:
         release_scrape_resolve_lock(item_lock)
-
-
-# ---------------------------------------------------------------------------
-# Per-media-kind scrape helpers
-# ---------------------------------------------------------------------------
-
-
-def _scrape_movie(
-    app_context: Any,
-    api_id: int,
-    staging_path: Path,
-    nfo_gen: Any,
-    artwork_dl: Any,
-    patterns: NamingPatterns,
-) -> None:
-    """Fetch movie metadata by TMDB ID, write NFO + artwork into *staging_path*.
-
-    Args:
-        app_context: The per-step :class:`AppContext` carrying the provider
-            registry.
-        api_id: TMDB movie identifier.
-        staging_path: The staging directory to write NFO and artwork into.
-        nfo_gen: Configured :class:`NFOGenerator` instance.
-        artwork_dl: Configured :class:`ArtworkDownloader` instance.
-        patterns: Naming-patterns helper for filename generation.
-
-    Raises:
-        typer.Exit: 1 on any API or write failure.
-    """
-    from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
-
-    tmdb = cast("TMDBClient", app_context.provider_registry.get("tmdb"))
-
-    try:
-        movie_data = tmdb.get_movie(api_id)
-    except Exception as exc:
-        log.error("scrape_resolve_movie_api_failed", api_id=api_id, error=str(exc))
-        raise typer.Exit(1) from exc
-
-    from personalscraper.scraper._movie_convert import _coerce_to_movie_data  # noqa: PLC0415
-
-    coerced = _coerce_to_movie_data(movie_data)
-
-    # Stream info from the largest video file (best-effort).
-    video_file = _find_largest_video(staging_path)
-    stream_info: dict[str, Any] | None = None
-    if video_file is not None:
-        from personalscraper.scraper.mediainfo import extract_stream_info  # noqa: PLC0415
-
-        try:
-            stream_info = extract_stream_info(video_file)
-        except Exception:
-            log.warning(
-                "scrape_resolve_stream_info_failed",
-                video_file=str(video_file),
-                exc_info=True,
-            )
-
-    # NFO.  Name it CANONICALLY — the parsed title WITHOUT the "(Year)" suffix,
-    # exactly as the automatic scrape does (scraper/movie_service.py) — so the
-    # pipeline's enforce and verify steps recognise it. Naming it after the raw
-    # folder name wrote e.g. "Obsession (2026).nfo", which enforce deletes as an
-    # "extra NFO" and verify never finds (it looks for "Obsession.nfo"), silently
-    # re-un-identifying the manually-resolved item on the next pipeline run.
-    from personalscraper.scraper.classifier import _parse_folder_name  # noqa: PLC0415
-
-    parsed_title, _year = _parse_folder_name(staging_path.name)
-    nfo_name = patterns.format("movie_nfo", Title=parsed_title)
-    nfo_path = staging_path / nfo_name
-    try:
-        xml = nfo_gen.generate_movie_nfo(coerced, stream_info)
-        nfo_gen.write_nfo(xml, nfo_path)
-    except Exception as exc:
-        log.error("scrape_resolve_nfo_write_failed", path=str(nfo_path), error=str(exc))
-        raise typer.Exit(1) from exc
-
-    # Artwork.
-    try:
-        artwork_dl.download_movie_artwork(coerced, staging_path, patterns)
-    except Exception as exc:
-        log.error(
-            "scrape_resolve_artwork_failed",
-            path=str(staging_path),
-            error=str(exc),
-        )
-        raise typer.Exit(1) from exc
-
-    log.info(
-        "scrape_resolve_movie_done",
-        api_id=api_id,
-        staging_path=str(staging_path),
-    )
-
-
-def _scrape_tvshow(
-    app_context: Any,
-    source: str,
-    api_id: int,
-    staging_path: Path,
-    nfo_gen: Any,
-    artwork_dl: Any,
-    patterns: NamingPatterns,
-) -> None:
-    """Fetch TV-show metadata from *source* by ID, write NFO + artwork.
-
-    Honours the multi-provider separation boundary: a TVDB-matched show is
-    fetched from TVDB (never ``tmdb.get_tv`` with a TVDB id), a TMDB-matched
-    show from TMDB.  The shared :func:`~personalscraper.scraper._tvdb_convert.fetch_show_data`
-    helper enforces this discipline in one place.
-
-    Args:
-        app_context: The per-step :class:`AppContext` carrying the provider
-            registry.
-        source: Resolved provider — ``"tvdb"`` or ``"tmdb"``.
-        api_id: TVDB series id when *source* is ``"tvdb"``, otherwise TMDB id.
-        staging_path: The staging directory to write NFO and artwork into.
-        nfo_gen: Configured :class:`NFOGenerator` instance.
-        artwork_dl: Configured :class:`ArtworkDownloader` instance.
-        patterns: Naming-patterns helper for filename generation.
-
-    Raises:
-        typer.Exit: 1 on any API or write failure.
-    """
-    from personalscraper.scraper._tvdb_convert import fetch_show_data  # noqa: PLC0415
-
-    provider_client = app_context.provider_registry.get(source)
-
-    try:
-        show_data, _xref_tmdb = fetch_show_data(
-            source,
-            api_id,
-            provider_client,
-            preferred_language="fr-FR",
-            fallback_language="en-US",
-        )
-    except Exception as exc:
-        log.error(
-            "scrape_resolve_tvshow_api_failed",
-            source=source,
-            api_id=api_id,
-            error=str(exc),
-        )
-        raise typer.Exit(1) from exc
-
-    # NFO.
-    nfo_path = staging_path / "tvshow.nfo"
-    try:
-        xml = nfo_gen.generate_tvshow_nfo(show_data)
-        nfo_gen.write_nfo(xml, nfo_path)
-    except Exception as exc:
-        log.error("scrape_resolve_nfo_write_failed", path=str(nfo_path), error=str(exc))
-        raise typer.Exit(1) from exc
-
-    # Artwork.
-    try:
-        artwork_dl.download_tvshow_artwork(show_data, staging_path, patterns)
-    except Exception as exc:
-        log.error(
-            "scrape_resolve_artwork_failed",
-            path=str(staging_path),
-            error=str(exc),
-        )
-        raise typer.Exit(1) from exc
-
-    log.info(
-        "scrape_resolve_tvshow_done",
-        source=source,
-        api_id=api_id,
-        staging_path=str(staging_path),
-    )

@@ -6,7 +6,7 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
@@ -812,6 +812,42 @@ class MovieServiceMixin:
                 log.error("movie_details_no_provider", api_title=match.api_title, source=match.source)
             return result
 
+        return self._write_confirmed_movie(movie_dir, match, movie_data, title, year, result)
+
+    def _write_confirmed_movie(
+        self,
+        movie_dir: Path,
+        match: MatchResult,
+        movie_data: MediaDetails | dict[str, Any],
+        title: str,
+        year: int | None,
+        result: ScrapeResult,
+    ) -> ScrapeResult:
+        """Apply a confirmed movie match to the folder (rename + NFO + artwork).
+
+        The canonical write shared by the automatic scrape (:meth:`scrape_movie`,
+        after a confident/selected match) and the operator-forced resolve
+        (:meth:`scrape_movie_forced`). Renames the folder to ``Title (Year)``,
+        renames the video to the canonical ``Title.<ext>``, removes orphan root
+        videos, classifies the category, writes the NFO and downloads artwork —
+        exactly the shape the ``verify`` step and dispatch expect. Extracted
+        verbatim from ``scrape_movie`` so a manual resolution produces an
+        identical, complete result instead of a partial NFO-only write.
+
+        Args:
+            movie_dir: The movie's staging directory (pre-rename).
+            match: The confirmed :class:`MatchResult` (provider id/title/year).
+            movie_data: Provider details (typed ``MediaDetails`` or legacy dict).
+            title: Parsed folder title (year stripped).
+            year: Parsed folder year (fallback when the API omits one).
+            result: The :class:`ScrapeResult` to populate and return.
+
+        Returns:
+            The populated :class:`ScrapeResult` (``action="scraped"`` on success).
+        """
+        nfo_name = self.patterns.format("movie_nfo", Title=title)
+        nfo_path = movie_dir / nfo_name
+
         # Resolve title: use local FR title if preferred and available
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, movie_data, "movie"))
         api_year = match.api_year or year
@@ -991,3 +1027,54 @@ class MovieServiceMixin:
 
         result.action = "scraped"
         return result
+
+    def scrape_movie_forced(self, movie_dir: Path, provider_id: int) -> ScrapeResult:
+        """Scrape a movie against an operator-chosen TMDB id, bypassing matching.
+
+        A manual resolution / re-scrape: the operator has already asserted the
+        identity, so this skips confidence matching entirely and fetches the
+        chosen TMDB id directly, then runs the SAME canonical write as the
+        automatic scrape (:meth:`_write_confirmed_movie`) — folder rename, video
+        rename, NFO and artwork. This is what makes a resolved item complete and
+        dispatchable (webui-overhaul / product-intent §méthode); the previous
+        NFO-only resolve left the folder + video unrenamed, so ``verify`` blocked
+        dispatch on a poster-name mismatch.
+
+        Args:
+            movie_dir: The movie's staging directory.
+            provider_id: The operator-chosen TMDB movie id (movies are TMDB-only).
+
+        Returns:
+            A :class:`ScrapeResult`; ``action="error"`` with ``result.error`` set
+            when the provider fetch fails (fail-soft, never raises).
+        """
+        from personalscraper.scraper.confidence import MatchResult  # noqa: PLC0415
+
+        title, year = _parse_folder_name(movie_dir.name)
+        result = ScrapeResult(media_path=movie_dir, media_type="movie")
+        # Movies are TMDB-only; cast to the details protocol for the direct fetch
+        # (the automatic path reaches the same call via a chain + isinstance guard).
+        provider = cast("MovieDetailsProvider", self._registry.get("tmdb"))
+        try:
+            movie_data = provider.get_movie(str(provider_id))
+        except Exception as exc:  # noqa: BLE001 — surfaced as a fail-soft result
+            result.error = f"Get details failed: {exc}"
+            result.action = "error"
+            log.error("forced_movie_details_failed", provider_id=provider_id, error=str(exc))
+            return result
+        # Build the forced match from the fetched details so ``_resolve_title``
+        # has the provider's canonical title even when ``prefer_local_title`` is
+        # off (it falls back to ``match.api_title``). Year comes from the coerced
+        # ``release_date`` (the dict shape has no ``year`` key).
+        coerced = _coerce_to_movie_data(movie_data)
+        api_title = str(coerced.get("title") or title)
+        release_date = str(coerced.get("release_date") or "")
+        api_year = int(release_date[:4]) if release_date[:4].isdigit() else year
+        match = MatchResult(
+            api_id=provider_id,
+            api_title=api_title,
+            api_year=api_year,
+            confidence=1.0,
+            source="tmdb",
+        )
+        return self._write_confirmed_movie(movie_dir, match, movie_data, title, year, result)

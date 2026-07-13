@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import requests
 
-from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
@@ -35,12 +34,6 @@ from personalscraper.scraper.episode_manager import (
 )
 from personalscraper.scraper.existing_validator import _infer_year_from_child_names, _local_show_seasons
 from personalscraper.scraper.nfo_generator import NFOGenerator
-from personalscraper.scraper.rename_service import (
-    _cleanup_empty_release_dirs,
-    _cleanup_stale_files,
-    _merge_dirs,
-    _rename_dir_case_safe,
-)
 from personalscraper.scraper.tv_service_episodes import (
     _episode_payload as _episode_payload,
 )
@@ -232,6 +225,7 @@ class TvServiceMixin:
     _recover_tvshow_artwork: "Callable[..., None]"
     _repair_tvshow_dir: "Callable[..., bool]"
     _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 extraction)
+    _write_confirmed_show: "Callable[..., ScrapeResult]"  # from TvServiceWriteMixin
 
     @staticmethod
     def _to_tvdb_language(language: str) -> str:
@@ -360,188 +354,17 @@ class TvServiceMixin:
         if lookup is None:
             return result
         match, show_data, tmdb_id, resolved_title = lookup
-
-        # Rename folder to canonical name
-        old_dir_name = show_dir.name  # Save before potential rename
-        canonical = self.patterns.format(
-            "movie_dir",
-            Title=resolved_title,
-            Year=match.api_year or year or "",
+        return self._write_confirmed_show(
+            show_dir,
+            match,
+            show_data,
+            tmdb_id,
+            resolved_title,
+            title,
+            year,
+            result,
+            drift_rescrape_episode_nfo=drift_rescrape_episode_nfo,
         )
-        # NFC-compare: macOS stores filenames in NFD, Python strings are typically
-        # NFC; a naive string compare treats them as different and triggers a
-        # rename-into-self merge that empties the folder. See
-        # ``verify_tvshow_scrape_drift`` for the matching normalization on the
-        # read side.
-        if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
-            new_dir = show_dir.parent / canonical
-            if not self.dry_run:
-                try:
-                    if new_dir.exists():
-                        try:
-                            is_same_dir = show_dir.samefile(new_dir)
-                        except OSError:
-                            is_same_dir = False
-                        if is_same_dir:
-                            _rename_dir_case_safe(show_dir, new_dir)
-                            log.info("show_folder_renamed", title=title, dest=canonical)
-                        else:
-                            moved, merge_failed = _merge_dirs(show_dir, new_dir)
-                            log.info("show_folder_merged", title=title, dest=canonical, items=moved)
-                            if merge_failed:
-                                result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
-                    else:
-                        _rename_dir_case_safe(show_dir, new_dir)
-                        log.info("show_folder_renamed", title=title, dest=canonical)
-                    show_dir = new_dir
-                    result.media_path = new_dir
-                except OSError as exc:
-                    result.error = f"Rename/merge failed: {exc}"
-                    log.error("show_folder_rename_failed", title=title, dest=canonical, error=str(exc))
-                    return result
-                # Non-critical: clean stale files from before rename.
-                # TV show artwork uses fixed names (poster.jpg, tvshow.nfo),
-                # so this is a no-op for standard shows. Kept as safety net.
-                try:
-                    _cleanup_stale_files(show_dir, old_dir_name, canonical)
-                except OSError as exc:
-                    log.warning("stale_cleanup_failed", directory=show_dir.name, error=str(exc))
-            else:
-                action = "merge into" if new_dir.exists() else "rename"
-                log.info("show_folder_would_rename", action=action, title=title, dest=canonical)
-
-        # Classify item — must run before NFO write so the
-        # category_id can be embedded in the NFO by nfo_generator.
-        # For TV shows matched via TVDB the source TMDB ID may differ from
-        # match.api_id — use tmdb_id which was resolved above.
-        nfo_path = show_dir / self.patterns.tvshow_nfo
-        category_id = self._classify_item(
-            media_type=MediaType.TV,
-            path=show_dir,
-            title=resolved_title,
-            api_data=show_data,
-            tmdb_id=tmdb_id,
-            nfo_path=nfo_path if nfo_path.exists() else None,
-        )
-        result.category_id = category_id
-        if category_id is None and self.config is not None:
-            # Config is present but no category matched — skip this item
-            result.action = "skipped_no_category"
-            return result
-
-        # Generate tvshow.nfo
-        try:
-            xml = self._nfo.generate_tvshow_nfo(show_data, category_id=category_id)
-            if not self.dry_run:
-                self._nfo.write_nfo(xml, nfo_path)
-                result.nfo_written = True
-            else:
-                log.info("nfo_would_write", filename="tvshow.nfo")
-        except Exception as e:
-            result.error = f"tvshow.nfo failed: {e}"
-            return result
-
-        # Process episodes — rglob to find files nested in release-group subdirs,
-        # but skip files already organized in Saison XX/ directories.
-        # Trailers/ holds Plex-conformant trailer mp4s, never episodes.
-        #
-        # Episode processing must run BEFORE artwork so the Saison NN/ dirs
-        # exist when ``download_tvshow_artwork`` decides which season posters
-        # to fetch: that helper skips seasons whose folder is absent.
-        total_renamed = 0
-
-        # On an episode-NFO drift re-scrape, ALSO include files that
-        # are already organized in ``Saison NN/`` — otherwise
-        # ``_generate_episode_nfos`` never runs and the episode NFOs
-        # stay broken (the very condition that triggered drift in the
-        # first place, producing an infinite drift→rescrape loop with
-        # no fix). ``rename_episodes`` is idempotent (skips files
-        # already at their destination), so the wider sweep is safe.
-        def _is_in_season_dir(path: Path) -> bool:
-            return bool(SEASON_DIR_RE.match(path.parent.name))
-
-        video_files = sorted(
-            f
-            for f in show_dir.rglob("*")
-            if f.is_file()
-            and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            and (drift_rescrape_episode_nfo or not _is_in_season_dir(f))
-            and "Trailers" not in f.parts
-            and not is_sample_path(f)
-        )
-
-        if video_files:
-            # Resolve the synthetic-title prefix once per show so in-provider
-            # episodes with empty names and post-facto fallbacks share the same
-            # user-configurable wording (default "Episode").
-            episode_default_name = self.config.scraper.episode_default_name if self.config is not None else "Episode"
-            api_episodes = self._build_episode_map(show_dir, match, tmdb_id, episode_default_name)
-
-            # Sequential xref enrichment (phase 5) — backfill the IDs of
-            # the non-canonical provider into ``api_episodes`` so the
-            # NFO writer can emit ``<uniqueid type=canonical>`` AND
-            # ``<uniqueid type=xref>`` on every episode. Fail-soft : a
-            # xref provider exception is logged, the canonical scrape
-            # carries on with what it already has.
-            canonical_provider = match.source
-            tvdb_series_id = match.api_id if canonical_provider == "tvdb" else None
-            self._xref_enrichment(
-                api_episodes,
-                canonical_provider=canonical_provider,
-                tvdb_id=tvdb_series_id,
-                tmdb_id=tmdb_id,
-            )
-
-            total_renamed, nfo_warnings = self._match_seasons(
-                video_files, api_episodes, show_dir, show_data, episode_default_name
-            )
-            result.warnings.extend(nfo_warnings)
-
-            # Clean empty release-group subdirectories left after episode moves
-            if not self.dry_run:
-                try:
-                    _cleanup_empty_release_dirs(show_dir)
-                except OSError as exc:
-                    log.warning("show_clean_release_dirs_failed", show=show_dir.name, error=str(exc))
-
-            # Episodes detected at the show root but none matched/moved into
-            # ``Saison NN/`` — file naming and provider season layout diverge.
-            # Without this signal the operator gets ``action="scraped"`` and
-            # no clue that videos are still loose; verify catches the
-            # filesystem shape but the scrape result itself stays opaque.
-            if total_renamed == 0:
-                loose = [f.name for f in video_files]
-                result.warnings.append(
-                    f"Episodes unmatched against {match.source} api_id={match.api_id}: {', '.join(loose)}"
-                )
-                log.warning(
-                    "show_episodes_unmatched",
-                    provider=match.source,
-                    api_id=match.api_id,
-                    show=show_dir.name,
-                    files=loose,
-                )
-
-        # Download artwork (show-level + season posters). Runs after episode
-        # processing so newly-created Saison NN/ dirs are visible to the
-        # season-poster selection logic in ``download_tvshow_artwork``.
-        try:
-            downloaded = self._artwork.download_tvshow_artwork(
-                show_data,
-                show_dir,
-                self.patterns,
-            )
-            result.artwork_downloaded = [p.name for p in downloaded]
-        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
-            log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork failed: {e}")
-
-        store = DriftIssueStore.from_config(self.config)
-        if store is not None:
-            store.clear(show_dir)
-        result.episodes_renamed = total_renamed
-        result.action = "scraped"
-        return result
 
     def _match_tvshow_candidates(
         self,

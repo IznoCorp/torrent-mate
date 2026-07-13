@@ -22,6 +22,12 @@ import pytest
 from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
 from personalscraper.naming_patterns import PATTERNS, NamingPatterns
 from personalscraper.scraper.tv_service import TvServiceMixin
+from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
+from personalscraper.scraper.tv_service_write import TvServiceWriteMixin
+
+
+class _ScrapeTvMixin(TvServiceMixin, TvServiceNfoMixin, TvServiceWriteMixin):
+    """Combined mixin mirroring ``Scraper`` MRO for the forced-scrape write path."""
 
 
 def _make_mixin(
@@ -31,7 +37,7 @@ def _make_mixin(
     patterns: NamingPatterns | None = None,
 ) -> TvServiceMixin:
     """Build a bare :class:`TvServiceMixin` for direct method calls."""
-    mixin = TvServiceMixin.__new__(TvServiceMixin)
+    mixin = _ScrapeTvMixin.__new__(_ScrapeTvMixin)
     mixin.dry_run = False
 
     _tvdb_client = tvdb if tvdb is not None else MagicMock()
@@ -221,7 +227,7 @@ def test_xref_enrichment_wired_between_build_map_and_match_seasons(tmp_path: Any
     match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.9, source="tvdb")
     mixin._lookup_series = MagicMock(return_value=(match, {"name": "Show"}, 100, "Show"))  # type: ignore[assignment]
 
-    with patch("personalscraper.scraper.tv_service._cleanup_empty_release_dirs"):
+    with patch("personalscraper.scraper.tv_service_write._cleanup_empty_release_dirs"):
         mixin.scrape_tvshow(show_dir)
 
     assert call_log == ["build", "xref", "match"]

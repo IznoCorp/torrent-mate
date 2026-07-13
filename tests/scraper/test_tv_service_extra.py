@@ -44,13 +44,14 @@ from personalscraper.scraper.tv_service import (
     _tvdb_series_to_show_data,
 )
 from personalscraper.scraper.tv_service_nfo import TvServiceNfoMixin
+from personalscraper.scraper.tv_service_write import TvServiceWriteMixin
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-class _TestTvMixin(TvServiceMixin, TvServiceNfoMixin):
+class _TestTvMixin(TvServiceMixin, TvServiceNfoMixin, TvServiceWriteMixin):
     """Combined mixin for tests — mirrors ``Scraper`` MRO."""
 
 
@@ -1319,7 +1320,7 @@ class TestScrapeTvshowFullPath:
                 return_value=(match, []),
             ),
             patch(
-                "personalscraper.scraper.tv_service._rename_dir_case_safe",
+                "personalscraper.scraper.tv_service_write._rename_dir_case_safe",
                 side_effect=OSError("denied"),
             ),
         ):
