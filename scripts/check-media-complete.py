@@ -25,52 +25,14 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import sys
-from pathlib import Path
 
 from personalscraper.conf.loader import load_config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.media_types import FileType
 from personalscraper.naming_patterns import PATTERNS
-from personalscraper.scraper.classifier import _parse_folder_name
+from personalscraper.verify.completeness import video_rename_gap
 from personalscraper.verify.verifier import Verifier
-
-_VIDEO_EXTS = {".mkv", ".mp4", ".avi", ".m4v", ".mov", ".ts", ".wmv"}
-
-
-def _main_video(folder: Path) -> Path | None:
-    """Return the largest non-trailer video file in *folder*, or None."""
-    best: Path | None = None
-    best_size = -1
-    for f in folder.iterdir():
-        if not f.is_file() or f.suffix.lower() not in _VIDEO_EXTS:
-            continue
-        if "trailer" in f.stem.lower() or f.name.startswith("._"):
-            continue
-        try:
-            size = f.stat().st_size
-        except OSError:
-            continue
-        if size > best_size:
-            best, best_size = f, size
-    return best
-
-
-def _video_rename_gap(folder: Path) -> str | None:
-    """Return a message when the movie video is NOT canonically renamed, else None.
-
-    Canonical = ``patterns.format('movie_video', Title=<parsed folder title>)`` — i.e.
-    the folder title (year stripped). A raw release name (with resolution/codec tokens)
-    fails this.
-    """
-    video = _main_video(folder)
-    if video is None:
-        return "no video file found"
-    title, _year = _parse_folder_name(folder.name)
-    expected = PATTERNS.format("movie_video", Title=title)
-    if video.stem != expected:
-        return f"video not renamed: '{video.name}' (expected '{expected}{video.suffix}')"
-    return None
 
 
 def _check(only: list[str]) -> int:
@@ -101,7 +63,7 @@ def _check(only: list[str]) -> int:
             if not r.errors:
                 gaps.append(f"verify status={r.status}")
         if kind == "movie":
-            vg = _video_rename_gap(r.media_path)
+            vg = video_rename_gap(r.media_path)
             if vg is not None:
                 gaps.append(vg)
 

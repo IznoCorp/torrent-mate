@@ -400,6 +400,13 @@ def enqueue_staging_decision(
         503: No indexer DB configured.
     """
     config = _config(request)
+    # Fail before any side effect: an AUTRES reclass below physically MOVES the
+    # folder, so a missing DB must 503 BEFORE the move — otherwise the item is
+    # orphaned out of 098-AUTRES with no decision row to show for it.
+    db_path = config.indexer.db_path
+    if db_path is None:
+        raise HTTPException(status_code=503, detail="No indexer database configured")
+
     resolved = resolve_scrapable_item(config, media_id)
     if resolved is not None:
         media_dir, media_kind, title, year = resolved
@@ -420,10 +427,6 @@ def enqueue_staging_decision(
         other_dir, title, year = other
         media_kind = chosen
         media_dir = _reclass_other_item(config, other_dir, media_kind)
-
-    db_path = config.indexer.db_path
-    if db_path is None:
-        raise HTTPException(status_code=503, detail="No indexer database configured")
 
     # §3 — seed candidates so the item enters the resolution deck WITH proposals,
     # never an empty shell. Reuse the very same provider matchers as

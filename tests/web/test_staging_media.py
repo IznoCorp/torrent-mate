@@ -130,12 +130,15 @@ def _seed_tree(staging_dir: Path, *, with_unmatched: bool = True) -> dict[str, P
     tvshows = staging_dir / "002-TVSHOWS"
     (staging_dir / "097-TEMP").mkdir(parents=True)
 
-    # A fully-scraped movie: nfo + poster + video + trailer.
+    # A fully-scraped movie: canonical NFO + poster + renamed video + trailer.
+    # Names match what the scraper actually produces (real ``Obsession.nfo`` /
+    # ``Obsession-poster.jpg`` / ``Obsession.mkv``) so the REAL verify gate passes
+    # it — the read-model's ``verify`` state reflects that same gate (§méthode r6).
     fight = movies / "Fight Club (1999)"
     fight.mkdir(parents=True)
-    (fight / "movie.nfo").write_text(_MOVIE_NFO, encoding="utf-8")
-    (fight / "poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
-    _write_video(fight / "Fight Club (1999).mkv", size=2048)
+    (fight / "Fight Club.nfo").write_text(_MOVIE_NFO, encoding="utf-8")
+    (fight / "Fight Club-poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    _write_video(fight / "Fight Club.mkv", size=2048)
     _write_video(fight / "Fight Club (1999)-trailer.mp4", size=32)
 
     folders = {"fight": fight}
@@ -147,12 +150,14 @@ def _seed_tree(staging_dir: Path, *, with_unmatched: bool = True) -> dict[str, P
         _write_video(unmatched / "Unknown Film (2020).mkv", size=1024)
         folders["unmatched"] = unmatched
 
-    # A fully-scraped TV show: nfo + poster + one season with an episode.
+    # A fully-scraped TV show: nfo + poster + one season with a CANONICALLY
+    # renamed episode (``SxxExx - Title.ext`` inside ``Saison NN/``) so the real
+    # verify gate passes it.
     bb = tvshows / "Breaking Bad (2008)"
     (bb / "Saison 01").mkdir(parents=True)
     (bb / "tvshow.nfo").write_text(_TVSHOW_NFO, encoding="utf-8")
     (bb / "poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
-    _write_video(bb / "Saison 01" / "Breaking Bad S01E01.mkv", size=4096)
+    _write_video(bb / "Saison 01" / "S01E01 - Pilot.mkv", size=4096)
     folders["bb"] = bb
 
     return folders
@@ -255,6 +260,9 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert fight["poster_url"] == f"/api/staging/media/{fight['id']}/poster"
     assert _stage(fight, "scraping") == "done"
     assert _stage(fight, "trailers") == "done"
+    # Canonical (real verify passes) → verify done, no blocked reason (§méthode r6).
+    assert _stage(fight, "verify") == "done"
+    assert fight["blocked_reason"] is None
     assert _stage(fight, "dispatch") == "pending"
 
     bb = items["Breaking Bad (2008)"]
@@ -269,6 +277,7 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     # strand the downstream ``verify`` behind it (timeline monotonicity).
     assert _stage(bb, "trailers") == "done"
     assert _stage(bb, "verify") == "done"
+    assert bb["blocked_reason"] is None
 
     unmatched = items["Unknown Film (2020)"]
     assert unmatched["match"] == "absent"
@@ -276,6 +285,63 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert unmatched["year"] == 2020
     assert _stage(unmatched, "matching") == "pending"
     assert _stage(unmatched, "scraping") == "pending"
+
+
+def test_verify_blocked_on_unrenamed_episodes(test_config, tmp_path: Path) -> None:
+    """A matched TV show whose episodes are NOT renamed reads ``verify: blocked`` + reason.
+
+    Regression for product-intent.md §méthode rule 6: the read-model used to call
+    such an item "Vérification : Fait" (it had an NFO + ids + a poster + a video),
+    while the pipeline verify — the real dispatch gate — blocks it (unrenamed
+    episodes). The UI must tell the truth: ``verify`` is ``blocked``, never ``done``,
+    and carries a human French ``blocked_reason``. This is the exact Top Chef case.
+    """
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    show = staging / "002-TVSHOWS" / "Top Chef (2026)"
+    (show / "Saison 17").mkdir(parents=True)
+    (show / "tvshow.nfo").write_text(_TVSHOW_NFO, encoding="utf-8")
+    (show / "poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    # Raw release name, NOT the canonical ``SxxExx - Title.ext`` form.
+    _write_video(show / "Saison 17" / "Top.Chef.S17E10.FRENCH.1080p.WEB-laRoulade.mkv", size=4096)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    item = _by_folder(client.get("/api/staging/media").json())["Top Chef (2026)"]
+    # It IS matched (NFO + ids) — the exact "identified but not dispatchable" trap.
+    assert item["match"] == "matched"
+    assert _stage(item, "verify") != "done"
+    assert _stage(item, "verify") == "blocked"
+    assert item["blocked_reason"] is not None
+    assert "épisode" in item["blocked_reason"].lower()
+    _assert_monotonic(item)
+
+
+def test_verify_blocked_on_unrenamed_movie_video(test_config, tmp_path: Path) -> None:
+    """A matched movie whose video keeps its raw release name reads ``verify: blocked``.
+
+    ``verify`` does not enforce movie video renaming, but the library convention (and
+    ``check-media-complete``) does — the read-model reuses that same definition, so a
+    ``Title (Year)/raw.release.name.mkv`` item is ``blocked`` at verify, not ``done``.
+    """
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    movie = staging / "001-MOVIES" / "Fight Club (1999)"
+    movie.mkdir(parents=True)
+    (movie / "Fight Club.nfo").write_text(_MOVIE_NFO, encoding="utf-8")
+    (movie / "Fight Club-poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    # Raw release name instead of the canonical ``Fight Club.mkv``.
+    _write_video(movie / "Fight.Club.1999.1080p.BluRay.x264-AMIABLE.mkv", size=2048)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    item = _by_folder(client.get("/api/staging/media").json())["Fight Club (1999)"]
+    assert item["match"] == "matched"
+    assert _stage(item, "verify") == "blocked"
+    assert item["blocked_reason"] is not None
+    assert "vidéo" in item["blocked_reason"].lower()
 
 
 def _assert_monotonic(item: dict) -> None:

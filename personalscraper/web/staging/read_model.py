@@ -24,6 +24,7 @@ from pathlib import Path
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name, staging_path
+from personalscraper.config import get_settings
 from personalscraper.core.media_types import (
     VIDEO_EXTENSIONS,
     is_sample_path,
@@ -31,7 +32,10 @@ from personalscraper.core.media_types import (
 )
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.logger import get_logger
+from personalscraper.naming_patterns import PATTERNS
 from personalscraper.trailers.placement import find_existing_trailer
+from personalscraper.verify.completeness import dispatch_completeness
+from personalscraper.verify.verifier import Verifier
 from personalscraper.web.models.staging import (
     StagingMediaItem,
     StagingMediaKind,
@@ -347,10 +351,9 @@ def _compute_stages(
     in_ingest: bool,
     scrapable: bool,
     has_nfo: bool,
-    has_poster: bool,
     is_ambiguous: bool,
     is_matched: bool,
-    has_videos: bool,
+    verify_ok: bool,
     live_stage_key: str | None,
 ) -> list[StagingStageStep]:
     """Derive the nine-stage timeline for one staged media — strictly monotonic.
@@ -359,27 +362,33 @@ def _compute_stages(
     per-item stage table), but the nine stages are ordered, so the timeline is
     kept monotonic: a stage is ``done`` only when every earlier (non-skipped)
     stage is ``done`` too. The first incomplete stage is the *frontier*
-    (``blocked`` when a decision is pending, else ``pending``/``active``); every
-    later stage is ``pending`` regardless of stray artefacts — a legacy folder
-    that holds a poster or trailer but no NFO never shows ``trailers`` done while
-    ``matching``/``scraping`` are still pending (the drift-unlink #3 symptom).
+    (``blocked`` when a decision is pending or the real ``verify`` gate fails,
+    else ``pending``/``active``); every later stage is ``pending`` regardless of
+    stray artefacts — a legacy folder that holds a poster or trailer but no NFO
+    never shows ``trailers`` done while ``matching``/``scraping`` are still
+    pending (the drift-unlink #3 symptom).
 
     ``trailers`` completion is gated on the scrape (NFO), **not** on a trailer
     file: the trailers step legitimately produces no file for most media, so its
     absence must not read as "not run" and strand ``verify`` behind it.
-    ``cleaning``/``sorting`` are ``done`` once the item sits in a category dir
-    (inferred from placement); ``dispatch`` is always ``pending`` (a staged item
-    has not been dispatched). A ``pending`` stage flips to ``active`` when the
-    live run's current step maps to it (``live_stage_key``).
+    ``verify`` completion is gated on the REAL pipeline verify verdict
+    (``verify_ok`` — the same DISPATCH-stage gate that authorizes dispatch), NOT
+    a looser "has a poster + a video" heuristic: an item whose video/episodes are
+    not canonically renamed is ``blocked`` at ``verify``, never falsely ``done``
+    (product-intent.md §méthode rule 6). ``cleaning``/``sorting`` are ``done``
+    once the item sits in a category dir; ``dispatch`` is always ``pending`` (a
+    staged item has not been dispatched). A ``pending`` stage flips to ``active``
+    when the live run's current step maps to it (``live_stage_key``).
 
     Args:
         in_ingest: Whether the item is still in the ingest dir (pre-sort).
         scrapable: Whether the kind flows through match/scrape/trailer/verify.
         has_nfo: Whether an NFO is present.
-        has_poster: Whether a local poster is present.
         is_ambiguous: Whether a pending decision blocks matching.
         is_matched: Whether the media has a confident match.
-        has_videos: Whether the tree contains at least one episode/movie video.
+        verify_ok: Whether the real pipeline ``verify`` gate passes this item
+            (``status`` valid/fixed + canonical movie video rename). Only ever
+            ``True`` for a scraped item.
         live_stage_key: Stage key of the live run's current step, or ``None``.
 
     Returns:
@@ -388,6 +397,10 @@ def _compute_stages(
     # A confident scrape (matched + NFO on disk) is the gate for every downstream
     # stage — trailers/verify can only have run once the scrape produced an NFO.
     scraped = has_nfo and is_matched
+    # A scraped item that the real verify gate rejects is BLOCKED at verify — it
+    # will not dispatch until an operator repairs it (e.g. unrenamed episodes for
+    # a provider with no episode data). Distinct from "verify not reached yet".
+    verify_blocked = scraped and not verify_ok
 
     #: Per-stage "the pipeline has completed this stage" signal, in board order.
     completed: dict[str, bool] = {
@@ -398,7 +411,7 @@ def _compute_stages(
         "matching": is_matched and not is_ambiguous,
         "scraping": scraped,
         "trailers": scraped,
-        "verify": scraped and has_poster and has_videos,
+        "verify": verify_ok,
         "dispatch": False,
     }
 
@@ -412,14 +425,106 @@ def _compute_stages(
         elif completed[key]:
             state = "done"
         else:
-            # First incomplete stage: the frontier. A pending decision blocks it.
-            state = "blocked" if (key == "matching" and is_ambiguous) else "pending"
+            # First incomplete stage: the frontier. A pending decision blocks
+            # matching; a failed real verify blocks verify (needs operator repair).
+            blocks = (key == "matching" and is_ambiguous) or (key == "verify" and verify_blocked)
+            state = "blocked" if blocks else "pending"
             frontier_passed = True
         # The live run's current step lights up its (pending) stage as active.
         if state == "pending" and live_stage_key == key:
             state = "active"
         steps.append(StagingStageStep(key=key, label=label, state=state))  # type: ignore[arg-type]
     return steps
+
+
+#: English verify-error substrings → concise French operator reasons. First match
+#: per distinct cause wins; unmapped errors are surfaced verbatim so nothing hides.
+_REASON_FR: tuple[tuple[str, str], ...] = (
+    ("unrenamed episodes", "épisodes non renommés (métadonnées d'épisodes introuvables chez les providers)"),
+    ("properly named episodes", "épisodes non organisés en Saison NN/"),
+    ("no saison", "épisodes non organisés en Saison NN/"),
+    ("video not renamed", "fichier vidéo non renommé (nom canonique attendu)"),
+    ("no video file", "aucun fichier vidéo"),
+    ("root video", "vidéo non organisée à la racine du dossier"),
+    ("poster", "poster manquant"),
+    ("archive", "archives (RAR) non extraites"),
+    ("empty", "dossier vide"),
+    ("ntfs", "nom de fichier incompatible avec le disque"),
+    ("category", "catégorie de rangement non résolue"),
+)
+
+
+def _blocked_reason_fr(errors: list[str]) -> str | None:
+    """Turn raw English verify errors into one concise French operator reason.
+
+    Args:
+        errors: The verify error messages (ERROR-severity + movie video-rename gap).
+
+    Returns:
+        A ``"Bloqué : …"`` French sentence, or ``None`` when *errors* is empty.
+    """
+    if not errors:
+        return None
+    phrases: list[str] = []
+    for err in errors:
+        low = err.lower()
+        for needle, fr in _REASON_FR:
+            if needle in low:
+                if fr not in phrases:
+                    phrases.append(fr)
+                break
+        else:
+            raw = err.strip()
+            if raw and raw not in phrases:
+                phrases.append(raw)
+    if not phrases:
+        return None
+    return "Bloqué : " + " ; ".join(phrases)
+
+
+def _verify_item(verifier: Verifier, media_dir: Path, media_kind: str) -> tuple[bool, str | None]:
+    """Run the real verify gate for one scraped item; return ``(ok, blocked_reason)``.
+
+    Fail-soft: any error is treated as "not verified" with an explicit reason rather
+    than a 500 (the read-only staging instance must still serve).
+
+    Args:
+        verifier: A shared ``Verifier`` built ``dry_run=True, fix=False`` (read-only).
+        media_dir: The scraped media folder.
+        media_kind: ``"movie"`` or ``"tvshow"``.
+
+    Returns:
+        ``(True, None)`` when dispatchable; ``(False, reason)`` when blocked.
+    """
+    try:
+        status, errors = dispatch_completeness(verifier, media_dir, media_kind)
+    except Exception as exc:  # noqa: BLE001 — read-model must never 500 on a bad folder.
+        logger.debug("staging_verify_failed", media=str(media_dir), error=str(exc))
+        return False, "Bloqué : vérification impossible (erreur interne)"
+    if status in ("valid", "fixed"):
+        return True, None
+    return False, _blocked_reason_fr(errors)
+
+
+def _build_verifier(config: Config) -> Verifier | None:
+    """Build the shared read-only ``Verifier`` for a staging scan, or ``None``.
+
+    Constructed once per scan (``dry_run=True, fix=False`` — never mutates disk).
+    Fail-soft: if settings/verifier construction fails, the scan degrades to no
+    verify enrichment rather than erroring.
+
+    Args:
+        config: The loaded config.
+
+    Returns:
+        A read-only ``Verifier``, or ``None`` when it could not be built.
+    """
+    try:
+        settings = get_settings()
+        return Verifier(settings=settings, patterns=PATTERNS, config=config, dry_run=True, fix=False)
+    except Exception as exc:  # noqa: BLE001 — verify is best-effort enrichment.
+        logger.warning("staging_verifier_init_failed", error=str(exc))
+        return None
 
 
 def _build_item(
@@ -431,6 +536,7 @@ def _build_item(
     in_ingest: bool,
     pending: dict[str, tuple[int, str]],
     live_stage_key: str | None,
+    verifier: Verifier | None,
 ) -> StagingMediaItem:
     """Assemble one :class:`StagingMediaItem` from a media folder.
 
@@ -443,6 +549,8 @@ def _build_item(
         in_ingest: Whether the folder is in the ingest dir.
         pending: NFC-keyed pending-decision map from :func:`_load_pending_decisions`.
         live_stage_key: Stage key of the live run's current step, or ``None``.
+        verifier: Shared read-only ``Verifier`` for the real verify gate, or
+            ``None`` when it could not be built (verify enrichment is skipped).
 
     Returns:
         The fully-populated read-model item.
@@ -471,21 +579,29 @@ def _build_item(
             episode_count = sum(s.episode_count for s in seasons)
 
     video_count, size_bytes, latest_mtime = _tree_stats(media_dir)
-    has_videos = video_count > 0
 
     decision = pending.get(_nfc(str(media_dir)))
     is_ambiguous = decision is not None
     is_matched = has_nfo and bool(meta.provider_ids)
     match: str = "ambiguous" if is_ambiguous else "matched" if is_matched else "absent"
 
+    # The real verify gate (the same DISPATCH-stage checks that authorize dispatch)
+    # drives the 'Vérification' timeline state + the human ``blocked_reason``, so the
+    # UI never shows 'Fait' for an item the pipeline would refuse to dispatch
+    # (product-intent.md §méthode rule 6). Only run it for a scraped item — an
+    # unscraped one is blocked earlier (matching/scraping), not at verify.
+    verify_ok = False
+    blocked_reason: str | None = None
+    if scrapable and has_nfo and is_matched and verifier is not None:
+        verify_ok, blocked_reason = _verify_item(verifier, media_dir, media_kind)
+
     stages = _compute_stages(
         in_ingest=in_ingest,
         scrapable=scrapable,
         has_nfo=has_nfo,
-        has_poster=has_poster,
         is_ambiguous=is_ambiguous,
         is_matched=is_matched,
-        has_videos=has_videos,
+        verify_ok=verify_ok,
         live_stage_key=live_stage_key,
     )
 
@@ -512,6 +628,7 @@ def _build_item(
         size_bytes=size_bytes,
         modified_at=latest_mtime,
         stages=stages,
+        blocked_reason=blocked_reason,
     )
 
 
@@ -540,6 +657,9 @@ def scan_staging_media(
     """
     pending = _load_pending_decisions(db_path)
     live_stage_key = _STEP_TO_STAGE.get(live_step) if live_step else None
+    # One shared read-only verifier for the whole scan (§méthode rule 6: the UI
+    # 'Vérification' state must reflect the real dispatch gate, not a looser one).
+    verifier = _build_verifier(config)
 
     items: list[StagingMediaItem] = []
     for entry in config.staging_dirs:
@@ -566,6 +686,7 @@ def scan_staging_media(
                     in_ingest=in_ingest,
                     pending=pending,
                     live_stage_key=live_stage_key,
+                    verifier=verifier,
                 )
             )
     return items
