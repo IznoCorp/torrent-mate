@@ -330,6 +330,52 @@
         "title": "CreateFollowRequest",
         "type": "object"
       },
+      "DecisionActivityItem": {
+        "description": "One scrape currently in progress (a running scrape-resolve run).\n\nAttributes:\n    decision_id: The ``scrape_decision.id`` being resolved.\n    title: The folder-derived title shown to the operator.\n    started_at: Unix-epoch seconds when the resolve run started.",
+        "properties": {
+          "decision_id": {
+            "title": "Decision Id",
+            "type": "integer"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_id",
+          "title",
+          "started_at"
+        ],
+        "title": "DecisionActivityItem",
+        "type": "object"
+      },
+      "DecisionActivityResponse": {
+        "description": "Live activity for the scraping surface: what runs now + how many wait.\n\nAttributes:\n    in_progress: The scrapes running right now (most recent first).\n    pending_count: Number of decisions still waiting in the queue.",
+        "properties": {
+          "in_progress": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionActivityItem"
+            },
+            "title": "In Progress",
+            "type": "array"
+          },
+          "pending_count": {
+            "title": "Pending Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "in_progress",
+          "pending_count"
+        ],
+        "title": "DecisionActivityResponse",
+        "type": "object"
+      },
       "DecisionCandidate": {
         "additionalProperties": false,
         "description": "A single scored search-result candidate for a scrape-decision row.\n\nRepresents one provider match that the operator can inspect and\nresolve.  Stored as an element of the ``candidates_json`` JSON array\nin the ``scrape_decision`` table.\n\nAttributes:\n    provider: The metadata provider that returned this candidate\n        (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The numeric identifier assigned by the provider.\n    title: The candidate title as returned by the provider.\n    year: The release year, or ``None`` when the provider did not\n        return one.\n    score: The confidence score (0.0\u20131.0) assigned by the matching\n        engine.\n    poster_url: The provider poster URL (``http``/``https`` only), or\n        ``None`` when no poster is available or the URL had an untrusted\n        scheme.\n    overview: A short plot summary, or ``None`` when the provider\n        did not return one.",
@@ -4196,6 +4242,28 @@
           }
         },
         "summary": "List Decisions",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/api/decisions/activity": {
+      "get": {
+        "description": "Live scraping activity \u2014 the scrapes running now + the pending queue size.\n\nReuses data that already exists: each resolve reserves a ``pipeline_run`` row\n(``command='scrape-resolve'``); a row with no ``ended_at`` is a scrape in flight.\nThe queue size is the count of ``pending`` decisions. No new state is written \u2014\nthis is the read surface the operator was missing next to true-parallel scraping\n(product-intent.md \u00a73: the file/scrapes-in-progress must be visible).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`DecisionActivityResponse` with the in-progress scrapes and the\n    pending-queue count.",
+        "operationId": "decision_activity_api_decisions_activity_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionActivityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Decision Activity",
         "tags": [
           "decisions"
         ]

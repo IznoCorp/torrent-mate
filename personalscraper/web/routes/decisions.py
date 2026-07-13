@@ -44,6 +44,8 @@ from personalscraper.web.deps import (
     require_x_requested_with,
 )
 from personalscraper.web.models.decisions import (
+    DecisionActivityItem,
+    DecisionActivityResponse,
     DecisionDetail,
     DecisionListItem,
     DecisionsResponse,
@@ -262,6 +264,68 @@ def list_decisions(
         page=page,
         page_size=page_size,
     )
+
+
+# ── GET /activity ────────────────────────────────────────────────────────────
+
+
+@router.get("/activity", response_model=DecisionActivityResponse)
+def decision_activity(request: Request) -> DecisionActivityResponse:
+    """Live scraping activity — the scrapes running now + the pending queue size.
+
+    Reuses data that already exists: each resolve reserves a ``pipeline_run`` row
+    (``command='scrape-resolve'``); a row with no ``ended_at`` is a scrape in flight.
+    The queue size is the count of ``pending`` decisions. No new state is written —
+    this is the read surface the operator was missing next to true-parallel scraping
+    (product-intent.md §3: the file/scrapes-in-progress must be visible).
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`DecisionActivityResponse` with the in-progress scrapes and the
+        pending-queue count.
+    """
+    db_path = _db_path(request)
+    if not db_path.exists():
+        return DecisionActivityResponse(in_progress=[], pending_count=0)
+
+    in_progress: list[DecisionActivityItem] = []
+    with closing(sqlite3.connect(str(db_path))) as conn:
+        _apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+
+        runs = conn.execute(
+            "SELECT started_at, options_json FROM pipeline_run "
+            "WHERE command = 'scrape-resolve' AND ended_at IS NULL "
+            "ORDER BY started_at DESC"
+        ).fetchall()
+        for run in runs:
+            try:
+                options = json.loads(run["options_json"]) if run["options_json"] else {}
+            except (json.JSONDecodeError, TypeError):
+                options = {}
+            decision_id = options.get("decision_id")
+            if not isinstance(decision_id, int):
+                continue
+            drow = conn.execute(
+                "SELECT extracted_title FROM scrape_decision WHERE id = ?",
+                (decision_id,),
+            ).fetchone()
+            in_progress.append(
+                DecisionActivityItem(
+                    decision_id=decision_id,
+                    title=drow["extracted_title"] if drow else "?",
+                    started_at=run["started_at"],
+                )
+            )
+
+        pending_row = conn.execute(
+            "SELECT COUNT(*) FROM scrape_decision WHERE status = 'pending'"
+        ).fetchone()
+        pending_count: int = pending_row[0] if pending_row else 0
+
+    return DecisionActivityResponse(in_progress=in_progress, pending_count=pending_count)
 
 
 # ── GET /{id} ────────────────────────────────────────────────────────────────

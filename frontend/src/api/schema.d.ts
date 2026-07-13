@@ -678,6 +678,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/decisions/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decision Activity
+         * @description Live scraping activity — the scrapes running now + the pending queue size.
+         *
+         *     Reuses data that already exists: each resolve reserves a ``pipeline_run`` row
+         *     (``command='scrape-resolve'``); a row with no ``ended_at`` is a scrape in flight.
+         *     The queue size is the count of ``pending`` decisions. No new state is written —
+         *     this is the read surface the operator was missing next to true-parallel scraping
+         *     (product-intent.md §3: the file/scrapes-in-progress must be visible).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`DecisionActivityResponse` with the in-progress scrapes and the
+         *         pending-queue count.
+         */
+        get: operations["decision_activity_api_decisions_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/decisions/{decision_id}": {
         parameters: {
             query?: never;
@@ -1741,6 +1774,37 @@ export interface components {
             tvdb_id?: number | null;
             /** Year */
             year?: number | null;
+        };
+        /**
+         * DecisionActivityItem
+         * @description One scrape currently in progress (a running scrape-resolve run).
+         *
+         *     Attributes:
+         *         decision_id: The ``scrape_decision.id`` being resolved.
+         *         title: The folder-derived title shown to the operator.
+         *         started_at: Unix-epoch seconds when the resolve run started.
+         */
+        DecisionActivityItem: {
+            /** Decision Id */
+            decision_id: number;
+            /** Started At */
+            started_at: number;
+            /** Title */
+            title: string;
+        };
+        /**
+         * DecisionActivityResponse
+         * @description Live activity for the scraping surface: what runs now + how many wait.
+         *
+         *     Attributes:
+         *         in_progress: The scrapes running right now (most recent first).
+         *         pending_count: Number of decisions still waiting in the queue.
+         */
+        DecisionActivityResponse: {
+            /** In Progress */
+            in_progress: components["schemas"]["DecisionActivityItem"][];
+            /** Pending Count */
+            pending_count: number;
         };
         /**
          * DecisionCandidate
@@ -4224,6 +4288,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decision_activity_api_decisions_activity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionActivityResponse"];
                 };
             };
         };
