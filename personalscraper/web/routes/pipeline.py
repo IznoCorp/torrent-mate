@@ -16,9 +16,6 @@ import json
 import os
 import signal
 import sqlite3
-import subprocess
-import sys
-import uuid
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +48,7 @@ from personalscraper.web.models.pipeline import (
     WatcherRequest,
     WatcherResponse,
 )
+from personalscraper.web.pipeline_trigger import spawn_pipeline_run
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 logger = get_logger(__name__)
@@ -204,27 +202,11 @@ def pipeline_run(
     is already held by another process.
     """
     data_dir = _data_dir(request)
-    if is_lock_held(data_dir / "pipeline.lock"):
+    # Single trigger authority: spawn_pipeline_run is the one place a run is
+    # launched (pipeline.lock is the sole gate). None ⇒ a run already holds it.
+    run_uid = spawn_pipeline_run(data_dir, trigger_reason="web", dry_run=body.dry_run)
+    if run_uid is None:
         raise HTTPException(status_code=409, detail="Pipeline is already running")
-
-    run_uid = uuid.uuid4().hex
-    cmd = [
-        sys.executable,
-        "-m",
-        "personalscraper",
-        "run",
-        "--no-console",
-        "--trigger-reason=web",
-    ]
-    if body.dry_run:
-        cmd.append("--dry-run")
-
-    logger.info("pipeline_run_spawned", run_uid=run_uid, dry_run=body.dry_run)
-    subprocess.Popen(
-        cmd,
-        start_new_session=True,
-        env={**os.environ, "PERSONALSCRAPER_RUN_UID": run_uid},
-    )
     return RunResponse(run_uid=run_uid)
 
 
