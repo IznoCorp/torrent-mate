@@ -8,6 +8,8 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name, staging_path
 from personalscraper.core.media_types import FileType
 from personalscraper.sorter.cleaner import NameCleaner
+from personalscraper.sorter.file_type import detect_dir_type
+from personalscraper.sorter.sorter import _get_strategy
 from personalscraper.sorter.strategies import DefaultStrategy, MovieStrategy, TVShowStrategy
 
 _STAGING_DIRS = [
@@ -211,3 +213,32 @@ class TestDefaultStrategy:
         warning_text = caplog.text
         assert "movie" in warning_text
         assert "other" in warning_text
+
+
+class TestArchiveReleaseSort:
+    """End-to-end guard: an archive-only movie release sorts to MOVIES, not AUTRES.
+
+    Ties real detection (detect_dir_type) → real strategy selection (_get_strategy)
+    → final destination, so the operator-reported missort (a RAR-packed film stranded
+    in 098-AUTRES, out of reach of the Phase-3 extraction) can never silently return.
+    """
+
+    def test_rar_packed_movie_routes_to_movies_not_autres(self, staging, cleaner, config, tmp_path):
+        """The exact reported release lands under the movies dir, never under AUTRES."""
+        release = tmp_path / "Remarkably.Bright.Creatures.2026.1080p.WEB.h264-EDITH"
+        release.mkdir()
+        (release / "edith-rbc.rar").touch()
+        (release / "edith-rbc.r00").touch()
+        (release / "edith-rbc.nfo").touch()
+        (release / "edith-rbc.sfv").touch()
+
+        file_type = detect_dir_type(release)
+        assert file_type == FileType.MOVIE
+
+        strategy = _get_strategy(file_type)
+        dest = strategy.get_destination(release.name, staging, cleaner, config)
+
+        movies_dir = staging_path(config, find_by_file_type(config, FileType.MOVIE))
+        autres_dir = config.paths.staging_dir / "098-AUTRES"
+        assert dest.parent == movies_dir
+        assert autres_dir not in dest.parents

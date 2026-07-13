@@ -161,3 +161,42 @@ class TestDetectDirType:
         (d / "movie2.mkv").touch()
         (d / "bonus.S01E01.mkv").touch()  # 1 TVSHOW vs 2 MOVIE
         assert detect_dir_type(d) == FileType.MOVIE
+
+    def test_archive_only_movie_release_is_movie(self, tmp_path):
+        """A RAR-packed scene movie release (no direct video child) is MOVIE, not OTHER.
+
+        Regression (operator report): the real video is inside a multi-part RAR set,
+        so extension-only voting saw no video child and returned OTHER — the film was
+        stranded in 098-AUTRES and never reached the Phase-3 RAR extraction (which only
+        scans the movies/tvshows dirs), so it was never extracted, scraped, or
+        dispatched. detect_dir_type must fall back to name-based (guessit) typing when a
+        release directory holds only archive parts. Exact release name from the report.
+        """
+        d = tmp_path / "Remarkably.Bright.Creatures.2026.1080p.WEB.h264-EDITH"
+        d.mkdir()
+        (d / "edith-rbc.rar").touch()
+        (d / "edith-rbc.r00").touch()
+        (d / "edith-rbc.r01").touch()
+        (d / "edith-rbc.nfo").touch()
+        (d / "edith-rbc.sfv").touch()
+        sample = d / "Sample"
+        sample.mkdir()
+        (sample / "edith-rbc-sample.mkv").touch()  # nested sample must not leak into the vote
+        assert detect_dir_type(d) == FileType.MOVIE
+
+    def test_archive_only_tvshow_release_is_tvshow(self, tmp_path):
+        """A RAR-packed release whose name marks it as a show is TVSHOW."""
+        d = tmp_path / "Some.Show.2024.S02.1080p.WEB.h264-GRP"
+        d.mkdir()
+        (d / "grp-show.rar").touch()
+        (d / "grp-show.r00").touch()
+        (d / "grp-show.sfv").touch()
+        assert detect_dir_type(d) == FileType.TVSHOW
+
+    def test_dir_with_only_non_archive_junk_stays_other(self, tmp_path):
+        """A dir with only .nfo/.sfv and no archive part remains OTHER (no over-reach)."""
+        d = tmp_path / "just.some.metadata"
+        d.mkdir()
+        (d / "info.nfo").touch()
+        (d / "hashes.sfv").touch()
+        assert detect_dir_type(d) == FileType.OTHER
