@@ -4816,7 +4816,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["EnqueueDecisionRequest"] | null;
+                "application/json": components["schemas"]["EnqueueDecisionRequest"];
             };
         };
         responses: {

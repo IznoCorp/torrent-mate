@@ -21,7 +21,7 @@ import json
 from pathlib import Path
 from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from personalscraper.conf.models.config import Config
@@ -369,7 +369,9 @@ def _reclass_other_item(config: Config, media_dir: Path, media_kind: str) -> Pat
     dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
 )
 def enqueue_staging_decision(
-    media_id: str, request: Request, body: EnqueueDecisionRequest | None = None
+    media_id: str,
+    request: Request,
+    body: EnqueueDecisionRequest = Body(default_factory=EnqueueDecisionRequest),
 ) -> EnqueueDecisionResponse:
     """Enqueue a non-identified staged item as a pending scrape decision.
 
@@ -409,7 +411,7 @@ def enqueue_staging_decision(
         other = resolve_other_item(config, media_id)
         if other is None:
             raise HTTPException(status_code=404, detail="No scrapable media matches this id")
-        chosen = body.media_kind if body is not None else None
+        chosen = body.media_kind
         if chosen is None:
             raise HTTPException(
                 status_code=400,

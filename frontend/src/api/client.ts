@@ -99,9 +99,16 @@ type MethodOf<P extends keyof paths> = {
   [M in HttpMethod]: paths[P][M] extends undefined ? never : M;
 }[HttpMethod];
 
-/** The ``application/json`` request body of an operation, or ``never`` if none. */
+/**
+ * The ``application/json`` request body of an operation (required OR optional),
+ * or ``never`` when the operation declares no body. openapi-typescript stamps an
+ * optional body as ``requestBody?: {...}`` (e.g. a FastAPI ``Body(default_factory=…)``
+ * param); matching ``requestBody?`` — like {@link QueryParamsOf} does for ``query?`` —
+ * covers both, where matching only ``requestBody:`` would collapse optional bodies to
+ * ``never``.
+ */
 type RequestBodyOf<Op> = Op extends {
-  requestBody: { content: { "application/json": infer B } };
+  requestBody?: { content: { "application/json": infer B } };
 }
   ? B
   : never;
@@ -525,16 +532,21 @@ export type EnqueueDecisionResponse = SuccessBody<
  *
  * Args:
  *   mediaId: The stable staged-media id.
+ *   mediaKind: Required for an item in an 'other' (AUTRES) category — the type the
+ *     operator picks so it can be reclassed; omitted for movie/tvshow items (their
+ *     kind is derived server-side from the category).
  *
  * Returns:
  *   The {@link EnqueueDecisionResponse}.
  */
 export function enqueueStagingDecision(
   mediaId: string,
+  mediaKind?: "movie" | "tvshow",
 ): Promise<EnqueueDecisionResponse> {
   return apiFetch("/api/staging/media/{media_id}/enqueue", {
     method: "post",
     params: { path: { media_id: mediaId } },
+    body: mediaKind !== undefined ? { media_kind: mediaKind } : {},
     headers: XRW_HEADERS,
   });
 }

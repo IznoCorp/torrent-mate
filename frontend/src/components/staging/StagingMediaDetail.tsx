@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { enqueueStagingDecision, type StagingMediaItem } from "@/api/client";
@@ -83,11 +83,16 @@ export function StagingMediaDetail({
   // A non-identified (absent) movie/tvshow has no pending decision and therefore
   // no resolve path — enqueue it as a decision so it appears in the deck, then
   // jump there (the deck's manual search resolves it via the #3-fixed scrape).
+  // An item the sort dumped into 098-AUTRES ('other') is resolvable too, but the
+  // operator must first say what type it really is (T1.2 / §3 safety net).
+  const needsKind = item.media_kind === "other";
+  const [chosenKind, setChosenKind] = useState<"movie" | "tvshow" | null>(null);
   const canManualResolve =
     item.match === "absent" &&
-    (item.media_kind === "movie" || item.media_kind === "tvshow");
+    (item.media_kind === "movie" || item.media_kind === "tvshow" || needsKind);
   const enqueueMut = useMutation({
-    mutationFn: () => enqueueStagingDecision(item.id),
+    mutationFn: (kind: "movie" | "tvshow" | undefined) =>
+      enqueueStagingDecision(item.id, kind),
     onSuccess: (data) => {
       // §3 — the deck now opens WITH proposals when the provider search seeded them
       // at enqueue. Be honest when it could not (fail-soft) so the operator knows to
@@ -225,17 +230,50 @@ export function StagingMediaDetail({
       {/* Manual resolution for a non-identified (absent) item — no auto match, so
           send it to the deck and search there. */}
       {canManualResolve && (
-        <Button
-          type="button"
-          disabled={enqueueMut.isPending}
-          onClick={() => {
-            enqueueMut.mutate();
-          }}
-        >
-          {enqueueMut.isPending
-            ? "Envoi…"
-            : "Rechercher / résoudre manuellement"}
-        </Button>
+        <div className="flex flex-col gap-2">
+          {needsKind && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                Type mal classé — choisissez&nbsp;:
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant={chosenKind === "movie" ? "default" : "outline"}
+                onClick={() => {
+                  setChosenKind("movie");
+                }}
+              >
+                Film
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={chosenKind === "tvshow" ? "default" : "outline"}
+                onClick={() => {
+                  setChosenKind("tvshow");
+                }}
+              >
+                Série
+              </Button>
+            </div>
+          )}
+          <Button
+            type="button"
+            disabled={
+              enqueueMut.isPending || (needsKind && chosenKind === null)
+            }
+            onClick={() => {
+              enqueueMut.mutate(
+                needsKind ? (chosenKind ?? undefined) : undefined,
+              );
+            }}
+          >
+            {enqueueMut.isPending
+              ? "Envoi…"
+              : "Rechercher / résoudre manuellement"}
+          </Button>
+        </div>
       )}
     </div>
   );
