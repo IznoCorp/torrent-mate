@@ -457,6 +457,10 @@ def enqueue_staging_decision(
         trigger="manual",
         candidates_json=candidates_json,
         run_uid=None,
+        # Operator's explicit manual resolve: re-open the decision even if it was
+        # previously resolved/dismissed (legacy item still non-identified) so it
+        # re-enters the deck. The pipeline's automatic upsert keeps the F07 guard.
+        reopen=True,
     )
     logger.info(
         "staging_enqueue_decision",

@@ -714,3 +714,62 @@ def test_enqueue_other_with_kind_reclasses_to_movies_and_seeds(test_config, tmp_
     ).fetchone()
     conn.close()
     assert "001-MOVIES" in staging_path_val
+
+
+def test_enqueue_reopens_a_previously_resolved_item(test_config, tmp_path: Path) -> None:
+    """Re-enqueuing a resolved-but-still-non-identified item re-opens it to pending.
+
+    Root-cause regression (operator report). Before the fix the manual enqueue no-oped
+    on a ``resolved`` row (upsert's WHERE
+    guard protected the operator verdict), so the 'À résoudre' deck stayed EMPTY even
+    though the toast promised '5 propositions'. The legacy items Obsession/Ferrari were
+    exactly this: resolved once, still non-identified, un-re-resolvable.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "001-MOVIES" / "Legacy Film (2020)"
+    item.mkdir(parents=True)
+    _write_video(item / "Legacy Film (2020).mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+
+    # Seed an already-RESOLVED decision for this exact staging path (the legacy state).
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO scrape_decision (staging_path, media_kind, extracted_title, "
+        'extracted_year, "trigger", candidates_json, status, resolution_json, '
+        "created_at, updated_at, resolved_at) "
+        "VALUES (?, 'movie', 'Legacy Film', 2020, 'ambiguous', '[]', 'resolved', "
+        "?, ?, ?, ?)",
+        (str(item), '{"provider":"tmdb","provider_id":1}', _T0, _T0, _T0),
+    )
+    conn.commit()
+    conn.close()
+
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+    media_id = media_id_for("001-MOVIES/Legacy Film (2020)")
+    dummy = [DecisionCandidate(provider="tmdb", provider_id=7, title="Legacy Film", year=2020, score=0.9)]
+    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/enqueue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+    assert resp.status_code == 200, resp.text
+
+    # Re-opened to pending with the fresh candidate → back in the 'À résoudre' deck.
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT status, candidates_json, resolution_json FROM scrape_decision WHERE staging_path = ?",
+        (str(item),),
+    ).fetchone()
+    conn.close()
+    assert row["status"] == "pending"
+    assert "7" in row["candidates_json"]
+    assert row["resolution_json"] is None
