@@ -89,9 +89,19 @@ export function StagingMediaDetail({
   const enqueueMut = useMutation({
     mutationFn: () => enqueueStagingDecision(item.id),
     onSuccess: (data) => {
-      toast.success(
-        "Ajouté à la file de résolution — recherchez un match dans le deck",
-      );
+      // §3 — the deck now opens WITH proposals when the provider search seeded them
+      // at enqueue. Be honest when it could not (fail-soft) so the operator knows to
+      // adjust the title/year and re-search, rather than face a silent empty grid.
+      const n = data.candidates_count;
+      if (data.candidates_seeded && n > 0) {
+        toast.success(
+          `Ajouté à la file — ${String(n)} proposition${n > 1 ? "s" : ""} trouvée${n > 1 ? "s" : ""}, choisissez dans le deck`,
+        );
+      } else {
+        toast.warning(
+          "Ajouté à la file — aucune proposition automatique. Ajustez le titre / l'année et relancez la recherche dans le deck.",
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
       // C18: same grammar as an ambiguous card — jump the deck to the freshly
       // enqueued decision.
