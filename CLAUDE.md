@@ -34,6 +34,13 @@ hook is bypassed (`--no-verify`).
 
 ## Critical Rules
 
+### Product Intent — Constitution produit (web-UI — CONTRAIGNANT)
+
+**Toute évolution de la web-UI doit être conforme à `docs/reference/product-intent.md`** — la
+raison d'être de l'application, dictée par l'opérateur. **En cas de conflit entre une implémentation
+et cette constitution, c'est l'implémentation qui est fausse.** Lis `product-intent.md` **avant de
+coder** toute surface web ; chaque PR web **cite les § qu'elle sert**.
+
 ### Search Safety (MANDATORY — machine crash prevention)
 
 `tests/e2e/perf/.fixture/` is **14 GB** of binary media files. `rg` without type
@@ -251,6 +258,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Module-size budget tracking, BLOCK-threshold promise status                                                         | `docs/reference/promises.md`                    |
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                   | `docs/reference/runbook-post-merge.md`          |
 | TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions      | `docs/reference/web-ui.md`                      |
+| **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§5 + §méthode**                   | `docs/reference/product-intent.md`              |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
