@@ -42,6 +42,30 @@ def test_movie_extra_nfo_removed(tmp_path, settings, config):
     assert not bad.exists()
 
 
+def test_movie_valid_misnamed_nfo_renamed_not_deleted(tmp_path, settings, config):
+    """A valid identification under a non-canonical name is RENAMED to canonical, not deleted.
+
+    Regression (operator loop): a manual resolve wrote "Obsession (2026).nfo" (with the
+    year) into "Obsession (2026)/"; enforce used to delete it as an 'extra NFO', silently
+    re-un-identifying the movie every pipeline run. The pipeline must NEVER overwrite an
+    identification — a NFO carrying a <uniqueid> is preserved (renamed to canonical here).
+    """
+    movie = tmp_path / "001-MOVIES" / "Obsession (2026)"
+    movie.mkdir(parents=True)
+    manual = movie / "Obsession (2026).nfo"  # valid identification, non-canonical name
+    manual.write_text('<movie><uniqueid type="tmdb">1339713</uniqueid></movie>')
+    (movie / "Obsession (2026).mkv").write_bytes(b"\x00")
+
+    validate_structure(settings, config, dry_run=False)
+
+    # The identification survives — renamed to the canonical name verify expects,
+    # never deleted.
+    assert not manual.exists()  # old misnamed file moved, not left behind
+    canonical = movie / "Obsession.nfo"
+    assert canonical.exists(), "the valid NFO must survive (renamed to canonical), never deleted"
+    assert "1339713" in canonical.read_text(encoding="utf-8")
+
+
 def test_movie_duplicate_artwork_legacy_removed(tmp_path, settings, config):
     """Artwork with same type but different names: keep sanitized, delete legacy."""
     movie = tmp_path / "001-MOVIES" / "Film (2025)"

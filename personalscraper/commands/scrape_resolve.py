@@ -377,9 +377,16 @@ def _scrape_movie(
                 exc_info=True,
             )
 
-    # NFO.  Use the format-pattern key for the filename; the actual name
-    # written is validated by the NFO generator itself.
-    nfo_name = patterns.format("movie_nfo", Title=staging_path.name)
+    # NFO.  Name it CANONICALLY — the parsed title WITHOUT the "(Year)" suffix,
+    # exactly as the automatic scrape does (scraper/movie_service.py) — so the
+    # pipeline's enforce and verify steps recognise it. Naming it after the raw
+    # folder name wrote e.g. "Obsession (2026).nfo", which enforce deletes as an
+    # "extra NFO" and verify never finds (it looks for "Obsession.nfo"), silently
+    # re-un-identifying the manually-resolved item on the next pipeline run.
+    from personalscraper.scraper.classifier import _parse_folder_name  # noqa: PLC0415
+
+    parsed_title, _year = _parse_folder_name(staging_path.name)
+    nfo_name = patterns.format("movie_nfo", Title=parsed_title)
     nfo_path = staging_path / nfo_name
     try:
         xml = nfo_gen.generate_movie_nfo(coerced, stream_info)

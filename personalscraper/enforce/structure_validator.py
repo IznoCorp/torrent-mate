@@ -14,6 +14,7 @@ from personalscraper.config import Settings
 from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
+from personalscraper.nfo_utils import is_nfo_complete
 from personalscraper.text_utils import sanitize_filename
 
 log = get_logger("enforce.structure")
@@ -109,16 +110,38 @@ def _validate_movie(movie_dir: Path, dry_run: bool) -> StructureResult:
     title = re.sub(r"\s*\(\d{4}\)\s*$", "", movie_dir.name).strip()
     expected_nfo = sanitize_filename(title) + ".nfo"
 
-    # --- Extra NFO removal -----------------------------------------------
+    # --- Extra NFO handling ----------------------------------------------
+    # Operator invariant: the pipeline must NEVER overwrite an identification.
+    # A NFO that parses and carries a <uniqueid> IS an identification. If it is
+    # mis-named (e.g. a manual resolve wrote "Title (Year).nfo" instead of the
+    # canonical "Title.nfo"), REPAIR it by renaming to the canonical name rather
+    # than deleting it — never leaving the item un-identified. Only genuinely
+    # residual NFOs (unparseable / no <uniqueid>) are removed.
+    canonical_nfo = movie_dir / expected_nfo
     for nfo in list(movie_dir.glob("*.nfo")):
-        if nfo.name != expected_nfo:
-            if not dry_run:
-                try:
-                    nfo.unlink()
-                except OSError as exc:
-                    log.warning("enforce_structure_nfo_delete_failed", name=nfo.name, exc_info=True, error=str(exc))
-                    continue
-            result.fixes.append(f"Removed extra NFO: {nfo.name}")
+        if nfo.name == expected_nfo:
+            continue
+        if is_nfo_complete(nfo):
+            # A valid identification under a non-canonical name.
+            if not canonical_nfo.exists():
+                if not dry_run:
+                    try:
+                        nfo.rename(canonical_nfo)
+                    except OSError as exc:
+                        log.warning("enforce_structure_nfo_rename_failed", name=nfo.name, exc_info=True, error=str(exc))
+                        continue
+                result.fixes.append(f"Renamed NFO to canonical: {nfo.name} -> {expected_nfo}")
+            # else: a canonical NFO already exists — keep this valid one untouched
+            # (never destroy an identification; a duplicate is harmless).
+            continue
+        # Genuine residual NFO (no identification): safe to remove.
+        if not dry_run:
+            try:
+                nfo.unlink()
+            except OSError as exc:
+                log.warning("enforce_structure_nfo_delete_failed", name=nfo.name, exc_info=True, error=str(exc))
+                continue
+        result.fixes.append(f"Removed extra NFO: {nfo.name}")
 
     # --- Duplicate artwork removal ----------------------------------------
     # Group files by artwork type suffix so we can detect duplicates.
