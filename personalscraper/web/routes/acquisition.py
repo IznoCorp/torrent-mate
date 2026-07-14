@@ -453,7 +453,7 @@ def _parse_run_counts(steps_json: str | None) -> dict[str, int] | None:
     """Extract the §5 numeric result from a run's ``steps_json``, or ``None``.
 
     The acquisition CLIs persist their counts as the ``counts`` mapping of a
-    ``steps_json`` entry (see ``commands/_acquire_run_row``). The LAST entry
+    ``steps_json`` entry (see ``commands/_cli_run_row``). The LAST entry
     carrying counts wins.
 
     Args:

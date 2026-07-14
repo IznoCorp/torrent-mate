@@ -1,9 +1,12 @@
-"""Run-row recording for the acquisition CLIs (§5 / §1 observability).
+"""Run-row recording for scheduled/manual CLIs (§1 / §5 observability).
+
+Generic over any acquisition or maintenance CLI (follow-detect, grab,
+library-index): see ``cli_run_row``.
 
 ``follow detect`` and ``grab`` historically wrote NO ``pipeline_run`` row: the
 03:00 / 03:20 PM2 crons were invisible everywhere (the Dashboard schedulers
 showed « Jamais exécuté » forever) and a manual web grab had no numeric result —
-only a raw output tail. ``acquisition_run_row`` closes both gaps:
+only a raw output tail. ``cli_run_row`` closes both gaps:
 
 * **Self-owned row** (cron / human CLI): when ``PERSONALSCRAPER_RUN_UID`` is NOT
   set, the context manager inserts a ``pipeline_run`` row (``kind='maintenance'``,
@@ -42,7 +45,7 @@ if TYPE_CHECKING:
 log = get_logger(__name__)
 
 
-class AcquisitionRunRecorder:
+class CliRunRecorder:
     """Record one acquisition CLI run into ``pipeline_run`` (fail-soft)."""
 
     def __init__(self, writer: PipelineRunWriter | None, run_uid: str, command: str, owns_row: bool) -> None:
@@ -96,7 +99,7 @@ class AcquisitionRunRecorder:
 
 
 @contextmanager
-def acquisition_run_row(config: Config, command: str) -> Iterator[AcquisitionRunRecorder]:
+def cli_run_row(config: Config, command: str) -> Iterator[CliRunRecorder]:
     """Record this CLI invocation as a ``pipeline_run`` row (see module doc).
 
     Args:
@@ -104,7 +107,7 @@ def acquisition_run_row(config: Config, command: str) -> Iterator[AcquisitionRun
         command: The CLI command name (``'follow-detect'`` / ``'grab'``).
 
     Yields:
-        An :class:`AcquisitionRunRecorder` — call ``record_counts`` with the
+        An :class:`CliRunRecorder` — call ``record_counts`` with the
         run's numeric result; finalization is automatic.
     """
     db_path = config.indexer.db_path
@@ -138,7 +141,7 @@ def acquisition_run_row(config: Config, command: str) -> Iterator[AcquisitionRun
             log.warning("acquire_run_insert_failed", command=command, error=str(exc))
             writer = None
 
-    recorder = AcquisitionRunRecorder(writer, run_uid, command, owns_row)
+    recorder = CliRunRecorder(writer, run_uid, command, owns_row)
     try:
         yield recorder
     except BaseException as exc:

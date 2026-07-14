@@ -241,6 +241,40 @@ class TestSchedulersRoute:
         follow = next(r for r in rows if r["name"] == "personalscraper-follow-detect")
         assert follow["last_run_at"] is None
 
+    def test_schedulers_surface_maintenance_kind_acquisition_runs(self, test_config, tmp_path: Path) -> None:
+        """200 — a ``kind='maintenance'`` follow-detect run surfaces on its cron (§1).
+
+        Regression: the acquisition CLIs (follow-detect / grab) record a
+        ``kind='maintenance'`` pipeline_run row — not ``kind='pipeline'``. The
+        cron match rule must be by COMMAND alone, else these real runs stay
+        hidden and the schedulers panel is stuck on « Jamais exécuté » despite a
+        run having happened. Red on the old ``kind='pipeline'``-filtered query.
+        """
+        (tmp_path / ".data").mkdir(parents=True, exist_ok=True)
+        indexer_path = tmp_path / "library.db"
+        started = time.time() - 900
+        conn = sqlite3.connect(str(indexer_path))
+        conn.executescript(_PIPELINE_RUN_DDL)
+        conn.execute(
+            "INSERT INTO pipeline_run (run_uid, trigger, started_at, ended_at, outcome, kind, command) "
+            "VALUES ('rm', 'cron', ?, ?, 'success', 'maintenance', 'follow-detect')",
+            (started, started + 5),
+        )
+        conn.commit()
+        conn.close()
+
+        client = _authenticated_client(
+            test_config,
+            tmp_path,
+            acquire=test_config.acquire.model_copy(update={"db_path": tmp_path / "acquire.db"}),
+            indexer=test_config.indexer.model_copy(update={"db_path": indexer_path}),
+        )
+
+        rows = client.get("/api/maintenance/schedulers").json()["schedulers"]
+        detect = next(r for r in rows if r["name"] == "personalscraper-follow-detect")
+        assert detect["last_run_at"] == started, "a kind='maintenance' follow-detect run must surface on its cron"
+        assert detect["last_outcome"] == "success"
+
     def test_schedulers_unauthenticated(self, test_config, tmp_path: Path) -> None:
         """401 — no session cookie."""
         app = _build_app(test_config, tmp_path, with_auth=False)

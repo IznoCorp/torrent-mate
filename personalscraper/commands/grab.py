@@ -21,7 +21,7 @@ from personalscraper.cli_helpers import (
     per_step_boundary,
 )
 from personalscraper.cli_state import state
-from personalscraper.commands._acquire_run_row import acquisition_run_row
+from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
@@ -59,7 +59,7 @@ def grab(
     settings = cli_compat.get_settings()
 
     with (
-        acquisition_run_row(config, "grab") as run_rec,
+        cli_run_row(config, "grab") as run_rec,
         per_step_boundary(config, settings, build_torrent_client=not dry_run) as app_context,
     ):
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)

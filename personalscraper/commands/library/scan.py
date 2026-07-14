@@ -97,27 +97,39 @@ def library_index(
         # CLI entry point.
         event_bus = EventBus()
 
+    # Record the scan as an observable pipeline_run row so the schedulers panel
+    # shows the weekly « Enrichissement de l'index » cron's last run instead of
+    # « Jamais exécuté » (§1: les autos visibles au même endroit). Self-launched
+    # (cron/CLI) → owns + finalizes the row; a no-op when no indexer DB is
+    # configured (the recorder is fail-soft).
+    from contextlib import nullcontext  # noqa: PLC0415
+
+    from personalscraper.commands._cli_run_row import cli_run_row  # noqa: PLC0415
+
+    run_cm = cli_run_row(loaded_config, "library-index") if loaded_config is not None else nullcontext()
+
     # Bind a fresh ``run_id`` for the duration of the scan — every Event
     # constructed downstream captures it as ``correlation_id``.
     token = current_correlation_id.set(str(uuid4()))
     try:
-        rc = library_index_command(
-            mode=mode,
-            disk=disk,
-            budget_seconds=budget,
-            no_budget=no_budget,
-            backfill_streams=backfill_streams,
-            dry_run=dry_run,
-            wait_for_lock_seconds=wait_for_lock,
-            config_path=effective_config,
-            confirm_bulk_change=confirm_bulk_change,
-            rebuild=rebuild,
-            event_bus=event_bus,
-        )
+        with run_cm:
+            rc = library_index_command(
+                mode=mode,
+                disk=disk,
+                budget_seconds=budget,
+                no_budget=no_budget,
+                backfill_streams=backfill_streams,
+                dry_run=dry_run,
+                wait_for_lock_seconds=wait_for_lock,
+                config_path=effective_config,
+                confirm_bulk_change=confirm_bulk_change,
+                rebuild=rebuild,
+                event_bus=event_bus,
+            )
+            if rc != 0:
+                raise typer.Exit(rc)
     finally:
         current_correlation_id.reset(token)
-    if rc != 0:
-        raise typer.Exit(rc)
 
 
 @app.command("library-init-canonical")

@@ -38,7 +38,7 @@ from personalscraper.acquire.title_resolver import resolve_series_title
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
-from personalscraper.commands._acquire_run_row import acquisition_run_row
+from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.core.identity import MediaRef
 from personalscraper.logger import get_logger
 from personalscraper.subscribers import build_redis_publisher
@@ -266,7 +266,7 @@ def follow_detect(
     settings = cli_compat.get_settings()
 
     with (
-        acquisition_run_row(config, "follow-detect") as run_rec,
+        cli_run_row(config, "follow-detect") as run_rec,
         per_step_boundary(config, settings, build_torrent_client=False) as app_context,
     ):
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
