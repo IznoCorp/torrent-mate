@@ -329,6 +329,40 @@ class TestCreateFollow:
         conn.close()
         assert count == 1, f"Expected 1 row, got {count}"
 
+    def test_reactivate_refreshes_kind_to_movie(self, client: TestClient, tmp_path: Path) -> None:
+        """Re-following an inactive 'show' as a 'movie' must land kind='movie' (§5).
+
+        Regression (prod): the reactivate branch flipped only ``active`` and kept
+        the stale kind, so a film that had once been followed as a series stayed
+        series-shaped — no movie wanted row, no film lifecycle. The upsert path
+        must refresh the kind on reactivation.
+        """
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        # Seeded via the helper → kind defaults to 'show'; then deactivated.
+        fid = _seed_followed(conn, 1, "Le Robot sauvage", active=False, tvdb_id=999)
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            "/api/acquisition/followed",
+            json={"tvdb_id": 999, "title": "Le Robot sauvage", "kind": "movie"},
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["id"] == fid
+        assert data["active"] is True
+        assert data["kind"] == "movie", "reactivation must refresh the kind, not keep the stale 'show'"
+
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        row = conn.execute("SELECT kind, active FROM followed_series WHERE id = ?", (fid,)).fetchone()
+        conn.close()
+        assert row == ("movie", 1)
+
     def test_no_provider_id_returns_422(self, client: TestClient) -> None:
         """Sending no provider IDs returns 422 (Pydantic validation error)."""
         resp = client.post(

@@ -70,6 +70,10 @@ class FollowSubStore(Protocol):
         """Set the ``active`` flag on a ``followed_series`` row."""
         ...
 
+    def set_kind(self, followed_id: int, kind: str) -> None:
+        """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
+        ...
+
 
 @runtime_checkable
 class WantedSubStore(Protocol):

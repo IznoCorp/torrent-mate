@@ -805,11 +805,21 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
                     status_code=409,
                     detail="Series is already followed (active=True)",
                 )
-            # Reactivate.
+            # Reactivate — matched by PRIMARY provider id (find_by_ref is more
+            # lenient than the exact-media_ref_json upsert), and REFRESH the kind
+            # so a re-follow of a film once followed as a series lands
+            # kind='movie', not the stale 'show' (§5 — else its lifecycle stays
+            # series-shaped and no movie wanted row is ever produced).
             store.follow.set_active(existing.id, True)
+            store.follow.set_kind(existing.id, body.kind)
+            _write_follow_metadata(config.acquire.db_path, existing.id, body)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
-            return _item_from_followed(reactivated)
+            item = _item_from_followed(reactivated)
+            item.poster_url = body.poster_url
+            item.overview = body.overview
+            item.year = body.year
+            return item
 
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
         # detect will produce one movie wanted row and auto-unfollow once acquired.
