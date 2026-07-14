@@ -141,3 +141,55 @@ dérive :
   preuve de bout-en-bout ne l'ait exercé.
 
 Ces trois mécanismes sont exactement ce que `§méthode` interdit désormais.
+
+### Post-mortem session 2 (reprise) — le même pattern, deux fois de plus
+
+La reprise a confirmé la règle 6 sur un cas vivant **et** attrapé deux régressions que seul le
+déroulé exécuté a révélées — la preuve statique les avait laissées passer :
+
+- **Read-model menteur (règle 6, gravée).** L'UI affichait « Vérification : Fait » sur un signal
+  plus laxiste (NFO + ids + un poster + n'importe quelle vidéo) que le `verify` réel qui décide du
+  dispatch (nommage vidéo/épisodes). Un média « Identifié » restait en réalité non dispatchable
+  (Top Chef). Corrigé : le read-model lance le vrai `verify` + expose un `blocked_reason` FR.
+- **§4 « CONFIRMED » sur code, cassé à l'exécution.** L'audit Phase 0 avait déclaré §4 conforme sur
+  inspection (`spawn_pipeline_run` câblé). Le déroulé prod a montré que la continuation
+  `run --trigger-reason=scrape-resolve` **crashait** (l'enum du validateur rejetait la valeur), donc
+  le média scrapé restait coincé en staging — la dénaturation §4 exacte. Le test existant _mockait
+  `Popen`_ : vacuous. Leçon : **un « CONFIRMED » sur contrat runtime entre deux process ne vaut
+  rien sans le run exécuté.**
+- **Perte de données réelle (opérationnelle).** Un rename de dossier casse-seule (`Flow`→`FLOW`)
+  sur FS insensible à la casse fusionnait le dossier dans lui-même et détruisait la vidéo ; et une
+  fixture nommée comme un vrai film a écrasé « Le Robot sauvage » (dispatch = replace, contrôle
+  d'absence sur le mauvais titre/catégorie). Corrigés + règle fixture gravée en mémoire.
+
+### Les 5 tests de garde (§méthode) — chaque dérive a son test qui la reproduit
+
+Chaque garde-fou échoue sur l'implémentation fautive et passe sur le fix :
+
+1. **Enqueue sans candidats** → `tests/web/test_staging_media.py::test_enqueue_seeds_candidates_from_provider`
+   - `::test_enqueue_other_seeds_search_with_cleaned_title` (le seed AUTRES avec le titre nettoyé,
+     sinon deck vide).
+2. **Item `other` sans chemin de résolution** →
+   `::test_enqueue_other_without_kind_returns_400` + `::test_enqueue_other_with_kind_reclasses_to_movies_and_seeds`.
+3. **Resolve qui n'aboutit pas au dispatch** → `tests/scraper/test_scrape_forced.py` (écrit complet)
+   - `scripts/check-media-complete.py` + `tests/web/test_pipeline_trigger.py::test_continuation_trigger_reason_is_a_valid_run_trigger`
+     (le contrat trigger-reason que le mock cachait) + `tests/web/test_decisions_routes.py::test_activity_hides_phantom_scrape`.
+4. **Run manuel (grab/detect) sans état chiffré exposé** →
+   `frontend/.../WatcherPanel.test.tsx` (jamais de toast succès sur le 202 ; le résultat chiffré
+   n'arrive qu'à la fin du run) + `tests/commands/test_follow_detect.py` (le producteur film + la
+   clôture §5) + le run observable (`pipeline_run` + `steps_json.counts`).
+5. **La release-film exacte classée AUTRES** →
+   `tests/sorter/test_file_type.py::test_archive_only_movie_release_is_movie` (le cas exact) +
+   `::test_archive_only_non_media_pack_stays_other` (le garde-fou anti-sur-portée).
+
+En bonus, la perte de données casse-seule est verrouillée par
+`tests/scraper/test_rename_service.py::test_same_directory_is_never_merged` +
+`tests/scraper/test_scrape_forced.py::test_case_only_rename_keeps_video`.
+
+### Point attribution IA (tranché)
+
+Certains commits de l'historique portent un trailer `Claude-Session:` (lien `claude.ai/code`).
+Ce **n'est pas** de l'attribution IA au sens interdit par `hooks/block_ai_attribution.py` (qui
+bloque `Co-Authored-By`, `Claude opus/sonnet/haiku`, `anthropic.com`) : c'est un lien de traçabilité
+de session, autorisé par le harness et laissé passer par le hook. **Décision : on ne réécrit pas
+l'historique.** Les nouveaux commits gardent ce trailer ; aucune mention d'auteur IA n'est ajoutée.
