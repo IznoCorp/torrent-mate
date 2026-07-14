@@ -1234,31 +1234,58 @@ A UX/UI overhaul over the shipped S1–S7 waves, backend-as-source-of-truth. All
 new read routes are fail-soft (missing DB / unmounted disk / malformed NFO →
 empty/partial, never 500) and inside the single `guarded_api` perimeter.
 
-### OBJ1 — living pipeline (`/api/pipeline/stages`)
+### OBJ1 — living pipeline (`/api/pipeline/stages`) — P0-A stock model
 
-`GET /api/pipeline/stages` → `StagesResponse` (`run_uid`, `run_state`,
-`updated_at`, `stages[]`). Aggregates the last `pipeline_run.steps_json` + the
-live `scrape_decision` queue into **nine typed stations** (`arrival`, `staging`,
-`cleaning`, `sorting`, `matching`, `scraping`, `trailers`, `verify`, `dispatch`),
-each with a backend-derived `state` (`idle`/`ok`/`active`/`attention`/`blocked`)
-and a `count`. Read-only, staging-safe. The frontend `FlowBoard` is the single
-canonical pipeline view (the legacy linear stepper was retired from `/pipeline`;
-it survives only in `RunDetail` for historical runs).
+**Taxonomy (P0-A.2)** — the Flow Board shows the **eight real engine stations**
+(`web/staging/stages.py` `STAGE_DEFS`, the single taxonomy source):
+`arrival`/Arrivée (intégrés, en attente de tri) · `sorting`/Tri (sort+enforce) ·
+`cleaning`/Nettoyage (clean+cleanup) · `matching`/Identification ·
+`scraping`/Scraping · `trailers`/Trailers · `verify`/Vérification ·
+`dispatch`/Dispatch. **« Staging » n'est pas une étape** : c'est le lieu où tout
+le flux se déroule — aucune station ne porte ce nom.
+
+**Single-position axiom (P0-A.1)** — a staged media is at **exactly one**
+position: `compute_position()` derives `(position_stage, position_state)`
+(`pending`/`active`/`blocked`) from the same signals as the timeline; board
+stocks, the `?stage=` lists and the per-item timeline all consume this ONE
+verdict and can never disagree. A dispatched media leaves the staging tree and
+therefore has no position (it disappears from the board — its home is the
+library).
+
+**Stock counters (P0-A.3)** — `GET /api/pipeline/stages` → `StagesResponse`.
+Each station's `count` is the **current stock** of media at that position
+(`blocked` = how many of them are blocked); the last run's throughput lives
+ONLY in the header fields: `run_uid`, `updated_at`, `run_trigger`, and
+`run_processed` (max across the run's steps of success+error+unmatched) —
+rendered as « Dernier run · il y a X · N médias traités · déclenché par Y ».
+The Identification station splits its stock into « à résoudre » (pending
+decision) / « à qualifier » (needs enqueue / AUTRES kind). Read-only,
+staging-safe. The frontend `FlowBoard` is the single canonical pipeline view.
+
+**URL-addressable stage drawer (P0-A.4)** — clicking a station opens the stage
+drawer AND sets `?stage=<key>` on `/pipeline` (same discipline as
+`?media`/`?decision`: open pushes a history entry, close deletes the param with
+`replace`), so the browser Back button closes the drawer instead of leaving the
+page, and deep links restore it. The drawer's media list is exact: it queries
+`GET /api/staging/media?stage=<key>` which matches `position_stage` only.
 
 ### OBJ2A — staging read-model (`/api/staging/media`)
 
 `GET /api/staging/media` (`web/staging/read_model.py`) → one item per media
 folder under `staging_dirs`, enriched with NFO metadata, matching state (joined
 from `scrape_decision`, NFC-normalized), poster/trailer presence, season
-breakdown, a **per-media nine-stage timeline**, pagination/sort/filters +
-aggregate counts, and an opt-in dispatch preview (`with_dispatch=true`).
+breakdown, its **single position** (`position_stage`/`position_state`) + the
+derived eight-stage timeline, pagination/sort/filters + aggregate counts, and
+an opt-in dispatch preview (`with_dispatch=true`). The `stage` filter keeps
+items whose `position_stage` equals the key — each item matches exactly one
+stage filter (P0-A.1), so per-stage lists partition the staging set.
 
-- **Timeline monotonicity** (`_compute_stages`): the nine stages are ordered, so
-  a stage is `done` only when every earlier non-skipped stage is `done`; the
-  first incomplete stage is the frontier (`blocked` when a decision is pending).
-  `trailers` completion gates on the scrape (NFO), not on a trailer file — a
-  legacy folder with a stray poster/trailer but no NFO never shows a downstream
-  stage `done` ahead of `matching`/`scraping`.
+- **Timeline** (`compute_stages`): the position, unrolled — `done` before it,
+  the position state at it, `pending` after it; stages outside the kind are
+  `skipped` (AUTRES items keep Identification actionable). `blocked_reason`
+  (French) is set whenever `position_state == "blocked"`: the real verify-gate
+  reason at Vérification (§méthode r6), or the identification block («À
+  identifier…» / «Non identifié…» / «À qualifier…»).
 - **Poster route**: `GET /api/staging/media/{id}/poster` → `FileResponse` of the
   on-disk poster, resolved by re-deriving the folder from the stable id
   (`resolve_media_dir` enumerates `staging_dirs` and matches freshly-computed

@@ -44,6 +44,8 @@ function item(overrides: Partial<StagingMediaItem> = {}): StagingMediaItem {
     video_count: 1,
     size_bytes: 1_600_000_000,
     modified_at: 1750000000,
+    position_stage: "dispatch",
+    position_state: "pending",
     stages: [
       { key: "arrival", label: "Arrivée", state: "done" },
       { key: "scraping", label: "Scraping", state: "done" },

@@ -2806,8 +2806,19 @@
         "type": "object"
       },
       "StagesResponse": {
-        "description": "Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).\n\nAggregates the last pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the\nlive run state so the board can pulse the active stage.\n\nAttributes:\n    stages: The nine stages in board (left-to-right flow) order.\n    run_uid: The run these counts are sourced from, or ``None`` when no\n        pipeline run has ever been recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the source run's start, or ``None``.\n    run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /\n        ``cron``), or ``None`` \u2014 lets the board caption its provenance.",
+        "description": "Response body for ``GET /api/pipeline/stages`` (Flow Board).\n\nEach station carries the CURRENT STOCK of media at that position\n(single-position axiom, P0-A.1/A.3); the last run's throughput lives in\nthe header fields, never on the stations.\n\nAttributes:\n    stages: The eight stations in board (left-to-right flow) order.\n    run_uid: The latest pipeline run, or ``None`` when none was recorded.\n    run_state: Live pipeline run-state (``idle`` / ``running`` /\n        ``paused``) \u2014 drives whether the active stage pulses.\n    updated_at: Epoch seconds of the latest run's start, or ``None``.\n    run_trigger: The latest run's trigger (e.g. ``watch`` / ``manual`` /\n        ``cron``), or ``None`` \u2014 lets the board caption its provenance.\n    run_processed: How many media the latest run processed (max across\n        its steps of success+error+unmatched), or ``None`` \u2014 feeds the\n        board header \u00ab Dernier run \u00b7 il y a X \u00b7 N m\u00e9dias trait\u00e9s \u00bb.",
         "properties": {
+          "run_processed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Processed"
+          },
           "run_state": {
             "$ref": "#/components/schemas/PipelineState"
           },
@@ -2949,7 +2960,7 @@
         "type": "object"
       },
       "StagingMediaItem": {
-        "description": "One media folder currently present in the staging area.\n\nAttributes:\n    id: Stable URL-safe identifier \u2014 the truncated SHA-1 of the staging\n        path relative to ``staging_dir``. Used by the poster route to\n        resolve back to the folder without ever trusting a client path.\n    category: The staging subfolder the media sits in (e.g.\n        ``\"001-MOVIES\"``).\n    folder: The media folder name (e.g. ``\"Fight Club (1999)\"``).\n    relative_path: ``category/folder`` \u2014 the path relative to the staging\n        root (never an absolute path, so no host layout leaks).\n    media_kind: Kind of media (drives enrichment + grid filtering).\n    title: NFO ``<title>`` when scraped, else the folder name (year\n        stripped).\n    year: Release year from the NFO or the folder name, or ``None``.\n    overview: NFO ``<plot>`` (description), or ``None`` when unscraped.\n    provider_ids: Mapping of provider family \u2192 id string from the NFO\n        ``<uniqueid>`` rows (e.g. ``{\"tvdb\": \"475278\", \"tmdb\": \"315820\"}``).\n    match: Top-level matching verdict.\n    decision_id: The ``scrape_decision.id`` when ``match == \"ambiguous\"``,\n        else ``None`` (lets the grid deep-link to the resolution deck).\n    decision_trigger: The ambiguity trigger (``\"ambiguous\"`` /\n        ``\"below_threshold\"`` / ``\"mid_band\"``), or ``None``.\n    has_nfo: Whether a ``movie.nfo`` / ``tvshow.nfo`` is present.\n    has_poster: Whether a local ``poster.jpg``/``poster.png`` is present.\n    has_trailer: Whether a trailer file is present (Plex convention).\n    poster_url: The guarded local poster route\n        (``/api/staging/media/{id}/poster``) when a poster exists, else\n        ``None`` (the frontend ``MediaPoster`` shows its initials fallback).\n    seasons: Season breakdown for a TV show, or ``None`` for other kinds.\n    episode_count: Total episode video files across seasons (TV show), or\n        ``None``.\n    video_count: Number of video files anywhere in the media tree.\n    size_bytes: Total size of the media folder in bytes.\n    modified_at: Epoch seconds of the most recent file mtime in the tree\n        (drives the default ``recent`` sort).\n    stages: The nine-stage per-media pipeline timeline.\n    blocked_reason: A human-readable French reason when the item is stuck at\n        the real ``verify`` gate (e.g. ``\"Bloqu\u00e9 : \u00e9pisodes non renomm\u00e9s \u2026\"``),\n        or ``None`` when the item is dispatchable / not yet scraped. Reflects\n        the SAME gate that authorizes dispatch \u2014 never the looser read-model\n        heuristic (product-intent.md \u00a7m\u00e9thode rule 6).\n    dispatch_target: Dispatch preview, or ``None`` unless requested.",
+        "description": "One media folder currently present in the staging area.\n\nAttributes:\n    id: Stable URL-safe identifier \u2014 the truncated SHA-1 of the staging\n        path relative to ``staging_dir``. Used by the poster route to\n        resolve back to the folder without ever trusting a client path.\n    category: The staging subfolder the media sits in (e.g.\n        ``\"001-MOVIES\"``).\n    folder: The media folder name (e.g. ``\"Fight Club (1999)\"``).\n    relative_path: ``category/folder`` \u2014 the path relative to the staging\n        root (never an absolute path, so no host layout leaks).\n    media_kind: Kind of media (drives enrichment + grid filtering).\n    title: NFO ``<title>`` when scraped, else the folder name (year\n        stripped).\n    year: Release year from the NFO or the folder name, or ``None``.\n    overview: NFO ``<plot>`` (description), or ``None`` when unscraped.\n    provider_ids: Mapping of provider family \u2192 id string from the NFO\n        ``<uniqueid>`` rows (e.g. ``{\"tvdb\": \"475278\", \"tmdb\": \"315820\"}``).\n    match: Top-level matching verdict.\n    decision_id: The ``scrape_decision.id`` when ``match == \"ambiguous\"``,\n        else ``None`` (lets the grid deep-link to the resolution deck).\n    decision_trigger: The ambiguity trigger (``\"ambiguous\"`` /\n        ``\"below_threshold\"`` / ``\"mid_band\"``), or ``None``.\n    has_nfo: Whether a ``movie.nfo`` / ``tvshow.nfo`` is present.\n    has_poster: Whether a local ``poster.jpg``/``poster.png`` is present.\n    has_trailer: Whether a trailer file is present (Plex convention).\n    poster_url: The guarded local poster route\n        (``/api/staging/media/{id}/poster``) when a poster exists, else\n        ``None`` (the frontend ``MediaPoster`` shows its initials fallback).\n    seasons: Season breakdown for a TV show, or ``None`` for other kinds.\n    episode_count: Total episode video files across seasons (TV show), or\n        ``None``.\n    video_count: Number of video files anywhere in the media tree.\n    size_bytes: Total size of the media folder in bytes.\n    modified_at: Epoch seconds of the most recent file mtime in the tree\n        (drives the default ``recent`` sort).\n    position_stage: The SINGLE stage this media is at (P0-A.1 axiom): its\n        next unsatisfied stage, or the stage it is blocked at. Board\n        stocks, the per-stage lists and the timeline all derive from it \u2014\n        one media, one station, never two.\n    position_state: Whether the media awaits its stage (``pending``), is\n        being processed there by the live run (``active``), or needs an\n        operator (``blocked`` \u2014 see ``blocked_reason``).\n    stages: The eight-stage per-media pipeline timeline (the position,\n        unrolled: done before, position state at, pending after).\n    blocked_reason: A human-readable French reason when\n        ``position_state == \"blocked\"`` \u2014 the real ``verify``-gate reason\n        (e.g. ``\"Bloqu\u00e9 : \u00e9pisodes non renomm\u00e9s \u2026\"``, the SAME gate that\n        authorizes dispatch \u2014 product-intent.md \u00a7m\u00e9thode rule 6) or the\n        identification block (pending decision / needs enqueue /\n        AUTRES kind to qualify). ``None`` when not blocked.\n    dispatch_target: Dispatch preview, or ``None`` unless requested.",
         "properties": {
           "blocked_reason": {
             "anyOf": [
@@ -3076,6 +3087,19 @@
             ],
             "title": "Overview"
           },
+          "position_stage": {
+            "title": "Position Stage",
+            "type": "string"
+          },
+          "position_state": {
+            "enum": [
+              "pending",
+              "active",
+              "blocked"
+            ],
+            "title": "Position State",
+            "type": "string"
+          },
           "poster_url": {
             "anyOf": [
               {
@@ -3154,7 +3178,9 @@
           "relative_path",
           "media_kind",
           "title",
-          "match"
+          "match",
+          "position_stage",
+          "position_state"
         ],
         "title": "StagingMediaItem",
         "type": "object"
@@ -5328,7 +5354,7 @@
     },
     "/api/pipeline/stages": {
       "get": {
-        "description": "Return the aggregated Flow Board state (OBJ1 living pipeline).\n\nRolls up the *latest* pipeline run's per-step summaries and the live\n``scrape_decision`` queue into the nine Flow Board stations, plus the live\nrun state so the board can pulse the active stage.  Read-only \u2014 safe on the\nstaging instance (no mutation, no ``X-Requested-With`` requirement).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`StagesResponse` with the nine stages in flow order.",
+        "description": "Return the Flow Board state \u2014 current stock per station (P0-A.3).\n\nEvery station shows ONE thing: the number of media currently at that\nposition in the staging area (with the blocked ones highlighted), derived\nfrom the single-position axiom (P0-A.1) \u2014 the same verdict the per-stage\nmedia lists use, so the board and the lists can never disagree. The last\nrun's throughput is carried by the header fields (``updated_at``,\n``run_trigger``, ``run_processed``), not by the stations. Read-only \u2014 safe\non the staging instance.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`StagesResponse` with the eight stations in flow order.",
         "operationId": "pipeline_stages_api_pipeline_stages_get",
         "responses": {
           "200": {
@@ -5533,9 +5559,8 @@
                 {
                   "enum": [
                     "arrival",
-                    "staging",
-                    "cleaning",
                     "sorting",
+                    "cleaning",
                     "matching",
                     "scraping",
                     "trailers",

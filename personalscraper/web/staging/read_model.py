@@ -40,42 +40,24 @@ from personalscraper.web.models.staging import (
     StagingMediaItem,
     StagingMediaKind,
     StagingSeason,
-    StagingStageStep,
 )
 from personalscraper.web.staging.nfo import (
     NfoMetadata,
     read_nfo_metadata,
 )
+from personalscraper.web.staging.stages import (
+    STAGE_DEFS,
+    compute_position,
+    compute_stages,
+    position_blocked_reason,
+)
+from personalscraper.web.staging.stages import (
+    STEP_TO_STAGE as _STEP_TO_STAGE,
+)
 
 logger = get_logger(__name__)
 
-#: The nine pipeline stages, in board (left-to-right) order, with French labels.
-#: Keys are aligned with the OBJ1 Flow Board (``routes/pipeline.py`` ``_STAGE_DEFS``).
-STAGE_DEFS: tuple[tuple[str, str], ...] = (
-    ("arrival", "Arrivée"),
-    ("staging", "Staging"),
-    ("cleaning", "Nettoyage"),
-    ("sorting", "Tri"),
-    ("matching", "Matching"),
-    ("scraping", "Scraping"),
-    ("trailers", "Trailers"),
-    ("verify", "Vérification"),
-    ("dispatch", "Dispatch"),
-)
-
-#: Live pipeline step name → stage key, so the item whose frontier stage matches
-#: the currently-running step is shown ``active`` rather than ``pending``.
-_STEP_TO_STAGE: dict[str, str] = {
-    "ingest": "arrival",
-    "sort": "staging",
-    "clean": "cleaning",
-    "cleanup": "cleaning",
-    "enforce": "sorting",
-    "scrape": "scraping",
-    "trailers": "trailers",
-    "verify": "verify",
-    "dispatch": "dispatch",
-}
+__all__ = ["STAGE_DEFS", "media_id_for", "scan_staging_media", "resolve_media_dir"]
 
 #: FileType value → read-model media kind (kinds not listed fall back to ``other``).
 _FILE_TYPE_TO_KIND: dict[str, StagingMediaKind] = {
@@ -90,9 +72,6 @@ _FILE_TYPE_TO_KIND: dict[str, StagingMediaKind] = {
 #: Media kinds enriched with NFO + poster + trailer + seasons (and that flow
 #: through match/scrape/trailer/verify). Other kinds skip those stages.
 _SCRAPABLE_KINDS: frozenset[str] = frozenset({"movie", "tvshow"})
-
-#: Timeline stages a non-scrapable kind skips entirely (shown ``skipped``).
-_SCRAPABLE_STAGE_KEYS: frozenset[str] = frozenset({"matching", "scraping", "trailers", "verify"})
 
 #: Poster file matcher — accepts the personalscraper name (``poster.jpg``), the
 #: Kodi ``folder.jpg``, AND the MediaElch movie-prefixed form
@@ -346,97 +325,6 @@ def _load_pending_decisions(db_path: Path) -> dict[str, tuple[int, str]]:
     return result
 
 
-def _compute_stages(
-    *,
-    in_ingest: bool,
-    scrapable: bool,
-    has_nfo: bool,
-    is_ambiguous: bool,
-    is_matched: bool,
-    verify_ok: bool,
-    live_stage_key: str | None,
-) -> list[StagingStageStep]:
-    """Derive the nine-stage timeline for one staged media — strictly monotonic.
-
-    States are inferred from filesystem artefacts + matching state (there is no
-    per-item stage table), but the nine stages are ordered, so the timeline is
-    kept monotonic: a stage is ``done`` only when every earlier (non-skipped)
-    stage is ``done`` too. The first incomplete stage is the *frontier*
-    (``blocked`` when a decision is pending or the real ``verify`` gate fails,
-    else ``pending``/``active``); every later stage is ``pending`` regardless of
-    stray artefacts — a legacy folder that holds a poster or trailer but no NFO
-    never shows ``trailers`` done while ``matching``/``scraping`` are still
-    pending (the drift-unlink #3 symptom).
-
-    ``trailers`` completion is gated on the scrape (NFO), **not** on a trailer
-    file: the trailers step legitimately produces no file for most media, so its
-    absence must not read as "not run" and strand ``verify`` behind it.
-    ``verify`` completion is gated on the REAL pipeline verify verdict
-    (``verify_ok`` — the same DISPATCH-stage gate that authorizes dispatch), NOT
-    a looser "has a poster + a video" heuristic: an item whose video/episodes are
-    not canonically renamed is ``blocked`` at ``verify``, never falsely ``done``
-    (product-intent.md §méthode rule 6). ``cleaning``/``sorting`` are ``done``
-    once the item sits in a category dir; ``dispatch`` is always ``pending`` (a
-    staged item has not been dispatched). A ``pending`` stage flips to ``active``
-    when the live run's current step maps to it (``live_stage_key``).
-
-    Args:
-        in_ingest: Whether the item is still in the ingest dir (pre-sort).
-        scrapable: Whether the kind flows through match/scrape/trailer/verify.
-        has_nfo: Whether an NFO is present.
-        is_ambiguous: Whether a pending decision blocks matching.
-        is_matched: Whether the media has a confident match.
-        verify_ok: Whether the real pipeline ``verify`` gate passes this item
-            (``status`` valid/fixed + canonical movie video rename). Only ever
-            ``True`` for a scraped item.
-        live_stage_key: Stage key of the live run's current step, or ``None``.
-
-    Returns:
-        The ordered list of :class:`StagingStageStep` for the timeline.
-    """
-    # A confident scrape (matched + NFO on disk) is the gate for every downstream
-    # stage — trailers/verify can only have run once the scrape produced an NFO.
-    scraped = has_nfo and is_matched
-    # A scraped item that the real verify gate rejects is BLOCKED at verify — it
-    # will not dispatch until an operator repairs it (e.g. unrenamed episodes for
-    # a provider with no episode data). Distinct from "verify not reached yet".
-    verify_blocked = scraped and not verify_ok
-
-    #: Per-stage "the pipeline has completed this stage" signal, in board order.
-    completed: dict[str, bool] = {
-        "arrival": True,
-        "staging": True,
-        "cleaning": not in_ingest,
-        "sorting": not in_ingest,
-        "matching": is_matched and not is_ambiguous,
-        "scraping": scraped,
-        "trailers": scraped,
-        "verify": verify_ok,
-        "dispatch": False,
-    }
-
-    steps: list[StagingStageStep] = []
-    frontier_passed = False
-    for key, label in STAGE_DEFS:
-        if not scrapable and key in _SCRAPABLE_STAGE_KEYS:
-            state = "skipped"
-        elif frontier_passed:
-            state = "pending"
-        elif completed[key]:
-            state = "done"
-        else:
-            # First incomplete stage: the frontier. A pending decision blocks
-            # matching; a failed real verify blocks verify (needs operator repair).
-            blocks = (key == "matching" and is_ambiguous) or (key == "verify" and verify_blocked)
-            state = "blocked" if blocks else "pending"
-            frontier_passed = True
-        # The live run's current step lights up its (pending) stage as active.
-        if state == "pending" and live_stage_key == key:
-            state = "active"
-        steps.append(StagingStageStep(key=key, label=label, state=state))  # type: ignore[arg-type]
-    return steps
-
-
 #: English verify-error substrings → concise French operator reasons. First match
 #: per distinct cause wins; unmapped errors are surfaced verbatim so nothing hides.
 _REASON_FR: tuple[tuple[str, str], ...] = (
@@ -591,18 +479,33 @@ def _build_item(
     # (product-intent.md §méthode rule 6). Only run it for a scraped item — an
     # unscraped one is blocked earlier (matching/scraping), not at verify.
     verify_ok = False
-    blocked_reason: str | None = None
+    verify_reason: str | None = None
     if scrapable and has_nfo and is_matched and verifier is not None:
-        verify_ok, blocked_reason = _verify_item(verifier, media_dir, media_kind)
+        verify_ok, verify_reason = _verify_item(verifier, media_dir, media_kind)
 
-    stages = _compute_stages(
+    # P0-A.1 — the single-position axiom: one (stage, state) per item; board,
+    # stage lists and timeline all derive from this verdict.
+    position_stage, position_state = compute_position(
+        media_kind=media_kind,
         in_ingest=in_ingest,
         scrapable=scrapable,
-        has_nfo=has_nfo,
         is_ambiguous=is_ambiguous,
         is_matched=is_matched,
         verify_ok=verify_ok,
         live_stage_key=live_stage_key,
+    )
+    blocked_reason = position_blocked_reason(
+        media_kind=media_kind,
+        stage=position_stage,
+        state=position_state,
+        is_ambiguous=is_ambiguous,
+        verify_reason=verify_reason,
+    )
+    stages = compute_stages(
+        media_kind=media_kind,
+        scrapable=scrapable,
+        position_stage=position_stage,
+        position_state=position_state,
     )
 
     return StagingMediaItem(
@@ -627,6 +530,8 @@ def _build_item(
         video_count=video_count,
         size_bytes=size_bytes,
         modified_at=latest_mtime,
+        position_stage=position_stage,
+        position_state=position_state,
         stages=stages,
         blocked_reason=blocked_reason,
     )

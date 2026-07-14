@@ -289,6 +289,9 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert _stage(fight, "verify") == "done"
     assert fight["blocked_reason"] is None
     assert _stage(fight, "dispatch") == "pending"
+    # Verified → its single position is Dispatch (awaiting the next run).
+    assert fight["position_stage"] == "dispatch"
+    assert fight["position_state"] == "pending"
 
     bb = items["Breaking Bad (2008)"]
     assert bb["media_kind"] == "tvshow"
@@ -308,7 +311,12 @@ def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     assert unmatched["match"] == "absent"
     assert unmatched["has_nfo"] is False
     assert unmatched["year"] == 2020
-    assert _stage(unmatched, "matching") == "pending"
+    # Not identified → its single position is Identification, blocked with an
+    # actionable reason (P0-A.1/A.5); downstream stages are pending.
+    assert unmatched["position_stage"] == "matching"
+    assert unmatched["position_state"] == "blocked"
+    assert unmatched["blocked_reason"] is not None
+    assert _stage(unmatched, "matching") == "blocked"
     assert _stage(unmatched, "scraping") == "pending"
 
 
@@ -409,8 +417,10 @@ def test_timeline_monotonic_with_stray_downstream_artifacts(test_config, tmp_pat
     assert item["match"] == "absent"
     assert item["has_poster"] is True
     assert item["has_trailer"] is True
-    # No NFO → the stray trailer/poster must NOT push a downstream stage to done.
-    assert _stage(item, "matching") == "pending"
+    # No NFO → the stray trailer/poster must NOT push a downstream stage to done:
+    # the item's single position is Identification (blocked, actionable).
+    assert item["position_stage"] == "matching"
+    assert _stage(item, "matching") == "blocked"
     assert _stage(item, "scraping") == "pending"
     assert _stage(item, "trailers") == "pending"
     assert _stage(item, "verify") == "pending"
@@ -491,9 +501,57 @@ def test_filters_kind_match_stage(test_config, tmp_path: Path) -> None:
     matched = client.get("/api/staging/media", params={"match": "absent"}).json()
     assert [i["folder"] for i in matched["items"]] == ["Unknown Film (2020)"]
 
-    # Everything not yet scraped is "at/awaiting" the scraping stage.
-    awaiting_scrape = client.get("/api/staging/media", params={"stage": "scraping"}).json()
-    assert {i["folder"] for i in awaiting_scrape["items"]} == {"Unknown Film (2020)"}
+    # The stage filter matches the item's SINGLE position (P0-A.1): the
+    # unidentified movie is at Identification — and nowhere else.
+    at_matching = client.get("/api/staging/media", params={"stage": "matching"}).json()
+    assert {i["folder"] for i in at_matching["items"]} == {"Unknown Film (2020)"}
+    # The two verified items await Dispatch; the unidentified one is NOT there.
+    at_dispatch = client.get("/api/staging/media", params={"stage": "dispatch"}).json()
+    assert {i["folder"] for i in at_dispatch["items"]} == {"Fight Club (1999)", "Breaking Bad (2008)"}
+    # No stock sits at scraping in this tree — the list is exact, not cumulative.
+    at_scraping = client.get("/api/staging/media", params={"stage": "scraping"}).json()
+    assert at_scraping["items"] == []
+
+
+def test_each_item_has_exactly_one_position(test_config, tmp_path: Path) -> None:
+    """P0-A.1 axiom: across all stage filters, each item appears exactly once.
+
+    Regression for the operator's « Top Chef en Vérification ET en Dispatch »:
+    with the old cumulative filter (state in pending/active/blocked), a
+    verify-blocked item matched ?stage=verify AND ?stage=dispatch. The single
+    position makes every item appear in exactly one stage list.
+    """
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    # The Top Chef shape: matched show whose episodes keep raw release names →
+    # blocked at verify by the real gate.
+    top_chef = staging / "002-TVSHOWS" / "Top Chef (2026)"
+    (top_chef / "Saison 17").mkdir(parents=True)
+    (top_chef / "tvshow.nfo").write_text(_TVSHOW_NFO, encoding="utf-8")
+    (top_chef / "poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    _write_video(top_chef / "Saison 17" / "Top.Chef.S17E10.FRENCH.1080p.WEB.mkv", size=4096)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    all_stages = ["arrival", "sorting", "cleaning", "matching", "scraping", "trailers", "verify", "dispatch"]
+    seen: dict[str, list[str]] = {}
+    for stage in all_stages:
+        payload = client.get("/api/staging/media", params={"stage": stage}).json()
+        for item in payload["items"]:
+            seen.setdefault(item["folder"], []).append(stage)
+
+    total = client.get("/api/staging/media").json()["counts"]["total"]
+    assert len(seen) == total, f"every staged item must appear in exactly one stage list: {seen}"
+    multi = {folder: stages for folder, stages in seen.items() if len(stages) != 1}
+    assert not multi, f"items at more than one position: {multi}"
+
+    # Top Chef sits at verify (blocked, with its reason) — and ONLY at verify.
+    assert seen["Top Chef (2026)"] == ["verify"]
+    at_verify = client.get("/api/staging/media", params={"stage": "verify"}).json()
+    top = next(i for i in at_verify["items"] if i["folder"] == "Top Chef (2026)")
+    assert top["position_state"] == "blocked"
+    assert top["blocked_reason"] is not None
 
 
 def test_sort_and_pagination(test_config, tmp_path: Path) -> None:
@@ -515,7 +573,7 @@ def test_sort_and_pagination(test_config, tmp_path: Path) -> None:
 
 
 def test_active_stage_when_run_live(test_config, tmp_path: Path) -> None:
-    """A live run at the scrape step marks the frontier scraping stage active."""
+    """A live run whose step maps to an item's position marks it active."""
     staging = tmp_path / "staging"
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -523,15 +581,18 @@ def test_active_stage_when_run_live(test_config, tmp_path: Path) -> None:
     db_path = _fresh_db(tmp_path)
     # Hold the lock with this process's pid so the run reads as live.
     (data_dir / "pipeline.lock").write_text(str(os.getpid()))
-    _insert_running_run(db_path, step="scrape")
+    _insert_running_run(db_path, step="dispatch")
 
     client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
     items = _by_folder(client.get("/api/staging/media").json())
 
-    # The unscraped movie's scraping stage was pending → active under the live run.
-    assert _stage(items["Unknown Film (2020)"], "scraping") == "active"
-    # The already-scraped movie stays done, not active.
-    assert _stage(items["Fight Club (1999)"], "scraping") == "done"
+    # The verified movie awaits dispatch → its position goes active under the run.
+    fight = items["Fight Club (1999)"]
+    assert fight["position_stage"] == "dispatch"
+    assert fight["position_state"] == "active"
+    assert _stage(fight, "dispatch") == "active"
+    # A blocked item is NOT lit active — it needs the operator, not the run.
+    assert items["Unknown Film (2020)"]["position_state"] == "blocked"
 
 
 def test_with_dispatch_populates_preview(test_config, tmp_path: Path) -> None:

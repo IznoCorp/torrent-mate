@@ -1388,18 +1388,21 @@ export interface paths {
         };
         /**
          * Pipeline Stages
-         * @description Return the aggregated Flow Board state (OBJ1 living pipeline).
+         * @description Return the Flow Board state — current stock per station (P0-A.3).
          *
-         *     Rolls up the *latest* pipeline run's per-step summaries and the live
-         *     ``scrape_decision`` queue into the nine Flow Board stations, plus the live
-         *     run state so the board can pulse the active stage.  Read-only — safe on the
-         *     staging instance (no mutation, no ``X-Requested-With`` requirement).
+         *     Every station shows ONE thing: the number of media currently at that
+         *     position in the staging area (with the blocked ones highlighted), derived
+         *     from the single-position axiom (P0-A.1) — the same verdict the per-stage
+         *     media lists use, so the board and the lists can never disagree. The last
+         *     run's throughput is carried by the header fields (``updated_at``,
+         *     ``run_trigger``, ``run_processed``), not by the stations. Read-only — safe
+         *     on the staging instance.
          *
          *     Args:
          *         request: The incoming FastAPI request.
          *
          *     Returns:
-         *         A :class:`StagesResponse` with the nine stages in flow order.
+         *         A :class:`StagesResponse` with the eight stations in flow order.
          */
         get: operations["pipeline_stages_api_pipeline_stages_get"];
         put?: never;
@@ -3436,23 +3439,27 @@ export interface components {
         };
         /**
          * StagesResponse
-         * @description Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).
+         * @description Response body for ``GET /api/pipeline/stages`` (Flow Board).
          *
-         *     Aggregates the last pipeline run's per-step summaries and the live
-         *     ``scrape_decision`` queue into the nine Flow Board stations, plus the
-         *     live run state so the board can pulse the active stage.
+         *     Each station carries the CURRENT STOCK of media at that position
+         *     (single-position axiom, P0-A.1/A.3); the last run's throughput lives in
+         *     the header fields, never on the stations.
          *
          *     Attributes:
-         *         stages: The nine stages in board (left-to-right flow) order.
-         *         run_uid: The run these counts are sourced from, or ``None`` when no
-         *             pipeline run has ever been recorded.
+         *         stages: The eight stations in board (left-to-right flow) order.
+         *         run_uid: The latest pipeline run, or ``None`` when none was recorded.
          *         run_state: Live pipeline run-state (``idle`` / ``running`` /
          *             ``paused``) — drives whether the active stage pulses.
-         *         updated_at: Epoch seconds of the source run's start, or ``None``.
-         *         run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /
+         *         updated_at: Epoch seconds of the latest run's start, or ``None``.
+         *         run_trigger: The latest run's trigger (e.g. ``watch`` / ``manual`` /
          *             ``cron``), or ``None`` — lets the board caption its provenance.
+         *         run_processed: How many media the latest run processed (max across
+         *             its steps of success+error+unmatched), or ``None`` — feeds the
+         *             board header « Dernier run · il y a X · N médias traités ».
          */
         StagesResponse: {
+            /** Run Processed */
+            run_processed?: number | null;
             run_state: components["schemas"]["PipelineState"];
             /** Run Trigger */
             run_trigger?: string | null;
@@ -3586,12 +3593,21 @@ export interface components {
          *         size_bytes: Total size of the media folder in bytes.
          *         modified_at: Epoch seconds of the most recent file mtime in the tree
          *             (drives the default ``recent`` sort).
-         *         stages: The nine-stage per-media pipeline timeline.
-         *         blocked_reason: A human-readable French reason when the item is stuck at
-         *             the real ``verify`` gate (e.g. ``"Bloqué : épisodes non renommés …"``),
-         *             or ``None`` when the item is dispatchable / not yet scraped. Reflects
-         *             the SAME gate that authorizes dispatch — never the looser read-model
-         *             heuristic (product-intent.md §méthode rule 6).
+         *         position_stage: The SINGLE stage this media is at (P0-A.1 axiom): its
+         *             next unsatisfied stage, or the stage it is blocked at. Board
+         *             stocks, the per-stage lists and the timeline all derive from it —
+         *             one media, one station, never two.
+         *         position_state: Whether the media awaits its stage (``pending``), is
+         *             being processed there by the live run (``active``), or needs an
+         *             operator (``blocked`` — see ``blocked_reason``).
+         *         stages: The eight-stage per-media pipeline timeline (the position,
+         *             unrolled: done before, position state at, pending after).
+         *         blocked_reason: A human-readable French reason when
+         *             ``position_state == "blocked"`` — the real ``verify``-gate reason
+         *             (e.g. ``"Bloqué : épisodes non renommés …"``, the SAME gate that
+         *             authorizes dispatch — product-intent.md §méthode rule 6) or the
+         *             identification block (pending decision / needs enqueue /
+         *             AUTRES kind to qualify). ``None`` when not blocked.
          *         dispatch_target: Dispatch preview, or ``None`` unless requested.
          */
         StagingMediaItem: {
@@ -3639,6 +3655,13 @@ export interface components {
             modified_at?: number | null;
             /** Overview */
             overview?: string | null;
+            /** Position Stage */
+            position_stage: string;
+            /**
+             * Position State
+             * @enum {string}
+             */
+            position_state: "pending" | "active" | "blocked";
             /** Poster Url */
             poster_url?: string | null;
             /**
@@ -5261,7 +5284,7 @@ export interface operations {
                 category?: string | null;
                 kind?: ("movie" | "tvshow" | "ebook" | "audio" | "app" | "other" | "unsorted") | null;
                 match?: ("matched" | "ambiguous" | "absent") | null;
-                stage?: ("arrival" | "staging" | "cleaning" | "sorting" | "matching" | "scraping" | "trailers" | "verify" | "dispatch") | null;
+                stage?: ("arrival" | "sorting" | "cleaning" | "matching" | "scraping" | "trailers" | "verify" | "dispatch") | null;
                 sort?: "recent" | "title" | "year" | "size";
                 q?: string | null;
                 missing_trailer?: boolean;
