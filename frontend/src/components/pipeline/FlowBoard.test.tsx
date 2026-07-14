@@ -1,24 +1,21 @@
 /**
- * Unit tests for FlowBoard (webui-overhaul OBJ1 living pipeline).
+ * Unit tests for FlowBoard (P0-A living pipeline).
  *
- * Mocks usePipelineStages + react-router so the board rendering, station
- * counts/states, loading/error branches, and the Matching drawer action are
- * tested in isolation.
+ * Mocks usePipelineStages and renders inside a real MemoryRouter so the
+ * board rendering, station stocks/states, the URL-addressable ?stage= drawer
+ * (open pushes, close cleans the param) and the header run caption are
+ * tested against genuine router behaviour.
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const stagesMock = vi.fn();
-const navigateMock = vi.fn();
 
 vi.mock("@/hooks/usePipelineStages", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   usePipelineStages: () => stagesMock(),
-}));
-
-vi.mock("react-router-dom", () => ({
-  useNavigate: () => navigateMock,
 }));
 
 // The stage drawer mounts StageMediaList → stub its data hook so no real query
@@ -34,6 +31,25 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 }));
 
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
+
+/** Renders the live location so tests can assert path + ?stage param. */
+function LocationProbe(): React.ReactElement {
+  const location = useLocation();
+  return (
+    <span data-testid="location-search">
+      {location.pathname + location.search}
+    </span>
+  );
+}
+
+function renderBoard(initialEntries: string[] = ["/pipeline"]) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <FlowBoard />
+      <LocationProbe />
+    </MemoryRouter>,
+  );
+}
 
 function stage(
   key: string,
@@ -54,32 +70,33 @@ function stage(
   };
 }
 
-const NINE = [
-  stage("arrival", "Arrivée", 10, "ok"),
-  stage("staging", "Staging", 8, "ok"),
-  stage("cleaning", "Nettoyage", 0, "idle"),
+/** The eight P0-A stations — stocks, not last-run throughput. */
+const EIGHT = [
+  stage("arrival", "Arrivée", 1, "ok"),
   stage("sorting", "Tri", 0, "idle"),
-  stage("matching", "Matching", 4, "attention", {
-    attention: 4,
+  stage("cleaning", "Nettoyage", 0, "idle"),
+  stage("matching", "Identification", 4, "blocked", {
+    blocked: 4,
     split: [
-      { label: "ambigu", count: 2, tone: "warning" },
-      { label: "sans correspondance", count: 1, tone: "danger" },
-      { label: "incertain", count: 1, tone: "info" },
+      { label: "à résoudre", count: 3, tone: "warning" },
+      { label: "à qualifier", count: 1, tone: "info" },
     ],
   }),
-  stage("scraping", "Scraping", 5, "ok"),
+  stage("scraping", "Scraping", 0, "idle"),
   stage("trailers", "Trailers", 0, "idle"),
-  stage("verify", "Vérification", 0, "idle"),
-  stage("dispatch", "Dispatch", 5, "ok"),
+  stage("verify", "Vérification", 1, "blocked", { blocked: 1 }),
+  stage("dispatch", "Dispatch", 2, "ok"),
 ];
 
 beforeEach(() => {
   stagesMock.mockReturnValue({
     data: {
-      stages: NINE,
+      stages: EIGHT,
       run_uid: "run-1",
       run_state: "idle",
       updated_at: 1750000000,
+      run_trigger: "watch",
+      run_processed: 3,
     },
     isLoading: false,
     isError: false,
@@ -94,14 +111,13 @@ afterEach(() => {
 });
 
 describe("FlowBoard", () => {
-  it("renders all nine stage stations with their counts", () => {
-    render(<FlowBoard />);
+  it("renders the eight stations with their stock counts — no Staging step", () => {
+    renderBoard();
     for (const label of [
       "Arrivée",
-      "Staging",
-      "Nettoyage",
       "Tri",
-      "Matching",
+      "Nettoyage",
+      "Identification",
       "Scraping",
       "Trailers",
       "Vérification",
@@ -109,8 +125,14 @@ describe("FlowBoard", () => {
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    // Matching headline count is shown.
+    expect(screen.queryByText("Staging")).not.toBeInTheDocument();
+    // Identification stock is shown.
     expect(screen.getByText("4")).toBeInTheDocument();
+  });
+
+  it("carries the last run's throughput in the header, not on stations", () => {
+    renderBoard();
+    expect(screen.getByText(/Dernier run · .* · 3 médias traités/)).toBeInTheDocument();
   });
 
   it("shows a loading skeleton row while fetching", () => {
@@ -121,7 +143,7 @@ describe("FlowBoard", () => {
       error: null,
       refetch: vi.fn(),
     });
-    const { container } = render(<FlowBoard />);
+    const { container } = renderBoard();
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
@@ -135,7 +157,7 @@ describe("FlowBoard", () => {
       error: null,
       refetch: vi.fn(),
     });
-    const { container } = render(<FlowBoard />);
+    const { container } = renderBoard();
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
     expect(screen.queryByText("Arrivée")).not.toBeInTheDocument();
   });
@@ -149,19 +171,40 @@ describe("FlowBoard", () => {
       error: new Error("boom"),
       refetch,
     });
-    render(<FlowBoard />);
+    renderBoard();
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("opens the Matching drawer and navigates to the resolution queue", () => {
-    render(<FlowBoard />);
-    fireEvent.click(screen.getByRole("button", { name: /Matching/ }));
-    // Drawer action for a non-empty matching stage.
+  it("opening a station sets ?stage= (URL-addressable) and closing removes it", () => {
+    renderBoard();
+    fireEvent.click(screen.getByRole("button", { name: /Vérification/ }));
+    expect(screen.getByTestId("location-search").textContent).toContain(
+      "stage=verify",
+    );
+    // Close via the sheet's close affordance → the param is cleaned up.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getByTestId("location-search").textContent).not.toContain(
+      "stage=verify",
+    );
+  });
+
+  it("restores the open drawer from a ?stage= deep link", () => {
+    renderBoard(["/pipeline?stage=matching"]);
+    // The drawer is open on the Identification stage without any click.
+    expect(
+      screen.getByRole("button", { name: /Ouvrir la file de résolution/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the Identification drawer and navigates to the resolution queue", () => {
+    renderBoard();
+    fireEvent.click(screen.getByRole("button", { name: /Identification/ }));
     const action = screen.getByRole("button", {
       name: /Ouvrir la file de résolution/,
     });
     fireEvent.click(action);
-    expect(navigateMock).toHaveBeenCalledWith("/scraping");
+    // Real router: the action leaves /pipeline for the resolution deck.
+    expect(screen.getByTestId("location-search").textContent).toBe("/scraping");
   });
 });

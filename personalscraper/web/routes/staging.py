@@ -60,12 +60,12 @@ logger = get_logger(__name__)
 #: Maximum page size accepted by the list endpoint.
 _MAX_PAGE_SIZE = 200
 
-#: Stage keys accepted by the ``stage`` filter (the nine timeline stages).
+#: Stage keys accepted by the ``stage`` filter (the eight Flow Board stages —
+#: see ``web/staging/stages.py``, the single taxonomy source).
 StageKeyFilter = Literal[
     "arrival",
-    "staging",
-    "cleaning",
     "sorting",
+    "cleaning",
     "matching",
     "scraping",
     "trailers",
@@ -74,9 +74,6 @@ StageKeyFilter = Literal[
 ]
 
 SortKey = Literal["recent", "title", "year", "size"]
-
-#: Timeline states that mean "the item is at / awaiting this stage" (stage filter).
-_ACTIVE_STATES: frozenset[str] = frozenset({"pending", "active", "blocked"})
 
 
 def _config(request: Request) -> Config:
@@ -137,7 +134,7 @@ def _compute_counts(items: list[StagingMediaItem]) -> StagingCounts:
             counts.scraped += 1
         if item.has_trailer:
             counts.with_trailer += 1
-        if any(s.state == "blocked" for s in item.stages):
+        if item.position_state == "blocked":
             counts.awaiting_action += 1
     return counts
 
@@ -159,7 +156,8 @@ def _matches_filters(
         category: Staging subfolder filter, or ``None``.
         kind: Media-kind filter, or ``None``.
         match: Matching-verdict filter, or ``None``.
-        stage: Keep items at/awaiting this stage (state pending/active/blocked).
+        stage: Keep only items whose single position is this stage (P0-A.1 —
+            each item matches exactly one stage filter, never several).
         query: Case-insensitive title substring, or ``None``.
         missing_trailer: When ``True``, keep only items without a trailer file.
 
@@ -174,9 +172,8 @@ def _matches_filters(
         return False
     if query and query.casefold() not in item.title.casefold():
         return False
-    if stage is not None:
-        if not any(s.key == stage and s.state in _ACTIVE_STATES for s in item.stages):
-            return False
+    if stage is not None and item.position_stage != stage:
+        return False
     if missing_trailer and item.has_trailer:
         return False
     return True

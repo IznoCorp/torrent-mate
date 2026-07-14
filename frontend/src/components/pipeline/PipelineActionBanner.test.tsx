@@ -52,7 +52,7 @@ describe("PipelineActionBanner", () => {
   it("shows the count + deck CTA when decisions are pending", () => {
     stagesMock.mockReturnValue(stagesData(3));
     render(<PipelineActionBanner />);
-    expect(screen.getByText(/3 décisions à résoudre/)).toBeInTheDocument();
+    expect(screen.getByText(/3 médias à identifier/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ouvrir la file/ }));
     expect(navigateMock).toHaveBeenCalledWith("/scraping");
   });

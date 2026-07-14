@@ -297,21 +297,23 @@ class PipelineStage(BaseModel):
 
 
 class StagesResponse(BaseModel):
-    """Response body for ``GET /api/pipeline/stages`` (OBJ1 Flow Board).
+    """Response body for ``GET /api/pipeline/stages`` (Flow Board).
 
-    Aggregates the last pipeline run's per-step summaries and the live
-    ``scrape_decision`` queue into the nine Flow Board stations, plus the
-    live run state so the board can pulse the active stage.
+    Each station carries the CURRENT STOCK of media at that position
+    (single-position axiom, P0-A.1/A.3); the last run's throughput lives in
+    the header fields, never on the stations.
 
     Attributes:
-        stages: The nine stages in board (left-to-right flow) order.
-        run_uid: The run these counts are sourced from, or ``None`` when no
-            pipeline run has ever been recorded.
+        stages: The eight stations in board (left-to-right flow) order.
+        run_uid: The latest pipeline run, or ``None`` when none was recorded.
         run_state: Live pipeline run-state (``idle`` / ``running`` /
             ``paused``) — drives whether the active stage pulses.
-        updated_at: Epoch seconds of the source run's start, or ``None``.
-        run_trigger: The source run's trigger (e.g. ``watch`` / ``manual`` /
+        updated_at: Epoch seconds of the latest run's start, or ``None``.
+        run_trigger: The latest run's trigger (e.g. ``watch`` / ``manual`` /
             ``cron``), or ``None`` — lets the board caption its provenance.
+        run_processed: How many media the latest run processed (max across
+            its steps of success+error+unmatched), or ``None`` — feeds the
+            board header « Dernier run · il y a X · N médias traités ».
     """
 
     stages: list[PipelineStage]
@@ -319,3 +321,4 @@ class StagesResponse(BaseModel):
     run_state: PipelineState
     updated_at: float | None = None
     run_trigger: str | None = None
+    run_processed: int | None = None
