@@ -354,6 +354,7 @@ def make_registry_boot_validated() -> RegistryBootValidated:
 from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     CrossSeedInjected,
     CrossSeedRejected,
+    FilmAcquired,
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
@@ -394,6 +395,12 @@ def make_wanted_enqueued() -> WantedEnqueued:
         season=5,
         episode=1,
     )
+
+
+@register_factory(FilmAcquired)
+def make_film_acquired() -> FilmAcquired:
+    """Realistic FilmAcquired factory — a followed film reached the library."""
+    return FilmAcquired(media_ref=_INCEPTION_REF, title="Inception", followed_id=7)
 
 
 @register_factory(WantedAbandoned)

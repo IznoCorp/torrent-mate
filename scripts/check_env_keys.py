@@ -29,6 +29,12 @@ _ALLOWLIST: frozenset[str] = frozenset(
         # environment so its run_uid matches the pipeline_run history row.
         # Not user config — never set manually in .env.
         "PERSONALSCRAPER_RUN_UID",
+        # Internal: the acquisition web runner sets this to pick the CLI to
+        # spawn ('grab' | 'detect'). Runtime-only, never user config.
+        "PERSONALSCRAPER_ACQ_COMMAND",
+        # PM2-injected: present in a PM2-launched process' env; the acquisition
+        # CLIs read it to tag a self-launched run trigger='cron'. Not our config.
+        "PM2_HOME",
     }
 )
 
