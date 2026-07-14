@@ -21,6 +21,7 @@ from personalscraper.cli_helpers import (
     per_step_boundary,
 )
 from personalscraper.cli_state import state
+from personalscraper.commands._acquire_run_row import acquisition_run_row
 from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
@@ -57,7 +58,10 @@ def grab(
     console = state["console"]
     settings = cli_compat.get_settings()
 
-    with per_step_boundary(config, settings, build_torrent_client=not dry_run) as app_context:
+    with (
+        acquisition_run_row(config, "grab") as run_rec,
+        per_step_boundary(config, settings, build_torrent_client=not dry_run) as app_context,
+    ):
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
         try:
             acquire = app_context.acquire
@@ -81,6 +85,17 @@ def grab(
                     f"{summary.retried} retried, "
                     f"{summary.abandoned} abandoned, "
                     f"{summary.skipped} skipped."
+                )
+                # §5 « résultat chiffré »: persist the run's numbers on its
+                # pipeline_run row (self-owned for cron/CLI; the web runner's
+                # row when spawned by POST /followed/{id}/search).
+                run_rec.record_counts(
+                    {
+                        "grabbed": summary.grabbed,
+                        "retried": summary.retried,
+                        "abandoned": summary.abandoned,
+                        "skipped": summary.skipped,
+                    }
                 )
         finally:
             if redis_publisher is not None:

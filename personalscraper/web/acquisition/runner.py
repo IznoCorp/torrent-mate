@@ -20,7 +20,10 @@ same series are idempotent — this runner therefore touches no lock.
 Environment contract (canonical — match the spawner):
 
 * ``PERSONALSCRAPER_RUN_UID`` — mandatory, the ``run_uid`` hex string.
-* ``PERSONALSCRAPER_GRAB_FOLLOWED_ID`` — mandatory, the ``followed_series.id``.
+* ``PERSONALSCRAPER_ACQ_COMMAND`` — optional: ``"grab"`` (default) or
+  ``"detect"`` (§5 manual aired-episode discovery — spawns ``follow detect``).
+* ``PERSONALSCRAPER_GRAB_FOLLOWED_ID`` — mandatory for ``grab``; unused for
+  ``detect``.
 
 Exit codes:
 
@@ -57,22 +60,31 @@ OUTCOME_KILLED = "killed"
 _SIGTERM_EXIT_CODE = 143
 
 
-def _read_mandatory_env() -> tuple[str, int]:
-    """Read the two mandatory runner env vars; exit 2 on missing/invalid.
+def _read_mandatory_env() -> tuple[str, str, int | None]:
+    """Read the runner env vars; exit 2 on missing/invalid.
 
     Returns:
-        A ``(run_uid, followed_id)`` tuple.
+        A ``(run_uid, command, followed_id)`` tuple — ``command`` is ``"grab"``
+        or ``"detect"``; ``followed_id`` is ``None`` for ``detect``.
 
     Raises:
-        SystemExit: 2 when a required var is missing or ``followed_id`` is not
-            an integer.
+        SystemExit: 2 when a required var is missing/invalid.
     """
     run_uid = os.environ.get("PERSONALSCRAPER_RUN_UID")
-    raw_followed = os.environ.get("PERSONALSCRAPER_GRAB_FOLLOWED_ID")
-    if not run_uid or not raw_followed:
+    command = os.environ.get("PERSONALSCRAPER_ACQ_COMMAND", "grab")
+    if not run_uid or command not in ("grab", "detect"):
         log.error(
             "grab_runner_missing_env",
-            hint="The spawner MUST set PERSONALSCRAPER_RUN_UID + PERSONALSCRAPER_GRAB_FOLLOWED_ID",
+            hint="The spawner MUST set PERSONALSCRAPER_RUN_UID (+ a valid PERSONALSCRAPER_ACQ_COMMAND)",
+        )
+        sys.exit(2)
+    if command == "detect":
+        return run_uid, command, None
+    raw_followed = os.environ.get("PERSONALSCRAPER_GRAB_FOLLOWED_ID")
+    if not raw_followed:
+        log.error(
+            "grab_runner_missing_env",
+            hint="The spawner MUST set PERSONALSCRAPER_GRAB_FOLLOWED_ID for a grab run",
         )
         sys.exit(2)
     try:
@@ -80,18 +92,22 @@ def _read_mandatory_env() -> tuple[str, int]:
     except ValueError:
         log.error("grab_runner_bad_followed_id", value=raw_followed)
         sys.exit(2)
-    return run_uid, followed_id
+    return run_uid, command, followed_id
 
 
-def _build_argv(followed_id: int) -> list[str]:
-    """Build the ``grab --followed-id N`` CLI argument list.
+def _build_argv(command: str, followed_id: int | None) -> list[str]:
+    """Build the acquisition CLI argument list.
 
     Args:
-        followed_id: The followed series to scope the grab to.
+        command: ``"grab"`` (per-series manual grab) or ``"detect"`` (§5 manual
+            aired-episode discovery over every active follow).
+        followed_id: The followed series to scope a grab to (``None`` for detect).
 
     Returns:
         A command-line argument list starting with ``sys.executable``.
     """
+    if command == "detect":
+        return [sys.executable, "-m", "personalscraper", "follow", "detect"]
     return [sys.executable, "-m", "personalscraper", "grab", "--followed-id", str(followed_id)]
 
 
@@ -103,7 +119,7 @@ def main() -> None:
     trigger is tracked exactly like a maintenance run and never leaves a stuck
     ``'running'`` row.
     """
-    run_uid, followed_id = _read_mandatory_env()
+    run_uid, command, followed_id = _read_mandatory_env()
 
     try:
         config = load_config()
@@ -117,8 +133,10 @@ def main() -> None:
         sys.exit(2)
     web_config = config.web
 
-    options_json = json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
-    argv = _build_argv(followed_id)
+    row_command = "follow-detect" if command == "detect" else "grab"
+    options = {} if followed_id is None else {"followed_id": followed_id}
+    options_json = json.dumps(options, sort_keys=True, separators=(",", ":"))
+    argv = _build_argv(command, followed_id)
 
     # Ensure the pipeline_run row exists (idempotent) and claim its pid.
     writer = PipelineRunWriter(db_path)
@@ -128,7 +146,7 @@ def main() -> None:
         dry_run=False,
         pid=os.getpid(),
         kind="maintenance",
-        command="grab",
+        command=row_command,
         options_json=options_json,
         if_absent=True,
     )

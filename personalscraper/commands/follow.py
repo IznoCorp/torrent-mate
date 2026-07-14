@@ -38,6 +38,7 @@ from personalscraper.acquire.title_resolver import resolve_series_title
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
+from personalscraper.commands._acquire_run_row import acquisition_run_row
 from personalscraper.core.identity import MediaRef
 from personalscraper.logger import get_logger
 from personalscraper.subscribers import build_redis_publisher
@@ -264,7 +265,10 @@ def follow_detect(
     console: Console = state["console"]
     settings = cli_compat.get_settings()
 
-    with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
+    with (
+        acquisition_run_row(config, "follow-detect") as run_rec,
+        per_step_boundary(config, settings, build_torrent_client=False) as app_context,
+    ):
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
         try:
             acquire = app_context.acquire
@@ -478,6 +482,17 @@ def follow_detect(
             console.print(
                 f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
                 + (" [dim](dry-run)[/dim]" if dry_run else "")
+            )
+            # §5 « résultat chiffré »: persist the run's numbers on its
+            # pipeline_run row so the web surface shows a real result, never
+            # a bare success badge.
+            run_rec.record_counts(
+                {
+                    "detected": enqueued + skipped_owned + skipped_dup,
+                    "enqueued": enqueued,
+                    "skipped_owned": skipped_owned,
+                    "skipped_dup": skipped_dup,
+                }
             )
         finally:
             if redis_publisher is not None:

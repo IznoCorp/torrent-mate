@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from personalscraper.acquire.cadence import Cadence, next_search_at, tier_name
+from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.store import build_acquire_store
@@ -45,9 +45,17 @@ from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
+from personalscraper.web.acquisition._helpers import (
+    _backfill_from_indexer,
+    _cadence_readout,
+    _parse_json_dict,
+    _parse_media_ref,
+    _row_col,
+)
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionStatusResponse,
+    CompletenessResponse,
     CreateFollowRequest,
     FollowedResponse,
     FollowedSeriesItem,
@@ -81,156 +89,6 @@ _WATCHER_TRIGGERS = ("completion", "safety_net", "manual")
 
 
 # ── helpers ────────────────────────────────────────────────────────────
-
-
-def _parse_media_ref(media_ref_json: str | None) -> MediaRefResponse:
-    """Parse a ``media_ref_json`` column into a :class:`MediaRefResponse`.
-
-    Args:
-        media_ref_json: The raw JSON string from the DB, or ``None``.
-
-    Returns:
-        A ``MediaRefResponse`` with the parsed fields, or an empty one on
-        parse failure / ``None``.
-    """
-    if not media_ref_json:
-        return MediaRefResponse()
-    try:
-        data = json.loads(media_ref_json)
-    except (json.JSONDecodeError, TypeError):
-        return MediaRefResponse()
-    return MediaRefResponse(
-        tvdb_id=data.get("tvdb_id"),
-        tmdb_id=data.get("tmdb_id"),
-        imdb_id=data.get("imdb_id"),
-    )
-
-
-def _parse_json_dict(raw: str | None) -> dict[str, object] | None:
-    """Parse a JSON text column into a dict, or ``None`` on failure.
-
-    Args:
-        raw: The raw JSON string from the DB, or ``None``.
-
-    Returns:
-        The parsed dict, or ``None``.
-    """
-    if not raw:
-        return None
-    try:
-        result = json.loads(raw)
-        if isinstance(result, dict):
-            return result
-        return None
-    except (json.JSONDecodeError, TypeError):
-        return None
-
-
-def _row_col(row: sqlite3.Row, name: str) -> object | None:
-    """Return a row column by name, or ``None`` when the column is absent.
-
-    Tolerates a pre-migration ``followed_series`` (the OBJ3 metadata columns
-    may not exist yet on the shared acquire.db until the first write applies
-    migration 005) so a read never raises.
-
-    Args:
-        row: A ``sqlite3.Row``.
-        name: The column name to read.
-
-    Returns:
-        The column value, or ``None`` when the column does not exist.
-    """
-    return row[name] if name in row.keys() else None
-
-
-def _backfill_from_indexer(
-    indexer_db_path: Path | None,
-    tvdb_id: int | None,
-    tmdb_id: int | None,
-) -> tuple[int | None, int | None]:
-    """Look up ``(year, season_count)`` for a followed series in the indexer.
-
-    Matches a ``media_item`` (kind='show') by its TVDB or TMDB series id
-    (``external_ids_json`` → ``$.<provider>.series_id``) and counts its seasons.
-    Fail-soft: any error / no match yields ``(None, None)`` — the card simply
-    shows less.
-
-    Args:
-        indexer_db_path: Absolute path to ``library.db``, or ``None``.
-        tvdb_id: The followed series' TVDB id, or ``None``.
-        tmdb_id: The followed series' TMDB id, or ``None``.
-
-    Returns:
-        ``(year, season_count)`` — either may be ``None``.
-    """
-    if indexer_db_path is None or not Path(indexer_db_path).exists():
-        return None, None
-    lookups: list[tuple[str, str]] = []
-    if tvdb_id is not None:
-        lookups.append(("$.tvdb.series_id", str(tvdb_id)))
-    if tmdb_id is not None:
-        lookups.append(("$.tmdb.series_id", str(tmdb_id)))
-    if not lookups:
-        return None, None
-    try:
-        with closing(sqlite3.connect(str(indexer_db_path))) as conn:
-            apply_pragmas(conn)
-            for path_expr, value in lookups:
-                row = conn.execute(
-                    "SELECT id, year FROM media_item "
-                    "WHERE kind = 'show' AND json_extract(external_ids_json, ?) = ? LIMIT 1",
-                    (path_expr, value),
-                ).fetchone()
-                if row is None:
-                    continue
-                item_id, year = row[0], row[1]
-                season_count = conn.execute("SELECT COUNT(*) FROM season WHERE item_id = ?", (item_id,)).fetchone()[0]
-                return year, season_count
-    except sqlite3.Error:
-        logger.warning("acquisition_indexer_backfill_failed", exc_info=True)
-    return None, None
-
-
-#: Temperature ranks used to pick a series' governing (hottest) tier.
-_TIER_RANK: dict[str, int] = {"hot": 0, "warm": 1, "cold": 2, "cutoff": 3}
-
-
-def _cadence_readout(
-    timings: list[tuple[int, int | None]],
-    cadence: Cadence,
-    now: int,
-) -> tuple[float | None, str | None]:
-    """Derive a series' ``(next_search_at, cadence_tier)`` from its pending items.
-
-    The next automatic search for the series is the soonest next-due among its
-    pending wanted items; the reported tier is the hottest (most-active) tier
-    across them. Past-cutoff items are ignored. Returns ``(None, None)`` when the
-    series has no pending/searchable item (it is up to date).
-
-    Args:
-        timings: ``(enqueued_at, last_search_at)`` pairs for the series' pending
-            wanted items.
-        cadence: The effective cadence policy for the series.
-        now: Current unix epoch seconds.
-
-    Returns:
-        A ``(next_search_at, cadence_tier)`` tuple, either element ``None``.
-    """
-    soonest: int | None = None
-    best_tier: str | None = None
-    best_rank = 99
-    for enqueued_at, last_search_at in timings:
-        due = next_search_at(cadence, now=now, enqueued_at=enqueued_at, last_search_at=last_search_at)
-        if due is None:  # past cutoff — no longer searched
-            continue
-        if soonest is None or due < soonest:
-            soonest = due
-        tier = tier_name(cadence, now=now, enqueued_at=enqueued_at)
-        rank = _TIER_RANK.get(tier, 99)
-        if rank < best_rank:
-            best_rank = rank
-            best_tier = tier
-    return (float(soonest) if soonest is not None else None, best_tier)
 
 
 def _write_follow_metadata(
@@ -323,6 +181,12 @@ def get_followed(
                     "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status IN ('pending', 'searching')",
                     (row["id"],),
                 ).fetchone()[0]
+                # COUNT grabbed — the §5 "en cours d'acquisition" window (torrent
+                # spotted → pipeline finished) that drives the film card status.
+                grabbed = conn.execute(
+                    "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status = 'grabbed'",
+                    (row["id"],),
+                ).fetchone()[0]
 
                 # Card metadata (OBJ3): cached columns first; year + season_count
                 # backfilled from the indexer when the cache is empty.
@@ -351,9 +215,11 @@ def get_followed(
                         title=row["title"],
                         media_ref=media_ref,
                         active=bool(row["active"]),
+                        kind=cast("str", _row_col(row, "kind")) or "show",
                         cadence=_parse_json_dict(row["cadence_json"]),
                         added_at=float(row["added_at"]),
                         wanted_pending=pending,
+                        wanted_grabbed=grabbed,
                         quality_profile=_parse_json_dict(row["quality_profile_json"]),
                         poster_url=poster_url,
                         overview=overview,
@@ -367,6 +233,61 @@ def get_followed(
     except sqlite3.Error:
         logger.warning("acquisition_followed_read_failed", exc_info=True)
         return FollowedResponse(items=[])
+
+
+# ── /api/acquisition/followed/{id}/completeness ────────────────────────
+
+
+@router.get("/followed/{followed_id}/completeness", response_model=CompletenessResponse)
+def get_followed_completeness(request: Request, followed_id: int) -> CompletenessResponse:
+    """Per-season / per-episode completeness for one followed series (§5).
+
+    Read-only: crosses the provider catalog (aired episodes), the library
+    (ownership by provider id) and the wanted queue into one honest matrix —
+    "ce qui est déjà sorti vs ce qui est en médiathèque". An empty provider
+    catalog is an explicit state (``provider_catalog_empty``), never a
+    misleading all-missing grid.
+
+    Args:
+        request: The incoming FastAPI request.
+        followed_id: The ``followed_series`` rowid.
+
+    Returns:
+        The :class:`CompletenessResponse`.
+
+    Raises:
+        HTTPException: 404 unknown follow; 502 when the provider registry
+            cannot be built.
+    """
+    from personalscraper.core.ownership import NullOwnershipChecker
+    from personalscraper.indexer.ownership import IndexerOwnershipChecker
+    from personalscraper.web.acquisition.completeness import compute_completeness
+
+    config = request.app.state.config
+    store = build_acquire_store(config.acquire)
+    try:
+        followed = store.follow.get(followed_id)
+        if followed is None:
+            raise HTTPException(status_code=404, detail="Followed series not found")
+
+        from personalscraper.cli_helpers import _build_app_context
+
+        try:
+            app_context = _build_app_context(config, request.app.state.settings)
+            registry = app_context.provider_registry
+        except Exception as exc:
+            logger.error("acquisition_completeness_registry_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
+
+        indexer_db = config.indexer.db_path
+        checker = IndexerOwnershipChecker(Path(indexer_db)) if indexer_db is not None else NullOwnershipChecker()
+        try:
+            return compute_completeness(followed, registry=registry, ownership=checker, store=store)
+        finally:
+            if isinstance(checker, IndexerOwnershipChecker):
+                checker.close()
+    finally:
+        store.close()
 
 
 # ── /api/acquisition/wanted ────────────────────────────────────────────
@@ -528,8 +449,41 @@ def get_obligations(
 # ── /api/acquisition/status ────────────────────────────────────────────
 
 
+def _parse_run_counts(steps_json: str | None) -> dict[str, int] | None:
+    """Extract the §5 numeric result from a run's ``steps_json``, or ``None``.
+
+    The acquisition CLIs persist their counts as the ``counts`` mapping of a
+    ``steps_json`` entry (see ``commands/_acquire_run_row``). The LAST entry
+    carrying counts wins.
+
+    Args:
+        steps_json: The raw ``steps_json`` column value.
+
+    Returns:
+        The counts mapping, or ``None`` when absent/unparseable.
+    """
+    if not steps_json:
+        return None
+    try:
+        steps = json.loads(steps_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(steps, list):
+        return None
+    for step in reversed(steps):
+        counts = step.get("counts") if isinstance(step, dict) else None
+        if isinstance(counts, dict):
+            return {str(k): int(v) for k, v in counts.items() if isinstance(v, (int, float))}
+    return None
+
+
 def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
-    """Query the last N watcher-triggered pipeline_run rows from library.db.
+    """Query the last N acquisition-relevant pipeline_run rows from library.db.
+
+    Covers BOTH populations (§5 visibility): the watcher-triggered pipeline
+    runs (legacy triggers) AND the acquisition CLI runs — ``follow-detect`` /
+    ``grab`` rows written by the crons, a human CLI, or the web runner — each
+    carrying its structured numeric result when recorded.
 
     Args:
         db_path: Absolute path to the indexer SQLite database (library.db).
@@ -548,9 +502,10 @@ def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
             placeholders = ", ".join("?" * len(_WATCHER_TRIGGERS))
             rows = conn.execute(
                 f"""
-                SELECT run_uid, started_at, ended_at, outcome
+                SELECT run_uid, started_at, ended_at, outcome, command, "trigger", steps_json
                 FROM pipeline_run
                 WHERE trigger IN ({placeholders})
+                   OR command IN ('follow-detect', 'grab')
                 ORDER BY started_at DESC
                 LIMIT ?
                 """,
@@ -563,6 +518,9 @@ def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
                     started_at=float(row["started_at"]),
                     ended_at=(float(row["ended_at"]) if row["ended_at"] is not None else None),
                     outcome=row["outcome"],
+                    command=row["command"],
+                    trigger=row["trigger"],
+                    result=_parse_run_counts(row["steps_json"]),
                 )
                 for row in rows
             ]
@@ -723,6 +681,26 @@ def search_media(
         results.extend(_to_search_result(c, "tv") for c in tv_candidates)
 
     results.sort(key=lambda r: r.score, reverse=True)
+
+    # §5 replacement confirmation: flag movie results already owned in the
+    # library (by provider id, live files only) so the UI can ask before
+    # following — the pipeline will REPLACE the existing version. Fail-soft:
+    # an unreadable indexer leaves already_owned=False everywhere.
+    indexer_db = request.app.state.config.indexer.db_path
+    if indexer_db is not None and any(r.kind == "movie" for r in results):
+        from personalscraper.core.identity import MediaRef
+        from personalscraper.indexer.ownership import IndexerOwnershipChecker
+
+        checker = IndexerOwnershipChecker(Path(indexer_db))
+        try:
+            for r in results:
+                if r.kind != "movie":
+                    continue
+                ref = MediaRef(tmdb_id=r.provider_id) if r.provider == "tmdb" else MediaRef(tvdb_id=r.provider_id)
+                r.already_owned = checker.owns(ref, kind="movie")
+        finally:
+            checker.close()
+
     return MediaSearchResponse(results=results)
 
 
@@ -748,6 +726,7 @@ def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSer
             imdb_id=fs.media_ref.imdb_id,
         ),
         active=fs.active,
+        kind=fs.kind,
         cadence=_parse_json_dict(fs.cadence_json),
         added_at=float(fs.added_at),
         wanted_pending=wanted_pending,
@@ -778,6 +757,7 @@ def _item_from_followed(fs: FollowedSeries) -> FollowedSeriesItem:
             imdb_id=fs.media_ref.imdb_id,
         ),
         active=fs.active,
+        kind=fs.kind,
         cadence=_parse_json_dict(fs.cadence_json),
         added_at=float(fs.added_at),
         wanted_pending=0,  # newly created/reactivated → no wanted items yet
@@ -831,12 +811,14 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             assert reactivated is not None  # noqa: S101 — just wrote it
             return _item_from_followed(reactivated)
 
-        # New follow.
+        # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
+        # detect will produce one movie wanted row and auto-unfollow once acquired.
         series = FollowedSeries(
             media_ref=media_ref,
             title=title,
             added_at=int(time.time()),
             active=True,
+            kind=body.kind,
         )
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
@@ -966,19 +948,21 @@ def _grab_options_json(followed_id: int) -> str:
     return json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
 
 
-def _guard_no_running_grab(db_path: Path, options_json: str) -> None:
-    """Raise 409 when a live grab for this series is already running.
+def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "grab") -> None:
+    """Raise 409 when a live acquisition run with the same scope is in flight.
 
-    Scans ``pipeline_run`` for an un-ended ``command='grab'`` row whose
-    ``options_json`` matches (same followed series) and whose pid is still
-    alive. A dead/NULL pid is a stale row (crashed runner) and is ignored.
+    Scans ``pipeline_run`` for an un-ended row of the given *command* whose
+    ``options_json`` matches (same followed series / same detect scope) and
+    whose pid is still alive. A dead/NULL pid is a stale row (crashed runner)
+    and is ignored.
 
     Args:
         db_path: Absolute path to ``library.db``.
-        options_json: The canonical grab options string for this series.
+        options_json: The canonical options string for the run scope.
+        command: The run command to match (``'grab'`` / ``'follow-detect'``).
 
     Raises:
-        HTTPException: 409 when a live grab for the series is already running.
+        HTTPException: 409 when a live matching run is already running.
     """
     if not db_path.exists():
         return
@@ -987,8 +971,8 @@ def _guard_no_running_grab(db_path: Path, options_json: str) -> None:
             apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT pid FROM pipeline_run WHERE command = 'grab' AND ended_at IS NULL AND options_json = ?",
-                (options_json,),
+                "SELECT pid FROM pipeline_run WHERE command = ? AND ended_at IS NULL AND options_json = ?",
+                (command, options_json),
             ).fetchall()
     except sqlite3.Error:
         logger.warning("grab_guard_query_failed", exc_info=True)
@@ -1003,7 +987,7 @@ def _guard_no_running_grab(db_path: Path, options_json: str) -> None:
             continue  # dead pid → stale row
         except PermissionError:
             pass  # alive, owned by another user
-        raise HTTPException(status_code=409, detail="A grab is already running for this series")
+        raise HTTPException(status_code=409, detail="A matching acquisition run is already in flight")
 
 
 def _spawn_grab_runner(run_uid: str, followed_id: int) -> int:
@@ -1028,6 +1012,70 @@ def _spawn_grab_runner(run_uid: str, followed_id: int) -> int:
         env=env,
     )
     return proc.pid
+
+
+@router.post(
+    "/detect",
+    status_code=202,
+    response_model=GrabTriggerResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def trigger_detect(request: Request) -> GrabTriggerResponse:
+    """Launch the aired-episode / film discovery on demand (§5 manual watcher).
+
+    The detect pass (the 03:00 cron's job) polls the provider catalog for every
+    active follow, enqueues the missing episodes / films as wanted rows, and —
+    for movie follows already in the library — performs the §5 acquired-film
+    closure. This endpoint runs it NOW: it reserves a ``pipeline_run`` row
+    (``command='follow-detect'``, ``trigger='web'``), spawns the acquisition
+    runner in detect mode, and returns ``202`` with the ``run_uid`` so the UI
+    tracks the run to its numeric result — never a blind success toast.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+
+    Raises:
+        409: A detect run is already in flight.
+        500: The runner subprocess failed to spawn.
+    """
+    config = request.app.state.config
+    db_path = cast(Path, config.indexer.db_path)
+
+    # Reject a duplicate concurrent detect (pid-alive guard on the same options).
+    _guard_no_running_grab(db_path, "{}", command="follow-detect")
+
+    run_uid = uuid.uuid4().hex
+    writer = PipelineRunWriter(db_path)
+    writer.insert(
+        run_uid,
+        trigger="web",
+        dry_run=False,
+        pid=os.getpid(),
+        kind="maintenance",
+        command="follow-detect",
+        options_json="{}",
+        if_absent=True,
+    )
+    try:
+        env = {
+            **os.environ,
+            "PERSONALSCRAPER_RUN_UID": run_uid,
+            "PERSONALSCRAPER_ACQ_COMMAND": "detect",
+        }
+        logger.info("detect_trigger_spawned", run_uid=run_uid)
+        subprocess.Popen(
+            [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+            start_new_session=True,
+            env=env,
+        )
+    except (OSError, ValueError) as exc:
+        writer.finalize(run_uid, "error", error=f"Runner spawn failed: {exc}")
+        logger.error("detect_trigger_spawn_failed", run_uid=run_uid, error=str(exc))
+        raise HTTPException(status_code=500, detail="Could not launch the detect runner") from exc
+    return GrabTriggerResponse(run_uid=run_uid)
 
 
 @router.post(

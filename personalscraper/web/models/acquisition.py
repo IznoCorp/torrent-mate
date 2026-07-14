@@ -12,7 +12,10 @@ from pydantic import BaseModel, computed_field, model_validator
 
 #: Followed-series lifecycle status, derived server-side (C14) so the UI paints
 #: without re-deriving business state in JSX.
-FollowStatus = Literal["disabled", "pending", "up_to_date"]
+FollowStatus = Literal["disabled", "pending", "acquiring", "up_to_date"]
+
+#: Per-episode acquisition state for the §5 completeness read-model.
+EpisodeState = Literal["en_mediatheque", "manquant", "en_file", "en_cours"]
 
 
 class MediaRefResponse(BaseModel):
@@ -24,15 +27,21 @@ class MediaRefResponse(BaseModel):
 
 
 class FollowedSeriesItem(BaseModel):
-    """A single followed series in the list response."""
+    """A single followed series or film in the list response."""
 
     id: int
     title: str
     media_ref: MediaRefResponse
     active: bool
+    #: "show" (default) or "movie" — drives the §5 film lifecycle display
+    #: (en attente / en cours d'acquisition / retiré une fois en médiathèque).
+    kind: str = "show"
     cadence: dict[str, object] | None = None  # parsed from cadence_json
     added_at: float  # epoch seconds
     wanted_pending: int  # COUNT from wanted table
+    #: COUNT of wanted rows status='grabbed' — the §5 "en cours d'acquisition"
+    #: window (torrent spotted → pipeline finished) for a followed film.
+    wanted_grabbed: int = 0
     quality_profile: dict[str, object] | None = None  # read-only, parsed from quality_profile_json
     # Card display metadata (webui-overhaul OBJ3): cached at follow time from the
     # search candidate (poster_url = remote provider image URL); year + season_count
@@ -51,13 +60,16 @@ class FollowedSeriesItem(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def status(self) -> FollowStatus:
-        """Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).
+        """Lifecycle status derived from ``active`` + wanted counts (C14 / §5).
 
         Single server-side source of truth so the UI maps status → tone/label
         without re-deriving business state in JSX:
 
-        - ``disabled``: the series is paused (not active).
-        - ``pending``: at least one wanted search is in flight.
+        - ``disabled``: the follow is paused (not active).
+        - ``acquiring``: a grab landed and the torrent is on its way through
+          the pipeline (§5 film "en cours d'acquisition": du torrent repéré
+          jusqu'au pipeline terminé). Takes precedence over ``pending``.
+        - ``pending``: at least one wanted search is in flight ("en attente").
         - ``up_to_date``: active with nothing pending.
 
         Returns:
@@ -65,6 +77,8 @@ class FollowedSeriesItem(BaseModel):
         """
         if not self.active:
             return "disabled"
+        if self.wanted_grabbed > 0:
+            return "acquiring"
         if self.wanted_pending > 0:
             return "pending"
         return "up_to_date"
@@ -124,12 +138,24 @@ class ObligationsResponse(BaseModel):
 
 
 class RecentRun(BaseModel):
-    """A recent watcher-triggered pipeline run summary."""
+    """A recent acquisition-relevant pipeline run summary.
+
+    Covers watcher-triggered pipeline runs AND the acquisition CLI runs
+    (``follow-detect`` / ``grab``), each carrying its §5 numeric result when
+    the CLI recorded one.
+    """
 
     run_uid: str
     started_at: float  # epoch seconds
     ended_at: float | None = None  # epoch seconds
     outcome: str | None = None  # "success" | "error" | "killed" | None
+    #: CLI command for acquisition runs ("follow-detect" | "grab"), else None.
+    command: str | None = None
+    #: What launched the run ("cron" | "cli" | "web" | watcher triggers).
+    trigger: str | None = None
+    #: §5 « résultat chiffré » — e.g. {"detected": 3, "enqueued": 2} for detect,
+    #: {"grabbed": 1, "retried": 0, …} for grab. None when not recorded.
+    result: dict[str, int] | None = None
 
 
 class AcquisitionStatusResponse(BaseModel):
@@ -165,6 +191,10 @@ class MediaSearchResult(BaseModel):
     poster_url: str | None = None
     overview: str | None = None
     score: float
+    #: §5 replacement confirmation: ``True`` when the library already holds a
+    #: live file for this provider id — the UI must ask before following (the
+    #: pipeline will REPLACE the existing version once acquired).
+    already_owned: bool = False
 
 
 class MediaSearchResponse(BaseModel):
@@ -193,6 +223,10 @@ class CreateFollowRequest(BaseModel):
     tmdb_id: int | None = None
     imdb_id: str | None = None
     title: str | None = None
+    #: "show" (default) or "movie" — the §5 film lifecycle starts here: a movie
+    #: follow produces ONE wanted item at detect time and is auto-unfollowed
+    #: once the acquired file reaches the library.
+    kind: Literal["movie", "show"] = "show"
     # Optional card metadata captured from the add-by-search candidate (OBJ3).
     poster_url: str | None = None
     overview: str | None = None
@@ -250,3 +284,64 @@ class GrabTriggerResponse(BaseModel):
     """
 
     run_uid: str
+
+
+# ── Completeness read-model (§5 series: aired vs library vs queue) ─────────
+
+
+class EpisodeCompleteness(BaseModel):
+    """One aired episode's acquisition state (§5 épisode par épisode).
+
+    Attributes:
+        episode: Episode number within the season.
+        title: Episode title, or ``None`` when the provider omitted it.
+        air_date: ISO ``YYYY-MM-DD`` air date.
+        state: ``en_mediatheque`` (a live file exists in the library),
+            ``en_file`` (a pending wanted row), ``en_cours`` (a wanted row is
+            searching/grabbed — acquisition under way), or ``manquant`` (aired,
+            not owned, not queued).
+    """
+
+    episode: int
+    title: str | None = None
+    air_date: str | None = None
+    state: EpisodeState
+
+
+class SeasonCompleteness(BaseModel):
+    """Per-season aggregate + per-episode detail (§5 saison par saison).
+
+    Attributes:
+        season: Season number (1-based; specials excluded by the poller).
+        owned: Episodes with a live library file.
+        queued: Episodes currently in the wanted queue (en_file + en_cours).
+        total: Aired episodes in the season.
+        episodes: The per-episode states, ordered by episode number.
+    """
+
+    season: int
+    owned: int
+    queued: int
+    total: int
+    episodes: list[EpisodeCompleteness]
+
+
+class CompletenessResponse(BaseModel):
+    """Response for ``GET /api/acquisition/followed/{id}/completeness``.
+
+    Attributes:
+        followed_id: The follow this completeness was computed for.
+        title: The followed title (display).
+        kind: ``"show"`` or ``"movie"`` (movies get an empty seasons list —
+            their lifecycle lives on the card status instead).
+        provider_catalog_empty: ``True`` when the provider returned NO aired
+            episodes (the Top Chef case — the UI must say "catalogue provider
+            vide", never render a misleading all-missing matrix).
+        seasons: Season-by-season completeness, newest season first.
+    """
+
+    followed_id: int
+    title: str
+    kind: str
+    provider_catalog_empty: bool = False
+    seasons: list[SeasonCompleteness]
