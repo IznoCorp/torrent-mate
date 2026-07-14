@@ -254,3 +254,133 @@ def test_no_scan_failure_fallback_omits_full_scan(mock_config: MagicMock, caplog
     assert not any("library-index --mode full" in r.message for r in caplog.records), (
         "manual_fallback should NOT include library-index --mode full when scan_failures is empty"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Subtree invalidation (S3 — the merge-into-existing-folder blindness)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _invalidation_db(tmp_path):
+    """Build a minimal library.db with a disk row + path rows for one show."""
+    import sqlite3 as _sqlite3
+    from pathlib import Path as _Path
+
+    from personalscraper.indexer import migrations as _migrations_pkg
+    from personalscraper.indexer.db import apply_migrations as _apply
+
+    db_path = tmp_path / "library.db"
+    conn = _sqlite3.connect(str(db_path))
+    _apply(conn, _Path(_migrations_pkg.__file__).parent)
+    conn.execute(
+        "INSERT INTO disk (id, uuid, label, mount_path, merkle_root, is_mounted) "
+        "VALUES (3, 'uuid-3', 'disk_3', '/Volumes/Disk3', 'abcd1234', 1)"
+    )
+    rows = [
+        ("medias", 111, 999),
+        ("medias/series", 222, 999),
+        ("medias/series/House of the Dragon (2022)", 333, 999),
+        ("medias/series/House of the Dragon (2022)/Saison 03", 444, 999),
+        ("medias/series/Autre Show (2020)", 555, 999),
+    ]
+    conn.executemany(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (3, ?, ?, ?)",
+        rows,
+    )
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+def test_invalidate_dispatched_subtrees_resets_dest_and_ancestors(tmp_path, test_config) -> None:
+    """The dispatched dest subtree AND its ancestors lose their walk short-circuits.
+
+    Red-on-old: merging episodes into an existing 'Saison 03' does not bump
+    parent mtimes on NTFS/macFUSE, so the post-dispatch incremental scan
+    skipped exactly the branch dispatch had just written (prod: AD S22E10/E11
+    invisible 11 days, HotD S03E04 missed in-run). After invalidation the
+    walker must re-stat the whole branch.
+    """
+    import sqlite3 as _sqlite3
+    from pathlib import Path as _Path
+
+    from personalscraper.dispatch.post_maintenance import _invalidate_dispatched_subtrees
+
+    db_path = _invalidation_db(tmp_path)
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": db_path})})
+
+    count = _invalidate_dispatched_subtrees(
+        cfg,
+        {"disk_3": {_Path("/Volumes/Disk3/medias/series/House of the Dragon (2022)")}},
+    )
+    assert count >= 4  # dest + Saison 03 + series + medias
+
+    conn = _sqlite3.connect(str(db_path))
+    reset = dict(conn.execute("SELECT rel_path, dir_mtime_ns IS NULL FROM path WHERE disk_id = 3").fetchall())
+    # The dispatched branch + every ancestor is reset…
+    assert reset["medias/series/House of the Dragon (2022)"] == 1
+    assert reset["medias/series/House of the Dragon (2022)/Saison 03"] == 1
+    assert reset["medias/series"] == 1
+    assert reset["medias"] == 1
+    # …an unrelated sibling keeps its short-circuit (surgical, not a full rewalk).
+    assert reset["medias/series/Autre Show (2020)"] == 0
+    # The disk-level merkle short-circuit is cleared too.
+    assert conn.execute("SELECT merkle_root FROM disk WHERE id = 3").fetchone()[0] is None
+    conn.close()
+
+
+def test_collect_touched_destinations_filters_actions(tmp_path) -> None:
+    """Only moved/merged/replaced results with a disk AND a destination count."""
+    from pathlib import Path as _Path
+    from types import SimpleNamespace
+
+    from personalscraper.dispatch.post_maintenance import collect_touched_destinations
+
+    results = [
+        SimpleNamespace(disk="disk_1", destination=_Path("/Volumes/Disk1/medias/A"), action="moved"),
+        SimpleNamespace(disk="disk_1", destination=_Path("/Volumes/Disk1/medias/B"), action="merged"),
+        SimpleNamespace(disk="disk_2", destination=_Path("/Volumes/Disk2/medias/C"), action="replaced"),
+        SimpleNamespace(disk="disk_2", destination=_Path("/Volumes/Disk2/medias/D"), action="skipped"),
+        SimpleNamespace(disk=None, destination=_Path("/x"), action="moved"),
+        SimpleNamespace(disk="disk_3", destination=None, action="moved"),
+    ]
+    touched = collect_touched_destinations(results)
+    assert touched == {
+        "disk_1": {_Path("/Volumes/Disk1/medias/A"), _Path("/Volumes/Disk1/medias/B")},
+        "disk_2": {_Path("/Volumes/Disk2/medias/C")},
+    }
+
+
+def test_invalidation_handles_nfd_stored_paths(tmp_path, test_config) -> None:
+    """NFD-stored rel_paths (macFUSE) are still invalidated by an NFC destination."""
+    import sqlite3 as _sqlite3
+    import unicodedata
+    from pathlib import Path as _Path
+
+    from personalscraper.dispatch.post_maintenance import _invalidate_dispatched_subtrees
+    from personalscraper.indexer import migrations as _migrations_pkg
+    from personalscraper.indexer.db import apply_migrations as _apply
+
+    db_path = tmp_path / "library.db"
+    conn = _sqlite3.connect(str(db_path))
+    _apply(conn, _Path(_migrations_pkg.__file__).parent)
+    conn.execute(
+        "INSERT INTO disk (id, uuid, label, mount_path, merkle_root, is_mounted) "
+        "VALUES (1, 'uuid-1', 'disk_1', '/Volumes/Disk1', 'ff', 1)"
+    )
+    nfd_rel = unicodedata.normalize("NFD", "medias/series/Éclairé (2020)")
+    conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (1, ?, 1, 1)",
+        (nfd_rel,),
+    )
+    conn.commit()
+    conn.close()
+
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": db_path})})
+    nfc_dest = _Path(unicodedata.normalize("NFC", "/Volumes/Disk1/medias/series/Éclairé (2020)"))
+    count = _invalidate_dispatched_subtrees(cfg, {"disk_1": {nfc_dest}})
+    assert count >= 1
+
+    conn = _sqlite3.connect(str(db_path))
+    assert conn.execute("SELECT dir_mtime_ns IS NULL FROM path WHERE rel_path = ?", (nfd_rel,)).fetchone()[0] == 1
+    conn.close()

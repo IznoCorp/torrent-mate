@@ -367,7 +367,10 @@ def dispatch(
                 )
 
             # Collect touched disks from DispatchResult objects (index-sync DESIGN).
-            from personalscraper.dispatch.post_maintenance import collect_touched_disks
+            from personalscraper.dispatch.post_maintenance import (
+                collect_touched_destinations,
+                collect_touched_disks,
+            )
 
             touched_disks = collect_touched_disks(results)
 
@@ -379,7 +382,12 @@ def dispatch(
             if touched_disks and not dry_run:
                 from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
 
-                run_post_dispatch_maintenance(config, touched_disks, enabled=maintenance_enabled)
+                run_post_dispatch_maintenance(
+                    config,
+                    touched_disks,
+                    destinations=collect_touched_destinations(results),
+                    enabled=maintenance_enabled,
+                )
 
             console.print(
                 f"[bold]Dispatch:[/bold] {report.success_count} OK, "
