@@ -22,6 +22,12 @@ from personalscraper.logger import get_logger
 
 logger = get_logger(__name__)
 
+#: Trigger reason for the §4 continuation run spawned after a manual scrape-resolve.
+#: MUST be an accepted ``--trigger-reason`` value (see
+#: ``personalscraper.commands.pipeline._VALID_TRIGGER_REASONS``); otherwise the spawned
+#: ``run`` crashes on argv validation and the resolved media never dispatches.
+RESOLVE_CONTINUATION_TRIGGER = "scrape-resolve"
+
 
 def spawn_pipeline_run(
     data_dir: Path,

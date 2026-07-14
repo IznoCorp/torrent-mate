@@ -55,3 +55,20 @@ def test_dry_run_appends_flag(tmp_path: Path) -> None:
         spawn_pipeline_run(tmp_path, trigger_reason="web", dry_run=True)
 
     assert "--dry-run" in popen.call_args.args[0]
+
+
+def test_continuation_trigger_reason_is_a_valid_run_trigger() -> None:
+    """The §4 continuation trigger MUST be accepted by ``run --trigger-reason``.
+
+    Guard-test #3 (product-intent §méthode): the other tests here mock ``Popen``,
+    so they assert the argv is *built* with ``scrape-resolve`` but never that the
+    spawned ``run`` would *accept* it. It does not: before the fix,
+    ``--trigger-reason=scrape-resolve`` failed argv validation, the continuation
+    run crashed, and the resolved media stayed in staging — never dispatched (the
+    §4 dénaturation, caught only by a real prod resolve). This wires both ends of
+    the contract so they cannot drift again.
+    """
+    from personalscraper.commands.pipeline import _validate_trigger_reason
+    from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER
+
+    assert _validate_trigger_reason(RESOLVE_CONTINUATION_TRIGGER) == RESOLVE_CONTINUATION_TRIGGER
