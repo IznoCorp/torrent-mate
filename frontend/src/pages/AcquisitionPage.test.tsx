@@ -61,6 +61,10 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
   useUpdateFollow: () => ({ mutate: updateFollowMutateFn, isPending: false }),
   useUnfollow: () => ({ mutate: unfollowMutateFn, isPending: false }),
+  // §5 additions: the completeness accordion + the run-tracking hook. Stubbed
+  // to inert values so the page/panel render is unaffected by them.
+  useCompleteness: () => ({ data: undefined, isLoading: false, isError: false }),
+  useTrackedAcquisitionRun: () => undefined,
 }));
 
 vi.mock("@/hooks/useEventStreamContext", () => ({
@@ -326,9 +330,9 @@ describe("AcquisitionPage", () => {
     // TVDB IDs rendered (distinct values).
     expect(screen.getByText("255968")).toBeInTheDocument();
     expect(screen.getByText("12345")).toBeInTheDocument();
-    // Derived état badges: Top Chef (active + 3 pending) → "En cours";
+    // Derived état badges: Top Chef (active + 3 pending) → "En attente";
     // Koh-Lanta (inactive) → "Désactivé".
-    expect(screen.getByText("En cours")).toBeInTheDocument();
+    expect(screen.getByText("En attente")).toBeInTheDocument();
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
   });
 
@@ -898,13 +902,19 @@ describe("AcquisitionPage", () => {
             run_uid: "abc123def456",
             started_at: 1_719_790_000,
             ended_at: 1_719_795_000,
-            outcome: "completed",
+            outcome: "success",
+            command: "follow-detect",
+            trigger: "cron",
+            result: { detected: 3, enqueued: 2 },
           },
           {
             run_uid: "ghi789jkl012",
             started_at: 1_719_760_000,
             ended_at: null,
             outcome: null,
+            command: "grab",
+            trigger: "web",
+            result: null,
           },
         ],
       },
@@ -913,9 +923,12 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
 
-    // Run UIDs rendered (not truncated, they are short enough).
-    expect(screen.getByText("abc123def456")).toBeInTheDocument();
+    // §5-aware table: run type + numeric result + outcome/running state.
+    expect(screen.getByText("Détection")).toBeInTheDocument();
+    expect(screen.getByText("Récupération")).toBeInTheDocument();
+    expect(screen.getByText(/3 détecté\(s\), 2 mis en file/)).toBeInTheDocument();
     expect(screen.getByText(/Succès/)).toBeInTheDocument();
+    expect(screen.getByText(/En cours…/)).toBeInTheDocument();
   });
 
   // ── Empty states ───────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import {
   createFollow,
   deleteFollow,
   getAcquisitionStatus,
+  getCompleteness,
   getFollowed,
   getObligations,
   getWanted,
@@ -127,6 +128,59 @@ export function useAcquisitionStatus() {
     queryKey: acqKeys.status(),
     queryFn: getAcquisitionStatus,
   });
+}
+
+/**
+ * Fetch the §5 completeness matrix for one followed series (lazy).
+ *
+ * Query key: ``['acquisition', 'completeness', id]``. Disabled until
+ * ``enabled`` is true (the accordion opens) — the endpoint hits the provider
+ * catalog, so it must never fire for every card eagerly.
+ *
+ * Args:
+ *   id: The ``followed_series`` rowid.
+ *   enabled: Whether the query may fire.
+ *
+ * Returns:
+ *   The TanStack Query result for a {@link CompletenessResponse}.
+ */
+export function useCompleteness(id: number, enabled: boolean) {
+  return useQuery({
+    queryKey: acqKeys.completeness(id),
+    queryFn: () => getCompleteness(id),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Track a launched acquisition run to its §5 numeric result.
+ *
+ * Polls ``GET /api/acquisition/status`` every 2 s while *runUid* is set and
+ * its run has not ended; stops polling once ``ended_at`` lands. The caller
+ * watches the returned run entry to toast the real result — never a blind
+ * success toast on the 202 (§5: « un toast de succès sur un run mort est
+ * interdit »).
+ *
+ * Args:
+ *   runUid: The launched run's identifier, or ``null`` when idle.
+ *
+ * Returns:
+ *   The tracked run entry (or ``undefined`` while unknown).
+ */
+export function useTrackedAcquisitionRun(runUid: string | null) {
+  const query = useQuery({
+    queryKey: [...acqKeys.status(), "tracked", runUid],
+    queryFn: getAcquisitionStatus,
+    enabled: runUid != null,
+    refetchInterval: (q) => {
+      const run = q.state.data?.recent_runs.find((r) => r.run_uid === runUid);
+      return run?.ended_at != null ? false : 2000;
+    },
+  });
+  return runUid == null
+    ? undefined
+    : query.data?.recent_runs.find((r) => r.run_uid === runUid);
 }
 
 // ---------------------------------------------------------------------------

@@ -42,6 +42,8 @@ const FOLLOWED: FollowedResponse = {
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 3,
+    wanted_grabbed: 0,
+    kind: "show",
       status: "pending",
       media_ref: {
         tvdb_id: 123,
@@ -247,12 +249,12 @@ describe("createFollow", () => {
   });
 
   it("posts with body serialised and XRW header", async () => {
-    await createFollow({ tvdb_id: 123, title: "Test Show" });
+    await createFollow({ tvdb_id: 123, title: "Test Show", kind: "show" });
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/acquisition/followed");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(
-      JSON.stringify({ tvdb_id: 123, title: "Test Show" }),
+      JSON.stringify({ tvdb_id: 123, title: "Test Show", kind: "show" }),
     );
     expect((init.headers as Record<string, string>)["X-Requested-With"]).toBe(
       "TorrentMate",
@@ -260,9 +262,9 @@ describe("createFollow", () => {
   });
 
   it("omits undefined fields from body", async () => {
-    await createFollow({ tvdb_id: 456 });
+    await createFollow({ tvdb_id: 456, kind: "show" });
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(init.body).toBe(JSON.stringify({ tvdb_id: 456 }));
+    expect(init.body).toBe(JSON.stringify({ tvdb_id: 456, kind: "show" }));
   });
 
   it("throws ApiError on 409 (already followed)", async () => {
@@ -270,7 +272,7 @@ describe("createFollow", () => {
       jsonResponse({ detail: "Already actively followed" }, 409),
     );
     await expect(
-      createFollow({ tvdb_id: 123 }),
+      createFollow({ tvdb_id: 123, kind: "show" }),
     ).rejects.toThrow(ApiError);
   });
 });

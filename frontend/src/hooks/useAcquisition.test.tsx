@@ -51,6 +51,8 @@ const FOLLOWED: FollowedResponse = {
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 3,
+    wanted_grabbed: 0,
+    kind: "show",
       status: "pending",
       media_ref: {
         tvdb_id: 123,
@@ -370,14 +372,18 @@ describe("useFollow", () => {
 
     const { result } = renderHook(() => useFollow(), { wrapper });
 
-    await result.current.mutateAsync({ tvdb_id: 123, title: "Test Show" });
+    await result.current.mutateAsync({
+      tvdb_id: 123,
+      title: "Test Show",
+      kind: "show",
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/acquisition/followed");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(
-      JSON.stringify({ tvdb_id: 123, title: "Test Show" }),
+      JSON.stringify({ tvdb_id: 123, title: "Test Show", kind: "show" }),
     );
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: acqKeys.all });
@@ -393,7 +399,7 @@ describe("useFollow", () => {
       wrapper: createWrapper(),
     });
 
-    await expect(result.current.mutateAsync({ tvdb_id: 123 })).rejects.toThrow(
+    await expect(result.current.mutateAsync({ tvdb_id: 123, kind: "show" })).rejects.toThrow(
       ApiError,
     );
   });

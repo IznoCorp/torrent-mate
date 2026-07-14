@@ -4,6 +4,44 @@
  */
 
 export interface paths {
+    "/api/acquisition/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Detect
+         * @description Launch the aired-episode / film discovery on demand (§5 manual watcher).
+         *
+         *     The detect pass (the 03:00 cron's job) polls the provider catalog for every
+         *     active follow, enqueues the missing episodes / films as wanted rows, and —
+         *     for movie follows already in the library — performs the §5 acquired-film
+         *     closure. This endpoint runs it NOW: it reserves a ``pipeline_run`` row
+         *     (``command='follow-detect'``, ``trigger='web'``), spawns the acquisition
+         *     runner in detect mode, and returns ``202`` with the ``run_uid`` so the UI
+         *     tracks the run to its numeric result — never a blind success toast.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+         *
+         *     Raises:
+         *         409: A detect run is already in flight.
+         *         500: The runner subprocess failed to spawn.
+         */
+        post: operations["trigger_detect_api_acquisition_detect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/followed": {
         parameters: {
             query?: never;
@@ -85,6 +123,43 @@ export interface paths {
          *         HTTPException: 404 if the followed_id does not exist.
          */
         patch: operations["update_follow_api_acquisition_followed__followed_id__patch"];
+        trace?: never;
+    };
+    "/api/acquisition/followed/{followed_id}/completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Followed Completeness
+         * @description Per-season / per-episode completeness for one followed series (§5).
+         *
+         *     Read-only: crosses the provider catalog (aired episodes), the library
+         *     (ownership by provider id) and the wanted queue into one honest matrix —
+         *     "ce qui est déjà sorti vs ce qui est en médiathèque". An empty provider
+         *     catalog is an explicit state (``provider_catalog_empty``), never a
+         *     misleading all-missing grid.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: The ``followed_series`` rowid.
+         *
+         *     Returns:
+         *         The :class:`CompletenessResponse`.
+         *
+         *     Raises:
+         *         HTTPException: 404 unknown follow; 502 when the provider registry
+         *             cannot be built.
+         */
+        get: operations["get_followed_completeness_api_acquisition_followed__followed_id__completeness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/acquisition/followed/{followed_id}/search": {
@@ -1699,6 +1774,35 @@ export interface components {
             interval_minutes: number;
         };
         /**
+         * CompletenessResponse
+         * @description Response for ``GET /api/acquisition/followed/{id}/completeness``.
+         *
+         *     Attributes:
+         *         followed_id: The follow this completeness was computed for.
+         *         title: The followed title (display).
+         *         kind: ``"show"`` or ``"movie"`` (movies get an empty seasons list —
+         *             their lifecycle lives on the card status instead).
+         *         provider_catalog_empty: ``True`` when the provider returned NO aired
+         *             episodes (the Top Chef case — the UI must say "catalogue provider
+         *             vide", never render a misleading all-missing matrix).
+         *         seasons: Season-by-season completeness, newest season first.
+         */
+        CompletenessResponse: {
+            /** Followed Id */
+            followed_id: number;
+            /** Kind */
+            kind: string;
+            /**
+             * Provider Catalog Empty
+             * @default false
+             */
+            provider_catalog_empty: boolean;
+            /** Seasons */
+            seasons: components["schemas"]["SeasonCompleteness"][];
+            /** Title */
+            title: string;
+        };
+        /**
          * ConfigSchemaResponse
          * @description Response body for ``GET /api/config/schema``.
          *
@@ -1762,6 +1866,12 @@ export interface components {
         CreateFollowRequest: {
             /** Imdb Id */
             imdb_id?: string | null;
+            /**
+             * Kind
+             * @default show
+             * @enum {string}
+             */
+            kind: "movie" | "show";
             /** Overview */
             overview?: string | null;
             /** Poster Url */
@@ -2053,6 +2163,32 @@ export interface components {
             title: string;
         };
         /**
+         * EpisodeCompleteness
+         * @description One aired episode's acquisition state (§5 épisode par épisode).
+         *
+         *     Attributes:
+         *         episode: Episode number within the season.
+         *         title: Episode title, or ``None`` when the provider omitted it.
+         *         air_date: ISO ``YYYY-MM-DD`` air date.
+         *         state: ``en_mediatheque`` (a live file exists in the library),
+         *             ``en_file`` (a pending wanted row), ``en_cours`` (a wanted row is
+         *             searching/grabbed — acquisition under way), or ``manquant`` (aired,
+         *             not owned, not queued).
+         */
+        EpisodeCompleteness: {
+            /** Air Date */
+            air_date?: string | null;
+            /** Episode */
+            episode: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "en_mediatheque" | "manquant" | "en_file" | "en_cours";
+            /** Title */
+            title?: string | null;
+        };
+        /**
          * FileContent
          * @description Response body for ``GET /api/config/files/{name}``.
          *
@@ -2122,7 +2258,7 @@ export interface components {
         };
         /**
          * FollowedSeriesItem
-         * @description A single followed series in the list response.
+         * @description A single followed series or film in the list response.
          */
         FollowedSeriesItem: {
             /** Active */
@@ -2137,6 +2273,11 @@ export interface components {
             cadence_tier?: string | null;
             /** Id */
             id: number;
+            /**
+             * Kind
+             * @default show
+             */
+            kind: string;
             media_ref: components["schemas"]["MediaRefResponse"];
             /** Next Search At */
             next_search_at?: number | null;
@@ -2152,22 +2293,30 @@ export interface components {
             season_count?: number | null;
             /**
              * Status
-             * @description Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).
+             * @description Lifecycle status derived from ``active`` + wanted counts (C14 / §5).
              *
              *     Single server-side source of truth so the UI maps status → tone/label
              *     without re-deriving business state in JSX:
              *
-             *     - ``disabled``: the series is paused (not active).
-             *     - ``pending``: at least one wanted search is in flight.
+             *     - ``disabled``: the follow is paused (not active).
+             *     - ``acquiring``: a grab landed and the torrent is on its way through
+             *       the pipeline (§5 film "en cours d'acquisition": du torrent repéré
+             *       jusqu'au pipeline terminé). Takes precedence over ``pending``.
+             *     - ``pending``: at least one wanted search is in flight ("en attente").
              *     - ``up_to_date``: active with nothing pending.
              *
              *     Returns:
              *         The derived lifecycle status.
              * @enum {string}
              */
-            readonly status: "disabled" | "pending" | "up_to_date";
+            readonly status: "disabled" | "pending" | "acquiring" | "up_to_date";
             /** Title */
             title: string;
+            /**
+             * Wanted Grabbed
+             * @default 0
+             */
+            wanted_grabbed: number;
             /** Wanted Pending */
             wanted_pending: number;
             /** Year */
@@ -2496,6 +2645,11 @@ export interface components {
          *         score: The matching-engine confidence score (0.0–1.0).
          */
         MediaSearchResult: {
+            /**
+             * Already Owned
+             * @default false
+             */
+            already_owned: boolean;
             /** Kind */
             kind: string;
             /** Overview */
@@ -2719,17 +2873,29 @@ export interface components {
         };
         /**
          * RecentRun
-         * @description A recent watcher-triggered pipeline run summary.
+         * @description A recent acquisition-relevant pipeline run summary.
+         *
+         *     Covers watcher-triggered pipeline runs AND the acquisition CLI runs
+         *     (``follow-detect`` / ``grab``), each carrying its §5 numeric result when
+         *     the CLI recorded one.
          */
         RecentRun: {
+            /** Command */
+            command?: string | null;
             /** Ended At */
             ended_at?: number | null;
             /** Outcome */
             outcome?: string | null;
+            /** Result */
+            result?: {
+                [key: string]: number;
+            } | null;
             /** Run Uid */
             run_uid: string;
             /** Started At */
             started_at: number;
+            /** Trigger */
+            trigger?: string | null;
         };
         /**
          * RegistryStatusResponse
@@ -3014,6 +3180,29 @@ export interface components {
         SearchResponse: {
             /** Candidates */
             candidates: components["schemas"]["DecisionCandidate"][];
+        };
+        /**
+         * SeasonCompleteness
+         * @description Per-season aggregate + per-episode detail (§5 saison par saison).
+         *
+         *     Attributes:
+         *         season: Season number (1-based; specials excluded by the poller).
+         *         owned: Episodes with a live library file.
+         *         queued: Episodes currently in the wanted queue (en_file + en_cours).
+         *         total: Aired episodes in the season.
+         *         episodes: The per-episode states, ordered by episode number.
+         */
+        SeasonCompleteness: {
+            /** Episodes */
+            episodes: components["schemas"]["EpisodeCompleteness"][];
+            /** Owned */
+            owned: number;
+            /** Queued */
+            queued: number;
+            /** Season */
+            season: number;
+            /** Total */
+            total: number;
         };
         /**
          * SecretEntry
@@ -3679,6 +3868,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    trigger_detect_api_acquisition_detect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
+                };
+            };
+        };
+    };
     get_followed_api_acquisition_followed_get: {
         parameters: {
             query?: {
@@ -3794,6 +4003,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FollowedSeriesItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_followed_completeness_api_acquisition_followed__followed_id__completeness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompletenessResponse"];
                 };
             };
             /** @description Validation Error */

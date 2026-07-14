@@ -104,6 +104,18 @@ export type CreateFollowRequest =
 export type UpdateFollowRequest =
   paths["/api/acquisition/followed/{followed_id}"]["patch"]["requestBody"]["content"]["application/json"];
 
+/** Response type for GET /api/acquisition/followed/{followed_id}/completeness (§5). */
+export type CompletenessResponse = SuccessBody<
+  paths["/api/acquisition/followed/{followed_id}/completeness"]["get"]["responses"]
+>;
+
+/** One season of the §5 completeness matrix. */
+export type SeasonCompleteness = CompletenessResponse["seasons"][number];
+
+/** A recent acquisition run (with its §5 numeric result when recorded). */
+export type AcquisitionRecentRun =
+  AcquisitionStatusResponse["recent_runs"][number];
+
 // ---------------------------------------------------------------------------
 // Stable TanStack Query keys
 // ---------------------------------------------------------------------------
@@ -137,6 +149,10 @@ export const acqKeys = {
   /** Media search query key: ``['acquisition', 'search', {q, kind}]``. */
   search: (params: MediaSearchParams) =>
     [...acqKeys.all, "search", params] as const,
+
+  /** Completeness query key: ``['acquisition', 'completeness', id]`` (§5). */
+  completeness: (id: number) =>
+    [...acqKeys.all, "completeness", id] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -326,6 +342,44 @@ export function triggerFollowedSearch(id: number): Promise<GrabTriggerResponse> 
   return apiFetch("/api/acquisition/followed/{followed_id}/search", {
     method: "post",
     headers: XRW_HEADERS,
+    params: { path: { followed_id: id } },
+  });
+}
+
+/**
+ * Launch the aired-episode / film discovery NOW (§5 manual watcher trigger).
+ *
+ * Sends ``POST /api/acquisition/detect``; returns ``202`` with the run_uid the
+ * caller tracks to its numeric result (never a blind success toast).
+ *
+ * Returns:
+ *   The launched run's identifier.
+ *
+ * Raises:
+ *   ApiError: 409 when a detect run is already in flight.
+ */
+export function triggerDetect(): Promise<GrabTriggerResponse> {
+  return apiFetch("/api/acquisition/detect", {
+    method: "post",
+    headers: XRW_HEADERS,
+  });
+}
+
+/**
+ * Fetch the §5 completeness matrix for one followed series.
+ *
+ * Sends ``GET /api/acquisition/followed/{followed_id}/completeness`` — aired
+ * (provider catalog) × en_mediatheque × en_file/en_cours, per season/episode.
+ *
+ * Args:
+ *   id: Rowid of the ``followed_series`` row.
+ *
+ * Returns:
+ *   The {@link CompletenessResponse}.
+ */
+export function getCompleteness(id: number): Promise<CompletenessResponse> {
+  return apiFetch("/api/acquisition/followed/{followed_id}/completeness", {
+    method: "get",
     params: { path: { followed_id: id } },
   });
 }
