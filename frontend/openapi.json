@@ -1,6 +1,105 @@
 {
   "components": {
     "schemas": {
+      "AcquisitionDownload": {
+        "description": "One grabbed torrent surfaced in the acquisition downloads panel (A4).\n\nAttributes:\n    media_ref: Provider-ID key of the wanted item.\n    title: Followed-series/film display title (empty if the follow is gone).\n    kind: ``\"movie\"`` or ``\"episode\"``.\n    season: Season number (episodes only).\n    episode: Episode number (episodes only).\n    info_hash: The grabbed torrent's info hash.\n    name: Torrent display name from the client (empty when ``missing``).\n    progress: Download progress 0.0\u20131.0 (0.0 when the client has no record).\n    state: Normalised live state. ``missing`` = grabbed row whose hash the\n        client no longer knows (removed / not yet visible) \u2014 surfaced\n        honestly rather than hidden.\n    size_bytes: Total size from the client (0 when unknown).",
+        "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "info_hash": {
+            "title": "Info Hash",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_ref": {
+            "$ref": "#/components/schemas/MediaRefResponse"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "progress": {
+            "default": 0.0,
+            "title": "Progress",
+            "type": "number"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "size_bytes": {
+            "default": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "downloading",
+              "stalled",
+              "seeding",
+              "paused",
+              "queued",
+              "in_client",
+              "missing"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_ref",
+          "title",
+          "kind",
+          "info_hash",
+          "state"
+        ],
+        "title": "AcquisitionDownload",
+        "type": "object"
+      },
+      "AcquisitionDownloadsResponse": {
+        "description": "Response for ``GET /api/acquisition/downloads`` (A4).\n\nAttributes:\n    downloads: Active/grabbed downloads, in-progress first then by recency.\n    client_available: ``False`` when the torrent client could not be reached\n        (the UI shows a soft \"client injoignable\" note instead of an empty\n        list that would read as \"no downloads\").",
+        "properties": {
+          "client_available": {
+            "default": true,
+            "title": "Client Available",
+            "type": "boolean"
+          },
+          "downloads": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AcquisitionDownload"
+            },
+            "title": "Downloads",
+            "type": "array"
+          }
+        },
+        "title": "AcquisitionDownloadsResponse",
+        "type": "object"
+      },
       "AcquisitionStatusResponse": {
         "description": "Response for GET /api/acquisition/status.",
         "properties": {
@@ -3590,6 +3689,28 @@
         ]
       }
     },
+    "/api/acquisition/downloads": {
+      "get": {
+        "description": "List the live progress of every grabbed torrent (Phase 5 A4).\n\nRead-only + fail-soft (see :func:`list_active_downloads`): a torrent-client\noutage degrades to ``client_available=False``, never a 500.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    An :class:`AcquisitionDownloadsResponse`.",
+        "operationId": "get_acquisition_downloads_api_acquisition_downloads_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcquisitionDownloadsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Acquisition Downloads",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/followed": {
       "get": {
         "description": "List followed series, filtered by active status.\n\nArgs:\n    request: The incoming FastAPI request.\n    active: Filter: ``\"active\"`` (default), ``\"all\"``, or ``\"inactive\"``.\n\nReturns:\n    A ``FollowedResponse`` with the matching items.",
@@ -5239,7 +5360,7 @@
     },
     "/api/staging/media": {
       "get": {
-        "description": "List staged media with pagination, sort, filters and aggregate counts.\n\nScans the staging tree once, enriches each media folder, computes the filter\nchip counts over the full set, then applies the filters, sort and\npagination. ``with_dispatch=true`` additionally computes a dispatch-target\npreview for the items on the returned page (a per-disk free-space + folder\nstat \u2014 off the hot path by default).\n\nAll query params are OpenAPI-constrained (closed enums, bounded page size)\nso the typed frontend contract rejects an invalid value and the backend\nreturns 422 rather than silently coercing.\n\nArgs:\n    request: The incoming FastAPI request.\n    page: 1-indexed page number.\n    page_size: Items per page (1..200).\n    category: Filter by staging subfolder (e.g. ``\"001-MOVIES\"``).\n    kind: Filter by media kind.\n    match: Filter by matching verdict.\n    stage: Keep items at/awaiting this timeline stage.\n    sort: Sort key (default ``recent``).\n    q: Case-insensitive title substring.\n    with_dispatch: Compute the dispatch preview for the page items.\n\nReturns:\n    A :class:`StagingMediaResponse` (page items, counts, total, page,\n    page_size). Fail-soft: an empty/absent staging tree yields an empty\n    list, never a 500.",
+        "description": "List staged media with pagination, sort, filters and aggregate counts.\n\nScans the staging tree once, enriches each media folder, computes the filter\nchip counts over the full set, then applies the filters, sort and\npagination. ``with_dispatch=true`` additionally computes a dispatch-target\npreview for the items on the returned page (a per-disk free-space + folder\nstat \u2014 off the hot path by default).\n\nAll query params are OpenAPI-constrained (closed enums, bounded page size)\nso the typed frontend contract rejects an invalid value and the backend\nreturns 422 rather than silently coercing.\n\nArgs:\n    request: The incoming FastAPI request.\n    page: 1-indexed page number.\n    page_size: Items per page (1..200).\n    category: Filter by staging subfolder (e.g. ``\"001-MOVIES\"``).\n    kind: Filter by media kind.\n    match: Filter by matching verdict.\n    stage: Keep items at/awaiting this timeline stage.\n    sort: Sort key (default ``recent``).\n    q: Case-insensitive title substring.\n    missing_trailer: Keep only items lacking a trailer file (A1).\n    with_dispatch: Compute the dispatch preview for the page items.\n\nReturns:\n    A :class:`StagingMediaResponse` (page items, counts, total, page,\n    page_size). Fail-soft: an empty/absent staging tree yields an empty\n    list, never a 500.",
         "operationId": "list_staging_media_api_staging_media_get",
         "parameters": [
           {
@@ -5384,6 +5505,16 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "missing_trailer",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Missing Trailer",
+              "type": "boolean"
             }
           },
           {

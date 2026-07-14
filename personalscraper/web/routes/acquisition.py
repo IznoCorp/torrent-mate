@@ -54,6 +54,7 @@ from personalscraper.web.acquisition._helpers import (
 )
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
+    AcquisitionDownloadsResponse,
     AcquisitionStatusResponse,
     CompletenessResponse,
     CreateFollowRequest,
@@ -572,6 +573,24 @@ def get_acquisition_status(request: Request) -> AcquisitionStatusResponse:
         watcher_enabled=watcher_enabled,
         recent_runs=recent_runs,
     )
+
+
+@router.get("/downloads", response_model=AcquisitionDownloadsResponse)
+def get_acquisition_downloads(request: Request) -> AcquisitionDownloadsResponse:
+    """List the live progress of every grabbed torrent (Phase 5 A4).
+
+    Read-only + fail-soft (see :func:`list_active_downloads`): a torrent-client
+    outage degrades to ``client_available=False``, never a 500.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        An :class:`AcquisitionDownloadsResponse`.
+    """
+    from personalscraper.web.acquisition.downloads import list_active_downloads
+
+    return list_active_downloads(request.app.state.config)
 
 
 # ── media search (add-by-search, OBJ3) ───────────────────────────────────

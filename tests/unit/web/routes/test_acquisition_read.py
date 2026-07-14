@@ -13,10 +13,12 @@ import sqlite3
 import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.web.app import create_app
@@ -613,3 +615,73 @@ class TestSearchEndpoint:
         """An empty q is a 422 (min_length=1)."""
         resp = client.get("/api/acquisition/search?q=", cookies=_make_auth_cookie())
         assert resp.status_code == 422
+
+
+def _seed_grabbed_wanted(conn: sqlite3.Connection, followed_id: int, info_hash: str, kind: str = "movie") -> int:
+    """Insert a wanted row already in status='grabbed' with a torrent hash."""
+    now = int(time.time())
+    cur = conn.execute(
+        "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at, "
+        "last_search_at, attempts, grabbed_hash) VALUES (?, ?, ?, 'grabbed', ?, ?, 1, ?)",
+        (followed_id, '{"tmdb_id": 1184918}', kind, now, now, info_hash),
+    )
+    return cur.lastrowid
+
+
+class TestDownloadsEndpoint:
+    """GET /api/acquisition/downloads — live torrent progress (A4)."""
+
+    def test_grabbed_row_joins_to_client_progress(self, client: TestClient, tmp_path: Path) -> None:
+        """A grabbed wanted row surfaces its live progress from the torrent client."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 7, "Le Robot sauvage")
+        _seed_grabbed_wanted(conn, fid, "ABCDEF0123456789")
+        conn.commit()
+        conn.close()
+
+        fake_client = MagicMock()
+        fake_client.get_by_hashes.return_value = [
+            TorrentItem(hash="abcdef0123456789", name="Robot.mkv", size_bytes=999, progress=0.33, state="downloading"),
+        ]
+        with patch(
+            "personalscraper.web.acquisition.downloads.build_active_torrent_client",
+            return_value=fake_client,
+        ):
+            resp = client.get("/api/acquisition/downloads", cookies=_make_auth_cookie())
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["client_available"] is True
+        assert len(data["downloads"]) == 1
+        d = data["downloads"][0]
+        assert d["title"] == "Le Robot sauvage"
+        assert d["progress"] == 0.33
+        assert d["state"] == "downloading"
+
+    def test_client_outage_is_fail_soft(self, client: TestClient, tmp_path: Path) -> None:
+        """A torrent-client failure → 200 with client_available=False (never a 500)."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 7, "Le Robot sauvage")
+        _seed_grabbed_wanted(conn, fid, "ABCDEF0123456789")
+        conn.commit()
+        conn.close()
+
+        with patch(
+            "personalscraper.web.acquisition.downloads.build_active_torrent_client",
+            side_effect=OSError("connection refused"),
+        ):
+            resp = client.get("/api/acquisition/downloads", cookies=_make_auth_cookie())
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["client_available"] is False
+        assert data["downloads"][0]["state"] == "missing"
+
+    def test_downloads_requires_auth(self, client: TestClient) -> None:
+        """Unauthenticated downloads request is rejected (401)."""
+        resp = client.get("/api/acquisition/downloads")
+        assert resp.status_code == 401

@@ -246,6 +246,32 @@ class TestQBitClient:
         hashes = client.get_all_hashes()
         assert hashes == {"abc"}
 
+    def test_get_by_hashes_maps_and_filters(self) -> None:
+        """get_by_hashes() forwards the hash filter and maps to TorrentItem (A4)."""
+        client = self._client()
+        mock_t = MagicMock()
+        mock_t.hash = "abc"
+        mock_t.name = "Robot"
+        mock_t.total_size = 1000
+        mock_t.progress = 0.5
+        mock_t.state = "downloading"
+        mock_t.content_path = "/data"
+        mock_t.category = "cat"
+        mock_t.added_on = 1712345678
+        client._client.torrents_info.return_value = [mock_t]  # type: ignore[attr-defined]
+
+        items = client.get_by_hashes({"abc"})
+        assert len(items) == 1
+        assert isinstance(items[0], TorrentItem)
+        assert items[0].progress == 0.5
+        client._client.torrents_info.assert_called_once_with(torrent_hashes=["abc"])  # type: ignore[attr-defined]
+
+    def test_get_by_hashes_empty_short_circuits(self) -> None:
+        """get_by_hashes(set()) returns [] WITHOUT querying (a bare query = all torrents)."""
+        client = self._client()
+        assert client.get_by_hashes(set()) == []
+        client._client.torrents_info.assert_not_called()  # type: ignore[attr-defined]
+
     def test_is_seeding_uses_state_enum(self) -> None:
         """is_seeding() delegates to qbittorrentapi state_enum.is_uploading."""
         client = self._client()

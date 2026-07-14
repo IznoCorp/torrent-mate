@@ -16,7 +16,7 @@ const stagingMock = vi.fn();
 
 vi.mock("@/hooks/useStagingMedia", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useStagingMedia: () => stagingMock(),
+  useStagingMedia: (params: unknown) => stagingMock(params),
 }));
 
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
@@ -91,7 +91,13 @@ beforeEach(() => {
   stagingMock.mockReturnValue({
     data: response([
       item(),
-      item({ id: "def456", folder: "Unknown (2020)", title: "Unknown", match: "absent", has_nfo: false }),
+      item({
+        id: "def456",
+        folder: "Unknown (2020)",
+        title: "Unknown",
+        match: "absent",
+        has_nfo: false,
+      }),
     ]),
     isLoading: false,
     isError: false,
@@ -113,6 +119,24 @@ describe("StagingLibrary", () => {
     // Match verdict chips on the cards.
     expect(screen.getByText("Identifié")).toBeInTheDocument();
     expect(screen.getByText("Non identifié")).toBeInTheDocument();
+  });
+
+  it("always requests the dispatch preview (A2) and toggles the trailer filter (A1)", () => {
+    renderLib();
+
+    // A2: with_dispatch is always on so the detail drawer's dispatch preview renders.
+    const initial = stagingMock.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(initial.with_dispatch).toBe(true);
+    expect(initial.missing_trailer).toBeUndefined();
+
+    // A1: clicking "Sans bande-annonce" adds missing_trailer=true to the query.
+    fireEvent.click(screen.getByText("Sans bande-annonce"));
+    const after = stagingMock.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(after.missing_trailer).toBe(true);
+    expect(after.with_dispatch).toBe(true);
   });
 
   it("shows match filter chips with counts", () => {
@@ -160,9 +184,7 @@ describe("StagingLibrary", () => {
     ).toBeGreaterThan(0);
     // Switching to Compact drops the overviews (denser grid).
     fireEvent.click(screen.getByRole("button", { name: "Compact" }));
-    expect(
-      screen.queryAllByText("An insomniac forms a club."),
-    ).toHaveLength(0);
+    expect(screen.queryAllByText("An insomniac forms a club.")).toHaveLength(0);
     // And back to Confortable restores them.
     fireEvent.click(screen.getByRole("button", { name: "Confortable" }));
     expect(
@@ -227,7 +249,9 @@ describe("StagingLibrary", () => {
     fireEvent.click(screen.getByRole("button", { name: /Unknown/ }));
     // An 'absent' movie has no auto-match → a manual-resolve action to the deck.
     expect(
-      screen.getByRole("button", { name: /Rechercher \/ résoudre manuellement/ }),
+      screen.getByRole("button", {
+        name: /Rechercher \/ résoudre manuellement/,
+      }),
     ).toBeInTheDocument();
   });
 });

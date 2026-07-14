@@ -284,13 +284,16 @@ def test_tracker_capability_protocols_runtime_checkable(
 
 
 class _TorrentListerStub:
-    """Stub exposing ``get_completed`` + ``get_all_hashes``."""
+    """Stub exposing ``get_completed`` + ``get_all_hashes`` + ``get_by_hashes``."""
 
     def get_completed(self) -> list[TorrentItem]:
         return []
 
     def get_all_hashes(self) -> set[str]:
         return set()
+
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        return []
 
 
 class _TorrentInspectorStub:

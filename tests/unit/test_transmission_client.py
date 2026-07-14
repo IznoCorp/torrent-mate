@@ -182,6 +182,26 @@ class TestTransmissionClient:
         ]
         assert client.get_all_hashes() == {"a", "b", "c"}
 
+    def test_get_by_hashes_maps_all_states(self) -> None:
+        """get_by_hashes returns TorrentItems for the given ids, any status (A4)."""
+        client = self._client()
+        client._client.get_torrents.return_value = [
+            _mock_torrent(hash_string="dl1", status=transmission_rpc.Status.DOWNLOADING),
+            _mock_torrent(hash_string="seed1", status=transmission_rpc.Status.SEEDING),
+        ]
+        items = client.get_by_hashes({"dl1", "seed1"})
+        assert {item.hash for item in items} == {"dl1", "seed1"}
+        # ids forwarded to the RPC layer.
+        assert client._client.get_torrents.call_args.kwargs["ids"] == ["dl1", "seed1"] or sorted(
+            client._client.get_torrents.call_args.kwargs["ids"]
+        ) == ["dl1", "seed1"]
+
+    def test_get_by_hashes_empty_short_circuits(self) -> None:
+        """get_by_hashes(set()) returns [] without an RPC call."""
+        client = self._client()
+        assert client.get_by_hashes(set()) == []
+        client._client.get_torrents.assert_not_called()
+
     def test_is_seeding_true_for_seeding_status(self) -> None:
         """is_seeding returns True only for SEEDING (not SEED_PENDING)."""
         client = self._client()

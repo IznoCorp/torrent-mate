@@ -11,7 +11,12 @@
 import { type ObligationItem } from "@/api/acquisition";
 
 /** Tab ids for the four panels. */
-export type TabId = "followed" | "wanted" | "obligations" | "watcher";
+export type TabId =
+  | "followed"
+  | "wanted"
+  | "downloads"
+  | "obligations"
+  | "watcher";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -62,6 +67,7 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
 export const TABS: readonly { id: TabId; label: string }[] = [
   { id: "followed", label: "Suivis" },
   { id: "wanted", label: "Recherches" },
+  { id: "downloads", label: "Téléchargements" },
   { id: "obligations", label: "Obligations" },
   { id: "watcher", label: "Watcher" },
 ];
@@ -243,6 +249,31 @@ export const EPISODE_STATE_LABEL: Record<string, string> = {
   en_file: "En file",
   en_cours: "En cours",
   manquant: "Manquant",
+};
+
+/** Live download state → Badge tone (A4). */
+export const DOWNLOAD_STATE_TONE: Record<
+  string,
+  "success" | "warning" | "info" | "neutral" | "danger"
+> = {
+  downloading: "info",
+  stalled: "warning",
+  seeding: "success",
+  paused: "neutral",
+  queued: "neutral",
+  in_client: "neutral",
+  missing: "danger",
+};
+
+/** Live download state → French label (A4). */
+export const DOWNLOAD_STATE_LABEL: Record<string, string> = {
+  downloading: "Téléchargement",
+  stalled: "En attente de sources",
+  seeding: "Terminé (partage)",
+  paused: "En pause",
+  queued: "En file",
+  in_client: "Dans le client",
+  missing: "Introuvable",
 };
 
 /** Format a Unix-epoch float as a relative-time string in French. */

@@ -345,3 +345,52 @@ class CompletenessResponse(BaseModel):
     kind: str
     provider_catalog_empty: bool = False
     seasons: list[SeasonCompleteness]
+
+
+#: Live state of a grabbed torrent, normalised across clients (A4). ``in_client``
+#: is the fall-through when the raw client state is not one of the known buckets.
+DownloadState = Literal["downloading", "stalled", "seeding", "paused", "queued", "in_client", "missing"]
+
+
+class AcquisitionDownload(BaseModel):
+    """One grabbed torrent surfaced in the acquisition downloads panel (A4).
+
+    Attributes:
+        media_ref: Provider-ID key of the wanted item.
+        title: Followed-series/film display title (empty if the follow is gone).
+        kind: ``"movie"`` or ``"episode"``.
+        season: Season number (episodes only).
+        episode: Episode number (episodes only).
+        info_hash: The grabbed torrent's info hash.
+        name: Torrent display name from the client (empty when ``missing``).
+        progress: Download progress 0.0–1.0 (0.0 when the client has no record).
+        state: Normalised live state. ``missing`` = grabbed row whose hash the
+            client no longer knows (removed / not yet visible) — surfaced
+            honestly rather than hidden.
+        size_bytes: Total size from the client (0 when unknown).
+    """
+
+    media_ref: MediaRefResponse
+    title: str
+    kind: str
+    season: int | None = None
+    episode: int | None = None
+    info_hash: str
+    name: str = ""
+    progress: float = 0.0
+    state: DownloadState
+    size_bytes: int = 0
+
+
+class AcquisitionDownloadsResponse(BaseModel):
+    """Response for ``GET /api/acquisition/downloads`` (A4).
+
+    Attributes:
+        downloads: Active/grabbed downloads, in-progress first then by recency.
+        client_available: ``False`` when the torrent client could not be reached
+            (the UI shows a soft "client injoignable" note instead of an empty
+            list that would read as "no downloads").
+    """
+
+    downloads: list[AcquisitionDownload] = []
+    client_available: bool = True

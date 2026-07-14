@@ -112,6 +112,24 @@ class QBitClient(
         """
         return {t.hash for t in self._client.torrents_info()}
 
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Return the :class:`TorrentItem` records for a specific hash set.
+
+        Includes in-progress torrents (any state), unlike :meth:`get_completed`.
+
+        Args:
+            hashes: Info hashes to fetch. An empty set short-circuits to ``[]``
+                (a bare ``torrents_info`` with no filter would return *all*
+                torrents — never what the caller wants here).
+
+        Returns:
+            The matching torrents as :class:`TorrentItem` records (order and
+            completeness follow whatever qBittorrent returns for the filter).
+        """
+        if not hashes:
+            return []
+        return [_torrent_item(t) for t in self._client.torrents_info(torrent_hashes=list(hashes))]
+
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is actively seeding.
 

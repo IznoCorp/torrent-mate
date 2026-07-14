@@ -97,6 +97,8 @@ export function StagingLibrary({
   const [sort, setSort] =
     useState<NonNullable<StagingMediaParams["sort"]>>("recent");
   const [search, setSearch] = useState("");
+  // A1: "sans bande-annonce" — keep only items lacking a trailer file.
+  const [missingTrailer, setMissingTrailer] = useState(false);
   const [page, setPage] = useState(1);
   // The open media detail is URL-addressable (?media=<id>) so the browser/router
   // Back button closes it like any route. Opening pushes a history entry;
@@ -140,12 +142,20 @@ export function StagingLibrary({
       : "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
 
   const params = useMemo<StagingMediaParams>(() => {
-    const p: StagingMediaParams = { sort, page, page_size: PAGE_SIZE };
+    // with_dispatch (A2): populate each item's dispatch_target so the detail
+    // drawer's "où sera-t-il rangé" preview actually renders (was never requested).
+    const p: StagingMediaParams = {
+      sort,
+      page,
+      page_size: PAGE_SIZE,
+      with_dispatch: true,
+    };
     if (match !== "all") p.match = match;
+    if (missingTrailer) p.missing_trailer = true;
     const trimmed = search.trim();
     if (trimmed !== "") p.q = trimmed;
     return p;
-  }, [match, sort, page, search]);
+  }, [match, sort, page, search, missingTrailer]);
 
   const query = useStagingMedia(params);
   const data = query.data;
@@ -267,6 +277,28 @@ export function StagingLibrary({
               </button>
             );
           })}
+          {/* A1: "sans bande-annonce" toggle — a separate axis from the match
+              chips, so it sits after them with a divider. */}
+          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+          <button
+            type="button"
+            aria-pressed={missingTrailer}
+            onClick={() => {
+              resetTo(setMissingTrailer, !missingTrailer);
+            }}
+          >
+            <Badge
+              tone={missingTrailer ? "solid" : "outline"}
+              className="cursor-pointer"
+            >
+              Sans bande-annonce
+              {counts !== undefined && (
+                <span className="ml-1 opacity-70">
+                  ({counts.total - counts.with_trailer})
+                </span>
+              )}
+            </Badge>
+          </button>
         </div>
       </div>
 

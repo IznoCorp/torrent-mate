@@ -588,6 +588,30 @@ def test_wanted_mark_done_by_hash_closes_grabbed_rows(store: ConcreteAcquireStor
     assert store.wanted.mark_done_by_hash("feedface") == []
 
 
+def test_wanted_list_grabbed_returns_only_grabbed_rows(store: ConcreteAcquireStore) -> None:
+    """list_grabbed (A4 downloads read-model) returns grabbed rows with their hash.
+
+    A pending row must NOT surface; a grabbed row must carry its ``grabbed_hash``
+    so the downloads panel can join it to the torrent client.
+    """
+    grabbed_id = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tmdb_id=1184918), kind="movie", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=42), kind="episode", status="pending", enqueued_at=1_700_000_101)
+    )
+    store.wanted.claim_for_search(grabbed_id, 1_700_000_200)
+    store.wanted.mark_grabbed(grabbed_id, "ABCDEF0123456789")
+
+    grabbed = store.wanted.list_grabbed()
+
+    assert [w.id for w in grabbed] == [grabbed_id]
+    assert grabbed[0].grabbed_hash == "ABCDEF0123456789"
+    assert grabbed[0].status == "grabbed"
+    # The still-pending row is not in list_grabbed (and vice-versa).
+    assert grabbed_id not in {w.id for w in store.wanted.list_pending()}
+
+
 def test_follow_substore_satisfies_protocol(store: ConcreteAcquireStore) -> None:
     """_FollowSubStore satisfies the FollowSubStore Protocol (all new methods present)."""
     from personalscraper.acquire._ports import FollowSubStore as FollowSubStoreProto

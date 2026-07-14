@@ -95,6 +95,10 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='pending'`` (partial-index path)."""
         ...
 
+    def list_grabbed(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model)."""
+        ...
+
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item; return ``True`` iff this call won."""
         ...

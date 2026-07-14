@@ -239,6 +239,31 @@ def test_missing_staging_dir_fails_soft(test_config, tmp_path: Path) -> None:
     assert resp.json()["items"] == []
 
 
+def test_missing_trailer_filter_excludes_items_with_a_trailer(test_config, tmp_path: Path) -> None:
+    """A1: ``missing_trailer=true`` keeps only items lacking a trailer file.
+
+    The seed tree has a movie WITH a trailer (Fight Club) and items WITHOUT one
+    (Breaking Bad, Unknown Film). The filter must drop the former and keep the
+    latter — the operator's "what still needs a trailer" view.
+    """
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    payload = client.get("/api/staging/media", params={"missing_trailer": "true"}).json()
+    folders = {item["relative_path"].split("/")[-1] for item in payload["items"]}
+
+    assert "Fight Club (1999)" not in folders, "an item WITH a trailer must be filtered out"
+    assert "Breaking Bad (2008)" in folders
+    assert "Unknown Film (2020)" in folders
+    # Every surviving item genuinely lacks a trailer.
+    assert all(item["has_trailer"] is False for item in payload["items"])
+    # The chip counts are still computed over the FULL set (Fight Club counts).
+    assert payload["counts"]["with_trailer"] >= 1
+
+
 def test_enriches_movie_and_tvshow(test_config, tmp_path: Path) -> None:
     """A scraped movie + TV show carry NFO metadata, ids, poster, seasons."""
     staging = tmp_path / "staging"

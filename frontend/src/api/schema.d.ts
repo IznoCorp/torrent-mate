@@ -42,6 +42,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Acquisition Downloads
+         * @description List the live progress of every grabbed torrent (Phase 5 A4).
+         *
+         *     Read-only + fail-soft (see :func:`list_active_downloads`): a torrent-client
+         *     outage degrades to ``client_available=False``, never a 500.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         An :class:`AcquisitionDownloadsResponse`.
+         */
+        get: operations["get_acquisition_downloads_api_acquisition_downloads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/followed": {
         parameters: {
             query?: never;
@@ -1508,6 +1537,7 @@ export interface paths {
          *         stage: Keep items at/awaiting this timeline stage.
          *         sort: Sort key (default ``recent``).
          *         q: Case-insensitive title substring.
+         *         missing_trailer: Keep only items lacking a trailer file (A1).
          *         with_dispatch: Compute the dispatch preview for the page items.
          *
          *     Returns:
@@ -1631,6 +1661,79 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcquisitionDownload
+         * @description One grabbed torrent surfaced in the acquisition downloads panel (A4).
+         *
+         *     Attributes:
+         *         media_ref: Provider-ID key of the wanted item.
+         *         title: Followed-series/film display title (empty if the follow is gone).
+         *         kind: ``"movie"`` or ``"episode"``.
+         *         season: Season number (episodes only).
+         *         episode: Episode number (episodes only).
+         *         info_hash: The grabbed torrent's info hash.
+         *         name: Torrent display name from the client (empty when ``missing``).
+         *         progress: Download progress 0.0–1.0 (0.0 when the client has no record).
+         *         state: Normalised live state. ``missing`` = grabbed row whose hash the
+         *             client no longer knows (removed / not yet visible) — surfaced
+         *             honestly rather than hidden.
+         *         size_bytes: Total size from the client (0 when unknown).
+         */
+        AcquisitionDownload: {
+            /** Episode */
+            episode?: number | null;
+            /** Info Hash */
+            info_hash: string;
+            /** Kind */
+            kind: string;
+            media_ref: components["schemas"]["MediaRefResponse"];
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /** Season */
+            season?: number | null;
+            /**
+             * Size Bytes
+             * @default 0
+             */
+            size_bytes: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "downloading" | "stalled" | "seeding" | "paused" | "queued" | "in_client" | "missing";
+            /** Title */
+            title: string;
+        };
+        /**
+         * AcquisitionDownloadsResponse
+         * @description Response for ``GET /api/acquisition/downloads`` (A4).
+         *
+         *     Attributes:
+         *         downloads: Active/grabbed downloads, in-progress first then by recency.
+         *         client_available: ``False`` when the torrent client could not be reached
+         *             (the UI shows a soft "client injoignable" note instead of an empty
+         *             list that would read as "no downloads").
+         */
+        AcquisitionDownloadsResponse: {
+            /**
+             * Client Available
+             * @default true
+             */
+            client_available: boolean;
+            /**
+             * Downloads
+             * @default []
+             */
+            downloads: components["schemas"]["AcquisitionDownload"][];
+        };
         /**
          * AcquisitionStatusResponse
          * @description Response for GET /api/acquisition/status.
@@ -3888,6 +3991,26 @@ export interface operations {
             };
         };
     };
+    get_acquisition_downloads_api_acquisition_downloads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcquisitionDownloadsResponse"];
+                };
+            };
+        };
+    };
     get_followed_api_acquisition_followed_get: {
         parameters: {
             query?: {
@@ -5108,6 +5231,7 @@ export interface operations {
                 stage?: ("arrival" | "staging" | "cleaning" | "sorting" | "matching" | "scraping" | "trailers" | "verify" | "dispatch") | null;
                 sort?: "recent" | "title" | "year" | "size";
                 q?: string | null;
+                missing_trailer?: boolean;
                 with_dispatch?: boolean;
             };
             header?: never;
