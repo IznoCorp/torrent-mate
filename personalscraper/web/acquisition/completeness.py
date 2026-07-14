@@ -6,12 +6,13 @@ par épisode, pour voir ce qui reste à acquérir".
 
 Sources (each fail-soft, never a 500):
 
-* Provider catalog — :func:`~personalscraper.acquire.airing.poll_aired` over the
-  ONE followed series (aired episodes only, specials excluded). An empty result
-  surfaces as ``provider_catalog_empty=True`` (the Top Chef case: TVDB knows the
-  series but lists no episodes) — the UI must say so instead of rendering a
-  misleading all-missing matrix. A provider outage degrades to the same honest
-  state (poll_aired is internally fail-soft).
+* Aired catalog — the detect-written ``aired_episode`` cache first (P0-B.1 —
+  zero provider calls), falling back to ONE live
+  :func:`~personalscraper.acquire.airing.poll_aired` for a series never cached
+  yet (aired episodes only, specials excluded). An empty result surfaces as
+  ``provider_catalog_empty=True`` (the Top Chef case: TVDB knows the series but
+  lists no episodes) — the UI must say so instead of rendering a misleading
+  all-missing matrix. A provider outage degrades to the same honest state.
 * Library ownership — :meth:`ownership.owns` per aired episode (indexer
   ``library.db`` by provider id; live files only).
 * Wanted queue — the acquire store's NULL-safe ``find`` per episode; a pending
@@ -90,13 +91,31 @@ def compute_completeness(
             seasons=[],
         )
 
+    # P0-B.1 — cache first: the detect-written aired catalog serves the matrix
+    # with ZERO provider calls (the old synchronous per-season polling was the
+    # « met très longtemps » complaint). A series never cached yet falls back
+    # to one live poll.
+    entries: list[tuple[int, int, str | None, str]] = []
+    source: str = "live"
+    refreshed_at: float | None = None
     try:
-        aired = poll_aired([followed], registry, today=date.today())  # type: ignore[arg-type]
-    except Exception as exc:  # noqa: BLE001 — defensive; poll_aired is fail-soft internally
-        logger.warning("completeness_poll_failed", followed_id=followed.id, error=str(exc))
-        aired = []
+        cached = list(store.aired.list_for_followed(followed.id))  # type: ignore[attr-defined]
+    except Exception as exc:  # noqa: BLE001 — fail-soft: degrade to the live poll
+        logger.debug("completeness_cache_error", followed_id=followed.id, error=str(exc))
+        cached = []
+    if cached:
+        entries = [(r.season, r.episode, r.title, r.air_date) for r in cached]
+        source = "cache"
+        refreshed_at = float(max(r.updated_at for r in cached))
+    else:
+        try:
+            aired = poll_aired([followed], registry, today=date.today())  # type: ignore[arg-type]
+        except Exception as exc:  # noqa: BLE001 — defensive; poll_aired is fail-soft internally
+            logger.warning("completeness_poll_failed", followed_id=followed.id, error=str(exc))
+            aired = []
+        entries = [(e.season, e.episode, e.title or None, e.air_date.isoformat()) for e in aired]
 
-    if not aired:
+    if not entries:
         return CompletenessResponse(
             followed_id=followed.id,
             title=followed.title,
@@ -105,12 +124,18 @@ def compute_completeness(
             seasons=[],
         )
 
+    # One row per (season, episode) — a duplicated provider season order must
+    # never double an episode in the matrix (B.1).
+    unique: dict[tuple[int, int], tuple[int, int, str | None, str]] = {}
+    for entry in entries:
+        unique.setdefault((entry[0], entry[1]), entry)
+
     by_season: dict[int, list[EpisodeCompleteness]] = {}
-    for ep in sorted(aired, key=lambda e: (e.season, e.episode)):
+    for season, episode, title, air_date in sorted(unique.values(), key=lambda e: (e[0], e[1])):
         # Ownership check (fail-soft: error → treated as not owned).
         try:
             owned = ownership.owns(  # type: ignore[attr-defined]
-                followed.media_ref, kind="episode", season=ep.season, episode=ep.episode
+                followed.media_ref, kind="episode", season=season, episode=episode
             )
         except Exception as exc:  # noqa: BLE001 — fail-soft per episode
             logger.debug("completeness_ownership_error", error=str(exc))
@@ -119,17 +144,17 @@ def compute_completeness(
         wanted_status: str | None = None
         try:
             row = store.wanted.find(  # type: ignore[attr-defined]
-                followed_id=followed.id, kind="episode", season=ep.season, episode=ep.episode
+                followed_id=followed.id, kind="episode", season=season, episode=episode
             )
             wanted_status = row.status if row is not None else None
         except Exception as exc:  # noqa: BLE001 — fail-soft per episode
             logger.debug("completeness_wanted_error", error=str(exc))
 
-        by_season.setdefault(ep.season, []).append(
+        by_season.setdefault(season, []).append(
             EpisodeCompleteness(
-                episode=ep.episode,
-                title=ep.title or None,
-                air_date=ep.air_date.isoformat(),
+                episode=episode,
+                title=title,
+                air_date=air_date,
                 state=_episode_state(owned=owned, wanted_status=wanted_status),  # type: ignore[arg-type]
             )
         )
@@ -151,4 +176,6 @@ def compute_completeness(
         kind=followed.kind,
         provider_catalog_empty=False,
         seasons=seasons,
+        source=source,  # type: ignore[arg-type]
+        catalog_refreshed_at=refreshed_at,
     )

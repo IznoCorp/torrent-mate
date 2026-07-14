@@ -238,6 +238,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     from personalscraper.web.routes.acquisition import router as acquisition_router
 
     guarded_api.include_router(acquisition_router)
+    from personalscraper.web.routes.acquisition_triggers import router as acquisition_triggers_router
+
+    guarded_api.include_router(acquisition_triggers_router)
     from personalscraper.web.routes.staging import router as staging_router
 
     guarded_api.include_router(staging_router)

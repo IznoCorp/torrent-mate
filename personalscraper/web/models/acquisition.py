@@ -11,8 +11,10 @@ from typing import Literal
 from pydantic import BaseModel, computed_field, model_validator
 
 #: Followed-series lifecycle status, derived server-side (C14) so the UI paints
-#: without re-deriving business state in JSX.
-FollowStatus = Literal["disabled", "pending", "acquiring", "up_to_date"]
+#: without re-deriving business state in JSX. ``incomplete`` (P0-B.2) = aired
+#: episodes are missing from the library AND nothing is queued/in flight for
+#: them — the honest House-of-the-Dragon state, distinct from ``up_to_date``.
+FollowStatus = Literal["disabled", "pending", "acquiring", "incomplete", "up_to_date"]
 
 #: Per-episode acquisition state for the §5 completeness read-model.
 EpisodeState = Literal["en_mediatheque", "manquant", "en_file", "en_cours"]
@@ -56,31 +58,60 @@ class FollowedSeriesItem(BaseModel):
     # ``None`` when nothing is pending (the series is up to date).
     next_search_at: float | None = None
     cadence_tier: str | None = None
+    # Truth-table facts (P0-B.2) — derived from the aired-catalog cache ×
+    # library ownership × wanted rows. All ``None`` when the series has no
+    # cached catalog yet (the status then degrades to the raw wanted counters).
+    #: Aired episodes known for this series (from the detect-written cache).
+    aired_count: int | None = None
+    #: Aired episodes with a live file in the library.
+    owned_count: int | None = None
+    #: Aired, unowned episodes with a ``grabbed`` wanted row (truly in flight).
+    inflight_count: int | None = None
+    #: Aired, unowned episodes with a ``pending``/``searching`` wanted row.
+    queued_count: int | None = None
+    #: Aired, unowned episodes with NO open wanted row — what remains to get.
+    missing_count: int | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def status(self) -> FollowStatus:
-        """Lifecycle status derived from ``active`` + wanted counts (C14 / §5).
+        """Lifecycle status — the §5 truth table, never a raw wanted counter.
 
         Single server-side source of truth so the UI maps status → tone/label
-        without re-deriving business state in JSX:
+        without re-deriving business state in JSX. With a cached aired catalog
+        (P0-B.2), every bucket is ownership-aware — a ``grabbed`` row whose
+        episode already sits in the library is a phantom and cannot pin the
+        series at « en cours d'acquisition » (the Silo bug):
 
         - ``disabled``: the follow is paused (not active).
-        - ``acquiring``: a grab landed and the torrent is on its way through
-          the pipeline (§5 film "en cours d'acquisition": du torrent repéré
-          jusqu'au pipeline terminé). Takes precedence over ``pending``.
-        - ``pending``: at least one wanted search is in flight ("en attente").
-        - ``up_to_date``: active with nothing pending.
+        - ``acquiring``: at least one aired episode is unowned AND grabbed
+          (torrent spotted → pipeline finishing).
+        - ``pending``: at least one aired episode is unowned AND queued.
+        - ``incomplete``: aired episodes are missing with nothing queued for
+          them (the honest House-of-the-Dragon state).
+        - ``up_to_date``: every aired episode is in the library.
+
+        Without a catalog (``aired_count is None`` — movies, or a series never
+        detected since the cache shipped), the raw counters drive the legacy
+        derivation.
 
         Returns:
             The derived lifecycle status.
         """
         if not self.active:
             return "disabled"
-        if self.wanted_grabbed > 0:
+        if self.aired_count is None:
+            if self.wanted_grabbed > 0:
+                return "acquiring"
+            if self.wanted_pending > 0:
+                return "pending"
+            return "up_to_date"
+        if (self.inflight_count or 0) > 0:
             return "acquiring"
-        if self.wanted_pending > 0:
+        if (self.queued_count or 0) > 0:
             return "pending"
+        if (self.missing_count or 0) > 0:
+            return "incomplete"
         return "up_to_date"
 
 
@@ -338,6 +369,13 @@ class CompletenessResponse(BaseModel):
             episodes (the Top Chef case — the UI must say "catalogue provider
             vide", never render a misleading all-missing matrix).
         seasons: Season-by-season completeness, newest season first.
+        source: Where the aired catalog came from: ``"cache"`` (the
+            detect-written ``aired_episode`` table — fast, no provider call)
+            or ``"live"`` (fallback synchronous provider poll for a series
+            not cached yet). P0-B.1.
+        catalog_refreshed_at: Epoch seconds of the detect pass that wrote the
+            cached catalog, or ``None`` on the live path — the UI can caption
+            « catalogue du JJ/MM » honestly.
     """
 
     followed_id: int
@@ -345,6 +383,8 @@ class CompletenessResponse(BaseModel):
     kind: str
     provider_catalog_empty: bool = False
     seasons: list[SeasonCompleteness]
+    source: Literal["cache", "live"] = "live"
+    catalog_refreshed_at: float | None = None
 
 
 #: Live state of a grabbed torrent, normalised across clients (A4). ``in_client``

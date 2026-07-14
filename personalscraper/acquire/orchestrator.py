@@ -168,8 +168,11 @@ class GrabOutcome:
         disposition: ``"success"`` (torrent added — the service emits
             ``GrabSucceeded`` after persisting), ``"retryable"`` (transient
             failure — orchestrator already emitted ``GrabFailed``, retry next
-            run), or ``"terminal"`` (permanent — orchestrator already emitted
-            ``WantedAbandoned``).
+            run and counts toward the attempts cap), ``"not_found"`` (clean
+            search but nothing usable on the trackers yet — retry under
+            cadence pacing WITHOUT counting toward the attempts cap; only the
+            cutoff ages it out), or ``"terminal"`` (permanent — orchestrator
+            already emitted ``WantedAbandoned``).
         info_hash: Torrent info-hash on success, otherwise ``None``.
         reason: Machine-readable failure/abandonment reason, ``None`` on success.
         chosen: The ranked top :class:`TrackerResult` that was acted on, or
@@ -180,7 +183,7 @@ class GrabOutcome:
             ``GrabSucceeded`` payload). Empty off the success path.
     """
 
-    disposition: Literal["success", "retryable", "terminal"]
+    disposition: Literal["success", "retryable", "not_found", "terminal"]
     info_hash: str | None = None
     reason: str | None = None
     chosen: TrackerResult | None = None
@@ -298,8 +301,11 @@ class GrabOrchestrator:
             # Every queried tracker errored → transient outage, retry next run.
             return self._retryable(media_ref, "trackers_unavailable")
         if not outcome.results:
-            # Clean search, zero hits → no source exists, won't self-heal.
-            return self._terminal(media_ref, "no_candidates")
+            # Clean search, zero hits → the release is not on the trackers YET.
+            # NOT terminal: a just-aired episode routinely shows up hours/days
+            # later (the House-of-the-Dragon abandon-after-one-search bug) —
+            # cadence paces the retries and only the cutoff ages the item out.
+            return self._not_found(media_ref, "no_candidates")
 
         # --- Episode-exactness (BEFORE hard-filter): the title query returns
         # fuzzy matches (other episodes, season packs); keep only releases
@@ -308,12 +314,16 @@ class GrabOrchestrator:
         if item.kind == "episode" and item.season is not None and item.episode is not None:
             results = filter_to_episode(results, item.season, item.episode)
             if not results:
-                return self._terminal(media_ref, "no_matching_episode")
+                # Only season packs / other episodes exist today — the exact
+                # episode may be uploaded later. Same not-found semantics.
+                return self._not_found(media_ref, "no_matching_episode")
 
         # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
         survivors = apply_hard_filters(results, profile, media_ref)
         if not survivors:
-            return self._terminal(media_ref, "all_filtered")
+            # Every candidate violated the hard profile (resolution/3D/lang) —
+            # a conforming release can still appear later. Not-found, not fatal.
+            return self._not_found(media_ref, "all_filtered")
 
         # --- Dedup → rank → pick top ---
         representatives = dedup(survivors)
@@ -422,6 +432,31 @@ class GrabOrchestrator:
         self._event_bus.emit(GrabFailed(media_ref=media_ref, source_tracker=source_tracker, reason=reason))
         log.warning("acquire.grab.retryable", reason=reason, source_tracker=source_tracker)
         return GrabOutcome(disposition="retryable", reason=reason, chosen=chosen)
+
+    def _not_found(
+        self,
+        media_ref: MediaRef | None,
+        reason: str,
+    ) -> GrabOutcome:
+        """Emit ``GrabFailed`` and return a NOT-FOUND outcome (B.4).
+
+        A clean search that found nothing usable is not an abandonment: the
+        release may simply not be on the trackers yet. The service keeps the
+        row ``pending`` (cadence-paced, cutoff-bounded) and the cap does not
+        apply — abandoning after one 03:20 search 20 minutes post-detect was
+        the released-but-never-grabbed bug.
+
+        Args:
+            media_ref: The item's provider-ID key (carried into the event).
+            reason: Machine-readable reason (``no_candidates`` /
+                ``no_matching_episode`` / ``all_filtered``).
+
+        Returns:
+            A :class:`GrabOutcome` with ``disposition="not_found"``.
+        """
+        self._event_bus.emit(GrabFailed(media_ref=media_ref, source_tracker=None, reason=reason))
+        log.info("acquire.grab.not_found", reason=reason)
+        return GrabOutcome(disposition="not_found", reason=reason)
 
     def _terminal(
         self,

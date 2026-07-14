@@ -842,3 +842,33 @@ def test_run_isolates_corrupt_criteria_json_abandons_only_that_row(store: Concre
     assert bad is not None and bad.status == "abandoned"
     good = store.wanted.get(id2)
     assert good is not None and good.status == "grabbed"
+
+
+def test_not_found_stays_pending_beyond_attempts_cap(store: ConcreteAcquireStore) -> None:
+    """B.4 regression: a clean no-result search NEVER abandons, even past the cap.
+
+    The House-of-the-Dragon bug: a just-aired episode searched 20 minutes after
+    detect found zero hits and was permanently abandoned. With the ``not_found``
+    disposition the row stays ``pending`` under cadence pacing regardless of the
+    attempts count — only the cadence cutoff may age it out.
+    """
+    rowid = store.wanted.add(_pending_item())
+    # Push attempts past the cap so the old retryable path WOULD abandon.
+    for _ in range(MAX_ATTEMPTS + 1):
+        store.wanted.claim_for_search(rowid, _PINNED_NOW - 7200)
+        store.wanted.set_status(rowid, "pending")
+
+    mock_event_bus = MagicMock()
+    orch = MagicMock()
+    orch.grab.return_value = GrabOutcome(disposition="not_found", reason="no_candidates")
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=mock_event_bus, config=_config())
+    summary = service.run(limit=10)
+
+    item = store.wanted.get(rowid)
+    assert item is not None
+    assert item.attempts > MAX_ATTEMPTS
+    assert item.status == "pending", "a not-out-yet episode must stay wanted"
+    assert summary.retried == 1
+    assert summary.abandoned == 0
+    emitted = [c.args[0] for c in mock_event_bus.emit.call_args_list]
+    assert not any(isinstance(e, WantedAbandoned) for e in emitted)

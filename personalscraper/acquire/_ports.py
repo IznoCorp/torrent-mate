@@ -23,10 +23,12 @@ domain VOs + stdlib — never from triage packages (layering, RP5c D3).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from personalscraper.acquire.domain import (
+    AiredEpisodeRow,
     FollowedSeries,
     RatioState,
     SeedObligation,
@@ -105,6 +107,22 @@ class WantedSubStore(Protocol):
 
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` + ``info_hash`` for the idempotence guard."""
+        ...
+
+    def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:
+        """Close ``grabbed`` rows carrying *info_hash* (dispatch-time §5 closure)."""
+        ...
+
+    def mark_done(self, wanted_id: int) -> bool:
+        """Close ONE ``grabbed`` row confirmed in the library (reconciliation)."""
+        ...
+
+    def requeue_missing(self, wanted_id: int) -> bool:
+        """Requeue a ``grabbed`` row whose torrent vanished (and is unowned)."""
+        ...
+
+    def resurrect(self, wanted_id: int, now: int) -> bool:
+        """Re-open an ``abandoned`` row for a still-missing aired episode (B.4)."""
         ...
 
     def list_stale_searching(self, older_than: int) -> list[WantedItem]:
@@ -266,13 +284,38 @@ class AcquireStore(Protocol):
         """``watch_state`` KV sub-store (opens on access)."""
         ...
 
+    @property
+    def aired(self) -> AiredSubStore:
+        """``aired_episode`` catalog-cache sub-store (opens on access)."""
+        ...
+
     def close(self) -> None:
         """Release all resources held by the store (fail-soft — never raises)."""
         ...
 
 
+@runtime_checkable
+class AiredSubStore(Protocol):
+    """Writer + reader for the ``aired_episode`` catalog cache (P0-B.1)."""
+
+    def replace_for_followed(
+        self,
+        followed_id: int,
+        episodes: Sequence[tuple[int, int, str | None, str]],
+        *,
+        now: int,
+    ) -> int:
+        """Replace one series' cached catalog with ``(season, episode, title, air_date)`` rows."""
+        ...
+
+    def list_for_followed(self, followed_id: int) -> list[AiredEpisodeRow]:
+        """Return the cached aired catalog of one followed series (may be empty)."""
+        ...
+
+
 __all__ = [
     "AcquireStore",
+    "AiredSubStore",
     "CrossSeedSubStore",
     "FollowSubStore",
     "RatioSubStore",

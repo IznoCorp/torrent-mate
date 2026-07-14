@@ -166,6 +166,7 @@ export const FOLLOW_STATUS_TONE: Record<
   disabled: "neutral",
   pending: "warning",
   acquiring: "info",
+  incomplete: "warning",
   up_to_date: "success",
 };
 
@@ -174,6 +175,7 @@ export const FOLLOW_STATUS_LABEL: Record<string, string> = {
   disabled: "Désactivé",
   pending: "En attente",
   acquiring: "En cours d'acquisition",
+  incomplete: "Épisodes manquants",
   up_to_date: "À jour",
 };
 

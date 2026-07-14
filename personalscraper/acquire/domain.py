@@ -207,4 +207,34 @@ class RatioState:
     updated_at: int
 
 
-__all__ = ["AiredEpisode", "FollowedSeries", "RatioState", "SeedObligation", "WantedItem", "WantedKind", "WantedStatus"]
+@dataclass(frozen=True)
+class AiredEpisodeRow:
+    """One cached aired episode of a followed series (``aired_episode`` table).
+
+    Attributes:
+        followed_id: FK to the ``followed_series`` row.
+        season: Season number (>= 1; specials are excluded upstream).
+        episode: Episode number within the season.
+        title: Episode title from the provider, or ``None``.
+        air_date: ISO-8601 air date (``YYYY-MM-DD``).
+        updated_at: Unix epoch seconds of the detect pass that wrote the row.
+    """
+
+    followed_id: int
+    season: int
+    episode: int
+    title: str | None
+    air_date: str
+    updated_at: int
+
+
+__all__ = [
+    "AiredEpisode",
+    "AiredEpisodeRow",
+    "FollowedSeries",
+    "RatioState",
+    "SeedObligation",
+    "WantedItem",
+    "WantedKind",
+    "WantedStatus",
+]

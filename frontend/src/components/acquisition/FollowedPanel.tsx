@@ -303,138 +303,154 @@ export function FollowedPanel({
                 posterUrl={item.poster_url ?? null}
                 overview={item.overview ?? null}
                 badges={
-                <>
-                  {/* Film vs Série (§5). */}
-                  <Badge tone="neutral">
-                    {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
-                  </Badge>
-                  {/* Backend-derived lifecycle status (C14): the UI only maps
-                      status → tone/label, no business derivation in JSX. */}
-                  <Badge
-                    tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
-                    dot
-                  >
-                    {FOLLOW_STATUS_LABEL[item.status] ?? item.status}
-                  </Badge>
-                  {/* TVDB id kept as its own node (test + operator reference). */}
-                  {item.media_ref.tvdb_id != null && (
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {String(item.media_ref.tvdb_id)}
-                    </span>
-                  )}
-                  {seasons > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {seasons} saison{seasons > 1 ? "s" : ""}
-                    </span>
-                  )}
-                  {item.wanted_pending > 0 && (
-                    <Badge tone="warning">
-                      {String(item.wanted_pending)} en attente
+                  <>
+                    {/* Film vs Série (§5). */}
+                    <Badge tone="neutral">
+                      {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
                     </Badge>
-                  )}
-                  {item.active &&
-                  item.cadence_tier != null &&
-                  item.next_search_at != null ? (
-                    <span
-                      className="inline-flex items-center gap-1 text-xs font-medium"
-                      style={{
-                        color:
-                          TEMP_COLOR[item.cadence_tier] ??
-                          "var(--muted-foreground)",
-                      }}
-                      title={TIER_LABEL[item.cadence_tier] ?? item.cadence_tier}
+                    {/* Backend-derived lifecycle status (C14): the UI only maps
+                      status → tone/label, no business derivation in JSX. */}
+                    <Badge
+                      tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
+                      dot
                     >
-                      <span
-                        className="size-1.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            TEMP_COLOR[item.cadence_tier] ?? "currentColor",
-                        }}
-                        aria-hidden
-                      />
-                      Prochaine recherche{" "}
-                      {untilLabel(item.next_search_at, Date.now())}
-                    </span>
-                  ) : (
-                    interval > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        cadence {String(interval)} min
+                      {FOLLOW_STATUS_LABEL[item.status] ?? item.status}
+                    </Badge>
+                    {/* TVDB id kept as its own node (test + operator reference). */}
+                    {item.media_ref.tvdb_id != null && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {String(item.media_ref.tvdb_id)}
                       </span>
-                    )
-                  )}
-                  {item.quality_profile != null && (
-                    <Badge tone="info">Personnalisé</Badge>
-                  )}
-                </>
-              }
-              footer={
-                <div className="flex w-full flex-wrap items-center gap-2">
-                  {/* C16: primary in-card action — launch a search now, with a
+                    )}
+                    {seasons > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {seasons} saison{seasons > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {/* §5 P0-B: owned/aired caption from the cached catalog.
+                      Omitted when aired_count is null (no catalog yet) — never
+                      an invented count. */}
+                    {!isMovie && item.aired_count != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {item.owned_count ?? 0}/{item.aired_count} en
+                        médiathèque
+                        {item.missing_count != null && item.missing_count > 0
+                          ? ` · ${String(item.missing_count)} manquant${
+                              item.missing_count > 1 ? "s" : ""
+                            }`
+                          : ""}
+                      </span>
+                    )}
+                    {item.wanted_pending > 0 && (
+                      <Badge tone="warning">
+                        {String(item.wanted_pending)} en attente
+                      </Badge>
+                    )}
+                    {item.active &&
+                    item.cadence_tier != null &&
+                    item.next_search_at != null ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-medium"
+                        style={{
+                          color:
+                            TEMP_COLOR[item.cadence_tier] ??
+                            "var(--muted-foreground)",
+                        }}
+                        title={
+                          TIER_LABEL[item.cadence_tier] ?? item.cadence_tier
+                        }
+                      >
+                        <span
+                          className="size-1.5 rounded-full"
+                          style={{
+                            backgroundColor:
+                              TEMP_COLOR[item.cadence_tier] ?? "currentColor",
+                          }}
+                          aria-hidden
+                        />
+                        Prochaine recherche{" "}
+                        {untilLabel(item.next_search_at, Date.now())}
+                      </span>
+                    ) : (
+                      interval > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          cadence {String(interval)} min
+                        </span>
+                      )
+                    )}
+                    {item.quality_profile != null && (
+                      <Badge tone="info">Personnalisé</Badge>
+                    )}
+                  </>
+                }
+                footer={
+                  <div className="flex w-full flex-wrap items-center gap-2">
+                    {/* C16: primary in-card action — launch a search now, with a
                       spinner + toast + refresh (see triggerMutation). */}
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      triggerMutation.mutate(item.id);
-                    }}
-                    disabled={
-                      !item.active ||
-                      (triggerMutation.isPending &&
-                        triggerMutation.variables === item.id)
-                    }
-                    title={
-                      item.active
-                        ? "Lancer une recherche maintenant pour cette série"
-                        : "Série désactivée — réactivez-la pour lancer une recherche"
-                    }
-                  >
-                    {triggerMutation.isPending &&
-                    triggerMutation.variables === item.id
-                      ? "Recherche…"
-                      : "Rechercher maintenant"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      openEditCadence(item);
-                    }}
-                  >
-                    Cadence
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      handleUnfollow(item.id);
-                    }}
-                    disabled={unfollowMutation.isPending}
-                  >
-                    Retirer
-                  </Button>
-                  {/* C16: activate/pause the series in place. */}
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <Switch
-                      id={`follow-active-${String(item.id)}`}
-                      checked={item.active}
-                      onCheckedChange={(checked) => {
-                        handleToggleActive(item.id, checked);
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        triggerMutation.mutate(item.id);
                       }}
-                      disabled={updateMutation.isPending}
-                      aria-label={
-                        item.active
-                          ? `Désactiver le suivi de ${item.title}`
-                          : `Activer le suivi de ${item.title}`
+                      disabled={
+                        !item.active ||
+                        (triggerMutation.isPending &&
+                          triggerMutation.variables === item.id)
                       }
-                    />
-                    <label
-                      htmlFor={`follow-active-${String(item.id)}`}
-                      className="text-xs text-muted-foreground"
+                      title={
+                        item.active
+                          ? "Lancer une recherche maintenant pour cette série"
+                          : "Série désactivée — réactivez-la pour lancer une recherche"
+                      }
                     >
-                      {item.active ? "Actif" : "Inactif"}
-                    </label>
+                      {triggerMutation.isPending &&
+                      triggerMutation.variables === item.id
+                        ? "Recherche…"
+                        : "Rechercher maintenant"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        openEditCadence(item);
+                      }}
+                    >
+                      Cadence
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        handleUnfollow(item.id);
+                      }}
+                      disabled={unfollowMutation.isPending}
+                    >
+                      Retirer
+                    </Button>
+                    {/* C16: activate/pause the series in place. */}
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <Switch
+                        id={`follow-active-${String(item.id)}`}
+                        checked={item.active}
+                        onCheckedChange={(checked) => {
+                          handleToggleActive(item.id, checked);
+                        }}
+                        disabled={updateMutation.isPending}
+                        aria-label={
+                          item.active
+                            ? `Désactiver le suivi de ${item.title}`
+                            : `Activer le suivi de ${item.title}`
+                        }
+                      />
+                      <label
+                        htmlFor={`follow-active-${String(item.id)}`}
+                        className="text-xs text-muted-foreground"
+                      >
+                        {item.active ? "Actif" : "Inactif"}
+                      </label>
+                    </div>
                   </div>
-                </div>
-              }
+                }
               />
               {/* §5 completeness: series show a season-by-season / episode-by-
                   episode matrix (aired vs médiathèque vs file); movies don't

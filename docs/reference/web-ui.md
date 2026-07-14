@@ -1340,3 +1340,47 @@ null }`. The slow disk sweep runs on a daemon thread (`_compute_sweep_bg`); the
   cold first read, then serves the cached result (stale-while-revalidate). The
   panel shows a skeleton on the sweep sub-panel only and polls at 1.5 s while
   pending.
+
+### P0-B — acquisitions véridiques (2026-07-14, `fix/product-intent-s3-acq`)
+
+Constitution §5 — the acquisition states tell the truth:
+
+- **Truth-table status (B.2)** — `FollowedSeriesItem.status` gains
+  `"incomplete"` and is now derived from the §5 truth table (aired catalog ×
+  library ownership × wanted rows — `web/acquisition/truth.py`), never a raw
+  wanted counter: a `grabbed` row whose episode the library owns is a phantom
+  and cannot pin a series at « En cours d'acquisition » (the Silo bug). New
+  nullable facts on the item: `aired_count` / `owned_count` / `inflight_count`
+  / `queued_count` / `missing_count` (all `None` when the series has no cached
+  catalog yet — legacy counter fallback). The card shows « X/Y en médiathèque
+  · N manquants ».
+- **Aired-catalog cache (B.1)** — `follow detect` persists the aired catalog
+  per followed series in `acquire.db:aired_episode` (migration 007, wholesale
+  replace, never wiped on an empty poll). `GET
+/followed/{id}/completeness` reads the cache first (zero provider calls —
+  the old synchronous per-season polling was the slowness) and falls back to
+  ONE live poll for an uncached series; the response carries `source:
+"cache" | "live"` + `catalog_refreshed_at`. Episode rows are deduped on
+  `(season, episode)` — the TVDB parser now keeps ONE season record per number
+  (official order; TVDB v4 lists one record per number × order type, which
+  used to double/triple every episode).
+- **Reconciliation (B.3)** — the missing wanted ↔ library ↔ client link
+  (`acquire/reconcile.py`): dispatch closes `grabbed` rows by info-hash at the
+  moment the media lands (`DeleteAuthority` correlation →
+  `wanted.mark_done_by_hash`); `follow detect` and `grab` run an ownership
+  sweep (`grabbed` + owned → `done`; `grabbed` + torrent vanished + unowned →
+  requeued `pending`). Counts land in the run rows
+  (`steps_json.counts.closed_owned` / `requeued_missing` / `resurrected`).
+- **No more terminal `no_candidates` (B.4)** — a clean zero-hit search (or
+  season-pack-only / all-filtered day) is a `not_found` disposition: the row
+  stays `pending` under cadence pacing, exempt from the attempts cap; only the
+  cadence cutoff ages it out. `follow detect` resurrects an `abandoned`
+  aired-unowned episode still within its cutoff (the House-of-the-Dragon
+  abandon-after-one-search bug).
+- **Guardrail (B.5)** — `scripts/check-acquisition-coherence.py` cross-checks
+  every follow (catalog × ownership × wanted × client) and exits with the
+  anomaly count; referenced in `product-intent.md` §méthode.
+- Module ceiling: `routes/acquisition.py` trigger block extracted to
+  `routes/acquisition_triggers.py` (same `/api/acquisition` prefix, registered
+  side by side under `guarded_api`); `acquire/store.py` `_WantedSubStore`
+  extracted to `acquire/_wanted_store.py`, new `acquire/_aired_store.py`.

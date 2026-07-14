@@ -415,3 +415,114 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         assert found.media_ref == MediaRef(tvdb_id=81189)
     finally:
         store.close()
+
+
+def test_detect_resurrects_wrongfully_abandoned_episode() -> None:
+    """B.4: an abandoned aired-unowned episode within cutoff goes back to pending.
+
+    The House-of-the-Dragon shape: S03E04 was terminally abandoned 20 minutes
+    after its enqueue because the tracker had nothing yet. Detect must re-open
+    such a row (status → pending, clock restarted) instead of skipping it as a
+    dup forever.
+    """
+    import time as _time
+
+    from personalscraper.conf.models.acquire import CadenceConfig
+
+    fs = _fs(followed_id=1, tvdb_id=99)
+    ep = _ep(tvdb_id=99, season=3, ep=4)
+    abandoned = WantedItem(
+        id=22,
+        media_ref=MediaRef(tvdb_id=99),
+        kind="episode",
+        status="abandoned",
+        enqueued_at=int(_time.time()) - 3600,  # 1h old — well within any cutoff
+        followed_id=1,
+        season=3,
+        episode=4,
+    )
+    app_context, store, bus = _make_ctx([fs], owned=False, existing=abandoned)
+    store.wanted.resurrect.return_value = True
+
+    from contextlib import contextmanager
+
+    from personalscraper.commands.follow import follow_detect
+
+    @contextmanager
+    def _boundary(config: Any, settings: Any, *, build_torrent_client: bool = False) -> Any:
+        yield app_context
+
+    ctx = MagicMock()
+    ctx.obj.config.acquire.cadence = CadenceConfig()
+    with (
+        patch("personalscraper.commands.follow.per_step_boundary", _boundary),
+        patch("personalscraper.commands.follow.poll_aired", return_value=[ep]),
+    ):
+        follow_detect(ctx, dry_run=False, series=None)
+
+    store.wanted.resurrect.assert_called_once()
+    assert store.wanted.resurrect.call_args[0][0] == 22
+    store.wanted.add.assert_not_called()
+
+
+def test_detect_past_cutoff_abandoned_stays_abandoned() -> None:
+    """An abandoned row past its cadence cutoff is NOT resurrected (no flip-flop)."""
+    from personalscraper.conf.models.acquire import CadenceConfig
+
+    fs = _fs(followed_id=1, tvdb_id=99)
+    ep = _ep(tvdb_id=99, season=3, ep=4)
+    abandoned = WantedItem(
+        id=23,
+        media_ref=MediaRef(tvdb_id=99),
+        kind="episode",
+        status="abandoned",
+        enqueued_at=1_000_000,  # ancient — far past any cutoff
+        followed_id=1,
+        season=3,
+        episode=4,
+    )
+    app_context, store, _bus = _make_ctx([fs], owned=False, existing=abandoned)
+
+    from contextlib import contextmanager
+
+    from personalscraper.commands.follow import follow_detect
+
+    @contextmanager
+    def _boundary(config: Any, settings: Any, *, build_torrent_client: bool = False) -> Any:
+        yield app_context
+
+    ctx = MagicMock()
+    ctx.obj.config.acquire.cadence = CadenceConfig()
+    with (
+        patch("personalscraper.commands.follow.per_step_boundary", _boundary),
+        patch("personalscraper.commands.follow.poll_aired", return_value=[ep]),
+    ):
+        follow_detect(ctx, dry_run=False, series=None)
+
+    store.wanted.resurrect.assert_not_called()
+    store.wanted.add.assert_not_called()
+
+
+def test_detect_writes_aired_catalog_cache() -> None:
+    """P0-B.1: detect persists the polled aired catalog per followed series."""
+    fs = _fs(followed_id=1, tvdb_id=99)
+    eps = [_ep(tvdb_id=99, season=1, ep=1), _ep(tvdb_id=99, season=1, ep=2)]
+    app_context, store, _bus = _make_ctx([fs], owned=True)
+
+    _run_detect(app_context, eps)
+
+    store.aired.replace_for_followed.assert_called_once()
+    args, kwargs = store.aired.replace_for_followed.call_args
+    assert args[0] == 1
+    assert [(s, e) for (s, e, _t, _d) in args[1]] == [(1, 1), (1, 2)]
+    assert "now" in kwargs
+
+
+def test_detect_dry_run_does_not_write_cache() -> None:
+    """--dry-run leaves the aired catalog cache untouched."""
+    fs = _fs(followed_id=1, tvdb_id=99)
+    app_context, store, _bus = _make_ctx([fs], owned=True)
+
+    _run_detect(app_context, [_ep(tvdb_id=99)], dry_run=True)
+
+    store.aired.replace_for_followed.assert_not_called()
