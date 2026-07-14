@@ -37,6 +37,131 @@ def collect_touched_disks(results: list) -> set[str]:  # type: ignore[type-arg]
     return {r.disk for r in results if r.disk is not None and r.action in ("moved", "merged", "replaced")}
 
 
+def collect_touched_destinations(results: list) -> dict[str, set[Path]]:  # type: ignore[type-arg]
+    """Collect dispatched destination paths per disk label.
+
+    Args:
+        results: Raw per-item dispatch results from :func:`run_dispatch`.
+
+    Returns:
+        Mapping ``disk label -> set of destination paths`` for every result
+        whose ``action`` is ``moved``/``merged``/``replaced`` and that carries
+        both a disk and a destination.
+    """
+    touched: dict[str, set[Path]] = {}
+    for r in results:
+        if r.disk is not None and r.destination is not None and r.action in ("moved", "merged", "replaced"):
+            touched.setdefault(r.disk, set()).add(Path(r.destination))
+    return touched
+
+
+def _rel_path_variants(rel_path: str) -> set[str]:
+    """Return the NFC and NFD spellings of *rel_path* (macFUSE stores NFD).
+
+    Args:
+        rel_path: A path string relative to a disk mount.
+
+    Returns:
+        The distinct normalization variants (1 or 2 strings).
+    """
+    import unicodedata
+
+    return {unicodedata.normalize("NFC", rel_path), unicodedata.normalize("NFD", rel_path)}
+
+
+def _invalidate_dispatched_subtrees(config: Config, destinations: dict[str, set[Path]]) -> int:
+    """Force the next scan to re-walk every dispatched destination subtree.
+
+    The incremental scan short-circuits a subtree whose recorded ``dir_mtime``
+    is unchanged — and on NTFS/macFUSE, MERGING files into an existing show
+    folder does not reliably bump the parent chain's mtimes, so freshly
+    dispatched episodes stayed invisible to the index (prod: American Dad
+    S22E10/E11 unindexed for 11 days; HotD S03E04 unindexed right after its
+    run). Resetting ``dir_mtime_ns`` + ``last_walked_at`` on the destination
+    subtree AND its ancestors (and clearing the disk merkle root) removes
+    every short-circuit on the exact branches dispatch just touched.
+
+    Fail-soft: any error is logged and 0 is returned — the scans still run.
+
+    Args:
+        config: Validated application Config.
+        destinations: Mapping ``disk label -> destination paths`` from
+            :func:`collect_touched_destinations`.
+
+    Returns:
+        Number of ``path`` rows invalidated.
+    """
+    from personalscraper.indexer.db import _apply_pragmas
+
+    db_path = config.indexer.db_path
+    if db_path is None or not destinations:
+        return 0
+
+    invalidated = 0
+    try:
+        conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    except sqlite3.Error as exc:
+        _log.warning("post_maintenance_invalidate_open_failed", error=str(exc))
+        return 0
+    try:
+        _apply_pragmas(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        disk_rows = {
+            label: (disk_id, Path(mount))
+            for disk_id, label, mount in conn.execute(
+                "SELECT id, label, mount_path FROM disk WHERE mount_path IS NOT NULL"
+            )
+        }
+        for label, dests in destinations.items():
+            row = disk_rows.get(label)
+            if row is None:
+                _log.warning("post_maintenance_invalidate_unknown_disk", disk=label)
+                continue
+            disk_id, mount = row
+            for dest in dests:
+                try:
+                    rel = str(Path(dest).relative_to(mount))
+                except ValueError:
+                    _log.warning("post_maintenance_invalidate_outside_mount", disk=label, dest=str(dest))
+                    continue
+                # In both unicode normalizations (macFUSE yields NFD): the
+                # destination SUBTREE is reset by prefix, its ANCESTORS exactly
+                # (a prefix reset on an ancestor would needlessly re-walk every
+                # sibling show on the disk).
+                for variant in _rel_path_variants(rel):
+                    cur = conn.execute(
+                        "UPDATE path SET dir_mtime_ns = NULL, last_walked_at = NULL "
+                        "WHERE disk_id = ? AND (rel_path = ? OR rel_path LIKE ? || '/%')",
+                        (disk_id, variant, variant),
+                    )
+                    invalidated += cur.rowcount if cur.rowcount > 0 else 0
+                    ancestors: set[str] = set()
+                    parent = Path(variant).parent
+                    while str(parent) not in (".", "/"):
+                        ancestors.add(str(parent))
+                        parent = parent.parent
+                    for ancestor in ancestors:
+                        cur = conn.execute(
+                            "UPDATE path SET dir_mtime_ns = NULL, last_walked_at = NULL "
+                            "WHERE disk_id = ? AND rel_path = ?",
+                            (disk_id, ancestor),
+                        )
+                        invalidated += cur.rowcount if cur.rowcount > 0 else 0
+            # Clear the disk-level merkle short-circuit too.
+            conn.execute("UPDATE disk SET merkle_root = NULL WHERE id = ?", (disk_id,))
+        conn.commit()
+        _log.info("post_maintenance_invalidated_subtrees", rows=invalidated)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: the scans still run
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        _log.warning("post_maintenance_invalidate_failed", error=str(exc))
+    finally:
+        conn.close()
+    return invalidated
+
+
 def _scan_disk_incremental(config: Config, disk: str) -> int:
     """Run ``library-index --mode incremental --disk D --no-budget``.
 
@@ -193,6 +318,7 @@ def run_post_dispatch_maintenance(
     config: Config,
     touched_disks: set[str],
     *,
+    destinations: dict[str, set[Path]] | None = None,
     enabled: bool = True,
 ) -> None:
     """Run post-dispatch index maintenance for disks touched by dispatch.
@@ -206,6 +332,10 @@ def run_post_dispatch_maintenance(
         config: Validated application Config.
         touched_disks: Distinct, non-None disk labels from ``DispatchResult.disk``
             for items whose action was ``moved | merged | replaced``.
+        destinations: Dispatched destination paths per disk
+            (:func:`collect_touched_destinations`) — their subtrees are
+            invalidated so the incremental scan re-walks them even when the
+            filesystem did not bump the parent mtimes (NTFS/macFUSE merge).
         enabled: Feature toggle. When ``False``, the function is a no-op.
             Callers should resolve ``flag > config > default(true)`` before
             passing this parameter.
@@ -220,8 +350,14 @@ def run_post_dispatch_maintenance(
 
     _log.info("post_maintenance_start", disks=sorted(touched_disks))
 
+    # Force-invalidate the dispatched subtrees FIRST: a merge into an existing
+    # show folder does not reliably bump parent mtimes on NTFS/macFUSE, so the
+    # incremental short-circuit would skip exactly the branches dispatch just
+    # wrote (prod: AD S22E10/E11 invisible 11 days; HotD S03E04 missed in-run).
+    if destinations:
+        _invalidate_dispatched_subtrees(config, destinations)
+
     # Per-disk incremental scan — sequential (parallel dies on SQLite writer lock).
-    # New dispatched dirs have new mtimes → incremental walks them.
     # Fallback: if items remain unlinked after incremental, the fail-soft
     # warning + manual fallback command is logged for the operator (no
     # automatic full scan — operator decision, 2026-06-30).

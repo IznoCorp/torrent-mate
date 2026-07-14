@@ -292,13 +292,21 @@ class DispatchStep:
         if maintenance_enabled:
             maintenance_enabled = ctx.app.config.indexer.post_dispatch_maintenance.enabled
 
-        from personalscraper.dispatch.post_maintenance import collect_touched_disks
+        from personalscraper.dispatch.post_maintenance import (
+            collect_touched_destinations,
+            collect_touched_disks,
+        )
 
         touched_disks = collect_touched_disks(results)
         if touched_disks and maintenance_enabled and not ctx.dry_run:
             from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
 
-            run_post_dispatch_maintenance(ctx.app.config, touched_disks, enabled=maintenance_enabled)
+            run_post_dispatch_maintenance(
+                ctx.app.config,
+                touched_disks,
+                destinations=collect_touched_destinations(results),
+                enabled=maintenance_enabled,
+            )
 
         return report
 
