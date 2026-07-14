@@ -341,6 +341,23 @@ class _FollowSubStore:
                 (1 if active else 0, followed_id),
             )
 
+    def set_kind(self, followed_id: int, kind: str) -> None:
+        """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row.
+
+        Used when re-following an inactive item as a different kind (§5: a film
+        once followed as a series must land ``kind='movie'`` on re-follow, else
+        its lifecycle stays series-shaped).
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            kind: ``'movie'`` or ``'show'``.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET kind = ? WHERE id = ?",
+                (kind, followed_id),
+            )
+
     def set_cadence(self, followed_id: int, cadence_json: str | None) -> None:
         """Update the ``cadence_json`` column for a followed series.
 
