@@ -78,10 +78,16 @@ class Resolution(IntEnum):
 class QualityProfile:
     """Per-series quality policy decoded from ``FollowedSeries.quality_profile_json``.
 
-    All defaults are **permissive**: ``min_resolution=None`` means no floor
-    (hard-filter stage is a no-op); ``required_audio=frozenset()`` means any
-    language passes.  A French-only or ≥1080p policy is an explicit per-profile
-    opt-in set by Follow D4 — not a global default.
+    Quality/language defaults are **permissive**: ``min_resolution=None`` means
+    no floor (hard-filter stage is a no-op); ``required_audio=frozenset()`` means
+    any language passes.  A French-only or ≥1080p policy is an explicit
+    per-profile opt-in set by Follow D4 — not a global default.
+
+    The one deliberately non-permissive default is ``exclude_3d=True``: a
+    stereoscopic-3D encode (Side-By-Side / Over-Under) is **unwatchable** on a
+    normal 2D setup — dropping it is a correctness floor, not a taste preference,
+    so it defaults on.  An operator with a 3D rig opts back in per-series by
+    storing ``exclude_3d=False``.
 
     Attributes:
         min_resolution: Minimum acceptable resolution tier, or ``None`` (no
@@ -96,6 +102,9 @@ class QualityProfile:
             resolution.  Default ``False`` (fail-open) — an unparseable
             resolution is usually a naming-style gap (REMUX/COMPLETE.BLURAY)
             that the ranking engine soft-scores.
+        exclude_3d: When ``True`` (default), drop stereoscopic-3D releases
+            (``3D``, ``Full-SBS``, ``Half-SBS``, ``Over-Under`` tokens) — they
+            are unwatchable on a 2D setup. Set ``False`` for a 3D-capable rig.
     """
 
     min_resolution: Resolution | None = None
@@ -104,6 +113,7 @@ class QualityProfile:
     min_size: int | None = None
     max_size: int | None = None
     require_known_resolution: bool = False
+    exclude_3d: bool = True
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -147,6 +157,7 @@ def quality_profile_to_json(p: QualityProfile) -> str:
             "min_size": p.min_size,
             "max_size": p.max_size,
             "require_known_resolution": p.require_known_resolution,
+            "exclude_3d": p.exclude_3d,
         }
     )
 
@@ -176,6 +187,9 @@ def quality_profile_from_json(blob: str | None) -> QualityProfile:
         min_size=data.get("min_size"),
         max_size=data.get("max_size"),
         require_known_resolution=bool(data.get("require_known_resolution", False)),
+        # Absent key → True: a profile stored before the 3D filter existed still
+        # gets the (correctness-floor) exclusion.
+        exclude_3d=bool(data.get("exclude_3d", True)),
     )
 
 
@@ -344,6 +358,7 @@ def effective_quality(series: QualityProfile, item: SourceCriteria) -> QualityPr
         min_size=series.min_size,
         max_size=series.max_size,
         require_known_resolution=series.require_known_resolution,
+        exclude_3d=series.exclude_3d,
     )
 
 

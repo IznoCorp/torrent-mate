@@ -173,6 +173,62 @@ def test_audio_filter_drops_no_marker_title_when_vf_required() -> None:
     assert len(survivors) == 2
 
 
+# ---------------------------------------------------------------------------
+# Stereoscopic-3D exclusion (on by default)
+# ---------------------------------------------------------------------------
+
+
+def test_3d_sbs_dropped_by_default_flat_kept() -> None:
+    """Regression (« Le Robot sauvage » recovery grabbed a 3D Full-SBS encode).
+
+    The default profile prefers 1080p x265 correctly, but had NO 3D penalty, so
+    a Side-By-Side 3D release — unwatchable on a 2D setup — outranked and won.
+    With the default ``exclude_3d`` the 3D variant is dropped and the flat one
+    survives.  Red on the pre-fix code (both survived).
+    """
+    profile = QualityProfile()  # exclude_3d defaults True
+    flat = _result("The.Wild.Robot.2024.MULTI.VF2.1080p.WEBRip.x265-NS243")
+    threed = _result("The.Wild.Robot.2024.3D.Full-SBS.MULTI.VF2.1080p.10bit.WEBRip.EAC3.x265-NS243")
+    survivors = apply_hard_filters([flat, threed], profile)
+    titles = [r.title for r in survivors]
+    assert flat.title in titles
+    assert threed.title not in titles
+
+
+def test_3d_variants_all_dropped() -> None:
+    """Every stereoscopic marker (3D / Full-SBS / Half-SBS / HSBS / Over-Under) is dropped."""
+    profile = QualityProfile()
+    threed = [
+        _result("Film.2024.3D.1080p.x265"),
+        _result("Film.2024.Full-SBS.1080p.x265"),
+        _result("Film.2024.Half-SBS.1080p.x265"),
+        _result("Film.2024.HSBS.1080p.x265"),
+        _result("Film.2024.Over-Under.1080p.x265"),
+    ]
+    survivors = apply_hard_filters(threed, profile)
+    assert survivors == []
+
+
+def test_3d_kept_when_exclude_disabled() -> None:
+    """A 3D-capable rig opts back in: exclude_3d=False lets SBS releases through."""
+    profile = QualityProfile(exclude_3d=False)
+    threed = _result("Film.2024.3D.Full-SBS.1080p.x265")
+    survivors = apply_hard_filters([threed], profile)
+    assert survivors == [threed]
+
+
+def test_non_3d_titles_never_false_matched() -> None:
+    """Flat titles (incl. x265/HEVC/SBS-broadcaster edge tokens) are never dropped as 3D."""
+    profile = QualityProfile()
+    flat = [
+        _result("Film.2024.1080p.BluRay.x265-GRP"),  # x265 must not trip the H-SBS branch
+        _result("Film.2024.1080p.HEVC.HDR-GRP"),
+        _result("Show.S01E01.1080p.SBS.WEB-DL"),  # bare SBS (broadcaster) is intentionally allowed
+    ]
+    survivors = apply_hard_filters(flat, profile)
+    assert len(survivors) == 3
+
+
 def test_audio_filter_multi_title_passes_vf_requirement() -> None:
     """MULTi title passes when VF required (MULTi always includes French)."""
     profile = QualityProfile(required_audio=frozenset({"VF"}))

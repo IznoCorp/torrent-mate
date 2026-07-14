@@ -38,6 +38,17 @@ _AUDIO_LANG_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Stereoscopic-3D release markers. A 2D library never wants a Side-By-Side /
+# Over-Under encode (two half-width or half-height images), so these are dropped
+# by default (QualityProfile.exclude_3d). Anchored with \b to avoid matching
+# inside unrelated tokens; bare "SBS" is intentionally NOT matched (it collides
+# with the SBS broadcaster tag) — the real 3D releases always carry the
+# Full-/Half-/H- prefix or an explicit "3D" token.
+_STEREO_3D_RE = re.compile(
+    r"\b(3D|(?:Full|Half|H)[.\-]?SBS|Over[.\-_]Under)\b",
+    re.IGNORECASE,
+)
+
 # Normalise matched raw markers to the three canonical tier names used
 # in QualityProfile.required_audio.
 _AUDIO_NORM: dict[str, str] = {
@@ -114,6 +125,24 @@ def _passes_resolution(result: TrackerResult, profile: QualityProfile) -> bool:
     return parsed >= profile.min_resolution
 
 
+def _passes_not_3d(result: TrackerResult, profile: QualityProfile) -> bool:
+    """Return True unless *result* is a stereoscopic-3D encode the profile drops.
+
+    Args:
+        result: Candidate torrent result.
+        profile: Active quality profile.
+
+    Returns:
+        ``True`` when the result should survive (not 3D, or 3D allowed by the
+        profile); ``False`` for a 3D Side-By-Side / Over-Under release when
+        ``profile.exclude_3d`` is set.
+    """
+    if not profile.exclude_3d:
+        # Opt-out: a 3D-capable rig wants these.
+        return True
+    return _STEREO_3D_RE.search(result.title) is None
+
+
 def _passes_audio(result: TrackerResult, profile: QualityProfile) -> bool:
     """Return True if *result* contains at least one required audio language.
 
@@ -145,7 +174,9 @@ def apply_hard_filters(
        and ``media_ref`` carry a ``tmdb_id``; otherwise it is a no-op (can't
        disambiguate). Cheapest and most decisive, so it runs first.
     1. Resolution floor (fail-open on unrecognised tokens).
-    2. Audio language (parsed from title with anchored regex).
+    2. Stereoscopic-3D exclusion (Side-By-Side / Over-Under) — on by default,
+       a 2D library never wants a 3D encode.
+    3. Audio language (parsed from title with anchored regex).
 
     A result must pass **all** filters to survive.  An empty survivor list
     signals ``all_filtered`` → ``WantedAbandoned`` in the orchestrator.
@@ -183,6 +214,9 @@ def apply_hard_filters(
                 resolution=r.resolution,
                 min_resolution=profile.min_resolution,
             )
+            continue
+        if not _passes_not_3d(r, profile):
+            log.debug("acquire.filter.stereo_3d_dropped", title=r.title)
             continue
         if not _passes_audio(r, profile):
             log.debug(
