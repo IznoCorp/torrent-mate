@@ -150,6 +150,7 @@ def _matches_filters(
     match: StagingMatch | None,
     stage: StageKeyFilter | None,
     query: str | None,
+    missing_trailer: bool,
 ) -> bool:
     """Whether an item passes every active filter.
 
@@ -160,6 +161,7 @@ def _matches_filters(
         match: Matching-verdict filter, or ``None``.
         stage: Keep items at/awaiting this stage (state pending/active/blocked).
         query: Case-insensitive title substring, or ``None``.
+        missing_trailer: When ``True``, keep only items without a trailer file.
 
     Returns:
         ``True`` when the item satisfies all supplied filters.
@@ -175,6 +177,8 @@ def _matches_filters(
     if stage is not None:
         if not any(s.key == stage and s.state in _ACTIVE_STATES for s in item.stages):
             return False
+    if missing_trailer and item.has_trailer:
+        return False
     return True
 
 
@@ -238,6 +242,7 @@ def list_staging_media(
     stage: StageKeyFilter | None = Query(None),
     sort: SortKey = Query("recent"),
     q: str | None = Query(None),
+    missing_trailer: bool = Query(False),
     with_dispatch: bool = Query(False),
 ) -> StagingMediaResponse:
     """List staged media with pagination, sort, filters and aggregate counts.
@@ -262,6 +267,7 @@ def list_staging_media(
         stage: Keep items at/awaiting this timeline stage.
         sort: Sort key (default ``recent``).
         q: Case-insensitive title substring.
+        missing_trailer: Keep only items lacking a trailer file (A1).
         with_dispatch: Compute the dispatch preview for the page items.
 
     Returns:
@@ -280,7 +286,9 @@ def list_staging_media(
     filtered = [
         item
         for item in all_items
-        if _matches_filters(item, category=category, kind=kind, match=match, stage=stage, query=q)
+        if _matches_filters(
+            item, category=category, kind=kind, match=match, stage=stage, query=q, missing_trailer=missing_trailer
+        )
     ]
     _sort_items(filtered, sort)
 

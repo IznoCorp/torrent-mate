@@ -64,11 +64,16 @@ class TorrentLister(Protocol):
     - :meth:`get_all_hashes` returns just the info-hash set across all
       states (completed, downloading, paused), used by the ingest flow
       to detect duplicates without paying for the full payload.
+    - :meth:`get_by_hashes` returns the full :class:`TorrentItem` records
+      for a specific hash set across all states (incl. in-progress), used
+      by the acquisition downloads read-model to surface live progress.
     """
 
     def get_completed(self) -> list[TorrentItem]: ...
 
     def get_all_hashes(self) -> set[str]: ...
+
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]: ...
 
 
 @runtime_checkable

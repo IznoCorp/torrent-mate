@@ -116,6 +116,15 @@ export type SeasonCompleteness = CompletenessResponse["seasons"][number];
 export type AcquisitionRecentRun =
   AcquisitionStatusResponse["recent_runs"][number];
 
+/** Response type for GET /api/acquisition/downloads (A4 live progress). */
+export type AcquisitionDownloadsResponse = SuccessBody<
+  paths["/api/acquisition/downloads"]["get"]["responses"]
+>;
+
+/** One grabbed torrent's live progress row. */
+export type AcquisitionDownload =
+  AcquisitionDownloadsResponse["downloads"][number];
+
 // ---------------------------------------------------------------------------
 // Stable TanStack Query keys
 // ---------------------------------------------------------------------------
@@ -153,6 +162,9 @@ export const acqKeys = {
   /** Completeness query key: ``['acquisition', 'completeness', id]`` (§5). */
   completeness: (id: number) =>
     [...acqKeys.all, "completeness", id] as const,
+
+  /** Downloads query key: ``['acquisition', 'downloads']`` (A4). */
+  downloads: () => [...acqKeys.all, "downloads"] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -235,6 +247,21 @@ export function getObligations(
  */
 export function getAcquisitionStatus(): Promise<AcquisitionStatusResponse> {
   return apiFetch("/api/acquisition/status", { method: "get" });
+}
+
+/**
+ * Fetch the live progress of every grabbed torrent (A4).
+ *
+ * Sends ``GET /api/acquisition/downloads``.  Read-only — no ``X-Requested-With``
+ * header.  Fail-soft server-side: a torrent-client outage yields
+ * ``client_available=false`` rather than an error.
+ *
+ * Returns:
+ *   An {@link AcquisitionDownloadsResponse} with ``downloads`` +
+ *   ``client_available``.
+ */
+export function getDownloads(): Promise<AcquisitionDownloadsResponse> {
+  return apiFetch("/api/acquisition/downloads", { method: "get" });
 }
 
 /**

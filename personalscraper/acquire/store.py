@@ -455,25 +455,32 @@ class _WantedSubStore:
                 (status, wanted_id),
             )
 
-    def list_pending(self) -> list[WantedItem]:
-        """Return all ``wanted`` rows with ``status='pending'``.
+    def _list_wanted_by_status(self, status: str, order_by: str) -> list[WantedItem]:
+        """Return ``wanted`` rows with *status*, ordered by *order_by*.
 
-        Exercises the ``idx_wanted_pending`` partial index.
+        Args:
+            status: ``wanted.status`` to match (bound parameter — no injection).
+            order_by: Trusted ORDER BY clause (internal literal — never user input).
 
         Returns:
             A list of :class:`WantedItem`, possibly empty.
         """
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
-            """
-            SELECT id, followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
-            FROM wanted WHERE status = 'pending'
-            ORDER BY id
-            """
+            "SELECT id, followed_id, media_ref_json, kind, season, episode, "
+            "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash "
+            "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
+            (status,),
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]
+
+    def list_pending(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='pending'`` (idx_wanted_pending path)."""
+        return self._list_wanted_by_status("pending", "id")
+
+    def list_grabbed(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model, A4)."""
+        return self._list_wanted_by_status("grabbed", "last_search_at DESC, id")
 
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item for searching.

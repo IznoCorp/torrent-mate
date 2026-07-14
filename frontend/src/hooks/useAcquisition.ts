@@ -14,6 +14,7 @@ import {
   deleteFollow,
   getAcquisitionStatus,
   getCompleteness,
+  getDownloads,
   getFollowed,
   getObligations,
   getWanted,
@@ -127,6 +128,24 @@ export function useAcquisitionStatus() {
   return useQuery({
     queryKey: acqKeys.status(),
     queryFn: getAcquisitionStatus,
+  });
+}
+
+/**
+ * Poll the live progress of every grabbed torrent (A4).
+ *
+ * Query key: ``['acquisition', 'downloads']``. Refetches every 3 s so a
+ * download's progress bar advances in near-real-time; the server side is
+ * fail-soft (``client_available=false`` on a torrent-client outage).
+ *
+ * Returns:
+ *   The TanStack Query result for an {@link AcquisitionDownloadsResponse}.
+ */
+export function useDownloads() {
+  return useQuery({
+    queryKey: acqKeys.downloads(),
+    queryFn: getDownloads,
+    refetchInterval: 3_000,
   });
 }
 

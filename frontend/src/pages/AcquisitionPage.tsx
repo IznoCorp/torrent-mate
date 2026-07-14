@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { acqKeys } from "@/api/acquisition";
+import { DownloadsPanel } from "@/components/acquisition/DownloadsPanel";
 import { FollowedPanel } from "@/components/acquisition/FollowedPanel";
 import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
 import {
@@ -127,6 +128,7 @@ export default function AcquisitionPage(): ReactElement {
             </div>
           )}
           {activeTab === "wanted" && <WantedPanel />}
+          {activeTab === "downloads" && <DownloadsPanel />}
           {activeTab === "obligations" && <ObligationsPanel />}
           {activeTab === "watcher" && <WatcherPanel />}
         </CardContent>

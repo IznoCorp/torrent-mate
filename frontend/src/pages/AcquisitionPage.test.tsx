@@ -63,7 +63,11 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useUnfollow: () => ({ mutate: unfollowMutateFn, isPending: false }),
   // §5 additions: the completeness accordion + the run-tracking hook. Stubbed
   // to inert values so the page/panel render is unaffected by them.
-  useCompleteness: () => ({ data: undefined, isLoading: false, isError: false }),
+  useCompleteness: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
   useTrackedAcquisitionRun: () => undefined,
 }));
 
@@ -926,7 +930,9 @@ describe("AcquisitionPage", () => {
     // §5-aware table: run type + numeric result + outcome/running state.
     expect(screen.getByText("Détection")).toBeInTheDocument();
     expect(screen.getByText("Récupération")).toBeInTheDocument();
-    expect(screen.getByText(/3 détecté\(s\), 2 mis en file/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/3 détecté\(s\), 2 mis en file/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Succès/)).toBeInTheDocument();
     expect(screen.getByText(/En cours…/)).toBeInTheDocument();
   });
@@ -1114,7 +1120,8 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     const tabs = screen.getAllByRole("tab");
-    expect(tabs).toHaveLength(4);
+    // Suivis, Recherches, Téléchargements (A4), Obligations, Watcher.
+    expect(tabs).toHaveLength(5);
   });
 
   it("renders the followed watch list as cards", () => {

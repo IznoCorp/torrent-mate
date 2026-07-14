@@ -128,6 +128,40 @@ class TransmissionClient(
         torrents = self._client.get_torrents(arguments=["hashString"])
         return {t.hash_string for t in torrents}
 
+    def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
+        """Return the :class:`TorrentItem` records for a specific hash set.
+
+        Includes in-progress torrents (any status), unlike :meth:`get_completed`.
+
+        Args:
+            hashes: Info hashes to fetch. Empty set → ``[]`` (a bare
+                ``get_torrents`` would return *all* torrents).
+
+        Returns:
+            The matching torrents as :class:`TorrentItem` records.
+        """
+        if not hashes:
+            return []
+        torrents = self._client.get_torrents(
+            ids=list(hashes),
+            arguments=[
+                "id",
+                "hashString",
+                "name",
+                "totalSize",
+                "percentDone",
+                "status",
+                "downloadDir",
+                "addedDate",
+                "rateUpload",
+                "uploadRatio",
+                "labels",
+                "error",
+                "errorString",
+            ],
+        )
+        return [_torrent_item(t) for t in torrents]
+
     def is_seeding(self, torrent: TorrentItem) -> bool:
         """Check if a torrent is seeding.
 
