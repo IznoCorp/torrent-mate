@@ -229,23 +229,26 @@ class _WantedSubStore:
         return [_row_to_wanted(r) for r in rows]
 
     def mark_done(self, wanted_id: int) -> bool:
-        """Close ONE ``grabbed`` row confirmed in the library (reconciliation).
+        """Close ONE open row whose work the library owns (reconciliation).
 
         The ownership half of the B.3 reconciliation: when the library owns the
-        episode/movie a ``grabbed`` row was tracking, the row is closed ``done``
+        episode/movie an open row was tracking, the row closes ``done``
         regardless of the info-hash path (which misses historical dispatches
-        and renamed content). Guarded on ``status='grabbed'`` so it is
-        idempotent and never resurrects an abandoned/pending row.
+        and renamed content). Covers every OPEN status — ``grabbed`` (the
+        classic closure) and ``pending``/``searching`` (an owned work must
+        never be searched again: the resurrected-then-indexed shape, e.g. an
+        episode whose file predated its indexing). Never touches ``abandoned``
+        or ``done`` (idempotent).
 
         Args:
             wanted_id: Rowid of the ``wanted`` row.
 
         Returns:
-            ``True`` iff the row transitioned (was still ``grabbed``).
+            ``True`` iff the row transitioned (was still open).
         """
         with self._write_tx(self._conn):
             cur = self._conn.execute(
-                "UPDATE wanted SET status = 'done' WHERE id = ? AND status = 'grabbed'",
+                "UPDATE wanted SET status = 'done' WHERE id = ? AND status IN ('pending', 'searching', 'grabbed')",
                 (wanted_id,),
             )
             return cur.rowcount == 1

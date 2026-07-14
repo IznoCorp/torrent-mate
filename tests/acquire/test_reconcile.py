@@ -151,3 +151,50 @@ def test_owned_movie_row_closes_done(store: ConcreteAcquireStore) -> None:
     assert summary.closed_owned == 1
     row = store.wanted.get(wanted_id)
     assert row is not None and row.status == "done"
+
+
+def test_owned_pending_row_closes_done(store: ConcreteAcquireStore) -> None:
+    """A pending row whose episode the library owns closes ``done`` — never re-searched.
+
+    The resurrected-then-indexed shape (prod, HotD S03E03): an episode row was
+    resurrected to pending while its file sat unindexed on disk; once the index
+    healed, the pending row had to close instead of triggering a duplicate grab
+    at the next cron.
+    """
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=371572),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=3,
+        )
+    )
+
+    summary = reconcile_wanted(store, _StubOwnership({(3, 3)}), set())
+
+    assert summary.closed_owned == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "done"
+
+
+def test_unowned_pending_row_stays_pending(store: ConcreteAcquireStore) -> None:
+    """An unowned pending row is left queued (no hash logic applies to it)."""
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=371572),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=4,
+        )
+    )
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+
+    assert summary.closed_owned == 0
+    assert summary.requeued_missing == 0
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "pending"
