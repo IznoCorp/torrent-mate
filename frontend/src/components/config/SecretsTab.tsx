@@ -98,7 +98,11 @@ export function SecretsTab({
       setSaved(true);
       toast.success("Secrets enregistrés.");
     } catch (err: unknown) {
-      toast.error(err instanceof ApiError ? err.detail : "Échec de l’enregistrement des secrets.");
+      toast.error(
+        err instanceof ApiError
+          ? err.detail
+          : "Échec de l’enregistrement des secrets.",
+      );
     }
   }
 
@@ -122,8 +126,12 @@ export function SecretsTab({
             key={entry.key}
             className="flex flex-col gap-1.5 rounded-md border border-border p-3"
           >
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium">{entry.key}</Label>
+            {/* Long env-var keys + the badge must wrap at 390px (the row was
+                the /config mobile horizontal-overflow offender). */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="min-w-0 break-all text-sm font-medium">
+                {entry.key}
+              </Label>
               <Badge tone={entry.is_set ? "success" : "neutral"} mono>
                 {entry.is_set ? "défini" : "non défini"}
               </Badge>

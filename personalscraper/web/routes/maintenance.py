@@ -654,7 +654,11 @@ def _watcher_scheduler(data_dir: Path, acquire_db_path: Path | None) -> Schedule
         schedule=None,
         enabled=enabled,
         last_run_at=last_run_at,
-        last_outcome=None,
+        # ``last_successful_run_at`` is only ever written by a SUCCESSFUL
+        # watcher-triggered run, so a non-None timestamp IS a success — a None
+        # outcome made the UI pill say « Jamais exécuté » next to a real
+        # timestamp (operator-caught contradiction).
+        last_outcome="success" if last_run_at is not None else None,
     )
 
 
