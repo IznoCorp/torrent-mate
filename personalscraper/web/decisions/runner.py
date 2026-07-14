@@ -457,9 +457,12 @@ def main() -> None:
             # Trigger a continuation run through the single trigger authority
             # (pipeline.lock is the sole gate). If a run already holds the lock, the
             # freshly-scraped item is picked up by that run — no second mechanism.
-            from personalscraper.web.pipeline_trigger import spawn_pipeline_run
+            from personalscraper.web.pipeline_trigger import (
+                RESOLVE_CONTINUATION_TRIGGER,
+                spawn_pipeline_run,
+            )
 
-            continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason="scrape-resolve")
+            continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason=RESOLVE_CONTINUATION_TRIGGER)
             log.info(
                 "decision_runner_continuation",
                 run_uid=run_uid,

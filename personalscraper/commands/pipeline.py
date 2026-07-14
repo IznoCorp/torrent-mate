@@ -544,10 +544,17 @@ def process(
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-def _validate_trigger_reason(value: str) -> str:
-    """Validate the ``--trigger-reason`` value against the allowed set.
+#: Valid ``--trigger-reason`` values. MUST include every reason any web-side caller
+#: passes to :func:`~personalscraper.web.pipeline_trigger.spawn_pipeline_run` — in
+#: particular ``"scrape-resolve"`` (the §4 continuation after a manual resolve).
+#: A missing value here makes the spawned continuation ``run`` crash on argv
+#: validation, so the resolved media never dispatches (product-intent.md §4
+#: dénaturation: "un média qui reste échoué en staging après résolution").
+_VALID_TRIGGER_REASONS: frozenset[str] = frozenset({"", "completion", "safety_net", "manual", "web", "scrape-resolve"})
 
-    Allowed values: ``""``, ``completion``, ``safety_net``, ``manual``, ``web``.
+
+def _validate_trigger_reason(value: str) -> str:
+    """Validate the ``--trigger-reason`` value against :data:`_VALID_TRIGGER_REASONS`.
 
     Args:
         value: Raw string from the CLI option.
@@ -558,8 +565,9 @@ def _validate_trigger_reason(value: str) -> str:
     Raises:
         typer.BadParameter: If *value* is not one of the allowed reasons.
     """
-    if value not in ("", "completion", "safety_net", "manual", "web"):
-        raise typer.BadParameter(f"Must be one of: completion, safety_net, manual, web (got '{value}')")
+    if value not in _VALID_TRIGGER_REASONS:
+        allowed = ", ".join(sorted(r for r in _VALID_TRIGGER_REASONS if r))
+        raise typer.BadParameter(f"Must be one of: {allowed} (got '{value}')")
     return value
 
 
