@@ -782,6 +782,60 @@ def test_enqueue_other_with_kind_reclasses_to_movies_and_seeds(test_config, tmp_
     assert "001-MOVIES" in staging_path_val
 
 
+def test_enqueue_other_seeds_search_with_cleaned_title(test_config, tmp_path: Path) -> None:
+    """The AUTRES enqueue seeds the provider search with the CLEANED title, not the raw name.
+
+    Red on the previous impl: the search (and the decision's ``extracted_title``)
+    used the raw pre-reclass release name (``The.Wild.Robot.2024…-FW``), which never
+    matches any provider title — so every AUTRES resolve opened on an empty deck
+    (proven live on the Wild Robot fixture). The reclass already computes the clean
+    ``Title (Year)``; the seeded search and the decision must reuse it (§3: the deck
+    opens WITH proposals).
+    """
+    from unittest.mock import patch
+
+    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    (staging / "001-MOVIES").mkdir(parents=True)
+    raw = "The.Wild.Robot.2024.MULTi.1080p.WEB.x264-FW"
+    item = staging / "098-AUTRES" / raw
+    item.mkdir(parents=True)
+    _write_video(item / f"{raw}.mkv", size=1024)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    dummy = [DecisionCandidate(provider="tmdb", provider_id=42, title="The Wild Robot", year=2024, score=0.9)]
+    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy) as search_mock:
+        resp = client.post(
+            f"/api/staging/media/{media_id_for(f'098-AUTRES/{raw}')}/enqueue",
+            json={"media_kind": "movie"},
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    # The search ran on the cleaned title + year, never the raw release name.
+    call = search_mock.call_args
+    searched_title, searched_year = call.args[2], call.args[3]
+    assert searched_title == "The Wild Robot", f"search seeded with {searched_title!r}"
+    assert searched_year == 2024
+
+    # The decision row carries the cleaned title too (drives the deck's header +
+    # prefilled manual search).
+    conn = sqlite3.connect(str(db_path))
+    title_val, year_val = conn.execute(
+        "SELECT extracted_title, extracted_year FROM scrape_decision WHERE id = ?",
+        (resp.json()["decision_id"],),
+    ).fetchone()
+    conn.close()
+    assert title_val == "The Wild Robot"
+    assert year_val == 2024
+
+
 def test_enqueue_reopens_a_previously_resolved_item(test_config, tmp_path: Path) -> None:
     """Re-enqueuing a resolved-but-still-non-identified item re-opens it to pending.
 
