@@ -239,6 +239,14 @@ function scrapeLine(
   if (status === "matched") {
     const provider = detail(data, "provider");
     const src = provider !== "" ? ` (${provider})` : "";
+    // §2 lists "posters récupérés" as a distinct visible state. The backend
+    // emits status='matched' for BOTH a fresh scrape and an artwork-only
+    // recovery (an item that already had its NFO but was missing artwork),
+    // distinguished by details.action — surface them as different lines instead
+    // of folding both into "Métadonnées trouvées".
+    if (detail(data, "action") === "artwork_recovered") {
+      return { step, text: `Posters récupérés : ${item}${src}`, tone: "success" };
+    }
     return { step, text: `Métadonnées trouvées : ${item}${src}`, tone: "success" };
   }
   if (status === "queued_for_decision") {

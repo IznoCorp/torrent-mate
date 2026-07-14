@@ -661,10 +661,13 @@ def _watcher_scheduler(data_dir: Path, acquire_db_path: Path | None) -> Schedule
 def _cron_last_run(conn: sqlite3.Connection, job: CronJob) -> tuple[float | None, str | None]:
     """Find the most recent ``pipeline_run`` row matching *job*.
 
-    Matches ``kind='pipeline'`` rows whose ``command`` starts with the job's
-    ``command_prefix``.  Returns ``(None, None)`` when no row matches — the
-    current reality for every cron, since none writes a ``pipeline_run`` row yet
-    (surfaced fail-soft).
+    Matches by ``command`` prefix ALONE — a cron's run is identified by what it
+    ran, not by its ``kind``. The acquisition CLIs (``follow-detect`` / ``grab``)
+    record a ``kind='maintenance'`` row (they are not a full pipeline run), so a
+    ``kind='pipeline'`` filter here would hide them and keep the schedulers panel
+    stuck on « Jamais exécuté » despite a real last run (§1: les autos visibles
+    au même endroit). Returns ``(None, None)`` when no row matches (a cron that
+    still writes no row — surfaced fail-soft).
 
     Args:
         conn: An open, read-only connection to ``library.db``.
@@ -675,9 +678,7 @@ def _cron_last_run(conn: sqlite3.Connection, job: CronJob) -> tuple[float | None
         ``started_at`` (epoch seconds); ``last_outcome`` is its ``outcome``.
     """
     row = conn.execute(
-        "SELECT started_at, outcome FROM pipeline_run "
-        "WHERE kind = 'pipeline' AND command LIKE ? "
-        "ORDER BY started_at DESC LIMIT 1",
+        "SELECT started_at, outcome FROM pipeline_run WHERE command LIKE ? ORDER BY started_at DESC LIMIT 1",
         (job.command_prefix + "%",),
     ).fetchone()
     if row is None:

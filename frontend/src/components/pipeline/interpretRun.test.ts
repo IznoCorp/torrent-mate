@@ -188,6 +188,24 @@ describe("interpretRun", () => {
     ]);
   });
 
+  it("narrates artwork-only recovery as a distinct 'Posters récupérés' line (§2)", () => {
+    // The backend emits status='matched' for BOTH a fresh scrape and an
+    // artwork-only recovery; details.action distinguishes them. §2 lists
+    // "posters récupérés" as its own visible state — it must not fold into
+    // "Métadonnées trouvées".
+    const lines = interpretRun([
+      ev("ItemProgressed", {
+        step: "scrape",
+        item: "Fight Club (1999)",
+        status: "matched",
+        details: { action: "artwork_recovered", provider: "tmdb" },
+      }),
+    ]);
+    expect(lines).toEqual<InterpretedLine[]>([
+      { step: "scrape", text: "Posters récupérés : Fight Club (1999) (tmdb)", tone: "success" },
+    ]);
+  });
+
   it("ignores unknown event types and unknown step/status (no throw)", () => {
     const lines = interpretRun([
       ev("PipelineStarted", { report: {} }),
