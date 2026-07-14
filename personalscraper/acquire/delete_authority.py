@@ -360,6 +360,30 @@ class DeleteAuthority:
 
         item = matches[0]
 
+        # P0-B.3 — the §5 wanted closure this correlation always promised:
+        # the torrent's content is being dispatched into the library, so its
+        # ``grabbed`` wanted row(s) close ``done`` HERE, at the moment the
+        # media physically lands — independent of index freshness and of the
+        # seed-obligation branches below (fail-soft: the ownership sweep in
+        # detect/grab is the safety net).
+        try:
+            closed = self._store.wanted.mark_done_by_hash(item.hash)
+            for row in closed:
+                log.info(
+                    "acquire.record_dispatch.wanted_closed",
+                    wanted_id=row.id,
+                    kind=row.kind,
+                    season=row.season,
+                    episode=row.episode,
+                    info_hash=item.hash,
+                )
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
+            log.warning(
+                "acquire.record_dispatch.wanted_close_failed",
+                error=str(exc),
+                info_hash=item.hash,
+            )
+
         if not self._torrent_client.is_seeding(item):
             log.debug(
                 "acquire.record_dispatch.miss",

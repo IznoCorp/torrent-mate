@@ -27,6 +27,7 @@ from personalscraper.subscribers.redis_stream import build_redis_publisher
 
 if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
+    from personalscraper.acquire.reconcile import ReconcileSummary
 
 log = get_logger("cli.grab")
 
@@ -78,6 +79,13 @@ def grab(
                         "[red]No torrent client configured — cannot run grab. Check config or use --dry-run.[/red]"
                     )
                     raise typer.Exit(1)
+
+                # P0-B.3 — reconcile grabbed rows BEFORE searching: rows whose
+                # work the library owns close ``done``; rows whose torrent
+                # vanished from the client (and are unowned) requeue pending
+                # and re-enter this very run's queue.
+                reconcile = _reconcile_before_run(acquire, console)
+
                 summary = grab_core.service.run(limit=limit, followed_id=followed_id)
                 console.print(
                     f"[green]Grab complete:[/green] "
@@ -95,11 +103,59 @@ def grab(
                         "retried": summary.retried,
                         "abandoned": summary.abandoned,
                         "skipped": summary.skipped,
+                        "closed_owned": reconcile.closed_owned,
+                        "requeued_missing": reconcile.requeued_missing,
                     }
                 )
         finally:
             if redis_publisher is not None:
                 redis_publisher.close()
+
+
+def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "ReconcileSummary":
+    """Run the B.3 reconciliation pass ahead of a real grab run (fail-soft).
+
+    Gathers the torrent client's known info-hashes once (``None`` on any
+    client error — the vanished-torrent requeue is skipped rather than firing
+    blind) and sweeps the grabbed rows via
+    :func:`personalscraper.acquire.reconcile.reconcile_wanted`.
+
+    Args:
+        acquire: The live :class:`AcquireContext` (store + ownership + client).
+        console: Rich console for the operator summary line.
+
+    Returns:
+        The pass summary (zeroes when the store is unavailable or the sweep
+        failed — a reconciliation problem must never abort the grab run).
+    """
+    from personalscraper.acquire.reconcile import ReconcileSummary, reconcile_wanted  # noqa: PLC0415
+
+    store = acquire.store
+    if store is None:
+        return ReconcileSummary()
+
+    client_hashes: set[str] | None = None
+    torrent_client = acquire.torrent_client
+    if torrent_client is not None:
+        try:
+            grabbed_hashes = {(w.grabbed_hash or "").lower() for w in store.wanted.list_grabbed()}
+            grabbed_hashes.discard("")
+            client_hashes = {t.hash.lower() for t in torrent_client.get_by_hashes(grabbed_hashes)}
+        except Exception as exc:  # noqa: BLE001 — fail-soft: skip the requeue half
+            log.warning("cli.grab.reconcile_client_unavailable", error=str(exc))
+            client_hashes = None
+
+    try:
+        summary = reconcile_wanted(store, acquire.ownership, client_hashes)
+    except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
+        log.warning("cli.grab.reconcile_failed", error=str(exc))
+        return ReconcileSummary()
+    if summary.closed_owned or summary.requeued_missing:
+        console.print(
+            f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (en médiathèque), "
+            f"{summary.requeued_missing} remis en file (torrent disparu)."
+        )
+    return summary
 
 
 def _run_dry(

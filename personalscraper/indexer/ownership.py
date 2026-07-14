@@ -132,6 +132,51 @@ _EPISODE_EXISTS_TMPL = (
 )
 
 
+_OWNED_PAIRS_TMPL = (
+    "SELECT DISTINCT s.number, e.number FROM media_item mi"
+    " JOIN season s ON s.item_id = mi.id"
+    " JOIN episode e ON e.season_id = s.id"
+    " JOIN media_release mr ON mr.episode_id = e.id"
+    " JOIN media_file mf ON mf.release_id = mr.id"
+    " WHERE mi.kind='show' AND {provider_clause}"
+    " AND mf.deleted_at IS NULL"
+)
+
+
+def owned_episode_pairs(
+    conn: sqlite3.Connection,
+    *,
+    tvdb_id: int | None = None,
+    tmdb_id: int | None = None,
+    imdb_id: str | None = None,
+) -> set[tuple[int, int]]:
+    """Return every ``(season, episode)`` pair the library owns for one show.
+
+    One query per available provider id (union of the results) — the bulk
+    counterpart of the per-episode :func:`is_owned` EXISTS, used by the §5
+    truth-table status so a whole series costs one round-trip instead of one
+    per aired episode. Live files only (soft-deleted rows never count).
+
+    Args:
+        conn: Open connection to ``library.db``.
+        tvdb_id: TVDB series id, or ``None``.
+        tmdb_id: TMDB series id, or ``None``.
+        imdb_id: IMDb series id, or ``None``.
+
+    Returns:
+        The set of owned ``(season_number, episode_number)`` pairs (possibly
+        empty).
+    """
+    pairs: set[tuple[int, int]] = set()
+    for provider, value in (("tvdb", tvdb_id), ("tmdb", tmdb_id), ("imdb", imdb_id)):
+        if value is None:
+            continue
+        sql = _OWNED_PAIRS_TMPL.format(provider_clause=_PROVIDER_CLAUSES[provider])
+        for row in conn.execute(sql, (value,)).fetchall():
+            pairs.add((int(row[0]), int(row[1])))
+    return pairs
+
+
 def _run_exists(conn: sqlite3.Connection, sql: str, params: tuple[object, ...]) -> bool:
     """Execute a single-row EXISTS query and return the boolean result.
 
@@ -347,6 +392,37 @@ class IndexerOwnershipChecker:
             )
             return False
 
+    def owned_pairs(self, media_ref: "MediaRef") -> set[tuple[int, int]]:
+        """Return every owned ``(season, episode)`` pair for one show — fail-soft.
+
+        Bulk counterpart of :meth:`owns` for the §5 truth-table status: one
+        round-trip per provider id instead of one per aired episode. Any
+        error (missing/locked ``library.db``) returns the empty set — the
+        caller then degrades to the legacy counter-based status rather than
+        mis-reporting.
+
+        Args:
+            media_ref: Provider IDs (tvdb primary, tmdb fallback, imdb last).
+
+        Returns:
+            The owned ``(season_number, episode_number)`` set (may be empty).
+        """
+        try:
+            conn = self._ensure_open()
+            return owned_episode_pairs(
+                conn,
+                tvdb_id=media_ref.tvdb_id,
+                tmdb_id=media_ref.tmdb_id,
+                imdb_id=media_ref.imdb_id,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never raise into the caller
+            log.warning(
+                "indexer.ownership.owned_pairs_failed",
+                db_path=str(self._db_path),
+                error=str(exc),
+            )
+            return set()
+
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).
 
@@ -367,4 +443,4 @@ class IndexerOwnershipChecker:
         log.info("indexer.ownership.closed", db_path=str(self._db_path))
 
 
-__all__ = ["IndexerOwnershipChecker", "is_owned"]
+__all__ = ["IndexerOwnershipChecker", "is_owned", "owned_episode_pairs"]

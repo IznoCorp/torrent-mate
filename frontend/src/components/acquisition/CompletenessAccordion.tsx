@@ -72,6 +72,19 @@ export function CompletenessAccordion({
   const [open, setOpen] = useState(false);
   const { data, isLoading, isError } = useCompleteness(followedId, open);
 
+  // P0-B.1: caption the aired-catalog provenance honestly — the dated detect
+  // cache ("Catalogue du JJ/MM/AAAA") vs a live synchronous provider poll.
+  const catalogCaption =
+    data == null
+      ? null
+      : data.source === "cache" && data.catalog_refreshed_at != null
+        ? `Catalogue du ${new Date(
+            data.catalog_refreshed_at * 1000,
+          ).toLocaleDateString("fr-FR")}`
+        : data.source === "live"
+          ? "Catalogue interrogé en direct"
+          : null;
+
   return (
     <Accordion className="rounded-md border border-border bg-card px-3">
       <AccordionItem open={open} onOpenChange={setOpen}>
@@ -99,6 +112,11 @@ export function CompletenessAccordion({
           ) : (
             <p className="py-2 text-sm text-muted-foreground">
               Aucune saison diffusée.
+            </p>
+          )}
+          {catalogCaption != null && (
+            <p className="pt-1 text-xs text-muted-foreground">
+              {catalogCaption}
             </p>
           )}
         </AccordionContent>

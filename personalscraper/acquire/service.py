@@ -369,6 +369,13 @@ class AcquisitionService:
         if outcome.disposition == "terminal":
             self._store.wanted.set_status(wanted_id, "abandoned")
             return "abandoned"
+        if outcome.disposition == "not_found":
+            # Clean search, nothing usable YET (B.4): stay pending under
+            # cadence pacing. The attempts cap does NOT apply — it exists for
+            # flaky-infrastructure loops, not for "the release is not out yet";
+            # only the cadence cutoff ages a not-found item out.
+            self._store.wanted.set_status(wanted_id, "pending")
+            return "retried"
         # "retryable"
         if current.attempts >= MAX_ATTEMPTS:
             self._abandon_at_cap(current)

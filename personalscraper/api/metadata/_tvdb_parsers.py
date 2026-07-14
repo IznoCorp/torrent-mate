@@ -343,13 +343,27 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
     # Seasons summary (TVDB extended series response has ``seasons[*]``
     # with ``number`` / ``episodeCount`` / ``image``). For movies this
     # field is absent; the loop below produces an empty list.
+    #
+    # TVDB v4 lists one season record per (number × order type): official
+    # (aired), dvd, absolute, alternate… Keeping them all duplicated every
+    # season number, which downstream multiplied whole seasons of episodes
+    # (the §5 completeness « double voire triple » bug) and doubled the
+    # per-season API calls. Keep the official order when present, and dedupe
+    # by number regardless (first record wins).
+    raw_seasons = [s for s in (raw.get("seasons", []) or []) if isinstance(s, dict)]
+
+    def _order_type(entry: dict[str, Any]) -> str | None:
+        entry_type = entry.get("type")
+        return entry_type.get("type") if isinstance(entry_type, dict) else None
+
+    official = [s for s in raw_seasons if _order_type(s) == "official"]
     seasons: list[SeasonInfo] = []
-    for s in raw.get("seasons", []) or []:
-        if not isinstance(s, dict):
-            continue
+    seen_numbers: set[int] = set()
+    for s in official or raw_seasons:
         s_num = s.get("number")
-        if not isinstance(s_num, int):
+        if not isinstance(s_num, int) or s_num in seen_numbers:
             continue
+        seen_numbers.add(s_num)
         seasons.append(
             SeasonInfo(
                 season_number=s_num,
