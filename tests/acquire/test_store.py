@@ -523,6 +523,71 @@ def test_follow_add_distinct_refs_are_independent(store: ConcreteAcquireStore) -
     assert len(store.follow.list_all()) == 2
 
 
+def test_follow_kind_roundtrip_movie_and_default_show(store: ConcreteAcquireStore) -> None:
+    """§5 films: a follow persists its kind; legacy-style adds default to 'show'.
+
+    The follow table was series-shaped — nothing recorded WHAT was followed, so
+    no film acquisition flow could exist. The kind must round-trip through add →
+    get / list_active.
+    """
+    movie_id = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tmdb_id=1184918), title="Le Robot sauvage", added_at=1, kind="movie")
+    )
+    show_id = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=81189), title="Breaking Bad", added_at=2))
+
+    movie = store.follow.get(movie_id)
+    show = store.follow.get(show_id)
+    assert movie is not None and movie.kind == "movie"
+    assert show is not None and show.kind == "show"
+    assert {f.kind for f in store.follow.list_active()} == {"movie", "show"}
+
+
+def test_follow_kind_rejects_invalid_literal() -> None:
+    """FollowedSeries validates its kind at construction."""
+    with pytest.raises(ValueError, match="kind"):
+        FollowedSeries(media_ref=MediaRef(tmdb_id=1), title="X", added_at=1, kind="film")  # type: ignore[arg-type]
+
+
+def test_wanted_mark_done_by_hash_closes_grabbed_rows(store: ConcreteAcquireStore) -> None:
+    """§5 closure: dispatching a torrent flips its grabbed wanted rows to 'done'.
+
+    'done' existed in the status CHECK with ZERO writers — grabbed rows froze
+    forever and a followed film could never be auto-removed once acquired.
+    mark_done_by_hash must transition only the matching grabbed rows (hash
+    matched case-insensitively) and return them so the caller can unfollow
+    acquired movies.
+    """
+    fid = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tmdb_id=1184918), title="Le Robot sauvage", added_at=1, kind="movie")
+    )
+    wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tmdb_id=1184918),
+            kind="movie",
+            status="pending",
+            enqueued_at=1_700_000_100,
+            followed_id=fid,
+        )
+    )
+    other = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=42), kind="episode", status="pending", enqueued_at=1_700_000_101)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "ABCDEF0123456789")
+
+    closed = store.wanted.mark_done_by_hash("abcdef0123456789")  # case-insensitive
+
+    assert [w.id for w in closed] == [wid]
+    assert closed[0].followed_id == fid
+    assert closed[0].kind == "movie"
+    done = store.wanted.get(wid)
+    assert done is not None and done.status == "done"
+    # Unrelated rows are untouched; an unknown hash closes nothing.
+    untouched = store.wanted.get(other)
+    assert untouched is not None and untouched.status == "pending"
+    assert store.wanted.mark_done_by_hash("feedface") == []
+
+
 def test_follow_substore_satisfies_protocol(store: ConcreteAcquireStore) -> None:
     """_FollowSubStore satisfies the FollowSubStore Protocol (all new methods present)."""
     from personalscraper.acquire._ports import FollowSubStore as FollowSubStoreProto

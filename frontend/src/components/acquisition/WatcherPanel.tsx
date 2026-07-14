@@ -6,11 +6,13 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
+import { toast } from "sonner";
 
-import { acqKeys } from "@/api/acquisition";
-import { setWatcher } from "@/api/client";
+import { acqKeys, triggerDetect } from "@/api/acquisition";
+import { ApiError, setWatcher } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,14 +25,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAcquisitionStatus } from "@/hooks/useAcquisition";
+import {
+  useAcquisitionStatus,
+  useTrackedAcquisitionRun,
+} from "@/hooks/useAcquisition";
 
 import {
   formatDatetime,
+  formatRunResult,
   relativeTime,
-  STATUS_LABEL,
-  STATUS_TONE,
-  truncate,
+  RUN_OUTCOME_LABEL,
+  RUN_OUTCOME_TONE,
 } from "./meta";
 
 /**
@@ -48,6 +53,36 @@ export function WatcherPanel(): ReactElement {
     mutationFn: (enabled: boolean) => setWatcher({ enabled }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: acqKeys.status() });
+    },
+  });
+
+  // §5 manual detect trigger. Fire → track the run to its NUMERIC result; the
+  // success toast fires only when the run actually ends (never on the 202).
+  const [trackedRun, setTrackedRun] = useState<string | null>(null);
+  const finishedRun = useTrackedAcquisitionRun(trackedRun);
+  if (finishedRun?.ended_at != null && trackedRun != null) {
+    if (finishedRun.outcome === "success") {
+      const summary = formatRunResult(finishedRun.result);
+      toast.success(`Détection terminée${summary ? ` — ${summary}` : ""}.`);
+    } else {
+      toast.error("La détection a échoué — voir les exécutions récentes.");
+    }
+    setTrackedRun(null);
+    void queryClient.invalidateQueries({ queryKey: acqKeys.all });
+  }
+
+  const detectMutation = useMutation({
+    mutationFn: () => triggerDetect(),
+    onSuccess: (res) => {
+      toast.info("Détection lancée…");
+      setTrackedRun(res.run_uid);
+    },
+    onError: (err: unknown) => {
+      if (err instanceof ApiError && err.status === 409) {
+        toast.error("Une détection est déjà en cours.");
+      } else {
+        toast.error("Impossible de lancer la détection.");
+      }
     },
   });
 
@@ -96,18 +131,29 @@ export function WatcherPanel(): ReactElement {
                   : "Jamais"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="watcher-toggle" className="text-xs">
-                Activé
-              </Label>
-              <Switch
-                id="watcher-toggle"
-                checked={watcher_enabled}
-                onCheckedChange={(checked) => {
-                  toggleMutation.mutate(checked);
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                onClick={() => {
+                  detectMutation.mutate();
                 }}
-                disabled={toggleMutation.isPending}
-              />
+                disabled={detectMutation.isPending || trackedRun != null}
+              >
+                {trackedRun != null ? "Détection en cours…" : "Détecter maintenant"}
+              </Button>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="watcher-toggle" className="text-xs">
+                  Activé
+                </Label>
+                <Switch
+                  id="watcher-toggle"
+                  checked={watcher_enabled}
+                  onCheckedChange={(checked) => {
+                    toggleMutation.mutate(checked);
+                  }}
+                  disabled={toggleMutation.isPending}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -115,9 +161,7 @@ export function WatcherPanel(): ReactElement {
 
       {/* Recent runs */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold">
-          Exécutions récentes du watcher
-        </h3>
+        <h3 className="mb-2 text-sm font-semibold">Exécutions récentes</h3>
         {recent_runs.length === 0 ? (
           <p className="py-4 text-center text-muted-foreground">
             Aucune exécution récente enregistrée.
@@ -126,39 +170,58 @@ export function WatcherPanel(): ReactElement {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Run UID</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Démarré</TableHead>
-                <TableHead>Terminé</TableHead>
                 <TableHead>Résultat</TableHead>
+                <TableHead>État</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recent_runs.map((run) => (
-                <TableRow key={run.run_uid}>
-                  <TableCell className="font-mono text-xs">
-                    {truncate(run.run_uid, 12)}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {formatDatetime(run.started_at)}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {formatDatetime(run.ended_at)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      tone={
-                        run.outcome != null
-                          ? (STATUS_TONE[run.outcome] ?? "neutral")
-                          : "neutral"
-                      }
-                    >
-                      {run.outcome != null
-                        ? (STATUS_LABEL[run.outcome] ?? run.outcome)
-                        : "—"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {recent_runs.map((run) => {
+                const label =
+                  run.command === "follow-detect"
+                    ? "Détection"
+                    : run.command === "grab"
+                      ? "Récupération"
+                      : "Pipeline";
+                const numeric = formatRunResult(run.result);
+                const pending = run.ended_at == null;
+                return (
+                  <TableRow key={run.run_uid}>
+                    <TableCell className="text-xs font-medium">
+                      {label}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {formatDatetime(run.started_at)}{" "}
+                      <span className="text-muted-foreground">
+                        ({relativeTime(run.started_at)})
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {numeric || (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {pending ? (
+                        <Badge tone="info">En cours…</Badge>
+                      ) : (
+                        <Badge
+                          tone={
+                            run.outcome != null
+                              ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
+                              : "neutral"
+                          }
+                        >
+                          {run.outcome != null
+                            ? (RUN_OUTCOME_LABEL[run.outcome] ?? run.outcome)
+                            : "—"}
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

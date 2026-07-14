@@ -155,18 +155,94 @@ export const TIER_LABEL: Record<string, string> = {
  */
 export const FOLLOW_STATUS_TONE: Record<
   string,
-  "success" | "warning" | "neutral"
+  "success" | "warning" | "neutral" | "info"
 > = {
   disabled: "neutral",
   pending: "warning",
+  acquiring: "info",
   up_to_date: "success",
 };
 
-/** Followed-series lifecycle status → French badge label (C14). */
+/** Followed-series lifecycle status → French badge label (C14 / §5). */
 export const FOLLOW_STATUS_LABEL: Record<string, string> = {
   disabled: "Désactivé",
-  pending: "En cours",
+  pending: "En attente",
+  acquiring: "En cours d'acquisition",
   up_to_date: "À jour",
+};
+
+/** Followed kind → French badge label (§5 film vs série). */
+export const FOLLOW_KIND_LABEL: Record<string, string> = {
+  movie: "Film",
+  show: "Série",
+};
+
+/** Run outcome → badge tone (acquisition recent runs). */
+export const RUN_OUTCOME_TONE: Record<
+  string,
+  "success" | "danger" | "warning" | "neutral"
+> = {
+  success: "success",
+  error: "danger",
+  killed: "warning",
+};
+
+/** Run outcome → French label (acquisition recent runs). */
+export const RUN_OUTCOME_LABEL: Record<string, string> = {
+  success: "Succès",
+  error: "Erreur",
+  killed: "Interrompu",
+};
+
+/** French labels for the §5 numeric-result keys persisted by the CLIs. */
+export const RUN_RESULT_LABEL: Record<string, string> = {
+  detected: "détecté(s)",
+  enqueued: "mis en file",
+  skipped_owned: "déjà en médiathèque",
+  skipped_dup: "doublon(s)",
+  grabbed: "récupéré(s)",
+  retried: "à retenter",
+  abandoned: "abandonné(s)",
+  skipped: "ignoré(s)",
+};
+
+/**
+ * Render a run's §5 numeric result as a short French sentence.
+ *
+ * Args:
+ *   result: The counts mapping from the run row, or null/undefined.
+ *
+ * Returns:
+ *   E.g. "3 détecté(s), 2 mis en file" — or "rien de nouveau" when every
+ *   count is zero, or "" when no result was recorded.
+ */
+export function formatRunResult(
+  result: Record<string, number> | null | undefined,
+): string {
+  if (!result) return "";
+  const parts = Object.entries(result)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => `${String(v)} ${RUN_RESULT_LABEL[k] ?? k}`);
+  return parts.length > 0 ? parts.join(", ") : "rien de nouveau";
+}
+
+/** Per-episode §5 state → chip tone (completeness matrix). */
+export const EPISODE_STATE_TONE: Record<
+  string,
+  "success" | "warning" | "info" | "neutral"
+> = {
+  en_mediatheque: "success",
+  en_file: "warning",
+  en_cours: "info",
+  manquant: "neutral",
+};
+
+/** Per-episode §5 state → French label (completeness matrix). */
+export const EPISODE_STATE_LABEL: Record<string, string> = {
+  en_mediatheque: "En médiathèque",
+  en_file: "En file",
+  en_cours: "En cours",
+  manquant: "Manquant",
 };
 
 /** Format a Unix-epoch float as a relative-time string in French. */

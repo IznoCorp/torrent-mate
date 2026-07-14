@@ -69,6 +69,7 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
         active=bool(row["active"]),
         quality_profile_json=row["quality_profile_json"],
         cadence_json=row["cadence_json"],
+        kind=row["kind"],
     )
 
 

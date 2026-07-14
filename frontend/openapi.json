@@ -176,6 +176,43 @@
         "title": "CadenceShape",
         "type": "object"
       },
+      "CompletenessResponse": {
+        "description": "Response for ``GET /api/acquisition/followed/{id}/completeness``.\n\nAttributes:\n    followed_id: The follow this completeness was computed for.\n    title: The followed title (display).\n    kind: ``\"show\"`` or ``\"movie\"`` (movies get an empty seasons list \u2014\n        their lifecycle lives on the card status instead).\n    provider_catalog_empty: ``True`` when the provider returned NO aired\n        episodes (the Top Chef case \u2014 the UI must say \"catalogue provider\n        vide\", never render a misleading all-missing matrix).\n    seasons: Season-by-season completeness, newest season first.",
+        "properties": {
+          "followed_id": {
+            "title": "Followed Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "provider_catalog_empty": {
+            "default": false,
+            "title": "Provider Catalog Empty",
+            "type": "boolean"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonCompleteness"
+            },
+            "title": "Seasons",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "followed_id",
+          "title",
+          "kind",
+          "seasons"
+        ],
+        "title": "CompletenessResponse",
+        "type": "object"
+      },
       "ConfigSchemaResponse": {
         "additionalProperties": false,
         "description": "Response body for ``GET /api/config/schema``.\n\nAttributes:\n    json_schema: JSON Schema for the merged config (generated via\n        ``Config.model_json_schema()``).\n    ownership: Mapping of each top-level key to the file that owns it.\n    restart_impact: Mapping of each top-level key to whether changing\n        it requires a web process restart.",
@@ -259,6 +296,15 @@
               }
             ],
             "title": "Imdb Id"
+          },
+          "kind": {
+            "default": "show",
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "title": "Kind",
+            "type": "string"
           },
           "overview": {
             "anyOf": [
@@ -752,6 +798,53 @@
         "title": "EnqueueDecisionResponse",
         "type": "object"
       },
+      "EpisodeCompleteness": {
+        "description": "One aired episode's acquisition state (\u00a75 \u00e9pisode par \u00e9pisode).\n\nAttributes:\n    episode: Episode number within the season.\n    title: Episode title, or ``None`` when the provider omitted it.\n    air_date: ISO ``YYYY-MM-DD`` air date.\n    state: ``en_mediatheque`` (a live file exists in the library),\n        ``en_file`` (a pending wanted row), ``en_cours`` (a wanted row is\n        searching/grabbed \u2014 acquisition under way), or ``manquant`` (aired,\n        not owned, not queued).",
+        "properties": {
+          "air_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Air Date"
+          },
+          "episode": {
+            "title": "Episode",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "en_mediatheque",
+              "manquant",
+              "en_file",
+              "en_cours"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "episode",
+          "state"
+        ],
+        "title": "EpisodeCompleteness",
+        "type": "object"
+      },
       "FileContent": {
         "additionalProperties": false,
         "description": "Response body for ``GET /api/config/files/{name}``.\n\nAttributes:\n    name: Config file basename.\n    values: Parsed JSON5 contents keyed by top-level key.\n    sha256: Hex digest of the file contents on disk.\n    shadowed_keys: Keys in this file overridden by ``local.json5``.",
@@ -868,7 +961,7 @@
         "type": "object"
       },
       "FollowedSeriesItem": {
-        "description": "A single followed series in the list response.",
+        "description": "A single followed series or film in the list response.",
         "properties": {
           "active": {
             "title": "Active",
@@ -904,6 +997,11 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "kind": {
+            "default": "show",
+            "title": "Kind",
+            "type": "string"
           },
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
@@ -965,10 +1063,11 @@
             "title": "Season Count"
           },
           "status": {
-            "description": "Lifecycle status derived from ``active`` + ``wanted_pending`` (C14).\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX:\n\n- ``disabled``: the series is paused (not active).\n- ``pending``: at least one wanted search is in flight.\n- ``up_to_date``: active with nothing pending.\n\nReturns:\n    The derived lifecycle status.",
+            "description": "Lifecycle status derived from ``active`` + wanted counts (C14 / \u00a75).\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX:\n\n- ``disabled``: the follow is paused (not active).\n- ``acquiring``: a grab landed and the torrent is on its way through\n  the pipeline (\u00a75 film \"en cours d'acquisition\": du torrent rep\u00e9r\u00e9\n  jusqu'au pipeline termin\u00e9). Takes precedence over ``pending``.\n- ``pending``: at least one wanted search is in flight (\"en attente\").\n- ``up_to_date``: active with nothing pending.\n\nReturns:\n    The derived lifecycle status.",
             "enum": [
               "disabled",
               "pending",
+              "acquiring",
               "up_to_date"
             ],
             "readOnly": true,
@@ -978,6 +1077,11 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "wanted_grabbed": {
+            "default": 0,
+            "title": "Wanted Grabbed",
+            "type": "integer"
           },
           "wanted_pending": {
             "title": "Wanted Pending",
@@ -1451,6 +1555,11 @@
       "MediaSearchResult": {
         "description": "One provider match returned by the acquisition media search.\n\nMirrors a ``DecisionCandidate`` (provider identity + poster/overview/score)\nplus a ``kind`` tag so the add-by-search cards can show film vs s\u00e9rie.\n\nAttributes:\n    provider: The metadata provider (``\"tmdb\"`` or ``\"tvdb\"``).\n    provider_id: The provider's numeric identifier.\n    title: The matched title.\n    year: The release year, or ``None`` when the provider did not return one.\n    kind: ``\"movie\"`` or ``\"tv\"`` (which search chain produced the result).\n    poster_url: The provider poster URL, or ``None``.\n    overview: A short plot summary, or ``None``.\n    score: The matching-engine confidence score (0.0\u20131.0).",
         "properties": {
+          "already_owned": {
+            "default": false,
+            "title": "Already Owned",
+            "type": "boolean"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -1861,8 +1970,19 @@
         "type": "object"
       },
       "RecentRun": {
-        "description": "A recent watcher-triggered pipeline run summary.",
+        "description": "A recent acquisition-relevant pipeline run summary.\n\nCovers watcher-triggered pipeline runs AND the acquisition CLI runs\n(``follow-detect`` / ``grab``), each carrying its \u00a75 numeric result when\nthe CLI recorded one.",
         "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
           "ended_at": {
             "anyOf": [
               {
@@ -1885,6 +2005,20 @@
             ],
             "title": "Outcome"
           },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
           "run_uid": {
             "title": "Run Uid",
             "type": "string"
@@ -1892,6 +2026,17 @@
           "started_at": {
             "title": "Started At",
             "type": "number"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger"
           }
         },
         "required": [
@@ -2325,6 +2470,43 @@
           "candidates"
         ],
         "title": "SearchResponse",
+        "type": "object"
+      },
+      "SeasonCompleteness": {
+        "description": "Per-season aggregate + per-episode detail (\u00a75 saison par saison).\n\nAttributes:\n    season: Season number (1-based; specials excluded by the poller).\n    owned: Episodes with a live library file.\n    queued: Episodes currently in the wanted queue (en_file + en_cours).\n    total: Aired episodes in the season.\n    episodes: The per-episode states, ordered by episode number.",
+        "properties": {
+          "episodes": {
+            "items": {
+              "$ref": "#/components/schemas/EpisodeCompleteness"
+            },
+            "title": "Episodes",
+            "type": "array"
+          },
+          "owned": {
+            "title": "Owned",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season",
+          "owned",
+          "queued",
+          "total",
+          "episodes"
+        ],
+        "title": "SeasonCompleteness",
         "type": "object"
       },
       "SecretEntry": {
@@ -3386,6 +3568,28 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/acquisition/detect": {
+      "post": {
+        "description": "Launch the aired-episode / film discovery on demand (\u00a75 manual watcher).\n\nThe detect pass (the 03:00 cron's job) polls the provider catalog for every\nactive follow, enqueues the missing episodes / films as wanted rows, and \u2014\nfor movie follows already in the library \u2014 performs the \u00a75 acquired-film\nclosure. This endpoint runs it NOW: it reserves a ``pipeline_run`` row\n(``command='follow-detect'``, ``trigger='web'``), spawns the acquisition\nrunner in detect mode, and returns ``202`` with the ``run_uid`` so the UI\ntracks the run to its numeric result \u2014 never a blind success toast.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    ``202`` with :class:`GrabTriggerResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    409: A detect run is already in flight.\n    500: The runner subprocess failed to spawn.",
+        "operationId": "trigger_detect_api_acquisition_detect_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrabTriggerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Trigger Detect",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/followed": {
       "get": {
         "description": "List followed series, filtered by active status.\n\nArgs:\n    request: The incoming FastAPI request.\n    active: Filter: ``\"active\"`` (default), ``\"all\"``, or ``\"inactive\"``.\n\nReturns:\n    A ``FollowedResponse`` with the matching items.",
@@ -3557,6 +3761,49 @@
           }
         },
         "summary": "Update Follow",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/followed/{followed_id}/completeness": {
+      "get": {
+        "description": "Per-season / per-episode completeness for one followed series (\u00a75).\n\nRead-only: crosses the provider catalog (aired episodes), the library\n(ownership by provider id) and the wanted queue into one honest matrix \u2014\n\"ce qui est d\u00e9j\u00e0 sorti vs ce qui est en m\u00e9diath\u00e8que\". An empty provider\ncatalog is an explicit state (``provider_catalog_empty``), never a\nmisleading all-missing grid.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: The ``followed_series`` rowid.\n\nReturns:\n    The :class:`CompletenessResponse`.\n\nRaises:\n    HTTPException: 404 unknown follow; 502 when the provider registry\n        cannot be built.",
+        "operationId": "get_followed_completeness_api_acquisition_followed__followed_id__completeness_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followed_id",
+            "required": true,
+            "schema": {
+              "title": "Followed Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletenessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Followed Completeness",
         "tags": [
           "acquisition"
         ]

@@ -189,11 +189,12 @@ class _FollowSubStore:
                 """
                 INSERT INTO followed_series
                   (media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                   quality_profile_json, cadence_json, added_at, kind)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(media_ref_json) DO UPDATE SET
                   active = 1,
-                  title = excluded.title
+                  title = excluded.title,
+                  kind = excluded.kind
                 RETURNING id
                 """,
                 (
@@ -203,6 +204,7 @@ class _FollowSubStore:
                     series.quality_profile_json,
                     series.cadence_json,
                     series.added_at,
+                    series.kind,
                 ),
             ).fetchone()
         assert row is not None  # noqa: S101 — RETURNING always yields the affected row
@@ -221,7 +223,7 @@ class _FollowSubStore:
         row = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at
+                   quality_profile_json, cadence_json, added_at, kind
             FROM followed_series WHERE id = ?
             """,
             (followed_id,),
@@ -251,7 +253,7 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at
+                       quality_profile_json, cadence_json, added_at, kind
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.tvdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -262,7 +264,7 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at
+                       quality_profile_json, cadence_json, added_at, kind
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.tmdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -273,7 +275,7 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at
+                       quality_profile_json, cadence_json, added_at, kind
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.imdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -295,7 +297,7 @@ class _FollowSubStore:
         rows = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at
+                   quality_profile_json, cadence_json, added_at, kind
             FROM followed_series
             WHERE active = 1
             ORDER BY id
@@ -315,7 +317,7 @@ class _FollowSubStore:
         rows = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at
+                   quality_profile_json, cadence_json, added_at, kind
             FROM followed_series
             ORDER BY id
             """
@@ -507,6 +509,45 @@ class _WantedSubStore:
                 """,
                 (info_hash, wanted_id),
             )
+
+    def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:
+        """Close ``grabbed`` rows whose torrent was DISPATCHED — return what closed.
+
+        The §5 closure the lifecycle was missing: ``done`` existed in the status
+        CHECK but had zero writers, so every grabbed row froze at ``grabbed`` and
+        a followed FILM could never be auto-removed once acquired. Called from
+        the dispatch-time correlation (the same info-hash match that writes the
+        seed obligation), this flips every ``grabbed`` row carrying *info_hash*
+        to ``done`` and returns the closed rows so the caller can unfollow
+        acquired movies and emit the visible trace.
+
+        Args:
+            info_hash: The dispatched torrent's info-hash (case-insensitive —
+                normalized to the stored lowercase form).
+
+        Returns:
+            The rows that were transitioned (possibly empty), read back BEFORE
+            the update so ``followed_id``/``kind`` are available to the caller.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash
+            FROM wanted
+            WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)
+            """,
+            (info_hash,),
+        ).fetchall()
+        if not rows:
+            return []
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE wanted SET status = 'done' WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)",
+                (info_hash,),
+            )
+        return [_row_to_wanted(r) for r in rows]
 
     def list_stale_searching(self, older_than: int) -> list[WantedItem]:
         """Return ``wanted`` rows stuck in 'searching' with ``last_search_at < older_than``.

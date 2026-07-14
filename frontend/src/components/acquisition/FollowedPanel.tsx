@@ -39,15 +39,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   useFollow,
+  useTrackedAcquisitionRun,
   useUnfollow,
   useUpdateFollow,
 } from "@/hooks/useAcquisition";
 import { useSchedulers } from "@/hooks/useSchedulers";
 
+import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
   cadenceInterval,
+  FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  formatRunResult,
   GRAB_JOB_NAME,
   TEMP_COLOR,
   TIER_LABEL,
@@ -96,11 +100,26 @@ export function FollowedPanel({
   // grab run; feedback is a toast (409 = already running, 404 = gone). On
   // success we also refresh the acquisition views (C16) so the card's pending
   // count / status reflect the freshly enqueued search without a manual reload.
+  // §5: never a success toast on the 202 — track the launched grab to its
+  // NUMERIC result and toast only once the run actually ends.
+  const [trackedRun, setTrackedRun] = useState<string | null>(null);
+  const finishedRun = useTrackedAcquisitionRun(trackedRun);
+  if (finishedRun?.ended_at != null && trackedRun != null) {
+    if (finishedRun.outcome === "success") {
+      const summary = formatRunResult(finishedRun.result);
+      toast.success(`Recherche terminée${summary ? ` — ${summary}` : ""}.`);
+    } else {
+      toast.error("La recherche a échoué — voir les exécutions récentes.");
+    }
+    setTrackedRun(null);
+    void queryClient.invalidateQueries({ queryKey: acqKeys.all });
+  }
+
   const triggerMutation = useMutation({
     mutationFn: (id: number) => triggerFollowedSearch(id),
-    onSuccess: () => {
-      toast.success("Recherche lancée pour cette série.");
-      void queryClient.invalidateQueries({ queryKey: acqKeys.all });
+    onSuccess: (res) => {
+      toast.info("Recherche lancée…");
+      setTrackedRun(res.run_uid);
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {
@@ -128,7 +147,9 @@ export function FollowedPanel({
   const handleAdd = (): void => {
     const tvdb = tvdbId.trim() ? Number(tvdbId.trim()) : null;
     if (tvdb === null || !Number.isFinite(tvdb)) return;
-    const body: CreateFollowRequest = { tvdb_id: tvdb };
+    // The manual add-by-TVDB-id form is series-only (a TVDB id is a series id);
+    // films are followed from the search cards, which carry kind='movie'.
+    const body: CreateFollowRequest = { tvdb_id: tvdb, kind: "show" };
     if (title.trim()) body.title = title.trim();
     followMutation.mutate(body, {
       onSuccess: () => {
@@ -272,16 +293,21 @@ export function FollowedPanel({
         {data.map((item) => {
           const interval = cadenceInterval(item.cadence);
           const seasons = item.season_count ?? 0;
+          const isMovie = item.kind === "movie";
           return (
-            <MediaCard
-              key={`f-${String(item.id)}`}
-              title={item.title}
-              year={item.year ?? null}
-              kind="tv"
-              posterUrl={item.poster_url ?? null}
-              overview={item.overview ?? null}
-              badges={
+            <div key={`f-${String(item.id)}`} className="flex flex-col gap-2">
+              <MediaCard
+                title={item.title}
+                year={item.year ?? null}
+                kind={isMovie ? "movie" : "tv"}
+                posterUrl={item.poster_url ?? null}
+                overview={item.overview ?? null}
+                badges={
                 <>
+                  {/* Film vs Série (§5). */}
+                  <Badge tone="neutral">
+                    {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
+                  </Badge>
                   {/* Backend-derived lifecycle status (C14): the UI only maps
                       status → tone/label, no business derivation in JSX. */}
                   <Badge
@@ -409,7 +435,17 @@ export function FollowedPanel({
                   </div>
                 </div>
               }
-            />
+              />
+              {/* §5 completeness: series show a season-by-season / episode-by-
+                  episode matrix (aired vs médiathèque vs file); movies don't
+                  (their lifecycle is the card status). Lazy — loads on open. */}
+              {!isMovie && (
+                <CompletenessAccordion
+                  followedId={item.id}
+                  title={item.title}
+                />
+              )}
+            </div>
           );
         })}
       </div>

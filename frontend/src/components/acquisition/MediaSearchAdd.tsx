@@ -17,6 +17,14 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { MediaCard } from "@/components/ds/MediaCard";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollow, useMediaSearch } from "@/hooks/useAcquisition";
@@ -27,8 +35,11 @@ type KindFilter = "all" | "movie" | "tv";
 /** Build the follow request body from a search result (provider → id field). */
 function toFollowBody(result: MediaSearchResult): CreateFollowRequest {
   // Carry the candidate's card metadata so the watch-list card can show a
-  // poster / description / year without a later provider call (OBJ3).
+  // poster / description / year without a later provider call (OBJ3). The kind
+  // ('movie'|'show') starts the §5 film lifecycle server-side.
+  const kind: "movie" | "show" = result.kind === "tv" ? "show" : "movie";
   const meta = {
+    kind,
     ...(result.poster_url != null ? { poster_url: result.poster_url } : {}),
     ...(result.overview != null ? { overview: result.overview } : {}),
     ...(result.year != null ? { year: result.year } : {}),
@@ -51,6 +62,10 @@ export function MediaSearchAdd(): ReactElement {
   const [followed, setFollowed] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // §5 replacement confirmation target (an already-owned film).
+  const [confirmReplace, setConfirmReplace] = useState<MediaSearchResult | null>(
+    null,
+  );
 
   const searchQuery = useMediaSearch(query, kind === "all" ? undefined : kind);
   const followMut = useFollow();
@@ -61,6 +76,16 @@ export function MediaSearchAdd(): ReactElement {
   }
 
   function follow(result: MediaSearchResult): void {
+    // §5 replacement confirmation: a film already in the library must ask before
+    // following — the pipeline will REPLACE the existing version once acquired.
+    if (result.already_owned) {
+      setConfirmReplace(result);
+      return;
+    }
+    doFollow(result);
+  }
+
+  function doFollow(result: MediaSearchResult): void {
     const key = `${result.provider}-${String(result.provider_id)}`;
     followMut.mutate(toFollowBody(result), {
       onSuccess: () => {
@@ -161,23 +186,67 @@ export function MediaSearchAdd(): ReactElement {
                 posterUrl={result.poster_url ?? null}
                 overview={result.overview ?? null}
                 footer={
-                  <Button
-                    size="sm"
-                    variant={done ? "outline" : "default"}
-                    className="w-full"
-                    disabled={done || followMut.isPending}
-                    onClick={() => {
-                      follow(result);
-                    }}
-                  >
-                    {done ? "Suivi ✓" : "Suivre"}
-                  </Button>
+                  <div className="flex w-full flex-col gap-1">
+                    {result.already_owned && (
+                      <span className="text-center text-[length:var(--text-2xs)] text-warning">
+                        Déjà en médiathèque
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant={done ? "outline" : "default"}
+                      className="w-full"
+                      disabled={done || followMut.isPending}
+                      onClick={() => {
+                        follow(result);
+                      }}
+                    >
+                      {done
+                        ? "Suivi ✓"
+                        : result.already_owned
+                          ? "Remplacer…"
+                          : "Suivre"}
+                    </Button>
+                  </div>
                 }
               />
             );
           })}
         </div>
       )}
+
+      {/* §5 replacement confirmation dialog: the film is already in the library;
+          following it will REPLACE the existing version once re-acquired. */}
+      <Dialog
+        open={confirmReplace != null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmReplace(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remplacer la version en médiathèque ?</DialogTitle>
+            <DialogDescription>
+              « {confirmReplace?.title} » est déjà en médiathèque. Le suivre
+              relancera son acquisition puis remplacera la version existante par
+              la nouvelle une fois le pipeline terminé.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setConfirmReplace(null); }}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirmReplace != null) doFollow(confirmReplace);
+                setConfirmReplace(null);
+              }}
+            >
+              Remplacer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

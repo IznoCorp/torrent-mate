@@ -162,6 +162,95 @@ def test_detect_skips_owned_episode() -> None:
     bus.emit.assert_not_called()
 
 
+def _movie_fs(followed_id: int = 7, tmdb_id: int = 1184918) -> FollowedSeries:
+    """Build an active MOVIE follow (§5 film flow)."""
+    return FollowedSeries(
+        id=followed_id,
+        media_ref=MediaRef(tmdb_id=tmdb_id),
+        title="Le Robot sauvage",
+        added_at=1_000_000,
+        active=True,
+        kind="movie",
+    )
+
+
+def test_detect_movie_follow_enqueues_movie_wanted() -> None:
+    """§5 GOLDEN (guard-test): a non-owned movie follow produces ONE movie wanted row.
+
+    Red on the previous implementation: `follow detect` hardcoded kind='episode'
+    and only walked aired episodes, so a followed FILM never produced a wanted
+    row — the §5 film acquisition flow could not start.
+    """
+    from personalscraper.acquire.events import WantedEnqueued
+
+    mf = _movie_fs()
+    app_context, store, bus = _make_ctx([mf], owned=False, existing=None)
+
+    _run_detect(app_context, [])
+
+    store.wanted.add.assert_called_once()
+    added: WantedItem = store.wanted.add.call_args[0][0]
+    assert added.kind == "movie"
+    assert added.followed_id == 7
+    assert added.season is None and added.episode is None
+    assert added.status == "pending"
+    assert added.media_ref == mf.media_ref
+    # Ownership was checked as a MOVIE, not an episode.
+    ownership = app_context.acquire.ownership
+    assert ownership.owns.call_args.kwargs.get("kind") == "movie"
+    emitted = bus.emit.call_args[0][0]
+    assert isinstance(emitted, WantedEnqueued)
+    assert emitted.kind == "movie"
+
+
+def test_detect_movie_follow_owned_closes_and_unfollows() -> None:
+    """§5 closure (guard-test): an OWNED movie follow is auto-removed with a trace.
+
+    "Film : une fois récupéré et acquis (pipeline terminé), il est retiré des
+    suivis automatiquement." The detect reconciliation must close the live
+    wanted row (done), deactivate the follow, and emit FilmAcquired — never
+    enqueue a new wanted row.
+    """
+    from personalscraper.acquire.events import FilmAcquired
+
+    existing = WantedItem(
+        media_ref=MediaRef(tmdb_id=1184918),
+        kind="movie",
+        status="grabbed",
+        enqueued_at=1,
+        followed_id=7,
+        id=99,
+    )
+    app_context, store, bus = _make_ctx([_movie_fs()], owned=True, existing=existing)
+
+    _run_detect(app_context, [])
+
+    store.wanted.add.assert_not_called()
+    store.wanted.set_status.assert_called_once_with(99, "done")
+    store.follow.set_active.assert_called_once_with(7, False)
+    emitted = bus.emit.call_args[0][0]
+    assert isinstance(emitted, FilmAcquired)
+    assert emitted.title == "Le Robot sauvage"
+    assert emitted.followed_id == 7
+
+
+def test_detect_movie_follow_skipped_on_duplicate() -> None:
+    """A movie follow with a live wanted row is not re-enqueued (skipped-dup)."""
+    existing = WantedItem(
+        media_ref=MediaRef(tmdb_id=1184918),
+        kind="movie",
+        status="pending",
+        enqueued_at=1,
+        followed_id=7,
+    )
+    app_context, store, bus = _make_ctx([_movie_fs()], owned=False, existing=existing)
+
+    _run_detect(app_context, [])
+
+    store.wanted.add.assert_not_called()
+    bus.emit.assert_not_called()
+
+
 def test_detect_skips_duplicate_episode() -> None:
     """Existing row found by find() → add() NOT called, WantedEnqueued NOT emitted."""
     fs = _fs()

@@ -130,14 +130,17 @@ def test_event_registry_has_all_v1_events() -> None:
     The ``reg-health`` S6 Phase 2 adds ``ProviderCallCompleted`` — a
     throttled per-provider latency event that bridges into the web
     process's health projection (→ 40).
+    The product-intent §5 acquisitions restoration adds ``FilmAcquired`` — a
+    followed film reached the library and was auto-removed from the follows
+    (→ 41).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 40, (
-        f"Expected 40 events (39 existing + 1 reg-health ProviderCallCompleted), "
+    assert len(_EVENT_CLASS_REGISTRY) == 41, (
+        f"Expected 41 events (40 existing + 1 §5 FilmAcquired), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
