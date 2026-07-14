@@ -102,6 +102,24 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// The library view (?media deep-link test) mounts StagingLibrary, whose data
+// hook needs the WebSocket EventStreamProvider; stub the hook only —
+// stagingMediaKeys stays real (the deck/detail invalidations import it).
+vi.mock("@/hooks/useStagingMedia", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/hooks/useStagingMedia")
+  >("@/hooks/useStagingMedia");
+  return {
+    ...actual,
+    useStagingMedia: () => ({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    }),
+  };
+});
+
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
@@ -221,6 +239,34 @@ describe("Decisions", () => {
     setupDecisionsList();
     renderPage();
     expect(screen.getByText("Décisions de scraping")).toBeInTheDocument();
+  });
+
+  it("un chargement direct avec ?media ouvre la vue bibliothèque (deep-link)", () => {
+    // Regression (caught live): a FRESH load of /scraping?media=<id> landed on
+    // the resolution deck and silently dropped the param — the detail sheet
+    // only opened for in-session navigation. The view must initialize from the
+    // URL so the route-addressable promise (#255) holds on a fresh load too.
+    setupDecisionsList();
+    const qc = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    render(
+      <MemoryRouter initialEntries={["/scraping?media=0268dd337626b989"]}>
+        <QueryClientProvider client={qc}>
+          <Decisions />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+    // The library view (search box) is shown, not the deck's empty state.
+    expect(
+      screen.getByPlaceholderText("Rechercher un titre…"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Aucune décision à résoudre"),
+    ).not.toBeInTheDocument();
   });
 
   it("affiche les chips de filtre de statut", () => {

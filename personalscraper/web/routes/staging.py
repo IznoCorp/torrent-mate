@@ -44,6 +44,8 @@ from personalscraper.web.staging.dispatch_preview import (
 )
 from personalscraper.web.staging.nfo import read_nfo_metadata
 from personalscraper.web.staging.read_model import (
+    _title_from_folder,
+    _year_from_folder,
     find_nfo,
     poster_file_for,
     resolve_media_dir,
@@ -427,6 +429,17 @@ def enqueue_staging_decision(
         other_dir, title, year = other
         media_kind = chosen
         media_dir = _reclass_other_item(config, other_dir, media_kind)
+        # The sorter just built the destination from its CLEANED title (raw
+        # 'The.Wild.Robot.2024...-GRP' → 'The Wild Robot (2024)'), so derive the
+        # search title/year from the reclassed folder name. Seeding the provider
+        # search with the raw release name guarantees zero proposals — the exact
+        # empty-deck §3 forbids (proven live on the Wild Robot fixture: raw name
+        # → 0 candidates; cleaned name → real matches).
+        cleaned_title = _title_from_folder(media_dir.name)
+        cleaned_year = _year_from_folder(media_dir.name)
+        if cleaned_title != media_dir.name or cleaned_year is not None:
+            title = cleaned_title
+            year = cleaned_year if cleaned_year is not None else year
 
     # §3 — seed candidates so the item enters the resolution deck WITH proposals,
     # never an empty shell. Reuse the very same provider matchers as

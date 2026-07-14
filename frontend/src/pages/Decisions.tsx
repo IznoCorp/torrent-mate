@@ -87,9 +87,23 @@ function ListSkeleton(): ReactElement {
  */
 export default function Decisions(): ReactElement {
   const queryClient = useQueryClient();
+  // The open decision detail is URL-addressable (?decision=<id>) so the
+  // browser/router Back button closes it like any route (on mobile it replaces
+  // the list). Opening pushes a history entry; closing replaces it.
+  const [searchParams, setSearchParams] = useSearchParams();
   // Primary view: the media library grid, the rapid resolution deck, or the
-  // full cross-status decision browse.
-  const [view, setView] = useState<"library" | "resolve" | "all">("resolve");
+  // full cross-status decision browse. Initialized from the URL so the
+  // route-addressable deep-links survive a FRESH page load (regression caught
+  // live: /scraping?media=<id> landed on the deck and silently dropped the
+  // param — the detail only opened for in-session navigation): ?media targets
+  // a library card (StagingLibrary restores it), ?decision the browse detail.
+  const [view, setView] = useState<"library" | "resolve" | "all">(() =>
+    searchParams.has("media")
+      ? "library"
+      : searchParams.has("decision")
+        ? "all"
+        : "resolve",
+  );
   // C18: the decision the deck should open on, set when the operator resolves a
   // specific card (ambiguous or freshly enqueued). Null = open at the head.
   const [deckDecisionId, setDeckDecisionId] = useState<number | null>(null);
@@ -97,10 +111,6 @@ export default function Decisions(): ReactElement {
   const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
     () => new Set(),
   );
-  // The open decision detail is URL-addressable (?decision=<id>) so the
-  // browser/router Back button closes it like any route (on mobile it replaces
-  // the list). Opening pushes a history entry; closing replaces it.
-  const [searchParams, setSearchParams] = useSearchParams();
   const rawDecision = searchParams.get("decision");
   const selectedId =
     rawDecision != null && /^\d+$/.test(rawDecision)

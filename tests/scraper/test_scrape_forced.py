@@ -82,6 +82,33 @@ class TestScrapeMovieForced:
         # The raw release-named video must be gone — the precise stuck-item symptom.
         assert not (canonical / "the.matrix.1999.1080p.BluRay.x264-GROUP.mkv").exists()
 
+    def test_case_only_rename_keeps_video(self, scraper: Scraper, tmp_path: Path) -> None:
+        """A folder differing from the canonical name ONLY by case keeps its video.
+
+        Regression (prod incident, Flow → FLOW): on macOS's case-insensitive
+        filesystem the canonical path ALIASES the current folder, and the old
+        code took the merge-with-existing branch — merging the folder into
+        itself, unlinking the video (the only copy) and rmdir'ing the folder;
+        the item ended up an empty shell holding just the NFO. The rename must
+        take the case-safe two-step path and keep every file.
+        """
+        movie_dir = tmp_path / "the matrix (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "the.matrix.1999.1080p.WEB.x264-GRP.mkv").write_text("precious")
+
+        with (
+            patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=_MOVIE_DATA),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie_forced(movie_dir, 603)
+
+        assert result.action == "scraped", result.error
+        canonical = tmp_path / "The Matrix (1999)"
+        assert canonical.is_dir()
+        assert (canonical / "The Matrix.mkv").exists(), "video LOST during a case-only folder rename"
+        assert (canonical / "The Matrix.nfo").exists(), "canonical NFO missing"
+
     def test_renames_video_even_when_folder_already_canonical(self, scraper: Scraper, tmp_path: Path) -> None:
         """Aymeric/Ferrari shape: folder already ``Title (Year)`` but the video is raw.
 
