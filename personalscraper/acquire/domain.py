@@ -19,6 +19,7 @@ from personalscraper.core.identity import MediaRef
 
 WantedKind = Literal["movie", "episode"]
 WantedStatus = Literal["pending", "searching", "grabbed", "done", "abandoned"]
+FollowKind = Literal["movie", "show"]
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,11 @@ class FollowedSeries:
         added_at: Unix epoch seconds when the series was followed.
         quality_profile_json: Nullable JSON string; rich profile = RP3a.
         cadence_json: Nullable JSON string; RP9/D2.
+        kind: ``"show"`` (default — every legacy row) or ``"movie"``. Drives
+            the §5 film lifecycle: a movie follow produces ONE
+            ``WantedItem(kind="movie")`` at detect time and is auto-unfollowed
+            once the acquired file is dispatched; a show follow produces
+            per-episode items and is never auto-removed.
         id: SQLite rowid — populated by ``find_by_ref()`` / ``list_active()`` /
             ``list_all()`` / ``get()``; ``None`` for an as-yet-unpersisted item.
             The follow CLI needs it to call ``set_active`` (Follow D1).
@@ -43,7 +49,17 @@ class FollowedSeries:
     active: bool = True
     quality_profile_json: str | None = None
     cadence_json: str | None = None
+    kind: FollowKind = "show"
     id: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the kind literal.
+
+        Raises:
+            ValueError: If ``kind`` is not ``"movie"`` or ``"show"``.
+        """
+        if self.kind not in ("movie", "show"):
+            raise ValueError(f'Invalid FollowedSeries.kind={self.kind!r}; must be "movie" or "show"')
 
 
 @dataclass(frozen=True)

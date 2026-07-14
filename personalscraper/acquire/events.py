@@ -51,6 +51,27 @@ class SeriesUnfollowed(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class FilmAcquired(Event):
+    """A followed FILM is now in the library — auto-removed from the follows.
+
+    §5 closure (product-intent): "une fois récupéré et acquis (pipeline
+    terminé), il est retiré des suivis automatiquement". Emitted by the detect
+    reconciliation when a movie follow's ownership check flips to owned: the
+    live wanted rows are closed (``done``) and the follow is deactivated. The
+    event is the operator-visible trace ("Film X acquis — retiré des suivis").
+
+    Attributes:
+        media_ref: Provider-ID key of the acquired film.
+        title: Human-readable film title (for the feed/toast).
+        followed_id: The deactivated ``followed_series`` rowid.
+    """
+
+    media_ref: MediaRef
+    title: str
+    followed_id: int
+
+
+@dataclass(frozen=True, kw_only=True)
 class WantedEnqueued(Event):
     """A specific episode or movie was added to the wanted queue.
 
@@ -305,6 +326,7 @@ class CrossSeedRejected(Event):
 __all__ = [
     "CrossSeedInjected",
     "CrossSeedRejected",
+    "FilmAcquired",
     "GrabFailed",
     "GrabSucceeded",
     "RatioMeasured",

@@ -33,7 +33,7 @@ from rich.table import Table
 from personalscraper import cli as cli_compat
 from personalscraper.acquire.airing import poll_aired
 from personalscraper.acquire.domain import WantedItem
-from personalscraper.acquire.events import SeriesFollowed, SeriesUnfollowed, WantedEnqueued
+from personalscraper.acquire.events import FilmAcquired, SeriesFollowed, SeriesUnfollowed, WantedEnqueued
 from personalscraper.acquire.title_resolver import resolve_series_title
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
@@ -295,17 +295,27 @@ def follow_detect(
                     console.print("[yellow]No matching series.[/yellow]")
                     return
 
+            # §5 films: a movie follow produces ONE WantedItem(kind='movie') —
+            # no airing poll (a film has no episode schedule; it is wanted as
+            # soon as it is followed and not yet owned). Split the set so
+            # poll_aired only sees shows (a movie follow has no tvdb series id
+            # and would only be silently skipped by the poller).
+            movie_follows = [s for s in active if s.kind == "movie"]
+            show_follows = [s for s in active if s.kind != "movie"]
+
             # MediaRef is a frozen dataclass → hashable; map each aired episode back
             # to its followed series by provider-ID key.
-            by_ref = {s.media_ref: s for s in active}
+            by_ref = {s.media_ref: s for s in show_follows}
 
-            # ONE poll over the active set — poll_aired is fail-soft per series
+            # ONE poll over the active shows — poll_aired is fail-soft per series
             # internally, so the broad except is purely defensive.
-            try:
-                aired = poll_aired(active, registry, today=today)
-            except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
-                log.warning("cli.follow.detect.poll_failed", error=str(exc))
-                aired = []
+            aired = []
+            if show_follows:
+                try:
+                    aired = poll_aired(show_follows, registry, today=today)
+                except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
+                    log.warning("cli.follow.detect.poll_failed", error=str(exc))
+                    aired = []
 
             table = Table(title="Follow Detect", show_header=True)
             table.add_column("Series")
@@ -316,6 +326,61 @@ def follow_detect(
             table.add_column("Action")
 
             enqueued = skipped_owned = skipped_dup = 0
+
+            for mf in movie_follows:
+                if mf.id is None:
+                    continue
+                # Ownership check (fail-soft: error → treat as not-owned).
+                try:
+                    owned = ownership.owns(mf.media_ref, kind="movie")
+                except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
+                    log.warning("cli.follow.detect.ownership_error", error=str(exc))
+                    owned = False
+                if owned:
+                    # §5 closure: the film is IN the library — close its live
+                    # wanted row (done) and auto-unfollow, with a visible trace
+                    # ("Film X acquis — retiré des suivis"). Ownership by
+                    # provider ID is the robust reconciliation (the info-hash
+                    # dispatch correlation misses scraped/renamed movies whose
+                    # staging size diverges from the torrent). Fail-soft: an
+                    # error leaves the follow active for the next detect run.
+                    if not dry_run:
+                        try:
+                            live = store.wanted.find(followed_id=mf.id, kind="movie", season=None, episode=None)
+                            if live is not None and live.id is not None and live.status != "done":
+                                store.wanted.set_status(live.id, "done")
+                            store.follow.set_active(mf.id, False)
+                            bus.emit(FilmAcquired(media_ref=mf.media_ref, title=mf.title, followed_id=mf.id))
+                            log.info("cli.follow.detect.film_acquired_unfollowed", series=mf.title)
+                            table.add_row(mf.title, "—", "—", "—", "", "[green]acquis — retiré des suivis[/green]")
+                            skipped_owned += 1
+                            continue
+                        except Exception as exc:  # noqa: BLE001 — fail-soft; retried next run
+                            log.warning("cli.follow.detect.film_unfollow_failed", error=str(exc))
+                    table.add_row(mf.title, "—", "—", "—", "", "[yellow]skipped-owned[/yellow]")
+                    skipped_owned += 1
+                    continue
+                # Dedup: one live wanted row per movie follow (NULL season/episode).
+                if store.wanted.find(followed_id=mf.id, kind="movie", season=None, episode=None) is not None:
+                    table.add_row(mf.title, "—", "—", "—", "", "[dim]skipped-dup[/dim]")
+                    skipped_dup += 1
+                    continue
+                table.add_row(
+                    mf.title, "—", "—", "—", "", "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
+                )
+                enqueued += 1
+                if not dry_run:
+                    store.wanted.add(
+                        WantedItem(
+                            media_ref=mf.media_ref,
+                            kind="movie",
+                            status="pending",
+                            enqueued_at=now,
+                            followed_id=mf.id,
+                        )
+                    )
+                    bus.emit(WantedEnqueued(media_ref=mf.media_ref, kind="movie", season=None, episode=None))
+                    log.info("cli.follow.detect.enqueued", series=mf.title, kind="movie")
 
             for ep in aired:
                 fs = by_ref.get(ep.media_ref)
