@@ -58,7 +58,7 @@ export function PipelineActionBanner({
         />
         <span>
           <strong className="font-semibold">
-            {pending} décision{plural} à résoudre
+            {pending} média{plural} à identifier
           </strong>
           {!compact && " — une intervention manuelle est requise"}
         </span>

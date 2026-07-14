@@ -1,12 +1,14 @@
 /**
- * FlowBoard — the OBJ1 living-pipeline visualization (webui-overhaul).
+ * FlowBoard — the living-pipeline visualization (P0-A).
  *
- * A horizontal board of nine stage "stations" (Arrivée → Dispatch), each a
- * {@link StageStation} showing a live count, a state ring and optional
- * sub-counts. Data comes from {@link usePipelineStages} (``GET
- * /api/pipeline/stages``), refreshed live off the WS stream. Clicking a station
- * opens a {@link Sheet} drawer with that stage's breakdown and a contextual
- * action (e.g. Matching → open the resolution queue).
+ * A horizontal board of eight stage "stations" (Arrivée → Dispatch), each a
+ * {@link StageStation} showing the CURRENT STOCK of media at that position
+ * (single-position axiom — one media, one station). Data comes from
+ * {@link usePipelineStages} (``GET /api/pipeline/stages``), refreshed live
+ * off the WS stream; the last run's throughput lives in the header caption,
+ * never on the stations. Clicking a station opens a {@link Sheet} drawer that
+ * is URL-addressable (``?stage=<key>`` — Back closes it, deep links restore
+ * it), listing exactly the media at that position.
  */
 
 import {
@@ -14,7 +16,6 @@ import {
   ChevronRight,
   Clapperboard,
   Download,
-  Inbox,
   Send,
   ShieldCheck,
   Sparkles,
@@ -22,8 +23,8 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
-import { Fragment, useState, type ReactElement } from "react";
-import { useNavigate } from "react-router-dom";
+import { Fragment, useCallback, type ReactElement } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import type { StagesResponse } from "@/api/client";
 import { ErrorState } from "@/components/ds/ErrorState";
@@ -52,12 +53,11 @@ import { usePipelineStages } from "@/hooks/usePipelineStages";
 /** One stage as returned by ``GET /api/pipeline/stages``. */
 type ApiStage = StagesResponse["stages"][number];
 
-/** Per-stage icon, keyed by the stable stage ``key``. */
+/** Per-stage icon, keyed by the stable stage ``key`` (eight stations). */
 const STAGE_ICON: Record<string, LucideIcon> = {
   arrival: Download,
-  staging: Inbox,
-  cleaning: Sparkles,
   sorting: ArrowDownUp,
+  cleaning: Sparkles,
   matching: Target,
   scraping: Tags,
   trailers: Clapperboard,
@@ -67,23 +67,20 @@ const STAGE_ICON: Record<string, LucideIcon> = {
 
 /** One-line French description of what each stage does (drawer body). */
 const STAGE_DESC: Record<string, string> = {
-  arrival:
-    "Les téléchargements terminés sont récupérés depuis le client torrent.",
-  staging: "Les médias sont déposés dans leur catégorie de la zone de transit.",
+  arrival: "Intégrés depuis le client torrent, en attente de tri.",
+  sorting: "Les médias sont rangés et nommés dans leur catégorie.",
   cleaning: "Les fichiers et dossiers parasites sont supprimés.",
-  sorting: "La structure et le nommage des dossiers sont normalisés.",
-  matching:
-    "Les identifications incertaines attendent une décision de votre part.",
+  matching: "Les médias non identifiés attendent une décision de votre part.",
   scraping: "Les métadonnées, jaquettes et NFO sont récupérées.",
   trailers: "Les bandes-annonces sont téléchargées quand elles existent.",
-  verify: "La structure finale (NFO, jaquettes) est vérifiée.",
-  dispatch: "Les médias sont déplacés vers le stockage définitif.",
+  verify: "La conformité finale est vérifiée avant le dispatch.",
+  dispatch: "Les médias vérifiés partent vers le stockage définitif.",
 };
 
-/** state → (tone, French label) for the drawer status badge. */
+/** state → (tone, French label) for the drawer status badge (stock model). */
 const STATE_BADGE: Record<StageState, { tone: StatusTone; label: string }> = {
-  idle: { tone: "neutral", label: "Au repos" },
-  ok: { tone: "success", label: "À jour" },
+  idle: { tone: "neutral", label: "Vide" },
+  ok: { tone: "info", label: "En attente" },
   active: { tone: "info", label: "En cours" },
   attention: { tone: "warning", label: "Attention requise" },
   blocked: { tone: "danger", label: "Bloqué" },
@@ -110,17 +107,22 @@ function agoLabel(epochSec: number): string {
 }
 
 /** The board's run-provenance caption ("Run en cours" / "Dernier run · …").
- *  The trigger label reuses the canonical {@link triggerLabel} map. */
+ *  Carries the last run's throughput (P0-A.3 — it lives here, never on the
+ *  stations). The trigger label reuses the canonical {@link triggerLabel} map. */
 function runCaption(
   data: StagesResponse | undefined,
   running: boolean,
 ): string {
   if (running) return "Run en cours";
   if (data?.updated_at == null) return "Aucun run enregistré";
+  const processed =
+    data.run_processed != null
+      ? ` · ${String(data.run_processed)} média${data.run_processed > 1 ? "s" : ""} traité${data.run_processed > 1 ? "s" : ""}`
+      : "";
   const trig = data.run_trigger
     ? ` · déclenché par ${triggerLabel(data.run_trigger).toLowerCase()}`
     : "";
-  return `Dernier run · ${agoLabel(data.updated_at)}${trig}`;
+  return `Dernier run · ${agoLabel(data.updated_at)}${processed}${trig}`;
 }
 
 /** Map an API stage's split to the {@link StageStation} split prop shape. */
@@ -146,7 +148,34 @@ function toStationSplit(
 export function FlowBoard(): ReactElement {
   const query = usePipelineStages();
   const navigate = useNavigate();
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // The open stage drawer is URL-addressable (?stage=<key>) so the browser
+  // Back button closes it like any route — same discipline as ?media/?decision
+  // (open pushes a history entry; close replaces it, no dangling entry).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedKey = searchParams.get("stage");
+  const openStage = useCallback(
+    (key: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("stage", key);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeStage = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("stage");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   if (query.isLoading) {
     return (
@@ -154,7 +183,7 @@ export function FlowBoard(): ReactElement {
         className="flex flex-col gap-2 pb-2 sm:flex-row sm:gap-2 sm:overflow-x-auto"
         aria-busy="true"
       >
-        {Array.from({ length: 9 }).map((_, i) => (
+        {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton
             key={`stage-sk-${String(i)}`}
             className="h-20 w-full sm:h-28 sm:w-auto sm:min-w-36"
@@ -190,7 +219,7 @@ export function FlowBoard(): ReactElement {
         className="flex flex-col gap-2 pb-2 sm:flex-row sm:gap-2 sm:overflow-x-auto"
         aria-busy="true"
       >
-        {Array.from({ length: 9 }).map((_, i) => (
+        {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton
             key={`stage-empty-sk-${String(i)}`}
             className="h-20 w-full sm:h-28 sm:w-auto sm:min-w-36"
@@ -231,14 +260,8 @@ export function FlowBoard(): ReactElement {
         {stages.map((stage, i) => {
           const split = toStationSplit(stage.split);
           const icon = STAGE_ICON[stage.key];
-          // A step-derived station shows the last run's throughput; matching
-          // shows the live pending stock. Surface which, on non-empty stations.
-          const timeframe =
-            stage.count > 0
-              ? stage.key === "matching"
-                ? "en attente"
-                : "dernier run"
-              : undefined;
+          // Every station shows current stock (P0-A.3) — one caption for all.
+          const timeframe = stage.count > 0 ? "en attente" : undefined;
           const conn: "flow" | "done" | "todo" =
             running && activeIndex >= 0
               ? i + 1 === activeIndex
@@ -255,7 +278,7 @@ export function FlowBoard(): ReactElement {
                 state={stage.state}
                 blocked={stage.blocked}
                 onClick={() => {
-                  setSelectedKey(stage.key);
+                  openStage(stage.key);
                 }}
                 {...(timeframe !== undefined ? { timeframe } : {})}
                 {...(icon !== undefined ? { icon } : {})}
@@ -303,7 +326,7 @@ export function FlowBoard(): ReactElement {
         open={selected !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedKey(null);
+            closeStage();
           }
         }}
       >
@@ -328,7 +351,7 @@ export function FlowBoard(): ReactElement {
                   {selected.count}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {selected.key === "matching" ? "en attente" : "traités"}
+                  à cette étape
                 </span>
               </div>
 
@@ -348,7 +371,9 @@ export function FlowBoard(): ReactElement {
 
               {selected.blocked > 0 && (
                 <p className="text-sm text-danger">
-                  {selected.blocked} élément(s) en erreur à cette étape.
+                  {selected.blocked} média{selected.blocked > 1 ? "s" : ""}{" "}
+                  bloqué{selected.blocked > 1 ? "s" : ""} à cette étape — le
+                  détail ci-dessous donne la raison et l'action.
                 </p>
               )}
 
@@ -373,6 +398,9 @@ export function FlowBoard(): ReactElement {
                   stageKey={selected.key as StageKey}
                   onOpenResolution={() => {
                     void navigate("/scraping");
+                  }}
+                  onOpenMedia={(mediaId) => {
+                    void navigate(`/scraping?media=${mediaId}`);
                   }}
                 />
               </div>

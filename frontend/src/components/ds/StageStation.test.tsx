@@ -41,7 +41,7 @@ describe("StageStation", () => {
     render(
       <StageStation label="Scraping" count={4} state="blocked" blocked={2} />,
     );
-    expect(screen.getByText(/2 erreurs/)).toBeInTheDocument();
+    expect(screen.getByText(/2 bloqués/)).toBeInTheDocument();
   });
 
   it("surfaces a temporal caption", () => {

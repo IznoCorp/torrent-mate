@@ -143,7 +143,7 @@ export function StageStation({
         </span>
         {state === "blocked" && blocked > 0 && (
           <span className="rounded-full bg-danger/15 px-1.5 py-0.5 font-mono text-[length:var(--text-2xs)] font-semibold tabular-nums text-danger">
-            {blocked} erreur{blocked > 1 ? "s" : ""}
+            {blocked} bloqué{blocked > 1 ? "s" : ""}
           </span>
         )}
       </div>

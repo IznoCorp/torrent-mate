@@ -2,10 +2,11 @@
 
 ``GET /api/staging/media`` exposes one item per media folder currently sitting
 in the staging area, enriched with the scraped NFO metadata, its matching
-state (from the ``scrape_decision`` queue), trailer/poster presence, and a
-per-media pipeline **timeline** (the nine Flow Board stages, each with a
-derived state). This is the shared read-model behind both the OBJ2A staging
-library grid and the OBJ1 per-media Media Timeline drawer.
+state (from the ``scrape_decision`` queue), trailer/poster presence, its
+single pipeline **position** (P0-A.1 axiom) and the derived per-media
+**timeline** (the eight Flow Board stages). This is the shared read-model
+behind the staging library grid, the Flow Board stocks and the per-stage
+media lists.
 
 The read-model is derived, not stored: it scans the configured
 ``staging_dirs`` tree on the filesystem, reads the local ``*.nfo`` files, and
@@ -37,6 +38,11 @@ StagingMatch = Literal["matched", "ambiguous", "absent"]
 #: (a pending decision); ``pending`` = not reached yet; ``skipped`` = the stage
 #: does not apply to this media kind (e.g. scraping an ebook).
 StagingStageState = Literal["done", "active", "blocked", "pending", "skipped"]
+
+#: State of a media's single position (P0-A.1 axiom): awaiting its stage
+#: (``pending``), being processed there by the live run (``active``), or
+#: needing an operator/repair (``blocked`` — ``blocked_reason`` says why).
+StagingPositionState = Literal["pending", "active", "blocked"]
 
 #: How a staged media would be dispatched to permanent storage (opt-in preview).
 StagingDispatchMode = Literal["replace", "merge", "new", "unknown"]
@@ -133,12 +139,21 @@ class StagingMediaItem(BaseModel):
         size_bytes: Total size of the media folder in bytes.
         modified_at: Epoch seconds of the most recent file mtime in the tree
             (drives the default ``recent`` sort).
-        stages: The nine-stage per-media pipeline timeline.
-        blocked_reason: A human-readable French reason when the item is stuck at
-            the real ``verify`` gate (e.g. ``"Bloqué : épisodes non renommés …"``),
-            or ``None`` when the item is dispatchable / not yet scraped. Reflects
-            the SAME gate that authorizes dispatch — never the looser read-model
-            heuristic (product-intent.md §méthode rule 6).
+        position_stage: The SINGLE stage this media is at (P0-A.1 axiom): its
+            next unsatisfied stage, or the stage it is blocked at. Board
+            stocks, the per-stage lists and the timeline all derive from it —
+            one media, one station, never two.
+        position_state: Whether the media awaits its stage (``pending``), is
+            being processed there by the live run (``active``), or needs an
+            operator (``blocked`` — see ``blocked_reason``).
+        stages: The eight-stage per-media pipeline timeline (the position,
+            unrolled: done before, position state at, pending after).
+        blocked_reason: A human-readable French reason when
+            ``position_state == "blocked"`` — the real ``verify``-gate reason
+            (e.g. ``"Bloqué : épisodes non renommés …"``, the SAME gate that
+            authorizes dispatch — product-intent.md §méthode rule 6) or the
+            identification block (pending decision / needs enqueue /
+            AUTRES kind to qualify). ``None`` when not blocked.
         dispatch_target: Dispatch preview, or ``None`` unless requested.
     """
 
@@ -163,6 +178,8 @@ class StagingMediaItem(BaseModel):
     video_count: int = 0
     size_bytes: int = 0
     modified_at: float | None = None
+    position_stage: str
+    position_state: StagingPositionState
     stages: list[StagingStageStep] = []
     blocked_reason: str | None = None
     dispatch_target: StagingDispatchTarget | None = None
