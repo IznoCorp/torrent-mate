@@ -29,7 +29,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Expected tables after the full migration chain (001 → 004) is applied.
-_LATEST_VERSION = 6
+_LATEST_VERSION = 7
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -39,6 +39,7 @@ _EXPECTED_TABLES = {
     "cross_seed_history",
     "cross_seed_quota",
     "watch_state",
+    "aired_episode",
     "schema_version",
 }
 
@@ -101,7 +102,7 @@ class TestAcquireMigrations:
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
-        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,)]
+        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,)]
 
     def test_unique_index_followed_media_ref_exists(self, tmp_path: Path) -> None:
         """After applying the full chain, the UNIQUE index ux_followed_media_ref exists (004)."""

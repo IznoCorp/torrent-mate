@@ -32,8 +32,11 @@ from rich.table import Table
 
 from personalscraper import cli as cli_compat
 from personalscraper.acquire.airing import poll_aired
+from personalscraper.acquire.cadence import is_past_cutoff
+from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import FilmAcquired, SeriesFollowed, SeriesUnfollowed, WantedEnqueued
+from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.title_resolver import resolve_series_title
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
@@ -321,6 +324,36 @@ def follow_detect(
                     log.warning("cli.follow.detect.poll_failed", error=str(exc))
                     aired = []
 
+            # P0-B.1 — persist the aired catalog per followed series so the
+            # web read surfaces (completeness matrix, truth-table status) read
+            # a cache instead of polling the provider synchronously. Skipped
+            # for a series whose poll came back empty: an outage or a Top
+            # Chef-style empty catalog must never wipe a previously good cache.
+            if not dry_run:
+                aired_by_id: dict[int, list[tuple[int, int, str | None, str]]] = {}
+                for ep in aired:
+                    fs = by_ref.get(ep.media_ref)
+                    if fs is not None and fs.id is not None:
+                        aired_by_id.setdefault(fs.id, []).append(
+                            (ep.season, ep.episode, ep.title or None, ep.air_date.isoformat())
+                        )
+                for fid, episodes in aired_by_id.items():
+                    try:
+                        store.aired.replace_for_followed(fid, episodes, now=now)
+                    except Exception as exc:  # noqa: BLE001 — cache is best-effort enrichment
+                        log.warning("cli.follow.detect.aired_cache_failed", followed_id=fid, error=str(exc))
+
+            # P0-B.3 — reconcile grabbed rows against the library BEFORE the
+            # enqueue pass: a grabbed episode/movie the library now owns closes
+            # ``done`` (detect has no torrent client, so the vanished-torrent
+            # requeue is left to the grab cron, which has one).
+            closed_owned = 0
+            if not dry_run:
+                try:
+                    closed_owned = reconcile_wanted(store, ownership, None).closed_owned
+                except Exception as exc:  # noqa: BLE001 — reconciliation must never abort detect
+                    log.warning("cli.follow.detect.reconcile_failed", error=str(exc))
+
             table = Table(title="Follow Detect", show_header=True)
             table.add_column("Series")
             table.add_column("Season", justify="right")
@@ -329,7 +362,7 @@ def follow_detect(
             table.add_column("Title")
             table.add_column("Action")
 
-            enqueued = skipped_owned = skipped_dup = 0
+            enqueued = skipped_owned = skipped_dup = resurrected = 0
 
             for mf in movie_follows:
                 if mf.id is None:
@@ -415,16 +448,42 @@ def follow_detect(
                     skipped_owned += 1
                     continue
 
-                # Dedup against the wanted queue.
-                if (
-                    store.wanted.find(
-                        followed_id=fs.id,
-                        kind="episode",
-                        season=ep.season,
-                        episode=ep.episode,
-                    )
-                    is not None
-                ):
+                # Dedup against the wanted queue — with the B.4 exception: an
+                # ``abandoned`` row for an aired-but-unowned episode still
+                # within its cadence cutoff was abandoned wrongfully (the old
+                # terminal ``no_candidates``) and is resurrected to pending.
+                existing = store.wanted.find(
+                    followed_id=fs.id,
+                    kind="episode",
+                    season=ep.season,
+                    episode=ep.episode,
+                )
+                if existing is not None:
+                    resurrectable = False
+                    if existing.status == "abandoned" and existing.id is not None:
+                        cadence = effective_cadence(
+                            cadence_from_json(fs.cadence_json) if fs.cadence_json is not None else None,
+                            cadence_from_config(config.acquire.cadence),
+                        )
+                        resurrectable = not is_past_cutoff(cadence, now=now, enqueued_at=existing.enqueued_at)
+                    if resurrectable and (dry_run or store.wanted.resurrect(existing.id, now)):  # type: ignore[arg-type]
+                        table.add_row(
+                            fs.title,
+                            str(ep.season),
+                            str(ep.episode),
+                            str(ep.air_date),
+                            ep.title,
+                            "[dim]resurrect (dry-run)[/dim]" if dry_run else "[green]resurrected[/green]",
+                        )
+                        resurrected += 1
+                        log.info(
+                            "cli.follow.detect.resurrected",
+                            series=fs.title,
+                            season=ep.season,
+                            episode=ep.episode,
+                            dry_run=dry_run,
+                        )
+                        continue
                     table.add_row(
                         fs.title,
                         str(ep.season),
@@ -480,18 +539,20 @@ def follow_detect(
 
             console.print(table)
             console.print(
-                f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup"
-                + (" [dim](dry-run)[/dim]" if dry_run else "")
+                f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup, "
+                f"{resurrected} resurrected, {closed_owned} closed-owned" + (" [dim](dry-run)[/dim]" if dry_run else "")
             )
             # §5 « résultat chiffré »: persist the run's numbers on its
             # pipeline_run row so the web surface shows a real result, never
             # a bare success badge.
             run_rec.record_counts(
                 {
-                    "detected": enqueued + skipped_owned + skipped_dup,
+                    "detected": enqueued + skipped_owned + skipped_dup + resurrected,
                     "enqueued": enqueued,
                     "skipped_owned": skipped_owned,
                     "skipped_dup": skipped_dup,
+                    "resurrected": resurrected,
+                    "closed_owned": closed_owned,
                 }
             )
         finally:

@@ -126,6 +126,21 @@ longtemps produit un écrit **partiel** (NFO + artwork seuls, dossier/vidéo/ép
 et se déclarait « fait » sans jamais éprouver le dispatch. Deux garde-fous verrouillent la
 régression : ce script, et les tests `tests/scraper/test_scrape_forced.py`.
 
+### Garde-fou exécutable — `scripts/check-acquisition-coherence.py`
+
+Définition **exécutable** de « les acquisitions disent la vérité » (§5) : croise, pour chaque
+suivi, le catalogue diffusé (cache `aired_episode`), la possession en médiathèque (fichiers
+vivants, par provider-ID), la file `wanted` et le client torrent, et **échoue bruyamment**
+(code de sortie = nombre d'anomalies) sur : un `grabbed` dont l'épisode est déjà en médiathèque
+(fantôme), un `grabbed` dont le torrent a disparu du client, un `pending` déjà possédé, un
+`abandoned` pour un épisode diffusé et manquant (la forme House of the Dragon), un doublon de
+lignes `wanted`, un suivi sans aucun provider-ID.
+
+Usage : `python scripts/check-acquisition-coherence.py` (ou `--json`). Aucun verdict « les états
+d'acquisition sont conformes » n'est recevable sans ce script à **zéro anomalie** (session 3 :
+14 lignes `grabbed` gelées depuis 11 jours, épisodes abandonnés à vie après UNE recherche —
+aucun de ces mensonges n'était visible sans contrôle exécutable croisé).
+
 ### Post-mortem fondateur (pourquoi ce document existe)
 
 La demande « pouvoir scraper en parallèle + avoir de la visibilité sur les scrapes en cours » a été

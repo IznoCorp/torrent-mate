@@ -578,3 +578,80 @@ def test_record_dispatch_fail_soft_on_store_write_error(
 
     assert _read_rows(tmp_path / "acquire.db") == []
     assert "acquire.record_dispatch.write_failed" in caplog.text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# P0-B.3 — the §5 wanted closure at dispatch time
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_record_dispatch_closes_grabbed_wanted_row(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """A dispatch correlating to a grabbed torrent closes its wanted row ``done``.
+
+    Red-on-old: ``mark_done_by_hash`` existed with ZERO production callers, so
+    every grabbed row froze forever (the 14 stuck production rows of session 3).
+    The closure happens on the correlation match itself — even when the
+    tracker/economy resolution later misses (no obligation written).
+    """
+    from personalscraper.acquire.domain import WantedItem
+    from personalscraper.core.identity import MediaRef
+
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=1,
+        )
+    )
+    store.wanted.mark_grabbed(wanted_id, "ABC123DEF456")  # stored uppercase — match is case-insensitive
+
+    staging = tmp_path / "staging" / "Silo.S03E01.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 2048)
+    dest = tmp_path / "library" / "Silo.S03E01.mkv"
+
+    # NO matching tracker tag: the obligation branch misses, the closure still fires.
+    item = _torrent_item(name="Silo.S03E01.mkv", size_bytes=2048, tags=[], info_hash="abc123def456")
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "done"
+    assert _read_rows(tmp_path / "acquire.db") == []  # tracker unresolved → no obligation
+
+
+def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """No torrent matches the dispatch → the grabbed row stays (ownership sweep's job)."""
+    from personalscraper.acquire.domain import WantedItem
+    from personalscraper.core.identity import MediaRef
+
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=2,
+        )
+    )
+    store.wanted.mark_grabbed(wanted_id, "feedface")
+
+    staging = tmp_path / "staging" / "Silo.S03E02.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 4096)
+    dest = tmp_path / "library" / "Silo.S03E02.mkv"
+
+    client = _client([], is_seeding=True)
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "grabbed"

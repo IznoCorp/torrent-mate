@@ -453,30 +453,38 @@ def test_all_trackers_errored_retryable_not_abandoned() -> None:
     assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
 
 
-def test_clean_zero_hits_terminal_no_candidates() -> None:
-    """Clean search, zero hits → TERMINAL no_candidates."""
+def test_clean_zero_hits_not_found_no_candidates() -> None:
+    """Clean search, zero hits → NOT_FOUND no_candidates (never abandoned).
+
+    Regression for the House-of-the-Dragon shape (B.4): the 03:20 grab used to
+    permanently abandon a just-aired episode because trackers had nothing 20
+    minutes after detect. A zero-hit search is "not out yet", not "will never
+    exist" — the row must stay retryable under cadence pacing.
+    """
     no_hits = SearchOutcome(results=[], trackers_queried=1, trackers_errored=0)
     orchestrator, spy, _registry, _tc, _seed = _make_orchestrator(search_outcome=no_hits)
     outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
-    assert outcome.disposition == "terminal"
+    assert outcome.disposition == "not_found"
     assert outcome.reason == "no_candidates"
-    abandoned = [e for e in spy.events if isinstance(e, WantedAbandoned)]
-    assert len(abandoned) == 1
-    assert abandoned[0].reason == "no_candidates"
+    # No abandonment event — the item is still wanted.
+    assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
+    failed = [e for e in spy.events if isinstance(e, GrabFailed)]
+    assert len(failed) == 1
+    assert failed[0].reason == "no_candidates"
 
 
-def test_all_filtered_terminal_all_filtered() -> None:
-    """Zero survivors after hard-filter → TERMINAL all_filtered."""
+def test_all_filtered_not_found_all_filtered() -> None:
+    """Zero survivors after hard-filter → NOT_FOUND all_filtered (retryable)."""
     result_720p = _make_result(title="Movie 2010 720p", resolution="720p")
     outcome_720 = SearchOutcome(results=[result_720p], trackers_queried=1, trackers_errored=0)
     orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=outcome_720)
     strict = QualityProfile(min_resolution=Resolution.R2160P)
     outcome = orchestrator.grab(_make_wanted(), strict)
 
-    assert outcome.disposition == "terminal"
+    assert outcome.disposition == "not_found"
     assert outcome.reason == "all_filtered"
-    assert [e for e in spy.events if isinstance(e, WantedAbandoned)]
+    assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
     # Never reached the add stage.
     assert torrent_client is not None
     torrent_client.add.assert_not_called()

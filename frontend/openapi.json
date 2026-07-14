@@ -276,8 +276,19 @@
         "type": "object"
       },
       "CompletenessResponse": {
-        "description": "Response for ``GET /api/acquisition/followed/{id}/completeness``.\n\nAttributes:\n    followed_id: The follow this completeness was computed for.\n    title: The followed title (display).\n    kind: ``\"show\"`` or ``\"movie\"`` (movies get an empty seasons list \u2014\n        their lifecycle lives on the card status instead).\n    provider_catalog_empty: ``True`` when the provider returned NO aired\n        episodes (the Top Chef case \u2014 the UI must say \"catalogue provider\n        vide\", never render a misleading all-missing matrix).\n    seasons: Season-by-season completeness, newest season first.",
+        "description": "Response for ``GET /api/acquisition/followed/{id}/completeness``.\n\nAttributes:\n    followed_id: The follow this completeness was computed for.\n    title: The followed title (display).\n    kind: ``\"show\"`` or ``\"movie\"`` (movies get an empty seasons list \u2014\n        their lifecycle lives on the card status instead).\n    provider_catalog_empty: ``True`` when the provider returned NO aired\n        episodes (the Top Chef case \u2014 the UI must say \"catalogue provider\n        vide\", never render a misleading all-missing matrix).\n    seasons: Season-by-season completeness, newest season first.\n    source: Where the aired catalog came from: ``\"cache\"`` (the\n        detect-written ``aired_episode`` table \u2014 fast, no provider call)\n        or ``\"live\"`` (fallback synchronous provider poll for a series\n        not cached yet). P0-B.1.\n    catalog_refreshed_at: Epoch seconds of the detect pass that wrote the\n        cached catalog, or ``None`` on the live path \u2014 the UI can caption\n        \u00ab catalogue du JJ/MM \u00bb honestly.",
         "properties": {
+          "catalog_refreshed_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Refreshed At"
+          },
           "followed_id": {
             "title": "Followed Id",
             "type": "integer"
@@ -297,6 +308,15 @@
             },
             "title": "Seasons",
             "type": "array"
+          },
+          "source": {
+            "default": "live",
+            "enum": [
+              "cache",
+              "live"
+            ],
+            "title": "Source",
+            "type": "string"
           },
           "title": {
             "title": "Title",
@@ -1070,6 +1090,17 @@
             "title": "Added At",
             "type": "number"
           },
+          "aired_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aired Count"
+          },
           "cadence": {
             "anyOf": [
               {
@@ -1097,6 +1128,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "inflight_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inflight Count"
+          },
           "kind": {
             "default": "show",
             "title": "Kind",
@@ -1104,6 +1146,17 @@
           },
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
+          },
+          "missing_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Count"
           },
           "next_search_at": {
             "anyOf": [
@@ -1126,6 +1179,17 @@
               }
             ],
             "title": "Overview"
+          },
+          "owned_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owned Count"
           },
           "poster_url": {
             "anyOf": [
@@ -1150,6 +1214,17 @@
             ],
             "title": "Quality Profile"
           },
+          "queued_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued Count"
+          },
           "season_count": {
             "anyOf": [
               {
@@ -1162,11 +1237,12 @@
             "title": "Season Count"
           },
           "status": {
-            "description": "Lifecycle status derived from ``active`` + wanted counts (C14 / \u00a75).\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX:\n\n- ``disabled``: the follow is paused (not active).\n- ``acquiring``: a grab landed and the torrent is on its way through\n  the pipeline (\u00a75 film \"en cours d'acquisition\": du torrent rep\u00e9r\u00e9\n  jusqu'au pipeline termin\u00e9). Takes precedence over ``pending``.\n- ``pending``: at least one wanted search is in flight (\"en attente\").\n- ``up_to_date``: active with nothing pending.\n\nReturns:\n    The derived lifecycle status.",
+            "description": "Lifecycle status \u2014 the \u00a75 truth table, never a raw wanted counter.\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX. With a cached aired catalog\n(P0-B.2), every bucket is ownership-aware \u2014 a ``grabbed`` row whose\nepisode already sits in the library is a phantom and cannot pin the\nseries at \u00ab en cours d'acquisition \u00bb (the Silo bug):\n\n- ``disabled``: the follow is paused (not active).\n- ``acquiring``: at least one aired episode is unowned AND grabbed\n  (torrent spotted \u2192 pipeline finishing).\n- ``pending``: at least one aired episode is unowned AND queued.\n- ``incomplete``: aired episodes are missing with nothing queued for\n  them (the honest House-of-the-Dragon state).\n- ``up_to_date``: every aired episode is in the library.\n\nWithout a catalog (``aired_count is None`` \u2014 movies, or a series never\ndetected since the cache shipped), the raw counters drive the legacy\nderivation.\n\nReturns:\n    The derived lifecycle status.",
             "enum": [
               "disabled",
               "pending",
               "acquiring",
+              "incomplete",
               "up_to_date"
             ],
             "readOnly": true,

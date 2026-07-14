@@ -1889,8 +1889,17 @@ export interface components {
          *             episodes (the Top Chef case — the UI must say "catalogue provider
          *             vide", never render a misleading all-missing matrix).
          *         seasons: Season-by-season completeness, newest season first.
+         *         source: Where the aired catalog came from: ``"cache"`` (the
+         *             detect-written ``aired_episode`` table — fast, no provider call)
+         *             or ``"live"`` (fallback synchronous provider poll for a series
+         *             not cached yet). P0-B.1.
+         *         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the
+         *             cached catalog, or ``None`` on the live path — the UI can caption
+         *             « catalogue du JJ/MM » honestly.
          */
         CompletenessResponse: {
+            /** Catalog Refreshed At */
+            catalog_refreshed_at?: number | null;
             /** Followed Id */
             followed_id: number;
             /** Kind */
@@ -1902,6 +1911,12 @@ export interface components {
             provider_catalog_empty: boolean;
             /** Seasons */
             seasons: components["schemas"]["SeasonCompleteness"][];
+            /**
+             * Source
+             * @default live
+             * @enum {string}
+             */
+            source: "cache" | "live";
             /** Title */
             title: string;
         };
@@ -2368,6 +2383,8 @@ export interface components {
             active: boolean;
             /** Added At */
             added_at: number;
+            /** Aired Count */
+            aired_count?: number | null;
             /** Cadence */
             cadence?: {
                 [key: string]: unknown;
@@ -2376,43 +2393,59 @@ export interface components {
             cadence_tier?: string | null;
             /** Id */
             id: number;
+            /** Inflight Count */
+            inflight_count?: number | null;
             /**
              * Kind
              * @default show
              */
             kind: string;
             media_ref: components["schemas"]["MediaRefResponse"];
+            /** Missing Count */
+            missing_count?: number | null;
             /** Next Search At */
             next_search_at?: number | null;
             /** Overview */
             overview?: string | null;
+            /** Owned Count */
+            owned_count?: number | null;
             /** Poster Url */
             poster_url?: string | null;
             /** Quality Profile */
             quality_profile?: {
                 [key: string]: unknown;
             } | null;
+            /** Queued Count */
+            queued_count?: number | null;
             /** Season Count */
             season_count?: number | null;
             /**
              * Status
-             * @description Lifecycle status derived from ``active`` + wanted counts (C14 / §5).
+             * @description Lifecycle status — the §5 truth table, never a raw wanted counter.
              *
              *     Single server-side source of truth so the UI maps status → tone/label
-             *     without re-deriving business state in JSX:
+             *     without re-deriving business state in JSX. With a cached aired catalog
+             *     (P0-B.2), every bucket is ownership-aware — a ``grabbed`` row whose
+             *     episode already sits in the library is a phantom and cannot pin the
+             *     series at « en cours d'acquisition » (the Silo bug):
              *
              *     - ``disabled``: the follow is paused (not active).
-             *     - ``acquiring``: a grab landed and the torrent is on its way through
-             *       the pipeline (§5 film "en cours d'acquisition": du torrent repéré
-             *       jusqu'au pipeline terminé). Takes precedence over ``pending``.
-             *     - ``pending``: at least one wanted search is in flight ("en attente").
-             *     - ``up_to_date``: active with nothing pending.
+             *     - ``acquiring``: at least one aired episode is unowned AND grabbed
+             *       (torrent spotted → pipeline finishing).
+             *     - ``pending``: at least one aired episode is unowned AND queued.
+             *     - ``incomplete``: aired episodes are missing with nothing queued for
+             *       them (the honest House-of-the-Dragon state).
+             *     - ``up_to_date``: every aired episode is in the library.
+             *
+             *     Without a catalog (``aired_count is None`` — movies, or a series never
+             *     detected since the cache shipped), the raw counters drive the legacy
+             *     derivation.
              *
              *     Returns:
              *         The derived lifecycle status.
              * @enum {string}
              */
-            readonly status: "disabled" | "pending" | "acquiring" | "up_to_date";
+            readonly status: "disabled" | "pending" | "acquiring" | "incomplete" | "up_to_date";
             /** Title */
             title: string;
             /**

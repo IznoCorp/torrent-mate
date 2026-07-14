@@ -196,6 +196,43 @@ class TestParseMediaDetails:
         if raw.get("originalCountry") or raw.get("country"):
             assert all(len(c) == 2 for c in md.origin_countries)
 
+    def test_seasons_deduped_by_order_type(self) -> None:
+        """B.1 regression: one SeasonInfo per season NUMBER, official order only.
+
+        The golden ``series_extended.json`` carries 13 ``seasons[*]`` entries
+        for 6 real seasons (one record per number × order type: official, dvd,
+        …). The old parser kept them all, so ``poll_aired`` fetched every
+        season twice and the §5 completeness matrix showed every episode
+        « en double voire triple » (operator report, session 3).
+        """
+        data = _load("series_extended.json")
+        raw = unwrap(data)
+        assert isinstance(raw, dict)
+        raw_entries = [s for s in raw.get("seasons", []) if isinstance(s, dict)]
+        distinct_numbers = {s["number"] for s in raw_entries if isinstance(s.get("number"), int)}
+        # The sample genuinely duplicates numbers across order types — the
+        # precondition that made the bug visible.
+        assert len(raw_entries) > len(distinct_numbers)
+
+        md = parse_media_details(raw, "tvdb")
+        numbers = [s.season_number for s in md.seasons]
+        assert len(numbers) == len(set(numbers)), f"duplicated season numbers: {numbers}"
+        assert set(numbers) == distinct_numbers
+
+    def test_seasons_without_type_field_still_deduped(self) -> None:
+        """A response with no order-type info dedupes by number (first wins)."""
+        raw = {
+            "id": 1,
+            "name": "X",
+            "seasons": [
+                {"number": 1, "episodeCount": 10},
+                {"number": 1, "episodeCount": 12},
+                {"number": 2, "episodeCount": 8},
+            ],
+        }
+        md = parse_media_details(raw, "tvdb")
+        assert [(s.season_number, s.episode_count) for s in md.seasons] == [(1, 10), (2, 8)]
+
 
 class TestParseSearchResultPhase27Tvdb:
     """Phase 27: TVDB search result original_title from translations."""

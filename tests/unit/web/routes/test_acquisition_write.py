@@ -644,7 +644,7 @@ class TestTriggerFollowedSearch:
         proc = MagicMock()
         proc.pid = 4242
         with patch(
-            "personalscraper.web.routes.acquisition.subprocess.Popen",
+            "personalscraper.web.routes.acquisition_triggers.subprocess.Popen",
             return_value=proc,
         ) as popen:
             resp = client.post(

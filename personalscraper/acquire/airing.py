@@ -134,7 +134,15 @@ def poll_aired(
                 continue
 
             details = tv_providers[0].get_tv(tvdb_id)
-            seasons = [s for s in (details.seasons or []) if s.season_number >= 1]
+            # Defensive season-number dedup (belt to the parser's order-type
+            # dedup): fetching the same number twice doubles every episode
+            # downstream AND doubles the per-season provider calls.
+            seasons = []
+            seen_numbers: set[int] = set()
+            for season_info in details.seasons or []:
+                if season_info.season_number >= 1 and season_info.season_number not in seen_numbers:
+                    seen_numbers.add(season_info.season_number)
+                    seasons.append(season_info)
 
         except (ApiError, CircuitOpenError) as exc:
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc))
@@ -143,6 +151,7 @@ def poll_aired(
             log.warning("acquire.airing.poll_failed", tvdb_id=tvdb_id, title=fs.title, error=str(exc), exc_info=True)
             continue
 
+        seen_pairs: set[tuple[int, int]] = set()
         for season_info in seasons:
             season_num = season_info.season_number
             try:
@@ -158,7 +167,8 @@ def poll_aired(
 
             for ep in episodes:
                 parsed = _parse_date(ep.air_date)
-                if parsed is not None and parsed <= today:
+                if parsed is not None and parsed <= today and (season_num, ep.episode_number) not in seen_pairs:
+                    seen_pairs.add((season_num, ep.episode_number))
                     result.append(
                         AiredEpisode(
                             media_ref=media_ref,
