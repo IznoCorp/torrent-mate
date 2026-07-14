@@ -10,6 +10,7 @@ rmtree failure).
 from __future__ import annotations
 
 import errno
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -45,6 +46,47 @@ class TestMergeDirs:
         assert (target / "Saison 01" / "ep02.mkv").exists()
         # Source has been removed because it was fully emptied.
         assert not source.exists()
+
+    def test_same_directory_is_never_merged(self, tmp_path: Path) -> None:
+        """Merging a directory into ITSELF is a no-op — never a data-destroyer.
+
+        Regression (prod incident, Flow → FLOW): on a case-insensitive filesystem
+        the case-only rename target aliases the source, so the old merge walked
+        the source, saw each dest as "already existing" (it WAS the source item),
+        unlinked it — destroying the only copy of the video — then rmdir'd the
+        emptied source. The samefile guard must make this a harmless no-op.
+        """
+        source = tmp_path / "Flow (2024)"
+        source.mkdir()
+        video = source / "Flow.2024.1080p.WEB.x264-PROOF.mkv"
+        video.write_bytes(b"precious-bytes")
+
+        moved, failed = _merge_dirs(source, source)
+
+        assert (moved, failed) == (0, 0)
+        assert source.exists()
+        assert video.read_bytes() == b"precious-bytes"
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="needs a case-insensitive filesystem")
+    def test_case_alias_target_keeps_video(self, tmp_path: Path) -> None:
+        """A case-only alias of the source ('FLOW (2024)') must not be merged into.
+
+        Exact prod reproduction: only ``Flow (2024)`` exists on disk; the target
+        path differs only by case and therefore aliases it on APFS. The guard
+        detects samefile and skips — the video survives.
+        """
+        source = tmp_path / "Flow (2024)"
+        source.mkdir()
+        video = source / "Flow.2024.1080p.WEB.x264-PROOF.mkv"
+        video.write_bytes(b"precious-bytes")
+        alias = tmp_path / "FLOW (2024)"
+        if not alias.exists():  # pragma: no cover — case-sensitive volume
+            pytest.skip("filesystem is case-sensitive; alias scenario impossible")
+
+        moved, failed = _merge_dirs(source, alias)
+
+        assert (moved, failed) == (0, 0)
+        assert video.read_bytes() == b"precious-bytes"
 
     def test_replace_existing_file(self, tmp_path: Path) -> None:
         """A file in target that already exists is unlinked then replaced."""

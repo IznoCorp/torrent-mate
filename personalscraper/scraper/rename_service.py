@@ -34,6 +34,20 @@ def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     """
     import shutil as _shutil
 
+    # Same-directory guard: on a case-insensitive filesystem (macOS APFS) a
+    # case-only rename target ALIASES the source (``Flow (2024)`` vs
+    # ``FLOW (2024)`` are the same directory), so "merging" would walk the
+    # source items, see each dest as "already existing" (it IS the source
+    # item), unlink it — destroying the only copy — then rmdir the emptied
+    # source. Callers must use ``_rename_dir_case_safe`` for that case; this
+    # guard makes the mistake harmless instead of data-destroying.
+    try:
+        if source.samefile(target):
+            log.warning("merge_dirs_same_directory_skipped", source=str(source), target=str(target))
+            return 0, 0
+    except OSError:
+        pass  # target does not exist / not statable → a real merge, proceed.
+
     moved = 0
     failed = 0
     for item in source.iterdir():

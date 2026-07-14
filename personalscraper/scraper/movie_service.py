@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -22,7 +23,7 @@ from personalscraper.scraper._movie_convert import _coerce_to_movie_data
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.decision_triage import apply_decision_to_result, classify_decision_trigger
-from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
+from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs, _rename_dir_case_safe
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
@@ -864,16 +865,32 @@ class MovieServiceMixin:
         # Save old title before rename for stale file cleanup
         old_title = title
 
-        # Rename folder to clean format if it doesn't match
-        if movie_dir.name != clean_name:
+        # Rename folder to clean format if it doesn't match. NFC-compare: macOS
+        # stores filenames in NFD, Python strings are typically NFC — a naive
+        # compare treats them as different and triggers a rename-into-self merge
+        # (mirrors the tv_service_write guard).
+        if unicodedata.normalize("NFC", movie_dir.name) != unicodedata.normalize("NFC", clean_name):
             new_path = movie_dir.parent / clean_name
             if not self.dry_run:
                 try:
                     if new_path.exists():
-                        moved, merge_failed = _merge_dirs(movie_dir, new_path)
-                        log.info("movie_folder_merged", source=movie_dir.name, dest=clean_name, items=moved)
-                        if merge_failed:
-                            result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
+                        # Case-only rename trap (macOS case-insensitive FS): the
+                        # target ALIASES the source ('Flow (2024)' vs
+                        # 'FLOW (2024)' are the same directory), so merging would
+                        # unlink each item against itself and destroy the video.
+                        # Same-dir → two-step case-safe rename, never a merge.
+                        try:
+                            is_same_dir = movie_dir.samefile(new_path)
+                        except OSError:
+                            is_same_dir = False
+                        if is_same_dir:
+                            _rename_dir_case_safe(movie_dir, new_path)
+                            log.info("movie_folder_renamed", source=movie_dir.name, dest=clean_name)
+                        else:
+                            moved, merge_failed = _merge_dirs(movie_dir, new_path)
+                            log.info("movie_folder_merged", source=movie_dir.name, dest=clean_name, items=moved)
+                            if merge_failed:
+                                result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
                     else:
                         movie_dir.rename(new_path)
                         log.info("movie_folder_renamed", source=movie_dir.name, dest=clean_name)
