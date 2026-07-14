@@ -5,7 +5,9 @@ ever compared it back to the library (is the episode/movie actually THERE?)
 or to the torrent client (is the torrent even still around?). This module is
 the single reconciliation pass, pure over the acquire ports:
 
-- ``grabbed`` + the library owns the work        → ``done`` (closed);
+- ``grabbed``/``pending``/``searching`` + the library owns the work → ``done``
+  (an owned work must never be searched or re-fetched — covers the
+  resurrected-then-indexed shape);
 - ``grabbed`` + torrent vanished + NOT owned     → back to ``pending``
   (the grab never landed; cadence/cutoff pacing takes over again);
 - ``grabbed`` + torrent still present            → left alone (downloading /
@@ -76,7 +78,7 @@ def reconcile_wanted(
         The :class:`ReconcileSummary` counts.
     """
     checked = closed = requeued = in_flight = 0
-    for row in store.wanted.list_grabbed():
+    for row in [*store.wanted.list_grabbed(), *store.wanted.list_pending()]:
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
         checked += 1
@@ -101,6 +103,11 @@ def reconcile_wanted(
                     season=row.season,
                     episode=row.episode,
                 )
+            continue
+
+        if row.status != "grabbed":
+            # An unowned pending row simply stays queued — the hash logic
+            # below only applies to grabbed rows.
             continue
 
         row_hash = (row.grabbed_hash or "").lower()

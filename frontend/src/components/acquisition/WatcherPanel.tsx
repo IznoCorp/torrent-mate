@@ -120,8 +120,10 @@ export function WatcherPanel(): ReactElement {
           </Badge>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
+          {/* Stacks below sm: at 390px the controls group (~260px) cannot share
+              a row with the date without overflowing/overlapping it. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">
                 Dernière exécution
               </p>
@@ -131,7 +133,7 @@ export function WatcherPanel(): ReactElement {
                   : "Jamais"}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 size="sm"
                 onClick={() => {
@@ -139,7 +141,9 @@ export function WatcherPanel(): ReactElement {
                 }}
                 disabled={detectMutation.isPending || trackedRun != null}
               >
-                {trackedRun != null ? "Détection en cours…" : "Détecter maintenant"}
+                {trackedRun != null
+                  ? "Détection en cours…"
+                  : "Détecter maintenant"}
               </Button>
               <div className="flex items-center gap-2">
                 <Label htmlFor="watcher-toggle" className="text-xs">
