@@ -44,7 +44,11 @@ from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
 from personalscraper.indexer.scanner._concurrency import (
     _run_disks_in_parallel,  # noqa: F401 — re-export so tests/library/test_integration.py + scan_completed_events patches resolve
 )
-from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
+from personalscraper.indexer.scanner._exclusions import (
+    EXCLUDED_NAMES,
+    _should_exclude,
+    set_category_exclusions,
+)
 from personalscraper.indexer.scanner._modes import (
     _purge_non_video_stream_rows,
     _scan_disk_enrich,  # noqa: F401 — re-export so patches at scanner._scan_disk_enrich resolve via the package namespace lookup performed inside the orchestrator (also kept in __all__)
@@ -308,6 +312,26 @@ def filter_disks(disks: list[DiskRow], disk_label: str | None) -> list[DiskRow]:
     if not matched:
         raise IndexerConfigError(f"no disk with label '{disk_label}'")
     return matched
+
+
+def _non_video_category_roots(config: Config) -> frozenset[str]:
+    """Resolve the folder names of every configured non-video category.
+
+    Args:
+        config: The loaded application config.
+
+    Returns:
+        Bare folder names (e.g. ``{"livres audios"}``) to exclude from the
+        walk; empty when no non-video category is configured.
+    """
+    from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS  # noqa: PLC0415
+
+    roots: set[str] = set()
+    for category_id in NON_VIDEO_CATEGORY_IDS:
+        category = config.categories.get(category_id)
+        if category is not None and category.folder_name:
+            roots.add(category.folder_name)
+    return frozenset(roots)
 
 
 def scan(
@@ -598,6 +622,14 @@ def scan(
 
         stage_items_pass1(conn, config)
 
+    # Non-video category roots (audiobooks, …) are structurally unlinkable —
+    # the item stage never creates a media_item for them, so indexing their
+    # files only produces eternal release_id-NULL orphans. Install the
+    # config-driven folder-name exclusions for the duration of this scan;
+    # the finally below resets them (config=None callers change nothing).
+    if config is not None:
+        set_category_exclusions(_non_video_category_roots(config))
+
     try:
         if db_path is not None and _effective_workers > 1:
             # Parallel path: one worker per disk, each with its own connection.
@@ -647,6 +679,9 @@ def scan(
         # Always clear the active bucket so a subsequent scan does not
         # inherit this run's throttle state.
         set_active_bucket(None)
+        # Reset the per-scan category exclusions so a subsequent scan (or a
+        # config-less test caller) starts from a clean slate.
+        set_category_exclusions(frozenset())
         # Restore the previous SIGTERM handler.  Safe to call even when
         # install_sigterm_handler returned a no-op (non-main thread case).
         _restore_sigterm()

@@ -1287,3 +1287,63 @@ def test_stage_library_purge_spares_release_linked_rows(tmp_path: Path) -> None:
 
     numbers = [r[0] for r in conn.execute("SELECT number FROM episode ORDER BY number")]
     assert numbers == [1, 7], f"release-linked rows must survive the purge, got {numbers}"
+
+
+def test_stage_library_purges_stale_seasons_without_dirs(tmp_path: Path) -> None:
+    """A season row whose directory vanished (and holds no releases) is purged.
+
+    Live shape (2026-07-15): « New Girl » kept DB seasons 1-3/5-6 full of
+    phantom episodes although only ``Saison 04`` exists on disk — the
+    per-season purge never visits a season without a directory.
+    """
+    conn = _make_db()
+    config = _seed_show_with_season(tmp_path, ["S09E01 - Un.mkv"])
+
+    stage_library_items(conn, config, now_s=1000)
+    item_id = conn.execute("SELECT item_id FROM season WHERE number = 9").fetchone()[0]
+    # Legacy corruption: seasons with no on-disk dir, phantom episodes, no releases.
+    for stale_number in (1, 2):
+        cur = conn.execute(
+            "INSERT INTO season (item_id, number, episode_count) VALUES (?, ?, 5)",
+            (item_id, stale_number),
+        )
+        conn.executemany(
+            "INSERT INTO episode (season_id, number, title) VALUES (?, ?, NULL)",
+            [(cur.lastrowid, n) for n in range(1, 6)],
+        )
+    assert conn.execute("SELECT COUNT(*) FROM season").fetchone()[0] == 3
+
+    stage_library_items(conn, config, now_s=2000)
+
+    numbers = [r[0] for r in conn.execute("SELECT number FROM season ORDER BY number")]
+    assert numbers == [9], f"stale seasons must be purged on rescan, got {numbers}"
+    ep_count = conn.execute("SELECT COUNT(*) FROM episode").fetchone()[0]
+    assert ep_count == 1, "their phantom episodes must cascade away"
+
+
+def test_stage_library_stale_season_with_release_survives(tmp_path: Path) -> None:
+    """A dir-less season whose episodes hold releases is NEVER purged.
+
+    Multi-disk shows keep one media_item; walking disk A must not destroy
+    seasons whose files live on disk B — the release link is the evidence.
+    """
+    conn = _make_db()
+    config = _seed_show_with_season(tmp_path, ["S09E01 - Un.mkv"])
+
+    stage_library_items(conn, config, now_s=1000)
+    item_id = conn.execute("SELECT item_id FROM season WHERE number = 9").fetchone()[0]
+    cur = conn.execute(
+        "INSERT INTO season (item_id, number, episode_count) VALUES (?, 2, 1)",
+        (item_id,),
+    )
+    stale_season_id = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO episode (season_id, number, title) VALUES (?, 1, NULL)",
+        (stale_season_id,),
+    )
+    conn.execute("INSERT INTO media_release (episode_id) VALUES (?)", (cur.lastrowid,))
+
+    stage_library_items(conn, config, now_s=2000)
+
+    numbers = [r[0] for r in conn.execute("SELECT number FROM season ORDER BY number")]
+    assert numbers == [2, 9], f"release-backed seasons must survive, got {numbers}"
