@@ -31,7 +31,6 @@ from typing import Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
-from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.scraper.decision_candidate import DecisionCandidate
@@ -322,7 +321,7 @@ def decision_activity(request: Request) -> DecisionActivityResponse:
         conn.row_factory = sqlite3.Row
 
         runs = conn.execute(
-            "SELECT started_at, options_json, pid FROM pipeline_run "
+            "SELECT started_at, options_json, pid, steps_json FROM pipeline_run "
             "WHERE command = 'scrape-resolve' AND ended_at IS NULL "
             "ORDER BY started_at DESC"
         ).fetchall()
@@ -345,11 +344,24 @@ def decision_activity(request: Request) -> DecisionActivityResponse:
                 "SELECT extracted_title FROM scrape_decision WHERE id = ?",
                 (decision_id,),
             ).fetchone()
+            # Queued = the runner is waiting for pipeline.lock (its 'queue'
+            # step is open in steps_json with status 'waiting_pipeline_lock').
+            # The #249 post-mortem forbids an invisible queue — surface it.
+            queued = False
+            try:
+                steps = json.loads(run["steps_json"]) if run["steps_json"] else []
+            except (json.JSONDecodeError, TypeError):
+                steps = []
+            for step in reversed(steps):
+                if isinstance(step, dict) and step.get("name") == "queue":
+                    queued = step.get("status") == "waiting_pipeline_lock"
+                    break
             in_progress.append(
                 DecisionActivityItem(
                     decision_id=decision_id,
                     title=drow["extracted_title"] if drow else "?",
                     started_at=run["started_at"],
+                    queued=queued,
                 )
             )
 
@@ -553,7 +565,6 @@ def resolve_decision(
         500: The runner subprocess failed to spawn.
     """
     db_path = _db_path(request)
-    data_dir = _data_dir(request)
 
     # 1. Fetch + guard the decision row.  Reject a non-pending decision here
     #    (409) rather than accepting a 202 whose run fails asynchronously with
@@ -563,10 +574,11 @@ def resolve_decision(
     if row["status"] != "pending":
         raise HTTPException(status_code=409, detail=f"Decision is '{row['status']}', not 'pending'")
 
-    # 2. Pipeline-lock 409 (mirrors maintenance action_run).  A scrape-resolve
-    #    writes to staging, so it must not run while the pipeline holds the lock.
-    if is_lock_held(data_dir / "pipeline.lock"):
-        raise HTTPException(status_code=409, detail="Pipeline lock held")
+    # 2. (operator directive 2026-07-15) NO pipeline-lock 409 here: the
+    #    detached decisions runner QUEUES on a held pipeline.lock (visible
+    #    'queue' step on the run row) and spawns the CLI once it frees — the
+    #    POST always accepts. The CLI's claim-first-then-verify per-item lock
+    #    remains the sole safety authority.
 
     run_uid = uuid.uuid4().hex
 
@@ -585,16 +597,7 @@ def resolve_decision(
         provider_id=body.provider_id,
     )
 
-    # 4. Re-probe the pipeline lock after the reservation (R11): a pipeline run
-    #    may grab the lock between the step-2 probe and here.  Finalize the
-    #    reserved row 'error' + 409 rather than returning 202 whose run would
-    #    immediately fail.  The finalize is fail-soft (SF3): a raising finalize
-    #    (contended DB) must NOT keep the reserved row 'running' with the
-    #    long-lived web-process pid — that pid is live, so _guard_no_running_resolve
-    #    would see it and PERMANENTLY 409 this decision.  Log + still raise the 409.
-    if is_lock_held(data_dir / "pipeline.lock"):
-        _finalize_fail_soft(db_path, run_uid, "Pipeline lock held")
-        raise HTTPException(status_code=409, detail="Pipeline lock held")
+    # 4. (No lock re-probe either — the runner owns the wait; see step 2.)
 
     # 5. Spawn the runner and claim the reserved row with its pid, so a runner
     #    that dies before finalizing leaves a dead-pid (stale) row rather than a

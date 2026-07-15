@@ -63,11 +63,23 @@ export function ScrapeActivityPanel(): ReactElement | null {
               key={item.decision_id}
               className="flex items-center gap-2 text-sm"
             >
+              {/* Queued (waiting for the pipeline lock) = static amber dot +
+                  explicit pill — the queue must be VISIBLE (#249 post-mortem);
+                  a live scrape keeps the pulsing primary dot. */}
               <span
                 aria-hidden
-                className="size-2 shrink-0 animate-pulse rounded-full bg-primary"
+                className={
+                  item.queued
+                    ? "size-2 shrink-0 rounded-full bg-warning"
+                    : "size-2 shrink-0 animate-pulse rounded-full bg-primary"
+                }
               />
               <span className="min-w-0 truncate">{item.title}</span>
+              {item.queued && (
+                <span className="shrink-0 rounded bg-warning/15 px-1.5 py-0.5 text-xs text-warning">
+                  En file — pipeline en cours
+                </span>
+              )}
               <span className="ml-auto shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                 {formatElapsed(item.started_at)}
               </span>

@@ -136,10 +136,14 @@ def scrape_resolve(
 
     Exit codes:
         0 — success (NFO written, artwork downloaded, decision resolved).
-        1 — scrape error (API failure, NFO write failure) or lock held
-            (same item already resolving, or a global pipeline holder is active).
+        1 — scrape error (API failure, NFO write failure).
         2 — misconfiguration (missing DB, unknown provider, no matching
             pending decision row, invalid provider for media kind).
+        3 — lock busy (same item already resolving, or a global pipeline
+            holder is active). Distinct from 1 so the web decisions runner
+            can QUEUE (retry the spawn) on lock races without ever retrying
+            a real scrape failure (operator directive 2026-07-15: a resolve
+            must never surface a 409 while a pipeline run holds the lock).
     """
     config = ctx.obj.config
     console = state["console"]
@@ -196,8 +200,8 @@ def scrape_resolve(
     scrape_locks_dir = scrape_locks_dir_for(config.paths.data_dir)
     item_lock = acquire_scrape_resolve_lock(staging_path, pipeline_lock, scrape_locks_dir)
     if item_lock is None:
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+        console.print("[yellow]Lock busy (pipeline run or same-item resolve active). Exiting.[/yellow]")
+        raise typer.Exit(3)
 
     try:
         # Re-check status inside the critical section (F45): the step-3 read

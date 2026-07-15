@@ -2019,10 +2019,18 @@ export interface components {
          *         decision_id: The ``scrape_decision.id`` being resolved.
          *         title: The folder-derived title shown to the operator.
          *         started_at: Unix-epoch seconds when the resolve run started.
+         *         queued: ``True`` while the resolve runner waits for ``pipeline.lock``
+         *             (a pipeline run is active) — the queue must be VISIBLE (#249
+         *             post-mortem), never a 409 (operator directive 2026-07-15).
          */
         DecisionActivityItem: {
             /** Decision Id */
             decision_id: number;
+            /**
+             * Queued
+             * @default false
+             */
+            queued: boolean;
             /** Started At */
             started_at: number;
             /** Title */

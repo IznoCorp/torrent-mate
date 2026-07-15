@@ -30,10 +30,8 @@ import {
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
 import {
-  classify409,
   frenchErrorDetail,
   MSG_DECISION_BUSY,
-  MSG_PIPELINE_LOCK,
 } from "@/components/decisions/errors";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";
@@ -272,15 +270,10 @@ export function DecisionDetail({
     onError: (error) => {
       if (error instanceof ApiError) {
         if (error.status === 409) {
-          // §4.3 — a 409 no longer means "some other resolve is running".
-          // Resolves are per-decision, so distinguish the two real causes:
-          //  - pipeline_lock: a full run/maintenance holds the global lock;
-          //  - decision_busy: THIS decision is already resolving (others OK).
-          toast.error(
-            classify409(error.detail) === "pipeline_lock"
-              ? MSG_PIPELINE_LOCK
-              : MSG_DECISION_BUSY,
-          );
+          // Since the resolve queue (2026-07-15) a held pipeline.lock never
+          // 409s — the runner waits, visibly. The only remaining 409 is the
+          // same-decision idempotence guard.
+          toast.error(MSG_DECISION_BUSY);
         } else if (error.status === 410) {
           toast.error(
             "Cette décision a été remplacée par une version plus récente.",

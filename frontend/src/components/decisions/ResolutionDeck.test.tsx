@@ -268,11 +268,11 @@ describe("ResolutionDeck", () => {
   });
 });
 
-describe("ResolutionDeck — 409 pendant un run pipeline (Lucky, revue 2026-07-15)", () => {
-  it("explique le verrou pipeline en français au lieu du détail brut", async () => {
+describe("ResolutionDeck — 409 (file de résolution, directive 2026-07-15)", () => {
+  it("un 409 = même décision déjà en cours (le verrou pipeline ne 409 plus — il met en file)", async () => {
     const { ApiError } = await import("@/api/client");
     resolveMock.mockRejectedValueOnce(
-      new ApiError(409, "Pipeline lock held"),
+      new ApiError(409, "This decision is already resolving"),
     );
     setup({});
     renderDeck();
@@ -281,7 +281,7 @@ describe("ResolutionDeck — 409 pendant un run pipeline (Lucky, revue 2026-07-1
     const { toast } = await import("sonner");
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
-        expect.stringContaining("Un pipeline est en cours"),
+        expect.stringContaining("déjà en cours de re-scraping"),
       );
     });
   });

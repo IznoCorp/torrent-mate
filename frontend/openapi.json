@@ -504,11 +504,16 @@
         "type": "object"
       },
       "DecisionActivityItem": {
-        "description": "One scrape currently in progress (a running scrape-resolve run).\n\nAttributes:\n    decision_id: The ``scrape_decision.id`` being resolved.\n    title: The folder-derived title shown to the operator.\n    started_at: Unix-epoch seconds when the resolve run started.",
+        "description": "One scrape currently in progress (a running scrape-resolve run).\n\nAttributes:\n    decision_id: The ``scrape_decision.id`` being resolved.\n    title: The folder-derived title shown to the operator.\n    started_at: Unix-epoch seconds when the resolve run started.\n    queued: ``True`` while the resolve runner waits for ``pipeline.lock``\n        (a pipeline run is active) \u2014 the queue must be VISIBLE (#249\n        post-mortem), never a 409 (operator directive 2026-07-15).",
         "properties": {
           "decision_id": {
             "title": "Decision Id",
             "type": "integer"
+          },
+          "queued": {
+            "default": false,
+            "title": "Queued",
+            "type": "boolean"
           },
           "started_at": {
             "title": "Started At",

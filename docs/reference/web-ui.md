@@ -966,17 +966,20 @@ maintenance runner pattern verbatim:
 | Output streaming | Redis (fail-soft) + 64 KiB `output_tail` ring buffer                                                  |
 | Exit 0           | NFO written + artwork fetched → decision `resolved` + run row `success`                               |
 | Exit 1           | Provider/API failure → decision stays `pending` + run row `error` with `output_tail`                  |
-| SIGTERM (143)    | Run row `killed`                                                                                      |
+| Exit 3           | Lock busy (claim race) → the runner re-queues and re-spawns; never surfaced as an error               |
+| SIGTERM (143)    | Run row `killed` (also while queued, before any child exists)                                         |
 
-**Lock ownership (R11).** `scrape-resolve` **self-acquires** `pipeline.lock`
-for its lifetime (same convention as `library-rescrape` — it writes into
-staging). It is listed in
-`personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`, so the web runner
-does NOT acquire the lock. A double acquisition would deadlock the child
-(the child's `acquire_lock` would see the runner's live pid and exit 1).
-The route handler probes the lock twice (before and after reserving the
-`pipeline_run` row) and returns `409` if held — this serializes concurrent
-resolve POSTs for the same or different decisions.
+**Lock ownership (R11, revised 2026-07-15).** `scrape-resolve` self-acquires a
+**scoped per-staging-item lock** (`<data_dir>/locks/scrape/<sha1(path)>.lock`,
+claim-first-then-verify against `pipeline.lock` — `personalscraper/lock.py`),
+NOT the global lock: two resolves of distinct items run in parallel. The web
+decisions runner never acquires any lock. **A held `pipeline.lock` no longer
+409s the resolve POST**: the detached runner QUEUES — it waits for the lock
+(visible `queue` step with status `waiting_pipeline_lock` on the run row,
+default budget 1800 s via `PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT`) and spawns
+the CLI once free; a lost claim race (CLI exit 3) re-queues. The queue is
+first-class visible state (`GET /api/decisions/activity` → `queued`), per the
+#249 post-mortem: an invisible queue is a product-intent violation.
 
 **Concurrency guard.** `_reserve_decision_run` queries
 `WHERE kind='maintenance' AND command='scrape-resolve' AND outcome='running'`
@@ -997,8 +1000,7 @@ is held.
 | ----- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `403` | Staging environment (`require_not_staging`) on resolve/dismiss                     | Action buttons disabled; staging banner already shown.         |
 | `404` | Unknown `decision_id`                                                              | Toast « Décision introuvable », item removed from list.        |
-| `409` | Pipeline lock held (`pipeline.lock` exists with live pid)                          | Toast « Pipeline en cours — réessayez quand il sera terminé ». |
-| `409` | Another scrape-resolve is running (pid-liveness check)                             | Toast « Une résolution est déjà en cours ».                    |
+| `409` | THIS decision is already resolving (per-decision pid-liveness guard)               | Toast « Cette décision est déjà en cours de re-scraping ».     |
 | `410` | Decision `status='superseded'` (staging folder deleted between enqueue and review) | Item removed from list on next refresh (orphan GC).            |
 | `502` | Live provider search fails (API down, network error, registry build failure)       | Toast with the provider error detail; no state change.         |
 
