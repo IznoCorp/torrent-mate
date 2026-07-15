@@ -309,35 +309,77 @@ def _detect_issues(
 # ---------------------------------------------------------------------------
 
 
+#: Item-level artwork kinds → canonical filename matcher. Accepts the bare
+#: form (``poster.jpg``, Kodi ``folder.jpg``) AND every prefixed form the
+#: scrapers actually produce (``{Title}-poster.jpg``, MediaElch
+#: ``{Folder Name (YYYY)}-poster.png``, …) — the old exact-name checks
+#: (``{title}-poster.jpg`` / bare ``poster.jpg``) declared real artwork
+#: missing whenever the prefix diverged from the DB title (e2e loop 1: items
+#: reported poster-less while their posters sat on disk). Season posters
+#: (``seasonNN-poster.jpg``) are excluded — they are per-season facts.
+_ARTWORK_KIND_RES: dict[str, re.Pattern[str]] = {
+    "poster": re.compile(r"(?:^|.+-)(?:poster|folder)\.(?:jpe?g|png)$", re.IGNORECASE),
+    "fanart": re.compile(r"(?:^|.+-)fanart\.(?:jpe?g|png)$", re.IGNORECASE),
+    "landscape": re.compile(r"(?:^|.+-)landscape\.(?:jpe?g|png)$", re.IGNORECASE),
+    "banner": re.compile(r"(?:^|.+-)banner\.(?:jpe?g|png)$", re.IGNORECASE),
+    "clearlogo": re.compile(r"(?:^|.+-)clearlogo\.(?:jpe?g|png)$", re.IGNORECASE),
+    "clearart": re.compile(r"(?:^|.+-)clearart\.(?:jpe?g|png)$", re.IGNORECASE),
+    "discart": re.compile(r"(?:^|.+-)discart\.(?:jpe?g|png)$", re.IGNORECASE),
+    "characterart": re.compile(r"(?:^|.+-)characterart\.(?:jpe?g|png)$", re.IGNORECASE),
+}
+
+_SEASON_ARTWORK_RE = re.compile(r"^season\d+-", re.IGNORECASE)
+
+
+def _artwork_flags(directory: Path) -> dict[str, bool]:
+    """Detect item-level artwork kinds from ONE directory listing.
+
+    Args:
+        directory: The media directory to inspect.
+
+    Returns:
+        Mapping ``kind -> present`` for every kind in
+        :data:`_ARTWORK_KIND_RES` (all ``False`` on an unreadable dir).
+    """
+    flags = dict.fromkeys(_ARTWORK_KIND_RES, False)
+    try:
+        names = [c.name for c in directory.iterdir() if c.is_file()]
+    except OSError:
+        return flags
+    for name in names:
+        if _SEASON_ARTWORK_RE.match(name):
+            continue
+        for kind, pattern in _ARTWORK_KIND_RES.items():
+            if not flags[kind] and pattern.match(name):
+                flags[kind] = True
+    return flags
+
+
 def _artwork_inventory_movie(movie_dir: Path, title: str) -> ArtworkInventory:
     """Build the artwork inventory for a movie directory.
 
-    Mirrors ``library.scanner._check_artwork_movie`` (title-prefixed filenames)
-    folded directly into an :class:`ArtworkInventory`.
-
     Args:
         movie_dir: Path to the movie directory.
-        title: Movie title (used in the filename pattern).
+        title: Movie title (kept for call-site compatibility — detection is
+            filename-convention-based, never exact-name).
 
     Returns:
         Populated :class:`ArtworkInventory` for the movie.
     """
+    flags = _artwork_flags(movie_dir)
     return ArtworkInventory(
-        poster=(movie_dir / f"{title}-poster.jpg").exists(),
-        fanart=(movie_dir / f"{title}-fanart.jpg").exists(),
-        landscape=(movie_dir / f"{title}-landscape.jpg").exists(),
-        banner=(movie_dir / f"{title}-banner.jpg").exists(),
-        clearlogo=(movie_dir / f"{title}-clearlogo.png").exists(),
-        clearart=(movie_dir / f"{title}-clearart.png").exists(),
-        discart=(movie_dir / f"{title}-discart.png").exists(),
+        poster=flags["poster"],
+        fanart=flags["fanart"],
+        landscape=flags["landscape"],
+        banner=flags["banner"],
+        clearlogo=flags["clearlogo"],
+        clearart=flags["clearart"],
+        discart=flags["discart"],
     )
 
 
 def _artwork_inventory_tvshow(show_dir: Path) -> ArtworkInventory:
     """Build the artwork inventory for a TV show directory.
-
-    Mirrors ``library.scanner._check_artwork_tvshow`` (fixed filenames) folded
-    directly into an :class:`ArtworkInventory`.
 
     Args:
         show_dir: Path to the TV show directory.
@@ -345,14 +387,15 @@ def _artwork_inventory_tvshow(show_dir: Path) -> ArtworkInventory:
     Returns:
         Populated :class:`ArtworkInventory` for the show.
     """
+    flags = _artwork_flags(show_dir)
     return ArtworkInventory(
-        poster=(show_dir / "poster.jpg").exists(),
-        fanart=(show_dir / "fanart.jpg").exists(),
-        landscape=(show_dir / "landscape.jpg").exists(),
-        banner=(show_dir / "banner.jpg").exists(),
-        clearlogo=(show_dir / "clearlogo.png").exists(),
-        clearart=(show_dir / "clearart.png").exists(),
-        characterart=(show_dir / "characterart.png").exists(),
+        poster=flags["poster"],
+        fanart=flags["fanart"],
+        landscape=flags["landscape"],
+        banner=flags["banner"],
+        clearlogo=flags["clearlogo"],
+        clearart=flags["clearart"],
+        characterart=flags["characterart"],
     )
 
 
