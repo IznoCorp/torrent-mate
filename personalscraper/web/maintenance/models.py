@@ -295,9 +295,13 @@ class ActionRunResponse(BaseModel):
     Attributes:
         run_uid: The unique hex identifier of the newly launched
             maintenance run (a ``uuid4().hex``).
+        queued: ``True`` when ``pipeline.lock`` was held at spawn time — the
+            runner is waiting in the visible queue (§6) and will execute when
+            the lock frees; the UI shows « En file » instead of « lancé ».
     """
 
     run_uid: str
+    queued: bool = False
 
 
 class SchedulerItem(BaseModel):

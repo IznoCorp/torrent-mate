@@ -39,9 +39,14 @@ class TestPipelineModels:
         assert req.model_dump() == {"enabled": True}
 
     def test_run_response(self) -> None:
-        """``RunResponse`` round-trips through ``model_dump``."""
+        """``RunResponse`` round-trips through ``model_dump`` (queued defaults False)."""
         resp = RunResponse(run_uid="abc-123")
-        assert resp.model_dump() == {"run_uid": "abc-123"}
+        assert resp.model_dump() == {"run_uid": "abc-123", "queued": False}
+
+    def test_run_response_queued(self) -> None:
+        """``queued: true`` marks a §6 visible-queue launch (lock held)."""
+        resp = RunResponse(run_uid="abc-123", queued=True)
+        assert resp.model_dump() == {"run_uid": "abc-123", "queued": True}
 
     def test_status_response_full(self) -> None:
         """``StatusResponse`` serializes all fields correctly, including enums."""

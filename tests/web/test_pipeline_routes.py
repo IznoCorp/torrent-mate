@@ -183,12 +183,12 @@ class TestRunRoute:
         call_args = mock_popen.call_args[0][0]
         assert "--dry-run" in call_args
 
-    def test_run_returns_409_when_lock_held(
+    def test_run_returns_409_when_pipeline_holds_lock(
         self,
         pipeline_client: TestClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A held lock → 409 Conflict."""
+        """Lock held by another PIPELINE run → 409 (strict duplicate, §6)."""
         monkeypatch.setattr(
             "personalscraper.web.pipeline_trigger.is_lock_held",
             lambda _lock_file: True,
@@ -200,7 +200,42 @@ class TestRunRoute:
             headers=_xrw_headers(),
         )
         assert resp.status_code == 409
-        assert resp.json()["detail"] == "Pipeline is already running"
+        assert resp.json()["detail"] == "Un run du pipeline est déjà en cours — relancer serait un doublon."
+
+    def test_run_queues_when_maintenance_holds_lock(
+        self,
+        pipeline_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Lock held by a MAINTENANCE run → 202 + queued: true (§6, DOIT-4).
+
+        Red-on-old: a legitimate pipeline launch used to get 409 « Pipeline is
+        already running » — a lie (no pipeline run was running) AND a busy
+        refusal. It now reserves a visible ``pipeline-queue`` row and returns
+        its uid with ``queued: true``.
+        """
+        monkeypatch.setattr(
+            "personalscraper.web.pipeline_trigger.is_lock_held",
+            lambda _lock_file: True,
+        )
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline._newest_running_kind",
+            lambda _db_path: "maintenance",
+        )
+        monkeypatch.setattr(
+            "personalscraper.web.routes.pipeline.reserve_queued_pipeline_run",
+            lambda _db_path, *, trigger_reason, dry_run: "queueduid1234",
+        )
+
+        resp = pipeline_client.post(
+            "/api/pipeline/run",
+            json={"dry_run": False},
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 202
+        body = resp.json()
+        assert body["run_uid"] == "queueduid1234"
+        assert body["queued"] is True
 
 
 # ── POST /pause & /resume ────────────────────────────────────────────────────
@@ -436,10 +471,11 @@ class TestKillRoute:
                 started_at REAL NOT NULL,
                 outcome    TEXT,
                 kind       TEXT NOT NULL DEFAULT 'pipeline',
+                command    TEXT,
                 steps_json TEXT
             );
-            INSERT INTO pipeline_run (run_uid, started_at, outcome, kind)
-            VALUES ('maint-run', 1000.0, 'running', 'maintenance');
+            INSERT INTO pipeline_run (run_uid, started_at, outcome, kind, command)
+            VALUES ('maint-run', 1000.0, 'running', 'maintenance', 'library-clean');
             """
         )
         conn.commit()
@@ -482,6 +518,7 @@ class TestKillRoute:
                 started_at REAL NOT NULL,
                 outcome    TEXT,
                 kind       TEXT NOT NULL DEFAULT 'pipeline',
+                command    TEXT,
                 steps_json TEXT
             );
             INSERT INTO pipeline_run (run_uid, started_at, outcome, kind)

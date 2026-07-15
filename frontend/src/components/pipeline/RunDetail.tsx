@@ -13,7 +13,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, type ReactElement } from "react";
 
-import { getPipelineRunDetail, type RunDetail as RunDetailData } from "@/api/client";
+import {
+  getPipelineRunDetail,
+  type RunDetail as RunDetailData,
+} from "@/api/client";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -222,6 +225,40 @@ function maintenanceCountRows(
   return rows;
 }
 
+/**
+ * Describe a maintenance run's ``queue`` wait in plain French, if any (§6).
+ *
+ * The runner appends a ``queue`` step while it waits for ``pipeline.lock``
+ * (status ``waiting_pipeline_lock``) and closes it (status ``done``) with the
+ * true wait window when the lock frees. The LAST queue entry carries the
+ * current truth.
+ *
+ * Args:
+ *   steps: The run's persisted step entries.
+ *   outcome: The run outcome (live wait only shows while ``running``).
+ *
+ * Returns:
+ *   A French one-liner, or null when the run never queued.
+ */
+function queueWaitInfo(
+  steps: RunDetailData["steps"],
+  outcome: string | null | undefined,
+): string | null {
+  let last: RunDetailData["steps"][number] | null = null;
+  for (const step of steps) {
+    if (step.name === "queue") last = step;
+  }
+  if (last == null) return null;
+  if (last.status === "waiting_pipeline_lock") {
+    return outcome === "running"
+      ? "En file d'attente — un autre run tient le verrou du pipeline ; démarrage automatique à sa libération."
+      : null;
+  }
+  const waited = last.elapsed_s;
+  if (waited == null || waited <= 0) return null;
+  return `A patienté en file d'attente ${formatDuration(waited)} avant de démarrer (verrou pipeline occupé).`;
+}
+
 export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["pipeline", "history", runUid] as const,
@@ -250,6 +287,10 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
 
   const maintenanceCounts =
     data.kind === "maintenance" ? maintenanceCountRows(data.steps) : [];
+  const queueInfo =
+    data.kind === "maintenance"
+      ? queueWaitInfo(data.steps, data.outcome)
+      : null;
 
   const { tone, label } = outcomeInfo(data.outcome);
 
@@ -312,6 +353,13 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
                 <span className="text-xs text-muted-foreground">Commande</span>
                 <p className="font-mono text-sm font-medium">{data.command}</p>
               </div>
+            )}
+            {/* §6 visible queue — the wait for pipeline.lock is a state the
+                operator sees (live) and an honest trace afterwards. */}
+            {queueInfo != null && (
+              <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                {queueInfo}
+              </p>
             )}
             {/* Numeric result (§1/§2) — the run's counts in plain French.
                 Without this block a maintenance run showed no outcome at all

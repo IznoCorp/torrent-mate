@@ -815,23 +815,35 @@ def _validate_options(action: MaintenanceAction, body_options: dict[str, object]
                 )
 
 
-def _guard_no_running_maintenance(conn: sqlite3.Connection, action_id: str) -> None:
-    """Raise 409 when a maintenance action with a live pid is already running.
+#: French duplicate-refusal detail — the ONLY 409 left on this surface (§6:
+#: the sole permitted refusal is idempotence — the same action already running).
+_DUPLICATE_ACTION_DETAIL = "Cette action est déjà en cours avec les mêmes options (doublon)."
 
-    Queries ``pipeline_run`` for rows with ``kind='maintenance'`` and
-    ``outcome='running'`` and checks liveness via ``os.kill(pid, 0)``. Rows with
-    a dead or NULL pid are stale (crashed runner / pre-pid migration) and are
-    ignored — we never mutate them here.
+
+def _guard_no_duplicate_action(conn: sqlite3.Connection, command: str, options_json: str, dry_run: bool) -> None:
+    """Raise 409 when the SAME action (same options, same mode) is live.
+
+    §6 (constitution v2): a busy system is never a reason to refuse — a
+    DIFFERENT action reserves its row and waits in the runner's visible queue
+    (``web/run_queue.py``). The only refusal left is the strict duplicate:
+    same ``command`` AND byte-identical ``options_json`` AND same ``dry_run``
+    mode with a live pid (a dry-run preview during a live apply is NOT the
+    same action). Rows with a dead or NULL pid are stale (crashed runner /
+    pre-pid migration) and are ignored — we never mutate them here.
 
     Args:
         conn: An open connection (inside the reserve transaction).
-        action_id: The action being launched (for log context).
+        command: The action id being launched.
+        options_json: Canonical options JSON (byte-compared).
+        dry_run: The launch mode, part of the duplicate identity.
 
     Raises:
-        HTTPException: 409 when a live maintenance runner is found.
+        HTTPException: 409 when the same action with the same options is live.
     """
     rows = conn.execute(
-        "SELECT run_uid, pid FROM pipeline_run WHERE kind='maintenance' AND outcome='running'"
+        "SELECT run_uid, pid FROM pipeline_run "
+        "WHERE kind='maintenance' AND outcome='running' AND command=? AND options_json=? AND dry_run=?",
+        (command, options_json, 1 if dry_run else 0),
     ).fetchall()
     for row in rows:
         run_uid_db = row["run_uid"]
@@ -839,19 +851,19 @@ def _guard_no_running_maintenance(conn: sqlite3.Connection, action_id: str) -> N
         if pid_db is None:
             # NULL pid → stale row (pre-pid-migration or a runner that crashed
             # before claiming its pid).
-            logger.info("maintenance_stale_row_ignored", run_uid=run_uid_db, pid=None, action_id=action_id)
+            logger.info("maintenance_stale_row_ignored", run_uid=run_uid_db, pid=None, action_id=command)
             continue
         try:
             os.kill(pid_db, 0)
         except ProcessLookupError:
             # Dead process → stale row (crashed runner).
-            logger.info("maintenance_stale_row_ignored", run_uid=run_uid_db, pid=pid_db, action_id=action_id)
+            logger.info("maintenance_stale_row_ignored", run_uid=run_uid_db, pid=pid_db, action_id=command)
             continue
         except PermissionError:
             # Process exists but owned by another user → treat as alive.
-            raise HTTPException(status_code=409, detail="A maintenance action is already running")
+            raise HTTPException(status_code=409, detail=_DUPLICATE_ACTION_DETAIL)
         else:
-            raise HTTPException(status_code=409, detail="A maintenance action is already running")
+            raise HTTPException(status_code=409, detail=_DUPLICATE_ACTION_DETAIL)
 
 
 def _guard_recent_dry_run(conn: sqlite3.Connection, action_id: str, options_json: str) -> None:
@@ -885,22 +897,22 @@ def _reserve_run_row(
     options_json: str,
     dry_run: bool,
 ) -> None:
-    """Atomically guard concurrency + dry-run-first and reserve the run row.
+    """Atomically guard duplicates + dry-run-first and reserve the run row.
 
-    Opens one connection under ``BEGIN IMMEDIATE`` so the "no maintenance action
-    is already running" check and the ``pipeline_run`` INSERT are a single
-    serialised transaction: a second concurrent destructive POST blocks on the
-    write lock, then observes the freshly-inserted running row (409), closing the
-    check→insert TOCTOU race (Finding C). The row is reserved with a placeholder
-    pid of the web process (guaranteed alive) — the caller updates it to the
-    spawned runner's pid right after spawn.
+    Opens one connection under ``BEGIN IMMEDIATE`` so the duplicate check and
+    the ``pipeline_run`` INSERT are a single serialised transaction: a second
+    concurrent POST of the SAME action blocks on the write lock, then observes
+    the freshly-inserted running row (409 duplicate), closing the check→insert
+    TOCTOU race (Finding C). The row is reserved with a placeholder pid of the
+    web process (guaranteed alive) — the caller updates it to the spawned
+    runner's pid right after spawn.
 
-    Guard order (preserved from the original route): 409 concurrency → 428
-    dry-run-first → INSERT. The pipeline-lock 409 is checked by the caller before
-    this helper (filesystem, no DB) and re-probed right after it (R11) — the
-    reserved row is finalized ``'error'`` if the lock appeared in between.
+    Guard order: 409 duplicate (same command + same options only, §6) → 428
+    dry-run-first → INSERT. A held ``pipeline.lock`` is NOT a refusal anymore:
+    the spawned runner waits in the visible queue (``web/run_queue.py``) and
+    the run row carries the ``queue`` step while it does.
 
-    On a DB read error while verifying concurrency, a ``destructive`` action is
+    On a DB read error while verifying duplicates, a ``destructive`` action is
     fail-CLOSED (409) — the only concurrency protection must never be dropped
     silently (Finding E). ``write`` / ``ro`` actions stay permissive.
 
@@ -934,7 +946,7 @@ def _reserve_run_row(
         try:
             conn.execute("BEGIN IMMEDIATE")
             if check_concurrency:
-                _guard_no_running_maintenance(conn, command)
+                _guard_no_duplicate_action(conn, command, options_json, dry_run)
             if destructive and not dry_run:
                 _guard_recent_dry_run(conn, command, options_json)
             conn.execute(
@@ -952,10 +964,15 @@ def _reserve_run_row(
             _safe_rollback(conn)
             logger.warning("maintenance_reserve_db_error", command=command, error=str(exc))
             if destructive:
-                # Fail-CLOSED: cannot verify no destructive action is running.
+                # Fail-CLOSED: cannot verify no duplicate destructive action is
+                # running — refuse with the real reason (§8) rather than risk a
+                # double execution.
                 raise HTTPException(
                     status_code=409,
-                    detail="Cannot verify no maintenance action is running",
+                    detail=(
+                        "Impossible de vérifier qu'aucune action identique n'est en cours "
+                        "(erreur de lecture de la base) — réessayez."
+                    ),
                 ) from exc
             # write / ro — permissive: proceed to spawn without a reserved row.
     finally:
@@ -1026,10 +1043,13 @@ def action_run(
 ) -> ActionRunResponse:
     """Launch a maintenance action as a detached subprocess.
 
-    Mirror of ``POST /api/pipeline/run`` — validates the action id, options, and
-    preconditions (pipeline lock, concurrent maintenance run, dry-run-first for
-    destructive actions), then spawns a runner subprocess and returns ``202``
-    with the ``run_uid``.
+    Mirror of ``POST /api/pipeline/run`` — validates the action id and options,
+    guards the strict duplicate (same action + same options, the only refusal
+    permitted by §6) and dry-run-first for destructive actions, then spawns a
+    runner subprocess and returns ``202`` with the ``run_uid``. A held
+    ``pipeline.lock`` never refuses the action: the runner waits in the
+    VISIBLE queue (``queue`` step on the run row, ``web/run_queue.py``) and
+    executes when the lock frees — ``queued`` hints that state to the UI.
 
     Args:
         action_id: The kebab-case action id (e.g. ``"library-index"``).
@@ -1037,13 +1057,15 @@ def action_run(
         request: The incoming FastAPI request (for ``app.state`` access).
 
     Returns:
-        ``202`` with :class:`ActionRunResponse` (``{"run_uid": "..."}``).
+        ``202`` with :class:`ActionRunResponse` (``{"run_uid", "queued"}``).
 
     Raises:
         404: *action_id* is not in the :data:`REGISTRY`.
         422: Invalid or missing options, or dry-run requested for an action
             that does not support it.
-        409: The pipeline lock is held, or a maintenance action is already running.
+        409: The SAME action with the SAME options is already running
+            (duplicate), or the duplicate check could not be verified for a
+            destructive action.
         428: A destructive action was requested without a recent successful
             dry run (same options, within the last 30 minutes).
     """
@@ -1066,17 +1088,12 @@ def action_run(
     options_json = canonical_options_json(body.options)
     run_uid = uuid.uuid4().hex
 
-    # 3. Pipeline-lock 409 (write / destructive only). Independent of the
-    #    concurrent-maintenance check because a maintenance action may run
-    #    without holding the pipeline lock (e.g. a read-only action).
-    if action.risk in ("write", "destructive") and is_lock_held(data_dir / "pipeline.lock"):
-        raise HTTPException(status_code=409, detail="Pipeline lock held")
-
-    # 4. Atomic concurrency-409 + 428 dry-run-first + reserve the running row
+    # 3. Atomic duplicate-409 + 428 dry-run-first + reserve the running row
     #    under BEGIN IMMEDIATE (Finding C: closes the check→insert race so the
     #    row exists the instant 202 is returned and a second concurrent POST
-    #    sees it; Finding E: destructive fails CLOSED if concurrency cannot be
-    #    verified).
+    #    sees it; Finding E: destructive fails CLOSED if the duplicate check
+    #    cannot be verified). A held pipeline.lock is NOT probed here anymore
+    #    (§6): the runner queues on it visibly instead of refusing.
     _reserve_run_row(
         db_path,
         run_uid=run_uid,
@@ -1086,17 +1103,7 @@ def action_run(
         dry_run=body.dry_run,
     )
 
-    # 4b. Re-probe the pipeline lock after the reservation (R11): a pipeline
-    #     run may grab the lock between the step-3 probe and here. The runner
-    #     itself re-acquires the lock atomically for its whole lifetime, so
-    #     this re-probe only converts the near-miss into a fast 409 (with the
-    #     reserved row finalized) instead of a 202 whose run immediately
-    #     finalizes 'error'.
-    if action.risk in ("write", "destructive") and is_lock_held(data_dir / "pipeline.lock"):
-        PipelineRunWriter(db_path).finalize(run_uid, "error", error="Pipeline lock held")
-        raise HTTPException(status_code=409, detail="Pipeline lock held")
-
-    # 5. Spawn the runner and claim the reserved row with its pid, so a runner
+    # 4. Spawn the runner and claim the reserved row with its pid, so a runner
     #    that dies before finalizing leaves a dead-pid (stale) row rather than a
     #    live-pid (permanently blocking) one. A spawn failure finalizes the
     #    reserved row 'error' so it never stays 'running'.
@@ -1109,7 +1116,12 @@ def action_run(
     if isinstance(pid, int):
         PipelineRunWriter(db_path).update_pid(run_uid, pid)
 
-    return ActionRunResponse(run_uid=run_uid)
+    # 5. Best-effort queue hint for the UI: when the lock is held right now,
+    #    the runner will wait in the visible queue — tell the operator
+    #    immediately (« En file ») instead of letting them infer it.
+    queued = action.risk in ("write", "destructive") and not body.dry_run and is_lock_held(data_dir / "pipeline.lock")
+
+    return ActionRunResponse(run_uid=run_uid, queued=queued)
 
 
 # ── GET /actions ────────────────────────────────────────────────────────────

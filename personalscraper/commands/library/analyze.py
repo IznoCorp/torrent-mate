@@ -306,8 +306,9 @@ def library_rescrape(
             config.paths.data_dir / "pipeline.lock",
             cli_compat.scrape_locks_dir_for(config.paths.data_dir),
         ):
+            # Exit 3 = lock busy (the maintenance runner re-queues on this code).
             console.print("[red]Another instance is running. Exiting.[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(3)
 
     try:
         mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"

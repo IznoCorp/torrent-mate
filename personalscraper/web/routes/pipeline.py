@@ -50,6 +50,7 @@ from personalscraper.web.models.pipeline import (
     WatcherRequest,
     WatcherResponse,
 )
+from personalscraper.web.pipeline_queue import reserve_queued_pipeline_run
 from personalscraper.web.pipeline_trigger import spawn_pipeline_run
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
@@ -157,7 +158,11 @@ def _newest_running_kind(db_path: Path) -> str | None:
             _apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT kind FROM pipeline_run WHERE outcome = 'running' ORDER BY started_at DESC LIMIT 1"
+                # pipeline-queue rows are WAITING for the lock, never holding
+                # it — they must not shadow the actual holder here.
+                "SELECT kind FROM pipeline_run WHERE outcome = 'running' "
+                "AND (command IS NULL OR command != 'pipeline-queue') "
+                "ORDER BY started_at DESC LIMIT 1"
             ).fetchone()
     except sqlite3.Error:
         logger.warning("pipeline_kill_kind_read_failed", exc_info=True)
@@ -200,15 +205,30 @@ def pipeline_run(
 ) -> RunResponse:
     """Launch a new pipeline run as a detached subprocess.
 
-    Returns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock
-    is already held by another process.
+    Returns ``202 {run_uid}`` on success. When ``pipeline.lock`` is held the
+    behavior depends on the holder (§6 — the only refusal is the duplicate):
+
+    - held by another **pipeline run** → ``409`` (the same action is already
+      in flight — strict duplicate);
+    - held by a **maintenance / resolve run** → the launch is queued VISIBLY
+      (``pipeline-queue`` row with a ``queue`` step) and executes when the
+      lock frees — ``202 {run_uid, queued: true}``.
     """
     data_dir = _data_dir(request)
+    db_path = _db_path(request)
     # Single trigger authority: spawn_pipeline_run is the one place a run is
     # launched (pipeline.lock is the sole gate). None ⇒ a run already holds it.
     run_uid = spawn_pipeline_run(data_dir, trigger_reason="web", dry_run=body.dry_run)
     if run_uid is None:
-        raise HTTPException(status_code=409, detail="Pipeline is already running")
+        if _newest_running_kind(db_path) == "maintenance":
+            # A maintenance/resolve run holds the lock: a pipeline run is a
+            # DIFFERENT legitimate action — queue it visibly (§6, DOIT-4).
+            queue_uid = reserve_queued_pipeline_run(db_path, trigger_reason="web", dry_run=body.dry_run)
+            return RunResponse(run_uid=queue_uid, queued=True)
+        raise HTTPException(
+            status_code=409,
+            detail="Un run du pipeline est déjà en cours — relancer serait un doublon.",
+        )
     return RunResponse(run_uid=run_uid)
 
 
@@ -279,8 +299,9 @@ def pipeline_kill(
         raise HTTPException(
             status_code=409,
             detail=(
-                "A maintenance run (e.g. scrape-resolve) holds the pipeline "
-                "lock; it cannot be killed from the pipeline endpoint."
+                "Un run de maintenance (p. ex. une résolution de scrape) tient le "
+                "verrou pipeline — il ne peut pas être arrêté depuis cette commande. "
+                "Arrêtez-le depuis sa propre surface."
             ),
         )
 

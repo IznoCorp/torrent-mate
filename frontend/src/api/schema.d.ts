@@ -1042,10 +1042,13 @@ export interface paths {
          * Action Run
          * @description Launch a maintenance action as a detached subprocess.
          *
-         *     Mirror of ``POST /api/pipeline/run`` — validates the action id, options, and
-         *     preconditions (pipeline lock, concurrent maintenance run, dry-run-first for
-         *     destructive actions), then spawns a runner subprocess and returns ``202``
-         *     with the ``run_uid``.
+         *     Mirror of ``POST /api/pipeline/run`` — validates the action id and options,
+         *     guards the strict duplicate (same action + same options, the only refusal
+         *     permitted by §6) and dry-run-first for destructive actions, then spawns a
+         *     runner subprocess and returns ``202`` with the ``run_uid``. A held
+         *     ``pipeline.lock`` never refuses the action: the runner waits in the
+         *     VISIBLE queue (``queue`` step on the run row, ``web/run_queue.py``) and
+         *     executes when the lock frees — ``queued`` hints that state to the UI.
          *
          *     Args:
          *         action_id: The kebab-case action id (e.g. ``"library-index"``).
@@ -1053,13 +1056,15 @@ export interface paths {
          *         request: The incoming FastAPI request (for ``app.state`` access).
          *
          *     Returns:
-         *         ``202`` with :class:`ActionRunResponse` (``{"run_uid": "..."}``).
+         *         ``202`` with :class:`ActionRunResponse` (``{"run_uid", "queued"}``).
          *
          *     Raises:
          *         404: *action_id* is not in the :data:`REGISTRY`.
          *         422: Invalid or missing options, or dry-run requested for an action
          *             that does not support it.
-         *         409: The pipeline lock is held, or a maintenance action is already running.
+         *         409: The SAME action with the SAME options is already running
+         *             (duplicate), or the duplicate check could not be verified for a
+         *             destructive action.
          *         428: A destructive action was requested without a recent successful
          *             dry run (same options, within the last 30 minutes).
          */
@@ -1369,8 +1374,14 @@ export interface paths {
          * Pipeline Run
          * @description Launch a new pipeline run as a detached subprocess.
          *
-         *     Returns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock
-         *     is already held by another process.
+         *     Returns ``202 {run_uid}`` on success. When ``pipeline.lock`` is held the
+         *     behavior depends on the holder (§6 — the only refusal is the duplicate):
+         *
+         *     - held by another **pipeline run** → ``409`` (the same action is already
+         *       in flight — strict duplicate);
+         *     - held by a **maintenance / resolve run** → the launch is queued VISIBLY
+         *       (``pipeline-queue`` row with a ``queue`` step) and executes when the
+         *       lock frees — ``202 {run_uid, queued: true}``.
          */
         post: operations["pipeline_run_api_pipeline_run_post"];
         delete?: never;
@@ -1844,8 +1855,16 @@ export interface components {
          *     Attributes:
          *         run_uid: The unique hex identifier of the newly launched
          *             maintenance run (a ``uuid4().hex``).
+         *         queued: ``True`` when ``pipeline.lock`` was held at spawn time — the
+         *             runner is waiting in the visible queue (§6) and will execute when
+         *             the lock frees; the UI shows « En file » instead of « lancé ».
          */
         ActionRunResponse: {
+            /**
+             * Queued
+             * @default false
+             */
+            queued: boolean;
             /** Run Uid */
             run_uid: string;
         };
@@ -3215,9 +3234,18 @@ export interface components {
          * @description Response body returned after a successful ``POST /api/pipeline/run``.
          *
          *     Attributes:
-         *         run_uid: The unique identifier of the newly launched pipeline run.
+         *         run_uid: The unique identifier of the newly launched pipeline run, or
+         *             of the ``pipeline-queue`` row when the launch was queued.
+         *         queued: ``True`` when the lock was held by a maintenance/resolve run —
+         *             the launch waits in the visible queue (§6) and executes when the
+         *             lock frees; the UI shows « En file » instead of « lancé ».
          */
         RunResponse: {
+            /**
+             * Queued
+             * @default false
+             */
+            queued: boolean;
             /** Run Uid */
             run_uid: string;
         };

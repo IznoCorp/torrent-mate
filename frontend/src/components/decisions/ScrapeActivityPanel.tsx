@@ -64,8 +64,9 @@ export function ScrapeActivityPanel(): ReactElement | null {
               className="flex items-center gap-2 text-sm"
             >
               {/* Queued (waiting for the pipeline lock) = static amber dot +
-                  explicit pill — the queue must be VISIBLE (#249 post-mortem);
-                  a live scrape keeps the pulsing primary dot. */}
+                  explicit pill — the queue must be VISIBLE (post-mortem 249;
+                  no "#" here: the lint:tokens hex-colour guard matches it).
+                  A live scrape keeps the pulsing primary dot. */}
               <span
                 aria-hidden
                 className={
