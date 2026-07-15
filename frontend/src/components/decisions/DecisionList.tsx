@@ -18,6 +18,7 @@ import {
   statusTone,
   statusTooltip,
   TRIGGER_LABEL,
+  TRIGGER_TOOLTIP,
   TRIGGER_TONE,
 } from "@/components/decisions/triggers";
 import { Badge } from "@/components/ui/badge";
@@ -153,7 +154,7 @@ export function DecisionList({
                     onClick={() => {
                       onSelect(item.id);
                     }}
-                    className="flex-1 text-left text-sm font-medium"
+                    className="min-w-0 flex-1 break-words text-left text-sm font-medium"
                   >
                     {item.extracted_title}
                     {item.extracted_year != null && (
@@ -184,7 +185,12 @@ export function DecisionList({
                     {folder}
                   </button>
                   <div className="flex items-center gap-1.5">
-                    <Badge tone={triggerTone}>{triggerLabel}</Badge>
+                    <span
+                      title={TRIGGER_TOOLTIP[item.trigger] ?? item.trigger}
+                      className="inline-flex"
+                    >
+                      <Badge tone={triggerTone}>{triggerLabel}</Badge>
+                    </span>
                     {canQuickDismiss && (
                       <Button
                         type="button"

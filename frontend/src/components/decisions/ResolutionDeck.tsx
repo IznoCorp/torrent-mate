@@ -43,6 +43,8 @@ import {
 } from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
+import { ApiError } from "@/api/client";
+import { frenchErrorDetail } from "@/components/decisions/errors";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { Kbd } from "@/components/ds/Kbd";
@@ -195,8 +197,15 @@ export function ResolutionDeck({
       flipRef.current = { id: vars.id, timer };
     },
     onError: (err: unknown) => {
+      // A 409 during a pipeline run is EXPECTED (global lock) — say so in
+      // French instead of surfacing « Pipeline lock held » as a breakage
+      // (revue mobile 2026-07-15, Lucky).
       toast.error(
-        err instanceof Error ? err.message : "Échec de la validation",
+        err instanceof ApiError
+          ? frenchErrorDetail(err)
+          : err instanceof Error
+            ? err.message
+            : "Échec de la validation",
       );
     },
   });
@@ -208,7 +217,13 @@ export function ResolutionDeck({
       markProcessed(id);
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Échec de l'action");
+      toast.error(
+        err instanceof ApiError
+          ? frenchErrorDetail(err)
+          : err instanceof Error
+            ? err.message
+            : "Échec de l'action",
+      );
     },
   });
 
@@ -424,9 +439,9 @@ export function ResolutionDeck({
         )}
         {/* Header: extracted media + trigger + progress + shortcuts */}
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-semibold">
+          <div className="min-w-0 flex-1 flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="min-w-0 break-words text-base font-semibold">
                 {current.extracted_title}
               </span>
               {current.extracted_year != null && (

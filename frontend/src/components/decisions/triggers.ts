@@ -7,11 +7,27 @@
  * with a comment-enforced "keep in sync").
  */
 
-/** Trigger reason → short French label (chips). */
+/** Trigger reason → short French label (chips).
+
+« Zone grise » (mid_band) read as a mysterious STATE to the operator
+(revue mobile 2026-07-15) — the chip is the ENTRY REASON, so it now says
+what actually happened: the automatic match had middling confidence. */
 export const TRIGGER_LABEL: Record<string, string> = {
-  below_threshold: "Score faible",
-  mid_band: "Zone grise",
-  ambiguous: "Ambigu",
+  below_threshold: "Confiance faible",
+  mid_band: "Confiance moyenne",
+  ambiguous: "Candidats ambigus",
+  manual: "Envoi manuel",
+};
+
+/** Trigger reason → tooltip explaining WHY the item entered the queue. */
+export const TRIGGER_TOOLTIP: Record<string, string> = {
+  below_threshold:
+    "Motif d'entrée : aucun candidat n'atteignait le seuil de confiance automatique.",
+  mid_band:
+    "Motif d'entrée : le meilleur candidat était en confiance moyenne — validation humaine demandée.",
+  ambiguous:
+    "Motif d'entrée : plusieurs candidats trop proches pour trancher automatiquement.",
+  manual: "Motif d'entrée : envoyé manuellement depuis la zone de préparation.",
 };
 
 /** Trigger reason → DS Badge tone. */

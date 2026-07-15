@@ -200,7 +200,7 @@ describe("DecisionDetail", () => {
 
   it("affiche le badge de déclencheur", () => {
     renderDetail(makeDecision({ trigger: "mid_band" }));
-    expect(screen.getByText("Zone grise")).toBeInTheDocument();
+    expect(screen.getByText("Confiance moyenne")).toBeInTheDocument();
   });
 
   it("affiche l'explication du déclencheur", () => {
@@ -413,7 +413,7 @@ describe("DecisionDetail", () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining("Pipeline occupé"),
+        expect.stringContaining("Un pipeline est en cours"),
       );
     });
     // It is NOT the per-decision-busy message.
@@ -440,7 +440,7 @@ describe("DecisionDetail", () => {
     });
     // It is NOT the pipeline-lock message (a different decision could resolve).
     expect(toast.error).not.toHaveBeenCalledWith(
-      expect.stringContaining("Pipeline occupé"),
+      expect.stringContaining("Un pipeline est en cours"),
     );
   });
 

@@ -139,3 +139,28 @@ describe("FollowedPanel (P0-B)", () => {
     expect(screen.queryByText(/en médiathèque/)).not.toBeInTheDocument();
   });
 });
+
+describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
+  it("un suivi retiré quitte la grille et apparaît dans la section repliée", () => {
+    renderPanel([
+      makeItem(),
+      makeItem({ id: 7, title: "Le Robot sauvage", kind: "movie", active: false }),
+    ]);
+
+    // Grid: only the active follow renders as a card.
+    expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
+    // Retired section: collapsed summary with count + reactivate control.
+    expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
+    expect(screen.getByText(/Le Robot sauvage/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Réactiver" }),
+    ).toBeInTheDocument();
+    // The retired item must NOT render its card controls (no Retirer button).
+    expect(screen.getAllByRole("button", { name: "Retirer" })).toHaveLength(1);
+  });
+
+  it("aucune section retirés quand tout est actif", () => {
+    renderPanel([makeItem()]);
+    expect(screen.queryByText(/Suivis retirés/)).not.toBeInTheDocument();
+  });
+});

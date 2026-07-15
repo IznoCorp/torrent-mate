@@ -145,25 +145,25 @@ describe("DecisionList", () => {
   // Trigger chip variants
   // -----------------------------------------------------------------------
 
-  it("affiche le chip 'Score faible' avec le bon tone pour below_threshold", () => {
+  it("affiche le chip 'Confiance faible' avec le bon tone pour below_threshold", () => {
     renderList([makeItem({ trigger: "below_threshold" })]);
-    const badge = screen.getByText("Score faible");
+    const badge = screen.getByText("Confiance faible");
     expect(badge).toBeInTheDocument();
     // The Badge component applies tone via the badgeVariants cva classes.
     // Verify the element is present with the danger-tone styling.
     expect(badge.closest("[data-slot='badge']")).toBeInTheDocument();
   });
 
-  it("affiche le chip 'Zone grise' avec le bon tone pour mid_band", () => {
+  it("affiche le chip 'Confiance moyenne' avec le bon tone pour mid_band", () => {
     renderList([makeItem({ trigger: "mid_band" })]);
-    const badge = screen.getByText("Zone grise");
+    const badge = screen.getByText("Confiance moyenne");
     expect(badge).toBeInTheDocument();
     expect(badge.closest("[data-slot='badge']")).toBeInTheDocument();
   });
 
-  it("affiche le chip 'Ambigu' avec le bon tone pour ambiguous", () => {
+  it("affiche le chip 'Candidats ambigus' avec le bon tone pour ambiguous", () => {
     renderList([makeItem({ trigger: "ambiguous" })]);
-    const badge = screen.getByText("Ambigu");
+    const badge = screen.getByText("Candidats ambigus");
     expect(badge).toBeInTheDocument();
     expect(badge.closest("[data-slot='badge']")).toBeInTheDocument();
   });

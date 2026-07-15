@@ -29,6 +29,12 @@ import {
 } from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
+import {
+  classify409,
+  frenchErrorDetail,
+  MSG_DECISION_BUSY,
+  MSG_PIPELINE_LOCK,
+} from "@/components/decisions/errors";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,70 +98,6 @@ const STATUS_RESULT: Record<
     desc: "Cette décision a été remplacée par une version plus récente du dossier.",
   },
 };
-
-/**
- * The two distinct 409 causes a resolve can return (§4.3).
- *
- * The scrape-resolve concurrency is now PER-DECISION: two DIFFERENT decisions
- * resolve concurrently. A 409 therefore only ever means one of:
- *
- * - ``pipeline_lock``: a full pipeline run / maintenance holds the GLOBAL
- *   ``pipeline.lock`` (backend detail: ``"Pipeline lock held"``). Nothing
- *   resolves until that run finishes.
- * - ``decision_busy``: THIS decision is already resolving (backend detail:
- *   ``"This decision is already resolving"``). Other decisions are unaffected.
- */
-type Conflict409 = "pipeline_lock" | "decision_busy";
-
-/**
- * Classify a 409 ``ApiError.detail`` into its cause (§4.3).
- *
- * The backend detail strings are stable; matching on the ``pipeline lock``
- * substring is enough to separate the global-lock case from the
- * per-decision-busy case. Unknown 409 details fall back to ``decision_busy``
- * (the per-decision message is the least alarming and stays accurate: the
- * operator's own action just didn't take).
- *
- * Args:
- *   detail: The raw ``ApiError.detail`` of a 409 response.
- *
- * Returns:
- *   The classified {@link Conflict409} cause.
- */
-function classify409(detail: string): Conflict409 {
-  return detail.toLowerCase().includes("pipeline lock")
-    ? "pipeline_lock"
-    : "decision_busy";
-}
-
-/** French message for the pipeline-lock 409 (global run in progress). */
-const MSG_PIPELINE_LOCK = "Pipeline occupé — réessayez après le run en cours.";
-
-/** French message for the per-decision-busy 409 (this decision only). */
-const MSG_DECISION_BUSY =
-  "Cette décision est déjà en cours de re-scraping. Attendez qu'elle se termine.";
-
-/**
- * Map a known backend error status to a French inline message (F38).
- *
- * The toasts are already localized; the persistent inline error box previously
- * showed the raw English ``ApiError.detail``.  Falls back to the detail string
- * for unmapped statuses.
- */
-function frenchErrorDetail(error: ApiError): string {
-  switch (error.status) {
-    case 409:
-      return classify409(error.detail) === "pipeline_lock"
-        ? MSG_PIPELINE_LOCK
-        : MSG_DECISION_BUSY;
-    case 410:
-      return "Cette décision a été remplacée par une version plus récente.";
-    case 502:
-      return "Le fournisseur de métadonnées est indisponible. Réessayez plus tard.";
-    default:
-      return error.detail;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -514,7 +456,7 @@ export function DecisionDetail({
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-lg">
+            <CardTitle className="min-w-0 break-words text-lg">
               {decision.extracted_title}{" "}
               <span className="font-normal text-muted-foreground">
                 ({yearLabel})
@@ -552,7 +494,7 @@ export function DecisionDetail({
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-lg">
+          <CardTitle className="min-w-0 break-words text-lg">
             {decision.extracted_title}{" "}
             <span className="font-normal text-muted-foreground">
               ({yearLabel})

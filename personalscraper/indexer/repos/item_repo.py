@@ -9,6 +9,7 @@ Only raw ``sqlite3`` is used — no ORM.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import unicodedata
@@ -391,6 +392,40 @@ _ATTR_DISPATCH_PATH = "dispatch_path"
 _ATTR_DISPATCH_NORM_TITLE = "dispatch_normalized_title"
 
 
+def _merge_external_ids(existing_json: str | None, incoming_json: str | None) -> str:
+    """Merge provider-id families, the incoming (NFO-derived) side winning.
+
+    An NFO id correction must propagate to an existing row (live incident
+    2026-07-15: « New Girl » kept tmdb=248682 — Rabe Rudi — forever after the
+    NFO was fixed, so every rescrape downloaded the wrong artwork), while an
+    id-less caller (dispatch media-index path, ``"{}"``) must never clobber
+    backfilled families. Per-family overlay gives both: incoming families
+    replace their counterpart, families the incoming side lacks survive.
+
+    Args:
+        existing_json: The stored ``external_ids_json`` (may be ``None``).
+        incoming_json: The caller's ``external_ids_json`` (may be ``None``).
+
+    Returns:
+        The merged JSON string (``"{}"`` when both sides are empty).
+    """
+
+    def _load(raw: str | None) -> dict[str, object]:
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    existing = _load(existing_json)
+    incoming = _load(incoming_json)
+    if not incoming:
+        return existing_json if (existing and existing_json) else "{}"
+    return json.dumps({**existing, **incoming})
+
+
 def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     """Insert or update a :class:`MediaItemRow`, deduplicating on ``(title, kind, year)``.
 
@@ -455,6 +490,7 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
                 "UPDATE media_item SET category_id = ?, date_modified = ?, year = ?,"
                 " artwork_json = COALESCE(?, artwork_json),"
                 " nfo_status = COALESCE(?, nfo_status),"
+                " external_ids_json = ?,"
                 " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
                 (
                     row.category_id,
@@ -462,6 +498,7 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
                     row.year,
                     row.artwork_json,
                     row.nfo_status,
+                    _merge_external_ids(existing.external_ids_json, row.external_ids_json),
                     row.date_metadata_refreshed,
                     existing.id,
                 ),
@@ -471,12 +508,14 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
                 "UPDATE media_item SET category_id = ?, date_modified = ?,"
                 " artwork_json = COALESCE(?, artwork_json),"
                 " nfo_status = COALESCE(?, nfo_status),"
+                " external_ids_json = ?,"
                 " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
                 (
                     row.category_id,
                     row.date_modified,
                     row.artwork_json,
                     row.nfo_status,
+                    _merge_external_ids(existing.external_ids_json, row.external_ids_json),
                     row.date_metadata_refreshed,
                     existing.id,
                 ),

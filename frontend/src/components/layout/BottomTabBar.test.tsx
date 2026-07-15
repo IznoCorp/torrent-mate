@@ -18,7 +18,7 @@ function renderBottomBar(initialPath = "/pipeline"): void {
 }
 
 describe("BottomTabBar", () => {
-  it("rend exactement Pipeline · Scraping · Acquisition · Maintenance", () => {
+  it("rend exactement Tableau de bord · Pipeline · Scraping · Acquisition", () => {
     renderBottomBar();
 
     const nav = screen.getByRole("navigation", {
@@ -26,18 +26,18 @@ describe("BottomTabBar", () => {
     });
     const links = within(nav).getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual([
+      "Tableau de bord",
       "Pipeline",
       "Scraping",
       "Acquisition",
-      "Maintenance",
     ]);
   });
 
-  it("n'inclut ni le tableau de bord ni les stubs désactivés", () => {
+  it("n'inclut ni la maintenance ni les stubs désactivés", () => {
     renderBottomBar();
 
     expect(
-      screen.queryByRole("link", { name: "Tableau de bord" }),
+      screen.queryByRole("link", { name: "Maintenance" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Registre" }),

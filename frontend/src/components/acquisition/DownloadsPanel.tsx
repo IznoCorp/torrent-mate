@@ -14,7 +14,6 @@ import { type ReactElement } from "react";
 import type { AcquisitionDownload } from "@/api/acquisition";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDownloads } from "@/hooks/useAcquisition";
 
@@ -95,12 +94,13 @@ export function DownloadsPanel(): ReactElement {
   const data = query.data;
   const downloads = data?.downloads ?? [];
 
+  // No own Card wrapper: the page already frames the active tab in a Card —
+  // nesting a second one read as « des cards dans des cards » (revue mobile
+  // 2026-07-15).
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Téléchargements</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
+      <h3 className="text-sm font-semibold">Téléchargements</h3>
+      <div className="flex flex-col gap-4">
         {query.isLoading ? (
           <div className="flex flex-col gap-4" aria-busy="true">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -126,7 +126,7 @@ export function DownloadsPanel(): ReactElement {
             ))}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

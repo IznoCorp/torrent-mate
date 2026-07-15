@@ -91,24 +91,25 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_SECTIONS.flatMap(
 
 /**
  * Paths shown in the mobile bottom tab bar — a four-item subset of
- * {@link NAV_ITEMS}: Pipeline · Scraping · Acquisition · Maintenance.
+ * {@link NAV_ITEMS}: Tableau de bord · Pipeline · Scraping · Acquisition.
  *
- * Mirrors the design-system reference TabBar, which excludes the dashboard and
- * every disabled stub. Maintenance sits last (4th).
+ * Operator directive (2026-07-15 mobile review): the dashboard — now the
+ * control station (A3) — leads the bar; Maintenance moves to the nav Sheet
+ * only (rarely needed on the go).
  */
 export const BOTTOM_TAB_PATHS: readonly string[] = [
+  "/",
   "/pipeline",
   "/scraping",
   "/acquisition",
-  "/maintenance",
 ];
 
 /**
  * The subset of {@link NAV_ITEMS} rendered by the bottom tab bar.
  *
  * Filtering `NAV_ITEMS` (rather than mapping `BOTTOM_TAB_PATHS`) preserves the
- * nav's display order, which already yields Pipeline · Scraping · Acquisition ·
- * Maintenance.
+ * nav's display order, which already yields Tableau de bord · Pipeline ·
+ * Scraping · Acquisition.
  */
 export const BOTTOM_TAB_ITEMS: readonly NavItem[] = NAV_ITEMS.filter((item) =>
   BOTTOM_TAB_PATHS.includes(item.to),

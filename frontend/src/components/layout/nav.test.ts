@@ -55,21 +55,22 @@ describe("nav model", () => {
     ]);
   });
 
-  it("réduit la barre d'onglets mobile à Pipeline · Scraping · Acquisition · Maintenance", () => {
+  it("réduit la barre d'onglets mobile à Tableau de bord · Pipeline · Scraping · Acquisition", () => {
     expect(BOTTOM_TAB_PATHS).toEqual([
+      "/",
       "/pipeline",
       "/scraping",
       "/acquisition",
-      "/maintenance",
     ]);
     expect(BOTTOM_TAB_ITEMS.map((item) => item.label)).toEqual([
+      "Tableau de bord",
       "Pipeline",
       "Scraping",
       "Acquisition",
-      "Maintenance",
     ]);
-    // The dashboard and the disabled stubs are excluded from the bottom bar.
-    expect(BOTTOM_TAB_ITEMS.some((item) => item.to === "/")).toBe(false);
+    // Maintenance and the disabled stubs are excluded from the bottom bar;
+    // the dashboard (control station, A3) leads it.
+    expect(BOTTOM_TAB_ITEMS.some((item) => item.to === "/maintenance")).toBe(false);
     expect(BOTTOM_TAB_ITEMS.some((item) => item.disabled)).toBe(false);
   });
 });

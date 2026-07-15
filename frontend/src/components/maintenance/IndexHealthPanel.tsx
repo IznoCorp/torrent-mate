@@ -189,8 +189,11 @@ export function IndexHealthPanel(): ReactElement {
     };
   })();
 
+  // « soft-deleted » is jargon (operator asked what it meant, 2026-07-15):
+  // these are files the scanner no longer finds on disk, kept as tombstones
+  // until a purge — say exactly that.
   const softDelCheck = zeroOk(
-    "Fichiers supprimés (soft)",
+    "Fichiers disparus du disque (en attente de purge)",
     data?.soft_deleted ?? 0,
   );
   const canonNullCheck = zeroOk(
