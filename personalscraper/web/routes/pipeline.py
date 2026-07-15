@@ -434,6 +434,25 @@ def _opt_counts(value: object) -> dict[str, int] | None:
     return coerced or None
 
 
+def _opt_reasons(value: object) -> list[str] | None:
+    """Coerce a ``steps_json`` ``reasons`` field to ``list[str]`` or ``None``.
+
+    Only a JSON array of non-empty strings survives; anything else (absent,
+    wrong type, empty) yields ``None`` so a legacy or malformed entry never
+    breaks the typed response.
+
+    Args:
+        value: The raw ``reasons`` value from a ``steps_json`` entry.
+
+    Returns:
+        A list of reason strings, or ``None``.
+    """
+    if not isinstance(value, list):
+        return None
+    coerced = [str(item) for item in value if isinstance(item, str) and item.strip()]
+    return coerced or None
+
+
 def _row_to_run_summary(row: sqlite3.Row) -> RunSummary:
     """Map a ``pipeline_run`` row to a :class:`RunSummary`.
 
@@ -633,6 +652,7 @@ def pipeline_history_detail(
                             error_count=_opt_int(s.get("error_count")),
                             unmatched_count=_opt_int(s.get("unmatched_count")),
                             counts=_opt_counts(s.get("counts")),
+                            reasons=_opt_reasons(s.get("reasons")),
                         )
                     )
         except (json.JSONDecodeError, TypeError, ValueError):

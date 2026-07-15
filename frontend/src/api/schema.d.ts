@@ -3879,6 +3879,11 @@ export interface components {
          *             legacy entry.
          *         counts: StepReport ``counts`` sub-category dict, or ``None`` when the
          *             step tracks no sub-categories / for a legacy entry.
+         *         reasons: Bounded list of human-readable reason strings explaining WHY
+         *             the step skipped / deferred / errored (StepReport warnings +
+         *             details), or ``None`` for a step with nothing to report / a legacy
+         *             entry. Lets the run detail show the "why" after the live stream is
+         *             gone (§8).
          */
         StepTiming: {
             /** Counts */
@@ -3893,6 +3898,8 @@ export interface components {
             error_count?: number | null;
             /** Name */
             name: string;
+            /** Reasons */
+            reasons?: string[] | null;
             /** Skip Count */
             skip_count?: number | null;
             /** Started At */

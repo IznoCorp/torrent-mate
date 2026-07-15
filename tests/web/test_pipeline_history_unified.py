@@ -439,6 +439,52 @@ class TestUnifiedHistoryDetail:
         assert step["unmatched_count"] == 2
         assert step["counts"] == {"downloaded": 3, "bot_detected": 1}
 
+    def test_detail_step_reasons_round_trip(self, test_config, tmp_path: Path) -> None:
+        """§8: persisted per-step reason strings surface on the detail read.
+
+        A legacy entry without ``reasons`` still parses (field defaults None).
+        """
+        db_path = tmp_path / "reasons.db"
+        conn = sqlite3.connect(str(db_path))
+        migrations_dir = Path(_migrations_pkg.__file__).parent
+        apply_migrations(conn, migrations_dir)
+        steps = json.dumps(
+            [
+                {
+                    "name": "ingest",
+                    "status": "success",
+                    "started_at": _T0,
+                    "ended_at": _T0 + 2.0,
+                    "skip_count": 2,
+                    "reasons": ["Film X : espace disque insuffisant", "Série Y : contenu introuvable"],
+                },
+                {"name": "sort", "status": "success", "started_at": _T0 + 2.0, "ended_at": _T0 + 3.0},
+            ]
+        )
+        conn.execute(
+            "INSERT INTO pipeline_run "
+            "(run_uid, trigger, dry_run, started_at, ended_at, outcome, "
+            "steps_json, error, pid, kind, command, options_json, output_tail) "
+            "VALUES (?, 'web', 0, ?, ?, 'success', ?, NULL, 999, 'pipeline', NULL, NULL, NULL)",
+            ("reasons-run-1", _T0, _T0 + 3.0, steps),
+        )
+        conn.commit()
+        conn.close()
+
+        data_dir = tmp_path / ".data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        client = _make_client(test_config, db_path, data_dir)
+
+        resp = client.get("/api/pipeline/history/reasons-run-1")
+        assert resp.status_code == 200
+        steps_out = resp.json()["steps"]
+        assert steps_out[0]["reasons"] == [
+            "Film X : espace disque insuffisant",
+            "Série Y : contenu introuvable",
+        ]
+        # A step with no reasons key → None (legacy-safe).
+        assert steps_out[1]["reasons"] is None
+
     def test_detail_second_maintenance_run(self, unified_history_client: TestClient) -> None:
         """Detail of the second maintenance run → different command and options."""
         resp = unified_history_client.get("/api/pipeline/history/m2-eee555")

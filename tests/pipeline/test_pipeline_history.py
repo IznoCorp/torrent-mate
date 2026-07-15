@@ -245,6 +245,70 @@ class TestPipelineRunWriterStepSummary:
         assert steps[0]["error_count"] == 0
         assert steps[0]["unmatched_count"] == 0
 
+    def test_update_step_persists_reasons(self, tmp_path: Path) -> None:
+        """§8 — skip/defer/error reason strings are folded into the entry.
+
+        Red-on-old: ``update_step`` had no ``reasons`` parameter, so
+        StepReport warnings/details died with the process and history showed
+        bare counts. Now the "why" survives in ``steps_json``.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-reasons", trigger="cli", dry_run=False, pid=1)
+
+        writer.update_step(
+            "uid-reasons",
+            "ingest",
+            100.0,
+            101.0,
+            "success",
+            skip_count=2,
+            reasons=["Film X : espace disque insuffisant", "Série Y : contenu source introuvable"],
+        )
+
+        row = _select_row(db_path, "uid-reasons")
+        assert row is not None
+        steps = json.loads(row["steps_json"])
+        assert steps[0]["reasons"] == [
+            "Film X : espace disque insuffisant",
+            "Série Y : contenu source introuvable",
+        ]
+
+    def test_update_step_reasons_capped(self, tmp_path: Path) -> None:
+        """A pathological run's reasons are capped so steps_json cannot bloat."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-cap", trigger="cli", dry_run=False, pid=1)
+
+        writer.update_step(
+            "uid-cap",
+            "ingest",
+            100.0,
+            101.0,
+            "success",
+            reasons=[f"reason {i}" for i in range(100)],
+        )
+
+        row = _select_row(db_path, "uid-cap")
+        steps = json.loads(row["steps_json"])
+        assert len(steps[0]["reasons"]) == 20
+        assert steps[0]["reasons"][0] == "reason 0"
+
+    def test_update_step_empty_reasons_omitted(self, tmp_path: Path) -> None:
+        """An empty/None reasons list omits the key (byte-identical legacy shape)."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        writer = PipelineRunWriter(db_path)
+        writer.insert("uid-no-reasons", trigger="cli", dry_run=False, pid=1)
+
+        writer.update_step("uid-no-reasons", "sort", 100.0, 100.5, "success", reasons=[])
+
+        row = _select_row(db_path, "uid-no-reasons")
+        steps = json.loads(row["steps_json"])
+        assert "reasons" not in steps[0]
+
 
 class TestPipelineRunWriterFinalize:
     """``finalize()`` tests."""

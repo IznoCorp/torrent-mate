@@ -18,7 +18,7 @@ import type { InterpretedLine, LineTone } from "@/components/pipeline/interpretR
 type StepTiming = components["schemas"]["StepTiming"];
 
 /** Human step names (French) — mirrors the live reducer's STEP_LABEL. */
-const STEP_LABEL: Record<string, string> = {
+export const STEP_LABEL: Record<string, string> = {
   ingest: "Récupération des téléchargements",
   sort: "Tri vers la zone de préparation",
   clean: "Nettoyage des fichiers parasites",

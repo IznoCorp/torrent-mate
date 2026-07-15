@@ -800,6 +800,12 @@ class Pipeline:
             # the interpreted last-run report survives past the live WS stream.
             if self._history_writer is not None:
                 assert self._run_uid is not None  # set at top of run()
+                # Persist the skip/defer/error reasons (§8): StepReport.warnings
+                # (e.g. orphan tracker entry, insufficient disk space) + .details
+                # (e.g. "Aborted: N consecutive failures", "No torrent client
+                # configured") otherwise died with the process and history showed
+                # only bare counts. Warnings first — they are the per-item "why".
+                reasons = [*step_report.warnings, *step_report.details]
                 self._history_writer.update_step(
                     self._run_uid,
                     name,
@@ -811,6 +817,7 @@ class Pipeline:
                     error_count=step_report.error_count,
                     unmatched_count=len(step_report.unmatched_paths),
                     counts=dict(step_report.counts),
+                    reasons=reasons or None,
                 )
 
         ok = step_report.success_count

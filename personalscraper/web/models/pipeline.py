@@ -177,6 +177,11 @@ class StepTiming(BaseModel):
             legacy entry.
         counts: StepReport ``counts`` sub-category dict, or ``None`` when the
             step tracks no sub-categories / for a legacy entry.
+        reasons: Bounded list of human-readable reason strings explaining WHY
+            the step skipped / deferred / errored (StepReport warnings +
+            details), or ``None`` for a step with nothing to report / a legacy
+            entry. Lets the run detail show the "why" after the live stream is
+            gone (§8).
     """
 
     name: str
@@ -189,6 +194,7 @@ class StepTiming(BaseModel):
     error_count: int | None = None
     unmatched_count: int | None = None
     counts: dict[str, int] | None = None
+    reasons: list[str] | None = None
 
 
 class RunDetail(BaseModel):
