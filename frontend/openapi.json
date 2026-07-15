@@ -3387,7 +3387,7 @@
         "type": "object"
       },
       "StepTiming": {
-        "description": "Timing record for a single pipeline step within a run.\n\nThe five count fields (webui-ux Phase 2.2) mirror the\n:class:`~personalscraper.models.StepReport` summary persisted into\n``steps_json`` so the interpreted last-run report survives past the live\nWS event stream. They are all optional and default to ``None`` for legacy\n``steps_json`` entries written before Phase 2.2 (fail-soft parsing).\n\nAttributes:\n    name: Human-readable step name (e.g. ``\"ingest\"``, ``\"sort\"``).\n    status: Step status (``\"done\"``, ``\"running\"``, ``\"error\"``, etc.).\n    started_at: ISO 8601 UTC timestamp of step start, or ``None``.\n    ended_at: ISO 8601 UTC timestamp of step end, or ``None``.\n    elapsed_s: Step duration in seconds, or ``None`` if either timestamp\n        is missing.\n    success_count: StepReport ``success_count``, or ``None`` for a legacy\n        entry that predates the persisted summary.\n    skip_count: StepReport ``skip_count``, or ``None`` for a legacy entry.\n    error_count: StepReport ``error_count``, or ``None`` for a legacy entry.\n    unmatched_count: Number of folders the scraper could not confidently\n        match (length of StepReport ``unmatched_paths``), or ``None`` for a\n        legacy entry.\n    counts: StepReport ``counts`` sub-category dict, or ``None`` when the\n        step tracks no sub-categories / for a legacy entry.",
+        "description": "Timing record for a single pipeline step within a run.\n\nThe five count fields (webui-ux Phase 2.2) mirror the\n:class:`~personalscraper.models.StepReport` summary persisted into\n``steps_json`` so the interpreted last-run report survives past the live\nWS event stream. They are all optional and default to ``None`` for legacy\n``steps_json`` entries written before Phase 2.2 (fail-soft parsing).\n\nAttributes:\n    name: Human-readable step name (e.g. ``\"ingest\"``, ``\"sort\"``).\n    status: Step status (``\"done\"``, ``\"running\"``, ``\"error\"``, etc.).\n    started_at: ISO 8601 UTC timestamp of step start, or ``None``.\n    ended_at: ISO 8601 UTC timestamp of step end, or ``None``.\n    elapsed_s: Step duration in seconds, or ``None`` if either timestamp\n        is missing.\n    success_count: StepReport ``success_count``, or ``None`` for a legacy\n        entry that predates the persisted summary.\n    skip_count: StepReport ``skip_count``, or ``None`` for a legacy entry.\n    error_count: StepReport ``error_count``, or ``None`` for a legacy entry.\n    unmatched_count: Number of folders the scraper could not confidently\n        match (length of StepReport ``unmatched_paths``), or ``None`` for a\n        legacy entry.\n    counts: StepReport ``counts`` sub-category dict, or ``None`` when the\n        step tracks no sub-categories / for a legacy entry.\n    reasons: Bounded list of human-readable reason strings explaining WHY\n        the step skipped / deferred / errored (StepReport warnings +\n        details), or ``None`` for a step with nothing to report / a legacy\n        entry. Lets the run detail show the \"why\" after the live stream is\n        gone (\u00a78).",
         "properties": {
           "counts": {
             "anyOf": [
@@ -3439,6 +3439,20 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "reasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasons"
           },
           "skip_count": {
             "anyOf": [

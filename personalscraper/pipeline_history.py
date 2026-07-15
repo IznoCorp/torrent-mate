@@ -46,6 +46,11 @@ from personalscraper.logger import get_logger
 
 log = get_logger("pipeline_history")
 
+#: Max per-step reason strings persisted into ``steps_json`` (§8). A run with
+#: thousands of per-item warnings would otherwise bloat the row; the raw log
+#: tail (``output_tail``) keeps the exhaustive detail.
+_MAX_PERSISTED_REASONS = 20
+
 
 class PipelineRunWriter:
     """Durable run-history writer for the ``pipeline_run`` table.
@@ -180,6 +185,7 @@ class PipelineRunWriter:
         error_count: int | None = None,
         unmatched_count: int | None = None,
         counts: dict[str, int] | None = None,
+        reasons: list[str] | None = None,
     ) -> None:
         """Append a step timing record to the row's ``steps_json`` array.
 
@@ -213,6 +219,13 @@ class PipelineRunWriter:
             counts: A small StepReport ``counts`` sub-category dict (e.g.
                 ``{"downloaded": 3, "bot_detected": 1}``), or ``None``/empty to
                 omit.
+            reasons: A bounded list of human-readable reason strings (StepReport
+                ``warnings`` + ``details``) explaining WHY a step skipped /
+                deferred / errored — e.g. "X: fichiers manquants sur le disque".
+                Persisted (capped at :data:`_MAX_PERSISTED_REASONS`) so the
+                operator sees the "why" after the live WS stream is gone (§8);
+                without this the reasons died with the process and history
+                showed bare counts. ``None``/empty omits the key.
         """
         entry: dict[str, object] = {
             "name": step_name,
@@ -232,6 +245,11 @@ class PipelineRunWriter:
             entry["unmatched_count"] = unmatched_count
         if counts:
             entry["counts"] = counts
+        if reasons:
+            # Cap so a pathological run (thousands of per-item warnings) cannot
+            # bloat steps_json; the operator needs the representative reasons,
+            # not every line (the raw log tail keeps the full detail).
+            entry["reasons"] = list(reasons[:_MAX_PERSISTED_REASONS])
         try:
             conn = sqlite3.connect(str(self._db_path), isolation_level=None)
             apply_pragmas(conn)

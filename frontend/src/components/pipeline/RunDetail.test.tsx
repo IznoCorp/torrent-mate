@@ -103,6 +103,50 @@ describe("RunDetail", () => {
     expect(screen.getByText("Fin")).toBeInTheDocument();
   });
 
+  it("affiche « Ce qui n'a pas avancé » avec les raisons par étape (§8)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        steps: [
+          {
+            name: "ingest",
+            status: "done",
+            elapsed_s: 3,
+            reasons: [
+              "Film X : espace disque insuffisant",
+              "Série Y : contenu source introuvable",
+            ],
+          },
+          { name: "sort", status: "done", elapsed_s: 1 },
+        ],
+      }),
+    );
+    renderDetail("abc123-run-uid");
+
+    expect(
+      await screen.findByText("Ce qui n'a pas avancé"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Film X : espace disque insuffisant"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Série Y : contenu source introuvable"),
+    ).toBeInTheDocument();
+    // Grouped under the step's French label.
+    expect(
+      screen.getByText("Récupération des téléchargements"),
+    ).toBeInTheDocument();
+  });
+
+  it("n'affiche pas la section quand aucune étape n'a de raison", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(makeDetail());
+    renderDetail("abc123-run-uid");
+
+    await screen.findByText("abc123-r…");
+    expect(screen.queryByText("Ce qui n'a pas avancé")).not.toBeInTheDocument();
+  });
+
   it("affiche le PipelineStepper en mode lecture seule", async () => {
     const getDetail = await mockGetDetail();
     getDetail.mockResolvedValue(makeDetail());
@@ -291,5 +335,4 @@ describe("RunDetail — journal durable (output_tail)", () => {
     // Zero counters stay hidden — the result reads, it does not drown.
     expect(screen.queryByText("Ignorés")).not.toBeInTheDocument();
   });
-
 });
