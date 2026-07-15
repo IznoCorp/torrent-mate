@@ -15,6 +15,7 @@ from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
+from personalscraper.indexer.destructive_journal import OP_OVERWRITE, record_destruction
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.logger import get_logger
@@ -116,6 +117,19 @@ def dispatch_movie(
         dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
         success = replace(movie_dir, dest, capability=cap)
         result.action = "replaced" if success else "error"
+        # §7 / Star City — append-only trail of the overwrite: the previous
+        # on-disk folder was destroyed by the replace, record who/what/when/
+        # where. Best-effort (never breaks the dispatch).
+        if success:
+            _journal_db = dispatcher.config.indexer.db_path
+            if _journal_db is not None:
+                record_destruction(
+                    _journal_db,
+                    op=OP_OVERWRITE,
+                    path=dest,
+                    actor="dispatch",
+                    detail=f"REPLACE film — écrasé par « {movie_dir.name} »",
+                )
     else:
         # Move to best disk via resolver
         target_disk = resolver.pick_disk_for(

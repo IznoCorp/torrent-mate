@@ -152,6 +152,36 @@ class LocksResponse(BaseModel):
     sweep: TmpOrphanSweep
 
 
+class DestructiveOp(BaseModel):
+    """One append-only destructive-operation journal row (§7 / Star City).
+
+    Attributes:
+        ts: Unix-epoch timestamp of the operation.
+        op: The operation kind (``"overwrite"`` / ``"delete"``).
+        path: The absolute filesystem path that was destroyed.
+        actor: What performed it (``"dispatch"`` / ``"disk-clean"`` / …).
+        detail: Optional French context / decision string.
+        run_uid: Optional correlating ``pipeline_run`` uid.
+    """
+
+    ts: float
+    op: str
+    path: str
+    actor: str
+    detail: str | None = None
+    run_uid: str | None = None
+
+
+class DestructiveLogResponse(BaseModel):
+    """The recent destructive-operation journal (forensic trail, §7).
+
+    Attributes:
+        entries: Recent destructive ops, newest first.
+    """
+
+    entries: list[DestructiveOp]
+
+
 class NfoStats(BaseModel):
     """Aggregate NFO file status counts across the indexed library.
 

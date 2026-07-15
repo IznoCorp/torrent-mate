@@ -464,6 +464,57 @@ class TestIndexHealthRoute:
         assert data["outbox_pending"] == 0
         assert data["outbox_oldest_age_s"] is None
 
+
+class TestDestructiveLogRoute:
+    """``GET /api/maintenance/destructive-log`` — the §7 forensic trail."""
+
+    def test_destructive_log_returns_recorded_ops(self, test_config, tmp_path: Path) -> None:
+        """200 — recorded destructive ops surface newest-first with who/what/where."""
+        from personalscraper.indexer.destructive_journal import OP_DELETE, OP_OVERWRITE, record_destruction
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        conn.close()
+
+        record_destruction(db_path, op=OP_OVERWRITE, path="/disk/Ferrari (2023)", actor="dispatch", detail="REPLACE")
+        record_destruction(db_path, op=OP_DELETE, path="/disk/.actors", actor="disk-clean", detail="Nettoyage")
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        resp = client.get("/api/maintenance/destructive-log")
+        assert resp.status_code == 200
+        entries = resp.json()["entries"]
+        assert len(entries) == 2
+        assert entries[0]["op"] == "delete"
+        assert entries[0]["actor"] == "disk-clean"
+        assert entries[1]["op"] == "overwrite"
+        assert entries[1]["path"] == "/disk/Ferrari (2023)"
+
+    def test_destructive_log_fail_soft_empty(self, test_config, tmp_path: Path) -> None:
+        """200 with an empty list when the DB has no journal table (fail-soft)."""
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        empty_db = tmp_path / "empty.db"
+        conn = sqlite3.connect(str(empty_db))
+        conn.execute("CREATE TABLE unrelated (x INTEGER)")
+        conn.commit()
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": empty_db}),
+        )
+
+        resp = client.get("/api/maintenance/destructive-log")
+        assert resp.status_code == 200
+        assert resp.json()["entries"] == []
+
     def test_index_health_empty_db(self, test_config, tmp_path: Path) -> None:
         """200 — non-existent db_path → zeroed response (fail-soft, NOT 500)."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)

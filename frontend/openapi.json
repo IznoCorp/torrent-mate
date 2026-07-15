@@ -834,6 +834,74 @@
         "title": "DeferredTorrent",
         "type": "object"
       },
+      "DestructiveLogResponse": {
+        "description": "The recent destructive-operation journal (forensic trail, \u00a77).\n\nAttributes:\n    entries: Recent destructive ops, newest first.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/DestructiveOp"
+            },
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "DestructiveLogResponse",
+        "type": "object"
+      },
+      "DestructiveOp": {
+        "description": "One append-only destructive-operation journal row (\u00a77 / Star City).\n\nAttributes:\n    ts: Unix-epoch timestamp of the operation.\n    op: The operation kind (``\"overwrite\"`` / ``\"delete\"``).\n    path: The absolute filesystem path that was destroyed.\n    actor: What performed it (``\"dispatch\"`` / ``\"disk-clean\"`` / \u2026).\n    detail: Optional French context / decision string.\n    run_uid: Optional correlating ``pipeline_run`` uid.",
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "op": {
+            "title": "Op",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Uid"
+          },
+          "ts": {
+            "title": "Ts",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ts",
+          "op",
+          "path",
+          "actor"
+        ],
+        "title": "DestructiveOp",
+        "type": "object"
+      },
       "DiskInfo": {
         "description": "A single configured storage disk with its mount and capacity data.\n\nAttributes:\n    id: The disk identifier as declared in ``config/disks.json5``\n        (e.g. ``\"disk_1\"``, ``\"disk_2\"``).\n    label: Human-readable disk label configured by the operator.\n    mounted: ``True`` if the disk mount path currently exists and is\n        accessible on the filesystem.\n    free_gb: Free space in gibibytes, rounded to one decimal.\n    total_gb: Total capacity in gibibytes, derived from\n        ``shutil.disk_usage(path).total`` at query time.\n    used_pct: Percentage of capacity currently in use, rounded to one\n        decimal (``(1 - free_gb / total_gb) * 100``).",
         "properties": {
@@ -5102,6 +5170,28 @@
           }
         },
         "summary": "Action Run",
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/api/maintenance/destructive-log": {
+      "get": {
+        "description": "Return the recent append-only destructive-operation journal (\u00a77).\n\nThe forensic trail whose absence turned the Star City incident into a\nfrom-scratch reconstruction: every overwrite / deletion of library content\nthe app performs is recorded (who / what / when / where / why). Read-only\nand fail-soft \u2014 a missing table or DB error yields an empty list.\n\nReturns:\n    A :class:`DestructiveLogResponse` with recent ops, newest first.",
+        "operationId": "get_destructive_log_api_maintenance_destructive_log_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestructiveLogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Destructive Log",
         "tags": [
           "maintenance"
         ]

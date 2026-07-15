@@ -174,6 +174,14 @@ def test_dispatch_replaces_existing_movie(
         f"MediaIndex should have an entry for '{folder}' after replace. Total entries in index: {post_index.count}"
     )
 
+    # §7 / Star City — the overwrite left an append-only journal row.
+    from personalscraper.indexer.destructive_journal import list_recent
+
+    journal = list_recent(index_path)
+    overwrite_rows = [r for r in journal if r["op"] == "overwrite" and str(r["path"]) == str(dest_dir)]
+    assert overwrite_rows, f"REPLACE must record a destructive-op journal row; got {journal}"
+    assert overwrite_rows[0]["actor"] == "dispatch"
+
 
 def test_dispatch_blocks_replace_on_provider_id_mismatch(
     staging_tree: Path,

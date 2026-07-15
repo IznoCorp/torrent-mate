@@ -36,6 +36,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.dispatch.disk_scanner import get_disk_status
+from personalscraper.indexer.destructive_journal import list_recent
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
@@ -47,6 +48,8 @@ from personalscraper.web.maintenance.models import (
     ActionRunRequest,
     ActionRunResponse,
     ActionsResponse,
+    DestructiveLogResponse,
+    DestructiveOp,
     DiskInfo,
     DisksResponse,
     IndexHealthResponse,
@@ -452,6 +455,37 @@ def _empty_health(*, degraded: bool = False, error: str | None = None) -> IndexH
 
 
 # ── GET /index-health ─────────────────────────────────────────────────────
+
+
+@router.get("/destructive-log", response_model=DestructiveLogResponse)
+def get_destructive_log(request: Request) -> DestructiveLogResponse:
+    """Return the recent append-only destructive-operation journal (§7).
+
+    The forensic trail whose absence turned the Star City incident into a
+    from-scratch reconstruction: every overwrite / deletion of library content
+    the app performs is recorded (who / what / when / where / why). Read-only
+    and fail-soft — a missing table or DB error yields an empty list.
+
+    Returns:
+        A :class:`DestructiveLogResponse` with recent ops, newest first.
+    """
+    rows = list_recent(_db_path(request), limit=200)
+    entries: list[DestructiveOp] = []
+    for r in rows:
+        ts_raw = r["ts"]
+        detail_raw = r["detail"]
+        run_uid_raw = r["run_uid"]
+        entries.append(
+            DestructiveOp(
+                ts=float(ts_raw) if isinstance(ts_raw, (int, float)) else 0.0,
+                op=str(r["op"]),
+                path=str(r["path"]),
+                actor=str(r["actor"]),
+                detail=None if detail_raw is None else str(detail_raw),
+                run_uid=None if run_uid_raw is None else str(run_uid_raw),
+            )
+        )
+    return DestructiveLogResponse(entries=entries)
 
 
 @router.get("/index-health", response_model=IndexHealthResponse)
