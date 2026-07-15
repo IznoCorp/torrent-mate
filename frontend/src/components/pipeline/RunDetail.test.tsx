@@ -268,4 +268,28 @@ describe("RunDetail — journal durable (output_tail)", () => {
 
     expect(screen.queryByText("Journal")).not.toBeInTheDocument();
   });
+  it("affiche les compteurs français d'un run maintenance (§2 Posters récupérés)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "maintenance",
+        command: "library-rescrape",
+        steps: [
+          {
+            name: "library-rescrape",
+            status: "success",
+            elapsed_s: 1.2,
+            counts: { fixed: 1, skipped: 0, errors: 0, artwork_recovered: 1 },
+          },
+        ],
+      }),
+    );
+    renderDetail("resc-run-uid");
+
+    expect(await screen.findByText("Posters récupérés")).toBeInTheDocument();
+    expect(screen.getByText("Corrigés")).toBeInTheDocument();
+    // Zero counters stay hidden — the result reads, it does not drown.
+    expect(screen.queryByText("Ignorés")).not.toBeInTheDocument();
+  });
+
 });

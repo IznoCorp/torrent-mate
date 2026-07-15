@@ -13,7 +13,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, type ReactElement } from "react";
 
-import { getPipelineRunDetail } from "@/api/client";
+import { getPipelineRunDetail, type RunDetail as RunDetailData } from "@/api/client";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -189,6 +189,39 @@ function OptionsDisplay({ raw }: { readonly raw: string }): ReactElement {
  * Returns:
  *   The run-detail element.
  */
+/** French labels for maintenance-run counters (steps_json ``counts``). */
+const MAINTENANCE_COUNT_LABELS: Record<string, string> = {
+  detected: "Épisodes détectés",
+  enqueued: "Mis en file",
+  skipped_owned: "Déjà en médiathèque",
+  skipped_dup: "Déjà en file",
+  resurrected: "Réouverts",
+  closed_owned: "Clôturés (en médiathèque)",
+  requeued_missing: "Remis en file (torrent disparu)",
+  grabbed: "Récupérés",
+  retried: "À retenter",
+  abandoned: "Abandonnés",
+  skipped: "Ignorés",
+  fixed: "Corrigés",
+  errors: "Erreurs",
+  artwork_recovered: "Posters récupérés",
+};
+
+/** Flatten a maintenance run's step counts into labelled non-zero rows. */
+function maintenanceCountRows(
+  steps: RunDetailData["steps"],
+): [string, number][] {
+  const rows: [string, number][] = [];
+  for (const step of steps) {
+    for (const [key, value] of Object.entries(step.counts ?? {})) {
+      if (typeof value === "number" && value > 0) {
+        rows.push([MAINTENANCE_COUNT_LABELS[key] ?? key, value]);
+      }
+    }
+  }
+  return rows;
+}
+
 export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["pipeline", "history", runUid] as const,
@@ -214,6 +247,9 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
       </Card>
     );
   }
+
+  const maintenanceCounts =
+    data.kind === "maintenance" ? maintenanceCountRows(data.steps) : [];
 
   const { tone, label } = outcomeInfo(data.outcome);
 
@@ -275,6 +311,25 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
               <div>
                 <span className="text-xs text-muted-foreground">Commande</span>
                 <p className="font-mono text-sm font-medium">{data.command}</p>
+              </div>
+            )}
+            {/* Numeric result (§1/§2) — the run's counts in plain French.
+                Without this block a maintenance run showed no outcome at all
+                (e.g. « Posters récupérés » sat invisible in steps_json). */}
+            {maintenanceCounts.length > 0 && (
+              <div>
+                <span className="text-xs text-muted-foreground">Résultat</span>
+                <ul className="mt-1 flex flex-col gap-0.5 text-sm">
+                  {maintenanceCounts.map(([label, value]) => (
+                    <li
+                      key={label}
+                      className="flex items-center justify-between gap-2 border-b border-border/60 py-1 last:border-b-0"
+                    >
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-mono tabular-nums">{value}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
             {/* Options */}
