@@ -38,6 +38,36 @@ EXCLUDED_NAMES: frozenset[str] = frozenset(
 
 
 # ---------------------------------------------------------------------------
+# Config-driven category exclusions (non-video roots)
+# ---------------------------------------------------------------------------
+
+#: Folder names of non-video categories (e.g. the audiobooks folder) that the
+#: current scan must skip. Set by ``scan()`` from the loaded config for the
+#: duration of one scan (try/finally reset) — the walkers are config-blind,
+#: so the set lives here next to the static exclusions. Files under these
+#: roots are structurally unlinkable (the item stage never creates a
+#: ``media_item`` for non-video categories), so indexing them only produces
+#: eternal ``release_id IS NULL`` orphans (744 rows live, 2026-07-15).
+#:
+#: Matching is by BARE NAME at any depth (same mechanism as
+#: :data:`EXCLUDED_NAMES`): a media folder containing a subdirectory named
+#: exactly like the operator's audiobook category folder would be skipped
+#: too — accepted, the names are operator-chosen and distinctive.
+_category_excluded: frozenset[str] = frozenset()
+
+
+def set_category_exclusions(names: frozenset[str]) -> None:
+    """Install the per-scan set of non-video category folder names.
+
+    Args:
+        names: Bare folder names to exclude for the current scan; pass an
+            empty frozenset to reset (``scan()`` does so in its finally).
+    """
+    global _category_excluded
+    _category_excluded = names
+
+
+# ---------------------------------------------------------------------------
 # Exclusion predicate
 # ---------------------------------------------------------------------------
 
@@ -45,8 +75,9 @@ EXCLUDED_NAMES: frozenset[str] = frozenset(
 def _should_exclude(name: str) -> bool:
     """Return True if a filesystem entry should be skipped during the walk.
 
-    An entry is excluded if its bare name is in :data:`EXCLUDED_NAMES` or if it
-    is a macOS AppleDouble metadata file (delegates to
+    An entry is excluded if its bare name is in :data:`EXCLUDED_NAMES`, in the
+    per-scan :data:`_category_excluded` set (non-video category roots), or if
+    it is a macOS AppleDouble metadata file (delegates to
     :func:`personalscraper._fs_utils.is_apple_double` — single source of truth).
 
     Args:
@@ -55,7 +86,7 @@ def _should_exclude(name: str) -> bool:
     Returns:
         ``True`` if the entry must be skipped; ``False`` if it should be walked.
     """
-    return name in EXCLUDED_NAMES or is_apple_double(name)
+    return name in EXCLUDED_NAMES or name in _category_excluded or is_apple_double(name)
 
 
 # ---------------------------------------------------------------------------

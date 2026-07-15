@@ -2939,3 +2939,96 @@ class TestVerifyMode:
         assert queue_after == queue_before, (
             f"no_enqueue=True must not add repair_queue rows on drift; before={queue_before}, after={queue_after}"
         )
+
+
+class TestScanExcludesNonVideoCategories:
+    """scan() never indexes files under non-video category roots (audiobooks).
+
+    Live shape (2026-07-15): 744 ``media_file`` rows under « livres audios/ »
+    were structurally unlinkable — the item stage skips non-video categories
+    so no ``media_item`` can ever own them; they polluted every relink /
+    reconcile audit as eternal orphans.
+    """
+
+    @staticmethod
+    def _config_with_audiobooks(mount: str):
+        """Return a minimal Config whose audiobooks category maps to « livres audios ».
+
+        Returns:
+            A one-disk Config carrying movies + audiobooks categories.
+        """
+        from personalscraper.conf import ids as CID  # noqa: PLC0415
+        from personalscraper.conf.models.categories import CategoryConfig  # noqa: PLC0415
+        from personalscraper.conf.models.config import Config  # noqa: PLC0415
+        from personalscraper.conf.models.disks import DiskConfig  # noqa: PLC0415
+        from personalscraper.conf.models.paths import PathConfig  # noqa: PLC0415
+        from tests.fixtures.config import CANONICAL_STAGING_DIRS  # noqa: PLC0415
+
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=Path("/mnt/torrents"),
+                staging_dir=Path("/mnt/staging"),
+                data_dir=Path("/mnt/.data"),
+            ),
+            disks=[
+                DiskConfig(
+                    id="drive_a",
+                    path=Path(mount),
+                    categories=[CID.MOVIES, CID.AUDIOBOOKS],
+                )
+            ],
+            categories={
+                CID.MOVIES: CategoryConfig(folder_name="films"),
+                CID.AUDIOBOOKS: CategoryConfig(folder_name="livres audios"),
+            },
+            staging_dirs=CANONICAL_STAGING_DIRS,
+        )
+
+    def test_audiobook_root_not_indexed(self, fs: "FakeFilesystem") -> None:
+        """Files under the audiobooks folder never become media_file rows."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/NonVideoDisk"
+        Path(f"{mount}/films/A Movie (2020)").mkdir(parents=True)
+        Path(f"{mount}/films/A Movie (2020)/movie.mkv").write_text("video")
+        Path(f"{mount}/livres audios/Author/Book").mkdir(parents=True)
+        Path(f"{mount}/livres audios/Author/Book/book.m4b").write_text("audio")
+
+        disk = _insert_disk(conn, mount)
+        config = self._config_with_audiobooks(mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan(
+                [disk],
+                ScanMode.full,
+                generation=1,
+                conn=conn,
+                event_bus=EventBus(),
+                config=config,
+            )
+
+        assert result.status == "ok"
+        conn.row_factory = sqlite3.Row
+        filenames = {r["filename"] for r in conn.execute("SELECT filename FROM media_file")}
+        assert "movie.mkv" in filenames
+        assert "book.m4b" not in filenames, "audiobook files are structurally unlinkable and must never be indexed"
+
+    def test_without_config_nothing_changes(self, fs: "FakeFilesystem") -> None:
+        """No config (tests, standalone scans) → historical behaviour intact."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/NoCfgDisk"
+        Path(f"{mount}/livres audios/Author").mkdir(parents=True)
+        Path(f"{mount}/livres audios/Author/book.m4b").write_text("audio")
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
+
+        assert result.status == "ok"
+        assert result.files_visited == 1
