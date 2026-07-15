@@ -105,6 +105,25 @@ def test_no_obligation_returns_allow(store: "ConcreteAcquireStore", tmp_path: Pa
     assert decision is ALLOW
 
 
+def test_has_active_obligation_true_when_present(store: "ConcreteAcquireStore") -> None:
+    """§7 HnR — an active obligation for the hash → has_active_obligation True."""
+    store.seed.add(_obligation(dispatched_path=None, info_hash="hashOwe"))
+    auth = build_delete_authority(store=store)
+    assert auth.has_active_obligation("hashOwe") is True
+
+
+def test_has_active_obligation_false_when_absent(store: "ConcreteAcquireStore") -> None:
+    """No obligation for the hash → False (ingest then relies on its seeding probe)."""
+    auth = build_delete_authority(store=store)
+    assert auth.has_active_obligation("unknownhash") is False
+
+
+def test_has_active_obligation_false_without_store() -> None:
+    """No store → False (fail-safe: no positive obligation asserted)."""
+    auth = build_delete_authority(store=None)
+    assert auth.has_active_obligation("anything") is False
+
+
 def test_lookup_exception_fail_open_with_mutation_proof(
     store: "ConcreteAcquireStore", tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

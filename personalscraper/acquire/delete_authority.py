@@ -81,6 +81,30 @@ class DeleteAuthority:
         self._torrent_client = torrent_client
         self._economy = economy
 
+    def has_active_obligation(self, info_hash: str) -> bool:
+        """Return ``True`` when *info_hash* has a live, unmet seed obligation.
+
+        Implements :class:`~personalscraper.core.delete_permit.SeedObligationChecker`
+        for ingest's fail-safe copy-vs-move decision. Fail-SAFE: on any lookup
+        error, or when the store is absent, return ``False`` — ingest then
+        relies on its live seeding probe instead of asserting a phantom
+        obligation. A positive ``True`` (obligation active, released_at NULL)
+        makes ingest COPY, preserving a paused-but-owing torrent's seed.
+
+        Args:
+            info_hash: The torrent info-hash to check.
+
+        Returns:
+            ``True`` when a positively-known active obligation exists.
+        """
+        if self._store is None:
+            return False
+        try:
+            return self._store.seed.find_active_by_hash(info_hash) is not None
+        except Exception as exc:  # noqa: BLE001 — fail-safe: unknown → no positive obligation
+            log.warning("acquire.delete_authority.obligation_check_failed", info_hash=info_hash, error=str(exc))
+            return False
+
     def may_delete(self, path: Path) -> PermitDecision:
         """Consult persisted seed obligations before permitting a deletion.
 

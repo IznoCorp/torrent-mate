@@ -248,6 +248,7 @@ def _make_config(tmp_path: Path) -> MagicMock:
     c.paths.data_dir = tmp_path / "data"
     c.paths.data_dir.mkdir(parents=True, exist_ok=True)
     c.ingest.min_ratio = 0.0  # disable ratio guard — matches IngestConfig default
+    c.ingest.force_copy = False  # a MagicMock attr would be truthy — pin the default
     c.thresholds.min_free_space_staging_gb = 0  # disable disk-space guard in tests
     c.torrent.active = True
     return c
@@ -374,6 +375,147 @@ class TestRunIngest:
         mock_transfer.assert_called_once()
         call_kwargs = mock_transfer.call_args
         assert call_kwargs[1].get("copy") is False or call_kwargs[0][2] is False
+
+    @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
+    @patch("personalscraper.ingest.ingest.IngestTracker")
+    def test_paused_with_active_obligation_is_copied(
+        self,
+        mock_tracker_cls: MagicMock,
+        mock_transfer: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """§7 HnR — a not-seeding torrent that still owes a seed is COPIED, not moved.
+
+        Red-on-old: with no obligation check, a paused/stopped torrent was
+        classified not-seeding → MOVED → its download-dir payload destroyed →
+        the seed the tracker still expects is broken (a hit-and-run). The
+        fail-safe now copies it.
+        """
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        torrent = _make_torrent("PausedOwing", "hashOwe")
+        source = tmp_path / "complete" / "PausedOwing"
+        source.mkdir(parents=True)
+        (source / "file.mkv").write_bytes(b"\x00" * 100)
+
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hashOwe"}
+        mock_client.get_content_path.return_value = source
+        mock_client.is_seeding.return_value = False  # paused / stopped
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+
+        mock_tracker = MagicMock()
+        mock_tracker.is_ingested.return_value = False
+        mock_tracker_cls.return_value = mock_tracker
+
+        # The seed checker reports a live obligation for this hash.
+        seed_checker = MagicMock()
+        seed_checker.has_active_obligation.return_value = True
+
+        report = run_ingest(
+            settings,
+            config=_make_config(tmp_path),
+            event_bus=EventBus(),
+            torrent_client=mock_client,
+            seed_checker=seed_checker,
+        )
+
+        assert report.success_count == 1
+        seed_checker.has_active_obligation.assert_called_once_with("hashOwe")
+        assert mock_transfer.call_args[1].get("copy") is True
+        # A copy must NOT remove the torrent from the client (it keeps seeding).
+        mock_client.delete.assert_not_called()
+
+    @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
+    @patch("personalscraper.ingest.ingest.IngestTracker")
+    def test_move_removes_torrent_from_client(
+        self,
+        mock_tracker_cls: MagicMock,
+        mock_transfer: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """A moved torrent (no obligation, not seeding) is removed from the client.
+
+        Moving relocates the payload out of the download dir; leaving the
+        torrent registered would turn it into a missingFiles/error entry
+        (a dangling « en erreur » download). It must be removed, files kept
+        (delete_files=False, they are now in staging).
+        """
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        torrent = _make_torrent("DoneNoOwe", "hashDone")
+        source = tmp_path / "complete" / "DoneNoOwe"
+        source.mkdir(parents=True)
+        (source / "file.mkv").write_bytes(b"\x00" * 100)
+
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hashDone"}
+        mock_client.get_content_path.return_value = source
+        mock_client.is_seeding.return_value = False
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+
+        mock_tracker = MagicMock()
+        mock_tracker.is_ingested.return_value = False
+        mock_tracker_cls.return_value = mock_tracker
+
+        seed_checker = MagicMock()
+        seed_checker.has_active_obligation.return_value = False
+
+        report = run_ingest(
+            settings,
+            config=_make_config(tmp_path),
+            event_bus=EventBus(),
+            torrent_client=mock_client,
+            seed_checker=seed_checker,
+        )
+
+        assert report.success_count == 1
+        assert mock_transfer.call_args[1].get("copy") is False
+        mock_client.delete.assert_called_once_with("hashDone", delete_files=False)
+
+    @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
+    @patch("personalscraper.ingest.ingest.IngestTracker")
+    def test_force_copy_config_always_copies(
+        self,
+        mock_tracker_cls: MagicMock,
+        mock_transfer: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """``ingest.force_copy=True`` copies even a done, unobligated torrent."""
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        torrent = _make_torrent("DoneForceCopy", "hashFC")
+        source = tmp_path / "complete" / "DoneForceCopy"
+        source.mkdir(parents=True)
+        (source / "file.mkv").write_bytes(b"\x00" * 100)
+
+        mock_client = MagicMock()
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hashFC"}
+        mock_client.get_content_path.return_value = source
+        mock_client.is_seeding.return_value = False
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+
+        mock_tracker = MagicMock()
+        mock_tracker.is_ingested.return_value = False
+        mock_tracker_cls.return_value = mock_tracker
+
+        config = _make_config(tmp_path)
+        config.ingest.force_copy = True
+
+        report = run_ingest(settings, config=config, event_bus=EventBus(), torrent_client=mock_client)
+
+        assert report.success_count == 1
+        assert mock_transfer.call_args[1].get("copy") is True
+        mock_client.delete.assert_not_called()
 
     @patch("personalscraper.ingest.ingest._check_disk_space", return_value=False)
     @patch("personalscraper.ingest.ingest.IngestTracker")

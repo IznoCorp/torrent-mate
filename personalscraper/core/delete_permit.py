@@ -114,13 +114,50 @@ class SeedObligationRecorder(Protocol):
         ...
 
 
+@runtime_checkable
+class SeedObligationChecker(Protocol):
+    """Protocol for checking a live seed obligation by torrent info-hash.
+
+    Consulted by ingest BEFORE the copy-vs-move decision. Unlike
+    :class:`DeletePermit` (which matches on a library ``dispatched_path``), the
+    ingest source lives in the download dir keyed by info-hash, so the check is
+    by hash. Fail-SAFE for ingest: implementations return ``True`` when an
+    active obligation is positively known — ingest then COPIES (preserves the
+    seed) rather than moving (which would break a hit-and-run torrent). An
+    unknown/unreadable state returns ``False`` (no positive obligation), and
+    ingest falls back to its live seeding probe.
+    """
+
+    def has_active_obligation(self, info_hash: str) -> bool:
+        """Return ``True`` when *info_hash* has a live, unmet seed obligation.
+
+        Args:
+            info_hash: The torrent info-hash to check.
+
+        Returns:
+            ``True`` when a positively-known active obligation exists.
+        """
+        ...
+
+
 class AllowAllPermit:
     """Fail-open no-op DeletePermit — always returns ALLOW.
 
     Used as the default for tests, for dispatch/maintenance when no store
     is present, and as the fallback when the store is unreadable.
-    Also implements SeedObligationRecorder as a no-op.
+    Also implements SeedObligationRecorder and SeedObligationChecker as no-ops.
     """
+
+    def has_active_obligation(self, info_hash: str) -> bool:
+        """No-op checker — reports no obligation.
+
+        Args:
+            info_hash: Ignored.
+
+        Returns:
+            Always ``False`` (ingest then relies on its live seeding probe).
+        """
+        return False
 
     def may_delete(self, path: Path) -> PermitDecision:
         """Always permit the deletion.
@@ -159,6 +196,7 @@ __all__ = [
     "AllowAllPermit",
     "DeletePermit",
     "PermitDecision",
+    "SeedObligationChecker",
     "SeedObligationRecorder",
     "veto",
 ]
