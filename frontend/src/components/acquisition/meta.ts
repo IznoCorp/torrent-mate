@@ -212,6 +212,16 @@ export const RUN_RESULT_LABEL: Record<string, string> = {
   retried: "à retenter",
   abandoned: "abandonné(s)",
   skipped: "ignoré(s)",
+  // Pipeline-run fallback summary (derived from per-step native counts).
+  processed: "traité(s)",
+  errors: "erreur(s)",
+};
+
+/** French labels for the watcher deferral reasons (transient ingest skips). */
+export const DEFERRED_REASON_LABEL: Record<string, string> = {
+  ratio_below_threshold: "ratio de partage insuffisant",
+  content_missing: "contenu source introuvable",
+  insufficient_space: "espace disque insuffisant",
 };
 
 /**

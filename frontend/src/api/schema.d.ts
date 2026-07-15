@@ -1742,6 +1742,11 @@ export interface components {
          * @description Response for GET /api/acquisition/status.
          */
         AcquisitionStatusResponse: {
+            /**
+             * Deferred
+             * @default []
+             */
+            deferred: components["schemas"]["DeferredTorrent"][];
             /** Last Successful Run At */
             last_successful_run_at?: number | null;
             /**
@@ -2185,6 +2190,26 @@ export interface components {
             pending_count: number;
             /** Total */
             total: number;
+        };
+        /**
+         * DeferredTorrent
+         * @description A completed torrent the watcher currently defers (transient skip).
+         *
+         *     Ingest would re-skip it this cycle (ratio below threshold, source content
+         *     unavailable, staging disk full), so the watcher excludes it from the
+         *     pipeline trigger set — without this surface the state would be invisible
+         *     (§1: les automatismes restent visibles).
+         *
+         *     Attributes:
+         *         name: Torrent display name.
+         *         reason: Ingest skip reason (``ratio_below_threshold`` |
+         *             ``content_missing`` | ``insufficient_space``).
+         */
+        DeferredTorrent: {
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
         };
         /**
          * DiskInfo
