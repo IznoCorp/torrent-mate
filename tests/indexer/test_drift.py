@@ -389,7 +389,10 @@ def test_soft_delete_correctness(layout: object, n_scans: int) -> None:
     conn.close()
 
 
-@settings(max_examples=30)
+# deadline=None: each example does real tempfile I/O, whose latency depends on
+# disk load and coverage instrumentation — the 200 ms default deadline flakes
+# under `make check` (two consecutive DeadlineExceeded on 2026-07-15).
+@settings(max_examples=30, deadline=None)
 @given(content=st.binary(min_size=0, max_size=8192))
 def test_hash_determinism(content: bytes) -> None:
     """``oshash`` is deterministic: same file content → same hash.
