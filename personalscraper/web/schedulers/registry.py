@@ -6,29 +6,26 @@ deployed alongside the repo. So the web layer must NOT shell out to ``pm2`` nor
 read ``ecosystem.config.js`` at request time. Instead this module hard-codes a
 **static mirror** of the scheduled personalscraper crons: for each job, its
 display name, its human-readable cron schedule string, and — crucially — the
-``pipeline_run`` match rule (``kind`` + ``command``) used to look up its last run.
+``pipeline_run`` command-prefix match rule used to look up its last run.
 
-Ground truth (verified 2026-07-10 against the live ``library.db`` + the
-``cli_step_journal`` wiring):
+Ground truth (verified 2026-07-15 against the live ``library.db`` + the
+``cli_run_row`` wiring):
 
 - The **watcher** (``personalscraper-watch``) is a long-running daemon, not a
   cron — it is surfaced separately by the route (enabled = ¬``watcher.paused``
   sentinel; last run = ``acquire.db`` ``watch_state.last_successful_run_at``).
 - The three crons here (``follow detect``, ``grab``, ``library-index --mode
-  enrich``) currently write **no** ``pipeline_run`` row — only the pipeline STEP
-  commands wrap ``cli_step_journal`` (``ingest``/``sort``/…), and the full
-  ``run`` path writes its own row. So each cron's ``pipeline_run`` lookup returns
-  nothing today ⇒ the route surfaces it with ``last_run_at=None`` (fail-soft, the
-  designed behaviour). The match rule is nonetheless declared so that if a cron
-  ever gains a ``pipeline_run`` row (e.g. a future ``cli_step_journal`` wrap of
-  ``follow``/``grab``/``library-index``), the last-run surfaces automatically
-  with no route change.
+  enrich``) each write a ``pipeline_run`` row via ``cli_run_row`` with
+  ``kind='maintenance'`` and ``command`` set to ``'follow-detect'`` /
+  ``'grab'`` / ``'library-index'``. A cron that has never fired simply has no
+  row ⇒ the route surfaces ``last_run_at=None`` (fail-soft, the designed
+  behaviour).
 
-The match rule matches ``pipeline_run`` rows by ``kind`` (always ``'pipeline'``
-for these CLI jobs) plus a ``command`` **prefix** — the CLI-step journal stores
-``command`` as the bare step name (e.g. ``'ingest'``), and a future cron wrap
-would likewise store its command name; the prefix keeps the rule tolerant of a
-sub-command suffix (``follow`` matches a hypothetical ``follow-detect`` command).
+The match rule matches ``pipeline_run`` rows by ``command`` **prefix ALONE**
+(kind-agnostic — see ``_cron_last_run`` in ``web/routes/maintenance.py``): a
+cron's run is identified by what it ran, not by its ``kind``, and the
+acquisition CLIs record ``kind='maintenance'`` rows. The prefix keeps the rule
+tolerant of a sub-command suffix (``follow`` matches ``follow-detect``).
 """
 
 from __future__ import annotations
@@ -49,8 +46,8 @@ class CronJob:
         schedule: Human-readable schedule string mirroring the PM2
             ``cron_restart`` expression (e.g. ``"Tous les jours à 03:00"``).
         command_prefix: The ``pipeline_run.command`` prefix identifying this
-            job's rows. Combined with ``kind='pipeline'`` to look up the last
-            run. When no row matches (the current reality), the route surfaces
+            job's rows (matched kind-agnostic by ``_cron_last_run``). When no
+            row matches (a cron that has never fired), the route surfaces
             ``last_run_at=None``.
     """
 
