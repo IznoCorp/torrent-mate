@@ -199,6 +199,7 @@ as the work progresses:
 
 ### Security & Paths
 
+- **qBittorrent: NEVER enable "Bypass authentication for clients on localhost"** (nor any "trust localhost" / IP-whitelist variant). qBittorrent sits behind the reverse proxy, so Internet traffic reaches it seen as localhost — the bypass would expose the qBittorrent WebUI to the whole world, passwordless. Details: `docs/reference/qbittorrent-api.md` (Auth).
 - **Never include API keys** in documentation or brainstorming files — use `.env` references only.
 - Storage/staging paths may contain spaces (e.g. `/Volumes/<disk>/<staging-dir>/`) — always quote paths in shell commands.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`.
@@ -228,37 +229,37 @@ The user communicates in French or English. Code comments are in English only. R
 
 Load these docs on-demand based on your task — they are **not** auto-loaded:
 
-| When working on...                                                                                                  | Read                                            |
-| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| CLI commands, pipeline invocation, scheduling (launchd), make targets                                               | `docs/reference/commands.md`                    |
-| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details                                              | `docs/reference/storage.md`                     |
-| Directory layout, module map, shared utilities, dependencies                                                        | `docs/reference/architecture.md`                |
-| Movie/TV folder naming, episode patterns, filename sanitization                                                     | `docs/reference/naming.md`                      |
-| Unit tests, E2E, roundtrip, golden files, test markers, timeouts                                                    | `docs/reference/testing.md`                     |
-| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes                                                     | `docs/reference/scraping.md`                    |
-| rapidfuzz, tenacity, structlog, rich, guessit gotchas                                                               | `docs/reference/libraries.md`                   |
-| Circuit breaker, fast-skip, dispatch/verify internals, idempotence                                                  | `docs/reference/pipeline-internals.md`          |
-| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern                 | `docs/reference/event-bus.md`                   |
-| Logging conventions, event-name style, structlog vs CLI vs typer channels                                           | `docs/reference/logging.md`                     |
-| Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder) | `docs/reference/trailers.md`                    |
-| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                 | `docs/reference/indexer.md`                     |
-| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic model references and examples                | `docs/reference/indexer-json-shapes.md`         |
-| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols (provider-ids feature)                   | `docs/reference/external-ids-flow.md`           |
-| API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)              | `docs/reference/architecture.md` (api/)         |
-| TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                             | `docs/reference/<provider>-api.md`              |
-| qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                         | `docs/reference/<provider>-api.md`              |
-| LaCale / C411 trackers (search, ranking, samples, freeleech, passkey)                                               | `docs/reference/<tracker>-api.md`               |
-| Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                       | `docs/reference/<provider>-api.md`              |
-| Provider naming conventions — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry)          | `docs/archive/features/registry/DESIGN.md` §5.3 |
-| Insights layer — analytics, reporting, recommendations over the indexer DB                                          | `docs/reference/insights.md`                    |
-| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner (S3 maint-dash)         | `docs/reference/maintenance.md`                 |
-| ffprobe stream extraction, codec/language → Kodi NFO mapping                                                        | `docs/reference/ffprobe-api.md`                 |
-| Config split layout, JSON5 overlay composition, per-file key ownership                                              | `docs/reference/config-overlay-layout.md`       |
-| Feature lifecycle — ACCEPTANCE format, phase-gate vs deployment, deferred-criterion protocol                        | `docs/reference/feature-lifecycle.md`           |
-| Module-size budget tracking, BLOCK-threshold promise status                                                         | `docs/reference/promises.md`                    |
-| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                   | `docs/reference/runbook-post-merge.md`          |
-| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions      | `docs/reference/web-ui.md`                      |
-| **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§5 + §méthode**                   | `docs/reference/product-intent.md`              |
+| When working on...                                                                                                    | Read                                            |
+| --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| CLI commands, pipeline invocation, scheduling (launchd), make targets                                                 | `docs/reference/commands.md`                    |
+| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details                                                | `docs/reference/storage.md`                     |
+| Directory layout, module map, shared utilities, dependencies                                                          | `docs/reference/architecture.md`                |
+| Movie/TV folder naming, episode patterns, filename sanitization                                                       | `docs/reference/naming.md`                      |
+| Unit tests, E2E, roundtrip, golden files, test markers, timeouts                                                      | `docs/reference/testing.md`                     |
+| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes                                                       | `docs/reference/scraping.md`                    |
+| rapidfuzz, tenacity, structlog, rich, guessit gotchas                                                                 | `docs/reference/libraries.md`                   |
+| Circuit breaker, fast-skip, dispatch/verify internals, idempotence                                                    | `docs/reference/pipeline-internals.md`          |
+| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern                   | `docs/reference/event-bus.md`                   |
+| Logging conventions, event-name style, structlog vs CLI vs typer channels                                             | `docs/reference/logging.md`                     |
+| Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder)   | `docs/reference/trailers.md`                    |
+| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                   | `docs/reference/indexer.md`                     |
+| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic model references and examples                  | `docs/reference/indexer-json-shapes.md`         |
+| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols (provider-ids feature)                     | `docs/reference/external-ids-flow.md`           |
+| API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)                | `docs/reference/architecture.md` (api/)         |
+| TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                               | `docs/reference/<provider>-api.md`              |
+| qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                           | `docs/reference/<provider>-api.md`              |
+| LaCale / C411 trackers (search, ranking, samples, freeleech, passkey)                                                 | `docs/reference/<tracker>-api.md`               |
+| Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                         | `docs/reference/<provider>-api.md`              |
+| Provider naming conventions — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry)            | `docs/archive/features/registry/DESIGN.md` §5.3 |
+| Insights layer — analytics, reporting, recommendations over the indexer DB                                            | `docs/reference/insights.md`                    |
+| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner (S3 maint-dash)           | `docs/reference/maintenance.md`                 |
+| ffprobe stream extraction, codec/language → Kodi NFO mapping                                                          | `docs/reference/ffprobe-api.md`                 |
+| Config split layout, JSON5 overlay composition, per-file key ownership                                                | `docs/reference/config-overlay-layout.md`       |
+| Feature lifecycle — ACCEPTANCE format, phase-gate vs deployment, deferred-criterion protocol                          | `docs/reference/feature-lifecycle.md`           |
+| Module-size budget tracking, BLOCK-threshold promise status                                                           | `docs/reference/promises.md`                    |
+| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                     | `docs/reference/runbook-post-merge.md`          |
+| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions        | `docs/reference/web-ui.md`                      |
+| **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§10 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md`              |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 

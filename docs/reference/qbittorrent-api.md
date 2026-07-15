@@ -48,6 +48,13 @@ Convention: `GET` for reads, `POST` for mutations. Since v4.4.4, wrong method �
 
 ## Auth (`/api/v2/auth/`)
 
+> **⛔ SECURITY — OPERATOR RULE, NO EXCEPTIONS**: NEVER enable
+> **"Bypass authentication for clients on localhost"** (nor any "trust localhost" /
+> IP-subnet-whitelist variant) on this host. qBittorrent sits behind a reverse proxy:
+> **every request coming from the Internet reaches it looking like localhost** —
+> enabling the bypass is equivalent to exposing the qBittorrent WebUI to the whole
+> world, passwordless. Also graved in `CLAUDE.md` (Security & Paths).
+
 ### Login
 
 `POST /api/v2/auth/login`
