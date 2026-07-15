@@ -260,6 +260,13 @@ export function FollowedPanel({
   );
 
   // ── Empty ──────────────────────────────────────────────────────────────
+  // Operator review (2026-07-15): a retired follow (« Retirer » → active=0)
+  // must LEAVE the card grid — rendering it identically made the button look
+  // broken. Retired follows collapse into a compact list below, from which
+  // they can be reactivated.
+  const activeItems = data.filter((item) => item.active);
+  const inactiveItems = data.filter((item) => !item.active);
+
   if (data.length === 0) {
     return (
       <div className="space-y-4">
@@ -290,7 +297,7 @@ export function FollowedPanel({
 
       {/* Card grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {data.map((item) => {
+        {activeItems.map((item) => {
           const interval = cadenceInterval(item.cadence);
           const seasons = item.season_count ?? 0;
           const isMovie = item.kind === "movie";
@@ -465,6 +472,40 @@ export function FollowedPanel({
           );
         })}
       </div>
+
+      {/* Retired follows — compact, reactivatable (operator review 2026-07-15). */}
+      {inactiveItems.length > 0 && (
+        <details className="rounded-md border border-border p-3">
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
+            Suivis retirés ({inactiveItems.length})
+          </summary>
+          <ul className="mt-2 space-y-2">
+            {inactiveItems.map((item) => (
+              <li
+                key={`inactive-${String(item.id)}`}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <span className="min-w-0 break-words text-sm">
+                  {item.title}
+                  {item.year != null && (
+                    <span className="text-muted-foreground"> ({item.year})</span>
+                  )}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    handleToggleActive(item.id, true);
+                  }}
+                  disabled={updateMutation.isPending}
+                >
+                  Réactiver
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {/* Edit-cadence dialog */}
       <Dialog

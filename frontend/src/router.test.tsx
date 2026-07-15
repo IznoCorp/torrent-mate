@@ -155,9 +155,10 @@ describe("router", () => {
     expect(
       within(bottomBar).getByRole("link", { name: "Pipeline" }),
     ).toHaveAttribute("aria-current", "page");
-    // …inactive tabs do not.
+    // …inactive tabs do not (Tableau de bord leads the bar since the
+    // 2026-07-15 operator review; Maintenance left it).
     expect(
-      within(bottomBar).getByRole("link", { name: "Maintenance" }),
+      within(bottomBar).getByRole("link", { name: "Tableau de bord" }),
     ).not.toHaveAttribute("aria-current");
   });
 

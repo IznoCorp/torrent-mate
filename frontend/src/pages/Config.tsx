@@ -11,7 +11,13 @@
  * - 422 → validation errors mapped to form fields via {@link flattenLocToPath}.
  */
 
-import { useCallback, useMemo, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
 import { toast } from "sonner";
 
 import {
@@ -433,6 +439,13 @@ export default function Config(): ReactElement {
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
         <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
         <p className="text-sm text-muted-foreground">Chargement…</p>
+        <StalledLoadRetry
+          onRetry={() => {
+            void schemaQ.refetch();
+            void filesQ.refetch();
+            void statusQ.refetch();
+          }}
+        />
       </section>
     );
   }
@@ -685,4 +698,48 @@ export default function Config(): ReactElement {
 /** Narrow ``unknown`` to ``Record<string, unknown>``. */
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Props for {@link StalledLoadRetry}. */
+interface StalledLoadRetryProps {
+  /** Refetch every stalled query. */
+  readonly onRetry: () => void;
+}
+
+/**
+ * StalledLoadRetry — an exit from an eternal « Chargement… ».
+ *
+ * On mobile/PWA a flaky network at mount can leave the initial queries
+ * pending forever (paused networkMode), stranding the page on the loading
+ * text with no recourse (operator report 2026-07-15). After a short grace
+ * period this surfaces an explicit retry button that refetches the stalled
+ * queries.
+ *
+ * Args:
+ *   props: {@link StalledLoadRetryProps}.
+ *
+ * Returns:
+ *   The retry affordance, or null during the grace period.
+ */
+function StalledLoadRetry({ onRetry }: StalledLoadRetryProps): ReactElement | null {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setStalled(true);
+    }, 8_000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+  if (!stalled) return null;
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <p className="text-sm text-muted-foreground">
+        Le chargement prend plus de temps que prévu.
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        Recharger
+      </Button>
+    </div>
+  );
 }

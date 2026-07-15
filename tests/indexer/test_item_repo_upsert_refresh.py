@@ -8,6 +8,7 @@ stale status.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -73,3 +74,64 @@ def test_none_artwork_preserves_stored_value(tmp_path: Path) -> None:
     stored = conn.execute("SELECT artwork_json, nfo_status FROM media_item WHERE id = ?", (item_id,)).fetchone()
     assert stored[0] == '{"poster": 1}'
     assert stored[1] == "valid"
+
+
+class TestExternalIdsRefresh:
+    """NFO id corrections must propagate to existing rows (2026-07-15).
+
+    Live incident: « New Girl (2011) » carried its TVDB id under type=tmdb;
+    after the operator-corrected NFO was rescanned, the media_item row STILL
+    held tmdb=248682 (Rabe Rudi) — the upsert UPDATE branch refreshed
+    artwork/nfo_status but never external_ids_json, so every wrong legacy id
+    was immortal (wrong posters downloaded on rescrape, ownership misses).
+    """
+
+    def test_nfo_id_correction_overwrites_family(self, tmp_path: Path) -> None:
+        """Re-upsert with a corrected tmdb id updates that family."""
+        conn = _conn(tmp_path)
+        first = _row(external_ids_json='{"tmdb": {"series_id": "248682", "episode_id": null}}')
+        item_id = item_repo.upsert(conn, first)
+
+        corrected = _row(external_ids_json='{"tmdb": {"series_id": "1420", "episode_id": null}}')
+        assert item_repo.upsert(conn, corrected) == item_id
+
+        stored = json.loads(
+            conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
+        )
+        assert stored["tmdb"]["series_id"] == "1420", "the corrected NFO id must win"
+
+    def test_merge_preserves_families_the_nfo_lacks(self, tmp_path: Path) -> None:
+        """A tmdb-only NFO must not erase the backfilled tvdb/imdb families."""
+        conn = _conn(tmp_path)
+        first = _row(
+            external_ids_json=(
+                '{"tmdb": {"series_id": "248682", "episode_id": null},'
+                ' "tvdb": {"series_id": "248682", "episode_id": null},'
+                ' "imdb": {"series_id": "tt1826940", "episode_id": null}}'
+            )
+        )
+        item_id = item_repo.upsert(conn, first)
+
+        corrected = _row(external_ids_json='{"tmdb": {"series_id": "1420", "episode_id": null}}')
+        item_repo.upsert(conn, corrected)
+
+        stored = json.loads(
+            conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
+        )
+        assert stored["tmdb"]["series_id"] == "1420"
+        assert stored["tvdb"]["series_id"] == "248682", "families absent from the NFO survive"
+        assert stored["imdb"]["series_id"] == "tt1826940"
+
+    def test_idless_caller_preserves_ids(self, tmp_path: Path) -> None:
+        """A caller without ids (dispatch path, '{}') never clobbers them."""
+        conn = _conn(tmp_path)
+        first = _row(external_ids_json='{"tmdb": {"series_id": "1420", "episode_id": null}}')
+        item_id = item_repo.upsert(conn, first)
+
+        idless = _row(external_ids_json="{}")
+        item_repo.upsert(conn, idless)
+
+        stored = json.loads(
+            conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
+        )
+        assert stored["tmdb"]["series_id"] == "1420"

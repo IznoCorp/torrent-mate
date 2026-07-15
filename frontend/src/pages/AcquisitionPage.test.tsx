@@ -342,14 +342,15 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    expect(screen.getByText("Koh-Lanta")).toBeInTheDocument();
-    // TVDB IDs rendered (distinct values).
+    // TVDB ID rendered for the active card.
     expect(screen.getByText("255968")).toBeInTheDocument();
-    expect(screen.getByText("12345")).toBeInTheDocument();
-    // Derived état badges: Top Chef (active + 3 pending) → "En attente";
-    // Koh-Lanta (inactive) → "Désactivé".
+    // Derived état badge: Top Chef (active + 3 pending) → "En attente".
     expect(screen.getByText("En attente")).toBeInTheDocument();
-    expect(screen.getByText("Désactivé")).toBeInTheDocument();
+    // The inactive follow leaves the grid (revue mobile 2026-07-15): it lives
+    // in the collapsed « Suivis retirés » section, reactivatable.
+    expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
+    expect(screen.getByText(/Koh-Lanta/)).toBeInTheDocument();
+    expect(screen.queryByText("12345")).not.toBeInTheDocument();
   });
 
   it("maps the backend-derived status verbatim without re-deriving it (C14)", () => {
@@ -424,7 +425,7 @@ describe("AcquisitionPage", () => {
     expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
   });
 
-  it("shows a per-series 'Rechercher maintenant' action, disabled for an inactive series", () => {
+  it("shows a per-series 'Rechercher maintenant' action for active series only", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -439,13 +440,13 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
+    // Inactive follows left the card grid (revue mobile 2026-07-15), so only
+    // the active card carries the per-series trigger — enabled.
     const triggers = screen.getAllByRole("button", {
       name: "Rechercher maintenant",
     });
-    expect(triggers).toHaveLength(2);
-    // Active series → enabled; inactive → disabled (can't grab a paused series).
+    expect(triggers).toHaveLength(1);
     expect(triggers[0]).not.toBeDisabled();
-    expect(triggers[1]).toBeDisabled();
   });
 
   it("toggles a followed series active/paused in place via updateFollow (C16)", () => {

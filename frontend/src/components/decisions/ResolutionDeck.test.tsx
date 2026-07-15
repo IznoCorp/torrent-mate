@@ -138,7 +138,7 @@ describe("ResolutionDeck", () => {
     renderDeck();
     // The extracted title appears in the header and on the candidate card.
     expect(screen.getAllByText("Inception").length).toBeGreaterThan(0);
-    expect(screen.getByText("Ambigu")).toBeInTheDocument();
+    expect(screen.getByText("Candidats ambigus")).toBeInTheDocument();
     expect(
       screen.getByText("Un voleur qui s'infiltre dans les rêves."),
     ).toBeInTheDocument();
@@ -265,5 +265,24 @@ describe("ResolutionDeck", () => {
     ).toBeInTheDocument();
     // The header shows the targeted decision's extracted title.
     expect(screen.getAllByText("Interstellar").length).toBeGreaterThan(0);
+  });
+});
+
+describe("ResolutionDeck — 409 pendant un run pipeline (Lucky, revue 2026-07-15)", () => {
+  it("explique le verrou pipeline en français au lieu du détail brut", async () => {
+    const { ApiError } = await import("@/api/client");
+    resolveMock.mockRejectedValueOnce(
+      new ApiError(409, "Pipeline lock held"),
+    );
+    setup({});
+    renderDeck();
+    fireEvent.click(screen.getByRole("button", { name: "Valider le choix" }));
+
+    const { toast } = await import("sonner");
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+        expect.stringContaining("Un pipeline est en cours"),
+      );
+    });
   });
 });
