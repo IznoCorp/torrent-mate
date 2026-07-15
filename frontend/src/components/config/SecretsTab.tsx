@@ -138,7 +138,7 @@ export function SecretsTab({
             </div>
 
             {entry.description && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs break-words text-muted-foreground">
                 {entry.description}
               </p>
             )}
