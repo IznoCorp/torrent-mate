@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
+from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
@@ -280,6 +281,8 @@ def _delete_dir(
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path} ({size} bytes)")
         log.info("library_clean_deleted_dir", label=label, path=str(path))
+        # §7 / Star City — append-only destruction trail (who/what/when/where).
+        record_destruction(db_path, op=OP_DELETE, path=path, actor="disk-clean", detail=f"Nettoyage disque — {label}")
         # Write-through: notify the indexer that this subtree was removed.
         _publish_deleted(path, label, db_path)
     except OSError as exc:
@@ -378,6 +381,8 @@ def _delete_file(
         result.deleted_count += 1
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path}")
+        # §7 / Star City — append-only destruction trail.
+        record_destruction(db_path, op=OP_DELETE, path=path, actor="disk-clean", detail=f"Nettoyage disque — {label}")
         # Write-through: notify the indexer that this file was removed.
         _publish_deleted(path, label, db_path)
     except OSError as exc:

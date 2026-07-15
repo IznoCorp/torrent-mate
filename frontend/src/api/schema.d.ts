@@ -1075,6 +1075,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/maintenance/destructive-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Destructive Log
+         * @description Return the recent append-only destructive-operation journal (§7).
+         *
+         *     The forensic trail whose absence turned the Star City incident into a
+         *     from-scratch reconstruction: every overwrite / deletion of library content
+         *     the app performs is recorded (who / what / when / where / why). Read-only
+         *     and fail-soft — a missing table or DB error yields an empty list.
+         *
+         *     Returns:
+         *         A :class:`DestructiveLogResponse` with recent ops, newest first.
+         */
+        get: operations["get_destructive_log_api_maintenance_destructive_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/maintenance/disks": {
         parameters: {
             query?: never;
@@ -2243,6 +2271,43 @@ export interface components {
             name: string;
             /** Reason */
             reason: string;
+        };
+        /**
+         * DestructiveLogResponse
+         * @description The recent destructive-operation journal (forensic trail, §7).
+         *
+         *     Attributes:
+         *         entries: Recent destructive ops, newest first.
+         */
+        DestructiveLogResponse: {
+            /** Entries */
+            entries: components["schemas"]["DestructiveOp"][];
+        };
+        /**
+         * DestructiveOp
+         * @description One append-only destructive-operation journal row (§7 / Star City).
+         *
+         *     Attributes:
+         *         ts: Unix-epoch timestamp of the operation.
+         *         op: The operation kind (``"overwrite"`` / ``"delete"``).
+         *         path: The absolute filesystem path that was destroyed.
+         *         actor: What performed it (``"dispatch"`` / ``"disk-clean"`` / …).
+         *         detail: Optional French context / decision string.
+         *         run_uid: Optional correlating ``pipeline_run`` uid.
+         */
+        DestructiveOp: {
+            /** Actor */
+            actor: string;
+            /** Detail */
+            detail?: string | null;
+            /** Op */
+            op: string;
+            /** Path */
+            path: string;
+            /** Run Uid */
+            run_uid?: string | null;
+            /** Ts */
+            ts: number;
         };
         /**
          * DiskInfo
@@ -5015,6 +5080,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_destructive_log_api_maintenance_destructive_log_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestructiveLogResponse"];
                 };
             };
         };
