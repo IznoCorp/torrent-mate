@@ -199,14 +199,20 @@ function RunOutput({
     outputTail !== "";
 
   // §6 visible queue — waiting is a STATE the operator sees, never a refusal.
-  // Live truth comes from the run's last 'queue' step; before the first poll
-  // lands, the 202's `queued` hint bridges the gap.
+  // The badge is STICKY on the 202 `queued` hint: the runner writes its
+  // ``queue`` step ~1 s after spawn, so the first run-detail poll can land
+  // before it exists (empty steps) — relying on the waiting step alone would
+  // wrongly drop « En file » in that window (observed live 2026-07-15). We
+  // therefore hold « En file » until the run POSITIVELY leaves the queue: a
+  // ``queue``/``done`` step, or a terminal outcome.
   const queueStep = lastQueueStep(data?.steps);
-  const waitingInQueue =
-    data === undefined
-      ? queued
-      : data.outcome === "running" &&
-        queueStep?.status === "waiting_pipeline_lock";
+  const waitingInQueue = isTerminalOutcome(data?.outcome)
+    ? false
+    : queueStep?.status === "done"
+      ? false
+      : queueStep?.status === "waiting_pipeline_lock"
+        ? true
+        : queued;
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-muted p-3">
