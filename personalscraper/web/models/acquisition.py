@@ -410,7 +410,7 @@ class CompletenessResponse(BaseModel):
 
 #: Live state of a grabbed torrent, normalised across clients (A4). ``in_client``
 #: is the fall-through when the raw client state is not one of the known buckets.
-DownloadState = Literal["downloading", "stalled", "seeding", "paused", "queued", "in_client", "missing"]
+DownloadState = Literal["downloading", "stalled", "seeding", "paused", "queued", "in_client", "missing", "errored"]
 
 
 class AcquisitionDownload(BaseModel):
@@ -427,8 +427,12 @@ class AcquisitionDownload(BaseModel):
         progress: Download progress 0.0–1.0 (0.0 when the client has no record).
         state: Normalised live state. ``missing`` = grabbed row whose hash the
             client no longer knows (removed / not yet visible) — surfaced
-            honestly rather than hidden.
+            honestly rather than hidden. ``errored`` = the client reports the
+            torrent as broken (see ``error_reason``).
         size_bytes: Total size from the client (0 when unknown).
+        error_reason: French explanation when ``state == "errored"`` (e.g.
+            "Fichiers manquants sur le disque"), else ``None``. Lets the panel
+            show WHY a torrent is stuck rather than a bare state (§8).
     """
 
     media_ref: MediaRefResponse
@@ -441,6 +445,7 @@ class AcquisitionDownload(BaseModel):
     progress: float = 0.0
     state: DownloadState
     size_bytes: int = 0
+    error_reason: str | None = None
 
 
 class AcquisitionDownloadsResponse(BaseModel):

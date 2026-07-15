@@ -41,9 +41,24 @@ def _wanted(
     )
 
 
-def _titem(info_hash: str, progress: float, state: str, *, name: str = "X.mkv", size: int = 100) -> TorrentItem:
+def _titem(
+    info_hash: str,
+    progress: float,
+    state: str,
+    *,
+    name: str = "X.mkv",
+    size: int = 100,
+    error_reason: str | None = None,
+) -> TorrentItem:
     """Build a client TorrentItem."""
-    return TorrentItem(hash=info_hash, name=name, size_bytes=size, progress=progress, state=state)
+    return TorrentItem(
+        hash=info_hash,
+        name=name,
+        size_bytes=size,
+        progress=progress,
+        state=state,
+        error_reason=error_reason,
+    )
 
 
 def _store(grabbed: list[WantedItem], follows: list[FollowedSeries]) -> MagicMock:
@@ -95,6 +110,48 @@ def test_missing_hash_surfaces_as_missing_state() -> None:
     assert resp.client_available is True
     assert resp.downloads[0].state == "missing"
     assert resp.downloads[0].progress == 0.0
+
+
+def test_errored_torrent_surfaces_state_and_reason() -> None:
+    """A client-reported error wins over the raw state bucket (§8).
+
+    Red-on-old: a torrent whose payload vanished (qBit ``missingFiles``) was
+    mapped by its raw state to a neutral ``in_client`` bucket with no reason;
+    now it reads ``errored`` and carries the French reason so the operator sees
+    what is not advancing AND why.
+    """
+    grabbed = [_wanted("ABCDEF")]
+    client = MagicMock()
+    client.get_by_hashes.return_value = [
+        _titem("abcdef", 1.0, "missingFiles", error_reason="Fichiers manquants sur le disque"),
+    ]
+    with (
+        patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
+    ):
+        resp = list_active_downloads(MagicMock())
+
+    d = resp.downloads[0]
+    assert d.state == "errored"
+    assert d.error_reason == "Fichiers manquants sur le disque"
+
+
+def test_errored_torrent_sorts_first() -> None:
+    """An errored torrent leads the list — it needs the operator now (§8)."""
+    grabbed = [_wanted("AAAA", season=1, episode=1), _wanted("BBBB", season=1, episode=2)]
+    client = MagicMock()
+    client.get_by_hashes.return_value = [
+        _titem("aaaa", 0.5, "downloading"),
+        _titem("bbbb", 1.0, "missingFiles", error_reason="Fichiers manquants sur le disque"),
+    ]
+    with (
+        patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
+    ):
+        resp = list_active_downloads(MagicMock())
+
+    assert resp.downloads[0].state == "errored"
+    assert resp.downloads[0].info_hash == "BBBB"
 
 
 def test_client_outage_is_fail_soft() -> None:

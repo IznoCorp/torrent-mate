@@ -1690,12 +1690,18 @@ export interface components {
          *         progress: Download progress 0.0–1.0 (0.0 when the client has no record).
          *         state: Normalised live state. ``missing`` = grabbed row whose hash the
          *             client no longer knows (removed / not yet visible) — surfaced
-         *             honestly rather than hidden.
+         *             honestly rather than hidden. ``errored`` = the client reports the
+         *             torrent as broken (see ``error_reason``).
          *         size_bytes: Total size from the client (0 when unknown).
+         *         error_reason: French explanation when ``state == "errored"`` (e.g.
+         *             "Fichiers manquants sur le disque"), else ``None``. Lets the panel
+         *             show WHY a torrent is stuck rather than a bare state (§8).
          */
         AcquisitionDownload: {
             /** Episode */
             episode?: number | null;
+            /** Error Reason */
+            error_reason?: string | null;
             /** Info Hash */
             info_hash: string;
             /** Kind */
@@ -1722,7 +1728,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "downloading" | "stalled" | "seeding" | "paused" | "queued" | "in_client" | "missing";
+            state: "downloading" | "stalled" | "seeding" | "paused" | "queued" | "in_client" | "missing" | "errored";
             /** Title */
             title: string;
         };

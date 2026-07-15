@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "AcquisitionDownload": {
-        "description": "One grabbed torrent surfaced in the acquisition downloads panel (A4).\n\nAttributes:\n    media_ref: Provider-ID key of the wanted item.\n    title: Followed-series/film display title (empty if the follow is gone).\n    kind: ``\"movie\"`` or ``\"episode\"``.\n    season: Season number (episodes only).\n    episode: Episode number (episodes only).\n    info_hash: The grabbed torrent's info hash.\n    name: Torrent display name from the client (empty when ``missing``).\n    progress: Download progress 0.0\u20131.0 (0.0 when the client has no record).\n    state: Normalised live state. ``missing`` = grabbed row whose hash the\n        client no longer knows (removed / not yet visible) \u2014 surfaced\n        honestly rather than hidden.\n    size_bytes: Total size from the client (0 when unknown).",
+        "description": "One grabbed torrent surfaced in the acquisition downloads panel (A4).\n\nAttributes:\n    media_ref: Provider-ID key of the wanted item.\n    title: Followed-series/film display title (empty if the follow is gone).\n    kind: ``\"movie\"`` or ``\"episode\"``.\n    season: Season number (episodes only).\n    episode: Episode number (episodes only).\n    info_hash: The grabbed torrent's info hash.\n    name: Torrent display name from the client (empty when ``missing``).\n    progress: Download progress 0.0\u20131.0 (0.0 when the client has no record).\n    state: Normalised live state. ``missing`` = grabbed row whose hash the\n        client no longer knows (removed / not yet visible) \u2014 surfaced\n        honestly rather than hidden. ``errored`` = the client reports the\n        torrent as broken (see ``error_reason``).\n    size_bytes: Total size from the client (0 when unknown).\n    error_reason: French explanation when ``state == \"errored\"`` (e.g.\n        \"Fichiers manquants sur le disque\"), else ``None``. Lets the panel\n        show WHY a torrent is stuck rather than a bare state (\u00a78).",
         "properties": {
           "episode": {
             "anyOf": [
@@ -14,6 +14,17 @@
               }
             ],
             "title": "Episode"
+          },
+          "error_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Reason"
           },
           "info_hash": {
             "title": "Info Hash",
@@ -60,7 +71,8 @@
               "paused",
               "queued",
               "in_client",
-              "missing"
+              "missing",
+              "errored"
             ],
             "title": "State",
             "type": "string"
