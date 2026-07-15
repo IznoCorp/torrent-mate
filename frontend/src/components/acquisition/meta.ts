@@ -215,6 +215,10 @@ export const RUN_RESULT_LABEL: Record<string, string> = {
   // Pipeline-run fallback summary (derived from per-step native counts).
   processed: "traité(s)",
   errors: "erreur(s)",
+  // Reconcile counters (detect runs) — surfaced raw in prod on 2026-07-15.
+  closed_owned: "clôturé(s) (en médiathèque)",
+  resurrected: "réouvert(s)",
+  requeued_missing: "remis en recherche",
 };
 
 /** French labels for the watcher deferral reasons (transient ingest skips). */
