@@ -5,6 +5,24 @@ All notable changes to personalscraper are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **⚠️ FROZEN at 0.19.0 — read this first.**
+>
+> This file stopped being maintained after `0.19.0` (2026-06-01) while the code
+> moved on to `0.49.x`. Rather than back-fill 30 minor versions from memory —
+> **a false changelog is worse than an absent one** (constitution §méthode) —
+> the authoritative history for `0.20.0` → the current version lives in:
+>
+> - the **git log** (`git log --oneline`), and
+> - the **squash-merged pull requests** on GitHub, each carrying its
+>   « déroulé de preuve daté » (constitution §10).
+>
+> Every PR bumps the version (§10-3, enforced by the CI `version-bump` job),
+> so `git tag` / `personalscraper.__version__` + the PR that bumped it is the
+> per-version record. This file **resumes at `1.0.0`** (the first production
+> release), when the SemVer contract and a maintained changelog both begin.
+>
+> The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
+
 ## [0.19.0] — 2026-06-01
 
 ### Changed
