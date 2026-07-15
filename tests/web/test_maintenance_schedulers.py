@@ -196,6 +196,32 @@ class TestSchedulersRoute:
         assert watcher["kind"] == "watcher"
         assert watcher["enabled"] is False  # sentinel present
         assert watcher["last_run_at"] == last_run
+        # ``last_successful_run_at`` is only written by a SUCCESSFUL run, so the
+        # outcome pill must read success — never « Jamais exécuté » next to a
+        # real timestamp (operator-caught contradiction, e2e loop 1).
+        assert watcher["last_outcome"] == "success"
+
+    def test_schedulers_watcher_without_any_run_has_no_outcome(self, test_config, tmp_path: Path) -> None:
+        """200 — no watch_state row → last_run_at AND last_outcome both null."""
+        data_dir = tmp_path / ".data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        conn.executescript(_WATCH_STATE_DDL)
+        conn.commit()
+        conn.close()
+
+        client = _authenticated_client(
+            test_config,
+            tmp_path,
+            acquire=test_config.acquire.model_copy(update={"db_path": acquire_path}),
+            indexer=test_config.indexer.model_copy(update={"db_path": tmp_path / "library.db"}),
+        )
+
+        watcher = client.get("/api/maintenance/schedulers").json()["schedulers"][0]
+        assert watcher["last_run_at"] is None
+        assert watcher["last_outcome"] is None
 
     def test_schedulers_cron_last_run_from_pipeline_run(self, test_config, tmp_path: Path) -> None:
         """200 — a matching ``pipeline_run`` row surfaces a cron's last-run + outcome.

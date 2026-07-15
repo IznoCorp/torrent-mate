@@ -313,9 +313,16 @@ def library_rescrape(
         mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"
         console.print(f"[bold]Rescraping library ({mode})...[/bold]")
 
-        from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+        from contextlib import nullcontext  # noqa: PLC0415
 
-        with per_step_boundary(config, settings) as app_context:
+        from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+        from personalscraper.commands._cli_run_row import cli_run_row  # noqa: PLC0415
+
+        # §1/§2 — the repair run is OBSERVABLE: a pipeline_run row (kind
+        # maintenance) carries its numeric result, incl. how many items got
+        # their artwork back (« Posters récupérés »). Dry-runs stay silent.
+        run_row_cm = cli_run_row(config, "library-rescrape") if not dry_run else nullcontext(None)
+        with run_row_cm as run_rec, per_step_boundary(config, settings) as app_context:
             # Open the indexer DB connection when item_id is provided so that
             # _collect_rescrape_candidates can look up the item by id.  The
             # connection is closed in the finally block below to avoid leaks.
@@ -377,6 +384,17 @@ def library_rescrape(
             if item_id is not None and result.candidate_count == 0:
                 console.print(f"[yellow]Warning:[/yellow] item {item_id} not found / not on disk — nothing re-scraped.")
                 raise typer.Exit(1)
+
+            if run_rec is not None:
+                artwork_recovered = sum(1 for action in result.items if "artwork_downloaded" in action.actions_taken)
+                run_rec.record_counts(
+                    {
+                        "fixed": result.fixed_count,
+                        "skipped": result.skipped_count,
+                        "errors": result.error_count,
+                        "artwork_recovered": artwork_recovered,
+                    }
+                )
 
         output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)

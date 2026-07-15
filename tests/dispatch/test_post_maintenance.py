@@ -384,3 +384,38 @@ def test_invalidation_handles_nfd_stored_paths(tmp_path, test_config) -> None:
     conn = _sqlite3.connect(str(db_path))
     assert conn.execute("SELECT dir_mtime_ns IS NULL FROM path WHERE rel_path = ?", (nfd_rel,)).fetchone()[0] == 1
     conn.close()
+
+
+def test_run_repair_drain_processes_pending_rows(tmp_path, test_config) -> None:
+    """Post-dispatch drains the repair queue (it had NO automatic drainer).
+
+    Red-on-old: repairs enqueued by the scanner (content_drift re-hashes)
+    accumulated forever because only the manual ``library-repair`` CLI drained
+    them and no cron ran it (prod: 25 rows pending for 6+ days).
+    """
+    import sqlite3 as _sqlite3
+    from pathlib import Path as _Path
+
+    from personalscraper.dispatch.post_maintenance import _run_repair_drain
+    from personalscraper.indexer import migrations as _migrations_pkg
+    from personalscraper.indexer.db import apply_migrations as _apply
+
+    db_path = tmp_path / "library.db"
+    conn = _sqlite3.connect(str(db_path))
+    _apply(conn, _Path(_migrations_pkg.__file__).parent)
+    # An unknown (scope, reason) row: the default processor no-ops it but the
+    # drain must still mark it done (graceful-degradation contract).
+    conn.execute(
+        "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+        "VALUES ('item', 1, 'test_reason', 1750000000, 'pending')"
+    )
+    conn.commit()
+    conn.close()
+
+    cfg = test_config.model_copy(update={"indexer": test_config.indexer.model_copy(update={"db_path": db_path})})
+    processed = _run_repair_drain(cfg, budget_seconds=10.0)
+    assert processed == 1
+
+    conn = _sqlite3.connect(str(db_path))
+    assert conn.execute("SELECT COUNT(*) FROM repair_queue WHERE status = 'pending'").fetchone()[0] == 0
+    conn.close()

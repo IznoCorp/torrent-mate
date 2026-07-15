@@ -314,6 +314,44 @@ def _run_fix_season_counts(config: Config) -> int:
     return fixed
 
 
+def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0) -> int:
+    """Drain the ``repair_queue`` within a small wall-clock budget.
+
+    The queue's only historical drainer was the manual ``library-repair``
+    CLI, which no cron ever ran — repairs (e.g. ``content_drift`` re-hashes
+    enqueued by the scanner) accumulated forever (prod: 25 rows pending for
+    6+ days). Post-dispatch is the natural home: the scan that just ran is
+    exactly what enqueues them.
+
+    Args:
+        config: Validated application Config.
+        budget_seconds: Maximum wall-clock seconds to spend draining.
+
+    Returns:
+        Number of rows processed (0 on any failure — fail-soft).
+    """
+    from personalscraper.indexer.db import _apply_pragmas
+    from personalscraper.indexer.repair import drain, repair_processor
+
+    db_path = config.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
+
+    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    _apply_pragmas(conn)
+    try:
+        stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)
+        _log.info(
+            "post_maintenance_repair_drain_done",
+            processed=stats.processed,
+            succeeded=stats.succeeded,
+            failed=stats.failed,
+            budget_exhausted=stats.budget_exhausted,
+        )
+        return stats.processed
+    finally:
+        conn.close()
+
+
 def run_post_dispatch_maintenance(
     config: Config,
     touched_disks: set[str],
@@ -388,6 +426,13 @@ def run_post_dispatch_maintenance(
         fixed_seasons = 0
         fix_failed = True
         _log.warning("post_maintenance_fix_season_counts_exception", error=str(exc))
+
+    # Repair-queue drain — the scans above are what enqueue content repairs;
+    # drain them here so the queue never silently accumulates (fail-soft).
+    try:
+        _run_repair_drain(config)
+    except Exception as exc:  # noqa: BLE001 — a drain failure must not fail dispatch
+        _log.warning("post_maintenance_repair_drain_exception", error=str(exc))
 
     # Print manual fallback if anything failed.
     # DESIGN Decision #2: surface manual fallback on ANY maintenance error,

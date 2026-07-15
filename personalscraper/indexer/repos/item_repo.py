@@ -441,20 +441,45 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
                     candidates=siblings,
                     merged_into=existing.id,
                 )
+        # ``artwork_json`` / ``nfo_status`` refresh on every re-scan (COALESCE:
+        # a caller that does not compute them — e.g. the dispatch media-index
+        # path — passes None and PRESERVES the stored value). They used to be
+        # written at INSERT only, so an item whose artwork changed after its
+        # first indexing kept a stale artwork_json forever (prod: 28 items
+        # reported poster-less while their posters sat on disk).
         if existing.year is None and row.year is not None:
             # Heal a year-less survivor by backfilling the first explicit year
             # seen, so a later *different*-year remake splits into its own row
             # instead of being absorbed by the NULL-year "merge magnet".
             conn.execute(
                 "UPDATE media_item SET category_id = ?, date_modified = ?, year = ?,"
+                " artwork_json = COALESCE(?, artwork_json),"
+                " nfo_status = COALESCE(?, nfo_status),"
                 " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
-                (row.category_id, row.date_modified, row.year, row.date_metadata_refreshed, existing.id),
+                (
+                    row.category_id,
+                    row.date_modified,
+                    row.year,
+                    row.artwork_json,
+                    row.nfo_status,
+                    row.date_metadata_refreshed,
+                    existing.id,
+                ),
             )
         else:
             conn.execute(
                 "UPDATE media_item SET category_id = ?, date_modified = ?,"
+                " artwork_json = COALESCE(?, artwork_json),"
+                " nfo_status = COALESCE(?, nfo_status),"
                 " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
-                (row.category_id, row.date_modified, row.date_metadata_refreshed, existing.id),
+                (
+                    row.category_id,
+                    row.date_modified,
+                    row.artwork_json,
+                    row.nfo_status,
+                    row.date_metadata_refreshed,
+                    existing.id,
+                ),
             )
         log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
         return existing.id
