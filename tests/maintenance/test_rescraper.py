@@ -1795,3 +1795,70 @@ class TestRescrapeLibraryItemIdThreading:
         _call_kwargs = mock_collect.call_args
         # item_id must have been forwarded — check keyword or positional
         assert _call_kwargs.kwargs.get("item_id") == 42 or (len(_call_kwargs.args) >= 5 and _call_kwargs.args[4] == 42)
+
+
+class TestArtworkTruthfulness:
+    """`artwork_downloaded` must reflect files actually written (2026-07-15).
+
+    Live incident: a legacy NFO carried a wrong tmdb id (New Girl → Rabe Rudi,
+    a show with zero artwork on TMDB). The downloader returned an empty list,
+    yet the rescraper still recorded ``artwork_downloaded`` and the report
+    claimed ``Fixed: 1`` — a silent false success that poisons the §2
+    « Posters récupérés » maintenance counter.
+    """
+
+    def _run_live(self, tmp_path: Path, downloaded: list[Path]):
+        """Run a live (non-dry) needs-artwork rescrape with a stubbed downloader."""
+        from personalscraper.maintenance.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">123</uniqueid></movie>')
+        # Valid NFO, no poster → needs_artwork only.
+
+        mock_artwork = MagicMock()
+        mock_artwork.download_movie_artwork.return_value = downloaded
+
+        with patch(
+            "personalscraper.scraper._movie_convert._coerce_to_movie_data",
+            return_value={"title": "Movie"},
+        ):
+            return _rescrape_item(
+                media_dir=movie,
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                title="Movie",
+                year=2024,
+                registry=_mock_registry(tmdb=MagicMock(), tvdb=MagicMock()),
+                nfo_gen=MagicMock(),
+                artwork_dl=mock_artwork,
+                patterns=NamingPatterns(),
+                only="artwork",
+                interactive=False,
+                dry_run=False,
+            )
+
+    def test_empty_download_is_not_a_success(self, tmp_path: Path) -> None:
+        """Downloader wrote nothing → no artwork_downloaded action, an error instead."""
+        from personalscraper.maintenance.rescraper import ACTION_ARTWORK_DOWNLOADED
+
+        result = self._run_live(tmp_path, downloaded=[])
+
+        assert result is not None
+        assert ACTION_ARTWORK_DOWNLOADED not in result.actions_taken, (
+            "an empty download must not be reported as artwork_downloaded"
+        )
+        assert result.errors, "the report must surface WHY no artwork landed"
+
+    def test_real_download_still_counts(self, tmp_path: Path) -> None:
+        """Downloader wrote a poster → artwork_downloaded recorded, no error."""
+        from personalscraper.maintenance.rescraper import ACTION_ARTWORK_DOWNLOADED
+
+        result = self._run_live(tmp_path, downloaded=[tmp_path / "Movie (2024)" / "Movie-poster.jpg"])
+
+        assert result is not None
+        assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
+        assert result.errors == []

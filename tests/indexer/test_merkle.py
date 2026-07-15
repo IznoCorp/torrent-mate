@@ -27,6 +27,7 @@ from personalscraper.indexer.merkle import (
     FileFingerprint,
     _resolve_volume_root,
     bootstrap_disk_identity,
+    compute_merkle_delta,
     compute_merkle_root,
     guard_disk_mounted,
     verify_disk_mounted,
@@ -442,3 +443,62 @@ class TestGuardDiskMounted:
             with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
                 with pytest.raises(DiskMismatchError):
                     guard_disk_mounted(disk)
+
+
+# ---------------------------------------------------------------------------
+# compute_merkle_delta — multi-file directories (shared path_id)
+# ---------------------------------------------------------------------------
+
+
+class TestComputeMerkleDelta:
+    """Tests for :func:`compute_merkle_delta`.
+
+    ``path_id`` refers to a *directory*, so a directory with N files yields N
+    fingerprints sharing the same ``path_id`` (DEV #11). The delta lookup must
+    therefore key on ``(path_id, oshash)`` — keying on ``path_id`` alone keeps
+    only one fingerprint per directory and counts every sibling file as
+    changed, which froze quick scans of real TV libraries at 82–86% delta
+    (2026-07-15 prod incident).
+    """
+
+    def test_multi_file_directory_unchanged_is_zero(self) -> None:
+        """N unchanged files sharing one path_id → delta 0.0 (prod regression)."""
+        season_dir = [
+            FileFingerprint(path_id=711, size=100, mtime_ns=1_000, oshash="aaaa000000000001"),
+            FileFingerprint(path_id=711, size=200, mtime_ns=2_000, oshash="aaaa000000000002"),
+            FileFingerprint(path_id=711, size=300, mtime_ns=3_000, oshash="aaaa000000000003"),
+        ]
+        assert compute_merkle_delta(season_dir, list(season_dir)) == 0.0, (
+            "unchanged sibling files must not count as changed"
+        )
+
+    def test_multi_file_directory_one_changed_detected(self) -> None:
+        """One sibling's mtime changed → exactly that file counts (1/3)."""
+        stored = [
+            FileFingerprint(path_id=711, size=100, mtime_ns=1_000, oshash="aaaa000000000001"),
+            FileFingerprint(path_id=711, size=200, mtime_ns=2_000, oshash="aaaa000000000002"),
+            FileFingerprint(path_id=711, size=300, mtime_ns=3_000, oshash="aaaa000000000003"),
+        ]
+        fresh = [
+            stored[0],
+            FileFingerprint(path_id=711, size=200, mtime_ns=9_999, oshash="aaaa000000000002"),
+            stored[2],
+        ]
+        assert compute_merkle_delta(stored, fresh) == pytest.approx(1 / 3)
+
+    def test_unknown_fingerprint_counts_as_changed(self) -> None:
+        """A fresh (path_id, oshash) pair absent from stored counts as changed."""
+        stored = [
+            FileFingerprint(path_id=1, size=100, mtime_ns=1_000, oshash="aaaa000000000001"),
+        ]
+        fresh = [
+            FileFingerprint(path_id=2, size=100, mtime_ns=1_000, oshash="bbbb000000000001"),
+        ]
+        assert compute_merkle_delta(stored, fresh) == 1.0
+
+    def test_empty_fresh_returns_zero(self) -> None:
+        """Empty fresh sample → 0.0 (guard stays conservative)."""
+        stored = [
+            FileFingerprint(path_id=1, size=100, mtime_ns=1_000, oshash="aaaa000000000001"),
+        ]
+        assert compute_merkle_delta(stored, []) == 0.0

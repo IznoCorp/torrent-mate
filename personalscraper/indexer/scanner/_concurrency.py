@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from personalscraper.indexer.db import _apply_pragmas
+from personalscraper.indexer.merkle import DiskBulkChangeDetected
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
@@ -111,6 +112,11 @@ def _run_disks_in_parallel(
     After all futures complete, per-worker counters are merged into the shared
     counter lists under a lock.
 
+    Exception: :class:`DiskBulkChangeDetected` is re-raised TYPED (first
+    occurrence, after all sibling workers finish and their counters merge) so
+    the caller's freeze handling — actionable CLI message + exit code 3 —
+    engages in parallel mode exactly as in sequential mode.
+
     Args:
         worker_factories: One factory per disk.  Each factory is called with
             four single-element mutable lists (local counters) and returns a
@@ -128,9 +134,18 @@ def _run_disks_in_parallel(
     Returns:
         List of error strings for any workers that raised an exception.  Empty
         list means all workers completed successfully.
+
+    Raises:
+        DiskBulkChangeDetected: When any worker's disk tripped the bulk-change
+            freeze guard (re-raised after all workers complete).
     """
     merge_lock = threading.Lock()
     errors: list[str] = []
+    # First bulk-change freeze seen across workers.  Kept typed so the caller's
+    # DiskBulkChangeDetected handling (actionable CLI message + exit code 3)
+    # engages in parallel mode exactly as in sequential mode — stringifying it
+    # into *errors* would surface as an opaque RuntimeError traceback instead.
+    bulk_change_exc: DiskBulkChangeDetected | None = None
 
     def _build_and_run(factory: DiskWorkerFactory) -> _DiskWorkerResult:
         """Instantiate per-worker counters, open a connection, run the worker."""
@@ -165,6 +180,19 @@ def _run_disks_in_parallel(
             exc = future.exception()
 
             if exc is not None:
+                if isinstance(exc, DiskBulkChangeDetected):
+                    # Freeze guard tripped — remember the first occurrence and
+                    # re-raise it AFTER all sibling workers finish (their
+                    # counters still merge below).
+                    if bulk_change_exc is None:
+                        bulk_change_exc = exc
+                    log.warning(
+                        "indexer.scan.disk_worker_frozen",
+                        worker_index=idx,
+                        disk_uuid=exc.disk_uuid,
+                        delta=exc.delta,
+                    )
+                    continue
                 err_msg = f"disk worker {idx} failed: {exc}"
                 errors.append(err_msg)
                 log.warning(
@@ -183,6 +211,9 @@ def _run_disks_in_parallel(
                 shared_disks_skipped[0] += result.disks_skipped
                 if result.budget_exhausted:
                     shared_budget_exhausted[0] = True
+
+    if bulk_change_exc is not None:
+        raise bulk_change_exc
 
     return errors
 
