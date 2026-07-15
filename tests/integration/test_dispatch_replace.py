@@ -173,3 +173,66 @@ def test_dispatch_replaces_existing_movie(
     assert entry is not None, (
         f"MediaIndex should have an entry for '{folder}' after replace. Total entries in index: {post_index.count}"
     )
+
+
+def test_dispatch_blocks_replace_on_provider_id_mismatch(
+    staging_tree: Path,
+    fake_disks: list[Path],
+    integration_config: Config,
+    rsync_available: None,
+) -> None:
+    """§7: a REPLACE whose on-disk target is a DIFFERENT media (by ID) is blocked.
+
+    Red-on-old: dispatch resolved the target by NAME and overwrote it with no
+    identity check — a same-named different film would be destroyed. Here the
+    existing on-disk "Ferrari (2023)" carries TMDB 111 while the staging
+    "Ferrari (2023)" carries TMDB 54321 (from ``_build_verified_movie_dir``).
+    The old content must SURVIVE and the item must be reported skipped.
+    """
+    config = integration_config
+    title = "Ferrari"
+    year = 2023
+    folder = f"{title} ({year})"
+    movies_folder_name = config.category(CID.MOVIES).folder_name
+
+    disk1_root = fake_disks[0]
+    existing_movie_dir = disk1_root / movies_folder_name / folder
+    existing_movie_dir.mkdir(parents=True, exist_ok=True)
+
+    # The existing on-disk copy is a DIFFERENT Ferrari — its NFO carries a
+    # different TMDB id, and a sentinel file proves it survives.
+    sentinel = existing_movie_dir / "the_other_ferrari.mkv"
+    sentinel.write_bytes(b"x" * 5)
+    other_root = ET.Element("movie")
+    ET.SubElement(other_root, "title").text = title
+    ET.SubElement(other_root, "year").text = str(year)
+    other_uid = ET.SubElement(other_root, "uniqueid")
+    other_uid.set("type", "tmdb")
+    other_uid.text = "111"  # ≠ staging's 54321
+    ET.ElementTree(other_root).write(existing_movie_dir / f"{title}.nfo", encoding="unicode")
+
+    config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    index_path = config.paths.data_dir / "library.db"
+    seed_index = MediaIndex(index_path, event_bus=EventBus())
+    seed_index.add(
+        IndexEntry(
+            name=folder,
+            disk="disk1",
+            category=CID.MOVIES,
+            path=str(existing_movie_dir),
+            media_type="movie",
+        )
+    )
+
+    # Staging Ferrari (TMDB 54321 via the helper).
+    movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))
+    _build_verified_movie_dir(movies_staging, title=title, year=year)
+
+    report, results = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
+
+    # The old (different) media MUST survive — no overwrite.
+    assert sentinel.exists(), "The different-ID target was overwritten — §7 identity guard failed"
+
+    # The item is reported skipped with the identity reason, not dispatched.
+    skipped = [r for r in results if r.action == "skipped" and r.reason and "Remplacement bloqué" in r.reason]
+    assert skipped, f"Expected a §7 identity block; got results: {[(r.action, r.reason) for r in results]}"
