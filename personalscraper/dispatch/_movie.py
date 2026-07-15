@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from personalscraper.conf import resolver
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.dispatch import _transfer
+from personalscraper.dispatch._identity import replace_identity_conflict
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
@@ -75,6 +76,17 @@ def dispatch_movie(
         # dry-run branch keeps dry-run a faithful preview of the real run.
         cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
         if _is_skipped_for_illegal_names(result, movie_dir, cap):
+            return result
+
+        # §7 identity guard — a REPLACE destroys the on-disk target, so verify
+        # by provider-ID that the target is the SAME media before touching it.
+        # A positive ID mismatch (same-named different movie) blocks the
+        # overwrite entirely; unverifiable IDs fail-open (see _identity.py).
+        # Checked BEFORE the dry-run branch so the preview reports the block too.
+        identity_conflict = replace_identity_conflict(movie_dir, dest)
+        if identity_conflict is not None:
+            result.action = "skipped"
+            result.reason = identity_conflict
             return result
 
         if dispatcher.dry_run:
