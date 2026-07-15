@@ -467,8 +467,11 @@ class TestScrapeResolveExit1:
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
-        assert result.exit_code == 1
-        assert "Another instance is running" in result.output
+        # Exit 3 = lock busy — DISTINCT from a scrape error (1) so the web
+        # decisions runner can queue/retry lock races without retrying real
+        # failures (operator directive 2026-07-15).
+        assert result.exit_code == 3, result.output
+        assert "Lock busy" in result.output
 
     def test_api_failure_exits_1(self, tmp_path: Path, test_config: Any) -> None:
         """When the API client raises → exit 1, decision stays pending."""

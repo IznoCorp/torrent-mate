@@ -395,3 +395,16 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if item.get_closest_marker("darwin_only"):
             item.add_marker(skip_non_darwin)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_web_torrent_session() -> None:
+    """Drop the web layer's process-wide cached torrent client between tests.
+
+    The shared session cache (``personalscraper.web.torrent_session``) is a
+    module global; without this reset a MagicMock client cached by one test
+    would be served to every later test in the same process.
+    """
+    from personalscraper.web.torrent_session import invalidate_torrent_session
+
+    invalidate_torrent_session()

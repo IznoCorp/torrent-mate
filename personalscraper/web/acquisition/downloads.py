@@ -15,7 +15,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from personalscraper.acquire.store import build_acquire_store
-from personalscraper.api.torrent._factory import build_active_torrent_client
 from personalscraper.logger import get_logger
 from personalscraper.web.models.acquisition import (
     AcquisitionDownload,
@@ -23,6 +22,7 @@ from personalscraper.web.models.acquisition import (
     DownloadState,
     MediaRefResponse,
 )
+from personalscraper.web.torrent_session import shared_torrent_client
 
 if TYPE_CHECKING:
     from personalscraper.acquire.domain import FollowedSeries, WantedItem
@@ -149,18 +149,14 @@ def list_active_downloads(config: Config) -> AcquisitionDownloadsResponse:
     client_available = True
     if hashes:
         try:
-            client = build_active_torrent_client(config.torrent)
-            # qBittorrent exposes login/logout; Transmission authenticates in its
-            # constructor and omits them — call only when present.
-            login = getattr(client, "login", None)
-            if callable(login):
-                login()
-            try:
-                by_hash = {t.hash.lower(): t for t in client.get_by_hashes(hashes)}
-            finally:
-                logout = getattr(client, "logout", None)
-                if callable(logout):
-                    logout()
+            # Shared cached session — one login per web process, NOT one per
+            # poll (a per-request login/logout storm tripped qBittorrent's
+            # failed-auth IP ban in prod).
+            with shared_torrent_client(config.torrent) as client:
+                if client is None:
+                    client_available = False
+                else:
+                    by_hash = {t.hash.lower(): t for t in client.get_by_hashes(hashes)}
         except Exception as exc:  # noqa: BLE001 — the panel must never 500 on a client outage
             log.warning("acquisition_downloads_client_unavailable", error=str(exc))
             client_available = False

@@ -325,7 +325,10 @@ class TestRunnerLifecycleIntegration:
     # ── Lifecycle: error ───────────────────────────────────────────────────
 
     def test_lifecycle_error(self, tmp_path: Path) -> None:
-        """Child exits 3 after printing → outcome='error', error tail captured, rc=3.
+        """Child exits 1 after printing → outcome='error', error tail captured.
+
+        (Exit 3 is the LOCK-BUSY contract since 2026-07-15 — the runner
+        re-queues on it; a plain scrape failure is exit 1.)
 
         The decision row stays 'pending' — a failed scrape-resolve does not
         resolve the decision.
@@ -339,7 +342,7 @@ class TestRunnerLifecycleIntegration:
             decision_id=self.DECISION_ID,
             staging_path=str(staging_dir.resolve()),
         )
-        child_code = "import sys; print('before crash'); print('BOOM'); sys.exit(3)"
+        child_code = "import sys; print('before crash'); print('BOOM'); sys.exit(1)"
         argv = self._trivial_argv(child_code)
 
         with (
@@ -361,7 +364,7 @@ class TestRunnerLifecycleIntegration:
 
             main()
 
-        assert exc_info.value.code == 3
+        assert exc_info.value.code == 1
         row = _select_row(db_path, self.RUN_UID)
         assert row is not None
 
@@ -520,3 +523,176 @@ class TestRunnerLifecycleIntegration:
         assert "SELF_LOCKED" in row["output_tail"]
         # The lock must be released after the child exits.
         assert not lock_file.exists()
+
+
+class TestRunnerQueue:
+    """The resolve QUEUE (operator directive 2026-07-15) — never a 409.
+
+    While ``pipeline.lock`` is held the runner WAITS (visible 'queue' step on
+    the run row) instead of failing; a lost claim race inside the CLI
+    (exit 3) re-queues. The #249 post-mortem forbids an invisible queue —
+    these tests pin both the waiting mechanics and their visibility.
+    """
+
+    RUN_UID = "queue-test-uid-0001"
+    DECISION_ID = 1
+    PROVIDER = "tmdb"
+    PROVIDER_ID = 4242
+
+    @pytest.fixture(autouse=True)
+    def _env_setup_teardown(self) -> None:
+        """Set mandatory env vars before each test and clean up after."""
+        _set_runner_env(self.RUN_UID, self.DECISION_ID, self.PROVIDER, self.PROVIDER_ID)
+        yield
+        _clear_runner_env()
+        os.environ.pop("PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT", None)
+
+    def _base_patches(self, mock_config, argv):
+        """The common patch stack (argv, config, redis, no continuation spawn)."""
+        return (
+            patch("personalscraper.web.decisions.runner._build_argv", return_value=argv),
+            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.web.pipeline_trigger.spawn_pipeline_run", return_value=None),
+        )
+
+    def test_queue_timeout_finalizes_error_without_spawning(self, tmp_path: Path) -> None:
+        """FM1 — a lock held past the deadline → outcome='error', child never spawned."""
+        staging_dir = tmp_path / "staging" / "test-item"
+        staging_dir.mkdir(parents=True)
+        mock_config = _make_mock_config(tmp_path, staging_dir=staging_dir)
+        db_path = mock_config.indexer.db_path
+        _insert_decision_row(db_path, decision_id=self.DECISION_ID, staging_path=str(staging_dir.resolve()))
+
+        # A LIVE pipeline.lock (our own pid) + a 1-second queue budget.
+        (tmp_path / "pipeline.lock").write_text(str(os.getpid()))
+        os.environ["PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT"] = "1"
+
+        argv = [sys.executable, "-c", "raise SystemExit(99)"]  # must NEVER run
+        p1, p2, p3, p4 = self._base_patches(mock_config, argv)
+        with (
+            p1,
+            p2,
+            p3,
+            p4,
+            patch("personalscraper.web.decisions.runner.subprocess.Popen") as mock_popen,
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from personalscraper.web.decisions.runner import main
+
+            main()
+
+        assert exc_info.value.code == 1
+        mock_popen.assert_not_called()
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "error"
+        assert "Délai d'attente dépassé" in (row["error"] or "")
+        # FM8 — the queue was VISIBLE: a 'queue' step landed in steps_json.
+        steps = json.loads(row["steps_json"] or "[]")
+        assert any(s.get("name") == "queue" and s.get("status") == "waiting_pipeline_lock" for s in steps), steps
+
+    def test_exit_3_requeues_until_success(self, tmp_path: Path) -> None:
+        """FM3 — a lost claim race (rc=3) re-spawns; rc=0 finalizes 'success'."""
+        staging_dir = tmp_path / "staging" / "test-item"
+        staging_dir.mkdir(parents=True)
+        mock_config = _make_mock_config(tmp_path, staging_dir=staging_dir)
+        db_path = mock_config.indexer.db_path
+        _insert_decision_row(db_path, decision_id=self.DECISION_ID, staging_path=str(staging_dir.resolve()))
+
+        # Fake CLI: exits 3 on the first two invocations, 0 on the third.
+        counter = tmp_path / "attempts.cnt"
+        child_code = (
+            "import pathlib, sys; f = pathlib.Path(r'" + str(counter) + "'); "
+            "n = int(f.read_text()) if f.exists() else 0; f.write_text(str(n + 1)); "
+            "sys.exit(3 if n < 2 else 0)"
+        )
+        argv = [sys.executable, "-c", child_code]
+
+        p1, p2, p3, p4 = self._base_patches(mock_config, argv)
+        with p1, p2, p3, p4, pytest.raises(SystemExit) as exc_info:
+            from personalscraper.web.decisions.runner import main
+
+            main()
+
+        assert exc_info.value.code == 0
+        assert counter.read_text() == "3", "two rc=3 retries then the successful third attempt"
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "success"
+
+    def test_sigterm_while_queued_finalizes_killed(self, tmp_path: Path) -> None:
+        """FM5 — SIGTERM during the wait (no child yet) → 'killed', no crash."""
+        import signal as _signal
+
+        staging_dir = tmp_path / "staging" / "test-item"
+        staging_dir.mkdir(parents=True)
+        mock_config = _make_mock_config(tmp_path, staging_dir=staging_dir)
+        db_path = mock_config.indexer.db_path
+        _insert_decision_row(db_path, decision_id=self.DECISION_ID, staging_path=str(staging_dir.resolve()))
+
+        (tmp_path / "pipeline.lock").write_text(str(os.getpid()))
+        os.environ["PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT"] = "1"
+
+        captured: dict[int, object] = {}
+
+        def _fake_signal(sig: int, handler: object) -> None:
+            captured[sig] = handler
+
+        argv = [sys.executable, "-c", "raise SystemExit(99)"]
+        p1, p2, p3, p4 = self._base_patches(mock_config, argv)
+        with (
+            p1,
+            p2,
+            p3,
+            p4,
+            patch("personalscraper.web.decisions.runner.signal.signal", _fake_signal),
+            pytest.raises(SystemExit),
+        ):
+            from personalscraper.web.decisions.runner import main
+
+            main()
+
+        # Invoke the captured SIGTERM handler as if delivered mid-queue: the
+        # child holder is empty — the handler must not touch a child and must
+        # finalize 'killed'.
+        handler = captured[_signal.SIGTERM]
+        with (
+            patch("personalscraper.web.decisions.runner.os._exit") as mock_exit,
+            patch("personalscraper.web.decisions.runner._kill_child_group") as mock_kill,
+        ):
+            handler(_signal.SIGTERM, None)
+
+        mock_kill.assert_not_called()
+        mock_exit.assert_called_once_with(143)
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "killed"
+
+    def test_perpetual_exit_3_hits_deadline_never_spins(self, tmp_path: Path) -> None:
+        """FM11 — a child stuck on exit 3 is PACED and bounded by the deadline.
+
+        Regression: the first queue implementation retried rc=3 with no sleep
+        and no deadline — a child exiting 3 forever spun the runner at full
+        speed (caught live: the old lifecycle-error test used exit 3 and hung
+        the suite). The retry path must share the queue budget.
+        """
+        staging_dir = tmp_path / "staging" / "test-item"
+        staging_dir.mkdir(parents=True)
+        mock_config = _make_mock_config(tmp_path, staging_dir=staging_dir)
+        db_path = mock_config.indexer.db_path
+        _insert_decision_row(db_path, decision_id=self.DECISION_ID, staging_path=str(staging_dir.resolve()))
+        os.environ["PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT"] = "1"
+
+        argv = [sys.executable, "-c", "import sys; sys.exit(3)"]
+        p1, p2, p3, p4 = self._base_patches(mock_config, argv)
+        with p1, p2, p3, p4, pytest.raises(SystemExit) as exc_info:
+            from personalscraper.web.decisions.runner import main
+
+            main()
+
+        assert exc_info.value.code == 1
+        row = _select_row(db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "error"
+        assert "Délai d'attente dépassé" in (row["error"] or "")

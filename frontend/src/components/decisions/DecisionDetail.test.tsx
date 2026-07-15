@@ -399,31 +399,10 @@ describe("DecisionDetail", () => {
     );
   });
 
-  it("affiche un message 'pipeline occupé' sur un 409 pipeline-lock (§4.3)", async () => {
-    // The global pipeline.lock is held by a full run — a distinct, specific
-    // message so the operator knows nothing resolves until the run finishes.
-    resolveDecisionMock.mockRejectedValueOnce(
-      new ApiError(409, "Pipeline lock held"),
-    );
-
-    renderDetail(makeDecision());
-
-    fireEvent.click(firstCandidateCard());
-    fireEvent.click(screen.getByText("Choisir"));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining("Un pipeline est en cours"),
-      );
-    });
-    // It is NOT the per-decision-busy message.
-    expect(toast.error).not.toHaveBeenCalledWith(
-      expect.stringContaining("déjà en cours de re-scraping"),
-    );
-  });
-
-  it("affiche un message 'décision déjà en cours' sur un 409 per-décision (§4.3)", async () => {
-    // Only THIS decision is already resolving — other decisions are unaffected.
+  it("un 409 = décision déjà en cours (le verrou pipeline met en FILE, ne 409 plus — 2026-07-15)", async () => {
+    // Since the resolve queue, a held pipeline.lock never reaches the client
+    // as a 409: the runner waits (visible « En file » state). The single
+    // remaining 409 is the same-decision idempotence guard.
     resolveDecisionMock.mockRejectedValueOnce(
       new ApiError(409, "This decision is already resolving"),
     );
@@ -438,7 +417,7 @@ describe("DecisionDetail", () => {
         expect.stringContaining("Cette décision est déjà en cours"),
       );
     });
-    // It is NOT the pipeline-lock message (a different decision could resolve).
+    // The old pipeline-lock wording must be gone for good.
     expect(toast.error).not.toHaveBeenCalledWith(
       expect.stringContaining("Un pipeline est en cours"),
     );

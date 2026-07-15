@@ -43,15 +43,18 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import signal
 import sqlite3
 import subprocess
 import sys
+import time
 from types import FrameType
 from typing import cast
 
 from personalscraper.conf.loader import load_config
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.maintenance.runner import (
@@ -376,70 +379,163 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _on_sigterm)
 
     try:
-        # 8. Spawn subprocess.
-        log.info(
-            "decision_runner_starting",
-            run_uid=run_uid,
-            decision_id=decision_id,
-            staging_path=staging_path,
-            provider=provider,
-            provider_id=provider_id,
-            argv=argv,
-        )
-
-        try:
-            proc = subprocess.Popen(
-                argv,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                errors="replace",
-                bufsize=1,
-                start_new_session=True,
-            )
-        except (OSError, ValueError) as exc:
-            # OSError → exec failure; ValueError → embedded null byte in an arg.
-            log.error(
-                "decision_runner_spawn_failed",
-                run_uid=run_uid,
-                decision_id=decision_id,
-                error=str(exc),
-            )
-            writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
-            sys.exit(2)
-
-        child["proc"] = proc
-
-        # 9. Stream output — ring buffer + Redis.  Any failure here finalizes
-        #    the row 'error' so it is never left 'running'.
+        # 8. QUEUE + spawn loop (operator directive 2026-07-15): a resolve must
+        #    never surface a pipeline-lock conflict. While the global
+        #    pipeline.lock is held, WAIT here — as a VISIBLE queued state (the
+        #    #249 post-mortem: an invisible queue is the founding failure) —
+        #    then spawn once free. A lost claim race inside the CLI (exit 3,
+        #    claim-first-then-verify) re-queues. The CLI's own lock remains the
+        #    ONLY safety authority; this probe is visibility + pacing only, so
+        #    the wait is race-free by construction.
+        pipeline_lock = config.paths.data_dir / "pipeline.lock"
+        queue_timeout_s = float(os.environ.get("PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT", "1800"))
+        queue_deadline = time.monotonic() + queue_timeout_s
         redis = _get_redis(web_config)
         stream_key = web_config.stream_key
         stream_maxlen = web_config.stream_maxlen
         seq = 0
+        attempt = 0
+        queued_since: float | None = None
 
-        try:
-            assert proc.stdout is not None
-            for line in proc.stdout:
-                ring.append(line)
-                _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
-                seq += 1
-            rc = proc.wait()
-        except Exception as exc:
-            _kill_child_group(proc)
-            output_tail = ring.to_str()
-            writer.finalize(
-                run_uid,
-                OUTCOME_ERROR,
-                error=str(exc) or type(exc).__name__,
-                output_tail=output_tail,
-            )
-            log.error(
-                "decision_runner_stream_failed",
+        while True:
+            if is_lock_held(pipeline_lock):
+                if queued_since is None:
+                    queued_since = time.time()
+                    # Structured queue visibility: a 'queue' step on the run row
+                    # (steps_json is epoch-timestamped per invariant) — the
+                    # activity endpoint + run detail surface it with no new
+                    # endpoint.
+                    writer.update_step(
+                        run_uid,
+                        "queue",
+                        queued_since,
+                        queued_since,
+                        "waiting_pipeline_lock",
+                    )
+                    log.info(
+                        "decision_runner_queued",
+                        run_uid=run_uid,
+                        decision_id=decision_id,
+                        reason="pipeline_lock_held",
+                    )
+                if time.monotonic() > queue_deadline:
+                    writer.finalize(
+                        run_uid,
+                        OUTCOME_ERROR,
+                        error=(
+                            "Délai d'attente dépassé : pipeline.lock toujours tenu après "
+                            f"{int(queue_timeout_s)}s — résolution abandonnée, relancez-la."
+                        ),
+                        output_tail=ring.to_str(),
+                    )
+                    log.error(
+                        "decision_runner_queue_timeout",
+                        run_uid=run_uid,
+                        decision_id=decision_id,
+                        timeout_s=queue_timeout_s,
+                    )
+                    sys.exit(1)
+                time.sleep(2.0 + random.uniform(0.0, 1.0))
+                continue
+
+            if queued_since is not None:
+                # Leaving the queue — record the wait window truthfully.
+                writer.update_step(run_uid, "queue", queued_since, time.time(), "done")
+                queued_since = None
+
+            attempt += 1
+            log.info(
+                "decision_runner_starting",
                 run_uid=run_uid,
                 decision_id=decision_id,
-                exc_info=True,
+                staging_path=staging_path,
+                provider=provider,
+                provider_id=provider_id,
+                argv=argv,
+                attempt=attempt,
             )
-            sys.exit(1)
+
+            try:
+                proc = subprocess.Popen(
+                    argv,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    errors="replace",
+                    bufsize=1,
+                    start_new_session=True,
+                )
+            except (OSError, ValueError) as exc:
+                # OSError → exec failure; ValueError → embedded null byte in an arg.
+                log.error(
+                    "decision_runner_spawn_failed",
+                    run_uid=run_uid,
+                    decision_id=decision_id,
+                    error=str(exc),
+                )
+                writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
+                sys.exit(2)
+
+            child["proc"] = proc
+
+            # 9. Stream output — ring buffer + Redis.  Any failure here finalizes
+            #    the row 'error' so it is never left 'running'.
+            try:
+                assert proc.stdout is not None
+                for line in proc.stdout:
+                    ring.append(line)
+                    _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
+                    seq += 1
+                rc = proc.wait()
+            except Exception as exc:
+                _kill_child_group(proc)
+                output_tail = ring.to_str()
+                writer.finalize(
+                    run_uid,
+                    OUTCOME_ERROR,
+                    error=str(exc) or type(exc).__name__,
+                    output_tail=output_tail,
+                )
+                log.error(
+                    "decision_runner_stream_failed",
+                    run_uid=run_uid,
+                    decision_id=decision_id,
+                    exc_info=True,
+                )
+                sys.exit(1)
+
+            if rc == 3:
+                # Lock busy at claim time (pipeline re-acquired between our probe
+                # and the CLI's claim, or a same-item resolve is live) — re-queue.
+                # Same deadline as the lock wait, and PACED: a child that exits 3
+                # forever (defect) must never spin the runner at full speed.
+                child.pop("proc", None)
+                if time.monotonic() > queue_deadline:
+                    writer.finalize(
+                        run_uid,
+                        OUTCOME_ERROR,
+                        error=(
+                            "Délai d'attente dépassé : verrou toujours occupé après "
+                            f"{int(queue_timeout_s)}s de tentatives — résolution abandonnée."
+                        ),
+                        output_tail=ring.to_str(),
+                    )
+                    log.error(
+                        "decision_runner_requeue_timeout",
+                        run_uid=run_uid,
+                        decision_id=decision_id,
+                        attempt=attempt,
+                    )
+                    sys.exit(1)
+                log.info(
+                    "decision_runner_requeued",
+                    run_uid=run_uid,
+                    decision_id=decision_id,
+                    attempt=attempt,
+                )
+                time.sleep(1.0 + random.uniform(0.0, 1.0))
+                continue
+            break
 
         # 10. Finalize.
         output_tail = ring.to_str()

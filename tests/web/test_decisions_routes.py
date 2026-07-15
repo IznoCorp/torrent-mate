@@ -629,6 +629,47 @@ class TestDecisionActivity:
         # The decision is still pending, so it is still counted in the queue.
         assert data["pending_count"] == 1
 
+    def test_activity_surfaces_queued_state(self, test_config, tmp_path: Path) -> None:
+        """FM8 — a runner waiting for pipeline.lock shows queued=true (§3 visibility).
+
+        The #249 post-mortem: an INVISIBLE queue is the founding failure. A
+        running resolve row whose last 'queue' step is 'waiting_pipeline_lock'
+        must surface queued=true; a normally-running one queued=false.
+        """
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(
+            conn,
+            decision_id=1,
+            media_kind="movie",
+            extracted_title="Queued Movie",
+            staging_path="/tmp/staging/Queued Movie (2024)",
+        )
+        _seed_decision(
+            conn,
+            decision_id=2,
+            media_kind="movie",
+            extracted_title="Live Movie",
+            staging_path="/tmp/staging/Live Movie (2024)",
+        )
+        _seed_running_resolve(conn, decision_id=1, run_uid="run-queued", pid=os.getpid())
+        _seed_running_resolve(conn, decision_id=2, run_uid="run-live", pid=os.getpid())
+        conn.execute(
+            "UPDATE pipeline_run SET steps_json = ? WHERE run_uid = 'run-queued'",
+            (json.dumps([{"name": "queue", "started_at": 1.0, "ended_at": 1.0, "status": "waiting_pipeline_lock"}]),),
+        )
+        conn.commit()
+        conn.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
+        )
+        data = client.get("/api/decisions/activity").json()
+        by_id = {item["decision_id"]: item for item in data["in_progress"]}
+        assert by_id[1]["queued"] is True
+        assert by_id[2]["queued"] is False
+
     def test_activity_empty_when_nothing_running(self, test_config, tmp_path: Path) -> None:
         """No running scrape and no pending decision → empty activity (not a 4xx)."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
@@ -825,8 +866,13 @@ class TestResolveDecision:
         assert call_args[0][2] == "tmdb"
         assert call_args[0][3] == 550
 
-    def test_resolve_pipeline_lock_held_returns_409(self, test_config, tmp_path: Path) -> None:
-        """409 — pipeline.lock is held by a live process."""
+    def test_resolve_pipeline_lock_held_still_accepts_202(self, test_config, tmp_path: Path) -> None:
+        """202 — a held pipeline.lock QUEUES the resolve, never a 409.
+
+        Operator directive (2026-07-15): validating during a run must be
+        accepted; the detached runner waits for the lock (visible 'queue'
+        step) and spawns the CLI when it frees.
+        """
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "pipeline.lock").write_text(str(os.getpid()))
@@ -840,13 +886,14 @@ class TestResolveDecision:
             test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
         )
 
-        resp = client.post(
-            "/api/decisions/1/resolve",
-            json={"provider": "tmdb", "provider_id": 550},
-            headers={"X-Requested-With": "TorrentMate"},
-        )
-        assert resp.status_code == 409
-        assert resp.json()["detail"] == "Pipeline lock held"
+        with patch("personalscraper.web.routes.decisions._spawn_decision_runner", return_value=4242) as mock_spawn:
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202, resp.text
+        mock_spawn.assert_called_once()
 
     def test_resolve_concurrent_running_returns_409(self, test_config, tmp_path: Path) -> None:
         """409 — a scrape-resolve for THIS decision with a live pid is already running."""
@@ -1001,10 +1048,16 @@ class TestResolveDecision:
 
 
 class TestResolveLockReProbe:
-    """R11 — pipeline lock re-probe after reservation before spawn."""
+    """The lock re-probe was REMOVED (2026-07-15): the runner owns the wait.
 
-    def test_lock_appearing_after_reservation_returns_409_and_finalizes(self, test_config, tmp_path: Path) -> None:
-        """409 — lock grabbed between early probe and spawn → finalize 'error'."""
+    A pipeline run grabbing the lock at any point around the POST no longer
+    produces a 409 — the reserved row stays 'running' and the detached runner
+    queues until the lock frees. Only the per-decision idempotence guard
+    (`test_resolve_concurrent_running_returns_409`) still 409s.
+    """
+
+    def test_lock_appearing_after_reservation_still_accepts_202(self, test_config, tmp_path: Path) -> None:
+        """202 — a lock appearing between reservation and spawn changes nothing."""
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
         db_path = tmp_path / "library.db"
@@ -1016,12 +1069,14 @@ class TestResolveLockReProbe:
             test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
         )
 
+        # The route no longer probes the lock at all — no patch needed; a
+        # held/racing lock is invisible to the POST (the runner owns the wait).
+        (test_config.paths.data_dir / "pipeline.lock").write_text(str(os.getpid()))
         with (
             patch(
-                "personalscraper.web.routes.decisions.is_lock_held",
-                side_effect=[False, True],
-            ),
-            patch("personalscraper.web.routes.decisions._spawn_decision_runner") as mock_spawn,
+                "personalscraper.web.routes.decisions._spawn_decision_runner",
+                return_value=4242,
+            ) as mock_spawn,
         ):
             resp = client.post(
                 "/api/decisions/1/resolve",
@@ -1029,94 +1084,16 @@ class TestResolveLockReProbe:
                 headers={"X-Requested-With": "TorrentMate"},
             )
 
-        assert resp.status_code == 409
-        assert resp.json()["detail"] == "Pipeline lock held"
-        mock_spawn.assert_not_called()
+        assert resp.status_code == 202, resp.text
+        mock_spawn.assert_called_once()
 
-        # The reserved row must be finalized 'error'.
+        # The reserved row stays 'running' — the runner owns its lifecycle.
         conn2 = sqlite3.connect(str(db_path))
         conn2.row_factory = sqlite3.Row
         rows = conn2.execute("SELECT * FROM pipeline_run").fetchall()
         conn2.close()
         assert len(rows) == 1
-        row = dict(rows[0])
-        assert row["outcome"] == "error"
-        assert row["error"] == "Pipeline lock held"
-        assert row["ended_at"] is not None
-
-    def test_finalize_raising_on_lock_reprobe_still_returns_409(self, test_config, tmp_path: Path) -> None:
-        """SF3 — a raising finalize on the lock-re-probe path must still 409.
-
-        If ``PipelineRunWriter.finalize`` raises (contended DB), the intended 409
-        must still fire — the finalize is fail-soft so a DB error cannot swallow
-        the HTTP response nor turn a 409 into an untyped 500.
-        """
-        data_dir = test_config.paths.data_dir
-        data_dir.mkdir(parents=True, exist_ok=True)
-        db_path = tmp_path / "library.db"
-        conn = _create_library_db(db_path)
-        _seed_decision(conn, decision_id=1)
-        conn.close()
-
-        client = _build_authenticated_client_with_decisions(
-            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
-        )
-
-        with (
-            patch(
-                "personalscraper.web.routes.decisions.is_lock_held",
-                side_effect=[False, True],
-            ),
-            patch(
-                "personalscraper.web.routes.decisions.PipelineRunWriter.finalize",
-                side_effect=sqlite3.OperationalError("database is locked"),
-            ),
-            patch("personalscraper.web.routes.decisions._spawn_decision_runner") as mock_spawn,
-        ):
-            resp = client.post(
-                "/api/decisions/1/resolve",
-                json={"provider": "tmdb", "provider_id": 550},
-                headers={"X-Requested-With": "TorrentMate"},
-            )
-
-        # The intended 409 fires even though finalize raised (fail-soft).
-        assert resp.status_code == 409
-        assert resp.json()["detail"] == "Pipeline lock held"
-        mock_spawn.assert_not_called()
-
-    def test_finalize_raising_on_spawn_failure_still_returns_500(self, test_config, tmp_path: Path) -> None:
-        """SF3 — a raising finalize on the spawn-failure path must still 500.
-
-        The spawn OSError already maps to a 500; a subsequent raising finalize
-        (fail-soft) must not convert that into a different/untyped error.
-        """
-        data_dir = test_config.paths.data_dir
-        data_dir.mkdir(parents=True, exist_ok=True)
-        db_path = tmp_path / "library.db"
-        conn = _create_library_db(db_path)
-        _seed_decision(conn, decision_id=1)
-        conn.close()
-
-        client = _build_authenticated_client_with_decisions(
-            test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
-        )
-
-        with (
-            patch("personalscraper.web.routes.decisions.subprocess.Popen", side_effect=OSError("spawn failed")),
-            patch(
-                "personalscraper.web.routes.decisions.PipelineRunWriter.finalize",
-                side_effect=sqlite3.OperationalError("database is locked"),
-            ),
-        ):
-            resp = client.post(
-                "/api/decisions/1/resolve",
-                json={"provider": "tmdb", "provider_id": 550},
-                headers={"X-Requested-With": "TorrentMate"},
-            )
-
-        # The intended 500 fires even though finalize raised (fail-soft).
-        assert resp.status_code == 500
-        assert "spawn" in resp.json()["detail"].lower()
+        assert dict(rows[0])["outcome"] == "running"
 
 
 class TestResolveSecondConcurrent:

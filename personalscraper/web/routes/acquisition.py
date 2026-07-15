@@ -642,19 +642,20 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
     Returns:
         One :class:`DeferredTorrent` per deferred hash (possibly empty).
     """
-    from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
     from personalscraper.core.tags import SEED_PURE  # noqa: PLC0415
     from personalscraper.ingest.deferral import (  # noqa: PLC0415
         classify_deferrals,
         deferral_probe_dirs,
     )
     from personalscraper.ingest.tracker import IngestTracker  # noqa: PLC0415
+    from personalscraper.web.torrent_session import shared_torrent_client  # noqa: PLC0415
 
     try:
-        client = build_active_torrent_client(config.torrent)
-        if client is None:
-            return []
-        completed = client.get_completed()
+        # Shared cached session — one login per web process (see torrent_session).
+        with shared_torrent_client(config.torrent) as client:
+            if client is None:
+                return []
+            completed = client.get_completed()
         tracker = IngestTracker(tracker_path=config.paths.data_dir / "ingested_torrents.json")
         ingested = frozenset(tracker.load().keys())
         seed_pure = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
