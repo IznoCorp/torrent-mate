@@ -6,8 +6,10 @@
  * renders a header row with key metadata, the {@link PipelineStepper} in
  * READ-ONLY mode, and an error section when the run terminated abnormally.
  *
- * Displayed inline on the ``/pipeline`` page below the controls when a row
- * in {@link RunHistoryTable} is clicked. A "Retour" button calls ``onClose``.
+ * Displayed inline on the ``/maintenance`` page below the run-history tables
+ * when a row in {@link RunHistoryTable} is clicked; the selection is
+ * URL-addressable (``?run=<uid>``, DOIT-10). A "Retour" button calls
+ * ``onClose`` (which clears the query param).
  */
 
 import { useQuery } from "@tanstack/react-query";

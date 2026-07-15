@@ -94,13 +94,13 @@ afterEach(() => {
 });
 
 /** Render the maintenance page behind the router, query, and stream providers. */
-function renderMaintenance(): void {
+function renderMaintenance(initialEntries: string[] = ["/maintenance"]): void {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <EventStreamProvider>
           <Maintenance />
         </EventStreamProvider>
@@ -124,5 +124,18 @@ describe("Maintenance", () => {
 
     // A single shared WebSocket is opened by the provider — no duplicate WS.
     expect(MockWebSocket.instances).toHaveLength(1);
+  });
+
+  it("ouvre le détail de run depuis ?run= (DOIT-10 — détail adressable par URL)", async () => {
+    // A run detail is fetched when the URL carries ?run=<uid>, proving the
+    // selection is URL-addressable (deep-linkable + Back-closable).
+    renderMaintenance(["/maintenance?run=abc123def456"]);
+
+    await vi.waitFor(() => {
+      const calls = fetchMock.mock.calls.map(([input]) => urlOf(input));
+      expect(
+        calls.some((u) => u.includes("/api/pipeline/history/abc123def456")),
+      ).toBe(true);
+    });
   });
 });

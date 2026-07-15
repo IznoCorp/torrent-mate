@@ -127,7 +127,7 @@ describe("LocksPanel", () => {
     fn.mockResolvedValue(makeLocksResponse());
     renderPanel();
 
-    expect(await screen.findByText("Pipeline lock")).toBeInTheDocument();
+    expect(await screen.findByText("Verrou du pipeline")).toBeInTheDocument();
     expect(screen.getByText("Libre")).toBeInTheDocument();
   });
 
@@ -229,7 +229,7 @@ describe("LocksPanel", () => {
 
     // The locks header is present immediately; the orphans panel shows a
     // pending caption instead of a count toggle.
-    expect(await screen.findByText("Pipeline lock")).toBeInTheDocument();
+    expect(await screen.findByText("Verrou du pipeline")).toBeInTheDocument();
     expect(screen.getByText("analyse en cours…")).toBeInTheDocument();
     expect(screen.queryByText(/Orphelins tmp \(/)).not.toBeInTheDocument();
   });

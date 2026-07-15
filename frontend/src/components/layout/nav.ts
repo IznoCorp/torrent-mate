@@ -54,12 +54,10 @@ export interface NavSection {
  * - **Supervision** — the live-supervision surfaces (dashboard + the pipeline,
  *   scraping and acquisition views).
  * - **Système** — operational maintenance.
- * - **Configuration** — Registre (S6), a disabled stub
- *   until their wave ships.
+ * - **Configuration** — the provider/tracker registry and the config editor
+ *   (both live).
  *
- * Every path here has a matching route in the router table (DESIGN §5.2): the
- * not-yet-shipped waves land on a shared "À venir" placeholder, so navigation
- * and route-gating exist from day one.
+ * Every path here has a matching route in the router table (DESIGN §5.2).
  */
 export const NAV_SECTIONS: readonly NavSection[] = [
   {

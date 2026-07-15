@@ -45,12 +45,16 @@ type Sentinels = components["schemas"]["Sentinels"];
  *   ``"fail"`` when stale (lock file exists but PID is dead),
  *   ``"warn"`` when held by a live process, ``"ok"`` when not held.
  */
-function lockStatus(
-  lock: LockState,
-): { readonly status: "done" | "warning" | "error"; readonly label: string } {
+function lockStatus(lock: LockState): {
+  readonly status: "done" | "warning" | "error";
+  readonly label: string;
+} {
   if (lock.stale) return { status: "error", label: "Verrou obsolète" };
   if (lock.held && lock.pid_alive)
-    return { status: "warning", label: `Pris — PID ${String(lock.pid ?? "?")}` };
+    return {
+      status: "warning",
+      label: `Pris — PID ${String(lock.pid ?? "?")}`,
+    };
   if (lock.held) return { status: "error", label: "Pris — PID mort" };
   return { status: "done", label: "Libre" };
 }
@@ -136,11 +140,8 @@ export function LocksPanel(): ReactElement {
           <>
             {/* Pipeline lock */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Pipeline lock</span>
-              <StatusDot
-                status={lockInfo.status}
-                label={lockInfo.label}
-              />
+              <span className="text-sm font-medium">Verrou du pipeline</span>
+              <StatusDot status={lockInfo.status} label={lockInfo.label} />
             </div>
 
             {/* Sentinels */}
@@ -184,42 +185,42 @@ export function LocksPanel(): ReactElement {
                 </>
               ) : (
                 <>
-              <button
-                type="button"
-                onClick={() => {
-                  setOrphansExpanded((prev) => !prev);
-                }}
-                className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {orphansExpanded ? (
-                  <ChevronUp className="size-3" aria-hidden="true" />
-                ) : (
-                  <ChevronDown className="size-3" aria-hidden="true" />
-                )}
-                Orphelins tmp ({String(orphans.length)})
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrphansExpanded((prev) => !prev);
+                    }}
+                    className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {orphansExpanded ? (
+                      <ChevronUp className="size-3" aria-hidden="true" />
+                    ) : (
+                      <ChevronDown className="size-3" aria-hidden="true" />
+                    )}
+                    Orphelins tmp ({String(orphans.length)})
+                  </button>
 
-              {orphansExpanded && (
-                <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-muted/30 p-2">
-                  {orphans.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Aucun.</p>
-                  ) : (
-                    <ul className="flex flex-col gap-1">
-                      {orphans.map((orphan) => (
-                        <li
-                          key={orphan.path}
-                          className="text-xs text-muted-foreground"
-                        >
-                          <span className="font-mono">{orphan.path}</span>
-                          <span className="ml-2">
-                            — {humanAge(orphan.age_s)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                  {orphansExpanded && (
+                    <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-muted/30 p-2">
+                      {orphans.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Aucun.</p>
+                      ) : (
+                        <ul className="flex flex-col gap-1">
+                          {orphans.map((orphan) => (
+                            <li
+                              key={orphan.path}
+                              className="text-xs text-muted-foreground"
+                            >
+                              <span className="font-mono">{orphan.path}</span>
+                              <span className="ml-2">
+                                — {humanAge(orphan.age_s)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
                 </>
               )}
             </div>
