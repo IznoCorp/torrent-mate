@@ -47,12 +47,23 @@ class IngestConfig(_StrictModel):
             threshold are skipped (left in qBittorrent for continued seeding).
             Default ``0.0`` disables the threshold (all completed torrents
             are eligible regardless of ratio).
+        force_copy: When ``True``, ingest ALWAYS copies (never moves) — the
+            torrent-client payload is always preserved regardless of seeding /
+            obligation state. Default ``False`` keeps the fail-safe behaviour:
+            copy when seeding OR when a live seed obligation exists, move
+            (and remove the torrent from the client) otherwise. Set ``True`` on
+            a host where staging has abundant space and you never want a move
+            to touch a client payload.
     """
 
     min_ratio: float = Field(
         default=0.0,
         ge=0.0,
         description=("Minimum seeding ratio for ingest eligibility. 0.0 (default) disables the guard."),
+    )
+    force_copy: bool = Field(
+        default=False,
+        description=("Always copy (never move) on ingest, preserving every client payload. Default False."),
     )
 
 

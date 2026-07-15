@@ -31,12 +31,20 @@ class IngestStep:
         """
         from personalscraper.ingest.ingest import run_ingest
 
+        # Inject the seed-obligation checker (fail-safe copy-vs-move, §7 HnR)
+        # from the acquire context via the core port — ingest never imports
+        # acquire/ (layering rule). None ⇒ ingest relies on the live seeding
+        # probe alone (byte-identical to the pre-E4 behaviour).
+        acquire = getattr(ctx.app, "acquire", None)
+        seed_checker = getattr(acquire, "delete_authority", None)
+
         return run_ingest(
             ctx.app.settings,
             dry_run=ctx.dry_run,
             config=ctx.app.config,
             event_bus=ctx.app.event_bus,
             torrent_client=ctx.app.torrent_client,
+            seed_checker=seed_checker,
         )
 
 

@@ -100,6 +100,10 @@ def ingest(
             staging_dir = config.paths.staging_dir
             ingest_dir = staging_path(config, find_ingest_dir(config))
             with per_step_boundary(config, settings, build_torrent_client=True, stream_events=True) as app_context:
+                # Fail-safe copy-vs-move (§7 HnR): inject the seed-obligation
+                # checker from the acquire context via the core port.
+                _acquire = getattr(app_context, "acquire", None)
+                _seed_checker = getattr(_acquire, "delete_authority", None)
                 report = cli_compat.run_ingest(
                     settings,
                     dry_run=dry_run,
@@ -108,6 +112,7 @@ def ingest(
                     config=config,
                     event_bus=app_context.event_bus,
                     torrent_client=app_context.torrent_client,
+                    seed_checker=_seed_checker,
                 )
             console.print(
                 f"[bold]Ingest:[/bold] {report.success_count} OK, "

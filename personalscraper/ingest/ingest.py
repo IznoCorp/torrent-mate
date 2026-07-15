@@ -19,6 +19,7 @@ from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.delete_permit import SeedObligationChecker
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.core.tags import SEED_PURE
@@ -269,6 +270,7 @@ def run_ingest(
     config: Config,
     event_bus: EventBus,
     torrent_client: QBitClient | TransmissionClient | None = None,
+    seed_checker: SeedObligationChecker | None = None,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -289,6 +291,11 @@ def run_ingest(
             ``AppContext.torrent_client`` (DESIGN D3). ``None`` when no torrent
             client is configured (DESIGN D9); in that case the step returns an
             error report instead of building one inline.
+        seed_checker: Optional :class:`SeedObligationChecker` (the acquire
+            ``DeleteAuthority`` injected at the composition root via the core
+            port). Drives the fail-safe copy-vs-move decision (§7 HnR): a
+            paused torrent that still owes a seed is copied, not moved. ``None``
+            ⇒ the decision relies on the live seeding probe alone.
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -511,8 +518,17 @@ def run_ingest(
                         )
                         continue
 
-                    # Transfer
-                    is_copy = client.is_seeding(torrent)
+                    # Copy-vs-move — fail-safe toward COPY (§7, HnR). A live
+                    # seeding torrent is copied (its payload keeps seeding). A
+                    # torrent that is NOT seeding right now (paused, stopped, a
+                    # transient client hiccup) but still carries an ACTIVE seed
+                    # obligation is ALSO copied — moving it would destroy the
+                    # download-dir payload and break a seed the tracker still
+                    # expects (a hit-and-run). Only a torrent that is neither
+                    # seeding nor obligated is moved (space reclaim).
+                    owes_seed = seed_checker is not None and seed_checker.has_active_obligation(torrent_hash)
+                    force_copy = getattr(config.ingest, "force_copy", False)
+                    is_copy = force_copy or client.is_seeding(torrent) or owes_seed
                     action = "copied" if is_copy else "moved"
                     success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
 
@@ -529,6 +545,27 @@ def run_ingest(
                         )
                         if not dry_run:
                             tracker.mark_ingested(torrent_hash, name, action, dest_path=str(dest))
+                            # A MOVE relocated the payload out of the download
+                            # dir — the torrent can no longer seed. Leaving it
+                            # registered in the client turns it into a
+                            # missingFiles/error torrent (a dangling "en erreur"
+                            # entry, cf. the downloads panel). Remove it from the
+                            # client (files already moved, so delete_files=False).
+                            # Fail-soft: a client error must not fail the ingest.
+                            if not is_copy:
+                                try:
+                                    client.delete(torrent_hash, delete_files=False)
+                                    log.info("ingest.torrent_removed_after_move", hash=torrent_hash, name=name)
+                                except Exception as exc:  # noqa: BLE001 — client cleanup is best-effort
+                                    log.warning(
+                                        "ingest.torrent_remove_failed",
+                                        hash=torrent_hash,
+                                        name=name,
+                                        error=str(exc),
+                                    )
+                                    report.warnings.append(
+                                        f"{name} : déplacé mais non retiré du client torrent ({exc})"
+                                    )
                     else:
                         report.error_count += 1
                         report.details.append(f"{name}: transfer failed")

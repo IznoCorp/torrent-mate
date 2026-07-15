@@ -26,6 +26,13 @@
   ingest: {
     // Minimum seeding ratio for ingest eligibility. 0.0 (default) disables the guard.
     min_ratio: 0.0,
+    // Always copy (never move) on ingest, preserving every torrent-client
+    // payload regardless of seeding/obligation state. Default false keeps the
+    // fail-safe behaviour: copy when seeding OR when a live seed obligation
+    // exists; otherwise move AND remove the torrent from the client (so no
+    // dangling missingFiles entry is left). Set true when staging has abundant
+    // space and a move must never touch a client payload.
+    force_copy: false,
   },
 
   // Sort step tunables.
