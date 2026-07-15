@@ -446,6 +446,27 @@ REGISTRY: list[MaintenanceAction] = [
         dry_run="supported",
         options=[],
     ),
+    MaintenanceAction(
+        id="library-refresh-path",
+        title="Rafraîchir un dossier renommé",
+        description=(
+            "Réconciliation d'index ciblée après un rename/move manuel : invalide le "
+            "sous-arbre, rescanne le disque propriétaire, relie et répare les compteurs."
+        ),
+        category="fix",
+        risk="write",
+        long_running=True,
+        dry_run="supported",
+        options=[
+            ActionOption(
+                name="path",
+                type="str",
+                required=True,
+                label="Chemin absolu",
+                help="Chemin absolu du dossier média renommé/déplacé.",
+            ),
+        ],
+    ),
     # ── analyze.py (4 commands) ───────────────────────────────────────────
     MaintenanceAction(
         id="library-analyze",

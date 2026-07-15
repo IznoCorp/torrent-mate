@@ -480,3 +480,75 @@ def library_relink(
             )
     finally:
         conn.close()
+
+
+@app.command("library-refresh-path")
+@handle_cli_errors
+def library_refresh_path(
+    ctx: typer.Context,
+    path: str = typer.Argument(..., help="Absolute path of the renamed/moved media folder"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show the resolved disk + maintenance plan without touching anything.",
+    ),
+) -> None:
+    """Targeted index reconciliation after a MANUAL rename/move of one folder.
+
+    The incremental scan short-circuits unchanged subtrees, so a folder the
+    operator renamed by hand can stay invisible to the index exactly like a
+    dispatched merge (NTFS/macFUSE mtime blindness). This command reuses the
+    post-dispatch maintenance machinery on ONE path: invalidate the subtree
+    (dir_mtime/last_walked_at reset + disk merkle cleared, NFC+NFD variants),
+    incremental scan of the owning disk (rename detection via OSHash drift),
+    then the global relink + season-count repair + repair-queue drain.
+
+    Examples:
+        personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)" --dry-run
+        personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)"
+    """
+    from personalscraper.dispatch.post_maintenance import (  # noqa: PLC0415
+        run_post_dispatch_maintenance,
+    )
+
+    console = state["console"]
+    cfg = ctx.obj.config
+    assert cfg is not None
+
+    target = Path(path)
+    if not target.is_absolute():
+        console.print("[red]The path must be absolute.[/red]")
+        raise typer.Exit(2)
+    if not target.exists():
+        console.print(f"[red]Path does not exist:[/red] {target}")
+        raise typer.Exit(2)
+
+    # Resolve the owning disk: the config disk whose root is an ancestor.
+    owning_label: str | None = None
+    for disk_cfg in cfg.disks:
+        try:
+            target.relative_to(disk_cfg.path)
+        except ValueError:
+            continue
+        owning_label = disk_cfg.id
+        break
+    if owning_label is None:
+        console.print(f"[red]No configured disk owns this path.[/red] Disks: {', '.join(d.id for d in cfg.disks)}")
+        raise typer.Exit(2)
+
+    if dry_run:
+        console.print(
+            f"[yellow]DRY-RUN:[/yellow] would invalidate subtree [bold]{target}[/bold] "
+            f"on disk [bold]{owning_label}[/bold], then incremental scan + relink "
+            "+ fix-season-counts + repair drain."
+        )
+        return
+
+    console.print(f"Refreshing index for [bold]{target}[/bold] (disk {owning_label})…")
+    run_post_dispatch_maintenance(
+        cfg,
+        {owning_label},
+        destinations={owning_label: {target}},
+        enabled=True,
+    )
+    console.print("[green]Done.[/green] See logs for scan/relink/season-count details.")

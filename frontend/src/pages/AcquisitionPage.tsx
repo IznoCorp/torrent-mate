@@ -29,8 +29,9 @@ import {
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
 import { WantedPanel } from "@/components/acquisition/WantedPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
+import { NavCountBadge } from "@/components/ds/NavCountBadge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useFollowed } from "@/hooks/useAcquisition";
+import { useDownloads, useFollowed } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /**
@@ -84,6 +85,13 @@ export default function AcquisitionPage(): ReactElement {
   // Followed data is shared across tabs — kept alive by the hook at page level.
   const followedQuery = useFollowed({ active: "all" });
 
+  // Arrival badge on the « Téléchargements » tab (A4 limite avouée s2): the
+  // count of torrents still downloading, visible without opening the tab.
+  const downloadsQuery = useDownloads();
+  const activeDownloads = (downloadsQuery.data?.downloads ?? []).filter(
+    (d) => d.state !== "missing" && d.progress < 1,
+  ).length;
+
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Acquisition</h1>
@@ -108,7 +116,12 @@ export default function AcquisitionPage(): ReactElement {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab.label}
+            <span className="inline-flex items-center gap-1.5">
+              {tab.label}
+              {tab.id === "downloads" && (
+                <NavCountBadge count={activeDownloads} />
+              )}
+            </span>
           </button>
         ))}
       </div>

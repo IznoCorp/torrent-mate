@@ -96,6 +96,7 @@ _DRY_RUN_STYLE: dict[str, str] = {
     "library-reconcile": "flag",
     "library-gc": "flag",
     "library-rescrape": "flag",
+    "library-refresh-path": "flag",
     # ── "apply" commands (--apply, absent=dr) ─────────────────────────────
     "library-clean": "apply",
     "library-validate": "apply",
