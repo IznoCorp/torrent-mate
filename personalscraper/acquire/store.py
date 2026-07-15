@@ -419,6 +419,54 @@ class _SeedSubStore:
         assert row_id is not None  # noqa: S101 — INSERT always sets lastrowid
         return row_id
 
+    def find_active_by_hash(self, info_hash: str) -> SeedObligation | None:
+        """Return the first active obligation carrying *info_hash*, or ``None``.
+
+        Active = ``released_at IS NULL`` (mirrors :meth:`find_active_under`).
+        Used by the grab-time writer's dedup guard and by the dispatch-time
+        correlation to backfill ``dispatched_path`` instead of duplicating.
+
+        Args:
+            info_hash: Torrent info-hash (hex string).
+
+        Returns:
+            The active :class:`SeedObligation`, or ``None``.
+        """
+        self._conn.row_factory = sqlite3.Row
+        row = self._conn.execute(
+            """
+            SELECT info_hash, source_tracker, dispatched_path,
+                   min_seed_time_s, min_ratio, added_at,
+                   satisfied_at, breached_at, released_at
+            FROM seed_obligation
+            WHERE info_hash = ? AND released_at IS NULL
+            LIMIT 1
+            """,
+            (info_hash,),
+        ).fetchone()
+        return _row_to_seed(row) if row is not None else None
+
+    def set_dispatched_path(self, info_hash: str, path: str) -> int:
+        """Backfill ``dispatched_path`` on the active obligations for *info_hash*.
+
+        Grab-time obligations are written with ``dispatched_path = NULL`` (the
+        media is not on disk yet); the dispatch-time correlation calls this to
+        attach the destination so path-based HnR protection engages.
+
+        Args:
+            info_hash: Torrent info-hash (hex string).
+            path: Absolute dispatched destination path.
+
+        Returns:
+            Number of rows updated.
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET dispatched_path = ? WHERE info_hash = ? AND released_at IS NULL",
+                (path, info_hash),
+            )
+            return cur.rowcount
+
     def find_by_dispatched_path(self, path: Path) -> SeedObligation | None:
         """Return the first active obligation for *dispatched_path*, or ``None``.
 

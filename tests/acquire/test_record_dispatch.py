@@ -655,3 +655,45 @@ def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteA
     row = store.wanted.get(wanted_id)
     assert row is not None
     assert row.status == "grabbed"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Grab-time obligation backfill (2026-07-15)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_record_dispatch_hit_backfills_grab_time_obligation(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """A HIT on a hash that already has a grab-time obligation UPDATES its path.
+
+    The grab-time writer records (hash, tracker, floors) with a NULL
+    dispatched_path; the dispatch correlation must attach the destination
+    instead of inserting a duplicate row.
+    """
+    import time as _time
+
+    from personalscraper.acquire.domain import SeedObligation
+
+    store.seed.add(
+        SeedObligation(
+            info_hash="abc123def456",
+            source_tracker="lacale",
+            min_seed_time_s=259200,
+            min_ratio=1.0,
+            added_at=int(_time.time()),
+            dispatched_path=None,
+        )
+    )
+
+    staging = tmp_path / "staging" / "MyShow.S01E01.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 2048)
+    dest = tmp_path / "library" / "MyShow.S01E01.mkv"
+    item = _torrent_item(name="MyShow.S01E01.mkv", size_bytes=2048, tags=["lacale"], info_hash="abc123def456")
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    rows = store._conn.execute("SELECT info_hash, dispatched_path FROM seed_obligation").fetchall()
+    assert len(rows) == 1, f"the correlation must backfill, not duplicate — got {len(rows)} rows"
+    assert rows[0][1] == str(dest), "dispatched_path must be attached to the grab-time row"

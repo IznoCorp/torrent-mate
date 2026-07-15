@@ -167,6 +167,14 @@ class SeedSubStore(Protocol):
         """Return the active obligation for *dispatched_path*, or ``None``."""
         ...
 
+    def find_active_by_hash(self, info_hash: str) -> SeedObligation | None:
+        """Return the first active obligation carrying *info_hash*, or ``None``."""
+        ...
+
+    def set_dispatched_path(self, info_hash: str, path: str) -> int:
+        """Backfill ``dispatched_path`` on the active obligations for *info_hash*."""
+        ...
+
     def find_active_under(self, path: Path) -> list[SeedObligation]:
         """Return all active obligations for *path* or any of its descendants.
 
