@@ -159,11 +159,12 @@ def _detect_needs(
     needs_nfo = not nfo_valid
 
     # Artwork check — flag missing poster regardless of NFO state
-    # (ID resolution is handled separately by _resolve_tmdb_id)
-    if media_type == "movie":
-        needs_artwork = not (media_dir / f"{title}-poster.jpg").exists()
-    else:
-        needs_artwork = not (media_dir / "poster.jpg").exists()
+    # (ID resolution is handled separately by _resolve_tmdb_id). Canonical
+    # detection (core.artwork_naming): the old exact-name checks re-downloaded
+    # artwork that existed under another legitimate spelling.
+    from personalscraper.core.artwork_naming import has_poster  # noqa: PLC0415
+
+    needs_artwork = not has_poster(media_dir)
 
     # Episode check (TV shows only)
     needs_episodes = False
