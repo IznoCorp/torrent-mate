@@ -176,7 +176,6 @@ def _run_dry(
     """
     from personalscraper.acquire._dedup import dedup  # noqa: PLC0415
     from personalscraper.acquire._filters import apply_hard_filters  # noqa: PLC0415
-    from personalscraper.acquire.desired import QualityProfile  # noqa: PLC0415
     from personalscraper.api._contracts import MediaType  # noqa: PLC0415
 
     store = acquire.store
@@ -234,8 +233,15 @@ def _run_dry(
                 console.print("  [yellow]No result matches the exact episode.[/yellow]")
                 continue
 
-        profile = QualityProfile()
-        filtered = apply_hard_filters(results, profile)
+        # Resolve the SAME effective profile the real grab uses (series
+        # quality_profile_json overlaid with item criteria) and pass the
+        # media_ref for TMDB-identity parity — otherwise the preview's Top can
+        # diverge from the real run for a series with a custom profile
+        # (exclude_3d=False, min_resolution, required_audio).
+        from personalscraper.acquire.service import resolve_effective_profile  # noqa: PLC0415
+
+        profile = resolve_effective_profile(store, item)
+        filtered = apply_hard_filters(results, profile, item.media_ref)
         deduped = dedup(filtered)
         console.print(f"  After filter+dedup: {len(deduped)} candidates")
         if deduped:

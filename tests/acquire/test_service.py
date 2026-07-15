@@ -329,6 +329,41 @@ def test_run_scopes_to_followed_id(store: ConcreteAcquireStore) -> None:
         assert item.status == "pending"
 
 
+def test_resolve_effective_profile_uses_series_json(store: ConcreteAcquireStore) -> None:
+    """§9 — the shared resolver honours the followed series' stored profile.
+
+    Proves the real grab AND the ``grab --dry-run`` preview resolve the SAME
+    effective profile (they both call resolve_effective_profile), so the
+    preview never diverges from the run. A series stored with exclude_3d=False
+    must yield exclude_3d=False (not the permissive default's True).
+    """
+    from personalscraper.acquire.desired import QualityProfile, Resolution, quality_profile_to_json
+    from personalscraper.acquire.service import resolve_effective_profile
+
+    stored = QualityProfile(min_resolution=Resolution.R1080P, exclude_3d=False)
+    fid = store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=555),
+            title="Custom Profile Series",
+            added_at=1_700_000_000,
+            quality_profile_json=quality_profile_to_json(stored),
+        )
+    )
+    item = _pending_item_for(followed_id=fid, tvdb_id=1)
+
+    resolved = resolve_effective_profile(store, item)
+    assert resolved.exclude_3d is False
+    assert resolved.min_resolution == Resolution.R1080P
+
+
+def test_resolve_effective_profile_default_without_follow(store: ConcreteAcquireStore) -> None:
+    """An un-followed item resolves to the permissive default (exclude_3d True)."""
+    from personalscraper.acquire.service import resolve_effective_profile
+
+    resolved = resolve_effective_profile(store, _pending_item(tvdb_id=9))
+    assert resolved.exclude_3d is True
+
+
 def test_run_retryable_resets_to_pending(store: ConcreteAcquireStore) -> None:
     """RETRYABLE outcome → row back to 'pending' and re-listed next run."""
     rowid = store.wanted.add(_pending_item())

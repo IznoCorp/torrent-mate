@@ -500,10 +500,9 @@ class AcquisitionService:
     def _resolve_profile(self, item: WantedItem) -> QualityProfile:
         """Resolve the effective :class:`QualityProfile` for one item.
 
-        Precedence (DESIGN §1, §3 — decode-only at RP5b): the series-level
-        profile (from ``FollowedSeries.quality_profile_json`` when the item is
-        bound to a followed series, else the permissive default) is overlaid
-        with the per-item ``SourceCriteria`` decoded from ``item.criteria_json``.
+        Thin instance wrapper over :func:`resolve_effective_profile` so the
+        real grab and the ``grab --dry-run`` preview resolve the profile
+        IDENTICALLY (no divergence — §9 quality on the whole grab path).
 
         Args:
             item: The claimed item to resolve a profile for.
@@ -511,13 +510,34 @@ class AcquisitionService:
         Returns:
             The effective :class:`QualityProfile` for the grab attempt.
         """
-        series_profile = QualityProfile()
-        if item.followed_id is not None:
-            followed = self._store.follow.get(item.followed_id)
-            if followed is not None:
-                series_profile = quality_profile_from_json(followed.quality_profile_json)
-        criteria = source_criteria_from_json(item.criteria_json)
-        return effective_quality(series_profile, criteria)
+        return resolve_effective_profile(self._store, item)
 
 
-__all__ = ["MAX_ATTEMPTS", "AcquisitionService", "GrabCore", "RunSummary"]
+def resolve_effective_profile(store: "AcquireStore", item: WantedItem) -> QualityProfile:
+    """Resolve the effective :class:`QualityProfile` for one wanted item.
+
+    Precedence (DESIGN §1, §3): the series-level profile (from
+    ``FollowedSeries.quality_profile_json`` when the item is bound to a
+    followed series, else the permissive default) is overlaid with the per-item
+    ``SourceCriteria`` decoded from ``item.criteria_json``. Shared by the real
+    grab (:class:`AcquisitionService`) and the ``grab --dry-run`` preview so the
+    preview never diverges from the run (a series ``exclude_3d=False`` /
+    ``min_resolution`` must show in both).
+
+    Args:
+        store: The acquire store (for the followed-series lookup).
+        item: The wanted item to resolve a profile for.
+
+    Returns:
+        The effective :class:`QualityProfile` for the grab attempt.
+    """
+    series_profile = QualityProfile()
+    if item.followed_id is not None:
+        followed = store.follow.get(item.followed_id)
+        if followed is not None:
+            series_profile = quality_profile_from_json(followed.quality_profile_json)
+    criteria = source_criteria_from_json(item.criteria_json)
+    return effective_quality(series_profile, criteria)
+
+
+__all__ = ["MAX_ATTEMPTS", "AcquisitionService", "GrabCore", "RunSummary", "resolve_effective_profile"]
