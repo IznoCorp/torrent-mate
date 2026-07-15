@@ -14,6 +14,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +29,7 @@ const useFollowedMock = vi.fn();
 const useWantedMock = vi.fn();
 const useObligationsMock = vi.fn();
 const useAcquisitionStatusMock = vi.fn();
+const useDownloadsMock = vi.fn();
 
 /** Stable mock mutation fns — cleared between tests, set per-test. */
 let followMutateFn = vi.fn();
@@ -51,6 +53,9 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useObligations: (...args: unknown[]) => useObligationsMock(...args),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useAcquisitionStatus: () => useAcquisitionStatusMock(),
+  // Arrival badge on the downloads tab (A4 limite avouée).
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useDownloads: () => useDownloadsMock(),
   useMediaSearch: () => ({
     data: undefined,
     isLoading: false,
@@ -200,6 +205,12 @@ function mockAllEmpty(): void {
       recent_runs: [],
       deferred: [],
     },
+    error: null,
+  });
+  useDownloadsMock.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: { downloads: [], client_available: true },
     error: null,
   });
   // Default: the grab scheduler is present with its live schedule (C15).
@@ -1157,5 +1168,37 @@ describe("AcquisitionPage", () => {
     expect(tvdbInput).toBeInTheDocument();
     const titleInput = screen.getByLabelText(/titre/i);
     expect(titleInput).toBeInTheDocument();
+  });
+});
+
+describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () => {
+  it("shows the in-progress count on the downloads tab", () => {
+    mockAllEmpty();
+    useDownloadsMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        downloads: [
+          { name: "A", state: "downloading", progress: 0.4 },
+          { name: "B", state: "downloading", progress: 0.9 },
+          { name: "C", state: "uploading", progress: 1 },
+          { name: "D", state: "missing", progress: 0 },
+        ],
+        client_available: true,
+      },
+      error: null,
+    });
+    renderPage();
+
+    const tab = screen.getByRole("tab", { name: /Téléchargements/ });
+    expect(within(tab).getByText("2")).toBeInTheDocument();
+  });
+
+  it("hides the badge when nothing is downloading", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tab = screen.getByRole("tab", { name: /Téléchargements/ });
+    expect(within(tab).queryByText(/^\d+$/)).not.toBeInTheDocument();
   });
 });

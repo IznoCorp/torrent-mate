@@ -64,6 +64,84 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
   if (url.includes("/api/maintenance/schedulers")) {
     return Promise.resolve(buildResponse(200, SCHEDULERS));
   }
+  // Control-station panels (A3): each self-contained card fetches its own
+  // endpoint — serve minimal well-shaped payloads.
+  if (url.includes("/api/pipeline/status")) {
+    return Promise.resolve(
+      buildResponse(200, { state: "idle", paused: false, watcher_enabled: true }),
+    );
+  }
+  if (url.includes("/api/pipeline/stages")) {
+    return Promise.resolve(buildResponse(200, { stages: [], run_processed: null }));
+  }
+  if (url.includes("/api/acquisition/wanted")) {
+    return Promise.resolve(
+      buildResponse(200, { items: [], total: 4, page: 1, page_size: 1 }),
+    );
+  }
+  if (url.includes("/api/acquisition/downloads")) {
+    return Promise.resolve(
+      buildResponse(200, {
+        downloads: [
+          { name: "A", state: "downloading", progress: 0.4 },
+          { name: "B", state: "uploading", progress: 1 },
+        ],
+        client_available: true,
+      }),
+    );
+  }
+  if (url.includes("/api/acquisition/status")) {
+    return Promise.resolve(
+      buildResponse(200, {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [],
+        deferred: [{ name: "C", reason: "ratio_below_threshold" }],
+      }),
+    );
+  }
+  if (url.includes("/api/maintenance/disks")) {
+    return Promise.resolve(
+      buildResponse(200, {
+        disks: [
+          {
+            id: "disk_1",
+            label: "Disk 1",
+            mounted: true,
+            free_gb: 500.0,
+            total_gb: 1000.0,
+            used_pct: 50.0,
+          },
+        ],
+      }),
+    );
+  }
+  if (url.includes("/api/maintenance/index-health")) {
+    return Promise.resolve(
+      buildResponse(200, {
+        items: 1200,
+        movies: 800,
+        shows: 400,
+        files: 3400,
+        size_gb: 4200.5,
+        nfo: { valid: 1150, invalid: 30, missing: 20 },
+        repair_queue_pending: 0,
+        repair_queue_oldest_age_s: null,
+        outbox_pending: 0,
+        outbox_oldest_age_s: null,
+        last_scan_id: 42,
+        last_scan_mode: "full",
+        last_scan_status: "ok",
+        last_scan_started_at: null,
+        last_scan_finished_at: null,
+        last_scan_stuck: false,
+        soft_deleted: 0,
+        canonical_null: 0,
+        degraded: false,
+        error: null,
+      }),
+    );
+  }
   return Promise.resolve(
     buildResponse(200, { status: "ok", redis: true, db: true }),
   );
@@ -125,5 +203,22 @@ describe("Dashboard", () => {
       await screen.findByText("Surveillance des téléchargements"),
     ).toBeInTheDocument();
     expect(await screen.findByText("Récupération (grab)")).toBeInTheDocument();
+  });
+
+  it("est un poste de contrôle : contrôles pipeline + acquisitions + index + disques (A3)", async () => {
+    renderDashboard();
+
+    // Pipeline controls are usable from home (idle status → « Démarrer »).
+    expect(await screen.findByText("Démarrer")).toBeInTheDocument();
+
+    // Acquisitions glance: pending (total=4), in-progress downloads (1 of the
+    // 2 canned rows has progress < 1), deferred torrent surfaced.
+    expect(await screen.findByText(/4 épisodes en attente/)).toBeInTheDocument();
+    expect(screen.getByText(/1 téléchargement en cours/)).toBeInTheDocument();
+    expect(screen.getByText(/1 torrent différé/)).toBeInTheDocument();
+
+    // Index health + disks panels resolve from their endpoints.
+    expect(await screen.findByText("Santé de l'index")).toBeInTheDocument();
+    expect(await screen.findByText("Disk 1")).toBeInTheDocument();
   });
 });

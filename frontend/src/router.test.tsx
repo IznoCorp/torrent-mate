@@ -72,7 +72,9 @@ beforeEach(() => {
         }),
       );
     }
-    return Promise.resolve(buildResponse(200, {}));
+    // Unmocked endpoints: an honest 404 — panels show their error state
+    // instead of crashing on a fake 200 with a non-contract body.
+    return Promise.resolve(buildResponse(404, { detail: "not mocked" }));
   });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("WebSocket", NoopWebSocket);
@@ -242,7 +244,12 @@ describe("router", () => {
         sessionValid = false;
         return Promise.resolve(buildResponse(401, { detail: "unauthorized" }));
       }
-      return Promise.resolve(buildResponse(200, {}));
+      // A lost session 401s everywhere — panels error out, never crash.
+      return Promise.resolve(
+        sessionValid
+          ? buildResponse(404, { detail: "not mocked" })
+          : buildResponse(401, { detail: "unauthorized" }),
+      );
     });
 
     renderAtWithSingleton("/");
