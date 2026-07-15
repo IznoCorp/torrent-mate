@@ -231,8 +231,13 @@
         "type": "object"
       },
       "ActionRunResponse": {
-        "description": "Response body returned after a successful ``POST .../run``.\n\nMirrors the S2 :class:`~personalscraper.web.models.pipeline.RunResponse`\npattern: a single ``run_uid`` the client can poll for status.\n\nAttributes:\n    run_uid: The unique hex identifier of the newly launched\n        maintenance run (a ``uuid4().hex``).",
+        "description": "Response body returned after a successful ``POST .../run``.\n\nMirrors the S2 :class:`~personalscraper.web.models.pipeline.RunResponse`\npattern: a single ``run_uid`` the client can poll for status.\n\nAttributes:\n    run_uid: The unique hex identifier of the newly launched\n        maintenance run (a ``uuid4().hex``).\n    queued: ``True`` when ``pipeline.lock`` was held at spawn time \u2014 the\n        runner is waiting in the visible queue (\u00a76) and will execute when\n        the lock frees; the UI shows \u00ab En file \u00bb instead of \u00ab lanc\u00e9 \u00bb.",
         "properties": {
+          "queued": {
+            "default": false,
+            "title": "Queued",
+            "type": "boolean"
+          },
           "run_uid": {
             "title": "Run Uid",
             "type": "string"
@@ -2462,8 +2467,13 @@
         "type": "object"
       },
       "RunResponse": {
-        "description": "Response body returned after a successful ``POST /api/pipeline/run``.\n\nAttributes:\n    run_uid: The unique identifier of the newly launched pipeline run.",
+        "description": "Response body returned after a successful ``POST /api/pipeline/run``.\n\nAttributes:\n    run_uid: The unique identifier of the newly launched pipeline run, or\n        of the ``pipeline-queue`` row when the launch was queued.\n    queued: ``True`` when the lock was held by a maintenance/resolve run \u2014\n        the launch waits in the visible queue (\u00a76) and executes when the\n        lock frees; the UI shows \u00ab En file \u00bb instead of \u00ab lanc\u00e9 \u00bb.",
         "properties": {
+          "queued": {
+            "default": false,
+            "title": "Queued",
+            "type": "boolean"
+          },
           "run_uid": {
             "title": "Run Uid",
             "type": "string"
@@ -5020,7 +5030,7 @@
     },
     "/api/maintenance/actions/{action_id}/run": {
       "post": {
-        "description": "Launch a maintenance action as a detached subprocess.\n\nMirror of ``POST /api/pipeline/run`` \u2014 validates the action id, options, and\npreconditions (pipeline lock, concurrent maintenance run, dry-run-first for\ndestructive actions), then spawns a runner subprocess and returns ``202``\nwith the ``run_uid``.\n\nArgs:\n    action_id: The kebab-case action id (e.g. ``\"library-index\"``).\n    body: The request payload with ``options`` and ``dry_run``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ActionRunResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: *action_id* is not in the :data:`REGISTRY`.\n    422: Invalid or missing options, or dry-run requested for an action\n        that does not support it.\n    409: The pipeline lock is held, or a maintenance action is already running.\n    428: A destructive action was requested without a recent successful\n        dry run (same options, within the last 30 minutes).",
+        "description": "Launch a maintenance action as a detached subprocess.\n\nMirror of ``POST /api/pipeline/run`` \u2014 validates the action id and options,\nguards the strict duplicate (same action + same options, the only refusal\npermitted by \u00a76) and dry-run-first for destructive actions, then spawns a\nrunner subprocess and returns ``202`` with the ``run_uid``. A held\n``pipeline.lock`` never refuses the action: the runner waits in the\nVISIBLE queue (``queue`` step on the run row, ``web/run_queue.py``) and\nexecutes when the lock frees \u2014 ``queued`` hints that state to the UI.\n\nArgs:\n    action_id: The kebab-case action id (e.g. ``\"library-index\"``).\n    body: The request payload with ``options`` and ``dry_run``.\n    request: The incoming FastAPI request (for ``app.state`` access).\n\nReturns:\n    ``202`` with :class:`ActionRunResponse` (``{\"run_uid\", \"queued\"}``).\n\nRaises:\n    404: *action_id* is not in the :data:`REGISTRY`.\n    422: Invalid or missing options, or dry-run requested for an action\n        that does not support it.\n    409: The SAME action with the SAME options is already running\n        (duplicate), or the duplicate check could not be verified for a\n        destructive action.\n    428: A destructive action was requested without a recent successful\n        dry run (same options, within the last 30 minutes).",
         "operationId": "action_run_api_maintenance_actions__action_id__run_post",
         "parameters": [
           {
@@ -5344,7 +5354,7 @@
     },
     "/api/pipeline/run": {
       "post": {
-        "description": "Launch a new pipeline run as a detached subprocess.\n\nReturns ``202 {run_uid}`` on success, or ``409`` if the pipeline lock\nis already held by another process.",
+        "description": "Launch a new pipeline run as a detached subprocess.\n\nReturns ``202 {run_uid}`` on success. When ``pipeline.lock`` is held the\nbehavior depends on the holder (\u00a76 \u2014 the only refusal is the duplicate):\n\n- held by another **pipeline run** \u2192 ``409`` (the same action is already\n  in flight \u2014 strict duplicate);\n- held by a **maintenance / resolve run** \u2192 the launch is queued VISIBLY\n  (``pipeline-queue`` row with a ``queue`` step) and executes when the\n  lock frees \u2014 ``202 {run_uid, queued: true}``.",
         "operationId": "pipeline_run_api_pipeline_run_post",
         "requestBody": {
           "content": {

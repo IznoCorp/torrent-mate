@@ -17,6 +17,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# The guard is only as real as its grep: a missing rg used to make `|| true`
+# swallow the exit-127 and silently PASS (observed on CI, 2026-07-15). Fail loudly.
+if ! command -v rg >/dev/null 2>&1; then
+  echo "✗ lint:tokens — ripgrep (rg) is not installed; the guard cannot run." >&2
+  exit 1
+fi
+
 # #rgb / #rgba / #rrggbb / #rrggbbaa, plus the functional colour notations.
 PATTERN='#[0-9a-fA-F]{3,8}\b|oklch\(|rgba?\(|hsl\('
 

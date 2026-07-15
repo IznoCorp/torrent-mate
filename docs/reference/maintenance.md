@@ -354,27 +354,32 @@ maintenance history from the same endpoints.
 
 **Pipeline lock.** Write/destructive actions hold the same `pipeline.lock` as
 the Watcher and S2's `/api/pipeline/run` for their whole subprocess lifetime
-(R11). The POST handler returns `409` when the lock is already held — probed
-once before the row reservation and re-probed right before the spawn (the
-reserved row is finalized `error` if the lock appeared in the window). The
-**runner** then acquires the lock itself for every live (non-dry-run)
-write/destructive action whose CLI does not self-acquire, and releases it on
-every exit path (success, error, spawn failure, SIGTERM). Four CLIs
+(R11). Since constitution v2 §6 a held lock is **never a refusal**: the POST
+always accepts (`202`, `queued: true` hint when the lock is held at spawn
+time) and the **runner** waits in the shared visible queue
+(`web/run_queue.py` — `queue` step on the run row, status
+`waiting_pipeline_lock`, default budget 1800 s via
+`PERSONALSCRAPER_MAINT_QUEUE_TIMEOUT`, French `error` finalize on timeout)
+until its atomic `acquire_pipeline_lock` claim succeeds. It releases the lock
+on every exit path (success, error, spawn failure, SIGTERM). Four CLIs
 self-acquire in their live mode and are exempt from runner-side acquisition
 (`_CLI_SELF_LOCKING`): `library-clean` (`--apply`), `library-validate`
 (`--fix --apply`), `library-rescrape` (non-dry-run), and `scrape-resolve`
-(always live; it writes into staging). Losing a last-instant
-race finalizes the run `error` ("Pipeline lock held"). Net effect: no two
-writers can run concurrently, regardless of whether they are a pipeline run,
-a maintenance action, or a watcher-triggered run — and `POST /pipeline/kill`
-SIGTERMs whichever process holds the lock (a maintenance runner finalizes its
-row `killed` and releases).
+(always live; it writes into staging). For those the runner waits on a
+read-only lock probe before spawning (visibility + pacing only — the child's
+claim-first-then-verify acquisition stays the sole safety authority) and
+re-queues PACED when the child exits **3** (the uniform lock-busy exit code)
+under the same deadline. Net effect: no two writers can run concurrently, the
+wait is a first-class visible state, and `POST /pipeline/kill` still refuses
+to SIGTERM a maintenance holder (its own surface owns that).
 
-**Single maintenance action.** Even when the pipeline lock is free, only one
-maintenance action may run at a time. The handler checks for an in-flight
-maintenance run by reading the latest `pipeline_run` row with
-`kind='maintenance'` and `outcome='running'`, then verifying its PID is still
-alive via `os.kill(pid, 0)`. A second concurrent action returns `409`.
+**Duplicate guard (the only 409 left).** The handler refuses only the strict
+duplicate: a `pipeline_run` row with `kind='maintenance'`,
+`outcome='running'`, the **same `command`**, byte-identical `options_json`
+AND the same `dry_run` mode, whose PID is alive (`os.kill(pid, 0)`). A
+DIFFERENT action (or the same action with different options/mode) reserves
+its row and queues on the lock instead of being refused — serialization is
+the lock's job, not the route's.
 
 **Dry-run-first for destructive actions.** Actions with `risk='destructive'`
 (or, more broadly, those whose `dry_run` is `'supported'` and are being

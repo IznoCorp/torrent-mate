@@ -33,18 +33,21 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import signal
 import subprocess
 import sys
+import time
 from collections import deque
 from types import FrameType
 from typing import Any
 
 from personalscraper.conf.loader import load_config
-from personalscraper.lock import acquire_pipeline_lock, release_lock, scrape_locks_dir_for
+from personalscraper.lock import acquire_pipeline_lock, is_lock_held, release_lock, scrape_locks_dir_for
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.maintenance.registry import REGISTRY, MaintenanceAction
+from personalscraper.web.run_queue import wait_in_visible_queue
 
 log = get_logger(__name__)
 
@@ -589,16 +592,28 @@ def main() -> None:
 
     # 6b. Acquire the pipeline lock (after the SIGTERM handler is installed so
     #     a kill arriving mid-run still releases it). ``acquire_lock`` is the
-    #     atomic authority (O_CREAT|O_EXCL) — losing it means a pipeline run
-    #     grabbed the lock after the route's probes: finalize 'error', exit 1.
+    #     atomic authority (O_CREAT|O_EXCL). A held lock is no longer a refusal
+    #     (§6 — jamais « occupé ») : the runner waits in the shared VISIBLE
+    #     queue (web/run_queue.py, 'queue' step on the run row) until its
+    #     atomic claim succeeds or the deadline passes (row finalized 'error'
+    #     with the reason, in French).
+    queue_timeout_s = float(os.environ.get("PERSONALSCRAPER_MAINT_QUEUE_TIMEOUT", "1800"))
+    queue_deadline = time.monotonic() + queue_timeout_s
     if hold_lock:
-        if not acquire_pipeline_lock(lock_file, scrape_locks_dir_for(config.paths.data_dir)):
-            writer.finalize(run_uid, OUTCOME_ERROR, error="Pipeline lock held")
-            log.error(
-                "maintenance_runner_lock_held",
-                run_uid=run_uid,
-                command=command,
-            )
+        if not wait_in_visible_queue(
+            try_proceed=lambda: acquire_pipeline_lock(lock_file, scrape_locks_dir_for(config.paths.data_dir)),
+            writer=writer,
+            run_uid=run_uid,
+            deadline_monotonic=queue_deadline,
+            timeout_s=queue_timeout_s,
+            timeout_error=(
+                "Délai d'attente dépassé : pipeline.lock toujours tenu après "
+                f"{int(queue_timeout_s)}s — action abandonnée, relancez-la."
+            ),
+            log_event_prefix="maintenance_runner",
+            log_context={"command": command},
+            output_tail=ring.to_str,
+        ):
             sys.exit(1)
         lock_acquired = True
 
@@ -606,68 +621,121 @@ def main() -> None:
     # SystemExit) releases the pipeline lock. Only os._exit in the SIGTERM
     # handler bypasses this — that handler releases the lock itself.
     try:
-        # 7. Spawn subprocess.
-        log.info(
-            "maintenance_runner_starting",
-            run_uid=run_uid,
-            command=command,
-            dry_run=dry_run,
-            argv=argv,
-        )
+        # 6c. Self-locking children (:data:`_CLI_SELF_LOCKING`) claim
+        #     ``pipeline.lock`` themselves in apply mode — the runner waits
+        #     VISIBLY while the lock is held instead of letting the child die
+        #     on a busy lock (§6: never « occupé »). The child's
+        #     claim-first-then-verify acquisition stays the ONLY safety
+        #     authority; this probe is visibility + pacing, and the residual
+        #     race is closed by the exit-3 re-queue below.
+        child_self_locks = action.risk in ("write", "destructive") and not dry_run and action.id in _CLI_SELF_LOCKING
 
-        try:
-            proc = subprocess.Popen(
-                argv,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                errors="replace",
-                bufsize=1,
-                start_new_session=True,
-            )
-        except (OSError, ValueError) as exc:
-            # OSError → exec failure; ValueError → embedded null byte in an arg.
-            log.error(
-                "maintenance_runner_spawn_failed",
-                run_uid=run_uid,
-                command=command,
-                error=str(exc),
-            )
-            writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
-            sys.exit(2)
-
-        child["proc"] = proc
-
-        # 8. Stream output — ring buffer + Redis. Any failure here finalizes the
-        #    row 'error' so it is never left 'running'.
         redis = _get_redis(web_config)
         stream_key = web_config.stream_key
         stream_maxlen = web_config.stream_maxlen
         seq = 0
 
-        try:
-            assert proc.stdout is not None
-            for line in proc.stdout:
-                ring.append(line)
-                _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
-                seq += 1
-            rc = proc.wait()
-        except Exception as exc:
-            _kill_child_group(proc)
-            output_tail = ring.to_str()
-            writer.finalize(
-                run_uid,
-                OUTCOME_ERROR,
-                error=str(exc) or type(exc).__name__,
-                output_tail=output_tail,
-            )
-            log.error(
-                "maintenance_runner_stream_failed",
+        while True:
+            if child_self_locks and not wait_in_visible_queue(
+                try_proceed=lambda: not is_lock_held(lock_file),
+                writer=writer,
+                run_uid=run_uid,
+                deadline_monotonic=queue_deadline,
+                timeout_s=queue_timeout_s,
+                timeout_error=(
+                    "Délai d'attente dépassé : pipeline.lock toujours tenu après "
+                    f"{int(queue_timeout_s)}s — action abandonnée, relancez-la."
+                ),
+                log_event_prefix="maintenance_runner",
+                log_context={"command": command},
+                output_tail=ring.to_str,
+            ):
+                sys.exit(1)
+
+            # 7. Spawn subprocess.
+            log.info(
+                "maintenance_runner_starting",
                 run_uid=run_uid,
                 command=command,
-                exc_info=True,
+                dry_run=dry_run,
+                argv=argv,
             )
-            sys.exit(1)
+
+            try:
+                proc = subprocess.Popen(
+                    argv,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    errors="replace",
+                    bufsize=1,
+                    start_new_session=True,
+                )
+            except (OSError, ValueError) as exc:
+                # OSError → exec failure; ValueError → embedded null byte in an arg.
+                log.error(
+                    "maintenance_runner_spawn_failed",
+                    run_uid=run_uid,
+                    command=command,
+                    error=str(exc),
+                )
+                writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
+                sys.exit(2)
+
+            child["proc"] = proc
+
+            # 8. Stream output — ring buffer + Redis. Any failure here finalizes
+            #    the row 'error' so it is never left 'running'.
+            try:
+                assert proc.stdout is not None
+                for line in proc.stdout:
+                    ring.append(line)
+                    _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
+                    seq += 1
+                rc = proc.wait()
+            except Exception as exc:
+                _kill_child_group(proc)
+                output_tail = ring.to_str()
+                writer.finalize(
+                    run_uid,
+                    OUTCOME_ERROR,
+                    error=str(exc) or type(exc).__name__,
+                    output_tail=output_tail,
+                )
+                log.error(
+                    "maintenance_runner_stream_failed",
+                    run_uid=run_uid,
+                    command=command,
+                    exc_info=True,
+                )
+                sys.exit(1)
+
+            if rc == 3 and child_self_locks:
+                # Exit 3 = lock busy at claim time (the lock was re-acquired
+                # between our probe and the child's claim, or a same-item
+                # resolve is live) — re-queue PACED under the same deadline so
+                # a child that exits 3 forever never spins the runner.
+                child.pop("proc", None)
+                if time.monotonic() > queue_deadline:
+                    writer.finalize(
+                        run_uid,
+                        OUTCOME_ERROR,
+                        error=(
+                            "Délai d'attente dépassé : verrou toujours occupé après "
+                            f"{int(queue_timeout_s)}s de tentatives — action abandonnée."
+                        ),
+                        output_tail=ring.to_str(),
+                    )
+                    log.error(
+                        "maintenance_runner_requeue_timeout",
+                        run_uid=run_uid,
+                        command=command,
+                    )
+                    sys.exit(1)
+                log.info("maintenance_runner_requeued", run_uid=run_uid, command=command)
+                time.sleep(1.0 + random.uniform(0.0, 1.0))
+                continue
+            break
 
         # 9. Finalize.
         output_tail = ring.to_str()

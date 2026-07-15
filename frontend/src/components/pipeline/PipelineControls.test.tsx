@@ -28,7 +28,7 @@ vi.mock("@/api/client", async (importOriginal) => {
 });
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 type StatusResponse = components["schemas"]["StatusResponse"];
@@ -139,12 +139,16 @@ describe("PipelineControls", () => {
     expect(screen.getByText("Arrêter le pipeline ?")).toBeInTheDocument();
   });
 
-  it("shows the backend error detail on a failed run mutation", async () => {
-    // Arrange: stub runPipeline to reject with a 409.
+  it("shows the backend error detail on a duplicate run (409)", async () => {
+    // Arrange: stub runPipeline to reject with the French duplicate 409 (§6 —
+    // the only refusal left is another PIPELINE run already in flight).
     const mod = await import("@/api/client");
     const mockedRun = mod.runPipeline as ReturnType<typeof vi.fn>;
     mockedRun.mockRejectedValueOnce(
-      new ApiError(409, "Pipeline is already running"),
+      new ApiError(
+        409,
+        "Un run du pipeline est déjà en cours — relancer serait un doublon.",
+      ),
     );
 
     vi.mocked(toast.error).mockClear();
@@ -161,10 +165,36 @@ describe("PipelineControls", () => {
 
     // Assert: the backend detail surfaced via toast.error.
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Pipeline is already running");
+      expect(toast.error).toHaveBeenCalledWith(
+        "Un run du pipeline est déjà en cours — relancer serait un doublon.",
+      );
     });
 
     // The dialog stays open so the user sees the error and can retry.
     expect(screen.getByText("Démarrer le pipeline")).toBeInTheDocument();
+  });
+
+  it("announces the visible queue when the launch is queued (§6)", async () => {
+    // Arrange: the backend accepted (202) but a maintenance run holds the
+    // lock — the launch waits in the visible pipeline-queue.
+    const mod = await import("@/api/client");
+    const mockedRun = mod.runPipeline as ReturnType<typeof vi.fn>;
+    mockedRun.mockResolvedValueOnce({ run_uid: "queued123", queued: true });
+
+    vi.mocked(toast.info).mockClear();
+    vi.mocked(toast.error).mockClear();
+
+    renderControls(IDLE_STATUS);
+
+    fireEvent.click(screen.getByRole("button", { name: /Démarrer/i }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Démarrer/i }));
+
+    await waitFor(() => {
+      expect(toast.info).toHaveBeenCalledWith(
+        "En file — un run de maintenance tient le verrou ; le pipeline démarrera à sa libération.",
+      );
+    });
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

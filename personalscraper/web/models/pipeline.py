@@ -73,10 +73,15 @@ class RunResponse(BaseModel):
     """Response body returned after a successful ``POST /api/pipeline/run``.
 
     Attributes:
-        run_uid: The unique identifier of the newly launched pipeline run.
+        run_uid: The unique identifier of the newly launched pipeline run, or
+            of the ``pipeline-queue`` row when the launch was queued.
+        queued: ``True`` when the lock was held by a maintenance/resolve run —
+            the launch waits in the visible queue (§6) and executes when the
+            lock frees; the UI shows « En file » instead of « lancé ».
     """
 
     run_uid: str
+    queued: bool = False
 
 
 class StatusResponse(BaseModel):

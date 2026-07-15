@@ -906,14 +906,18 @@ class TestRunnerPipelineLock:
         mock_acquire.assert_called_once_with(tmp_path / "pipeline.lock", tmp_path / "locks" / "scrape")
         mock_release.assert_called_once_with(tmp_path / "pipeline.lock")
 
-    def test_lock_held_finalizes_error_and_exits_1(self, tmp_path: Path) -> None:
-        """Losing the lock race finalizes the row 'error' and never spawns the CLI.
+    def test_lock_held_queues_visibly_then_times_out(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A held lock QUEUES (visible step) and only a passed deadline errors.
 
-        The lock file holds this test process's live pid, so the REAL
-        ``acquire_lock`` refuses it — the exact behaviour when a pipeline run
-        grabbed the lock after the route's probes.
+        Red-on-old: the runner used to finalize 'error' ("Pipeline lock held")
+        immediately — a busy refusal (§6). Now it waits in the visible queue
+        ('queue' step, status ``waiting_pipeline_lock``); with a tiny
+        ``PERSONALSCRAPER_MAINT_QUEUE_TIMEOUT`` the deadline passes and the
+        row is finalized 'error' with the French reason. The lock file holds
+        this test process's live pid, so the REAL ``acquire_lock`` refuses it.
         """
         _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        monkeypatch.setenv("PERSONALSCRAPER_MAINT_QUEUE_TIMEOUT", "0.05")
         mock_config = _make_mock_config(tmp_path)
         (tmp_path / "pipeline.lock").write_text(str(os.getpid()))
 
@@ -923,6 +927,7 @@ class TestRunnerPipelineLock:
             patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
             patch("personalscraper.web.maintenance.runner.subprocess.Popen") as mock_popen,
             patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.web.run_queue.time.sleep"),
             pytest.raises(SystemExit) as exc_info,
         ):
             runner_mod.main()
@@ -932,9 +937,46 @@ class TestRunnerPipelineLock:
         row = _select_row(mock_config.indexer.db_path, self.RUN_UID)
         assert row is not None
         assert row["outcome"] == "error"
-        assert row["error"] == "Pipeline lock held"
+        assert "Délai d'attente dépassé" in row["error"]
+        # The wait was VISIBLE: a 'queue' step landed on the run row.
+        steps = json.loads(row["steps_json"])
+        queue_steps = [s for s in steps if s.get("name") == "queue"]
+        assert queue_steps, f"expected a visible queue step, got {steps!r}"
+        assert queue_steps[0]["status"] == "waiting_pipeline_lock"
         # The pre-existing lock is left untouched (owned by the other process).
         assert (tmp_path / "pipeline.lock").read_text() == str(os.getpid())
+
+    def test_lock_freed_during_queue_proceeds(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The queue hands over as soon as the atomic claim succeeds.
+
+        ``acquire_pipeline_lock`` fails once (lock held) then succeeds — the
+        runner writes the queue step, closes it truthfully, spawns the CLI and
+        releases the lock on exit.
+        """
+        _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=False)
+        monkeypatch.delenv("PERSONALSCRAPER_MAINT_QUEUE_TIMEOUT", raising=False)
+        mock_config = _make_mock_config(tmp_path)
+        mock_proc = _fake_popen(["ok\n"], returncode=0)
+
+        with (
+            patch(
+                "personalscraper.web.maintenance.runner.acquire_pipeline_lock",
+                side_effect=[False, True],
+            ) as mock_acquire,
+            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
+            patch("personalscraper.web.run_queue.time.sleep"),
+        ):
+            exit_exc = self._run_main(mock_config, mock_proc)
+
+        assert exit_exc.code == 0
+        assert mock_acquire.call_count == 2
+        mock_release.assert_called_once_with(tmp_path / "pipeline.lock")
+        row = _select_row(mock_config.indexer.db_path, self.RUN_UID)
+        assert row is not None
+        assert row["outcome"] == "success"
+        steps = json.loads(row["steps_json"])
+        queue_steps = [s for s in steps if s.get("name") == "queue"]
+        assert [s["status"] for s in queue_steps] == ["waiting_pipeline_lock", "done"]
 
     def test_self_locking_action_does_not_acquire(self, tmp_path: Path) -> None:
         """A live self-locking CLI (library-clean --apply) is never double-locked.

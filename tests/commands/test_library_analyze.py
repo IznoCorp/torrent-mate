@@ -352,11 +352,11 @@ class TestLibraryRescrape:
         mock_acquire.assert_called_once()
         mock_release.assert_called_once()
 
-    def test_live_lock_blocked(self) -> None:
-        """A non dry-run invocation exits 1 when the lock is held."""
+    def test_live_lock_blocked_exits_3(self) -> None:
+        """A non dry-run invocation exits 3 when the lock is held (§6 contract)."""
         with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-rescrape"])
-        assert result.exit_code == 1
+        assert result.exit_code == 3
         assert "Another instance" in result.output
 
 

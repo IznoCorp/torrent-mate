@@ -63,6 +63,7 @@ from personalscraper.web.maintenance.runner import (
     _redis_publish_line,
     _RingBuffer,
 )
+from personalscraper.web.run_queue import wait_in_visible_queue
 
 log = get_logger(__name__)
 
@@ -395,53 +396,27 @@ def main() -> None:
         stream_maxlen = web_config.stream_maxlen
         seq = 0
         attempt = 0
-        queued_since: float | None = None
 
         while True:
-            if is_lock_held(pipeline_lock):
-                if queued_since is None:
-                    queued_since = time.time()
-                    # Structured queue visibility: a 'queue' step on the run row
-                    # (steps_json is epoch-timestamped per invariant) — the
-                    # activity endpoint + run detail surface it with no new
-                    # endpoint.
-                    writer.update_step(
-                        run_uid,
-                        "queue",
-                        queued_since,
-                        queued_since,
-                        "waiting_pipeline_lock",
-                    )
-                    log.info(
-                        "decision_runner_queued",
-                        run_uid=run_uid,
-                        decision_id=decision_id,
-                        reason="pipeline_lock_held",
-                    )
-                if time.monotonic() > queue_deadline:
-                    writer.finalize(
-                        run_uid,
-                        OUTCOME_ERROR,
-                        error=(
-                            "Délai d'attente dépassé : pipeline.lock toujours tenu après "
-                            f"{int(queue_timeout_s)}s — résolution abandonnée, relancez-la."
-                        ),
-                        output_tail=ring.to_str(),
-                    )
-                    log.error(
-                        "decision_runner_queue_timeout",
-                        run_uid=run_uid,
-                        decision_id=decision_id,
-                        timeout_s=queue_timeout_s,
-                    )
-                    sys.exit(1)
-                time.sleep(2.0 + random.uniform(0.0, 1.0))
-                continue
-
-            if queued_since is not None:
-                # Leaving the queue — record the wait window truthfully.
-                writer.update_step(run_uid, "queue", queued_since, time.time(), "done")
-                queued_since = None
+            # Shared §6 visible-queue wait (web/run_queue.py): appends the
+            # 'queue' step, paces the poll, finalizes 'error' in French on
+            # deadline. The deadline is shared with the rc==3 re-queue leg
+            # below so retries never extend the total wait.
+            if not wait_in_visible_queue(
+                try_proceed=lambda: not is_lock_held(pipeline_lock),
+                writer=writer,
+                run_uid=run_uid,
+                deadline_monotonic=queue_deadline,
+                timeout_s=queue_timeout_s,
+                timeout_error=(
+                    "Délai d'attente dépassé : pipeline.lock toujours tenu après "
+                    f"{int(queue_timeout_s)}s — résolution abandonnée, relancez-la."
+                ),
+                log_event_prefix="decision_runner",
+                log_context={"decision_id": decision_id},
+                output_tail=ring.to_str,
+            ):
+                sys.exit(1)
 
             attempt += 1
             log.info(

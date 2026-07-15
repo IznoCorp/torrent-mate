@@ -69,8 +69,15 @@ export function PipelineControls({
   // ---- mutations ----
   const runMutation = useMutation({
     mutationFn: () => runPipeline({ dry_run: dryRun }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       setShowRunDialog(false);
+      // §6 — a maintenance run holds the lock: the launch is queued VISIBLY
+      // (pipeline-queue row) and starts when the lock frees. Say it.
+      if (data.queued) {
+        toast.info(
+          "En file — un run de maintenance tient le verrou ; le pipeline démarrera à sa libération.",
+        );
+      }
       void invalidate();
     },
     onError: (err) => {

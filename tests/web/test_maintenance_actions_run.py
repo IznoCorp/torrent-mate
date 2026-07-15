@@ -228,13 +228,15 @@ class TestActionRun:
         assert resp.status_code == 422
         assert "Missing required option" in resp.json()["detail"]
 
-    # ── Lock / concurrent maintenance 409 tests ─────────────────────────────
+    # ── §6 — lock held ⇒ visible queue, only the strict duplicate refuses ────
 
-    def test_write_action_lock_held_returns_409(self, test_config, tmp_path: Path) -> None:
-        """409 — write action when ``pipeline.lock`` is held by a live process.
+    def test_write_action_lock_held_returns_202_queued(self, test_config, tmp_path: Path) -> None:
+        """202 + ``queued: true`` — live write action while ``pipeline.lock`` is held.
 
-        No ``pipeline_run`` table exists, so the lock guard falls through to
-        the generic ``"Pipeline lock held"`` detail (non-maintenance lock).
+        Red-on-old: the previous route pre-probed the lock and refused with
+        409 « Pipeline lock held ». Constitution v2 §6 / DOIT-4: the action is
+        ACCEPTED — the runner waits in the visible queue — and the response
+        hints ``queued`` so the UI can show « En file » immediately.
         """
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -242,35 +244,47 @@ class TestActionRun:
 
         client = _build_authenticated_client(test_config, tmp_path)
 
-        resp = client.post(
-            f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
-            json={"options": {}, "dry_run": True},
-            headers={"X-Requested-With": "TorrentMate"},
-        )
-        assert resp.status_code == 409
-        assert resp.json()["detail"] == "Pipeline lock held"
+        with patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn:
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": False},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
+        assert resp.json()["queued"] is True
+        assert mock_spawn.called
 
-    def test_running_maintenance_live_pid_returns_409(self, test_config, tmp_path: Path) -> None:
-        """409 — a maintenance row with a LIVE pid blocks a second run.
+    def test_dry_run_lock_held_returns_202_not_queued(self, test_config, tmp_path: Path) -> None:
+        """202 + ``queued: false`` — a dry run never waits on the pipeline lock."""
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "pipeline.lock").write_text(str(os.getpid()))
 
-        The concurrent-maintenance guard queries ``pipeline_run`` for rows with
-        ``kind='maintenance' AND outcome='running'`` and checks liveness via
-        ``os.kill(pid, 0)``.  A row with ``pid=os.getpid()`` (the test process
-        itself) is alive → 409 ``"A maintenance action is already running"``.
+        client = _build_authenticated_client(test_config, tmp_path)
 
-        Unlike the pipeline-lock 409, this check fires even when
-        ``pipeline.lock`` is NOT held, because a maintenance action may be
-        genuinely running without holding the pipeline lock (e.g. a read-only
-        action, or a write CLI that doesn't take the lock).
+        with patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn:
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
+        assert resp.json()["queued"] is False
+        assert mock_spawn.called
+
+    def test_same_action_same_options_same_mode_returns_409(self, test_config, tmp_path: Path) -> None:
+        """409 — the strict duplicate: same command, same options, same mode, live pid.
+
+        §6: the ONLY refusal permitted is idempotence. The seeded running row
+        matches the POST byte-for-byte (command, options_json, dry_run) and its
+        pid is alive → duplicate, refused with the French detail.
         """
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
-        # Do NOT create pipeline.lock — the pid-based guard is independent.
 
-        # Seed a DB with a running maintenance row whose pid IS alive.
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
-        _seed_running_maintenance(conn, pid=os.getpid())
+        _seed_running_maintenance(conn, pid=os.getpid())  # dry_run=0, options '{}'
         conn.close()
 
         client = _build_authenticated_client(
@@ -281,11 +295,77 @@ class TestActionRun:
 
         resp = client.post(
             f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
-            json={"options": {}, "dry_run": True},
+            json={"options": {}, "dry_run": False},
             headers={"X-Requested-With": "TorrentMate"},
         )
         assert resp.status_code == 409
-        assert resp.json()["detail"] == "A maintenance action is already running"
+        assert resp.json()["detail"] == "Cette action est déjà en cours avec les mêmes options (doublon)."
+
+    def test_same_action_different_mode_returns_202(self, test_config, tmp_path: Path) -> None:
+        """202 — a dry-run preview during a live apply is NOT a duplicate.
+
+        Red-on-old: the previous global guard blocked ANY maintenance action
+        while ANY other was running (including scrape-resolve / grab rows).
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_running_maintenance(conn, pid=os.getpid())  # dry_run=0 (live)
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn:
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": True},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
+        assert mock_spawn.called
+
+    def test_cross_action_in_flight_returns_202(self, test_config, tmp_path: Path) -> None:
+        """202 — a DIFFERENT running maintenance command never blocks (§6).
+
+        Red-on-old: this is the lived violation — an in-flight scrape-resolve
+        (kind='maintenance') 409-blocked every write/destructive maintenance
+        action. A different command now reserves its row and queues visibly.
+        """
+        data_dir = test_config.paths.data_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        conn.execute(
+            "INSERT INTO pipeline_run (run_uid, kind, command, trigger, dry_run, "
+            "  options_json, started_at, outcome, pid) "
+            "VALUES ('feedbead5678', 'maintenance', 'scrape-resolve', 'web', 0, "
+            "  '{\"decision_id\": 57}', ?, 'running', ?)",
+            (float(NOW), os.getpid()),
+        )
+        conn.commit()
+        conn.close()
+
+        client = _build_authenticated_client(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+        )
+
+        with patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn:
+            resp = client.post(
+                f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
+                json={"options": {}, "dry_run": False},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
+        assert mock_spawn.called
 
     def test_running_maintenance_dead_pid_returns_202(self, test_config, tmp_path: Path) -> None:
         """202 — running maintenance row with a DEAD pid → stale, ignored.
@@ -677,7 +757,7 @@ class TestActionRunRowReservation:
             )
 
         assert second.status_code == 409
-        assert "already running" in second.json()["detail"]
+        assert second.json()["detail"] == "Cette action est déjà en cours avec les mêmes options (doublon)."
 
     def test_reserved_run_queryable_via_history_detail(self, test_config, tmp_path: Path) -> None:
         """The 202 ``run_uid`` is immediately queryable via GET /api/pipeline/history/{uid}."""
@@ -707,17 +787,16 @@ class TestActionRunRowReservation:
         assert data["command"] == WRITE_ACTION_ID
 
 
-class TestActionRunLockReProbe:
-    """R11 — the pipeline lock is re-probed after the row reservation, before spawn."""
+class TestActionRunLockHeldQueues:
+    """§6 — a held pipeline lock queues the run visibly instead of refusing."""
 
-    def test_lock_appearing_after_reservation_returns_409_and_finalizes_row(self, test_config, tmp_path: Path) -> None:
-        """409 — lock grabbed between the step-3 probe and the spawn.
+    def test_lock_held_reserves_row_and_spawns_202_queued(self, test_config, tmp_path: Path) -> None:
+        """202 queued — the row stays 'running' and the runner IS spawned.
 
-        ``is_lock_held`` is patched to pass the early probe (``False``) and trip
-        the pre-spawn re-probe (``True``), simulating a pipeline run acquiring
-        ``pipeline.lock`` in the TOCTOU window. The route must 409, never spawn
-        the runner, and finalize the already-reserved row ``'error'`` so it is
-        not left ``'running'`` forever.
+        Red-on-old: the R11 re-probe used to 409 and finalize the reserved row
+        ``'error'``. Now the reserved row stays ``'running'`` (the runner will
+        append the ``queue`` step while it waits) and the response carries
+        ``queued: true``.
         """
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -734,30 +813,29 @@ class TestActionRunLockReProbe:
         with (
             patch(
                 "personalscraper.web.routes.maintenance.is_lock_held",
-                side_effect=[False, True],
+                return_value=True,
             ),
             patch("personalscraper.web.routes.maintenance._spawn_runner") as mock_spawn,
         ):
             resp = client.post(
                 f"/api/maintenance/actions/{WRITE_ACTION_ID}/run",
-                json={"options": {}, "dry_run": True},
+                json={"options": {}, "dry_run": False},
                 headers={"X-Requested-With": "TorrentMate"},
             )
 
-        assert resp.status_code == 409
-        assert resp.json()["detail"] == "Pipeline lock held"
-        mock_spawn.assert_not_called()
+        assert resp.status_code == 202
+        assert resp.json()["queued"] is True
+        mock_spawn.assert_called_once()
 
-        # The reserved row must be finalized 'error' — never left 'running'.
+        # The reserved row stays 'running' — the queue is the runner's job now.
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT * FROM pipeline_run").fetchall()
         conn.close()
         assert len(rows) == 1
         row = dict(rows[0])
-        assert row["outcome"] == "error"
-        assert row["error"] == "Pipeline lock held"
-        assert row["ended_at"] is not None
+        assert row["outcome"] == "running"
+        assert row["ended_at"] is None
 
 
 class TestActionRunConcurrencyFailClosed:
@@ -795,7 +873,7 @@ class TestActionRunConcurrencyFailClosed:
             headers={"X-Requested-With": "TorrentMate"},
         )
         assert resp.status_code == 409
-        assert "verify" in resp.json()["detail"].lower()
+        assert "vérifier" in resp.json()["detail"].lower()
 
     def test_write_concurrency_db_error_stays_permissive_202(self, test_config, tmp_path: Path) -> None:
         """A write action whose concurrency check errors stays permissive → 202.

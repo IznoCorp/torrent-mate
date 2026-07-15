@@ -177,11 +177,15 @@ class TestLibraryClean:
         assert result.exit_code == 1
         assert "Invalid --only" in result.output
 
-    def test_apply_lock_blocked(self) -> None:
-        """--apply with held lock exits 1 with 'Another instance' message."""
+    def test_apply_lock_blocked_exits_3(self) -> None:
+        """--apply with held lock exits 3 (lock-busy contract, runner re-queues).
+
+        Red-on-old: this used to exit 1, indistinguishable from a real error —
+        the web maintenance runner could not re-queue it (§6).
+        """
         with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-clean", "--apply"])
-        assert result.exit_code == 1
+        assert result.exit_code == 3
         assert "Another instance" in result.output
 
     def test_apply_reports_deleted_count(self) -> None:
@@ -306,11 +310,11 @@ class TestLibraryValidateGaps:
         mock_val.assert_called_once()
         assert "from index" in result.output
 
-    def test_fix_apply_lock_blocked(self) -> None:
-        """--fix --apply with held lock exits 1."""
+    def test_fix_apply_lock_blocked_exits_3(self) -> None:
+        """--fix --apply with held lock exits 3 (lock-busy contract, §6)."""
         with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-validate", "--fix", "--apply"])
-        assert result.exit_code == 1
+        assert result.exit_code == 3
         assert "Another instance" in result.output
 
     def test_fix_with_remaining_issues_suggests_rescrape(self) -> None:

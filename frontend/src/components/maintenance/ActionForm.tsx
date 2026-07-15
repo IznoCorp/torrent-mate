@@ -117,8 +117,39 @@ interface RunOutputProps {
   readonly runUid: string;
   /** Whether the launched run was a dry-run (drives the status badge). */
   readonly dryRun: boolean;
+  /** Whether the 202 said the runner starts in the visible queue (§6). */
+  readonly queued: boolean;
   /** Called when the operator dismisses the output area (the run stays in history). */
   readonly onDismiss: () => void;
+}
+
+/** One persisted ``steps_json`` entry, as served by the run-detail endpoint. */
+interface StepEntryLike {
+  readonly name?: string | null;
+  readonly status?: string | null;
+}
+
+/**
+ * Return the LAST ``queue`` step of a run, if any.
+ *
+ * The runner appends one ``queue`` entry when it starts waiting for
+ * ``pipeline.lock`` (status ``waiting_pipeline_lock``) and another when the
+ * wait ends (status ``done``) — the last one carries the current truth.
+ *
+ * Args:
+ *   steps: The run's persisted step entries (may be undefined while loading).
+ *
+ * Returns:
+ *   The last queue entry, or null when the run never queued.
+ */
+function lastQueueStep(
+  steps: readonly StepEntryLike[] | undefined,
+): StepEntryLike | null {
+  if (steps === undefined) return null;
+  for (let i = steps.length - 1; i >= 0; i -= 1) {
+    if (steps[i]?.name === "queue") return steps[i] ?? null;
+  }
+  return null;
 }
 
 /** Poll cadence, in ms, for the durable run-detail fallback while running. */
@@ -150,6 +181,7 @@ const RUN_DETAIL_POLL_MS = 3_000;
 function RunOutput({
   runUid,
   dryRun,
+  queued,
   onDismiss,
 }: RunOutputProps): ReactElement {
   // Poll the durable run detail; stop once the run reaches a terminal outcome.
@@ -166,12 +198,29 @@ function RunOutput({
     typeof outputTail === "string" &&
     outputTail !== "";
 
+  // §6 visible queue — waiting is a STATE the operator sees, never a refusal.
+  // Live truth comes from the run's last 'queue' step; before the first poll
+  // lands, the 202's `queued` hint bridges the gap.
+  const queueStep = lastQueueStep(data?.steps);
+  const waitingInQueue =
+    data === undefined
+      ? queued
+      : data.outcome === "running" &&
+        queueStep?.status === "waiting_pipeline_lock";
+
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-muted p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Badge tone={dryRun ? "info" : "success"} dot>
-            {dryRun ? "Dry-run démarré" : "Exécution démarrée"}
+          <Badge
+            tone={waitingInQueue ? "info" : dryRun ? "info" : "success"}
+            dot
+          >
+            {waitingInQueue
+              ? "En file"
+              : dryRun
+                ? "Dry-run démarré"
+                : "Exécution démarrée"}
           </Badge>
           <span className="text-xs text-muted-foreground">
             run_uid : <span className="font-mono">{runUid}</span>
@@ -181,6 +230,13 @@ function RunOutput({
           Fermer la sortie
         </Button>
       </div>
+
+      {waitingInQueue && (
+        <p className="rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          En file d'attente — un autre run tient le verrou du pipeline ;
+          l'action démarrera automatiquement à sa libération.
+        </p>
+      )}
 
       {/* Live logs over the app-wide WS stream, scoped to this run. */}
       <RunLogFeed runUid={runUid} />
@@ -239,10 +295,11 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
     runUid: string;
     canonical: string;
   } | null>(null);
-  // The launched run's uid + mode after a successful 202.
+  // The launched run's uid + mode (+ §6 queue hint) after a successful 202.
   const [runResult, setRunResult] = useState<{
     runUid: string;
     dryRun: boolean;
+    queued: boolean;
   } | null>(null);
   // Inline error detail (validation or backend 409/422/428).
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
@@ -308,7 +365,11 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
     }
   }, [trackedDetail, dryRunTracking, canonical]);
 
-  const mutation = useMutation<{ run_uid: string }, Error, RunVars>({
+  const mutation = useMutation<
+    { run_uid: string; queued?: boolean },
+    Error,
+    RunVars
+  >({
     mutationFn: (vars) =>
       runMaintenanceAction(action.id, {
         options: vars.options,
@@ -316,7 +377,11 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
       }),
     onSuccess: (data, vars) => {
       setErrorDetail(null);
-      setRunResult({ runUid: data.run_uid, dryRun: vars.dryRun });
+      setRunResult({
+        runUid: data.run_uid,
+        dryRun: vars.dryRun,
+        queued: data.queued === true,
+      });
       // R21 — the 202 reserved a fresh pipeline_run row (kind='maintenance'):
       // refresh every history-table query so the new run appears without a
       // manual re-sort/paginate/reload.
@@ -452,6 +517,7 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
         <RunOutput
           runUid={runResult.runUid}
           dryRun={runResult.dryRun}
+          queued={runResult.queued}
           onDismiss={() => {
             setRunResult(null);
           }}

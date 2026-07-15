@@ -209,14 +209,16 @@ def library_clean(
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
 
-    # Acquire lock only when applying changes
+    # Acquire lock only when applying changes. Exit 3 = lock busy — the
+    # maintenance runner re-queues on this code (web/run_queue.py, §6), so it
+    # must stay distinguishable from a real error (exit 1).
     if apply:
         if not cli_compat.acquire_pipeline_lock(
             config.paths.data_dir / "pipeline.lock",
             cli_compat.scrape_locks_dir_for(config.paths.data_dir),
         ):
             console.print("[red]Another instance is running. Exiting.[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(3)
 
     def _run_and_report(permit: DeletePermit) -> None:
         """Run ``clean_library`` with *permit* and render the result.
@@ -393,8 +395,9 @@ def library_validate(
             config.paths.data_dir / "pipeline.lock",
             cli_compat.scrape_locks_dir_for(config.paths.data_dir),
         ):
+            # Exit 3 = lock busy (the maintenance runner re-queues on this code).
             console.print("[red]Another instance is running. Exiting.[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(3)
 
     try:
         if from_index:
