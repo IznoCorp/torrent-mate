@@ -118,25 +118,35 @@ _MOVIE_EXISTS_TMPL = (
     ")"
 )
 
+# A release covers episodes e.number .. COALESCE(ee.number, e.number): a
+# multi-episode file (« S09E23-24 ») stores its LAST episode in
+# ``episode_end_id`` (migration 014) and owns the whole range, not just the
+# first episode — the second half of a double finale is owned too.
 _EPISODE_EXISTS_TMPL = (
     "SELECT EXISTS("
     "SELECT 1 FROM media_item mi"
     " JOIN season s ON s.item_id = mi.id"
     " JOIN episode e ON e.season_id = s.id"
     " JOIN media_release mr ON mr.episode_id = e.id"
+    " LEFT JOIN episode ee ON ee.id = mr.episode_end_id"
     " JOIN media_file mf ON mf.release_id = mr.id"
     " WHERE mi.kind='show' AND {provider_clause}"
-    " AND s.number=? AND e.number=?"
+    " AND s.number=? AND ? BETWEEN e.number AND COALESCE(ee.number, e.number)"
     " AND mf.deleted_at IS NULL"
     ")"
 )
 
 
+# ``e2`` enumerates every episode row the release's span covers (single-episode
+# releases collapse to e2 = e via the COALESCE bound).
 _OWNED_PAIRS_TMPL = (
-    "SELECT DISTINCT s.number, e.number FROM media_item mi"
+    "SELECT DISTINCT s.number, e2.number FROM media_item mi"
     " JOIN season s ON s.item_id = mi.id"
     " JOIN episode e ON e.season_id = s.id"
     " JOIN media_release mr ON mr.episode_id = e.id"
+    " LEFT JOIN episode ee ON ee.id = mr.episode_end_id"
+    " JOIN episode e2 ON e2.season_id = s.id"
+    " AND e2.number BETWEEN e.number AND COALESCE(ee.number, e.number)"
     " JOIN media_file mf ON mf.release_id = mr.id"
     " WHERE mi.kind='show' AND {provider_clause}"
     " AND mf.deleted_at IS NULL"

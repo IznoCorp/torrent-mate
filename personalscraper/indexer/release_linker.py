@@ -33,15 +33,53 @@ log = get_logger("indexer.release_linker")
 from personalscraper.naming_patterns import season_number_from_dir as parse_season_dir  # noqa: E402
 
 # Match ``S01E02`` / ``s1e2`` / ``1x02`` style markers anywhere in the filename.
-_EPISODE_RE = re.compile(r"[sS](\d{1,2})[eE](\d{1,3})|(\d{1,2})x(\d{1,3})")
+# The SxxEyy form optionally carries a span suffix (``S09E23-24`` / ``S01E01-E22``,
+# hyphen or en-dash) that must follow the start number IMMEDIATELY — a spaced
+# `` - `` separates the episode marker from the title, never a span
+# (``S09E23 - 24 heures chrono`` is episode 23, not 23–24).
+_EPISODE_RE = re.compile(r"[sS](\d{1,2})[eE](\d{1,3})(?:[-–][eE]?(\d{1,3}))?|(\d{1,2})x(\d{1,3})")
+
+# Widest believable span (a whole-season Intégrale file): anything larger is a
+# parsing artefact (e.g. a year glued to the marker) and degrades to single.
+_MAX_SPAN_LENGTH = 60
+
+
+def parse_episode_span(filename: str) -> tuple[int, int] | None:
+    """Extract the full ``(start, end)`` episode coverage from a filename.
+
+    Recognises ``SxxEyy`` (with an optional ``-zz`` / ``-Ezz`` span suffix) and
+    ``xxXyy`` markers. A single-episode file returns ``(n, n)``. A reversed or
+    absurdly long span degrades to ``(start, start)`` — the start episode is
+    always real, the suffix is then treated as title noise.
+
+    Args:
+        filename: Bare filename (no directory component).
+
+    Returns:
+        ``(start, end)`` episode numbers, or ``None`` when no marker is found.
+    """
+    match = _EPISODE_RE.search(filename)
+    if match is None:
+        return None
+    # Either group 2 (S01E02) or group 5 (1x02) carries the start number.
+    start_str = match.group(2) or match.group(5)
+    if start_str is None:
+        return None
+    start = int(start_str)
+    end_str = match.group(3)
+    if end_str is None:
+        return (start, start)
+    end = int(end_str)
+    if end <= start or (end - start) > _MAX_SPAN_LENGTH:
+        return (start, start)
+    return (start, end)
 
 
 def parse_episode_number(filename: str) -> int | None:
-    """Extract the episode number from a filename.
+    """Extract the FIRST episode number from a filename.
 
-    Recognises ``SxxEyy`` and ``xxXyy`` markers. Returns the first episode
-    number when a multi-episode marker is present (e.g. ``S01E25-26`` →
-    ``25``); the second episode is folded into the same release in V1.
+    Thin wrapper over :func:`parse_episode_span` kept for callers that only
+    need the primary number (e.g. NFO title attachment).
 
     Args:
         filename: Bare filename (no directory component).
@@ -49,12 +87,8 @@ def parse_episode_number(filename: str) -> int | None:
     Returns:
         Episode number as int, or ``None`` when no marker is found.
     """
-    match = _EPISODE_RE.search(filename)
-    if match is None:
-        return None
-    # Either group 2 (S01E02) or group 4 (1x02) carries the episode number.
-    episode = match.group(2) or match.group(4)
-    return int(episode) if episode is not None else None
+    span = parse_episode_span(filename)
+    return span[0] if span is not None else None
 
 
 _TITLE_YEAR_RE = re.compile(r"^(?P<title>.+?)\s*\((?P<year>\d{4})\)\s*$")
@@ -218,6 +252,7 @@ def get_or_create_default_release(
     conn: sqlite3.Connection,
     item_id: int | None = None,
     episode_id: int | None = None,
+    episode_end_id: int | None = None,
 ) -> int:
     """Find or insert the default ``media_release`` for an item or episode.
 
@@ -228,16 +263,24 @@ def get_or_create_default_release(
     Args:
         conn: Open SQLite connection.
         item_id: PK of the ``media_item`` for movie / show-level releases.
-        episode_id: PK of the ``episode`` for episode-level releases.
+        episode_id: PK of the ``episode`` for episode-level releases (the FIRST
+            episode when the file covers a span).
+        episode_end_id: PK of the LAST episode covered by a multi-episode file
+            (migration 014), or ``None`` for single-episode releases. When an
+            existing release is found without a span end, a non-``None`` value
+            upgrades it in place (idempotent span repair).
 
     Returns:
         PK of the matching or newly inserted ``media_release`` row.
 
     Raises:
-        ValueError: If both or neither of ``item_id`` / ``episode_id`` is set.
+        ValueError: If both or neither of ``item_id`` / ``episode_id`` is set,
+            or if ``episode_end_id`` is given for an item-level release.
     """
     if (item_id is None) == (episode_id is None):
         raise ValueError("exactly one of item_id or episode_id must be set")
+    if item_id is not None and episode_end_id is not None:
+        raise ValueError("episode_end_id only applies to episode-level releases")
 
     if item_id is not None:
         row = conn.execute(
@@ -247,16 +290,24 @@ def get_or_create_default_release(
         ).fetchone()
     else:
         row = conn.execute(
-            "SELECT id FROM media_release WHERE episode_id = ? AND item_id IS NULL "
+            "SELECT id, episode_end_id FROM media_release WHERE episode_id = ? AND item_id IS NULL "
             "AND quality IS NULL AND edition IS NULL AND primary_lang IS NULL",
             (episode_id,),
         ).fetchone()
     if row is not None:
-        return int(row[0])
+        release_id = int(row[0])
+        # Span upgrade: a release linked before span support (or by a
+        # single-episode variant of the same episode) gains the span end.
+        if episode_id is not None and episode_end_id is not None and row[1] != episode_end_id:
+            conn.execute(
+                "UPDATE media_release SET episode_end_id = ? WHERE id = ?",
+                (episode_end_id, release_id),
+            )
+        return release_id
     cursor = conn.execute(
-        "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
-        "VALUES (?, ?, NULL, NULL, NULL)",
-        (item_id, episode_id),
+        "INSERT INTO media_release (item_id, episode_id, episode_end_id, quality, edition, primary_lang) "
+        "VALUES (?, ?, ?, NULL, NULL, NULL)",
+        (item_id, episode_id, episode_end_id),
     )
     return int(cursor.lastrowid)  # type: ignore[arg-type]
 
@@ -320,11 +371,17 @@ def link_file_to_release(conn: sqlite3.Connection, file_id: int, abs_path: str) 
 
     # Episode-level release path: TV show file inside Saison NN with parseable number.
     if kind == "show" and season_num is not None:
-        episode_num = parse_episode_number(Path(abs_path).name)
-        if episode_num is not None:
+        span = parse_episode_span(Path(abs_path).name)
+        if span is not None:
+            start, end = span
             season_id = get_or_create_season(conn, item_id, season_num)
-            episode_id = get_or_create_episode(conn, season_id, episode_num)
-            release_id = get_or_create_default_release(conn, episode_id=episode_id)
+            # Create a row for EVERY episode the file covers so ownership can
+            # expand the span (Friends S09E23-24 owns both 23 and 24).
+            episode_id = get_or_create_episode(conn, season_id, start)
+            episode_end_id: int | None = None
+            for num in range(start + 1, end + 1):
+                episode_end_id = get_or_create_episode(conn, season_id, num)
+            release_id = get_or_create_default_release(conn, episode_id=episode_id, episode_end_id=episode_end_id)
         else:
             # Episode marker missing — fall back to item-level release.
             release_id = get_or_create_default_release(conn, item_id=item_id)
