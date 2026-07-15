@@ -7,7 +7,8 @@
  * generated run forms.
  */
 
-import { useState, type ReactElement } from "react";
+import { useCallback, type ReactElement } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { EventFeed } from "@/components/dashboard/EventFeed";
 import { RecentEventsTable } from "@/components/dashboard/RecentEventsTable";
@@ -31,7 +32,34 @@ import { useEventStreamContext } from "@/hooks/useEventStreamContext";
  *   The maintenance page element.
  */
 export default function Maintenance(): ReactElement {
-  const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  // The selected run detail is URL-addressable (?run=<uid>) — DOIT-10: every
+  // detail view has its own URL, and Back closes it. Push on open (Back
+  // returns to the list), replace on close (no dead history entry).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedRun = searchParams.get("run");
+  const openRun = useCallback(
+    (uid: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("run", uid);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeRun = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("run");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
   // Single shared live-event stream (same WebSocket the TopBar StatusDot reads);
   // the feed + recent-events table moved here from the Dashboard (Phase 5.1).
   const { events } = useEventStreamContext();
@@ -56,23 +84,18 @@ export default function Maintenance(): ReactElement {
       {/* Pipeline run-history — relocated here from the Pipeline page
           (webui-ux Phase 2.4 de-dup: the Pipeline page now shows only the
           interpreted last-run summary, so pipeline history lives here). */}
-      <RunHistoryTable kind="pipeline" onSelect={setSelectedRun} />
+      <RunHistoryTable kind="pipeline" onSelect={openRun} />
 
       {/* Run-history panel filtered to maintenance runs (kind param → backend) */}
-      <RunHistoryTable kind="maintenance" onSelect={setSelectedRun} />
+      <RunHistoryTable kind="maintenance" onSelect={openRun} />
 
       {/* One shared trigger-label legend for both history tables above (it used
           to render inside each RunHistoryTable → duplicated on this page). */}
       <TriggerLegend />
 
-      {/* Inline detail view when a history row is selected */}
+      {/* Inline detail view when a history row is selected (URL: ?run=<uid>) */}
       {selectedRun !== null && (
-        <RunDetail
-          runUid={selectedRun}
-          onClose={() => {
-            setSelectedRun(null);
-          }}
-        />
+        <RunDetail runUid={selectedRun} onClose={closeRun} />
       )}
 
       {/* Action catalog + generated forms (5.2) */}
