@@ -11,6 +11,10 @@
 > C'est le mécanisme anti-perte : les agents futurs le lisent **avant de coder**. Il existe parce
 > que des correctifs locaux ont été « implémentés » à la lettre en détruisant la fonctionnalité
 > qu'ils devaient améliorer — voir `§méthode` et le post-mortem associé.
+>
+> **Historique** : v1 — §1–§5 + §méthode (gravée `4d80c26a`) ; **v2** — §6–§10 + listes
+> DOIT / NE-DOIT-PAS + « En une phrase », dictée par l'opérateur le 2026-07-15.
+> **Seul l'opérateur amende ce document.**
 
 ---
 
@@ -81,6 +85,99 @@ L'écran Acquisitions contrôle l'acquisition **automatique** de films et de sé
   - pour chaque **film** — _en attente_ (pas encore récupéré), _en cours d'acquisition_ (du torrent
     repéré jusqu'au pipeline terminé), _en médiathèque_ (acquis, sur les disques) ;
   - pour chaque **série** — l'état **épisode par épisode, regroupé par saison**.
+
+---
+
+## §6 — Disponibilité des actions
+
+Une action opérateur légitime ne répond **jamais « occupé »** : elle **s'exécute** ou elle
+**s'enfile visiblement** (état « En file » affiché + exécution à la libération). Le **seul refus
+permis est l'idempotence** — la même action, sur la même cible, déjà en cours. Un 409 /
+« réessaie plus tard » opposé à une action légitime est une **dénaturation** de ce §.
+(Patron de référence : la file resolve — 202 systématique, step `queue`, pastille « En file ».)
+
+## §7 — Intégrité des médias
+
+**Jamais de perte de fichier.** Un écrasement n'est permis qu'après **contrôle d'identité par
+provider-ID** — on remplace le bon film parce que c'est **son ID**, pas parce que c'est son nom ;
+mismatch d'ID ⇒ blocage explicite avec raison, jamais d'écrasement. **Aucune destruction depuis
+l'interface sans confirmation explicite.** Toute opération destructrice (déplacement, suppression,
+écrasement) laisse une trace dans un **journal append-only** — qui, quoi, quand, chemin, décision
+(leçon Star City : des fichiers ont disparu et aucune piste d'audit n'existait pour innocenter ou
+accuser quiconque).
+
+## §8 — Rien en silence (extension du §2)
+
+Skips, attentes, différés (ratio, espace disque), torrents en erreur, fichiers manquants : **tout
+est affiché avec sa raison**, en français clair. Un « rien ne se passe » sans raison visible est un
+mensonge par omission. Le **Dashboard est le poste de contrôle** ; toute vue de détail est
+**adressable par URL**.
+
+## §9 — Téléchargement suivi
+
+Le **profil qualité est respecté** sur tout le chemin d'acquisition, la **3D exclue**. La
+**complétude exécutable** (read-model croisant catalogue diffusé et possession par provider-ID)
+est **LA** définition d'« acquis » — jamais des compteurs bruts.
+
+## §10 — Méthode de livraison
+
+Ces règles s'ajoutent au `§méthode` et s'appliquent à **toute** livraison :
+
+1. **Clôture exhaustive** — on ne laisse rien d'ouvert : tout point découvert est traité ou
+   arbitré explicitement par l'opérateur.
+2. **Auto-vérification live par celui qui livre** — vérifier son propre travail en conditions
+   réelles fait partie du travail (« ton travail et ton devoir »).
+3. **Version bump à chaque PR** — patch par défaut, dans le même commit.
+4. **Un test de régression par bug** — chaque bug détecté a un test qui le reproduit.
+5. **Rapports honnêtes, incluant ses propres erreurs** — un rapport qui omet les erreurs de son
+   auteur est un rapport faux.
+
+---
+
+## Ce que l'interface DOIT faire (DOIT-1 … DOIT-10)
+
+1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
+   développeur : intégré, renommé, identifié, posters récupérés, trailer, dispatché. Un libellé
+   incompris = un bug.
+2. **DOIT-2 — Montrer ce qui ne se passe pas, et pourquoi.** Torrent différé (ratio, espace),
+   décision en file, fichier manquant, erreur : chaque « rien » a sa raison affichée.
+3. **DOIT-3 — Agir là où l'on observe.** Lancer/stopper le pipeline, relancer le watcher, résoudre
+   un blocage — depuis le poste de contrôle, pas dans un terminal.
+4. **DOIT-4 — Toujours accepter une action légitime.** Mauvais moment ⇒ mise en file **visible**
+   (« En file — pipeline en cours »). Jamais « occupé, réessaie ».
+5. **DOIT-5 — Aller au bout et le montrer.** Résoudre = remettre en route jusqu'à la médiathèque,
+   progression visible jusqu'au bout. Une « réussite » dont on ne voit pas la fin n'est pas une
+   réussite.
+6. **DOIT-6 — Des résultats chiffrés.** Run manuel : lancé → en cours → « X détectés,
+   Y disponibles, Z récupérés » (ou « rien de nouveau », ou la vraie erreur).
+7. **DOIT-7 — Une porte de sortie à chaque impasse.** Non identifié → candidats ; zéro candidat →
+   recherche manuelle pré-remplie. Jamais de cul-de-sac ni d'écran vide.
+8. **DOIT-8 — Confirmation avant remplacement** d'un film déjà en médiathèque.
+9. **DOIT-9 — Pilotable au téléphone.** Largeur réelle, au doigt, sans scroll horizontal — le
+   mobile est le poste principal.
+10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer.
+
+## Ce que l'interface NE DOIT PAS faire (NE-DOIT-PAS-1 … NE-DOIT-PAS-8)
+
+1. **NE-DOIT-PAS-1 — Mentir.** Pas de toast de succès sur un run mort ; pas d'état plus optimiste
+   que le moteur (« Identifié » qui ne passerait pas le verify réel = mensonge).
+2. **NE-DOIT-PAS-2 — File ou attente invisible** (le péché originel du post-mortem #249).
+3. **NE-DOIT-PAS-3 — 409 / « occupé » face à une action légitime.** Seul refus : le doublon de la
+   même action.
+4. **NE-DOIT-PAS-4 — Message obscur.** Ni jargon brut, ni code d'erreur nu, ni anglais machine.
+5. **NE-DOIT-PAS-5 — Échec silencieux.** Une erreur remonte bruyamment avec sa raison réelle.
+6. **NE-DOIT-PAS-6 — Détruire sans consentement.** Confirmation explicite + identité par
+   provider-ID.
+7. **NE-DOIT-PAS-7 — Second mécanisme parallèle.** Tout passe par l'autorité de déclenchement
+   unique (même lock, même runner).
+8. **NE-DOIT-PAS-8 — Maltraiter les dépendances.** Pas de rafales vers qBittorrent / trackers —
+   se faire bannir prive l'opérateur de son outil.
+
+## En une phrase
+
+L'interface est un **poste de pilotage honnête** : elle montre tout (y compris ce qui attend ou
+échoue), n'affirme rien qu'elle ne puisse prouver, n'oppose jamais un refus technique, et chaque
+impasse a une porte de sortie.
 
 ---
 
