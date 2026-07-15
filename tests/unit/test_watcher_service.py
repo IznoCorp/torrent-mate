@@ -31,6 +31,7 @@ def _inp(
     seed_pure: set[str] | None = None,
     sentinel: bool = False,
     lock_held: bool = False,
+    deferred: set[str] | None = None,
 ) -> WatcherInput:
     """Build a WatcherInput with sensible defaults for concise test setup.
 
@@ -41,6 +42,7 @@ def _inp(
         seed_pure: Info-hashes tagged SEED_PURE (excluded from all work).
         sentinel: Whether ``watch.trigger`` exists.
         lock_held: Whether the pipeline lock file exists.
+        deferred: Info-hashes transiently deferred (ingest would re-skip).
 
     Returns:
         A new WatcherInput frozen snapshot.
@@ -52,6 +54,7 @@ def _inp(
         sentinel_present=sentinel,
         pipeline_lock_held=lock_held,
         now=now,
+        deferred_hashes=frozenset(deferred or set()),
     )
 
 
@@ -602,3 +605,78 @@ class TestWatcherService:
         assert out.decision == WatcherDecision.FIRE_RUN
         assert out.run_reason == "safety_net"
         assert out.new_state.cross_seed_dispatched == dispatched
+
+
+class TestDeferredHashes:
+    """Transiently-deferred hashes must not trigger pipeline runs (2026-07-15).
+
+    Live incident: torrents skipped by ingest for transient reasons (ratio,
+    content missing, disk full) were never marked ingested, stayed in the
+    work set forever, and the watcher fired « Pipeline » runs with empty
+    results in a loop.
+    """
+
+    @pytest.fixture
+    def svc(self) -> WatcherService:
+        """WatcherService with the standard test config."""
+        return WatcherService(WatchConfig(enabled=True, debounce_s=900, safety_net_hours=24, poll_interval_s=60))
+
+    def test_deferred_hash_does_not_start_debounce(self, svc: WatcherService) -> None:
+        """All work deferred → IDLE, no debounce window opens."""
+        state = WatcherState(
+            last_successful_run_at=1_000_000.0,
+            cross_seed_dispatched=frozenset({"abc"}),
+        )
+        inp = _inp(completed={"abc"}, ingested=set(), deferred={"abc"}, now=1_000_000.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.IDLE
+        assert out.new_state.debounce_until is None
+
+    def test_deferred_hash_still_cross_seeds(self, svc: WatcherService) -> None:
+        """A deferred completed torrent is seedable — cross-seed still fires."""
+        state = WatcherState(last_successful_run_at=1_000_000.0)
+        inp = _inp(completed={"abc"}, ingested=set(), deferred={"abc"}, now=1_000_000.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.FIRE_CROSS_SEED
+        assert out.cross_seed_hashes == ["abc"]
+
+    def test_condition_clears_hash_reenters_trigger_set(self, svc: WatcherService) -> None:
+        """Once no longer deferred, the same hash starts a debounce window."""
+        state = WatcherState(
+            last_successful_run_at=1_000_000.0,
+            cross_seed_dispatched=frozenset({"abc"}),
+        )
+        # Cycle 1: deferred → IDLE.
+        out1 = svc.evaluate(_inp(completed={"abc"}, ingested=set(), deferred={"abc"}, now=1_000_000.0), state)
+        assert out1.decision == WatcherDecision.IDLE
+        # Cycle 2: ratio reached (no longer deferred) → START_DEBOUNCE.
+        out2 = svc.evaluate(
+            _inp(completed={"abc"}, ingested=set(), now=1_000_030.0),
+            out1.new_state,
+        )
+        assert out2.decision == WatcherDecision.START_DEBOUNCE
+
+    def test_all_work_becomes_deferred_clears_completion_window(self, svc: WatcherService) -> None:
+        """An open completion debounce clears when remaining work is all deferred."""
+        state = WatcherState(
+            debounce_until=1_000_500.0,
+            debounce_origin="completion",
+            backoff_multiplier=2,
+            cross_seed_dispatched=frozenset({"abc"}),
+            last_successful_run_at=1_000_000.0,
+        )
+        inp = _inp(completed={"abc"}, ingested=set(), deferred={"abc"}, now=1_000_100.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.IDLE
+        assert out.new_state.debounce_until is None, "stale completion window must clear"
+        assert out.new_state.backoff_multiplier == 0
+
+    def test_mixed_work_still_fires_for_non_deferred(self, svc: WatcherService) -> None:
+        """One deferred + one actionable hash → the actionable one triggers."""
+        state = WatcherState(
+            last_successful_run_at=1_000_000.0,
+            cross_seed_dispatched=frozenset({"abc", "def"}),
+        )
+        inp = _inp(completed={"abc", "def"}, ingested=set(), deferred={"abc"}, now=1_000_000.0)
+        out = svc.evaluate(inp, state)
+        assert out.decision == WatcherDecision.START_DEBOUNCE

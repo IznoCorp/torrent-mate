@@ -9,6 +9,7 @@ Uses the FastAPI TestClient with a synthetic Config + temp SQLite DBs
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from pathlib import Path
@@ -685,3 +686,100 @@ class TestDownloadsEndpoint:
         """Unauthenticated downloads request is rejected (401)."""
         resp = client.get("/api/acquisition/downloads")
         assert resp.status_code == 401
+
+
+class TestParseRunCountsFallback:
+    """Pipeline runs without a semantic ``counts`` dict get a derived summary.
+
+    Live incident (2026-07-15): skip-only watcher runs showed a BLANK result
+    cell because only the acquisition CLIs write ``counts``; the pipeline
+    steps record native success/skip/error fields that were never surfaced.
+    """
+
+    def test_counts_dict_still_wins(self) -> None:
+        """A recorded counts mapping is returned verbatim (CLI runs)."""
+        from personalscraper.web.routes.acquisition import _parse_run_counts
+
+        steps = json.dumps([{"name": "detect", "counts": {"detected": 3, "enqueued": 2}}])
+        assert _parse_run_counts(steps) == {"detected": 3, "enqueued": 2}
+
+    def test_pipeline_steps_derive_summary(self) -> None:
+        """Native per-step fields → processed (max) / skipped (ingest) / errors (sum)."""
+        from personalscraper.web.routes.acquisition import _parse_run_counts
+
+        steps = json.dumps(
+            [
+                {"name": "ingest", "success_count": 2, "skip_count": 5, "error_count": 0},
+                {"name": "sort", "success_count": 2, "skip_count": 0, "error_count": 1},
+                {"name": "scrape", "success_count": 4, "skip_count": 1, "error_count": 0},
+            ]
+        )
+        assert _parse_run_counts(steps) == {"processed": 4, "skipped": 5, "errors": 1}
+
+    def test_skip_only_run_reads_skipped_not_blank(self) -> None:
+        """The empty-run shape: 0 processed, N skipped — never None."""
+        from personalscraper.web.routes.acquisition import _parse_run_counts
+
+        steps = json.dumps(
+            [
+                {"name": "ingest", "success_count": 0, "skip_count": 3, "error_count": 0},
+                {"name": "sort", "success_count": 0, "skip_count": 0, "error_count": 0},
+            ]
+        )
+        assert _parse_run_counts(steps) == {"processed": 0, "skipped": 3, "errors": 0}
+
+    def test_steps_without_any_fields_stay_none(self) -> None:
+        """Steps carrying neither counts nor native fields → None (unchanged)."""
+        from personalscraper.web.routes.acquisition import _parse_run_counts
+
+        steps = json.dumps([{"name": "boot"}])
+        assert _parse_run_counts(steps) is None
+
+
+class TestStatusDeferred:
+    """GET /status carries the watcher's transient-deferral set (§1)."""
+
+    def test_deferred_listed_with_reason(self, client: TestClient, test_config: Any) -> None:
+        """A completed torrent below min_ratio surfaces name + reason."""
+        from types import SimpleNamespace
+
+        fake_torrent = SimpleNamespace(
+            hash="aaaa0000",
+            name="Some.Show.S01E01.1080p",
+            size_bytes=1_000,
+            ratio=0.2,
+            content_path=None,
+            tags=[],
+        )
+        fake_client = MagicMock()
+        fake_client.get_completed.return_value = [fake_torrent]
+
+        with (
+            patch(
+                "personalscraper.api.torrent._factory.build_active_torrent_client",
+                return_value=fake_client,
+            ),
+            patch(
+                "personalscraper.web.routes.acquisition.__name__",
+                "noop",
+                create=True,
+            ),
+        ):
+            # min_ratio must be > 0 for the ratio guard; patch the config field.
+            client.app.state.config.ingest.min_ratio = 1.0
+            resp = client.get("/api/acquisition/status", cookies=_make_auth_cookie())
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["deferred"] == [{"name": "Some.Show.S01E01.1080p", "reason": "ratio_below_threshold"}]
+
+    def test_client_outage_fails_soft_empty(self, client: TestClient) -> None:
+        """A torrent-client error yields deferred=[] — never a 500."""
+        with patch(
+            "personalscraper.api.torrent._factory.build_active_torrent_client",
+            side_effect=RuntimeError("client down"),
+        ):
+            resp = client.get("/api/acquisition/status", cookies=_make_auth_cookie())
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["deferred"] == []

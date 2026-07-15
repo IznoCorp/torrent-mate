@@ -62,7 +62,7 @@ afterEach(() => {
 describe("WatcherPanel — §5 detect trigger", () => {
   it("does NOT toast success on the 202, only 'lancée'", async () => {
     vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
-      data: { watcher_enabled: true, last_successful_run_at: null, recent_runs: [] },
+      data: { watcher_enabled: true, last_successful_run_at: null, recent_runs: [], deferred: [] },
       isLoading: false,
       isError: false,
       error: null,
@@ -83,7 +83,7 @@ describe("WatcherPanel — §5 detect trigger", () => {
 
   it("toasts the NUMERIC result once the tracked run ends", async () => {
     vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
-      data: { watcher_enabled: true, last_successful_run_at: null, recent_runs: [] },
+      data: { watcher_enabled: true, last_successful_run_at: null, recent_runs: [], deferred: [] },
       isLoading: false,
       isError: false,
       error: null,
