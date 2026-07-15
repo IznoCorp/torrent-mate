@@ -31,6 +31,7 @@ import {
 } from "@/hooks/useAcquisition";
 
 import {
+  DEFERRED_REASON_LABEL,
   formatDatetime,
   formatRunResult,
   relativeTime,
@@ -106,7 +107,8 @@ export function WatcherPanel(): ReactElement {
     );
   }
 
-  const { watcher_enabled, last_successful_run_at, recent_runs } = data;
+  const { watcher_enabled, last_successful_run_at, recent_runs, deferred } =
+    data;
 
   // ── Normal ─────────────────────────────────────────────────────────────
   return (
@@ -160,6 +162,27 @@ export function WatcherPanel(): ReactElement {
               </div>
             </div>
           </div>
+          {/* §1 — transiently-deferred torrents stay VISIBLE: without this
+              line a ratio/space/content skip is an invisible state (the
+              watcher silently stops firing for them). */}
+          {deferred.length > 0 && (
+            <div className="rounded-md border border-border bg-muted/40 p-2">
+              <p className="text-xs font-medium">
+                {deferred.length} torrent{deferred.length > 1 ? "s" : ""} en
+                attente d'ingestion
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {deferred.map((d) => (
+                  <li
+                    key={`${d.name}-${d.reason}`}
+                    className="text-xs text-muted-foreground break-words"
+                  >
+                    {d.name} — {DEFERRED_REASON_LABEL[d.reason] ?? d.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
 

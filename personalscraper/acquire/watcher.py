@@ -74,6 +74,14 @@ class WatcherInput:
         pipeline_lock_held: True if the lock is held by a live process
             (``is_lock_held`` probe; manual run in progress).
         now: Current wall-clock timestamp (float, e.g. ``time.time()``).
+        deferred_hashes: Hashes ingest would transiently skip this cycle
+            (ratio below threshold, content missing, staging disk full — see
+            ``ingest.deferral.classify_deferrals``). Excluded from the
+            PIPELINE trigger predicate only: firing a run for them would
+            re-skip everything and record an empty « Pipeline » row. They
+            still cross-seed (a completed torrent is seedable regardless) and
+            re-enter the trigger set the moment their condition clears —
+            nothing is ever marked done, so no media can be lost.
     """
 
     completed_hashes: frozenset[str]
@@ -82,6 +90,7 @@ class WatcherInput:
     sentinel_present: bool
     pipeline_lock_held: bool
     now: float
+    deferred_hashes: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -175,6 +184,8 @@ class WatcherService:
                 new_state=new_state,
             )
         # 2. Cross-seed: new completions not yet dispatched this daemon lifetime.
+        # Deferred hashes still belong here — a completed torrent is seedable
+        # regardless of why ingest would skip it.
         work_set = inp.completed_hashes - inp.ingested_hashes - inp.seed_pure_hashes
         cross_seed_new = work_set - state.cross_seed_dispatched
         if cross_seed_new:
@@ -187,8 +198,12 @@ class WatcherService:
                 cross_seed_hashes=sorted(cross_seed_new),
                 new_state=new_state,
             )
-        # 3. Work predicate: items exist that need a pipeline run.
-        if work_set:
+        # 3. Work predicate: items exist that a pipeline run could actually
+        # progress. Transiently-deferred hashes (ratio / content / space) are
+        # excluded — a run would re-skip them and record an empty result; they
+        # re-enter automatically once their condition clears.
+        pipeline_work = work_set - inp.deferred_hashes
+        if pipeline_work:
             if state.debounce_until is None:
                 # 3a. Start a fresh debounce window.
                 new_state = dataclasses.replace(
