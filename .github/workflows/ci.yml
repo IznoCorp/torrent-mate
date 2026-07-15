@@ -249,6 +249,26 @@ jobs:
             exit 1
           fi
 
+  version-bump:
+    name: version-bump
+    runs-on: ubuntu-latest
+    # Operator rule (constitution §10-3): every PR bumps the version. A
+    # genuinely version-neutral PR opts out with the 'no-version-bump' label.
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(github.event.pull_request.labels.*.name, 'no-version-bump')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Assert version bumped against base
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 scripts/check_version_bump.py --base "origin/${BASE_REF}"
+
   design-gaps:
     name: design-gaps
     runs-on: ubuntu-latest
