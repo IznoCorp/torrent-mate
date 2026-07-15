@@ -561,6 +561,35 @@ def _upsert_seasons_and_episodes(
                 purged=purged,
             )
 
+    # Self-heal: purge STALE season rows — numbers with no on-disk directory
+    # in this walk AND no release evidence anywhere in the season (« New
+    # Girl » kept DB seasons 1-3/5-6 full of phantoms although only Saison 04
+    # exists on disk). Release-backed seasons always survive: a multi-disk
+    # show walked from disk A must not lose seasons whose files live on
+    # disk B — the release link is the evidence. Episodes cascade via FK.
+    walked_numbers = sorted({season.number for _, season in seasons})
+    placeholders = ",".join("?" for _ in walked_numbers)
+    not_in_clause = f" AND number NOT IN ({placeholders})" if walked_numbers else ""
+    stale = conn.execute(
+        f"""
+        DELETE FROM season
+        WHERE item_id = ?{not_in_clause}
+          AND NOT EXISTS (
+              SELECT 1 FROM episode e
+              JOIN media_release mr ON mr.episode_id = e.id OR mr.episode_end_id = e.id
+              WHERE e.season_id = season.id
+          )
+        """,  # noqa: S608 — placeholders only, values bound below
+        (item_id, *walked_numbers),
+    ).rowcount
+    if stale > 0:
+        log.info(
+            "indexer_item_stage_stale_seasons_purged",
+            item_id=item_id,
+            purged=stale,
+            walked=walked_numbers,
+        )
+
 
 # ---------------------------------------------------------------------------
 # Disk-row guarantee (port of scanner.py:_build_disk_row / _ensure_disk_row)
