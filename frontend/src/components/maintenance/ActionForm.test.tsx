@@ -381,6 +381,103 @@ describe("ActionForm — run output feed", () => {
     expect(screen.getByText(/Journal d.exécution/)).toBeInTheDocument();
   });
 
+  it("affiche « En file » quand le run attend le verrou pipeline (§6)", async () => {
+    // §6 / DOIT-4: a maintenance action launched while pipeline.lock is held
+    // is ACCEPTED (202) and waits in the VISIBLE queue. The 202 carries the
+    // queued hint, and the polled run detail confirms it via a running run
+    // whose last step is 'queue' / 'waiting_pipeline_lock'.
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-q", queued: true });
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({
+        run_uid: "uid-q",
+        outcome: "running",
+        steps: [
+          {
+            name: "queue",
+            status: "waiting_pipeline_lock",
+            started_at: "2026-07-06T10:00:01Z",
+            ended_at: "2026-07-06T10:00:01Z",
+            elapsed_s: 0,
+            success_count: null,
+            skip_count: null,
+            error_count: null,
+            unmatched_count: null,
+            counts: null,
+          },
+        ],
+      }),
+    );
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+
+    // The badge reads « En file » (not « Exécution démarrée ») + an explainer.
+    expect(await screen.findByText("En file")).toBeInTheDocument();
+    expect(
+      screen.getByText(/un autre run tient le verrou du pipeline/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Exécution démarrée")).not.toBeInTheDocument();
+  });
+
+  it("garde « En file » quand le 1er poll précède l'écriture du step queue (§6)", async () => {
+    // Live-observed race (2026-07-15): the runner writes its `queue` step ~1s
+    // after spawn, so the first run-detail poll can return outcome=running
+    // with EMPTY steps. Red-on-old: the previous logic dropped « En file » to
+    // « Exécution démarrée » in that window. The sticky 202 `queued` hint must
+    // hold « En file » until the run positively leaves the queue.
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-race", queued: true });
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({ run_uid: "uid-race", outcome: "running", steps: [] }),
+    );
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+
+    expect(await screen.findByText("En file")).toBeInTheDocument();
+    expect(screen.queryByText("Exécution démarrée")).not.toBeInTheDocument();
+  });
+
+  it("repasse de « En file » à « Exécution démarrée » à la libération du verrou", async () => {
+    // Once the lock frees, the runner closes the queue step ('done') and the
+    // badge stops announcing the queue.
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "uid-freed", queued: true });
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({
+        run_uid: "uid-freed",
+        outcome: "running",
+        steps: [
+          {
+            name: "queue",
+            status: "done",
+            started_at: "2026-07-06T10:00:01Z",
+            ended_at: "2026-07-06T10:01:20Z",
+            elapsed_s: 79,
+            success_count: null,
+            skip_count: null,
+            error_count: null,
+            unmatched_count: null,
+            counts: null,
+          },
+        ],
+      }),
+    );
+
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exécuter" }));
+
+    expect(await screen.findByText("Exécution démarrée")).toBeInTheDocument();
+    expect(screen.queryByText("En file")).not.toBeInTheDocument();
+  });
+
   it("surface les lignes live diffusées par la WS pour ce run_uid", async () => {
     const run = await mockRun();
     run.mockResolvedValue({ run_uid: "uid-live" });
