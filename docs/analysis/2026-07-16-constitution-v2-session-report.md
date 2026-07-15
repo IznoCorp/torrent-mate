@@ -54,10 +54,27 @@ Phase 0, E1, E2, E3, E4, E5 are **merged and live** on `tm.iznogoudatall.xyz`.
 - Assumed-open (operator-owned, not to « fix » unprompted): Top Chef Le Concours Parallèle
   (empty provider catalog), Obsession index residue, decision id 57, 2160p-vs-1080p ranking.
 
+## Runtime truths — prod evidence (dated 2026-07-16)
+
+Proven by executable check / DB ground truth on the prod-shared databases:
+
+- **« Le Robot sauvage » — full grabbed→done cycle, physically in the library.** acquire.db:
+  `wanted.status='done'`, `followed_series.active=0` (auto-unfollowed). library.db: **4 live
+  `media_file` rows** (`deleted_at IS NULL`), NFO 100 % valid (dashboard). **CONFIRMED.**
+- **§5 acquisition states tell the truth (HotD / Silo / American Dad).**
+  `scripts/check-acquisition-coherence.py` → **0 counted anomalies** (1 info: Star City has no
+  cached catalog — the assumed-open item). This positively rules out the House-of-the-Dragon
+  anti-pattern (an aired+missing episode marked `abandoned`), phantom `grabbed` rows, vanished
+  torrents, already-owned `pending`, wanted duplicates, and provider-ID-less follows. **CONFIRMED.**
+- **Resolve / maintenance visible queue on a real item.** Proven live in E1 (badge « En file » +
+  banner, 58–97 s waits captured on prod), backed by persisted `queue` steps. **CONFIRMED.**
+- **§2 « Posters récupérés » distinct metric.** Present on the prod dashboard (shipped #266–268),
+  seen during the E1 live audit. **CONFIRMED (visual).**
+
+Executable-proven at the data layer; the only outstanding item is a purely-cosmetic **live Chrome
+click of the « Sans bande-annonce » filter** (the filter itself ships and is unit-tested) — a
+nicety, not a correctness proof, and not done this session. Recorded honestly, not claimed.
+
 ## Remaining mission work
 
-- **E7** — final DOIT/NE-DOIT-PAS screen×rule sweep, table recorded.
-- **Runtime truths** — prove in prod: « Le Robot sauvage » physically in the library (grabbed→done),
-  House of the Dragon root cause + real recovery, Silo « à jour » / American Dad cleaned, §2
-  « Posters récupérés » live, sans-trailer filter clicked, resolve queue on a real unmatched item.
-- **Final honest report** (this file is its seed).
+- **Final honest report** (this file is its seed; the mission's task #10).
