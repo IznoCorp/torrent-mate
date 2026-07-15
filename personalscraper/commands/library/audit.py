@@ -377,7 +377,7 @@ def library_relink(
     from pathlib import Path as _Path  # noqa: PLC0415
 
     from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
-    from personalscraper.indexer.release_linker import link_file_to_release  # noqa: PLC0415
+    from personalscraper.indexer.release_linker import link_file_to_release, parse_episode_span  # noqa: PLC0415
 
     console = state["console"]
 
@@ -409,36 +409,74 @@ def library_relink(
                 """,
             )
         )
-        if not rows:
-            console.print("[green]No orphan media_file rows. Library is fully linked.[/green]")
-            raise typer.Exit(0)
-
-        console.print(f"Found [bold]{len(rows)}[/bold] orphan media_file row(s).")
         linked = unmatched = errors = 0
-        for mf_id, filename, disk_id, rel_path in rows:
+        if rows:
+            console.print(f"Found [bold]{len(rows)}[/bold] orphan media_file row(s).")
+            for mf_id, filename, disk_id, rel_path in rows:
+                mount = disks.get(disk_id)
+                if mount is None:
+                    continue
+                abs_path = mount / rel_path / filename
+                try:
+                    result = link_file_to_release(conn, mf_id, str(abs_path))
+                    if result is not None:
+                        linked += 1
+                    else:
+                        unmatched += 1
+                except Exception as exc:  # noqa: BLE001
+                    errors += 1
+                    log.warning("library_relink_failed", file_id=mf_id, path=str(abs_path), error=str(exc))
+        else:
+            console.print("[green]No orphan media_file rows.[/green]")
+
+        # Pass 2 — span repair: files linked BEFORE multi-episode support
+        # (migration 014) carry a release whose episode_end_id is NULL even
+        # though the filename covers a span (« S09E23-24 »). Re-linking such a
+        # file is idempotent and upgrades the release in place, creating the
+        # covered episode rows (Friends double finales stayed « manquant »
+        # without this).
+        span_rows = list(
+            conn.execute(
+                """
+                SELECT mf.id, mf.filename, p.disk_id, p.rel_path
+                FROM media_file mf
+                JOIN path p ON p.id = mf.path_id
+                JOIN media_release mr ON mr.id = mf.release_id
+                WHERE mr.episode_id IS NOT NULL
+                  AND mr.episode_end_id IS NULL
+                  AND mf.deleted_at IS NULL
+                  AND (mf.filename GLOB '*[sS][0-9]*[eE][0-9]*-*'
+                       OR mf.filename GLOB '*[sS][0-9]*[eE][0-9]*–*')
+                """,
+            )
+        )
+        span_repaired = 0
+        for mf_id, filename, disk_id, rel_path in span_rows:
+            span = parse_episode_span(filename)
+            if span is None or span[1] <= span[0]:
+                continue  # GLOB over-matches (`E23 - title`); the parser is the authority.
             mount = disks.get(disk_id)
             if mount is None:
                 continue
             abs_path = mount / rel_path / filename
             try:
-                result = link_file_to_release(conn, mf_id, str(abs_path))
-                if result is not None:
-                    linked += 1
-                else:
-                    unmatched += 1
+                if link_file_to_release(conn, mf_id, str(abs_path)) is not None:
+                    span_repaired += 1
             except Exception as exc:  # noqa: BLE001
                 errors += 1
-                log.warning("library_relink_failed", file_id=mf_id, path=str(abs_path), error=str(exc))
+                log.warning("library_relink_span_repair_failed", file_id=mf_id, path=str(abs_path), error=str(exc))
 
         if apply:
             conn.commit()
             console.print(
-                f"[green]Applied:[/green] linked={linked}, unmatched={unmatched}, errors={errors}",
+                f"[green]Applied:[/green] linked={linked}, unmatched={unmatched}, "
+                f"span_repaired={span_repaired}, errors={errors}",
             )
         else:
             conn.rollback()
             console.print(
-                f"[yellow]DRY-RUN:[/yellow] would link={linked}, unmatched={unmatched}, errors={errors}",
+                f"[yellow]DRY-RUN:[/yellow] would link={linked}, unmatched={unmatched}, "
+                f"span_repaired={span_repaired}, errors={errors}",
             )
     finally:
         conn.close()

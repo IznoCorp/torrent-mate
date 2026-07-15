@@ -520,3 +520,80 @@ def test_recompute_season_episode_counts_idempotent(conn: sqlite3.Connection) ->
 
     assert recompute_season_episode_counts(conn) == 1
     assert recompute_season_episode_counts(conn) == 0
+
+
+# ---------------------------------------------------------------------------
+# parse_episode_span — multi-episode files (2026-07-15, Friends S9E23-24)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "filename,expected",
+    [
+        ("S09E23-24 - Celui qui allait à la Barbade (1).mkv", (23, 24)),
+        ("S10E17-18 - Ceux qui s'en allaient (1).mkv", (17, 18)),
+        ("S01E25-E26 - Double feature.avi", (25, 26)),
+        ("Show.S01E01-E22.INTEGRALE.mkv", (1, 22)),
+        ("S09E23–24 - en dash.mkv", (23, 24)),
+        # A ` - ` separated title must NOT read the title's leading number as a span.
+        ("S09E23 - 24 heures chrono.mkv", (23, 23)),
+        ("S02E15.mp4", (15, 15)),
+        ("Show.1x02.mkv", (2, 2)),
+        # Reversed or absurd spans degrade to single-episode.
+        ("S09E24-23 - reversed.mkv", (24, 24)),
+        ("S01E01-999 - absurd.mkv", (1, 1)),
+        ("Inception.mkv", None),
+    ],
+)
+def test_parse_episode_span(filename: str, expected: tuple[int, int] | None) -> None:
+    """``parse_episode_span`` returns the full (start, end) coverage of a file."""
+    from personalscraper.indexer.release_linker import parse_episode_span
+
+    assert parse_episode_span(filename) == expected
+
+
+def test_link_file_to_release_multi_episode_span(conn: sqlite3.Connection) -> None:
+    """An SxxEyy-zz file creates episode rows for the WHOLE span and stores the end.
+
+    Live incident (2026-07-15): « Friends S09E23-24 » linked only episode 23 —
+    ownership missed E24, the wanted row stayed pending forever, and grab kept
+    searching for an episode already on disk.
+    """
+    _seed_show(conn, title="Friends (1994)", dispatch_path="/Volumes/D/series/Friends (1994)")
+    file_id = _seed_disk_and_file(
+        conn,
+        mount_path="/Volumes/D",
+        rel_path="series/Friends (1994)/Saison 09",
+        filename="S09E23-24 - Barbade.mkv",
+    )
+
+    release_id = link_file_to_release(
+        conn, file_id, "/Volumes/D/series/Friends (1994)/Saison 09/S09E23-24 - Barbade.mkv"
+    )
+
+    assert release_id is not None
+    row = conn.execute("SELECT episode_id, episode_end_id FROM media_release WHERE id = ?", (release_id,)).fetchone()
+    start_id, end_id = row
+    assert start_id is not None and end_id is not None
+    start = conn.execute("SELECT number FROM episode WHERE id = ?", (start_id,)).fetchone()[0]
+    end = conn.execute("SELECT number FROM episode WHERE id = ?", (end_id,)).fetchone()[0]
+    assert (start, end) == (23, 24)
+    # Both episode rows exist under the same season.
+    nums = [r[0] for r in conn.execute("SELECT number FROM episode ORDER BY number")]
+    assert nums == [23, 24]
+
+
+def test_link_file_to_release_single_episode_has_null_end(conn: sqlite3.Connection) -> None:
+    """A plain SxxEyy file keeps episode_end_id NULL (no span)."""
+    _seed_show(conn, title="H (1998)", dispatch_path="/Volumes/D/series/H (1998)")
+    file_id = _seed_disk_and_file(
+        conn,
+        mount_path="/Volumes/D",
+        rel_path="series/H (1998)/Saison 01",
+        filename="S01E05.mkv",
+    )
+
+    release_id = link_file_to_release(conn, file_id, "/Volumes/D/series/H (1998)/Saison 01/S01E05.mkv")
+
+    row = conn.execute("SELECT episode_end_id FROM media_release WHERE id = ?", (release_id,)).fetchone()
+    assert row[0] is None

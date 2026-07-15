@@ -1193,3 +1193,97 @@ def test_scan_and_stage_dir_valid_nfo_sets_date_refreshed(tmp_path: Path) -> Non
     assert row["date_metadata_refreshed"] == run_timestamp, (
         f"Expected date_metadata_refreshed={run_timestamp}, got {row['date_metadata_refreshed']!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Truthful episode counting + phantom purge (2026-07-15, Friends S9 « 49 eps »)
+# ---------------------------------------------------------------------------
+
+
+def _seed_show_with_season(tmp_path: Path, filenames: list[str]) -> Config:
+    """Build a one-show library whose Saison 09 contains *filenames*."""
+    config = _scanner_config(tmp_path)
+    series = config.disks[0].path / "series"
+    show = series / "Friends (1994)"
+    season = show / "Saison 09"
+    season.mkdir(parents=True)
+    (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">79168</uniqueid></tvshow>')
+    for name in filenames:
+        (season / name).write_bytes(b"\x00" * 100)
+    return config
+
+
+def test_stage_library_duplicates_do_not_inflate_episode_count(tmp_path: Path) -> None:
+    """Duplicate variants of one episode count as ONE episode, not three.
+
+    Live incident: Friends S9 (23 real episodes) reached « 49 épisodes »
+    because episode_count was the raw video-file count and range-insert then
+    fabricated phantom rows 24..49.
+    """
+    conn = _make_db()
+    config = _seed_show_with_season(
+        tmp_path,
+        [
+            "S09E01 - Un.mkv",
+            "S09E02 - Deux.mkv",
+            "S09E02 - Deux (1).mkv",  # duplicate variant of E02
+            "S09E23-24 - Finale.mkv",  # span covers two episodes
+        ],
+    )
+
+    stage_library_items(conn, config, now_s=1000)
+
+    row = conn.execute("SELECT episode_count FROM season WHERE number = 9").fetchone()
+    assert row[0] == 4, f"expected 4 distinct episodes (1,2,23,24), got {row[0]}"
+    numbers = [r[0] for r in conn.execute("SELECT number FROM episode ORDER BY number")]
+    assert numbers == [1, 2, 23, 24], f"only evidenced numbers may exist, got {numbers}"
+
+
+def test_stage_library_purges_phantom_episode_rows(tmp_path: Path) -> None:
+    """A rescan deletes legacy fabricated episode rows with no file evidence.
+
+    Pre-fix scans inserted ``range(1, file_count+1)`` rows; those phantoms
+    (no release, no on-disk number) persisted forever because the upsert
+    never deletes. The item stage must self-heal them.
+    """
+    conn = _make_db()
+    config = _seed_show_with_season(tmp_path, ["S09E01 - Un.mkv", "S09E02 - Deux.mkv"])
+
+    # First pass creates the season; then simulate the legacy corruption.
+    stage_library_items(conn, config, now_s=1000)
+    season_id = conn.execute("SELECT id FROM season WHERE number = 9").fetchone()[0]
+    conn.executemany(
+        "INSERT OR IGNORE INTO episode (season_id, number, title) VALUES (?, ?, NULL)",
+        [(season_id, n) for n in range(3, 50)],
+    )
+    assert conn.execute("SELECT COUNT(*) FROM episode").fetchone()[0] == 49
+
+    # Rescan → phantoms purged, evidenced rows kept.
+    stage_library_items(conn, config, now_s=2000)
+
+    numbers = [r[0] for r in conn.execute("SELECT number FROM episode ORDER BY number")]
+    assert numbers == [1, 2], f"phantom rows must be purged on rescan, got {numbers}"
+
+
+def test_stage_library_purge_spares_release_linked_rows(tmp_path: Path) -> None:
+    """The purge never deletes an episode row referenced by a media_release.
+
+    A release link is ownership evidence even when the current directory
+    listing lacks a parseable file for that number (e.g. the file was linked
+    by the walk under a name the title-reader skipped).
+    """
+    conn = _make_db()
+    config = _seed_show_with_season(tmp_path, ["S09E01 - Un.mkv"])
+
+    stage_library_items(conn, config, now_s=1000)
+    season_id = conn.execute("SELECT id FROM season WHERE number = 9").fetchone()[0]
+    cur = conn.execute(
+        "INSERT INTO episode (season_id, number, title) VALUES (?, 7, NULL)",
+        (season_id,),
+    )
+    conn.execute("INSERT INTO media_release (episode_id) VALUES (?)", (cur.lastrowid,))
+
+    stage_library_items(conn, config, now_s=2000)
+
+    numbers = [r[0] for r in conn.execute("SELECT number FROM episode ORDER BY number")]
+    assert numbers == [1, 7], f"release-linked rows must survive the purge, got {numbers}"

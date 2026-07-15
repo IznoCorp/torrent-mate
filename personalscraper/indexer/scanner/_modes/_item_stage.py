@@ -31,6 +31,7 @@ from xml.etree import ElementTree as ET
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import AUDIOBOOKS, NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
+from personalscraper.indexer.release_linker import parse_episode_span
 from personalscraper.indexer.repos import disk_repo, item_repo, tv_repo
 from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider
 from personalscraper.indexer.scanner._modes._item_stage_types import (
@@ -393,16 +394,26 @@ def _scan_seasons(show_dir: Path) -> list[tuple[Path, SeasonRow]]:
         if season_num is None:
             continue
 
-        # Count video files and NFO files.
-        episode_count = 0
+        # Count DISTINCT episodes covered by video files — duplicates of the
+        # same episode and multi-episode spans (« S09E23-24 » covers two) must
+        # not inflate the count. Raw file-count fallback only when no filename
+        # carries a parseable marker (free-form Specials). Counting files
+        # fabricated phantom rows downstream for years: Friends S9 (23 real
+        # episodes) reached « 49 épisodes » from duplicate variants.
+        covered: set[int] = set()
+        video_files = 0
         nfo_count = 0
         for f in subdir.iterdir():
             if f.is_file():
                 ext = f.suffix.lstrip(".").lower()
                 if ext in _VIDEO_EXTENSIONS:
-                    episode_count += 1
+                    video_files += 1
+                    span = parse_episode_span(f.name)
+                    if span is not None:
+                        covered.update(range(span[0], span[1] + 1))
                 elif ext == "nfo":
                     nfo_count += 1
+        episode_count = len(covered) if covered else video_files
 
         # Check season poster (lives at the show-dir level, not in the season dir).
         poster_name = f"season{season_num:02d}-poster.jpg"
@@ -425,22 +436,27 @@ def _scan_seasons(show_dir: Path) -> list[tuple[Path, SeasonRow]]:
     return seasons
 
 
-def _read_episode_titles(season_dir: Path, episode_count: int) -> dict[int, str | None]:
+def _read_episode_titles(season_dir: Path) -> dict[int, str | None]:
     r"""Read ``<title>`` from each episode .nfo in a season directory.
 
-    Verbatim port of ``library.scanner._read_episode_titles`` (lines 773-823).
     Pairs episode video files with their sibling NFO by stem and parses the
     ``<title>`` tag; files without a sibling NFO, an unparseable NFO, or an
-    empty title map to ``None``.
+    empty title map to ``None``. A multi-episode span file (« S09E23-24 »)
+    contributes every covered number — the title attaches to the FIRST, the
+    tail numbers map to ``None``.
+
+    The mapping contains ONLY episode numbers actually evidenced by files on
+    disk. The old ``range(1, episode_count+1)`` backfill fabricated phantom
+    ``episode`` rows for numbers no file ever covered (episode_count used to
+    be the raw video-file count, inflated by duplicates), silently corrupting
+    ``season.episode_count`` via ``fix-season-counts``.
 
     Args:
         season_dir: Path to the actual season directory (e.g. ``Saison NN/`` or
             ``Specials/``) as matched on disk by :func:`_scan_seasons`.
-        episode_count: Number of episode video files expected (used to pre-size
-            the result mapping).
 
     Returns:
-        Mapping ``episode_number → title | None``.
+        Mapping ``episode_number → title | None`` for evidenced numbers only.
     """
     out: dict[int, str | None] = {}
     if not season_dir.exists():
@@ -455,10 +471,13 @@ def _read_episode_titles(season_dir: Path, episode_count: int) -> dict[int, str 
             continue
         if video.suffix.lstrip(".").lower() not in _VIDEO_EXTENSIONS:
             continue
-        match = re.search(r"[sS](\d{1,2})[eE](\d{1,3})", video.name)
-        if match is None:
+        span = parse_episode_span(video.name)
+        if span is None:
             continue
-        ep_num = int(match.group(2))
+        ep_num, ep_end = span
+        # Span tail: covered numbers exist as rows, without a title of their own.
+        for tail in range(ep_num + 1, ep_end + 1):
+            out.setdefault(tail, None)
         nfo = nfo_by_stem.get(video.stem)
         if nfo is None:
             out.setdefault(ep_num, None)
@@ -471,10 +490,6 @@ def _read_episode_titles(season_dir: Path, episode_count: int) -> dict[int, str 
             continue
         title_text = (root.findtext("title") or "").strip()
         out[ep_num] = title_text or None
-    # Backfill missing episode numbers with None so callers iterating
-    # ``range(1, episode_count+1)`` always get an entry.
-    for n in range(1, episode_count + 1):
-        out.setdefault(n, None)
     return out
 
 
@@ -510,14 +525,40 @@ def _upsert_seasons_and_episodes(
         )
         season_id = tv_repo.upsert_season(conn, season_row)
 
-        if season.episode_count > 0:
-            episode_titles = _read_episode_titles(season_dir, season.episode_count)
+        episode_titles = _read_episode_titles(season_dir)
+        if episode_titles:
             conn.executemany(
                 """
                 INSERT INTO episode (season_id, number, title) VALUES (?, ?, ?)
                 ON CONFLICT(season_id, number) DO UPDATE SET title = excluded.title
                 """,
-                [(season_id, ep_num, episode_titles.get(ep_num)) for ep_num in range(1, season.episode_count + 1)],
+                [(season_id, ep_num, title) for ep_num, title in sorted(episode_titles.items())],
+            )
+        # Self-heal: purge phantom episode rows — numbers no on-disk file
+        # evidences AND no release references (as span start or end). Legacy
+        # scans inserted range(1, file_count+1) rows, so duplicate-inflated
+        # seasons accumulated dozens of fabricated numbers (7435 rows library-
+        # wide on 2026-07-15); the upsert alone never removes them.
+        seen_numbers = sorted(episode_titles)
+        placeholders = ",".join("?" for _ in seen_numbers)
+        not_in_clause = f" AND number NOT IN ({placeholders})" if seen_numbers else ""
+        purged = conn.execute(
+            f"""
+            DELETE FROM episode
+            WHERE season_id = ?{not_in_clause}
+              AND NOT EXISTS (
+                  SELECT 1 FROM media_release mr
+                  WHERE mr.episode_id = episode.id OR mr.episode_end_id = episode.id
+              )
+            """,  # noqa: S608 — placeholders only, values bound below
+            (season_id, *seen_numbers),
+        ).rowcount
+        if purged > 0:
+            log.info(
+                "indexer_item_stage_phantom_episodes_purged",
+                season_id=season_id,
+                season_number=season.number,
+                purged=purged,
             )
 
 

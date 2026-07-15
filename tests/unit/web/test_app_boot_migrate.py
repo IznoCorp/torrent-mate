@@ -18,7 +18,7 @@ import pytest
 from personalscraper.web.app import _apply_pending_indexer_migrations
 
 # Latest schema version == number of NNN_*.sql migration scripts on disk.
-_LATEST_VERSION = 13
+_LATEST_VERSION = 14
 
 
 def _user_version(db_path: str) -> int:

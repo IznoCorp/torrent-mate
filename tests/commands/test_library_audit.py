@@ -328,6 +328,10 @@ class TestLibraryRelink:
         conn.execute(
             "CREATE TABLE media_file (id INTEGER, filename TEXT, release_id INTEGER, deleted_at TEXT, path_id INTEGER)",
         )
+        # Pass 2 (span repair) joins media_release — the fake schema needs it.
+        conn.execute(
+            "CREATE TABLE media_release (id INTEGER, episode_id INTEGER, episode_end_id INTEGER)",
+        )
         for mf_id, filename, disk_id, rel_path in rows_orphans:
             conn.execute(
                 "INSERT INTO path (id, disk_id, rel_path) VALUES (?, ?, ?)",
@@ -354,7 +358,7 @@ class TestLibraryRelink:
         with patch("sqlite3.connect", return_value=conn):
             result = runner.invoke(app, ["library-relink"])
         assert result.exit_code == 0
-        assert "fully linked" in result.output
+        assert "No orphan media_file rows" in result.output
 
     def test_dry_run_default(self, tmp_path) -> None:
         """Default invocation is dry-run: prints 'DRY-RUN' and rolls back."""
