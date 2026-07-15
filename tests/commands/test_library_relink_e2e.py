@@ -363,3 +363,96 @@ def test_relink_apply_then_reconcile_zero_orphans(tmp_path, test_config) -> None
     assert payload["files_without_release"] == 0, (
         f"Cross-command closure broken: {payload['files_without_release']} files still without release after relink"
     )
+
+
+# ── Span repair (pass 2, migration 014) ─────────────────────────────────────────
+
+
+def _seed_linked_span_file_without_end(db_path: Path, mount: Path) -> None:
+    """Seed a show whose S09E23-24 file is linked to a pre-014 release (no end)."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+
+    season_dir = mount / "series" / "Friends (1994)" / "Saison 09"
+    season_dir.mkdir(parents=True)
+    fname = "S09E23-24 - Barbade.mkv"
+    (season_dir / fname).write_bytes(b"span content")
+
+    conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES ('uuid-span', 'SpanDisk', ?, ?, 1, 0)",
+        (str(mount), now),
+    )
+    disk_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, category_id, date_created, date_modified) "
+        "VALUES ('show', 'Friends', 'Friends', 'tv_shows', ?, ?)",
+        (now, now),
+    )
+    item_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute("INSERT INTO season (item_id, number) VALUES (?, 9)", (item_id,))
+    season_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute("INSERT INTO episode (season_id, number) VALUES (?, 23)", (season_id,))
+    e23 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    # Pre-014 shape: release linked to the FIRST episode only, no span end.
+    conn.execute("INSERT INTO media_release (episode_id) VALUES (?)", (e23,))
+    release_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, 'series/Friends (1994)/Saison 09', 1)",
+        (disk_id,),
+    )
+    path_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, "
+        "oshash, scan_generation, last_verified_at) VALUES (?, ?, ?, 100, 1, 'abcd', 1, ?)",
+        (release_id, path_id, fname, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_relink_span_repair_upgrades_pre_014_release(tmp_path, test_config) -> None:
+    """Pass 2 sets episode_end_id and creates the covered episode row.
+
+    Live incident (2026-07-15): « Friends S09E23-24 » linked pre-migration-014
+    owned only E23 — the wanted row for E24 stayed pending forever.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    mount = tmp_path / "mount"
+    mount.mkdir()
+    _seed_linked_span_file_without_end(db_path, mount)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        result = run_cli(["library-relink", "--apply"])
+
+    assert result.exit_code == 0, result.output
+    assert "span_repaired=1" in result.output, result.output
+
+    conn = sqlite3.connect(str(db_path))
+    end_num = conn.execute(
+        "SELECT e.number FROM media_release mr JOIN episode e ON e.id = mr.episode_end_id "
+        "WHERE mr.episode_end_id IS NOT NULL"
+    ).fetchone()
+    numbers = [r[0] for r in conn.execute("SELECT number FROM episode ORDER BY number")]
+    conn.close()
+    assert end_num is not None and end_num[0] == 24, "release must gain the span end"
+    assert numbers == [23, 24], f"the covered episode row must exist, got {numbers}"
+
+
+def test_relink_span_repair_is_idempotent(tmp_path, test_config) -> None:
+    """A second --apply run finds nothing left to span-repair."""
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    mount = tmp_path / "mount"
+    mount.mkdir()
+    _seed_linked_span_file_without_end(db_path, mount)
+
+    with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
+        first = run_cli(["library-relink", "--apply"])
+        second = run_cli(["library-relink", "--apply"])
+
+    assert first.exit_code == 0 and second.exit_code == 0
+    assert "span_repaired=1" in first.output
+    assert "span_repaired=0" in second.output, second.output

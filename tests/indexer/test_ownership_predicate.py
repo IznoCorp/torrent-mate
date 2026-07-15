@@ -444,3 +444,75 @@ class TestSoftDeleteFilterLoadBearing:
             "Mutant SQL (no deleted_at IS NULL) should return True on a tombstoned file. "
             "This proves the production deleted_at IS NULL filter is load-bearing."
         )
+
+
+class TestSpanOwnership:
+    """Multi-episode span releases own EVERY covered episode (migration 014).
+
+    Live incident (2026-07-15): « Friends S09E23-24 » linked only episode 23 —
+    ownership missed E24, the wanted row stayed pending forever, and grab kept
+    searching for content already on disk.
+    """
+
+    @staticmethod
+    def _seed_span_show(conn: sqlite3.Connection) -> None:
+        """Seed a show whose S09 has a single file covering E23–E24."""
+        disk = _insert_disk(conn)
+        path = _insert_path(conn, disk, "002-TVSHOWS/Friends/Saison 09")
+        item = _insert_show_item(conn, tvdb_id=79168)
+        season = _insert_season(conn, item, 9)
+        e23 = _insert_episode(conn, season, 23)
+        e24 = _insert_episode(conn, season, 24)
+        cur = conn.execute(
+            "INSERT INTO media_release(episode_id, episode_end_id) VALUES (?,?)",
+            (e23, e24),
+        )
+        _insert_file(conn, int(cur.lastrowid), path)
+
+    def test_span_release_owns_both_episodes(self) -> None:
+        """is_owned returns True for the start AND the end of the span."""
+        conn = _open_db()
+        self._seed_span_show(conn)
+
+        owns_start = is_owned(conn, kind="episode", tvdb_id=79168, tmdb_id=None, imdb_id=None, season=9, episode=23)
+        owns_end = is_owned(conn, kind="episode", tvdb_id=79168, tmdb_id=None, imdb_id=None, season=9, episode=24)
+        assert owns_start is True
+        assert owns_end is True, "the second episode of a span file must count as owned"
+
+    def test_span_does_not_leak_outside_range(self) -> None:
+        """Episodes outside the span stay un-owned."""
+        conn = _open_db()
+        self._seed_span_show(conn)
+
+        assert is_owned(conn, kind="episode", tvdb_id=79168, tmdb_id=None, imdb_id=None, season=9, episode=22) is False
+        assert is_owned(conn, kind="episode", tvdb_id=79168, tmdb_id=None, imdb_id=None, season=9, episode=25) is False
+
+    def test_owned_pairs_expands_span(self) -> None:
+        """owned_episode_pairs returns every pair the span covers."""
+        from personalscraper.indexer.ownership import owned_episode_pairs
+
+        conn = _open_db()
+        self._seed_span_show(conn)
+
+        pairs = owned_episode_pairs(conn, tvdb_id=79168)
+        assert (9, 23) in pairs
+        assert (9, 24) in pairs
+        assert (9, 25) not in pairs
+
+    def test_soft_deleted_span_file_owns_nothing(self) -> None:
+        """A tombstoned span file releases its whole coverage."""
+        conn = _open_db()
+        disk = _insert_disk(conn)
+        path = _insert_path(conn, disk, "002-TVSHOWS/Friends/Saison 10")
+        item = _insert_show_item(conn, tvdb_id=79168)
+        season = _insert_season(conn, item, 10)
+        e17 = _insert_episode(conn, season, 17)
+        e18 = _insert_episode(conn, season, 18)
+        cur = conn.execute(
+            "INSERT INTO media_release(episode_id, episode_end_id) VALUES (?,?)",
+            (e17, e18),
+        )
+        _insert_file(conn, int(cur.lastrowid), path, deleted_at=NOW)
+
+        assert is_owned(conn, kind="episode", tvdb_id=79168, tmdb_id=None, imdb_id=None, season=10, episode=17) is False
+        assert is_owned(conn, kind="episode", tvdb_id=79168, tmdb_id=None, imdb_id=None, season=10, episode=18) is False
