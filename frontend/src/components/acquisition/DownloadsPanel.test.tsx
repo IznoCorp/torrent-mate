@@ -120,6 +120,33 @@ describe("DownloadsPanel (A4)", () => {
     expect(screen.getAllByText("Le Robot sauvage").length).toBeGreaterThan(0);
   });
 
+  it("shows « En erreur » + the French reason for a broken torrent (§8)", () => {
+    mockDownloads({
+      client_available: true,
+      downloads: [
+        {
+          media_ref: { tvdb_id: null, tmdb_id: 1184918, imdb_id: null },
+          title: "Le Robot sauvage",
+          kind: "movie",
+          season: null,
+          episode: null,
+          info_hash: "abc",
+          name: "Robot.mkv",
+          progress: 1,
+          state: "errored",
+          size_bytes: 999_000_000,
+          error_reason: "Fichiers manquants sur le disque",
+        },
+      ],
+    });
+    renderPanel();
+
+    expect(screen.getByText("En erreur")).toBeInTheDocument();
+    expect(
+      screen.getByText("Fichiers manquants sur le disque"),
+    ).toBeInTheDocument();
+  });
+
   it("renders the idle empty state when there is nothing grabbed", () => {
     mockDownloads({ client_available: true, downloads: [] });
     renderPanel();

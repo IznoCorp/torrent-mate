@@ -89,6 +89,18 @@ def _to_download(
         The download row for the API response.
     """
     ref = wanted.media_ref
+    # A client-reported error (qBit error/missingFiles; Transmission error≥2)
+    # wins over the raw state bucket: a broken torrent must read as errored, not
+    # as a neutral "in client" state (§8 — show what is not advancing + why).
+    if item is None:
+        state: DownloadState = "missing"
+        error_reason: str | None = None
+    elif item.error_reason:
+        state = "errored"
+        error_reason = item.error_reason
+    else:
+        state = _normalise_state(item.state)
+        error_reason = None
     return AcquisitionDownload(
         media_ref=MediaRefResponse(tvdb_id=ref.tvdb_id, tmdb_id=ref.tmdb_id, imdb_id=ref.imdb_id),
         title=title,
@@ -98,21 +110,25 @@ def _to_download(
         info_hash=wanted.grabbed_hash or "",
         name="" if item is None else item.name,
         progress=0.0 if item is None else item.progress,
-        state="missing" if item is None else _normalise_state(item.state),
+        state=state,
         size_bytes=0 if item is None else item.size_bytes,
+        error_reason=error_reason,
     )
 
 
 def _sort_key(download: AcquisitionDownload) -> tuple[int, float]:
-    """Order in-progress downloads first, then by ascending progress.
+    """Order attention-needing rows first, then in-progress, then done.
 
     Args:
         download: A download row.
 
     Returns:
-        A sort key: ``missing`` last, incomplete before complete, then by
-        progress (least-done first — the ones still arriving lead the list).
+        A sort key: ``errored`` first (it needs the operator NOW, §8), then
+        incomplete before complete by ascending progress (the ones still
+        arriving lead), then ``missing`` last.
     """
+    if download.state == "errored":
+        return (-1, 0.0)
     if download.state == "missing":
         return (2, 1.0)
     complete = 1 if download.progress >= 1.0 else 0

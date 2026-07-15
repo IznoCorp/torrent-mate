@@ -45,6 +45,12 @@ class TorrentItem:
         completion_on: Unix timestamp of completion, or ``None`` if never
             completed (default ``None``). qBittorrent returns 0 or -1 for
             never-completed — the mapper normalizes values ≤ 0 to ``None``.
+        error_reason: A human-readable error string when the client reports the
+            torrent as errored (qBittorrent ``error`` / ``missingFiles`` states;
+            Transmission ``error != 0`` with its ``errorString``), or ``None``
+            when the torrent is healthy. Surfaced so a broken torrent (data
+            vanished on disk, tracker error) is VISIBLE (§8) instead of bucketed
+            as a neutral "in client" state.
     """
 
     hash: str
@@ -59,6 +65,7 @@ class TorrentItem:
     ratio: float = 0.0
     save_path: str = ""
     completion_on: int | None = None
+    error_reason: str | None = None
 
 
 @dataclass(frozen=True)

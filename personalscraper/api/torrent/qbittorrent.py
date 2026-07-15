@@ -743,6 +743,15 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
 # -- Internal helpers --------------------------------------------------------
 
 
+#: qBittorrent error state strings (lower-cased) → French reason. These states
+#: mean the torrent is registered but broken; without this they fell through to
+#: a neutral "in client" bucket and the operator never saw the breakage (§8).
+_QBIT_ERROR_REASONS: dict[str, str] = {
+    "error": "Torrent en erreur (voir qBittorrent)",
+    "missingfiles": "Fichiers manquants sur le disque",
+}
+
+
 def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     """Map a qBittorrent torrent dictionary to a TorrentItem."""
     content_path = t.content_path or ""
@@ -757,6 +766,12 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     )
     save_path_raw = getattr(t, "save_path", "")
     save_path = save_path_raw if isinstance(save_path_raw, str) else ""
+    # qBittorrent signals a broken torrent through its state string, not a
+    # separate error field: "error" (generic) or "missingFiles" (the payload
+    # vanished on disk). Surface a French reason so the download panel shows it
+    # as errored (§8) instead of bucketing it to a neutral "in client" state.
+    raw_state = str(t.state or "")
+    error_reason = _QBIT_ERROR_REASONS.get(raw_state.strip().lower())
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -770,6 +785,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         added_on=datetime.fromtimestamp(t.added_on) if t.added_on else None,
         save_path=save_path,
         completion_on=completion_on,
+        error_reason=error_reason,
     )
 
 

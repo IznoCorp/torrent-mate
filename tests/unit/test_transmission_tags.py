@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from personalscraper.api.torrent.transmission import _torrent_item
 
 
-def _mock(labels=None):
+def _mock(labels=None, *, error=0, error_string=""):
     """Build a mock transmission_rpc.Torrent with minimal fields for tag testing."""
     t = MagicMock()
     t.hash_string = "h"
@@ -20,6 +20,8 @@ def _mock(labels=None):
     t.get_files.return_value = []
     t.labels = labels
     t.ratio = 0.0
+    t.error = error
+    t.error_string = error_string
     return t
 
 
@@ -42,3 +44,28 @@ def test_labels_none():
     item = _torrent_item(_mock(labels=None))
     assert item.category is None
     assert item.tags == []
+
+
+def test_no_error_has_no_error_reason():
+    """error=0 → error_reason=None (healthy torrent)."""
+    assert _torrent_item(_mock(error=0)).error_reason is None
+
+
+def test_tracker_warning_is_not_surfaced_as_error():
+    """error=1 (tracker warning) is transient — not surfaced as an error."""
+    assert _torrent_item(_mock(error=1, error_string="tracker warning")).error_reason is None
+
+
+def test_local_error_surfaces_error_string():
+    """error=3 (local error, data missing) → the daemon's errorString (§8).
+
+    Red-on-old: get_by_hashes already requested error/errorString but the
+    mapper dropped them, so a broken Transmission torrent looked healthy.
+    """
+    item = _torrent_item(_mock(error=3, error_string="No data found!"))
+    assert item.error_reason == "No data found!"
+
+
+def test_error_without_string_falls_back_to_french():
+    """error=3 with an empty errorString → a French fallback reason."""
+    assert _torrent_item(_mock(error=3, error_string="")).error_reason == "Erreur locale (fichiers manquants ?)"

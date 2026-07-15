@@ -45,6 +45,39 @@ class TestTorrentItemMapping:
         assert item.category == "movies"
         assert item.added_on == datetime.fromtimestamp(1712345678)
 
+    def test_healthy_state_has_no_error_reason(self) -> None:
+        """A normal torrent carries error_reason=None."""
+        mock = MagicMock()
+        mock.state = "uploading"
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        assert _torrent_item(mock).error_reason is None
+
+    def test_missing_files_state_sets_french_error_reason(self) -> None:
+        """QBit ``missingFiles`` → a French error_reason (§8 — data vanished).
+
+        Red-on-old: this state fell through to a neutral ``in_client`` bucket
+        with no reason, so the operator never saw the breakage.
+        """
+        mock = MagicMock()
+        mock.state = "missingFiles"
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        item = _torrent_item(mock)
+        assert item.state == "missingFiles"
+        assert item.error_reason == "Fichiers manquants sur le disque"
+
+    def test_error_state_sets_error_reason(self) -> None:
+        """QBit ``error`` state → a generic French error_reason."""
+        mock = MagicMock()
+        mock.state = "error"
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        assert _torrent_item(mock).error_reason == "Torrent en erreur (voir qBittorrent)"
+
     def test_ratio_field_present_on_item(self) -> None:
         """Regression for BUG #8: every TorrentItem must carry a `ratio` attribute.
 

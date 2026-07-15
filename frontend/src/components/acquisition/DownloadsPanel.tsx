@@ -66,19 +66,31 @@ function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
       >
         <div
           className={
-            d.state === "missing"
+            d.state === "missing" || d.state === "errored"
               ? "h-full bg-[var(--danger)]"
               : d.progress >= 1
                 ? "h-full bg-[var(--success)]"
                 : "h-full bg-[var(--info)]"
           }
-          style={{ width: `${String(d.state === "missing" ? 100 : pct)}%` }}
+          style={{
+            width: `${String(d.state === "missing" || d.state === "errored" ? 100 : pct)}%`,
+          }}
         />
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{d.state === "missing" ? "—" : `${String(pct)} %`}</span>
+        <span>
+          {d.state === "missing" || d.state === "errored"
+            ? "—"
+            : `${String(pct)} %`}
+        </span>
         {size !== "" && <span>{size}</span>}
       </div>
+      {/* §8 — a broken torrent shows WHY, not a bare state. */}
+      {d.state === "errored" &&
+        d.error_reason != null &&
+        d.error_reason !== "" && (
+          <p className="text-xs text-[var(--danger)]">{d.error_reason}</p>
+        )}
     </div>
   );
 }

@@ -279,6 +279,7 @@ export const DOWNLOAD_STATE_TONE: Record<
   queued: "neutral",
   in_client: "neutral",
   missing: "danger",
+  errored: "danger",
 };
 
 /** Live download state → French label (A4). */
@@ -290,6 +291,7 @@ export const DOWNLOAD_STATE_LABEL: Record<string, string> = {
   queued: "En file",
   in_client: "Dans le client",
   missing: "Introuvable",
+  errored: "En erreur",
 };
 
 /** Format a Unix-epoch float as a relative-time string in French. */

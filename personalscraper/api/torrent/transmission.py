@@ -545,6 +545,18 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
             # transmission-rpc typically returns datetime; handle int defensively.
             completion_on = int(done_date)
 
+    # Transmission signals a broken torrent through a separate ``error`` code
+    # (0 = ok; 1 = tracker warning; 2 = tracker error; 3 = local error, e.g.
+    # data missing on disk) plus a human ``errorString``. get_by_hashes already
+    # requests both fields; surface them so a broken torrent is VISIBLE (§8)
+    # rather than shown as a healthy status. Tracker warnings (1) are transient
+    # and not surfaced as an error.
+    error_code = getattr(t, "error", 0) or 0
+    error_string = str(getattr(t, "error_string", "") or "").strip()
+    error_reason: str | None = None
+    if isinstance(error_code, int) and error_code >= 2:
+        error_reason = error_string or ("Erreur locale (fichiers manquants ?)" if error_code == 3 else "Erreur tracker")
+
     return TorrentItem(
         hash=t.hash_string,
         name=t.name,
@@ -558,4 +570,5 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         added_on=added_on,
         save_path=str(t.download_dir) if t.download_dir else "",
         completion_on=completion_on,
+        error_reason=error_reason,
     )
