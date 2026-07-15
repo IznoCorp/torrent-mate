@@ -189,12 +189,33 @@ class RecentRun(BaseModel):
     result: dict[str, int] | None = None
 
 
+class DeferredTorrent(BaseModel):
+    """A completed torrent the watcher currently defers (transient skip).
+
+    Ingest would re-skip it this cycle (ratio below threshold, source content
+    unavailable, staging disk full), so the watcher excludes it from the
+    pipeline trigger set — without this surface the state would be invisible
+    (§1: les automatismes restent visibles).
+
+    Attributes:
+        name: Torrent display name.
+        reason: Ingest skip reason (``ratio_below_threshold`` |
+            ``content_missing`` | ``insufficient_space``).
+    """
+
+    name: str
+    reason: str
+
+
 class AcquisitionStatusResponse(BaseModel):
     """Response for GET /api/acquisition/status."""
 
     last_successful_run_at: float | None = None  # epoch seconds
     watcher_enabled: bool
     recent_runs: list[RecentRun] = []
+    #: Torrents transiently deferred by the watcher this cycle (§1 visibility).
+    #: Empty when the torrent client is unreachable (fail-soft).
+    deferred: list[DeferredTorrent] = []
 
 
 class MediaSearchResult(BaseModel):

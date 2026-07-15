@@ -198,6 +198,7 @@ function mockAllEmpty(): void {
       watcher_enabled: true,
       last_successful_run_at: 1_719_792_000,
       recent_runs: [],
+      deferred: [],
     },
     error: null,
   });
@@ -858,6 +859,7 @@ describe("AcquisitionPage", () => {
         watcher_enabled: true,
         last_successful_run_at: null,
         recent_runs: [],
+      deferred: [],
       },
       error: null,
     });
@@ -882,6 +884,7 @@ describe("AcquisitionPage", () => {
         watcher_enabled: false,
         last_successful_run_at: null,
         recent_runs: [],
+      deferred: [],
       },
       error: null,
     });
@@ -921,6 +924,7 @@ describe("AcquisitionPage", () => {
             result: null,
           },
         ],
+        deferred: [],
       },
       error: null,
     });

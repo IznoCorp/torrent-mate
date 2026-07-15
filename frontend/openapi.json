@@ -103,6 +103,14 @@
       "AcquisitionStatusResponse": {
         "description": "Response for GET /api/acquisition/status.",
         "properties": {
+          "deferred": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DeferredTorrent"
+            },
+            "title": "Deferred",
+            "type": "array"
+          },
           "last_successful_run_at": {
             "anyOf": [
               {
@@ -783,6 +791,25 @@
           "page_size"
         ],
         "title": "DecisionsResponse",
+        "type": "object"
+      },
+      "DeferredTorrent": {
+        "description": "A completed torrent the watcher currently defers (transient skip).\n\nIngest would re-skip it this cycle (ratio below threshold, source content\nunavailable, staging disk full), so the watcher excludes it from the\npipeline trigger set \u2014 without this surface the state would be invisible\n(\u00a71: les automatismes restent visibles).\n\nAttributes:\n    name: Torrent display name.\n    reason: Ingest skip reason (``ratio_below_threshold`` |\n        ``content_missing`` | ``insufficient_space``).",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ],
+        "title": "DeferredTorrent",
         "type": "object"
       },
       "DiskInfo": {

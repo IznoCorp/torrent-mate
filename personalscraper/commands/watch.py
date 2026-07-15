@@ -16,6 +16,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
@@ -31,6 +32,7 @@ from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import _build_app_context, handle_cli_errors
 from personalscraper.core.tags import SEED_PURE
+from personalscraper.ingest.deferral import classify_deferrals, deferral_probe_dirs
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
@@ -158,6 +160,20 @@ def watch(ctx: typer.Context) -> None:
     # daemon lifetime).
     _cross_seed_failures: dict[str, int] = {}
 
+    # Transient-skip deferral inputs (computed once — config is immutable for
+    # the daemon lifetime) + last snapshot for change-only logging. Fail-soft:
+    # deferral is an optimisation (fewer empty runs), never a boot blocker —
+    # an unresolvable staging layout simply disables it.
+    deferral_ingest_dir: Path | None
+    try:
+        deferral_dirs = deferral_probe_dirs(config)
+        deferral_ingest_dir = deferral_dirs[-1]
+    except Exception:
+        log.warning("watcher_deferral_dirs_unavailable", exc_info=True)
+        deferral_dirs = []
+        deferral_ingest_dir = None
+    last_deferred: dict[str, str] = {}
+
     try:
         while not _shutdown_requested:
             # Web pause lever: POST /api/pipeline/watcher {enabled:false} writes the
@@ -261,6 +277,32 @@ def watch(ctx: typer.Context) -> None:
             completed_hashes = frozenset(t.hash for t in completed)
             seed_pure_hashes = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
 
+            # 3b. Transient-skip deferrals: torrents ingest would re-skip this
+            # cycle (ratio / content / space). Re-evaluated live every cycle —
+            # self-healing, nothing persisted, nothing marked done. Fail-soft:
+            # a probe error must never kill the daemon cycle.
+            deferred: dict[str, str] = {}
+            if deferral_ingest_dir is not None:
+                try:
+                    deferred = classify_deferrals(
+                        completed,
+                        min_ratio=config.ingest.min_ratio,
+                        ingest_dir=deferral_ingest_dir,
+                        min_free_gb=config.thresholds.min_free_space_staging_gb,
+                        staging_probe_dirs=deferral_dirs,
+                        exclude_hashes=ingested_hashes | seed_pure_hashes,
+                    )
+                except Exception:
+                    log.warning("watcher_deferral_probe_failed", exc_info=True)
+                    deferred = {}
+            if deferred != last_deferred:
+                log.info(
+                    "watcher_deferred_changed",
+                    count=len(deferred),
+                    reasons={h[:12]: r for h, r in sorted(deferred.items())},
+                )
+                last_deferred = deferred
+
             # 4. Build input snapshot.
             now = time.time()
             inp = WatcherInput(
@@ -270,6 +312,7 @@ def watch(ctx: typer.Context) -> None:
                 sentinel_present=(data_dir / "watch.trigger").exists(),
                 pipeline_lock_held=is_lock_held(data_dir / "pipeline.lock"),
                 now=now,
+                deferred_hashes=frozenset(deferred),
             )
 
             # 5. Evaluate.

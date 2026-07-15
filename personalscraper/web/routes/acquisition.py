@@ -53,6 +53,7 @@ from personalscraper.web.models.acquisition import (
     AcquisitionStatusResponse,
     CompletenessResponse,
     CreateFollowRequest,
+    DeferredTorrent,
     FollowedResponse,
     FollowedSeriesItem,
     MediaRefResponse,
@@ -478,6 +479,14 @@ def _parse_run_counts(steps_json: str | None) -> dict[str, int] | None:
     ``steps_json`` entry (see ``commands/_cli_run_row``). The LAST entry
     carrying counts wins.
 
+    Fallback for pipeline runs (which record per-step ``success_count`` /
+    ``skip_count`` / ``error_count`` but no semantic ``counts`` dict): derive a
+    run-level summary — ``processed`` = max success across steps (the §1
+    ``run_processed`` convention: every step sees the same media), ``skipped``
+    = the ingest gate's skips, ``errors`` = sum. A skip-only watcher run then
+    reads « 5 ignoré(s) » instead of a blank cell (live incident 2026-07-15:
+    « Pipeline » rows with empty results).
+
     Args:
         steps_json: The raw ``steps_json`` column value.
 
@@ -496,7 +505,29 @@ def _parse_run_counts(steps_json: str | None) -> dict[str, int] | None:
         counts = step.get("counts") if isinstance(step, dict) else None
         if isinstance(counts, dict):
             return {str(k): int(v) for k, v in counts.items() if isinstance(v, (int, float))}
-    return None
+    # Fallback: run-level summary from the native per-step count fields.
+    processed = 0
+    skipped = 0
+    errors = 0
+    saw_any = False
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        success = step.get("success_count")
+        skip = step.get("skip_count")
+        error = step.get("error_count")
+        if success is None and skip is None and error is None:
+            continue
+        saw_any = True
+        if isinstance(success, (int, float)):
+            processed = max(processed, int(success))
+        if step.get("name") == "ingest" and isinstance(skip, (int, float)):
+            skipped = int(skip)
+        if isinstance(error, (int, float)):
+            errors += int(error)
+    if not saw_any:
+        return None
+    return {"processed": processed, "skipped": skipped, "errors": errors}
 
 
 def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
@@ -593,7 +624,57 @@ def get_acquisition_status(request: Request) -> AcquisitionStatusResponse:
         last_successful_run_at=last_successful_run_at,
         watcher_enabled=watcher_enabled,
         recent_runs=recent_runs,
+        deferred=_list_deferred_torrents(config),
     )
+
+
+def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
+    """Compute the watcher's current transient-deferral set for the UI (§1).
+
+    Mirrors the watch daemon's per-cycle ``classify_deferrals`` call so the
+    status endpoint and the daemon agree on what is deferred and why. Fully
+    fail-soft: any client / probe error yields an empty list — the panel then
+    simply shows nothing, never a 500.
+
+    Args:
+        config: The loaded application config.
+
+    Returns:
+        One :class:`DeferredTorrent` per deferred hash (possibly empty).
+    """
+    from personalscraper.api.torrent._factory import build_active_torrent_client  # noqa: PLC0415
+    from personalscraper.core.tags import SEED_PURE  # noqa: PLC0415
+    from personalscraper.ingest.deferral import (  # noqa: PLC0415
+        classify_deferrals,
+        deferral_probe_dirs,
+    )
+    from personalscraper.ingest.tracker import IngestTracker  # noqa: PLC0415
+
+    try:
+        client = build_active_torrent_client(config.torrent)
+        if client is None:
+            return []
+        completed = client.get_completed()
+        tracker = IngestTracker(tracker_path=config.paths.data_dir / "ingested_torrents.json")
+        ingested = frozenset(tracker.load().keys())
+        seed_pure = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
+        dirs = deferral_probe_dirs(config)
+        deferred = classify_deferrals(
+            completed,
+            min_ratio=config.ingest.min_ratio,
+            ingest_dir=dirs[-1],
+            min_free_gb=config.thresholds.min_free_space_staging_gb,
+            staging_probe_dirs=dirs,
+            exclude_hashes=ingested | seed_pure,
+        )
+        by_hash = {t.hash: t.name for t in completed}
+        return [
+            DeferredTorrent(name=by_hash.get(h, h[:16]), reason=reason)
+            for h, reason in sorted(deferred.items(), key=lambda kv: by_hash.get(kv[0], ""))
+        ]
+    except Exception:
+        logger.warning("acquisition_status_deferred_probe_failed", exc_info=True)
+        return []
 
 
 @router.get("/downloads", response_model=AcquisitionDownloadsResponse)
