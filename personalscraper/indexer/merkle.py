@@ -181,10 +181,19 @@ def compute_merkle_delta(
 ) -> float:
     """Compute the fraction of fresh files whose tier-1 fingerprint differs from stored.
 
-    A file is considered "different" if its ``path_id`` does not appear in the
-    stored set at all (new path — may indicate a bulk restore with re-indexed
-    paths), or if any of its tier-1 fields (``size``, ``mtime_ns``, ``oshash``)
-    differ from the stored entry for the same ``path_id``.
+    ``path_id`` refers to a *directory* row, so a directory with N files yields
+    N fingerprints sharing the same ``path_id`` (DEV #11).  The lookup therefore
+    keys on ``(path_id, oshash)`` — the fresh sample reuses the stored ``oshash``
+    (:func:`~personalscraper.indexer.scanner._walker._sample_fresh_fingerprints`
+    never recomputes it), so the pair identifies one file on both sides.  Keying
+    on ``path_id`` alone would keep a single fingerprint per directory and count
+    every sibling file as changed (82–86% spurious delta on a real TV library —
+    2026-07-15 freeze incident).
+
+    A file is considered "different" if its ``(path_id, oshash)`` pair does not
+    appear in the stored set at all (new path — may indicate a bulk restore with
+    re-indexed paths), or if ``size`` or ``mtime_ns`` differ from the stored
+    entry for the same pair.
 
     Args:
         stored_files: Iterable of :class:`FileFingerprint` objects from the
@@ -196,20 +205,21 @@ def compute_merkle_delta(
         A float in ``[0.0, 1.0]`` representing the fraction of fresh files
         that differ from stored.  Returns ``0.0`` when *fresh_files* is empty.
     """
-    # Build a lookup of stored fingerprints by path_id for O(1) comparison.
-    stored_map: dict[int, FileFingerprint] = {fp.path_id: fp for fp in stored_files}
+    # Build a lookup of stored fingerprints by (path_id, oshash) for O(1)
+    # comparison — one entry per FILE, not per directory.
+    stored_map: dict[tuple[int, str], FileFingerprint] = {(fp.path_id, fp.oshash): fp for fp in stored_files}
 
     differs_count = 0
     total_fresh_count = 0
 
     for fresh in fresh_files:
         total_fresh_count += 1
-        stored = stored_map.get(fresh.path_id)
+        stored = stored_map.get((fresh.path_id, fresh.oshash))
         if stored is None:
-            # Path not found in stored set — counts as different.
+            # File not found in stored set — counts as different.
             differs_count += 1
-        elif fresh.size != stored.size or fresh.mtime_ns != stored.mtime_ns or fresh.oshash != stored.oshash:
-            # Any tier-1 field differs — counts as different.
+        elif fresh.size != stored.size or fresh.mtime_ns != stored.mtime_ns:
+            # A tier-1 stat field differs — counts as different.
             differs_count += 1
 
     if total_fresh_count == 0:

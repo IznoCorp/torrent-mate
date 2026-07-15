@@ -431,6 +431,7 @@ def _rescrape_item(
     # Fix artwork
     if needs_artwork:
         try:
+            downloaded: list[Path] = []
             if not dry_run:
                 from personalscraper.scraper._movie_convert import (
                     _coerce_to_movie_data,
@@ -438,11 +439,18 @@ def _rescrape_item(
                 )
 
                 if media_type == "movie":
-                    artwork_dl.download_movie_artwork(_coerce_to_movie_data(api_data), media_dir, patterns)
+                    downloaded = artwork_dl.download_movie_artwork(_coerce_to_movie_data(api_data), media_dir, patterns)
                 else:
-                    artwork_dl.download_tvshow_artwork(_coerce_to_show_data(api_data), media_dir, patterns)
-            actions.append(ACTION_ARTWORK_DOWNLOADED)
-            log.info("library_rescrape_artwork", title=title, dry_run=dry_run)
+                    downloaded = artwork_dl.download_tvshow_artwork(_coerce_to_show_data(api_data), media_dir, patterns)
+            # Only report success when files actually landed — an empty
+            # download (provider has no artwork for this ID, e.g. a wrong
+            # legacy NFO id) must surface as an error, not a false "fixed".
+            if dry_run or downloaded:
+                actions.append(ACTION_ARTWORK_DOWNLOADED)
+                log.info("library_rescrape_artwork", title=title, dry_run=dry_run, files=len(downloaded))
+            else:
+                errors.append("Artwork download produced no files (provider has no artwork for this ID)")
+                log.warning("library_rescrape_artwork_empty", title=title, api_id=api_id, source=source)
         except Exception as exc:
             errors.append(f"Artwork download failed: {exc}")
             log.error("library_rescrape_artwork_failed", title=title, exc_info=True, error=str(exc))
