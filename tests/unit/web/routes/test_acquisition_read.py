@@ -647,7 +647,7 @@ class TestDownloadsEndpoint:
             TorrentItem(hash="abcdef0123456789", name="Robot.mkv", size_bytes=999, progress=0.33, state="downloading"),
         ]
         with patch(
-            "personalscraper.web.acquisition.downloads.build_active_torrent_client",
+            "personalscraper.web.torrent_session.build_active_torrent_client",
             return_value=fake_client,
         ):
             resp = client.get("/api/acquisition/downloads", cookies=_make_auth_cookie())
@@ -672,7 +672,7 @@ class TestDownloadsEndpoint:
         conn.close()
 
         with patch(
-            "personalscraper.web.acquisition.downloads.build_active_torrent_client",
+            "personalscraper.web.torrent_session.build_active_torrent_client",
             side_effect=OSError("connection refused"),
         ):
             resp = client.get("/api/acquisition/downloads", cookies=_make_auth_cookie())
@@ -756,7 +756,7 @@ class TestStatusDeferred:
 
         with (
             patch(
-                "personalscraper.api.torrent._factory.build_active_torrent_client",
+                "personalscraper.web.torrent_session.build_active_torrent_client",
                 return_value=fake_client,
             ),
             patch(
@@ -776,7 +776,7 @@ class TestStatusDeferred:
     def test_client_outage_fails_soft_empty(self, client: TestClient) -> None:
         """A torrent-client error yields deferred=[] — never a 500."""
         with patch(
-            "personalscraper.api.torrent._factory.build_active_torrent_client",
+            "personalscraper.web.torrent_session.build_active_torrent_client",
             side_effect=RuntimeError("client down"),
         ):
             resp = client.get("/api/acquisition/status", cookies=_make_auth_cookie())

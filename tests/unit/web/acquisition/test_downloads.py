@@ -18,6 +18,10 @@ from personalscraper.web.acquisition.downloads import list_active_downloads
 _REF = MediaRef(tmdb_id=1184918)
 
 _MOD = "personalscraper.web.acquisition.downloads"
+# The client is borrowed through the shared cached session — the factory now
+# lives (and is patched) in the torrent_session module, not in downloads.
+# Cache reset between tests: global autouse fixture in tests/conftest.py.
+_SESSION = "personalscraper.web.torrent_session"
 
 
 def _wanted(
@@ -62,7 +66,7 @@ def test_join_maps_progress_title_and_state_case_insensitive() -> None:
     client.get_by_hashes.return_value = [_titem("abcdef", 0.42, "downloading", name="Robot.mkv", size=999)]
     with (
         patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
-        patch(f"{_MOD}.build_active_torrent_client", return_value=client),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
     ):
         resp = list_active_downloads(MagicMock())
 
@@ -84,7 +88,7 @@ def test_missing_hash_surfaces_as_missing_state() -> None:
     client.get_by_hashes.return_value = []  # client forgot the torrent
     with (
         patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
-        patch(f"{_MOD}.build_active_torrent_client", return_value=client),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
     ):
         resp = list_active_downloads(MagicMock())
 
@@ -98,7 +102,7 @@ def test_client_outage_is_fail_soft() -> None:
     grabbed = [_wanted("ABCDEF")]
     with (
         patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
-        patch(f"{_MOD}.build_active_torrent_client", side_effect=OSError("connection refused")),
+        patch(f"{_SESSION}.build_active_torrent_client", side_effect=OSError("connection refused")),
     ):
         resp = list_active_downloads(MagicMock())
 
@@ -112,7 +116,7 @@ def test_no_grabbed_rows_skips_client_entirely() -> None:
     client = MagicMock()
     with (
         patch(f"{_MOD}.build_acquire_store", return_value=_store([], [])),
-        patch(f"{_MOD}.build_active_torrent_client", return_value=client),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
     ):
         resp = list_active_downloads(MagicMock())
 
@@ -132,7 +136,7 @@ def test_in_progress_sorts_before_seeding() -> None:
     ]
     with (
         patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
-        patch(f"{_MOD}.build_active_torrent_client", return_value=client),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
     ):
         resp = list_active_downloads(MagicMock())
 
