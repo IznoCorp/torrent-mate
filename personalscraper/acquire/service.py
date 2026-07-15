@@ -55,6 +55,7 @@ from personalscraper.acquire.desired import (
     quality_profile_from_json,
     source_criteria_from_json,
 )
+from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.events import GrabSucceeded, WantedAbandoned
 from personalscraper.logger import get_logger
 
@@ -416,6 +417,24 @@ class AcquisitionService:
         # Persist FIRST — if this raises (lock), the emit below is skipped and the
         # re-grab on the next run emits exactly once.
         self._store.wanted.mark_grabbed(item.id, info_hash)
+        # Seed obligation at GRAB time (2026-07-15): the dispatch-time
+        # name+size correlation can never match a renamed/aggregated TV show
+        # folder, so TV grabs left the seed_obligation table empty. Here the
+        # identity is fully known (hash + tracker + economy floors); the
+        # dispatched_path is backfilled by record_dispatch when its
+        # correlation hits. Fail-soft — an obligation write must never break
+        # the grab persistence/emit contract.
+        source_tracker = outcome.chosen.provider if outcome.chosen is not None else ""
+        if info_hash and source_tracker:
+            try:
+                self._record_seed_obligation(info_hash, source_tracker)
+            except Exception:  # noqa: BLE001 — fail-soft: obligation is advisory
+                log.warning(
+                    "acquire.service.obligation_write_failed",
+                    wanted_id=item.id,
+                    info_hash=info_hash,
+                    exc_info=True,
+                )
         self._event_bus.emit(
             GrabSucceeded(
                 media_ref=item.media_ref,
@@ -426,6 +445,42 @@ class AcquisitionService:
             )
         )
         return "grabbed"
+
+    def _record_seed_obligation(self, info_hash: str, source_tracker: str) -> None:
+        """Record the seeding obligation for a freshly grabbed torrent.
+
+        Skips silently when the tracker declares no ``economy`` block
+        (activation-only trackers carry no seeding floors — same rule as the
+        dispatch-time writer) or when an active obligation for this hash
+        already exists (stale-recovery re-grabs are idempotent).
+
+        Args:
+            info_hash: The grabbed torrent's info-hash.
+            source_tracker: Tracker name from the winning search result.
+        """
+        provider = self._config.tracker.providers.get(source_tracker)
+        economy = getattr(provider, "economy", None) if provider is not None else None
+        if economy is None:
+            return
+        if self._store.seed.find_active_by_hash(info_hash) is not None:
+            return
+        self._store.seed.add(
+            SeedObligation(
+                info_hash=info_hash,
+                source_tracker=source_tracker,
+                min_seed_time_s=economy.min_seed_time,
+                min_ratio=economy.min_ratio,
+                added_at=int(time.time()),
+                dispatched_path=None,
+            )
+        )
+        log.info(
+            "acquire.grab.obligation_recorded",
+            info_hash=info_hash,
+            tracker=source_tracker,
+            min_seed_time_s=economy.min_seed_time,
+            min_ratio=economy.min_ratio,
+        )
 
     def _abandon_at_cap(self, item: WantedItem) -> None:
         """Abandon an item that hit the attempts cap and emit ``WantedAbandoned``.

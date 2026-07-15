@@ -259,12 +259,12 @@ def test_scenario2_re_runnable_dispatch_after_crash(store: ConcreteAcquireStore,
     """Re-running dispatch after a crash-window recovery is safe.
 
     After a crash (obligation written, move not done), the staging source
-    still exists.  Calling record_dispatch again with the same parameters
-    creates a SECOND obligation row — the first is stale (dest doesn't exist)
-    and the second is also pre-move.  This does NOT duplicate-explode:
+    still exists.  Since the grab-time-obligation change (2026-07-15), calling
+    record_dispatch again with the same parameters BACKFILLS the existing
+    active row (find_active_by_hash → set_dispatched_path) instead of
+    inserting a duplicate — exactly one active obligation per hash.
     may_delete still works correctly (ALLOW while dest absent, VETO when
-    dest created), proving the model handles at-most-one-active-obligation
-    without issue.
+    dest created).
     """
     staging = tmp_path / "staging" / "Film.mkv"
     staging.parent.mkdir(parents=True, exist_ok=True)
@@ -293,10 +293,8 @@ def test_scenario2_re_runnable_dispatch_after_crash(store: ConcreteAcquireStore,
     # Second dispatch attempt (re-run after crash recovery — staging still exists).
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
     rows = _read_rows(tmp_path / "acquire.db")
-    assert len(rows) == 2, "Scenario 2r1: re-run should not duplicate-explode — both rows present"
-    # Both rows have the same dispatched_path.
-    for row in rows:
-        assert row["dispatched_path"] == str(dest)
+    assert len(rows) == 1, "Scenario 2r1: re-run backfills the active row — never a duplicate"
+    assert rows[0]["dispatched_path"] == str(dest)
 
     # While dest is absent, both obligations are stale → ALLOW.
     decision_stale = auth.may_delete(dest)

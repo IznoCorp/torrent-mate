@@ -405,19 +405,26 @@ class DeleteAuthority:
             return
 
         tracker_name, economy = resolved
-        obligation = SeedObligation(
-            info_hash=item.hash,
-            source_tracker=tracker_name,
-            min_seed_time_s=economy.min_seed_time,
-            min_ratio=economy.min_ratio,
-            added_at=int(time.time()),
-            dispatched_path=str(dispatched_dest),
-        )
 
         # Write-before-move, fail-soft: a write error must never interrupt the
         # dispatch (a lost obligation degrades to fail-open at deletion time).
+        # When the grab-time writer already recorded this hash (2026-07-15 —
+        # obligations are created at grab, path-less), BACKFILL its
+        # dispatched_path instead of inserting a duplicate.
         try:
-            self._store.seed.add(obligation)
+            if self._store.seed.find_active_by_hash(item.hash) is not None:
+                self._store.seed.set_dispatched_path(item.hash, str(dispatched_dest))
+            else:
+                self._store.seed.add(
+                    SeedObligation(
+                        info_hash=item.hash,
+                        source_tracker=tracker_name,
+                        min_seed_time_s=economy.min_seed_time,
+                        min_ratio=economy.min_ratio,
+                        added_at=int(time.time()),
+                        dispatched_path=str(dispatched_dest),
+                    )
+                )
         except Exception as exc:  # noqa: BLE001 — fail-soft store write
             log.warning(
                 "acquire.record_dispatch.write_failed",

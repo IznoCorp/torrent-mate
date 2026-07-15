@@ -872,3 +872,86 @@ def test_not_found_stays_pending_beyond_attempts_cap(store: ConcreteAcquireStore
     assert summary.abandoned == 0
     emitted = [c.args[0] for c in mock_event_bus.emit.call_args_list]
     assert not any(isinstance(e, WantedAbandoned) for e in emitted)
+
+
+# ---------------------------------------------------------------------------
+# Seed obligation at grab time (2026-07-15 — TV obligations undercount)
+# ---------------------------------------------------------------------------
+
+
+def _config_with_economy(tracker: str = "lacale") -> MagicMock:
+    """Config stub whose tracker registry carries a real economy block."""
+    from types import SimpleNamespace
+
+    from personalscraper.conf.models.api_config import TrackerEconomyConfig
+
+    config = _config()
+    config.tracker.providers = {
+        tracker: SimpleNamespace(economy=TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200))
+    }
+    return config
+
+
+def test_grab_success_records_seed_obligation(store: ConcreteAcquireStore) -> None:
+    """A successful grab writes the obligation with hash + tracker + floors.
+
+    Live gap: obligations were only written by the dispatch-time name+size
+    correlation, which can never match a renamed/aggregated TV show folder —
+    the seed_obligation table undercounted every TV grab. At grab time the
+    identity is fully known; the path is backfilled at dispatch when the
+    correlation hits.
+    """
+    store.wanted.add(_pending_item())
+    chosen = _make_tracker_result(provider="lacale")
+    orch = MagicMock()
+    orch.grab.return_value = GrabOutcome(
+        disposition="success",
+        info_hash="tvhash01",
+        chosen=chosen,
+        category="tv",
+        tags=("lacale",),
+    )
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=MagicMock(), config=_config_with_economy())
+
+    service.run(limit=10)
+
+    row = store._conn.execute(
+        "SELECT info_hash, source_tracker, dispatched_path, min_seed_time_s, min_ratio FROM seed_obligation"
+    ).fetchone()
+    assert row is not None, "a successful grab must record its seed obligation"
+    assert tuple(row) == ("tvhash01", "lacale", None, 259200, 1.0)
+
+
+def test_grab_without_economy_records_nothing(store: ConcreteAcquireStore) -> None:
+    """Activation-only trackers (no economy block) stay obligation-free."""
+    store.wanted.add(_pending_item())
+    chosen = _make_tracker_result(provider="lacale")
+    orch = MagicMock()
+    orch.grab.return_value = GrabOutcome(
+        disposition="success", info_hash="nohash01", chosen=chosen, category="tv", tags=()
+    )
+    config = _config()
+    config.tracker.providers = {}
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=MagicMock(), config=config)
+
+    service.run(limit=10)
+
+    n = store._conn.execute("SELECT COUNT(*) FROM seed_obligation").fetchone()[0]
+    assert n == 0
+
+
+def test_grab_obligation_not_duplicated(store: ConcreteAcquireStore) -> None:
+    """Two grabs resolving to the same info-hash keep a single active row."""
+    store.wanted.add(_pending_item())
+    store.wanted.add(_pending_item(tvdb_id=100))
+    chosen = _make_tracker_result(provider="lacale")
+    orch = MagicMock()
+    orch.grab.return_value = GrabOutcome(
+        disposition="success", info_hash="duphash1", chosen=chosen, category="tv", tags=()
+    )
+    service = AcquisitionService(store=store, orchestrator=orch, event_bus=MagicMock(), config=_config_with_economy())
+
+    service.run(limit=10)
+
+    n = store._conn.execute("SELECT COUNT(*) FROM seed_obligation").fetchone()[0]
+    assert n == 1, "the same info-hash must not accumulate duplicate active obligations"
