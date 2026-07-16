@@ -13,6 +13,7 @@ import { useSearchParams } from "react-router-dom";
 import { EventFeed } from "@/components/dashboard/EventFeed";
 import { RecentEventsTable } from "@/components/dashboard/RecentEventsTable";
 import { ActionCatalog } from "@/components/maintenance/ActionCatalog";
+import { DestructiveLogPanel } from "@/components/maintenance/DestructiveLogPanel";
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
@@ -75,6 +76,10 @@ export default function Maintenance(): ReactElement {
         <LocksPanel />
         <IndexHealthPanel />
       </div>
+
+      {/* §7 — the append-only journal of destructive operations (overwrite /
+          delete). The forensic trail that was missing during « Star City ». */}
+      <DestructiveLogPanel />
 
       {/* Live event feed + recent-events table (relocated from the Dashboard,
           Phase 5.1). Both read the single shared stream above — no extra WS. */}

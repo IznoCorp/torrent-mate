@@ -10,4 +10,5 @@ export const maintenanceKeys = {
   indexHealth: ["maintenance", "index-health"] as const,
   actions: ["maintenance", "actions"] as const,
   schedulers: ["maintenance", "schedulers"] as const,
+  destructiveLog: ["maintenance", "destructive-log"] as const,
 };
