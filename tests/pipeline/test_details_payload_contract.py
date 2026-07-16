@@ -17,8 +17,8 @@ import pytest
 
 from personalscraper.dispatch.run import _build_dispatch_details
 from personalscraper.models import StepReport
-from personalscraper.pipeline import Pipeline, StepReportContractError
-from personalscraper.reports import STEP_REPORT_CONTRACT
+from personalscraper.pipeline import Pipeline
+from personalscraper.reports import STEP_REPORT_CONTRACT, StepReportContractError
 from personalscraper.reports.dispatch import DispatchDetails
 from personalscraper.reports.ingest import IngestDetails
 from personalscraper.reports.scrape import ScrapeDetails
