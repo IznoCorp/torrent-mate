@@ -658,6 +658,113 @@ def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteA
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# D2-A — a followed FILM leaves the follow list at dispatch (not the cron)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_record_dispatch_retires_acquired_film(
+    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Dispatching a followed film's content retires the follow at dispatch.
+
+    Red-on-old: the dispatch closure flipped the ``grabbed`` wanted row to
+    ``done`` but left ``followed_series.active = 1`` — the film only left the
+    list at the next nightly ``follow detect`` sweep. D2-A retires it HERE, the
+    moment the media lands, with a ``film_unfollowed`` trace (§8).
+    """
+    from personalscraper.acquire.domain import FollowedSeries, WantedItem
+    from personalscraper.core.identity import MediaRef
+
+    followed_id = store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tmdb_id=1_000_1),
+            title="Ferrari",
+            added_at=1_750_000_000,
+            kind="movie",
+        )
+    )
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tmdb_id=1_000_1),
+            kind="movie",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            followed_id=followed_id,
+        )
+    )
+    store.wanted.mark_grabbed(wanted_id, "cafef00dbaadf00d")
+
+    staging = tmp_path / "staging" / "Ferrari.2023.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 8192)
+    dest = tmp_path / "library" / "Ferrari (2023)" / "Ferrari.2023.mkv"
+
+    item = _torrent_item(name="Ferrari.2023.mkv", size_bytes=8192, tags=[], info_hash="cafef00dbaadf00d")
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    wanted = store.wanted.get(wanted_id)
+    assert wanted is not None
+    assert wanted.status == "done"
+
+    follow = store.follow.get(followed_id)
+    assert follow is not None
+    assert follow.active is False  # ← the D2-A closure; old code left this True
+
+    assert "acquire.record_dispatch.film_unfollowed" in caplog.text
+
+
+def test_record_dispatch_does_not_retire_series(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """A dispatched EPISODE closes its row but never retires the series follow.
+
+    The series continues — only ``kind == "movie"`` rows trigger the D2-A
+    unfollow. Guards against a regression that would silently unfollow a running
+    show when one of its episodes lands.
+    """
+    from personalscraper.acquire.domain import FollowedSeries, WantedItem
+    from personalscraper.core.identity import MediaRef
+
+    followed_id = store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=403245),
+            title="Silo",
+            added_at=1_750_000_000,
+            kind="show",
+        )
+    )
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=5,
+            followed_id=followed_id,
+        )
+    )
+    store.wanted.mark_grabbed(wanted_id, "0badcafe0badcafe")
+
+    staging = tmp_path / "staging" / "Silo.S03E05.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 2048)
+    dest = tmp_path / "library" / "Silo.S03E05.mkv"
+
+    item = _torrent_item(name="Silo.S03E05.mkv", size_bytes=2048, tags=[], info_hash="0badcafe0badcafe")
+    client = _client([item], is_seeding=True)
+
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    assert store.wanted.get(wanted_id).status == "done"  # type: ignore[union-attr]
+    follow = store.follow.get(followed_id)
+    assert follow is not None
+    assert follow.active is True  # the show stays followed
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Grab-time obligation backfill (2026-07-15)
 # ═══════════════════════════════════════════════════════════════════════════
 
