@@ -7,12 +7,15 @@ the actual logic here lets ``tv_service.py`` stay below the
 module-size guardrail (DESIGN §10) without scattering near-duplicate
 code between the TV and movie services.
 
-Three responsibilities are bundled here :
+Four responsibilities are bundled here :
 
 - :func:`xref_enrichment` — sequential pass that backfills the non-
   canonical provider's per-episode IDs into the
   ``api_episodes`` payload, never overwriting an existing value
   (DESIGN §3 cross-contamination guard).
+- :func:`family_to_client` — map a provider family name to the wired
+  client / façade (or ``None``). Shared family→client resolver the TV
+  and movie services feed into :func:`resolve_external_ids`.
 - :func:`resolve_external_ids` — series / movie level Q5=B
   re-validation : for every non-canonical family, ask the
   corresponding façade's ``validate_id`` ; drop the ID on rejection.
@@ -123,6 +126,58 @@ def xref_enrichment(
                 if not value:
                     continue
                 payload.setdefault(f"{provider_name}_episode_id", value)
+
+
+def family_to_client(
+    family: str,
+    *,
+    registry: Any,
+    imdb_client: Any | None,
+) -> Any | None:
+    """Map a provider family name to the wired client / façade (or ``None``).
+
+    Shared body for both the TV and movie scrape services — the single
+    family→client resolver that :func:`resolve_external_ids` is fed with
+    (ACC-03). Transitional access via the registry (DESIGN §5.2): the
+    registry raises ``UnknownProviderError`` for names it does not know ;
+    we treat that as ``None`` to preserve the legacy fail-soft contract of
+    this helper (xref enrichment and ratings resolution both consume the
+    ``None`` branch).
+
+    Args:
+        family: Provider family name — e.g. ``"tmdb"``, ``"tvdb"`` or
+            ``"imdb"``.
+        registry: The provider registry owning the canonical
+            ``"tmdb"`` / ``"tvdb"`` providers.
+        imdb_client: The optional IMDb façade, or ``None`` when it is not
+            wired in the current setup.
+
+    Returns:
+        The wired client / façade for ``family``, or ``None`` when the
+        family is unknown or its façade is not wired.
+    """
+    from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
+    # ``imdb`` / ``rotten_tomatoes`` remain optional companion façades
+    # injected by other call sites ; the registry currently only owns the
+    # canonical "tmdb"/"tvdb" providers (Phase 1 scope).
+    if family in {"tmdb", "tvdb"}:
+        try:
+            return registry.get(family)
+        except UnknownProviderError as e:
+            # If boot validation passed but we reach here, this is a runtime
+            # contract violation worth a forensic anchor (the registry's
+            # config should already have caught an unwired family).
+            log.warning(
+                "xref_family_unwired",
+                family=family,
+                exc_type=type(e).__name__,
+            )
+            return None
+    mapping: dict[str, Any] = {
+        "imdb": imdb_client,
+    }
+    return mapping.get(family)
 
 
 def resolve_external_ids(

@@ -774,58 +774,6 @@ class TvServiceMixin:
 
         return xref_fetch_tvdb_season(self._registry, tvdb_id, season)
 
-    def _resolve_external_ids(
-        self,
-        canonical_provider: str,
-        series_ids: dict[str, str],
-        expected_title: str,
-        expected_year: int | None,
-    ) -> tuple[dict[str, str], list[Notations]]:
-        """Resolve trusted cross-provider IDs + series-level ratings (Q5=B).
-
-        Thin delegate to
-        :func:`personalscraper.scraper._xref.resolve_external_ids` —
-        see that function for the full contract.
-        """
-        from personalscraper.scraper._xref import resolve_external_ids as _resolve  # noqa: PLC0415
-
-        return _resolve(
-            canonical_provider=canonical_provider,
-            ids=series_ids,
-            expected_title=expected_title,
-            expected_year=expected_year,
-            family_to_client=self._family_to_client,
-            imdb_client=getattr(self, "_imdb", None),
-            rt_client=getattr(self, "_rotten_tomatoes", None),
-        )
-
-    def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family name to the wired client / façade (or ``None``).
-
-        Transitional access via the registry (Phase 1 — DESIGN §5.2). The
-        registry raises ``UnknownProviderError`` for names it does not know;
-        we treat that as ``None`` to preserve the legacy fail-soft contract.
-        """
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
-
-        if family in {"tmdb", "tvdb"}:
-            try:
-                return self._registry.get(family)
-            except UnknownProviderError as e:
-                # If boot validation passed but we reach here, this is a runtime
-                # contract violation worth a forensic anchor (the registry's
-                # config should already have caught an unwired family).
-                log.warning(
-                    "xref_family_unwired",
-                    family=family,
-                    exc_type=type(e).__name__,
-                )
-                return None
-        mapping: dict[str, Any] = {
-            "imdb": getattr(self, "_imdb", None),
-        }
-        return mapping.get(family)
-
     def _ordered_episode_providers(
         self,
         tvdb_id: int | None,

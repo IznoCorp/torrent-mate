@@ -1518,22 +1518,25 @@ def test_tv_chain_details_continues_on_runtime_error(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# I7 — _family_to_client logs forensic warning (regression for PR review cycle 4)
+# I7 — family_to_client logs forensic warning (regression for PR review cycle 4)
 # ---------------------------------------------------------------------------
 
 
 def test_family_to_client_logs_warning_on_unknown_provider(caplog: Any) -> None:
-    """Regression for I7: _family_to_client logs forensic warning.
+    """Regression for I7: family_to_client logs forensic warning.
 
-    Triggered when the registry returns UnknownProviderError.
+    Triggered when the registry returns UnknownProviderError. P4.2
+    collapsed the per-service delegate into the shared
+    ``_xref.family_to_client`` free function (ACC-03).
     """
     from personalscraper.api.metadata.registry._errors import UnknownProviderError
+    from personalscraper.scraper._xref import family_to_client
 
     mixin = _make_mixin()
     mixin._registry.get.side_effect = UnknownProviderError("tmdb")
 
     with caplog.at_level("WARNING"):
-        client = mixin._family_to_client("tmdb")
+        client = family_to_client("tmdb", registry=mixin._registry, imdb_client=getattr(mixin, "_imdb", None))
 
     assert client is None
     assert "xref_family_unwired" in caplog.text

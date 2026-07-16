@@ -12,12 +12,40 @@ These tests inject mocks for the three façades (``TMDBClient``,
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 from unittest.mock import MagicMock
 
 from personalscraper.api.metadata._base import Notations
 from personalscraper.naming_patterns import PATTERNS, NamingPatterns
+from personalscraper.scraper._xref import family_to_client, resolve_external_ids
 from personalscraper.scraper.tv_service import TvServiceMixin
+
+
+def _resolve(
+    mixin: TvServiceMixin,
+    *,
+    canonical_provider: str,
+    series_ids: dict[str, str],
+    expected_title: str,
+    expected_year: int | None,
+) -> tuple[dict[str, str], list[Notations]]:
+    """Drive the shared ``resolve_external_ids`` the way the TV service wires it.
+
+    P4.2 collapsed the per-service ``_resolve_external_ids`` /
+    ``_family_to_client`` delegates into the single ``_xref`` free
+    functions (ACC-03). This helper reproduces the TV-side wiring so the
+    existing behavioural assertions keep exercising the shared body.
+    """
+    return resolve_external_ids(
+        canonical_provider=canonical_provider,
+        ids=series_ids,
+        expected_title=expected_title,
+        expected_year=expected_year,
+        family_to_client=partial(family_to_client, registry=mixin._registry, imdb_client=mixin._imdb),
+        imdb_client=mixin._imdb,
+        rt_client=mixin._rotten_tomatoes,
+    )
 
 
 def _imdb_notation() -> Notations:
@@ -85,7 +113,8 @@ def test_resolve_external_ids_returns_canonical_id_without_revalidation() -> Non
     rt.get_rating.return_value = [_rt_notation()]
     mixin = _make_mixin(tmdb=tmdb, imdb=imdb, rt=rt)
 
-    external_ids, ratings = mixin._resolve_external_ids(
+    external_ids, ratings = _resolve(
+        mixin,
         canonical_provider="tvdb",
         series_ids={"tvdb": "42", "tmdb": "100", "imdb": "tt0944947"},
         expected_title="The Show",
@@ -124,7 +153,8 @@ def test_resolve_external_ids_drops_tmdb_when_revalidation_rejects() -> None:
     rt.get_rating.return_value = None
     mixin = _make_mixin(tmdb=tmdb, imdb=imdb, rt=rt)
 
-    external_ids, ratings = mixin._resolve_external_ids(
+    external_ids, ratings = _resolve(
+        mixin,
         canonical_provider="tvdb",
         series_ids={"tvdb": "42", "tmdb": "100", "imdb": "tt0944947"},
         expected_title="The Show",
@@ -145,7 +175,8 @@ def test_resolve_external_ids_drops_imdb_when_revalidation_rejects() -> None:
     rt.get_rating.return_value = None
     mixin = _make_mixin(tmdb=tmdb, imdb=imdb, rt=rt)
 
-    external_ids, ratings = mixin._resolve_external_ids(
+    external_ids, ratings = _resolve(
+        mixin,
         canonical_provider="tvdb",
         series_ids={"tvdb": "42", "tmdb": "100", "imdb": "tt0944947"},
         expected_title="The Show",
@@ -173,7 +204,8 @@ def test_resolve_external_ids_tmdb_canonical_revalidates_tvdb() -> None:
     rt.get_rating.return_value = None
     mixin = _make_mixin(tvdb=tvdb, imdb=imdb, rt=rt)
 
-    external_ids, _ = mixin._resolve_external_ids(
+    external_ids, _ = _resolve(
+        mixin,
         canonical_provider="tmdb",
         series_ids={"tvdb": "42", "tmdb": "100"},
         expected_title="X",
@@ -198,7 +230,8 @@ def test_resolve_external_ids_collects_ratings_from_imdb_and_rt() -> None:
     rt.get_rating.return_value = [_rt_notation()]
     mixin = _make_mixin(imdb=imdb, rt=rt)
 
-    _, ratings = mixin._resolve_external_ids(
+    _, ratings = _resolve(
+        mixin,
         canonical_provider="tvdb",
         series_ids={"tvdb": "42", "imdb": "tt0944947"},
         expected_title="X",
@@ -215,7 +248,8 @@ def test_resolve_external_ids_no_imdb_no_ratings_call() -> None:
     rt = MagicMock()
     mixin = _make_mixin(imdb=imdb, rt=rt)
 
-    _, ratings = mixin._resolve_external_ids(
+    _, ratings = _resolve(
+        mixin,
         canonical_provider="tvdb",
         series_ids={"tvdb": "42"},
         expected_title="X",
