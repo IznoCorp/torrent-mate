@@ -94,7 +94,6 @@ def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
         patch("personalscraper.pipeline.Pipeline", _StubPipeline),
         patch("personalscraper.commands.pipeline.cli_compat.acquire_pipeline_lock", return_value=True),
         patch("personalscraper.commands.pipeline.cli_compat.release_lock"),
-        patch("personalscraper.commands.pipeline._bootstrap_staging"),
         patch("personalscraper.commands.pipeline.cli_compat.get_settings", return_value=MagicMock()),
         patch("personalscraper.commands.pipeline._build_app_context") as _build,
     ):
@@ -181,7 +180,6 @@ def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: A
         patch("personalscraper.pipeline.Pipeline", _RaisingPipeline),
         patch("personalscraper.commands.pipeline.cli_compat.acquire_pipeline_lock", return_value=True),
         patch("personalscraper.commands.pipeline.cli_compat.release_lock"),
-        patch("personalscraper.commands.pipeline._bootstrap_staging"),
         patch("personalscraper.commands.pipeline.cli_compat.get_settings", return_value=MagicMock()),
         patch("personalscraper.commands.pipeline._build_app_context") as _build,
     ):

@@ -49,6 +49,13 @@ ALLOWLIST: frozenset[str] = frozenset(
         # (WAL + foreign_keys=ON would defeat the read-only / no-writer-lock
         # intent and could take a lock at the shared composition root).
         str(PACKAGE_ROOT / "indexer" / "ownership.py"),
+        # cli_helpers.boundary()'s ``db-read`` tier reader
+        # (_open_readonly_indexer_conn): opens a genuine ``file:...?mode=ro``
+        # URI connection for read-only library queries. It MUST bypass the
+        # canonical writer PRAGMA set — applying WAL ``journal_mode`` to a
+        # read-only connection raises, and the whole point is a lock-free
+        # reader (same rationale as ``indexer/ownership.py`` above).
+        str(PACKAGE_ROOT / "cli_helpers" / "boundary.py"),
     }
 )
 
