@@ -18,6 +18,7 @@ from personalscraper.dispatch.post_maintenance import (
     collect_touched_disks,
     run_post_dispatch_maintenance,
 )
+from personalscraper.models import StepReport
 
 
 @pytest.fixture
@@ -419,3 +420,197 @@ def test_run_repair_drain_processes_pending_rows(tmp_path, test_config) -> None:
     conn = _sqlite3.connect(str(db_path))
     assert conn.execute("SELECT COUNT(*) FROM repair_queue WHERE status = 'pending'").fetchone()[0] == 0
     conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Single-owner trigger/guard (maybe_run_post_dispatch_maintenance) — P1.8
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# PIPELINE-CORE-01: the enablement resolution + touched-disk collection +
+# dry-run guard around ``run_post_dispatch_maintenance`` used to be duplicated
+# (and had drifted) between the full-run ``DispatchStep`` and the standalone
+# ``personalscraper dispatch`` CLI command. Both now route through the single
+# owner ``maybe_run_post_dispatch_maintenance``; these tests pin its guard
+# algebra and prove BOTH paths funnel through it with identical call shapes.
+
+
+def _moved_result(disk: str = "disk_1") -> DispatchResult:
+    """One dispatched result that counts as a touched disk (action=moved)."""
+    return DispatchResult(source=Path("/src/a"), disk=disk, action="moved")
+
+
+def test_maybe_run_triggers_when_touched_and_not_dry_run(mock_config: MagicMock) -> None:
+    """Touched disks + not dry_run + enabled ⇒ one call with enabled=True."""
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False)
+
+    mock_run.assert_called_once()
+    args, kwargs = mock_run.call_args
+    assert args[0] is mock_config
+    assert args[1] == {"disk_1"}
+    assert kwargs["enabled"] is True
+
+
+def test_maybe_run_dry_run_skips(mock_config: MagicMock) -> None:
+    """dry_run ⇒ maintenance is never triggered even with touched disks."""
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=True)
+
+    mock_run.assert_not_called()
+
+
+def test_maybe_run_no_touched_disks_skips(mock_config: MagicMock) -> None:
+    """No touched disks (only skipped/None results) ⇒ never triggered."""
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    skipped = [DispatchResult(source=Path("/src/a"), disk=None, action="skipped")]
+    with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
+        maybe_run_post_dispatch_maintenance(mock_config, skipped, dry_run=False)
+
+    mock_run.assert_not_called()
+
+
+def test_maybe_run_no_post_maintenance_flag_calls_with_enabled_false(mock_config: MagicMock) -> None:
+    """The opt-out flag still CALLS maintenance (touched, not dry_run) with enabled=False.
+
+    Preserves the standalone dispatch command's historical call shape asserted by
+    ``test_dispatch_e2e.test_no_post_maintenance_flag_disables``: a disabled run is
+    a logged no-op inside ``run_post_dispatch_maintenance``, not an omitted call.
+    """
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False, no_post_maintenance=True)
+
+    mock_run.assert_called_once()
+    assert mock_run.call_args.kwargs["enabled"] is False
+
+
+def test_maybe_run_config_disabled_calls_with_enabled_false(mock_config: MagicMock) -> None:
+    """config-level disable ⇒ one call with enabled=False (touched, not dry_run)."""
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    mock_config.indexer.post_dispatch_maintenance.enabled = False
+    with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False)
+
+    mock_run.assert_called_once()
+    assert mock_run.call_args.kwargs["enabled"] is False
+
+
+def test_maybe_run_forwards_touched_destinations(mock_config: MagicMock) -> None:
+    """The per-disk destinations mapping is collected and forwarded through."""
+    result = DispatchResult(
+        source=Path("/src/a"),
+        disk="disk_1",
+        destination=Path("/Volumes/Disk1/medias/A"),
+        action="moved",
+    )
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
+        maybe_run_post_dispatch_maintenance(mock_config, [result], dry_run=False)
+
+    assert mock_run.call_args.kwargs["destinations"] == {"disk_1": {Path("/Volumes/Disk1/medias/A")}}
+
+
+def test_both_paths_route_through_single_owner_identically(test_config) -> None:  # noqa: ANN001
+    """Both entry points funnel through the single owner with an identical call shape.
+
+    DispatchStep and the CLI ``dispatch`` command each invoke
+    ``maybe_run_post_dispatch_maintenance`` with ``(config, results)`` positional +
+    ``dry_run``/``no_post_maintenance`` keyword. Capture-fake parity: whatever shape
+    one path uses, the other uses the same — so the trigger logic can never again
+    diverge between the two entry points (PIPELINE-CORE-01).
+    """
+    from contextlib import contextmanager
+    from pathlib import Path as _Path
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from typer.testing import CliRunner
+
+    from personalscraper.cli import app as cli_app
+    from personalscraper.core.event_bus import EventBus
+    from personalscraper.pipeline_protocol import StepContext
+    from personalscraper.pipeline_steps import DispatchStep
+    from tests.fixtures.settings_stub import make_typed_settings_stub
+
+    # ── Path A: full-run DispatchStep ──
+    step_results = [_moved_result("disk_1")]
+    captured_step: dict[str, object] = {}
+
+    def _capture_step(config: object, results: object, *, dry_run: bool, no_post_maintenance: bool) -> None:
+        captured_step.update(config=config, results=results, dry_run=dry_run, no_post_maintenance=no_post_maintenance)
+
+    app = SimpleNamespace(
+        settings=MagicMock(name="settings"),
+        config=MagicMock(name="step_config"),
+        event_bus=MagicMock(name="event_bus"),
+        acquire=None,
+    )
+    ctx = StepContext(
+        app=app,  # type: ignore[arg-type]
+        run_id=uuid4(),
+        dry_run=False,
+        interactive=False,
+        verbose=False,
+        upstream={},
+        extras={},
+    )
+    with (
+        patch("personalscraper.dispatch.run.run_dispatch", return_value=(StepReport(name="dispatch"), step_results)),
+        patch(
+            "personalscraper.dispatch.post_maintenance.maybe_run_post_dispatch_maintenance",
+            side_effect=_capture_step,
+        ),
+    ):
+        DispatchStep()(ctx)
+
+    assert captured_step["results"] is step_results
+    assert captured_step["config"] is app.config
+    assert captured_step["dry_run"] is False
+    assert captured_step["no_post_maintenance"] is False
+
+    # ── Path B: standalone dispatch CLI command ──
+    cli_results = [_moved_result("disk_1")]
+    captured_cli: dict[str, object] = {}
+
+    def _capture_cli(config: object, results: object, *, dry_run: bool, no_post_maintenance: bool) -> None:
+        captured_cli.update(config=config, results=results, dry_run=dry_run, no_post_maintenance=no_post_maintenance)
+
+    @contextmanager
+    def _boundary(*_a: object, **_k: object):  # noqa: ANN202
+        yield SimpleNamespace(event_bus=EventBus(), acquire=None)
+
+    with (
+        # The Typer callback eagerly loads config; patch the loader so the CLI
+        # runs without a real config.json5 on disk (tests/dispatch/ is outside
+        # the commands-conftest autouse patch).
+        patch("personalscraper.conf.loader.resolve_config_path", return_value=_Path("/fake/config.json5")),
+        patch("personalscraper.conf.loader.load_config", return_value=test_config),
+        patch("personalscraper.commands.pipeline.per_step_boundary", _boundary),
+        patch("personalscraper.dispatch.run.run_dispatch", return_value=(StepReport(name="dispatch"), cli_results)),
+        patch(
+            "personalscraper.dispatch.post_maintenance.maybe_run_post_dispatch_maintenance",
+            side_effect=_capture_cli,
+        ),
+        patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
+        patch("personalscraper.cli.release_lock"),
+        patch("personalscraper.cli.get_settings", return_value=make_typed_settings_stub()),
+    ):
+        result = CliRunner().invoke(cli_app, ["dispatch"])
+    assert result.exit_code == 0, result.output
+
+    assert captured_cli["results"] is cli_results
+    assert captured_cli["dry_run"] is False
+    assert captured_cli["no_post_maintenance"] is False
+
+    # ── Identical call shape between the two paths ──
+    assert set(captured_step) == set(captured_cli) == {"config", "results", "dry_run", "no_post_maintenance"}
+    assert captured_step["dry_run"] == captured_cli["dry_run"]
+    assert captured_step["no_post_maintenance"] == captured_cli["no_post_maintenance"]

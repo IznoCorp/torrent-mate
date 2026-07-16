@@ -378,28 +378,18 @@ def dispatch(
                     **resolve_dispatch_authority(app_context),
                 )
 
-            # Collect touched disks from DispatchResult objects (index-sync DESIGN).
-            from personalscraper.dispatch.post_maintenance import (
-                collect_touched_destinations,
-                collect_touched_disks,
+            # Post-dispatch index maintenance runs through the single owner
+            # shared with the full-run DispatchStep (PIPELINE-CORE-01): the
+            # enablement resolution, touched-disk collection, and dry-run guard
+            # live in one place so both entry points behave identically.
+            from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+            maybe_run_post_dispatch_maintenance(
+                config,
+                results,
+                dry_run=dry_run,
+                no_post_maintenance=no_post_maintenance,
             )
-
-            touched_disks = collect_touched_disks(results)
-
-            # Resolve post-maintenance enablement: flag > config > default(true).
-            maintenance_enabled = not no_post_maintenance
-            if maintenance_enabled:
-                maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
-
-            if touched_disks and not dry_run:
-                from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
-
-                run_post_dispatch_maintenance(
-                    config,
-                    touched_disks,
-                    destinations=collect_touched_destinations(results),
-                    enabled=maintenance_enabled,
-                )
 
             console.print(
                 f"[bold]Dispatch:[/bold] {report.success_count} OK, "

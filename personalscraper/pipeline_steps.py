@@ -337,28 +337,19 @@ class DispatchStep:
             **resolve_dispatch_authority(ctx.app),
         )
 
-        # Post-dispatch index maintenance (DESIGN index-sync):
-        # triggered for run command too; flag resolution from StepContext extras.
-        no_maintenance = bool(ctx.extras.get("no_post_maintenance", False))
-        maintenance_enabled = not no_maintenance
-        if maintenance_enabled:
-            maintenance_enabled = ctx.app.config.indexer.post_dispatch_maintenance.enabled
+        # Post-dispatch index maintenance (DESIGN index-sync) is triggered
+        # through the single owner shared with the standalone
+        # ``personalscraper dispatch`` CLI command (PIPELINE-CORE-01): the
+        # enablement resolution, touched-disk collection, and dry-run guard live
+        # in one place so both entry points behave identically.
+        from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
 
-        from personalscraper.dispatch.post_maintenance import (
-            collect_touched_destinations,
-            collect_touched_disks,
+        maybe_run_post_dispatch_maintenance(
+            ctx.app.config,
+            results,
+            dry_run=ctx.dry_run,
+            no_post_maintenance=bool(ctx.extras.get("no_post_maintenance", False)),
         )
-
-        touched_disks = collect_touched_disks(results)
-        if touched_disks and maintenance_enabled and not ctx.dry_run:
-            from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
-
-            run_post_dispatch_maintenance(
-                ctx.app.config,
-                touched_disks,
-                destinations=collect_touched_destinations(results),
-                enabled=maintenance_enabled,
-            )
 
         return report
 
