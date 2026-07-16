@@ -17,7 +17,7 @@
 | # | Phase | File | Status |
 |---|-------|------|--------|
 | 0 | Worktree safety net + gate parity | phase-00-safety-net.md | [x] |
-| 1 | Pipeline step-spec + shared reporter (T2) | phase-01-step-spec.md | [ ] |
+| 1 | Pipeline step-spec + shared reporter (T2) | phase-01-step-spec.md | [x] |
 | 2 | Dispatch item template + journal parity (T3) | phase-02-dispatch-template.md | [ ] |
 | 3 | CLI boundary + composition root (T7) | phase-03-cli-boundary.md | [ ] |
 | 4 | Scraper flow unification (T1) | phase-04-scraper-unification.md | [ ] |
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 0 done. Next: phase 1 (pipeline step-spec + shared reporter, T2). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-1 done. Next: phase 2 (dispatch item template + journal parity F1, T3). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
