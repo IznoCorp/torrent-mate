@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,7 @@ from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.ingest import IngestDetails
 
 if TYPE_CHECKING:
     # Imported under TYPE_CHECKING to mirror AppContext and avoid a circular
@@ -301,6 +303,15 @@ def run_ingest(
         StepReport with success/skip/error counts and details.
     """
     report = StepReport(name="ingest")
+    # Typed-payload accumulators (STEP_REPORT_CONTRACT: IngestDetails). Populated
+    # alongside the report counters as each torrent is classified. Skip reasons
+    # that are NOT "already present" (ratio/seed-pure/insufficient-space) and the
+    # step-level qBittorrent errors are intentionally not represented — the
+    # dataclass has no field for them (honest under-representation, not a metric
+    # invented here).
+    _copied: list[str] = []
+    _skipped_present: list[str] = []
+    _failed: list[tuple[str, str]] = []
 
     # Resolve ingest_dir + staging_dir up-front so both the orphan-tracker
     # probe and the per-torrent transfer path use the same paths.
@@ -350,6 +361,7 @@ def run_ingest(
                     if tracker.is_ingested(torrent_hash):
                         log.debug("already_ingested", name=name)
                         report.skip_count += 1
+                        _skipped_present.append(name)
                         # Orphan-tracker safety net: when a prior ingest
                         # recorded a dest_path and that file/directory has
                         # since vanished without a successor on disk, the
@@ -464,6 +476,7 @@ def run_ingest(
                                 dest_path=str(staging_dest),
                             )
                             report.skip_count += 1
+                            _skipped_present.append(name)
                             event_bus.emit(
                                 ItemProgressed(
                                     step="ingest",
@@ -476,6 +489,7 @@ def run_ingest(
                             log.warning("content_missing", name=name, path=str(source))
                             content_missing_count += 1
                             report.skip_count += 1
+                            _failed.append((name, "content_missing"))
                             report.warnings.append(f"{name}: content path missing ({source})")
                             event_bus.emit(
                                 ItemProgressed(
@@ -492,6 +506,7 @@ def run_ingest(
                     if dest.exists():
                         log.info("already_exists", name=name, dest=str(dest))
                         report.skip_count += 1
+                        _skipped_present.append(name)
                         # Still mark as ingested to avoid re-checking
                         tracker.mark_ingested(torrent_hash, name, "skipped_exists", dest_path=str(dest))
                         event_bus.emit(
@@ -534,6 +549,7 @@ def run_ingest(
 
                     if success:
                         report.success_count += 1
+                        _copied.append(name)
                         report.details.append(f"{name} → {action}")
                         event_bus.emit(
                             ItemProgressed(
@@ -568,6 +584,7 @@ def run_ingest(
                                     )
                     else:
                         report.error_count += 1
+                        _failed.append((name, "transfer_failed"))
                         report.details.append(f"{name}: transfer failed")
                         event_bus.emit(
                             ItemProgressed(
@@ -589,6 +606,7 @@ def run_ingest(
                         exc_info=True,
                     )
                     report.error_count += 1
+                    _failed.append((name, f"{type(torrent_err).__name__}: {torrent_err}"))
                     report.details.append(f"{name}: {type(torrent_err).__name__}: {torrent_err}")
                     event_bus.emit(
                         ItemProgressed(
@@ -659,6 +677,12 @@ def run_ingest(
         log.exception("ingest_unexpected_error", error=str(e), error_type=type(e).__name__)
         report.error_count += 1
         report.details.append(f"Ingest failed: {type(e).__name__}: {e}")
+
+    # Typed details payload (STEP_REPORT_CONTRACT: IngestDetails), flattened to a
+    # JSON-safe dict for envelope round-trip + standalone-CLI consistency.
+    report.details_payload = asdict(
+        IngestDetails(copied=_copied, skipped_already_present=_skipped_present, failed=_failed)
+    )
 
     log.info(
         "ingest_complete",

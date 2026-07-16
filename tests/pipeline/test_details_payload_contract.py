@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -25,6 +26,7 @@ from personalscraper.reports.sort import SortDetails
 from personalscraper.reports.verify import VerifyDetails
 from personalscraper.scraper.run import _build_scrape_report
 from personalscraper.sorter.run import _build_sort_details
+from personalscraper.trailers.step import _build_trailers_details
 from personalscraper.verify.run import _build_verify_details
 
 
@@ -191,3 +193,57 @@ class TestScrapeDetailsProducer:
         """An empty result set still produces a contract-shaped (empty) payload."""
         report = _build_scrape_report([])
         assert report.details_payload == dataclasses.asdict(ScrapeDetails())
+
+
+class TestTrailersDetailsProducer:
+    """``run_trailers`` populates a typed ``TrailersDetails`` payload."""
+
+    def test_partitions_by_status_excluding_bot_from_failed(self) -> None:
+        """downloaded/bot/skipped partition; failed excludes bot_detected duplicates."""
+        item_results = [
+            ("/m/A", "downloaded", "downloaded"),
+            ("/m/B", "bot_detected", "bot_detected"),
+            ("/m/C", "already_present", "already_present"),
+            ("/m/D", "skipped", "skipped_by_state"),
+        ]
+        failed_items = [
+            ("/m/B", "bot_detected", "captcha"),  # excluded from `failed`
+            ("/m/E", "no_trailer", ""),
+        ]
+        details = _build_trailers_details(item_results, failed_items)
+        assert details.downloaded == ["/m/A"]
+        assert details.bot_detected == ["/m/B"]
+        assert details.skipped_existing == ["/m/C", "/m/D"]
+        assert details.failed == [("/m/E", "no_trailer")]
+
+
+class TestEnforceDetailsProducer:
+    """``run_enforce`` populates a typed ``EnforceDetails`` payload."""
+
+    def test_partitions_corrected_compliant_failed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sanitize/structure outcomes map to corrected/already_compliant/failed."""
+        from personalscraper.core.event_bus import EventBus
+        from personalscraper.enforce import run as enforce_run
+
+        sanitize = [
+            SimpleNamespace(action="renamed", old_name="dirty.mkv", new_name="clean.mkv"),
+            SimpleNamespace(action="skipped", old_name="ok.mkv", new_name=None),
+            SimpleNamespace(action="error", old_name="bad.mkv", new_name=None),
+        ]
+        structure = [
+            SimpleNamespace(path=Path("/m/Repaired"), action="repaired", fixes=["added nfo"], warnings=[]),
+            SimpleNamespace(path=Path("/m/Valid"), action="validated", fixes=[], warnings=[]),
+            SimpleNamespace(path=Path("/m/Broken"), action="error", fixes=[], warnings=["boom"]),
+        ]
+        monkeypatch.setattr(enforce_run, "sanitize_files", lambda *a, **k: sanitize)
+        monkeypatch.setattr(enforce_run, "validate_structure", lambda *a, **k: structure)
+        monkeypatch.setattr(enforce_run, "check_coherence", lambda *a, **k: [])
+
+        report = enforce_run.run_enforce(MagicMock(), MagicMock(), dry_run=True, event_bus=EventBus())
+        payload = report.details_payload
+        assert isinstance(payload, dict)  # flattened by StepReport.__post_init__
+        assert payload["corrected"] == ["dirty.mkv", "Repaired"]
+        assert payload["already_compliant"] == ["ok.mkv", "Valid"]
+        assert payload["failed"] == [("bad.mkv", "error"), ("Broken", "error")]
+        # Round-trips through the load-bearing validator without raising.
+        _bare_pipeline()._with_details_payload("enforce", report)

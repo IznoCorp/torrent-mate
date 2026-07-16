@@ -727,8 +727,7 @@ class Pipeline:
         if dataclasses.is_dataclass(payload) and not isinstance(payload, type):
             if not isinstance(payload, payload_type):
                 raise StepReportContractError(
-                    f"step {name!r}: details_payload is {type(payload).__name__}, "
-                    f"expected {payload_type.__name__}"
+                    f"step {name!r}: details_payload is {type(payload).__name__}, expected {payload_type.__name__}"
                 )
             step_report.details_payload = dataclasses.asdict(payload)
             return step_report

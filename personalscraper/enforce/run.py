@@ -17,6 +17,7 @@ from personalscraper.enforce.structure_validator import validate_structure
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.enforce import EnforceDetails
 
 log = get_logger("enforce.run")
 
@@ -64,11 +65,20 @@ def run_enforce(
     success = 0
     warnings_list: list[str] = []
     details: list[str] = []
+    # Typed-payload accumulators (STEP_REPORT_CONTRACT: EnforceDetails). Coherence
+    # results only warn (never correct or fail), so they feed neither list.
+    corrected: list[str] = []
+    already_compliant: list[str] = []
+    failed: list[tuple[str, str]] = []
 
     # Sanitize actions (``started`` already emitted by ``sanitize_files``, F8)
     for sanitize_result in sanitize_results:
         if sanitize_result.action not in ("skipped",):
             success += 1
+            if sanitize_result.action == "error":
+                failed.append((sanitize_result.old_name or "", "error"))
+            else:
+                corrected.append(sanitize_result.old_name or "")
             details.append(
                 f"[sanitize:{sanitize_result.action}] {sanitize_result.old_name}"
                 + (f" → {sanitize_result.new_name}" if sanitize_result.new_name else "")
@@ -98,6 +108,7 @@ def run_enforce(
                     new_name=sanitize_result.new_name,
                 )
         else:
+            already_compliant.append(sanitize_result.old_name or "")
             event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="skipped"))
 
     # Structure fixes (``started`` already emitted by ``validate_structure``, F8)
@@ -105,6 +116,7 @@ def run_enforce(
         item_name = structure_result.path.name
         if structure_result.action == "repaired":
             success += 1
+            corrected.append(item_name)
             for fix in structure_result.fixes:
                 details.append(f"[structure:fix] {item_name}: {fix}")
                 log.info("enforce_structure_fix", item=item_name, fix=fix)
@@ -112,6 +124,10 @@ def run_enforce(
                 ItemProgressed(step="enforce", item=item_name, status="fixed", details={"component": "structure"})
             )
         else:
+            if structure_result.action == "error":
+                failed.append((item_name, "error"))
+            else:
+                already_compliant.append(item_name)
             event_bus.emit(
                 ItemProgressed(
                     step="enforce",
@@ -169,4 +185,9 @@ def run_enforce(
         error_count=error_count,
         warnings=warnings_list,
         details=details,
+        details_payload=EnforceDetails(  # type: ignore[arg-type]  # coerced to dict via StepReport.__post_init__
+            corrected=corrected,
+            already_compliant=already_compliant,
+            failed=failed,
+        ),
     )

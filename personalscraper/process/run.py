@@ -9,6 +9,7 @@ Each sub-step can be called independently for error isolation.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,8 @@ from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.clean import CleanDetails
+from personalscraper.reports.cleanup import CleanupDetails
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
@@ -200,6 +203,13 @@ def run_clean(
             cat_status = "skipped"
         event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status=cat_status))
 
+    # Typed details payload (STEP_REPORT_CONTRACT: CleanDetails). ``renamed`` is
+    # the reclean new_name→old_name map (the step's genuinely structured output).
+    # ``removed_dirs``/``removed_files`` have no per-name source at this layer
+    # (extract/strip/dedup expose counts + detail strings only, not name lists),
+    # so they stay honestly empty rather than parsed back out of detail strings.
+    clean_report.details_payload = asdict(CleanDetails(renamed=dict(clean_report.renames)))
+
     log.info(
         "process_clean_complete",
         recleaned=clean_report.success_count,
@@ -256,6 +266,11 @@ def run_cleanup(
                 details={"removed": cat_report.success_count},
             )
         )
+
+    # Typed details payload (STEP_REPORT_CONTRACT: CleanupDetails). ``removed``
+    # is the set of removed empty-dir rel-paths (the per-category cleanup detail
+    # lines); ``cleanup_empty_dirs`` has no error terminal, so ``errors`` is empty.
+    cleanup_report.details_payload = asdict(CleanupDetails(removed=list(cleanup_report.details), errors=[]))
 
     log.info("process_cleanup_complete", removed=cleanup_report.success_count)
     return cleanup_report
