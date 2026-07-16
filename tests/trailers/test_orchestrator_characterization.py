@@ -46,7 +46,8 @@ from personalscraper.api._contracts import CircuitOpenError, MediaType
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
-from personalscraper.trailers.orchestrator import TrailersOrchestrator
+from personalscraper.trailers.events import TrailerDownloaded
+from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.placement import trailer_path_for
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerState, make_state_key
@@ -502,3 +503,227 @@ class TestTrailerOutcomeTaxonomy:
         state = _persisted_state(orchestrator, item)
         assert state is not None
         assert state.bot_detected_consecutive_attempts == 1
+
+
+def _tv_item(tmp_path: Path) -> tuple[ScanItem, Path]:
+    """Create a show-level TV ScanItem plus its expected subfolder trailer path.
+
+    Args:
+        tmp_path: Pytest tmp_path fixture.
+
+    Returns:
+        ``(item, expected_trailer_path)`` for a Game of Thrones (2011) show dir.
+        The expected path is the Plex TV convention: ``Trailers/<name>.mp4``.
+    """
+    show_dir = tmp_path / "Game of Thrones (2011)"
+    show_dir.mkdir()
+    item = ScanItem(
+        path=show_dir,
+        media_type="tvshow",
+        title="Game of Thrones",
+        year=2011,
+        tmdb_id="1399",
+    )
+    expected = trailer_path_for(show_dir, show_dir.name, media_type="tvshow", ext="mp4")
+    return item, expected
+
+
+class TestTrailerPlacementFamilies:
+    """Pin the family-specific Plex-conformant placement of the PLACED outcome.
+
+    Movies place flat (``<name>-trailer.ext`` next to the media file); TV shows
+    place in a ``Trailers/`` subfolder (``Trailers/<name>.ext``). Both are pinned
+    for the successful-download outcome so the P6 refactor cannot silently move
+    a family's trailer to the wrong Plex location.
+    """
+
+    def test_movie_places_trailer_flat(self, tmp_path: Path) -> None:
+        """A downloaded movie trailer lands flat at ``<name>-trailer.mp4``.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        config = _make_config(tmp_path)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item, expected_path = _movie_item(tmp_path)
+
+        outcome = _drive(orchestrator, item, expected_path, find_return=_MOVIE_URL, download=_dl_success)
+
+        assert expected_path == item.path / "Fight Club (1999)-trailer.mp4"
+        assert outcome["trailer_placed"] is True
+        assert outcome["counts"] == {"downloaded": 1}
+        assert outcome["state_status"] == "downloaded"
+
+    def test_tvshow_places_trailer_in_subfolder(self, tmp_path: Path) -> None:
+        """A downloaded TV-show trailer lands in ``Trailers/<name>.mp4``.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        config = _make_config(tmp_path)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item, expected_path = _tv_item(tmp_path)
+
+        outcome = _drive(
+            orchestrator, item, expected_path, find_return="https://youtube.com/watch?v=TV", download=_dl_success
+        )
+
+        assert expected_path == item.path / "Trailers" / "Game of Thrones (2011).mp4"
+        assert outcome["trailer_placed"] is True
+        assert outcome["counts"] == {"downloaded": 1}
+        assert outcome["state_status"] == "downloaded"
+
+
+class TestTrailerDownloadSideEffects:
+    """Pin the download-only side effects: bus emit, indexer outbox, NFO tag.
+
+    These effects fire ONLY on a successful download; the ladder tests already
+    pin that failing outcomes leave them untouched, and one negative case here
+    re-confirms the bus stays silent on a bot-detected outcome.
+    """
+
+    def test_success_emits_single_trailer_downloaded_event(self, tmp_path: Path) -> None:
+        """A successful download emits exactly one ``TrailerDownloaded`` on the real bus.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        config = _make_config(tmp_path)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item, expected_path = _movie_item(tmp_path)
+
+        received: list[TrailerDownloaded] = []
+        orchestrator._event_bus.subscribe(TrailerDownloaded, received.append)
+
+        _drive(orchestrator, item, expected_path, find_return=_MOVIE_URL, download=_dl_success)
+
+        assert len(received) == 1
+        event = received[0]
+        assert event.media_path == item.path
+        assert event.trailer_path == expected_path
+        assert event.source_url == _MOVIE_URL
+        assert event.source == "trailers.orchestrator"
+
+    def test_bot_detected_emits_no_event(self, tmp_path: Path) -> None:
+        """A bot-detected outcome emits no ``TrailerDownloaded`` event.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        config = _make_config(tmp_path)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item, expected_path = _movie_item(tmp_path)
+
+        received: list[TrailerDownloaded] = []
+        orchestrator._event_bus.subscribe(TrailerDownloaded, received.append)
+
+        _drive(
+            orchestrator,
+            item,
+            expected_path,
+            find_return=_MOVIE_URL,
+            download=_dl_status(DownloadStatus.BOT_DETECTED),
+        )
+
+        assert received == []
+
+    def test_success_publishes_indexer_outbox_event(self, tmp_path: Path) -> None:
+        """A successful download publishes a best-effort ``trailer_download`` outbox event.
+
+        The disk resolver is stubbed to a mounted disk so the publish path (not
+        the None short-circuit) is exercised, pinning the op name, source, and
+        payload shape the orchestrator sends to the indexer.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        config = _make_config(tmp_path)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item, expected_path = _movie_item(tmp_path)
+
+        with (
+            patch(
+                "personalscraper.trailers.orchestrator.disk_id_for_path",
+                return_value=(7, "Movies/Fight Club (1999)/Fight Club (1999)-trailer.mp4"),
+            ),
+            patch("personalscraper.trailers.orchestrator.publish_event") as publish_mock,
+        ):
+            _drive(orchestrator, item, expected_path, find_return=_MOVIE_URL, download=_dl_success)
+
+        assert publish_mock.call_count == 1
+        _args, kwargs = publish_mock.call_args
+        assert publish_mock.call_args.args[0] == 7
+        assert kwargs["op"] == "trailer_download"
+        assert kwargs["source"] == "trailers"
+        assert kwargs["payload"]["rel_path"] == "Movies/Fight Club (1999)/Fight Club (1999)-trailer.mp4"
+        assert kwargs["payload"]["trailer_path"] == str(expected_path)
+
+    def test_success_writes_trailer_url_into_nfo(self, tmp_path: Path) -> None:
+        """A successful download populates the ``<trailer>`` tag in the item's NFO.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from xml.etree import ElementTree as ET
+
+        config = _make_config(tmp_path)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item_base, expected_path = _movie_item(tmp_path)
+        nfo_path = item_base.path / "movie.nfo"
+        nfo_path.write_text("<movie><title>Fight Club</title><trailer></trailer></movie>", encoding="utf-8")
+        item = ScanItem(
+            path=item_base.path,
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            tmdb_id="550",
+            nfo_path=nfo_path,
+        )
+
+        _drive(orchestrator, item, expected_path, find_return=_MOVIE_URL, download=_dl_success)
+
+        trailer_elem = ET.parse(nfo_path).getroot().find("trailer")
+        assert trailer_elem is not None
+        assert trailer_elem.text == _MOVIE_URL
+
+
+class TestTrailerLibraryOnDisk:
+    """Pin the library-aware SOT recheck outcome (``already_present_on_disk``).
+
+    When the per-type library check is enabled and the indexer reports a
+    dispatched on-disk path whose Plex-conformant trailer already exists, the
+    orchestrator short-circuits before any network call, writes an
+    ``ALREADY_PRESENT_ON_DISK`` state, and never reaches the finder/downloader.
+    """
+
+    def test_trailer_found_on_storage_disk_short_circuits(self, tmp_path: Path) -> None:
+        """An existing on-disk trailer yields ``already_present_on_disk`` + state write.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        config = _make_config(tmp_path, library_tv=True)
+        orchestrator = _make_orchestrator(config, tmp_path)
+        item, _staging_expected = _tv_item(tmp_path)
+
+        # Simulate a dispatched library copy on a storage disk that already has
+        # its Plex TV-show trailer in place.
+        lib_dir = tmp_path / "storage" / "Game of Thrones (2011)"
+        lib_dir.mkdir(parents=True)
+        lib_trailer = trailer_path_for(lib_dir, lib_dir.name, media_type="tvshow", ext="mp4")
+        lib_trailer.parent.mkdir(parents=True, exist_ok=True)
+        lib_trailer.write_bytes(_TRAILER_BYTES)
+        index = {("tv_shows", "1399"): _LibraryEntry(path=str(lib_dir))}
+
+        with patch.object(orchestrator, "_build_library_index", return_value=index):
+            outcome = _drive(orchestrator, item, lib_trailer)
+
+        assert outcome == {
+            "item_results": [("already_present", "already_present_on_disk")],
+            "failed_kinds": [],
+            "counts": {"already_present_on_disk": 1},
+            "state_status": "already_present_on_disk",
+            "state_attempts": 1,
+            "next_retry_set": False,
+            "trailer_placed": True,
+        }
