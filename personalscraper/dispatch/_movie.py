@@ -114,9 +114,15 @@ def dispatch_movie(
         # Write-before-move (DESIGN §7.2): record the obligation for the NEWLY
         # dispatched media BEFORE the FS move, so a crash mid-move never loses
         # the safety constraint. Fail-soft (never raises).
-        dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
+        acquired_events = dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
         success = replace(movie_dir, dest, capability=cap)
         result.action = "replaced" if success else "error"
+        if success:
+            # D2-A — announce the film(s) retired at dispatch on the live feed
+            # (FilmAcquired) once the media has actually landed. The events are
+            # opaque here: the recorder built them, dispatch just emits them.
+            for _evt in acquired_events:
+                dispatcher._event_bus.emit(_evt)
         # §7 / Star City — append-only trail of the overwrite: the previous
         # on-disk folder was destroyed by the replace, record who/what/when/
         # where. Best-effort (never breaks the dispatch).
@@ -165,9 +171,13 @@ def dispatch_movie(
         # here — there is no pre-existing library content to delete (only the
         # staging copy is removed after the move, and ingest copies seeding
         # torrents, so that copy is not the qBit-seeding payload).
-        dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
+        acquired_events = dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
         success = dispatcher._move_new(movie_dir, dest, capability=cap)
         result.action = "moved" if success else "error"
+        if success:
+            # D2-A — feed toast for the film(s) retired at dispatch (see above).
+            for _evt in acquired_events:
+                dispatcher._event_bus.emit(_evt)
 
     # Update index with current IDs
     if result.action in ("replaced", "moved") and result.destination:

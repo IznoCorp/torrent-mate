@@ -244,6 +244,76 @@ class TestMovieThreeState:
         recorder.mark_breach.assert_not_called()
         assert "acquire.hnr_risk" not in caplog.text
 
+    def test_dispatch_movie_emits_film_acquired_returned_by_recorder(
+        self,
+        test_config: object,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """D2-A+ — events returned by record_dispatch are emitted on the feed on success.
+
+        Red-on-old: record_dispatch returned None and the dispatch layer emitted
+        nothing, so the « Film acquis » feed toast never fired for a film retired
+        at dispatch. The recorder now returns a FilmAcquired; the move-success
+        path emits it on the dispatcher's bus.
+        """
+        from personalscraper.acquire.events import FilmAcquired
+        from personalscraper.core.identity import MediaRef
+
+        evt = FilmAcquired(media_ref=MediaRef(tmdb_id=42), title="Ferrari", followed_id=7)
+        permit = _StubPermit(ALLOW)
+        recorder = MagicMock()
+        recorder.record_dispatch.return_value = [evt]
+        d = _make_dispatcher(test_config, tmp_path, permit=permit, recorder=recorder)
+        staging_dir, _existing_dir = _seed_existing_movie(d, tmp_path)
+
+        captured: list[FilmAcquired] = []
+        d._event_bus.subscribe(FilmAcquired, captured.append)
+
+        monkeypatch.setattr(_movie, "replace", MagicMock(return_value=True))
+        monkeypatch.setattr(
+            _movie,
+            "get_disk_status",
+            lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
+        )
+
+        result = d.dispatch_movie(staging_dir, CID.MOVIES)
+
+        assert result.action == "replaced"
+        assert captured == [evt]  # the retired-film toast reached the feed
+
+    def test_dispatch_movie_does_not_emit_on_move_failure(
+        self,
+        test_config: object,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A failed move must NOT announce « Film acquis » (nothing landed)."""
+        from personalscraper.acquire.events import FilmAcquired
+        from personalscraper.core.identity import MediaRef
+
+        evt = FilmAcquired(media_ref=MediaRef(tmdb_id=42), title="Ferrari", followed_id=7)
+        permit = _StubPermit(ALLOW)
+        recorder = MagicMock()
+        recorder.record_dispatch.return_value = [evt]
+        d = _make_dispatcher(test_config, tmp_path, permit=permit, recorder=recorder)
+        staging_dir, _existing_dir = _seed_existing_movie(d, tmp_path)
+
+        captured: list[FilmAcquired] = []
+        d._event_bus.subscribe(FilmAcquired, captured.append)
+
+        monkeypatch.setattr(_movie, "replace", MagicMock(return_value=False))  # move fails
+        monkeypatch.setattr(
+            _movie,
+            "get_disk_status",
+            lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
+        )
+
+        result = d.dispatch_movie(staging_dir, CID.MOVIES)
+
+        assert result.action == "error"
+        assert captured == []  # no toast when the film did not actually land
+
     def test_record_dispatch_called_before_move(
         self,
         test_config: object,
@@ -257,7 +327,7 @@ class TestMovieThreeState:
         staging_dir, existing_dir = _seed_existing_movie(d, tmp_path)
 
         order: list[str] = []
-        recorder.record_dispatch.side_effect = lambda **_kw: order.append("record")
+        recorder.record_dispatch.side_effect = lambda **_kw: order.append("record") or []
 
         def _replace_spy(*_a: object, **_kw: object) -> bool:
             order.append("move")
@@ -415,7 +485,7 @@ class TestTvThreeState:
         staging_dir, existing_dir = _seed_existing_show(d, tmp_path)
 
         order: list[str] = []
-        recorder.record_dispatch.side_effect = lambda **_kw: order.append("record")
+        recorder.record_dispatch.side_effect = lambda **_kw: order.append("record") or []
 
         def _merge_spy(*_a: object, **_kw: object) -> bool:
             order.append("move")

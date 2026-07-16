@@ -13,7 +13,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    # Type-only import (no runtime coupling): record_dispatch returns opaque
+    # bus events for the dispatch layer to emit — the events are constructed by
+    # the concrete acquire/ recorder, so dispatch/ never references acquire/.
+    from personalscraper.core.event_bus import Event
 
 
 @dataclass(frozen=True)
@@ -89,7 +95,7 @@ class SeedObligationRecorder(Protocol):
         *,
         staging_source: Path,
         dispatched_dest: Path,
-    ) -> None:
+    ) -> list[Event]:
         """Correlate staging_source to a live seeding torrent and record the obligation.
 
         Called BEFORE the FS move (write-before-move guarantee).
@@ -97,6 +103,12 @@ class SeedObligationRecorder(Protocol):
         Args:
             staging_source: Absolute path of the file in the staging area.
             dispatched_dest: Absolute path of the destination after dispatch.
+
+        Returns:
+            Bus events the caller should emit once the move succeeds — e.g. a
+            ``FilmAcquired`` for a followed film retired at dispatch. Empty when
+            there is nothing to announce. Opaque to the dispatch layer (which
+            emits them without referencing ``acquire/``).
         """
         ...
 
@@ -175,13 +187,17 @@ class AllowAllPermit:
         *,
         staging_source: Path,
         dispatched_dest: Path,
-    ) -> None:
-        """No-op recorder — does nothing.
+    ) -> list[Event]:
+        """No-op recorder — records nothing and announces nothing.
 
         Args:
             staging_source: Ignored.
             dispatched_dest: Ignored.
+
+        Returns:
+            An empty list (no events to emit).
         """
+        return []
 
     def mark_breach(self, path: Path) -> None:
         """No-op breach marker — does nothing.
