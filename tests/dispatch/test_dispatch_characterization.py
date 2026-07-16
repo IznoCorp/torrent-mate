@@ -41,6 +41,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -551,3 +552,173 @@ def test_dispatch_tvshow_merge_overwrite_rescrape_rename_journals(
     overwrite_rows = [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)]
     assert len(overwrite_rows) == 1, f"F1: re-scrape rename overwrite must journal exactly one overwrite; got {rows}"
     assert overwrite_rows[0]["actor"] == "dispatch"
+
+
+# ---------------------------------------------------------------------------
+# dispatch_tvshow — §7 provider-ID identity guard on a MERGE
+#
+# The existing-folder resolver matches a same-named target (by exact name, or
+# by a name-based disk-scan fallback for an unindexed folder). A same-named but
+# DIFFERENT show must NEVER have its episodes overwritten (§7). These pins
+# encode the behaviour delivered by wiring ``merge_identity_conflict`` as
+# ``_TV_SPEC.identity_guard``: a POSITIVE ``tvshow.nfo`` provider-ID mismatch
+# BLOCKS the merge (no transfer, no episode overwritten, no journal row), while
+# an unverifiable target (no ``tvshow.nfo`` IDs) FAILS OPEN (merge proceeds,
+# logged §8 — same doctrine as the movie replace guard).
+#
+# The block test FAILS on the pre-guard code (``_TV_SPEC.identity_guard is
+# None`` → the merge proceeds and journals); the fail-open test PASSES before
+# and after the guard is wired.
+# ---------------------------------------------------------------------------
+
+
+def _tvshow_nfo_bytes(
+    *, tvdb: str | None = None, tmdb: str | None = None, imdb: str | None = None
+) -> bytes:
+    """Serialize a minimal, complete ``tvshow.nfo`` with the given provider IDs.
+
+    Mirrors the show-NFO shape the scraper writes: a ``<tvshow>`` root with one
+    ``<uniqueid type=...>`` per supplied provider. At least one ID makes the NFO
+    ``is_nfo_complete``-valid so the identity guard can read it.
+
+    Args:
+        tvdb: TVDB id, or ``None`` to omit.
+        tmdb: TMDB id, or ``None`` to omit.
+        imdb: IMDB id, or ``None`` to omit.
+
+    Returns:
+        The serialized ``tvshow.nfo`` XML bytes.
+    """
+    root = ET.Element("tvshow")
+    ET.SubElement(root, "title").text = "show"
+    for provider, value in (("tvdb", tvdb), ("tmdb", tmdb), ("imdb", imdb)):
+        if value is not None:
+            uid = ET.SubElement(root, "uniqueid")
+            uid.set("type", provider)
+            uid.text = value
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def test_dispatch_tvshow_merge_wrong_tvdb_id_is_blocked_identity(
+    char_config: Config,
+    char_db_path: Path,
+    char_disks: list[Path],
+    tmp_path: Path,
+    _rsync_available: None,
+) -> None:
+    """A same-named target whose ``tvshow.nfo`` has a DIFFERENT tvdb_id blocks the merge (§7).
+
+    An on-disk ``Fallout (2024)`` carrying ``tvshow.nfo`` with ``tvdb 100`` and
+    an episode pre-exists on disk1 (indexed → the resolver routes to merge). The
+    staging copy is a DIFFERENT show that happens to share the folder name, its
+    ``tvshow.nfo`` declaring ``tvdb 200``, with the SAME episode relative path (a
+    merge would OVERWRITE the on-disk episode). The §7 identity guard on
+    ``_TV_SPEC`` must BLOCK: action ``skipped`` with a French reason naming the
+    mismatch, the on-disk episode bytes untouched, no destructive ``overwrite``
+    row, the staging source left intact, and no residue — the blocked-result
+    shape mirroring the movie replace veto.
+
+    FAILS on the pre-guard code (``_TV_SPEC.identity_guard is None`` → the merge
+    proceeds, overwrites the episode, and journals an overwrite row).
+
+    Args:
+        char_config: Dispatch-wired Config fixture.
+        char_db_path: Resolved indexer DB path shared with the dispatcher.
+        char_disks: Four fake disk roots.
+        tmp_path: Pytest temporary directory.
+        _rsync_available: Skips when rsync is missing.
+    """
+    name = "Fallout (2024)"
+    tv_folder = char_config.category(CID.TV_SHOWS).folder_name
+
+    existing = _make_media_dir(
+        char_disks[0] / tv_folder,
+        name,
+        {"tvshow.nfo": _tvshow_nfo_bytes(tvdb="100"), "Saison 01/episode1.mkv": b"x" * 16},
+    )
+    _seed_index(
+        char_db_path,
+        IndexEntry(name=name, disk="disk1", category=CID.TV_SHOWS, path=str(existing), media_type="tvshow"),
+    )
+    source = _make_media_dir(
+        tmp_path / "staging_src",
+        name,
+        {"tvshow.nfo": _tvshow_nfo_bytes(tvdb="200"), "Saison 01/episode1.mkv": b"y" * 4096},
+    )
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    try:
+        result = dispatch_tvshow(dispatcher, source, CID.TV_SHOWS)
+    finally:
+        index.close()
+
+    # Blocked-result shape, mirroring the movie replace veto.
+    assert result.action == "skipped"
+    assert result.reason is not None
+    assert "TVDB" in result.reason
+    assert "100" in result.reason and "200" in result.reason
+    # No transfer happened: the on-disk episode keeps its original bytes and the
+    # staging source is untouched (nothing consumed it).
+    assert (existing / "Saison 01" / "episode1.mkv").read_bytes() == b"x" * 16
+    assert source.exists()
+    # No destruction journaled — the merge was refused before touching disk.
+    rows = list_recent(char_db_path)
+    assert [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)] == []
+    assert _residue(char_disks[0]) == []
+
+
+def test_dispatch_tvshow_merge_absent_target_ids_fails_open_identity(
+    char_config: Config,
+    char_db_path: Path,
+    char_disks: list[Path],
+    tmp_path: Path,
+    _rsync_available: None,
+) -> None:
+    """A target with no verifiable ``tvshow.nfo`` IDs FAILS OPEN — the merge proceeds (§8).
+
+    The on-disk ``Fallout (2024)`` is a legacy folder with an episode but NO
+    ``tvshow.nfo`` (nothing to verify by ID). The staging copy carries a
+    ``tvshow.nfo`` with ``tvdb 200`` and the same episode path. Because the guard
+    cannot prove the folders are DIFFERENT media, it fails open (logged, not
+    silent) and the merge proceeds exactly as before the guard existed: action
+    ``merged`` and the on-disk episode overwritten with the staging bytes.
+
+    PASSES both before the guard is wired (``identity_guard is None``) and after
+    (the guard fails open on a missing target NFO), guarding against over-blocking
+    legitimate legacy-folder merges.
+
+    Args:
+        char_config: Dispatch-wired Config fixture.
+        char_db_path: Resolved indexer DB path shared with the dispatcher.
+        char_disks: Four fake disk roots.
+        tmp_path: Pytest temporary directory.
+        _rsync_available: Skips when rsync is missing.
+    """
+    name = "Fallout (2024)"
+    tv_folder = char_config.category(CID.TV_SHOWS).folder_name
+
+    existing = _make_media_dir(
+        char_disks[0] / tv_folder, name, {"Saison 01/episode1.mkv": b"x" * 16}
+    )
+    _seed_index(
+        char_db_path,
+        IndexEntry(name=name, disk="disk1", category=CID.TV_SHOWS, path=str(existing), media_type="tvshow"),
+    )
+    source = _make_media_dir(
+        tmp_path / "staging_src",
+        name,
+        {"tvshow.nfo": _tvshow_nfo_bytes(tvdb="200"), "Saison 01/episode1.mkv": b"y" * 4096},
+    )
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    try:
+        result = dispatch_tvshow(dispatcher, source, CID.TV_SHOWS)
+    finally:
+        index.close()
+
+    # Fail-open: the merge proceeds and supersedes the on-disk episode.
+    assert result.action == "merged"
+    assert (existing / "Saison 01" / "episode1.mkv").read_bytes() == b"y" * 4096
+    assert not source.exists()
