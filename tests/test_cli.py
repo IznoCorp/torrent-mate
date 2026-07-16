@@ -52,7 +52,7 @@ def test_appctx_with_path() -> None:
 
 
 # Patches for standalone commands
-_PATCH_CLI_RUN_INGEST = "personalscraper.cli.run_ingest"
+_PATCH_CLI_RUN_INGEST = "personalscraper.cli_helpers.run_ingest"
 
 # Patches for the `run` command (delegates to Pipeline)
 _PATCH_PIPELINE_RUN = "personalscraper.pipeline.Pipeline.run"
@@ -110,8 +110,8 @@ def _cli_lock_mocks():
     acquire = MagicMock(return_value=True)
     release = MagicMock()
     with (
-        patch("personalscraper.cli.acquire_pipeline_lock", acquire),
-        patch("personalscraper.cli.release_lock", release),
+        patch("personalscraper.cli_helpers.acquire_pipeline_lock", acquire),
+        patch("personalscraper.cli_helpers.release_lock", release),
         patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", acquire),
         patch.object(_BOUNDARY_MOD, "release_lock", release),
     ):
@@ -127,7 +127,7 @@ def _cli_lock_blocked():
     """
     blocked = MagicMock(return_value=False)
     with (
-        patch("personalscraper.cli.acquire_pipeline_lock", blocked),
+        patch("personalscraper.cli_helpers.acquire_pipeline_lock", blocked),
         patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", blocked),
     ):
         yield blocked
@@ -136,7 +136,7 @@ def _cli_lock_blocked():
 @pytest.fixture
 def _mock_release_lock():
     """Stand-alone ``release_lock`` mock for crash-recovery tests."""
-    with patch("personalscraper.cli.release_lock") as mock:
+    with patch("personalscraper.cli_helpers.release_lock") as mock:
         yield mock
 
 
@@ -523,7 +523,7 @@ class TestLibraryClean:
         mock_result = CleanResult(dry_run=True, deleted_count=5, freed_bytes=1024)
 
         with (
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=mock_result),
         ):
@@ -543,11 +543,11 @@ class TestLibraryClean:
         mock_result = CleanResult(dry_run=False, deleted_count=0)
 
         with (
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=mock_result),
-            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as mock_lock,
-            patch("personalscraper.cli.release_lock"),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli_helpers.release_lock"),
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -587,7 +587,7 @@ class TestLibraryValidate:
             patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result),
             patch("personalscraper.io_utils.write_json") as mock_write,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -601,7 +601,7 @@ class TestLibraryValidate:
     def test_apply_without_fix_errors(self) -> None:
         """--apply without --fix should error."""
         with (
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
         ):
             mock_settings.return_value = make_typed_settings_stub()
@@ -626,9 +626,9 @@ class TestLibraryValidate:
             patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result),
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as mock_lock,
-            patch("personalscraper.cli.release_lock"),
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli_helpers.release_lock"),
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -657,7 +657,7 @@ class TestLibraryValidate:
             patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result) as mock_val,
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -689,7 +689,7 @@ class TestLibraryValidate:
             patch("personalscraper.verify.library_checks.validate_library", return_value=mock_result),
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -741,7 +741,7 @@ class TestLibraryRescrape:
     def test_invalid_only_errors(self) -> None:
         """--only with invalid value should error."""
         with (
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
         ):
             mock_settings.return_value = make_typed_settings_stub()
@@ -767,8 +767,8 @@ class TestLibraryRescrape:
             patch("personalscraper.maintenance.rescraper.rescrape_library", return_value=mock_result),
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.acquire_pipeline_lock") as mock_lock,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock") as mock_lock,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -817,7 +817,7 @@ class TestLibraryRescrape:
             patch("personalscraper.indexer.db.apply_migrations"),
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -866,7 +866,7 @@ class TestLibraryRescrape:
             patch("personalscraper.indexer.db.apply_migrations"),
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -902,7 +902,7 @@ class TestLibraryRescrape:
             patch("personalscraper.indexer.db.apply_migrations"),
             patch("personalscraper.io_utils.write_json"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path
@@ -952,7 +952,7 @@ class TestLibraryRescrape:
             patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
             patch("personalscraper.indexer.db.apply_migrations"),
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli_helpers.get_settings") as mock_settings,
         ):
             settings = MagicMock()
             settings.data_dir = tmp_path

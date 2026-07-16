@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.acquire.watcher import (
     WatcherDecision,
     WatcherInput,
@@ -118,7 +118,7 @@ def watch(ctx: typer.Context) -> None:
         log.info("watcher_disabled_shutdown")
         return
 
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     data_dir = config.paths.data_dir
 
     signal.signal(signal.SIGTERM, _on_signal)

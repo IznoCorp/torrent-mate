@@ -7,7 +7,7 @@ from typing import Any
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
@@ -289,7 +289,7 @@ def library_rescrape(
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     valid_only = {"nfo", "artwork", "episodes"}
     if only and only not in valid_only:
@@ -304,9 +304,9 @@ def library_rescrape(
             raise typer.Exit(1)
 
     if not dry_run:
-        if not cli_compat.acquire_pipeline_lock(
+        if not cli_helpers.acquire_pipeline_lock(
             config.paths.data_dir / "pipeline.lock",
-            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+            cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             # Exit 3 = lock busy (the maintenance runner re-queues on this code).
             console.print("[red]Another instance is running. Exiting.[/red]")
@@ -411,7 +411,7 @@ def library_rescrape(
         )
     finally:
         if not dry_run:
-            cli_compat.release_lock()
+            cli_helpers.release_lock()
 
 
 @app.command()

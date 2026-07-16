@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from personalscraper.core.event_bus import EventBus
-from personalscraper.indexer import cli as cli_compat
+from personalscraper.indexer import cli as indexer_cli
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -189,7 +189,7 @@ def library_index_command(
                         "indexer.bootstrap.starting",
                         disk_count=len(cfg.disks),
                     )
-                    disks_bootstrapped = cli_compat._bootstrap_disks_from_config(conn, cfg.disks)
+                    disks_bootstrapped = indexer_cli._bootstrap_disks_from_config(conn, cfg.disks)
                     log.info(
                         "indexer.bootstrap.done",
                         disks_registered=disks_bootstrapped,
@@ -265,7 +265,7 @@ def library_index_command(
                         # remount, NULL on unmount) — so the scanner's per-disk
                         # ``ctx.fs_type_overrides.get(disk.label)`` lookup can never
                         # diverge from the transfer layer after a mount_path change.
-                        fs_type_overrides=cli_compat.build_fs_type_overrides(cfg.disks),
+                        fs_type_overrides=indexer_cli.build_fs_type_overrides(cfg.disks),
                         event_bus=event_bus,
                         # DESIGN §4.1/§5 — pass the loaded config so scan()'s
                         # full-mode branch runs the item stage (pass 1) exactly

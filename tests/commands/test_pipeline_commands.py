@@ -425,8 +425,8 @@ class TestRunTrailerFailure:
         from personalscraper.trailers.state import TrailerStepFailed
 
         with (
-            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
-            patch("personalscraper.cli.release_lock"),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
             patch(
                 "personalscraper.pipeline.Pipeline.run",
                 side_effect=TrailerStepFailed("trailer step crashed"),

@@ -34,6 +34,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from personalscraper import cli_helpers
 from personalscraper.cli_helpers import _build_app_context
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
@@ -60,13 +61,7 @@ def _trailers_boundary(config: Any):  # type: ignore[no-untyped-def]
         The freshly-built :class:`AppContext` carrying ``config``,
         ``settings``, and a fresh :class:`EventBus`.
     """
-    # Deferred import to break the circular dependency: ``personalscraper.cli``
-    # mounts ``trailers.cli`` via ``add_typer`` at module-load time, so a
-    # top-level ``from personalscraper import cli`` would fail while ``cli``
-    # is still initialising.
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
-
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     app_context = _build_app_context(config, settings)
     token = current_correlation_id.set(str(uuid4()))
     try:

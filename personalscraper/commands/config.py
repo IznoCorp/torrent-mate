@@ -29,7 +29,7 @@ def config_migrate_category(
     Examples:
         personalscraper config migrate-category --from old_cat --to new_cat
     """
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper import cli_helpers  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
     from personalscraper.indexer.cli import config_migrate_category_command  # noqa: PLC0415
@@ -37,7 +37,7 @@ def config_migrate_category(
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
-        settings = cli_compat.get_settings()
+        settings = cli_helpers.get_settings()
         event_bus = _build_app_context(loaded_config, settings).event_bus
     else:
         # init-config boundary: no config loaded. Fresh unobserved bus

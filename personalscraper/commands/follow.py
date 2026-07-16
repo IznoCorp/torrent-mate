@@ -30,7 +30,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.acquire.airing import poll_aired
 from personalscraper.acquire.cadence import is_past_cutoff
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
@@ -78,7 +78,7 @@ def follow_add(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
@@ -143,7 +143,7 @@ def follow_list(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         acquire = app_context.acquire
@@ -196,7 +196,7 @@ def follow_remove(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
@@ -266,7 +266,7 @@ def follow_detect(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with (
         cli_run_row(config, "follow-detect") as run_rec,
@@ -612,7 +612,7 @@ def follow_backfill_metadata(
     config = ctx.obj.config
     assert config is not None  # noqa: S101 — set by the CLI root callback
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     db_path = config.acquire.db_path
     if db_path is None:
         console.print("[red]No acquire DB configured.[/red]")

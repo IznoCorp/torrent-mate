@@ -244,7 +244,7 @@ class TestLibraryBackfillIdsRegistryWiring:
             patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
             patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
             patch("personalscraper.cli_helpers._build_app_context", return_value=mock_app_ctx),
-            patch("personalscraper.cli.get_settings", return_value=MagicMock()),
+            patch("personalscraper.cli_helpers.get_settings", return_value=MagicMock()),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
             patch(
@@ -298,7 +298,7 @@ class TestLibraryBackfillIdsRegistryWiring:
             patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
             patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
             patch("personalscraper.cli_helpers._build_app_context", return_value=mock_app_ctx),
-            patch("personalscraper.cli.get_settings", return_value=MagicMock()),
+            patch("personalscraper.cli_helpers.get_settings", return_value=MagicMock()),
             patch("personalscraper.indexer.db.open_db", return_value=MagicMock()),
             patch("personalscraper.indexer.db.apply_migrations"),
             patch(

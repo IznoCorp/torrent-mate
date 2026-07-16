@@ -228,9 +228,9 @@ def _stub_pipeline_steps(request, monkeypatch):
 
     The fixture patches:
 
-    * ``personalscraper.cli.acquire_lock``     → returns ``True``
-    * ``personalscraper.cli.release_lock``     → no-op
-    * ``personalscraper.cli.run_ingest``       → returns a no-op ``StepReport``
+    * ``personalscraper.cli_helpers.acquire_lock``     → returns ``True``
+    * ``personalscraper.cli_helpers.release_lock``     → no-op
+    * ``personalscraper.cli_helpers.run_ingest``       → returns a no-op ``StepReport``
     * ``personalscraper.sorter.run.run_sort``  → returns a no-op ``StepReport``
     * ``personalscraper.scraper.run.run_scrape`` → returns a no-op ``StepReport``
     * ``personalscraper.process.run.run_process`` → returns a 3-tuple of ``StepReport``
@@ -264,14 +264,16 @@ def _stub_pipeline_steps(request, monkeypatch):
     # Pipeline commands route through acquire_pipeline_lock (global lock +
     # scrape-dir fail-closed check, webui-ux phase 4); acquire_lock is kept
     # stubbed for any residual raw callers.
-    monkeypatch.setattr("personalscraper.cli.acquire_lock", lambda *a, **kw: True)
-    monkeypatch.setattr("personalscraper.cli.acquire_pipeline_lock", lambda *a, **kw: True)
-    monkeypatch.setattr("personalscraper.cli.release_lock", lambda *a, **kw: None)
-    # Migrated pipeline step commands (ingest/sort/scrape/…) take the lock via
-    # the ``cli_helpers.boundary`` decorator, which imports the lock helpers into
-    # its own module namespace — patching ``personalscraper.cli.*`` does not
-    # intercept them. Patch the boundary module too so no real ``pipeline.lock``
-    # is ever created during test_cli.py. (``run`` still uses ``personalscraper.cli``.)
+    monkeypatch.setattr("personalscraper.cli_helpers.acquire_lock", lambda *a, **kw: True)
+    monkeypatch.setattr("personalscraper.cli_helpers.acquire_pipeline_lock", lambda *a, **kw: True)
+    monkeypatch.setattr("personalscraper.cli_helpers.release_lock", lambda *a, **kw: None)
+    # ``run`` and the non-boundary commands resolve the lock helpers as
+    # attributes of the shared ``personalscraper.cli_helpers`` package (patched
+    # above). Migrated pipeline step commands (ingest/sort/scrape/…) take the
+    # lock via the ``cli_helpers.boundary`` decorator, which ``from``-imports the
+    # lock helpers into its OWN submodule namespace — patching the package does
+    # not intercept that binding. Patch the boundary submodule too so no real
+    # ``pipeline.lock`` is ever created during test_cli.py.
     import importlib  # noqa: PLC0415
 
     _bmod = importlib.import_module("personalscraper.cli_helpers.boundary")
@@ -280,7 +282,7 @@ def _stub_pipeline_steps(request, monkeypatch):
 
     # Standalone step commands.
     monkeypatch.setattr(
-        "personalscraper.cli.run_ingest",
+        "personalscraper.cli_helpers.run_ingest",
         lambda *a, **kw: StepReport(name="ingest"),
     )
     monkeypatch.setattr(

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import typer
 from rich.console import Console
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     handle_cli_errors,
@@ -57,7 +57,7 @@ def grab(
     config = ctx.obj.config
     assert config is not None  # guaranteed by callback
     console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with (
         cli_run_row(config, "grab") as run_rec,

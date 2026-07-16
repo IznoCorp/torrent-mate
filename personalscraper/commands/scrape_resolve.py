@@ -19,7 +19,7 @@ from pathlib import Path
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
@@ -147,7 +147,7 @@ def scrape_resolve(
     """
     config = ctx.obj.config
     console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     # ── 1. Validate provider + via ───────────────────────────────────────
     if provider not in _VALID_PROVIDERS:

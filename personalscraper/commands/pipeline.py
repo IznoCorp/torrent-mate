@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     CommandContext,
@@ -99,7 +99,7 @@ def ingest(
     # checker from the acquire context via the core port.
     _acquire = getattr(app_context, "acquire", None)
     _seed_checker = getattr(_acquire, "delete_authority", None)
-    report = cli_compat.run_ingest(
+    report = cli_helpers.run_ingest(
         bundle.settings,
         dry_run=dry_run,
         ingest_dir=ingest_dir,
@@ -639,16 +639,16 @@ def run(
     verbose = state["verbose"]
     _run_log = get_logger("pipeline")
 
-    if not cli_compat.acquire_pipeline_lock(
+    if not cli_helpers.acquire_pipeline_lock(
         config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+        cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
     ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         _journal_lock_conflict(config, dry_run=dry_run)
         raise typer.Exit(1)
 
     try:
-        settings = cli_compat.get_settings()
+        settings = cli_helpers.get_settings()
 
         # The :class:`AppContext` is built once per invocation at the CLI
         # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
@@ -826,7 +826,7 @@ def run(
                     healthcheck.ping_fail()
 
     finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        cli_helpers.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @command_with_telemetry("torrents-list")
@@ -848,7 +848,7 @@ def torrents_list(ctx: typer.Context) -> None:
     config = ctx.obj.config
     assert config is not None
     console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured

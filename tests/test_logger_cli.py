@@ -19,7 +19,7 @@ _BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 _mock_report = StepReport(name="ingest")
 
 
-@patch("personalscraper.cli.run_ingest", return_value=_mock_report)
+@patch("personalscraper.cli_helpers.run_ingest", return_value=_mock_report)
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 def test_cli_creates_log_file(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):
@@ -39,7 +39,7 @@ def test_cli_creates_log_file(mock_lock, mock_release, mock_run, tmp_path, monke
             assert "level" in data
 
 
-@patch("personalscraper.cli.run_ingest", return_value=_mock_report)
+@patch("personalscraper.cli_helpers.run_ingest", return_value=_mock_report)
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 def test_verbose_mode(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):
@@ -51,7 +51,7 @@ def test_verbose_mode(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):
     assert result.exit_code == 0
 
 
-@patch("personalscraper.cli.run_ingest", return_value=_mock_report)
+@patch("personalscraper.cli_helpers.run_ingest", return_value=_mock_report)
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 def test_quiet_mode(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):

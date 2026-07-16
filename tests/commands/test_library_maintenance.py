@@ -183,7 +183,7 @@ class TestLibraryClean:
         Red-on-old: this used to exit 1, indistinguishable from a real error —
         the web maintenance runner could not re-queue it (§6).
         """
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-clean", "--apply"])
         assert result.exit_code == 3
         assert "Another instance" in result.output
@@ -193,8 +193,8 @@ class TestLibraryClean:
         cresult = CleanResult(dry_run=False, deleted_count=4, freed_bytes=2 * 1024 * 1024)
         with (
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult),
-            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
-            patch("personalscraper.cli.release_lock"),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
         ):
             result = runner.invoke(app, ["library-clean", "--apply"])
         assert result.exit_code == 0
@@ -212,8 +212,8 @@ class TestLibraryClean:
         )
         with (
             patch("personalscraper.maintenance.disk_cleaner.clean_library", return_value=cresult),
-            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
-            patch("personalscraper.cli.release_lock"),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
         ):
             result = runner.invoke(app, ["library-clean", "--apply"])
         assert result.exit_code == 0
@@ -312,7 +312,7 @@ class TestLibraryValidateGaps:
 
     def test_fix_apply_lock_blocked_exits_3(self) -> None:
         """--fix --apply with held lock exits 3 (lock-busy contract, §6)."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-validate", "--fix", "--apply"])
         assert result.exit_code == 3
         assert "Another instance" in result.output

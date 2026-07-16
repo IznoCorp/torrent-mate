@@ -47,7 +47,7 @@ def test_ingest_help_exits_zero() -> None:
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_no_torrents(
     mock_run,
     mock_lock,
@@ -68,7 +68,7 @@ def test_ingest_no_torrents(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_two_torrents_copied(
     mock_run,
     mock_lock,
@@ -119,7 +119,7 @@ def test_ingest_lock_contention(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_qbit_unreachable(
     mock_run,
     mock_lock,
@@ -143,7 +143,7 @@ def test_ingest_qbit_unreachable(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_all_content_missing(
     mock_run,
     mock_lock,
@@ -173,7 +173,7 @@ def test_ingest_all_content_missing(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_idempotent(
     mock_run,
     mock_lock,
@@ -199,7 +199,7 @@ def test_ingest_idempotent(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_dry_run_forwards_flag(
     mock_run,
     mock_lock,
@@ -223,7 +223,7 @@ def test_ingest_dry_run_forwards_flag(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_output_no_traceback(
     mock_run,
     mock_lock,
@@ -243,7 +243,7 @@ def test_ingest_output_no_traceback(
 @patch.object(_BOUNDARY_MOD, "get_settings")
 @patch.object(_BOUNDARY_MOD, "release_lock")
 @patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.run_ingest")
+@patch("personalscraper.cli_helpers.run_ingest")
 def test_ingest_summary_always_printed(
     mock_run,
     mock_lock,
@@ -293,7 +293,7 @@ def test_ingest_emits_item_progressed_events(
             )
         return StepReport(name="ingest", success_count=1)
 
-    with patch("personalscraper.cli.run_ingest", side_effect=_emit_and_return):
+    with patch("personalscraper.cli_helpers.run_ingest", side_effect=_emit_and_return):
         result = run_cli(["ingest"])
 
     assert result.exit_code == 0

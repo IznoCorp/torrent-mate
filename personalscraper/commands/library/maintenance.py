@@ -7,7 +7,7 @@ from typing import Optional
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
@@ -196,9 +196,9 @@ def library_clean(
     # maintenance runner re-queues on this code (web/run_queue.py, §6), so it
     # must stay distinguishable from a real error (exit 1).
     if apply:
-        if not cli_compat.acquire_pipeline_lock(
+        if not cli_helpers.acquire_pipeline_lock(
             config.paths.data_dir / "pipeline.lock",
-            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+            cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             console.print("[red]Another instance is running. Exiting.[/red]")
             raise typer.Exit(3)
@@ -273,7 +273,7 @@ def library_clean(
     # the ``cleaned`` flag flips to True the instant we hand control to
     # ``_run_and_report``, so an exception after that point re-raises instead of
     # being mistaken for an authority-build failure.
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     cleaned = False
     try:
         try:
@@ -295,7 +295,7 @@ def library_clean(
             _run_and_report(AllowAllPermit())
     finally:
         if apply:
-            cli_compat.release_lock()
+            cli_helpers.release_lock()
 
 
 @app.command()
@@ -374,9 +374,9 @@ def library_validate(
         raise typer.Exit(1)
 
     if fix and apply:
-        if not cli_compat.acquire_pipeline_lock(
+        if not cli_helpers.acquire_pipeline_lock(
             config.paths.data_dir / "pipeline.lock",
-            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+            cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             # Exit 3 = lock busy (the maintenance runner re-queues on this code).
             console.print("[red]Another instance is running. Exiting.[/red]")
@@ -464,4 +464,4 @@ def library_validate(
             )
     finally:
         if fix and apply:
-            cli_compat.release_lock()
+            cli_helpers.release_lock()
