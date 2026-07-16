@@ -425,15 +425,9 @@ def library_reconcile_command(
         load_config,
         resolve_config_path,
     )
-    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-    from personalscraper.indexer.db import (  # noqa: PLC0415
-        IndexerCorruptError,
-        IndexerDiskFullError,
-        IndexerInvalidPathError,
-        IndexerLockError,
-        IndexerMigrationError,
-        apply_migrations,
-        open_db,
+    from personalscraper.indexer.commands._ceremony import (  # noqa: PLC0415
+        IndexerCeremonyError,
+        open_indexer_db,
     )
     from personalscraper.indexer.reconcile import (  # noqa: PLC0415
         ReconcileScope,
@@ -457,79 +451,54 @@ def library_reconcile_command(
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
-    migrations_dir = Path(_migrations_pkg.__file__).parent
-
-    from contextlib import closing  # noqa: PLC0415
 
     try:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
         # Tolerant open: reconcile is the tool that REPAIRS FK orphans, so it
         # must be able to open a dirty DB the strict guard would reject (DEV #3).
-        conn = open_db(db_path, allow_fk_orphans=True, event_bus=event_bus)
-    except (
-        IndexerLockError,
-        IndexerCorruptError,
-        IndexerDiskFullError,
-        IndexerInvalidPathError,
-        IndexerMigrationError,
-    ) as exc:
-        typer.echo(str(exc), err=True)
-        return 1, {"error": str(exc)}
+        with open_indexer_db(db_path, event_bus=event_bus, allow_fk_orphans=True) as conn:
+            # Type cast: typer hands us Sequence[str], reconcile() requires the
+            # narrower Literal-typed list.  The detector itself silently ignores
+            # unknown scope strings so the cast is safe at runtime — invalid
+            # values surface as "no detector ran" rather than a TypeError.
+            report = reconcile(
+                conn,
+                scopes=cast("list[ReconcileScope]", list(scopes)) if scopes else None,
+                enqueue_repairs=enqueue_repairs,
+            )
+            if enqueue_repairs:
+                conn.commit()
 
-    with closing(conn):
-        try:
-            apply_migrations(conn, migrations_dir)
-        except (
-            IndexerLockError,
-            IndexerCorruptError,
-            IndexerDiskFullError,
-            IndexerInvalidPathError,
-            IndexerMigrationError,
-        ) as exc:
-            typer.echo(str(exc), err=True)
-            return 1, {"error": str(exc)}
+            # FK-orphan detection / cleanup (DEV #3). Always report; delete only
+            # when clean_fk_orphans is set (the operator previews the cascade first).
+            fk_report = _clean_fk_orphans(conn, dry_run=False) if clean_fk_orphans else detect_fk_orphans(conn)
 
-        # Type cast: typer hands us Sequence[str], reconcile() requires the
-        # narrower Literal-typed list.  The detector itself silently ignores
-        # unknown scope strings so the cast is safe at runtime — invalid
-        # values surface as "no detector ran" rather than a TypeError.
-        report = reconcile(
-            conn,
-            scopes=cast("list[ReconcileScope]", list(scopes)) if scopes else None,
-            enqueue_repairs=enqueue_repairs,
-        )
-        if enqueue_repairs:
-            conn.commit()
-
-        # FK-orphan detection / cleanup (DEV #3). Always report; delete only
-        # when clean_fk_orphans is set (the operator previews the cascade first).
-        fk_report = _clean_fk_orphans(conn, dry_run=False) if clean_fk_orphans else detect_fk_orphans(conn)
-
-        summary = {
-            "merkle_drift": report.merkle_drift,
-            "dispatch_path_missing_count": len(report.dispatch_path_missing),
-            "dispatch_path_missing_sample": report.dispatch_path_missing[:10],
-            "enrich_stale": report.enrich_stale,
-            "release_orphans_count": len(report.release_orphans),
-            "release_orphans_sample": report.release_orphans[:10],
-            "files_without_release": report.files_without_release,
-            "season_count_drift_count": len(report.season_count_drift),
-            "season_count_drift_sample": report.season_count_drift[:10],
-            "items_without_files_count": len(report.items_without_files),
-            "items_without_files_sample": report.items_without_files[:10],
-            "path_missing_count": len(report.path_missing),
-            "path_missing_sample": report.path_missing[:10],
-            "total_findings": report.total_findings,
-            "enqueued_repairs": report.enqueued_repairs,
-            "fk_orphans": {
-                "by_table": fk_report.by_table,
-                "total": fk_report.total_orphans,
-                "cascade_media_files": fk_report.cascade_media_files,
-                "cascade_media_streams": fk_report.cascade_media_streams,
-                "cleaned": clean_fk_orphans,
-            },
-        }
-        return 0, summary
+            summary = {
+                "merkle_drift": report.merkle_drift,
+                "dispatch_path_missing_count": len(report.dispatch_path_missing),
+                "dispatch_path_missing_sample": report.dispatch_path_missing[:10],
+                "enrich_stale": report.enrich_stale,
+                "release_orphans_count": len(report.release_orphans),
+                "release_orphans_sample": report.release_orphans[:10],
+                "files_without_release": report.files_without_release,
+                "season_count_drift_count": len(report.season_count_drift),
+                "season_count_drift_sample": report.season_count_drift[:10],
+                "items_without_files_count": len(report.items_without_files),
+                "items_without_files_sample": report.items_without_files[:10],
+                "path_missing_count": len(report.path_missing),
+                "path_missing_sample": report.path_missing[:10],
+                "total_findings": report.total_findings,
+                "enqueued_repairs": report.enqueued_repairs,
+                "fk_orphans": {
+                    "by_table": fk_report.by_table,
+                    "total": fk_report.total_orphans,
+                    "cascade_media_files": fk_report.cascade_media_files,
+                    "cascade_media_streams": fk_report.cascade_media_streams,
+                    "cleaned": clean_fk_orphans,
+                },
+            }
+            return 0, summary
+    except IndexerCeremonyError as exc:
+        return 1, {"error": exc.message}
 
 
 # ---------------------------------------------------------------------------
