@@ -570,6 +570,11 @@ export type IndexHealthResponse = SuccessBody<
   paths["/api/maintenance/index-health"]["get"]["responses"]
 >;
 
+/** Response type for ``GET /api/maintenance/destructive-log``. */
+export type DestructiveLogResponse = SuccessBody<
+  paths["/api/maintenance/destructive-log"]["get"]["responses"]
+>;
+
 /** Response type for ``GET /api/maintenance/actions``. */
 export type ActionsResponse = SuccessBody<
   paths["/api/maintenance/actions"]["get"]["responses"]
@@ -615,6 +620,11 @@ export function getActions(): Promise<ActionsResponse> {
 /** Fetch the scheduler overview (watcher + crons): GET /api/maintenance/schedulers. */
 export function getSchedulers(): Promise<SchedulersResponse> {
   return apiFetch("/api/maintenance/schedulers", { method: "get" });
+}
+
+/** Fetch the append-only destructive-op journal: GET /api/maintenance/destructive-log. */
+export function getDestructiveLog(): Promise<DestructiveLogResponse> {
+  return apiFetch("/api/maintenance/destructive-log", { method: "get" });
 }
 
 /**
