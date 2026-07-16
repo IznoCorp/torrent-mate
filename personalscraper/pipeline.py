@@ -16,6 +16,7 @@ import os
 import signal
 import time
 from collections.abc import Callable, Mapping
+from functools import partial
 from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, Any
@@ -37,7 +38,7 @@ from personalscraper.pipeline_events import (
     StepStarted,
 )
 from personalscraper.pipeline_protocol import StepContext
-from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
+from personalscraper.pipeline_steps import DEFAULT_STEPS, STEP_SPECS, apply_step_overrides
 from personalscraper.reports import STEP_REPORT_CONTRACT
 
 if TYPE_CHECKING:
@@ -436,125 +437,44 @@ class Pipeline:
             else:
                 self._log.info("crash_recovery_skipped", reason="dry_run")
 
-            # Phase 1: INGEST — abort pipeline on fatal crash because
-            # sort depends on ingest having deposited files into ingest_dir
-            try:
-                self._run_step(
-                    "ingest",
-                    lambda: self._steps["ingest"](self._step_context(report, extras)),
-                    report,
-                    critical=True,
-                )
-            except _CriticalStepError:
-                self._log.error("pipeline_aborted", step="ingest", reason="fatal_crash")
-                report.finished_at = datetime.now()
-                return report
-
-            # Phase 2: SORT — abort pipeline on fatal crash because
-            # process/scrape depend on files being in category dirs
-            try:
-                self._run_step(
-                    "sort",
-                    lambda: self._steps["sort"](self._step_context(report, extras)),
-                    report,
-                    critical=True,
-                )
-            except _CriticalStepError:
-                self._log.error("pipeline_aborted", step="sort", reason="fatal_crash")
-                report.finished_at = datetime.now()
-                return report
-
-            # GATE: assert ingest dir is empty after sort
-            self._check_temp_empty_gate()
-
-            # Phase 3: PROCESS (re-clean + dedup + scrape + cleanup)
-            # Returns 3 StepReports added individually
-            self._run_process_phase(report, extras)
-
-            # Phase 4: ENFORCE (validate and correct conventions)
-            self._run_step(
-                "enforce",
-                lambda: self._steps["enforce"](self._step_context(report, extras)),
-                report,
-            )
-
-            # Phase 5: VERIFY
-            verified = self._run_step(
-                "verify",
-                lambda: self._steps["verify"](self._step_context(report, extras)),
-                report,
-            )
-            extras["verified"] = verified or []
-
-            # Phase 6: TRAILERS (non-blocking by default -- partial/skipped does not abort dispatch)
-            # Runs after verify so items that failed verify are never downloaded.
-            # Runs before dispatch so trailers are placed (Plex-conformant) alongside
-            # media in staging and moved together in one atomic dispatch operation.
-            self._run_step(
-                "trailers",
-                lambda: self._steps["trailers"](self._step_context(report, extras)),
-                report,
-            )
-
-            # _run_step appends the StepReport to report.steps (keyed by step name).
-            # Read it back to inspect status without relying on the return value of _run_step,
-            # which returns the extra tuple element (None for steps returning only StepReport).
-            trailers_step = report.steps.get("trailers")
-            if trailers_step is not None and trailers_step.status == "error":
-                if not self.continue_on_trailer_error:
-                    # Trailers step failed and the caller did not opt into ignoring it.
-                    # Abort before dispatch so a broken trailer acquisition never silently
-                    # lets corrupted or missing state reach the library.  The CLI catches
-                    # TrailerStepFailed and exits with code 2 to distinguish this abort
-                    # from a generic pipeline error (exit 1).
-                    from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
-                    raise TrailerStepFailed(
-                        "trailers step failed; use --continue-on-trailer-error to proceed to dispatch anyway"
+            # Phases 1-7 execute in STEP_SPECS order (INGEST → SORT → CLEAN →
+            # SCRAPE → CLEANUP → ENFORCE → VERIFY → TRAILERS → DISPATCH). Each
+            # step is driven entirely by its spec — no per-step branching in the
+            # orchestrator: ``critical`` aborts the run on a fatal crash (sort/
+            # process depend on ingest's and sort's output); ``extras_key``
+            # publishes a step's extra return to the shared ``extras`` (verify
+            # exposes its verified-path list); ``skip_when`` synthesises a
+            # symmetric skip report through the normal ``_run_step`` path
+            # (dispatch skips when nothing passed verify). Two between-step
+            # actions that are NOT per-step policy stay explicit: the post-sort
+            # empty-ingest gate and the post-trailers error gate.
+            for spec in STEP_SPECS:
+                ctx = self._step_context(report, extras)
+                skip_when = partial(spec.skip_when, ctx) if spec.skip_when is not None else None
+                skip_reason = getattr(spec.skip_when, "reason", None)
+                try:
+                    extra = self._run_step(
+                        spec.name,
+                        partial(self._steps[spec.name], ctx),
+                        report,
+                        critical=spec.critical,
+                        skip_when=skip_when,
+                        skip_reason=skip_reason,
                     )
-                # continue_on_trailer_error=True: log the error and fall through to dispatch.
-                self._log.warning(
-                    "trailers_step_error_suppressed",
-                    status=trailers_step.status,
-                    hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
-                )
+                except _CriticalStepError:
+                    self._log.error("pipeline_aborted", step=spec.name, reason="fatal_crash")
+                    report.finished_at = datetime.now()
+                    return report
 
-            # Phase 7: DISPATCH (only if verified items exist)
-            if verified:
-                self._run_step(
-                    "dispatch",
-                    lambda: self._steps["dispatch"](self._step_context(report, extras)),
-                    report,
-                )
-            else:
-                # No verified items → dispatch step is synthesized inline
-                # (skipping ``_run_step``) but the lifecycle MUST stay
-                # symmetric on the bus so subscribers always see a
-                # StepStarted/StepCompleted pair for dispatch.
-                self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
-                self._app.event_bus.emit(StepStarted(step="dispatch"))
-                dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
-                dispatch_report = self._with_details_payload("dispatch", dispatch_report)
-                report.add_step("dispatch", dispatch_report)
-                self._app.event_bus.emit(
-                    StepCompleted(step="dispatch", report=dispatch_report, elapsed_s=0.0),
-                )
-                # Run-history: record the synthesized (skipped) dispatch so
-                # history has all 9 steps (pipe-control sub-phase 1.3b).
-                if self._history_writer is not None and self._run_uid is not None:
-                    _dispatch_ts = time.time()
-                    self._history_writer.update_step(
-                        self._run_uid,
-                        "dispatch",
-                        _dispatch_ts,
-                        _dispatch_ts,
-                        "skipped",
-                        success_count=dispatch_report.success_count,
-                        skip_count=dispatch_report.skip_count,
-                        error_count=dispatch_report.error_count,
-                        unmatched_count=len(dispatch_report.unmatched_paths),
-                        counts=dict(dispatch_report.counts),
-                    )
+                if spec.extras_key is not None:
+                    extras[spec.extras_key] = extra or []
+
+                if spec.name == "sort":
+                    # GATE: ingest dir must be empty after sort (warn-only).
+                    self._check_temp_empty_gate()
+                elif spec.name == "trailers":
+                    # Abort before dispatch on a trailers error unless opted out.
+                    self._handle_trailers_error(report)
 
         except _PipelineInterrupted as exc:
             # Operator-requested shutdown honored at a step boundary.
@@ -629,38 +549,40 @@ class Pipeline:
             extras=extras,
         )
 
-    def _run_process_phase(self, report: PipelineReport, extras: dict[str, Any]) -> None:
-        """Execute Phase 3: PROCESS as 3 independent steps.
+    def _handle_trailers_error(self, report: PipelineReport) -> None:
+        """Abort before dispatch when the trailers step errored, unless opted out.
 
-        Each sub-step is wrapped in _run_step for individual error
-        isolation, timing, and structured logging. If clean crashes,
-        scrape and cleanup still run.
-
-        Steps:
-        1. clean — reclean + dedup (movies + tvshows)
-        2. scrape — TMDB/TVDB matching, NFO, artwork
-        3. cleanup — remove empty directories
+        Extracted from the inline post-trailers branch so the spec loop stays
+        declarative. When the trailers step reports ``status == "error"`` and
+        ``continue_on_trailer_error`` is False, raises
+        :class:`~personalscraper.trailers.state.TrailerStepFailed` so a broken
+        trailer acquisition never lets corrupted or missing state reach the
+        library (the CLI maps it to exit code 2, distinct from a generic
+        pipeline error at exit 1). Otherwise logs and returns so dispatch
+        proceeds.
 
         Args:
-            report: PipelineReport to add step results to.
-            extras: Mutable artifact map shared by step adapters.
+            report: The run's report; the trailers ``StepReport`` is read back
+                by name (``_run_step`` already appended it).
+
+        Raises:
+            TrailerStepFailed: When trailers errored and the caller did not opt
+                into ignoring it.
         """
-        self._run_step(
-            "clean",
-            lambda: self._steps["clean"](self._step_context(report, extras)),
-            report,
-        )
+        trailers_step = report.steps.get("trailers")
+        if trailers_step is None or trailers_step.status != "error":
+            return
+        if not self.continue_on_trailer_error:
+            from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-        self._run_step(
-            "scrape",
-            lambda: self._steps["scrape"](self._step_context(report, extras)),
-            report,
-        )
-
-        self._run_step(
-            "cleanup",
-            lambda: self._steps["cleanup"](self._step_context(report, extras)),
-            report,
+            raise TrailerStepFailed(
+                "trailers step failed; use --continue-on-trailer-error to proceed to dispatch anyway"
+            )
+        # continue_on_trailer_error=True: log the error and fall through to dispatch.
+        self._log.warning(
+            "trailers_step_error_suppressed",
+            status=trailers_step.status,
+            hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
         )
 
     def _check_temp_empty_gate(self) -> None:
@@ -747,6 +669,46 @@ class Pipeline:
             f"(expected {payload_type.__name__} or a matching dict)"
         )
 
+    def _emit_skipped_step(self, name: str, report: PipelineReport, reason: str) -> None:
+        """Synthesise and emit a symmetric skip report for a spec-skipped step.
+
+        Emits the same ``StepStarted``/``StepCompleted`` pair a real step would,
+        attaches the honest empty typed payload (contract-shaped via
+        :meth:`_with_details_payload`), and records the skip in run-history with
+        status ``"skipped"``. This is the single owner of the "skip a step but
+        keep the lifecycle symmetric" behaviour — it replaces the old inline
+        no-verified-items dispatch synthesis. Callers (``_run_step``) must have
+        already cleared the shutdown/pause boundary checks.
+
+        Args:
+            name: Step name (e.g. ``"dispatch"``).
+            report: The run's report; the skip report is appended in place.
+            reason: Operator-facing reason recorded as ``"Skipped: {reason}"``.
+        """
+        self._log.warning("step_skipped", step=name, reason=reason)
+        self._app.event_bus.emit(StepStarted(step=name))
+        step_report = StepReport(name=name, skip_count=1, details=[f"Skipped: {reason}"])
+        step_report = self._with_details_payload(name, step_report)
+        report.add_step(name, step_report)
+        self._app.event_bus.emit(StepCompleted(step=name, report=step_report, elapsed_s=0.0))
+        # Run-history: record the synthesized (skipped) step so history keeps all
+        # nine steps (pipe-control sub-phase 1.3b). Status ``"skipped"`` is pinned
+        # by tests/pipeline/test_run_history_wiring.py.
+        if self._history_writer is not None and self._run_uid is not None:
+            skip_ts = time.time()
+            self._history_writer.update_step(
+                self._run_uid,
+                name,
+                skip_ts,
+                skip_ts,
+                "skipped",
+                success_count=step_report.success_count,
+                skip_count=step_report.skip_count,
+                error_count=step_report.error_count,
+                unmatched_count=len(step_report.unmatched_paths),
+                counts=dict(step_report.counts),
+            )
+
     def _run_step(
         self,
         name: str,
@@ -754,6 +716,8 @@ class Pipeline:
         report: PipelineReport,
         *,
         critical: bool = False,
+        skip_when: Callable[[], bool] | None = None,
+        skip_reason: str | None = None,
     ) -> Any:
         """Execute a pipeline step with logging, timing, and bus emit.
 
@@ -771,9 +735,16 @@ class Pipeline:
             report: PipelineReport to add results to.
             critical: If True, re-raise after recording so the caller
                 can abort the pipeline for data-dependent steps.
+            skip_when: Optional zero-arg predicate (the spec's ``skip_when``
+                pre-bound to this step's context). When it returns True, the
+                step is skipped: a symmetric skip report is synthesised via
+                :meth:`_emit_skipped_step` instead of invoking ``fn``, and the
+                extra return is ``None``.
+            skip_reason: Operator-facing reason for the synthesised skip report;
+                falls back to a generic phrase when the predicate carries none.
 
         Returns:
-            Extra data from fn (e.g. verified list), or None.
+            Extra data from fn (e.g. verified list), or None (also for a skip).
 
         Raises:
             _CriticalStepError: If ``critical=True`` and fn raises.
@@ -793,6 +764,14 @@ class Pipeline:
         # a paused step never appears in the bus history as "started".
         if self._pause is not None:
             self._pause.checkpoint()
+
+        # Declarative skip (spec ``skip_when``): synthesise a symmetric skip
+        # report through the SAME lifecycle a real step emits. Runs AFTER the
+        # shutdown/pause boundary checks so a skipped step honours a pending
+        # shutdown exactly like a real one.
+        if skip_when is not None and skip_when():
+            self._emit_skipped_step(name, report, skip_reason or "skip condition met")
+            return None
 
         # Bus is the sole emit path (Phase 3.7b).
         # No companion ``log.info("step_started", step=name)`` — the
