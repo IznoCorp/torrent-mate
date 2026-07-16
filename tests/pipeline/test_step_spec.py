@@ -9,8 +9,11 @@ dataclass) and prevent silent drift between the four registries.
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
+from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import (
     DEFAULT_STEPS,
     STEP_SPECS,
@@ -103,17 +106,17 @@ class TestDispatchSkipPredicate:
 
     def test_skips_when_no_verified_items(self) -> None:
         """An empty ``verified`` list makes the predicate return True."""
-        ctx = _FakeCtx({"verified": []})
+        ctx = cast(StepContext, _FakeCtx({"verified": []}))
         assert self._dispatch_skip()(ctx) is True
 
     def test_skips_when_verified_absent(self) -> None:
         """A missing ``verified`` key (verify crashed) also skips."""
-        ctx = _FakeCtx({})
+        ctx = cast(StepContext, _FakeCtx({}))
         assert self._dispatch_skip()(ctx) is True
 
     def test_does_not_skip_when_items_present(self) -> None:
         """A non-empty ``verified`` list runs dispatch (predicate False)."""
-        ctx = _FakeCtx({"verified": ["/library/Movie (2020)"]})
+        ctx = cast(StepContext, _FakeCtx({"verified": ["/library/Movie (2020)"]}))
         assert self._dispatch_skip()(ctx) is False
 
 

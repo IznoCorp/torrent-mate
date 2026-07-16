@@ -121,6 +121,54 @@ def _revert_unmatched_recleans(
     return reverted
 
 
+def revert_unmatched_recleans(
+    config: Config,
+    clean_report: StepReport,
+    scrape_report: StepReport,
+    *,
+    dry_run: bool = False,
+) -> int:
+    """Revert reclean renames the scraper failed to match, from the two reports.
+
+    Single shared owner of the "reclean → scrape-miss → revert" seam, invoked by
+    BOTH the CLI :func:`run_process` path and ``Pipeline.run`` (F3 parity —
+    ``solidify`` P1.6). Reads the reclean rename map from ``clean_report.renames``
+    (``new_name → old_name``, produced by ``reclean_folders``) and the scraper's
+    unmatched folder set from ``scrape_report.unmatched_paths``, resolves the
+    movie/tvshow category directories from ``config``, and reverts the folders
+    that are in both. A no-op when reclean renamed nothing.
+
+    The rename record threads across the clean → scrape boundary via the two
+    :class:`StepReport` fields alone (no ``AppContext``), so the function is
+    reachable from the engine's ``process/`` layer under the boundary rule.
+
+    Args:
+        config: Loaded Config used to resolve the movie/tvshow staging dirs.
+        clean_report: The ``clean`` step report carrying ``renames``.
+        scrape_report: The ``scrape`` step report carrying ``unmatched_paths``.
+        dry_run: If True, log intended reversions without performing them.
+
+    Returns:
+        Number of folders reverted (or that would be reverted in dry-run).
+    """
+    # Guard before resolving any paths so a run with no reclean renames does no
+    # filesystem work — byte-identical to the previous inline ``run_process`` guard.
+    if not clean_report.renames:
+        return 0
+
+    staging = config.paths.staging_dir
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    # Read the typed unmatched_paths field directly (no detail-string parsing).
+    unmatched_names: set[str] = set(scrape_report.unmatched_paths)
+    return _revert_unmatched_recleans(
+        category_dirs=[movies_dir, tvshows_dir],
+        unmatched_names=unmatched_names,
+        rename_map=clean_report.renames,
+        dry_run=dry_run,
+    )
+
+
 def run_clean(
     settings: Settings,
     config: Config,
@@ -336,19 +384,10 @@ def run_process(
         )
 
     # Revert reclean renames for folders the scraper could not match so that
-    # they keep their original torrent name and remain rescrape-eligible.
-    if clean_report.renames:
-        staging = config.paths.staging_dir
-        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
-        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
-        # Read the typed unmatched_paths field directly (no detail-string parsing).
-        unmatched_names: set[str] = set(scrape_report.unmatched_paths)
-        _revert_unmatched_recleans(
-            category_dirs=[movies_dir, tvshows_dir],
-            unmatched_names=unmatched_names,
-            rename_map=clean_report.renames,
-            dry_run=dry_run,
-        )
+    # they keep their original torrent name and remain rescrape-eligible. The
+    # single shared owner (also called by ``Pipeline.run`` for F3 parity)
+    # threads the reclean map + unmatched set from the two StepReports.
+    revert_unmatched_recleans(config, clean_report, scrape_report, dry_run=dry_run)
 
     try:
         cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config, event_bus=event_bus)

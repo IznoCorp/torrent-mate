@@ -445,9 +445,10 @@ class Pipeline:
             # publishes a step's extra return to the shared ``extras`` (verify
             # exposes its verified-path list); ``skip_when`` synthesises a
             # symmetric skip report through the normal ``_run_step`` path
-            # (dispatch skips when nothing passed verify). Two between-step
+            # (dispatch skips when nothing passed verify). Three between-step
             # actions that are NOT per-step policy stay explicit: the post-sort
-            # empty-ingest gate and the post-trailers error gate.
+            # empty-ingest gate, the post-scrape reclean-revert (F3 parity with
+            # the CLI ``run_process`` path), and the post-trailers error gate.
             for spec in STEP_SPECS:
                 ctx = self._step_context(report, extras)
                 skip_when = partial(spec.skip_when, ctx) if spec.skip_when is not None else None
@@ -472,6 +473,12 @@ class Pipeline:
                 if spec.name == "sort":
                     # GATE: ingest dir must be empty after sort (warn-only).
                     self._check_temp_empty_gate()
+                elif spec.name == "scrape":
+                    # F3 parity: revert reclean renames the scraper could not
+                    # match so the folders keep their original torrent name and
+                    # stay rescrape-eligible — the same point (after scrape,
+                    # before cleanup) the CLI ``run_process`` path reverts.
+                    self._revert_unmatched_recleans(report)
                 elif spec.name == "trailers":
                     # Abort before dispatch on a trailers error unless opted out.
                     self._handle_trailers_error(report)
@@ -583,6 +590,39 @@ class Pipeline:
             "trailers_step_error_suppressed",
             status=trailers_step.status,
             hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
+        )
+
+    def _revert_unmatched_recleans(self, report: PipelineReport) -> None:
+        """Revert reclean renames the scraper could not match (F3, CLI parity).
+
+        Runs between the ``scrape`` and ``cleanup`` steps — the same point the
+        CLI :func:`personalscraper.process.run.run_process` path reverts.
+        Delegates to the single shared owner
+        :func:`personalscraper.process.run.revert_unmatched_recleans`, threading
+        the reclean rename map (from the ``clean`` step report) and the scraper's
+        unmatched folder set (from the ``scrape`` step report) — both already
+        live in ``report.steps``. The shared owner takes ``Config`` (not
+        ``AppContext``), so this respects the ``process/`` boundary rule.
+
+        A no-op when either step is absent from the report (e.g. a
+        crash-synthesised report never registered) or when reclean renamed
+        nothing.
+
+        Args:
+            report: The in-flight :class:`PipelineReport`; its ``clean`` and
+                ``scrape`` step reports carry the rename map and unmatched set.
+        """
+        from personalscraper.process.run import revert_unmatched_recleans  # noqa: PLC0415
+
+        clean_report = report.steps.get("clean")
+        scrape_report = report.steps.get("scrape")
+        if clean_report is None or scrape_report is None:
+            return
+        revert_unmatched_recleans(
+            self.config,
+            clean_report,
+            scrape_report,
+            dry_run=self.dry_run,
         )
 
     def _check_temp_empty_gate(self) -> None:
