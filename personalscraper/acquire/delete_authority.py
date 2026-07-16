@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.api.torrent._contracts import TorrentLister, TorrentStateInspector
     from personalscraper.conf.models.api_config import TrackerEconomyConfig
+    from personalscraper.core.event_bus import Event
 
     class _ReadOnlyTorrentClient(TorrentLister, TorrentStateInspector, Protocol):
         """Read-only torrent client: lists completed torrents + inspects seeding state.
@@ -208,7 +209,7 @@ class DeleteAuthority:
         *,
         staging_source: Path,
         dispatched_dest: Path,
-    ) -> None:
+    ) -> list[Event]:
         """Correlate the staging source to a live seeding torrent and persist an obligation.
 
         DESIGN §7.2 dispatch-time obligation writer:
@@ -245,6 +246,11 @@ class DeleteAuthority:
             staging_source: Absolute path of the file in the staging area.
             dispatched_dest: Absolute path of the destination after dispatch
                 (does not yet exist at call time).
+
+        Returns:
+            Bus events for the caller to emit after the move succeeds (a
+            ``FilmAcquired`` per followed film retired at dispatch, D2-A). Empty
+            on any MISS or fail-soft path — the caller emits nothing then.
         """
         if self._store is None or self._torrent_client is None:
             log.debug(
@@ -252,7 +258,7 @@ class DeleteAuthority:
                 reason="no-store" if self._store is None else "no-client",
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return []
 
         # Single cached get_completed() — fail-soft on any client error.
         try:
@@ -264,7 +270,7 @@ class DeleteAuthority:
                 error=str(exc),
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return []
 
         basename = staging_source.name
         try:
@@ -278,7 +284,7 @@ class DeleteAuthority:
                 error=str(exc),
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return []
 
         # The whole correlation body below (match comprehension, is_seeding()
         # client call, tracker resolution, obligation construction + write) is
@@ -287,7 +293,7 @@ class DeleteAuthority:
         # into the dispatch FS path (write-before-move → would abort the move).
         # Any unexpected exception → MISS reason="unexpected-error", never raised.
         try:
-            self._correlate_and_record(
+            return self._correlate_and_record(
                 completed=completed,
                 basename=basename,
                 size=size,
@@ -300,7 +306,7 @@ class DeleteAuthority:
                 error=str(exc),
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return []
 
     @staticmethod
     def _staging_size(staging_source: Path) -> int:
@@ -341,7 +347,7 @@ class DeleteAuthority:
         basename: str,
         size: int,
         dispatched_dest: Path,
-    ) -> None:
+    ) -> list[Event]:
         """Correlate the staging source to a seeding torrent and write the obligation.
 
         Extracted so the whole window (match, ``is_seeding`` client call,
@@ -354,12 +360,19 @@ class DeleteAuthority:
             basename: ``staging_source.name`` to correlate on.
             size: The (recursive) staging size to correlate on.
             dispatched_dest: The destination path recorded on the obligation.
+
+        Returns:
+            Bus events to emit after the move (a ``FilmAcquired`` per retired
+            film). Films are retired even on the later MISS branches
+            (not-seeding, tracker-unresolved), so those return the accumulated
+            events, not an empty list.
         """
         # ``self._store`` is non-None here (guarded by the record_dispatch
         # pre-checks); assert for the type checker.
         assert self._store is not None  # noqa: S101
         assert self._torrent_client is not None  # noqa: S101
 
+        events: list[Event] = []
         matches = [t for t in completed if t.name == basename and t.size_bytes == size]
 
         if not matches:
@@ -370,7 +383,7 @@ class DeleteAuthority:
                 size=size,
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return events
 
         if len(matches) > 1:
             log.warning(
@@ -380,7 +393,7 @@ class DeleteAuthority:
                 match_count=len(matches),
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return events
 
         item = matches[0]
 
@@ -404,10 +417,14 @@ class DeleteAuthority:
                 )
                 # D2-A — a followed FILM whose content just landed leaves the
                 # follow list HERE, not at the next nightly detect sweep. Only
-                # movies (a series continues); once per followed_id.
+                # movies (a series continues); once per followed_id. The
+                # returned FilmAcquired event is emitted by the dispatch layer
+                # once the move succeeds (the operator-visible feed toast).
                 if row.kind == "movie" and row.followed_id is not None and row.followed_id not in retired:
-                    self._retire_acquired_film(row.followed_id)
+                    evt = self._retire_acquired_film(row.followed_id)
                     retired.add(row.followed_id)
+                    if evt is not None:
+                        events.append(evt)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
             log.warning(
                 "acquire.record_dispatch.wanted_close_failed",
@@ -422,7 +439,7 @@ class DeleteAuthority:
                 info_hash=item.hash,
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return events
 
         resolved = self._resolve_tracker(item)
         if resolved is None:
@@ -433,7 +450,7 @@ class DeleteAuthority:
                 tags=list(item.tags),
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return events
 
         tracker_name, economy = resolved
 
@@ -463,7 +480,7 @@ class DeleteAuthority:
                 info_hash=item.hash,
                 dispatched_dest=str(dispatched_dest),
             )
-            return
+            return events
 
         log.info(
             "acquire.record_dispatch.hit",
@@ -471,27 +488,33 @@ class DeleteAuthority:
             tracker=tracker_name,
             dispatched_dest=str(dispatched_dest),
         )
+        return events
 
-    def _retire_acquired_film(self, followed_id: int) -> None:
+    def _retire_acquired_film(self, followed_id: int) -> "Event | None":
         """Retire a followed film whose content just landed (D2-A) — fail-soft.
 
         Mirrors the detect-time ownership closure but fires at dispatch, so a
         followed film leaves the follow list the moment its media is placed in
         the library instead of waiting for the next nightly detect sweep. The
         retirement is traced by ``acquire.record_dispatch.film_unfollowed`` and
-        is visible in the followed list (§8 rien en silence); the live
-        ``FilmAcquired`` feed toast still fires from the detect path for films
-        the info-hash correlation misses (scraped/renamed movies) — a bus is
-        deliberately NOT injected here (that would force a required-bus on every
-        DeletePermit construction, per the Phase 5.2 architecture contract). Any
-        store error is logged and swallowed — a dispatch must never fail because
-        a follow could not be retired.
+        is visible in the followed list (§8 rien en silence). Returns a
+        ``FilmAcquired`` event (as an opaque :class:`Event`) for the dispatch
+        layer to emit once the move succeeds — the same operator-visible feed
+        toast the detect path emits — or ``None`` when the follow could not be
+        read/deactivated (fail-soft; a dispatch must never fail because a follow
+        could not be retired).
 
         Args:
             followed_id: The ``followed_series`` rowid to deactivate.
+
+        Returns:
+            The ``FilmAcquired`` event to emit, or ``None`` on any fail-soft path.
         """
+        from personalscraper.acquire.events import FilmAcquired  # noqa: PLC0415 — avoid import cycle at module load
+
         assert self._store is not None  # noqa: S101 — guarded by record_dispatch
         try:
+            follow = self._store.follow.get(followed_id)
             self._store.follow.set_active(followed_id, False)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
             log.warning(
@@ -499,8 +522,11 @@ class DeleteAuthority:
                 followed_id=followed_id,
                 error=str(exc),
             )
-            return
+            return None
         log.info("acquire.record_dispatch.film_unfollowed", followed_id=followed_id)
+        if follow is None:
+            return None
+        return FilmAcquired(media_ref=follow.media_ref, title=follow.title, followed_id=followed_id)
 
     def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
         """Resolve the source tracker for *item* from its tags and the economy map.
