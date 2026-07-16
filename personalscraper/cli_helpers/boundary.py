@@ -54,6 +54,29 @@ The wrapped command receives the bundle as a ``bundle`` keyword argument, which 
 hidden from the Typer/click-visible signature (via ``__signature__``) so it never
 becomes a CLI option.
 
+Telemetry (COMMANDS-CLI-05)
+---------------------------
+
+Every ``boundary()``-wrapped command records the same structured telemetry as the
+root ``@cli_telemetry`` hook — ``cli.invoke.<cmd>`` on entry, ``cli.complete.<cmd>``
+on clean return, ``cli.failed.<cmd>`` on an unhandled exception (``typer.Exit`` is
+NOT a failure) — via :func:`~personalscraper.cli_telemetry.run_with_telemetry`. The
+command name is the boundary's own ``command=`` resolution (``command=`` argument,
+else the wrapped function's ``__name__``). This gives the ~30 uninstrumented
+sub-app commands telemetry for free once they migrate to the boundary. The boundary
+records **fail-soft**: a telemetry/logging error never breaks the command.
+
+NO-DOUBLE-RECORD guard: a command that is *both* root-instrumented
+(``command_with_telemetry`` → ``cli_telemetry``) and boundary-wrapped would
+otherwise record twice. ``command_with_telemetry`` must be the OUTERMOST decorator
+(it calls ``app.command``), so at runtime the outer ``cli_telemetry`` layer records
+first and sets the process-scoped ``ContextVar`` sentinel in ``cli_telemetry``; the
+inner boundary layer observes it via
+:func:`~personalscraper.cli_telemetry.telemetry_recording_active` (inside
+``run_with_telemetry``) and skips its own recording. The sentinel is a runtime
+marker — not a decoration-time attribute — precisely because the inner boundary
+decorator cannot see the outer ``cli_telemetry`` layer that is applied after it.
+
 Maintainer note (name shadowing): ``cli_helpers.__init__`` re-exports this
 module's ``boundary`` function, so the package attribute
 ``personalscraper.cli_helpers.boundary`` resolves to the *function*, not this
@@ -80,6 +103,7 @@ from personalscraper.cli_helpers import (
     per_step_boundary,
 )
 from personalscraper.cli_state import state
+from personalscraper.cli_telemetry import run_with_telemetry
 from personalscraper.config import get_settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.lock import (
@@ -315,8 +339,7 @@ def boundary(
         visible = _visible_signature(func)
         command_name = command if command is not None else getattr(func, "__name__", "command")
 
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def _run(*args: Any, **kwargs: Any) -> Any:
             # ``ctx`` is always the Typer command's first parameter (click passes
             # it); typed Any because it arrives positionally or by keyword.
             ctx: Any = args[0] if args else kwargs.get("ctx")
@@ -358,6 +381,15 @@ def boundary(
                 # resolved path, so lock.py never re-loads config on this path.
                 if do_lock:
                     release_lock(lock_file=lock_file)
+
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Record the same invoke/complete/failed telemetry as the root
+            # ``@cli_telemetry`` hook, fail-soft. ``run_with_telemetry`` owns the
+            # no-double-record sentinel: when a root ``cli_telemetry`` layer is
+            # already recording (this command is also ``command_with_telemetry``-
+            # wrapped), it skips and runs ``_run`` directly (see module docstring).
+            return run_with_telemetry(command_name, _run, args, kwargs, fail_soft=True)
 
         # Hide the injected ``bundle`` parameter from Typer/click introspection.
         wrapper.__signature__ = visible  # type: ignore[attr-defined]

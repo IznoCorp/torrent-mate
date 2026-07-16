@@ -12,6 +12,7 @@ No production command is touched: bespoke test commands are decorated inline.
 from __future__ import annotations
 
 import importlib
+import logging
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -22,6 +23,7 @@ import pytest
 import typer
 
 from personalscraper.cli_helpers import CommandContext, boundary
+from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.core.event_bus import EventBus
 
 # The cli_helpers package re-exports the ``boundary`` function, shadowing the
@@ -436,3 +438,125 @@ def test_bundle_hidden_from_typer_signature():
     params = list(inspect.signature(cmd).parameters)
     assert "bundle" not in params
     assert params == ["ctx", "dry_run"]
+
+
+# --------------------------------------------------------------------------- #
+# Telemetry (P3.2) — invoke/complete/failed recorded, fail-soft, no-double-record
+# --------------------------------------------------------------------------- #
+
+
+def _telemetry_messages(caplog: pytest.LogCaptureFixture) -> list[str]:
+    """Return the ``cli.telemetry`` log messages captured so far."""
+    return [r.getMessage() for r in caplog.records if r.name == "cli.telemetry"]
+
+
+def test_boundary_records_invoke_and_complete_on_success(tmp_path, monkeypatch, caplog):
+    """A boundary-wrapped command records exactly one invoke + one complete event."""
+    monkeypatch.setattr(_BMOD, "per_step_boundary", _PerStepSpy())
+
+    @boundary(needs="config", lock=False, journal=False, staging=False, command="solo-cmd")
+    def cmd(ctx, *, bundle: CommandContext) -> None:
+        pass
+
+    with caplog.at_level(logging.INFO, logger="cli.telemetry"):
+        cmd(_fake_ctx(_fake_config(data_dir=tmp_path / ".data", db_path=None)))
+
+    messages = _telemetry_messages(caplog)
+    assert sum("cli.invoke.solo-cmd" in m for m in messages) == 1
+    assert sum("cli.complete.solo-cmd" in m for m in messages) == 1
+    assert not any("cli.failed.solo-cmd" in m for m in messages)
+
+
+def test_boundary_records_failed_on_exception_and_reraises(tmp_path, monkeypatch, caplog):
+    """An unhandled body error records exactly one cli.failed event and re-raises."""
+    monkeypatch.setattr(_BMOD, "per_step_boundary", _PerStepSpy())
+
+    @boundary(needs="config", lock=False, journal=False, staging=False, command="boom-cmd")
+    def cmd(ctx, *, bundle: CommandContext) -> None:
+        raise RuntimeError("body boom")
+
+    with caplog.at_level(logging.ERROR, logger="cli.telemetry"):
+        with pytest.raises(RuntimeError, match="body boom"):
+            cmd(_fake_ctx(_fake_config(data_dir=tmp_path / ".data", db_path=None)))
+
+    messages = _telemetry_messages(caplog)
+    assert sum("cli.failed.boom-cmd" in m for m in messages) == 1
+
+
+def test_boundary_typer_exit_not_recorded_as_failed(tmp_path, monkeypatch, caplog):
+    """typer.Exit is deliberate control flow — no cli.failed, no cli.complete."""
+    monkeypatch.setattr(_BMOD, "per_step_boundary", _PerStepSpy())
+
+    @boundary(needs="config", lock=False, journal=False, staging=False, command="exit-cmd")
+    def cmd(ctx, *, bundle: CommandContext) -> None:
+        raise typer.Exit(3)
+
+    with caplog.at_level(logging.INFO, logger="cli.telemetry"):
+        with pytest.raises(typer.Exit) as excinfo:
+            cmd(_fake_ctx(_fake_config(data_dir=tmp_path / ".data", db_path=None)))
+
+    assert excinfo.value.exit_code == 3
+    messages = _telemetry_messages(caplog)
+    assert sum("cli.invoke.exit-cmd" in m for m in messages) == 1  # entry still recorded
+    assert not any("cli.failed.exit-cmd" in m for m in messages)  # Exit is not a failure
+    assert not any("cli.complete.exit-cmd" in m for m in messages)  # never reached clean return
+
+
+def test_double_instrumentation_records_exactly_once(tmp_path, monkeypatch, caplog):
+    """A command that is BOTH root-instrumented and boundary-wrapped records once.
+
+    Mirrors the real decorator stack: ``command_with_telemetry`` (which applies
+    ``cli_telemetry`` and is outermost) wraps a ``boundary()``-decorated command.
+    The outer ``cli_telemetry`` layer records; the inner boundary layer observes
+    the active sentinel and skips — so exactly one invoke/complete pair fires,
+    under the ROOT command name only.
+    """
+    monkeypatch.setattr(_BMOD, "per_step_boundary", _PerStepSpy())
+
+    @boundary(needs="config", lock=False, journal=False, staging=False, command="inner-name")
+    def cmd(ctx, *, bundle: CommandContext) -> None:
+        pass
+
+    # The root hook applies cli_telemetry OUTSIDE the boundary (it must be
+    # outermost — command_with_telemetry calls app.command).
+    root_wrapped = cli_telemetry("root-name")(cmd)
+
+    with caplog.at_level(logging.INFO, logger="cli.telemetry"):
+        root_wrapped(_fake_ctx(_fake_config(data_dir=tmp_path / ".data", db_path=None)))
+
+    messages = _telemetry_messages(caplog)
+    # Exactly one record, under the root name; the inner boundary layer skipped.
+    assert sum("cli.invoke.root-name" in m for m in messages) == 1
+    assert sum("cli.complete.root-name" in m for m in messages) == 1
+    assert not any("cli.invoke.inner-name" in m for m in messages)
+    assert not any("cli.complete.inner-name" in m for m in messages)
+
+
+def test_boundary_telemetry_failure_is_harmless(tmp_path, monkeypatch):
+    """A telemetry/logging error never breaks the command (fail-soft)."""
+    monkeypatch.setattr(_BMOD, "per_step_boundary", _PerStepSpy())
+
+    class _BoomLog:
+        """A structlog-like logger whose every emit raises."""
+
+        def info(self, *args: Any, **kwargs: Any) -> None:
+            raise RuntimeError("telemetry backend down")
+
+        def error(self, *args: Any, **kwargs: Any) -> None:
+            raise RuntimeError("telemetry backend down")
+
+    # The boundary records via cli_telemetry.run_with_telemetry, which emits on
+    # the module-level ``_log`` — make every emit blow up.
+    monkeypatch.setattr("personalscraper.cli_telemetry._log", _BoomLog())
+
+    ran: list[bool] = []
+
+    @boundary(needs="config", lock=False, journal=False, staging=False, command="soft-cmd")
+    def cmd(ctx, *, bundle: CommandContext) -> str:
+        ran.append(True)
+        return "body-result"
+
+    result = cmd(_fake_ctx(_fake_config(data_dir=tmp_path / ".data", db_path=None)))
+
+    assert ran == [True]  # the command body ran despite telemetry failing
+    assert result == "body-result"  # and its return value is untouched
