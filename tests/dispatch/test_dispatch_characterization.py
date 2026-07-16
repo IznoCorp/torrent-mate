@@ -15,8 +15,13 @@ where applicable:
    name.
 2. **``existing_action`` reporting** — ``"moved"`` (new), ``"replaced"``
    (movie), ``"merged"`` (TV) exactly as emitted on ``DispatchResult.action``.
-3. **Journal side-effect ASYMMETRY** — a movie *replace* writes a
-   destructive-journal ``overwrite`` row; a TV *merge* does NOT (pre-F1 state).
+3. **Journal side-effect PARITY (F1)** — a movie *replace* AND a TV
+   *merge-overwrite* each write a destructive-journal ``overwrite`` row. The two
+   TV pins encode the POST-F1 expectation and are ``xfail(strict=True)`` until
+   the P2.2/P2.3 dispatch template routes both destruction paths through the
+   shared journal call (DESIGN §6/§7 F1, plan phase-02); they flip loudly then.
+   An *add-only* merge (no episode overwritten) stays non-journaled — the trace
+   is for destructions only — so that case is deliberately not pinned here.
 4. **Orphan / tmp hygiene** — no ``_tmp_dispatch_*`` / ``.new.tmp`` /
    ``.old.tmp`` / ``.merge_backup`` residue survives a successful dispatch, and
    the staging source folder is consumed.
@@ -396,29 +401,42 @@ def test_dispatch_movie_replace_pins_destination_action_and_journal(
 
 
 # ---------------------------------------------------------------------------
-# dispatch_tvshow — merge existing (same disk); NO journal (pre-F1 asymmetry)
+# dispatch_tvshow — merge-OVERWRITE existing (same disk); journals overwrite (F1)
+#
+# Pre-F1 the TV merge path did not journal at all (movie replace did — the
+# asymmetry the P0 pin used to freeze). DESIGN §6/§7 F1 routes BOTH destruction
+# paths (movie replace + TV merge-overwrite) through the shared destructive
+# journal in the P2.2/P2.3 template. The two tests below encode that POST-F1
+# expectation and are xfail(strict=True) until the template lands — so the
+# intermediate gates stay green now, and the xfail flips loudly (xpass under
+# strict = failure) the moment P2.3 wires the journal call. Two distinct
+# destruction sub-paths are covered: a same-filename rsync overwrite and a
+# re-scrape rename purge (different filename, same season/episode key).
 # ---------------------------------------------------------------------------
 
+_F1_XFAIL_REASON = "F1: TV merge journal lands with the P2.2/P2.3 template (DESIGN §6/§7 F1, plan phase-02)"
 
-def test_dispatch_tvshow_merge_pins_destination_action_and_no_journal(
+
+@pytest.mark.xfail(strict=True, reason=_F1_XFAIL_REASON)
+def test_dispatch_tvshow_merge_overwrite_pins_destination_action_and_journal(
     char_config: Config,
     char_db_path: Path,
     char_disks: list[Path],
     tmp_path: Path,
     _rsync_available: None,
 ) -> None:
-    """Existing show is merged in place; NO destructive-journal row is written.
+    """Existing episode is OVERWRITTEN in a merge; one journal ``overwrite`` row lands.
 
-    An on-disk ``Fallout (2024)`` with ``Saison 01/episode1.mkv`` pre-exists on
-    disk1 and is seeded into the index, so ``dispatch_tvshow`` routes to merge
-    (not new). A staging copy carries a new ``S01E02`` episode. Pins:
-    destination = the existing on-disk path (same disk), action ``"merged"``,
-    the pre-existing episode preserved and the new one added, clean
-    temp/backup hygiene, and the journal side-effect ASYMMETRY vs the movie
-    replace above.
-
-    # Pins pre-F1 behaviour: TV merge is NOT journaled yet. Phase 2 (F1) flips
-    # this assertion — see DESIGN §6 F1.
+    Rewritten from the pre-F1 no-journal pin (which merged an *add-only* episode
+    and therefore destroyed nothing). Here an on-disk ``Fallout (2024)`` with
+    ``Saison 01/episode1.mkv`` pre-exists on disk1 and is seeded into the index,
+    so ``dispatch_tvshow`` routes to merge (not new). The staging copy carries a
+    ``Saison 01/episode1.mkv`` under the SAME filename with new bytes, so the
+    rsync merge OVERWRITES the on-disk episode — a genuine destruction of the
+    previous content. Pins: destination = the existing on-disk path (same disk),
+    action ``"merged"``, the episode's bytes replaced, clean temp/backup
+    hygiene, and — at parity with the movie replace above (F1) — exactly one
+    destructive ``overwrite`` row by actor ``dispatch`` for the show folder.
 
     Args:
         char_config: Dispatch-wired Config fixture.
@@ -436,7 +454,9 @@ def test_dispatch_tvshow_merge_pins_destination_action_and_no_journal(
         IndexEntry(name=name, disk="disk1", category=CID.TV_SHOWS, path=str(existing), media_type="tvshow"),
     )
 
-    source = _make_media_dir(tmp_path / "staging_src", name, {"Saison 01/S01E02 - The Target.mkv": b"y" * 4096})
+    # Same episode filename with new bytes → the rsync merge overwrites the
+    # on-disk copy, destroying the previous version (which F1 must journal).
+    source = _make_media_dir(tmp_path / "staging_src", name, {"Saison 01/episode1.mkv": b"y" * 4096})
 
     index = MediaIndex(char_db_path, event_bus=EventBus())
     dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
@@ -451,15 +471,86 @@ def test_dispatch_tvshow_merge_pins_destination_action_and_no_journal(
         "destination": f"Disk1/{tv_folder}/{name}",
         "reason": None,
     }
-    # Pre-existing episode preserved; new episode merged in; source consumed.
-    assert (existing / "Saison 01" / "episode1.mkv").exists()
-    assert (existing / "Saison 01" / "S01E02 - The Target.mkv").exists()
+    # The on-disk episode now carries the new bytes (old version destroyed);
+    # source consumed; no temp/backup residue survives.
+    assert (existing / "Saison 01" / "episode1.mkv").read_bytes() == b"y" * 4096
     assert not source.exists()
     assert _residue(char_disks[0]) == []
 
-    # Journal side-effect ASYMMETRY (pre-F1): a TV merge writes NO overwrite row,
-    # unlike the movie replace above. This is intentional here — DO NOT fix it.
-    # Phase 2 (F1) flips this to expect a journal row — see DESIGN §6 F1.
+    # F1 (flipped from the pre-F1 no-journal pin): a TV merge that OVERWRITES an
+    # existing episode records exactly one destructive ``overwrite`` row by actor
+    # ``dispatch`` for the show folder — parity with the movie replace above
+    # (DESIGN §6/§7 F1). Fails today (the TV path never journals); the P2.2/P2.3
+    # template makes it pass, at which point the strict xfail flips.
     rows = list_recent(char_db_path)
-    overwrite_rows = [r for r in rows if r["op"] == "overwrite"]
-    assert overwrite_rows == [], f"pre-F1: TV merge must NOT journal any overwrite; got {overwrite_rows}"
+    overwrite_rows = [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)]
+    assert len(overwrite_rows) == 1, f"F1: TV merge-overwrite must journal exactly one overwrite; got {rows}"
+    assert overwrite_rows[0]["actor"] == "dispatch"
+
+
+@pytest.mark.xfail(strict=True, reason=_F1_XFAIL_REASON)
+def test_dispatch_tvshow_merge_overwrite_rescrape_rename_journals(
+    char_config: Config,
+    char_db_path: Path,
+    char_disks: list[Path],
+    tmp_path: Path,
+    _rsync_available: None,
+) -> None:
+    """Re-scrape rename overwrite (same S/E key, new filename) journals one row.
+
+    New F1 regression covering the subtler destruction path: the merge's
+    ``purge_episode_conflicts`` step deletes an on-disk episode whose
+    ``(season, episode)`` key matches a source episode under a DIFFERENT
+    filename (a re-scrape swapping the localised title segment — EN ``S04E06 -
+    YOU LOOK HORRIBLE`` vs FR ``S04E06 - T'AS UNE SALE GUEULE``). The old file is
+    destroyed and replaced by the source version, so exactly one destructive
+    ``overwrite`` row must be journaled (F1) — just like the same-filename
+    overwrite above and the movie replace.
+
+    Args:
+        char_config: Dispatch-wired Config fixture.
+        char_db_path: Resolved indexer DB path shared with the dispatcher.
+        char_disks: Four fake disk roots.
+        tmp_path: Pytest temporary directory.
+        _rsync_available: Skips when rsync is missing.
+    """
+    name = "Fallout (2024)"
+    tv_folder = char_config.category(CID.TV_SHOWS).folder_name
+
+    old_ep = "Saison 01/S04E06 - YOU LOOK HORRIBLE.mkv"
+    new_ep = "Saison 01/S04E06 - T'AS UNE SALE GUEULE.mkv"
+    existing = _make_media_dir(char_disks[0] / tv_folder, name, {old_ep: b"x" * 16})
+    _seed_index(
+        char_db_path,
+        IndexEntry(name=name, disk="disk1", category=CID.TV_SHOWS, path=str(existing), media_type="tvshow"),
+    )
+
+    source = _make_media_dir(tmp_path / "staging_src", name, {new_ep: b"y" * 4096})
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    try:
+        result = dispatch_tvshow(dispatcher, source, CID.TV_SHOWS)
+    finally:
+        index.close()
+
+    assert _snapshot(result, tmp_path) == {
+        "action": "merged",
+        "disk": "disk1",
+        "destination": f"Disk1/{tv_folder}/{name}",
+        "reason": None,
+    }
+    # The old-titled episode is gone (destroyed by the conflict purge); the
+    # re-scraped filename is the sole S04E06 on disk; source consumed; clean.
+    assert not (existing / "Saison 01" / "S04E06 - YOU LOOK HORRIBLE.mkv").exists()
+    assert (existing / "Saison 01" / "S04E06 - T'AS UNE SALE GUEULE.mkv").exists()
+    assert not source.exists()
+    assert _residue(char_disks[0]) == []
+
+    # F1: the destroyed on-disk episode is journaled as exactly one ``overwrite``
+    # row by actor ``dispatch`` for the show folder. Fails today; the P2.2/P2.3
+    # template lands the journal call (DESIGN §6/§7 F1), flipping the strict xfail.
+    rows = list_recent(char_db_path)
+    overwrite_rows = [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)]
+    assert len(overwrite_rows) == 1, f"F1: re-scrape rename overwrite must journal exactly one overwrite; got {rows}"
+    assert overwrite_rows[0]["actor"] == "dispatch"
