@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 from unittest import mock
 
@@ -173,18 +174,23 @@ class TestWriteEnvKeysUpsert:
 
 
 class TestWriteEnvKeysAtomicity:
-    """The write uses a same-directory temp file + os.replace for atomicity."""
+    """The write is atomic + crash-durable via io_utils.atomic_write_text."""
 
     def test_uses_temp_file_and_os_replace(self, tmp_path: Path) -> None:
-        """The atomic write creates a .tmp file and renames it via os.replace."""
+        """The atomic write renames a same-dir ``.tmp`` onto the target once.
+
+        The write is routed through
+        :func:`personalscraper.io_utils.atomic_write_text`, which renames a
+        deterministic ``<name>.tmp`` sibling via ``os.replace``.
+        """
         env_path = tmp_path / ".env"
         env_path.write_text("OLD=value\n")
 
         real_os_replace = os.replace
         temp_files_seen: list[str] = []
 
-        def tracking_replace(src: str, dst: str) -> None:
-            temp_files_seen.append(src)
+        def tracking_replace(src: str | Path, dst: str | Path) -> None:
+            temp_files_seen.append(str(src))
             real_os_replace(src, dst)
 
         with mock.patch("os.replace", side_effect=tracking_replace):
@@ -192,7 +198,7 @@ class TestWriteEnvKeysAtomicity:
 
         assert len(temp_files_seen) == 1
         assert temp_files_seen[0].startswith(str(tmp_path))
-        assert ".env." in temp_files_seen[0]
+        assert ".env" in temp_files_seen[0]
         assert temp_files_seen[0].endswith(".tmp")
         # Verify the content actually landed.
         assert env_path.read_text() == "OLD=value\nNEW=v\n"
@@ -214,12 +220,13 @@ class TestWriteEnvKeysAtomicity:
         assert len(tmp_files) == 0
 
     def test_fsync_called_before_replace(self, tmp_path: Path) -> None:
-        """Fsync runs on the temp file BEFORE os.replace (crash safety, R25).
+        """The temp file is fsynced BEFORE os.replace (crash safety, R25).
 
-        A single merged call log records both calls in order — the previous
-        two independent mocks only asserted that both were called, so an
-        implementation replacing first and fsyncing after (data loss on a
-        crash between the two) passed unchanged.
+        Routed through io_utils, which fsyncs the temp file, renames it into
+        place, then fsyncs the parent directory — so the first fsync always
+        precedes the rename. A single merged call log records the order; an
+        implementation replacing before fsyncing (data loss on a crash
+        between the two) would fail the ordering assertion.
         """
         env_path = tmp_path / ".env"
         env_path.write_text("OLD=value\n")
@@ -231,7 +238,7 @@ class TestWriteEnvKeysAtomicity:
             call_order.append("fsync")
             real_fsync(fd)
 
-        def tracking_replace(_src: str, _dst: str) -> None:
+        def tracking_replace(_src: str | Path, _dst: str | Path) -> None:
             # Ordering-only spy — the file swap itself is irrelevant here.
             call_order.append("replace")
 
@@ -241,9 +248,21 @@ class TestWriteEnvKeysAtomicity:
         ):
             write_env_keys({"NEW": "v"}, env_path)
 
-        assert call_order.count("fsync") == 1
+        assert "fsync" in call_order
         assert call_order.count("replace") == 1
         assert call_order.index("fsync") < call_order.index("replace")
+
+    def test_env_file_is_owner_only(self, tmp_path: Path) -> None:
+        """The written .env is chmod-ed to 0o600 (secrets stay owner-only).
+
+        The shared atomic writer creates its temp world-readable (0o644);
+        write_env_keys restores 0o600 so a secrets file is never left
+        group/other-readable.
+        """
+        env_path = tmp_path / ".env"
+        write_env_keys({"SECRET": "shh"}, env_path)
+
+        assert stat.S_IMODE(env_path.stat().st_mode) == 0o600
 
 
 # ---------------------------------------------------------------------------

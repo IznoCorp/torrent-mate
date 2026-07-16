@@ -63,6 +63,7 @@ from personalscraper.conf.loader import (
 )
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError
+from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import is_staging_role, require_x_requested_with
 from personalscraper.web.models.config import (
@@ -692,8 +693,9 @@ def put_file(
        with Pydantic error loc paths on failure (no backup created).
     5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to
        10 most recent per file name.
-    6. Atomic write via temp file + ``os.replace`` + ``fsync``,
-       serialized with a module-level ``threading.Lock``.
+    6. Atomic, crash-durable write via
+       :func:`~personalscraper.io_utils.atomic_write_text` (chmod-ed back to
+       ``0o600``), serialized with a module-level ``threading.Lock``.
     7. Return 200 with warnings and restart-required flag.
 
     Args:
@@ -784,16 +786,16 @@ def put_file(
         )
         content = header + json5.dumps(body.values, indent=2) + "\n"
 
-        fd, tmp_name = tempfile.mkstemp(dir=str(config_dir), prefix=f".{name}.", suffix=".tmp")
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(content)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_name, str(file_path))
+            atomic_write_text(file_path, content)
+            # The shared writer creates its temp at 0o644; preserve the prior
+            # mkstemp(0o600) owner-only mode on the config overlay.
+            os.chmod(file_path, 0o600)
         except BaseException:
+            # atomic_write_text leaves its "<name>.tmp" behind only if the
+            # write itself fails; drop it so no orphan temp file remains.
             with contextlib.suppress(OSError):
-                os.unlink(tmp_name)
+                os.unlink(file_path.with_suffix(file_path.suffix + ".tmp"))
             raise
 
         # Register a pre-write hash entry for files absent from the boot
@@ -907,9 +909,10 @@ def put_secrets(
     env_path = repo_root / ".env"
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
     # R10: serialize the .env read-modify-write under the same module lock as
-    # PUT /files. write_env_keys reads .env, upserts, and os.replace()s; two
-    # concurrent PUT /secrets would otherwise each read the same pre-write .env
-    # and the second replace would silently drop the first request's key.
+    # PUT /files. write_env_keys reads .env, upserts, and atomically rewrites
+    # it; two concurrent PUT /secrets would otherwise each read the same
+    # pre-write .env and the second write would silently drop the first
+    # request's key.
     with _write_lock:
         write_env_keys(body.root, env_path)
 
