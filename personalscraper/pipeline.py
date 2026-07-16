@@ -205,10 +205,18 @@ class Pipeline:
     ) -> int:
         """Clean up artifacts from a previous interrupted pipeline run.
 
-        Runs at pipeline startup before INGEST. Handles:
-        1. Orphan _tmp_dispatch_* directories on storage disks
-        2. Expired qBit auth lockout file (>1 hour)
-        3. Orphan .ingest_tmp_* directories in staging
+        Runs ONCE at pipeline startup (before INGEST) as the single owner of
+        crash-recovery orphan cleanup (PIPELINE-CORE-07). Delegates to
+        :func:`personalscraper.dispatch.crash_recovery.sweep_orphans` over the
+        union of roots:
+
+        1. Every storage disk AND the staging tree — ``_tmp_dispatch_*`` staging
+           dirs and ``.merge_backup/`` restore snapshots.
+        2. The ingest directory — ``.ingest_tmp_*`` copy stages.
+        3. The stale qBit auth-lockout file (>1 hour).
+
+        Because boot owns the sweep, the ingest and dispatch steps pass
+        ``recover_orphans=False`` during a full run, so no sweep runs twice.
 
         Args:
             lockout_path: Override lockout file path (for testing).
@@ -217,55 +225,26 @@ class Pipeline:
         Returns:
             Number of artifacts cleaned.
         """
-        import shutil
-        from pathlib import Path as _Path
+        from personalscraper.dispatch.crash_recovery import (
+            DryRunPolicy,
+            RootKind,
+            SweepRoot,
+            sweep_orphans,
+        )
 
-        from personalscraper.ingest.ingest import _cleanup_orphan_temps
-
-        cleaned = 0
-
-        # 1. Clean _tmp_dispatch_* on ALL storage disks
-        for disk_config in self.config.disks:
-            if not disk_config.path.exists():
-                continue
-            try:
-                for category_dir in disk_config.path.iterdir():
-                    if not category_dir.is_dir():
-                        continue
-                    for item in category_dir.iterdir():
-                        if item.name.startswith("_tmp_dispatch_"):
-                            try:
-                                shutil.rmtree(item)
-                                self._log.info("crash_recovery_dispatch_orphan", path=str(item))
-                                cleaned += 1
-                            except OSError as exc:
-                                self._log.warning(
-                                    "crash_recovery_cannot_clean",
-                                    path=str(item),
-                                    error=str(exc),
-                                )
-            except OSError as exc:
-                self._log.warning("crash_recovery_cannot_scan_disk", path=str(disk_config.path), error=str(exc))
-                continue
-
-        # 2. Clean expired qBit lockout
         if lockout_path is None:
-            lockout_path = _Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
-        if lockout_path.exists():
-            try:
-                age = time.time() - lockout_path.stat().st_mtime
-                if age > 3600:
-                    lockout_path.unlink(missing_ok=True)
-                    self._log.info("crash_recovery_lockout_cleaned", age_s=int(age))
-                    cleaned += 1
-            except OSError as exc:
-                self._log.warning("crash_recovery_cannot_clean_lockout", path=str(lockout_path), error=str(exc))
+            lockout_path = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
 
-        # 3. Clean .ingest_tmp_* in staging
-        ingest_dir = staging_path(self.config, find_ingest_dir(self.config))
-        if ingest_dir.exists():
-            cleaned += _cleanup_orphan_temps(ingest_dir)
+        roots: list[SweepRoot] = [
+            SweepRoot(disk_config.path, RootKind.MEDIA_TREE, DryRunPolicy.REPORT) for disk_config in self.config.disks
+        ]
+        roots.append(SweepRoot(self.config.paths.staging_dir, RootKind.MEDIA_TREE, DryRunPolicy.SKIP))
+        roots.append(SweepRoot(staging_path(self.config, find_ingest_dir(self.config)), RootKind.INGEST_DIR))
+        roots.append(SweepRoot(lockout_path, RootKind.LOCKOUT_FILE))
 
+        # Boot recovery always applies real cleanup (guarded to non-dry-run runs
+        # by the caller); dry_run=False.
+        cleaned = sweep_orphans(roots, dry_run=False)
         if cleaned:
             self._log.info("crash_recovery_done", cleaned=cleaned)
         return cleaned

@@ -28,6 +28,7 @@ from personalscraper.config import Settings
 from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
 from personalscraper.dispatch import _movie, _transfer, _tv
 from personalscraper.dispatch._types import DispatchError, DispatchResult
+from personalscraper.dispatch.crash_recovery import DISPATCH_TMP_PREFIX
 from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability, resolve_capability
@@ -134,78 +135,16 @@ class Dispatcher:
     # Internal helpers (kept inline -- orchestrator-level logic)
     # ------------------------------------------------------------------
 
-    def _cleanup_orphan_temps(self) -> int:
-        """Clean up orphan temporary directories from previous failed runs.
-
-        Scans all storage disks for ``_tmp_dispatch_*`` and ``.merge_backup/``
-        directories that were left behind by interrupted dispatch operations.
-
-        Honors :attr:`dry_run`: when True, every orphan is reported via
-        ``orphan_*_found_dry_run`` log events but no destructive action is
-        taken.  This guarantees ``personalscraper dispatch --dry-run`` is
-        actually side-effect-free.
-
-        Returns:
-            Number of orphan directories cleaned up (or, in dry-run mode,
-            the number that *would have been* cleaned).
-        """
-        cleaned = 0
-        for config in self._disk_configs:
-            if not config.path.exists():
-                continue
-            try:
-                category_dirs = list(config.path.iterdir())
-            except OSError as e:
-                log.warning("orphan_scan_failed", disk=config.id, error=str(e))
-                continue
-            for category_dir in category_dirs:
-                if not category_dir.is_dir():
-                    continue
-                try:
-                    items = list(category_dir.iterdir())
-                except OSError as e:
-                    log.warning("orphan_scan_failed", path=str(category_dir), error=str(e))
-                    continue
-                for item in items:
-                    if not item.is_dir():
-                        continue
-                    # Clean _tmp_dispatch_* orphans
-                    if item.name.startswith("_tmp_dispatch_"):
-                        if self.dry_run:
-                            log.warning("orphan_tmp_found_dry_run", path=str(item))
-                            cleaned += 1
-                        else:
-                            log.warning("orphan_tmp_found", path=str(item))
-                            try:
-                                _transfer.force_rmtree(item)
-                                cleaned += 1
-                            except OSError as e:
-                                log.error("orphan_tmp_cleanup_failed", path=str(item), error=str(e))
-                    # Clean .merge_backup/ orphans inside media dirs
-                    backup = item / ".merge_backup"
-                    if backup.exists():
-                        if self.dry_run:
-                            log.warning("orphan_backup_found_dry_run", path=str(backup))
-                            cleaned += 1
-                        else:
-                            log.warning("orphan_backup_found", path=str(backup))
-                            try:
-                                _transfer.force_rmtree(backup)
-                                cleaned += 1
-                            except OSError as e:
-                                log.error("orphan_backup_cleanup_failed", path=str(backup), error=str(e))
-        if cleaned:
-            log.info("orphans_cleaned", count=cleaned, dry_run=self.dry_run)
-        return cleaned
-
     def process(
         self,
         verified: list[VerifyResult],
     ) -> list[DispatchResult]:
         """Process verified media items for dispatch.
 
-        Cleans up orphan temp directories from previous runs before
-        dispatching each item to the appropriate storage disk.
+        Orphan-temp recovery is the single-owner crash-recovery sweep
+        (:func:`personalscraper.dispatch.crash_recovery.sweep_orphans`),
+        driven once per run by the caller (pipeline boot / ``run_dispatch``)
+        rather than here — this method only moves the verified items.
 
         Args:
             verified: List of VerifyResult from the verify step.
@@ -213,9 +152,6 @@ class Dispatcher:
         Returns:
             List of DispatchResult for each item.
         """
-        # Clean up orphan temp dirs from previous failed runs
-        self._cleanup_orphan_temps()
-
         results: list[DispatchResult] = []
 
         for vr in verified:
@@ -449,7 +385,7 @@ class Dispatcher:
     ) -> bool:
         """Move a new media item to disk via staging->commit pattern.
 
-        Writes to a temporary directory first (_tmp_dispatch_{name}),
+        Writes to a temporary directory first (``DISPATCH_TMP_PREFIX`` + name),
         then atomically renames to the final destination. If rsync
         fails, the temp directory is cleaned up and the disk is left
         in a consistent state.
@@ -464,7 +400,7 @@ class Dispatcher:
         Returns:
             True if successful.
         """
-        tmp_dir = dest.parent / f"_tmp_dispatch_{dest.name}"
+        tmp_dir = dest.parent / f"{DISPATCH_TMP_PREFIX}{dest.name}"
 
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)

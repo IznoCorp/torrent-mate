@@ -409,7 +409,7 @@ def test_run_dispatch_emits_item_progressed_per_item(
         "personalscraper.dispatch.run.Dispatcher",
         lambda **_kw: MagicMock(process=lambda **_k: [fake_result]),
     )
-    monkeypatch.setattr("personalscraper.dispatch.run._cleanup_staging_orphans", lambda *_a, **_k: 0)
+    monkeypatch.setattr("personalscraper.dispatch.run._sweep_dispatch_orphans", lambda *_a, **_k: 0)
 
     config = MagicMock()
     config.paths.staging_dir = tmp_path

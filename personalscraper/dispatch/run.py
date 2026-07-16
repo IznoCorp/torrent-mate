@@ -8,17 +8,16 @@ staging_dir is passed explicitly from Config.paths; Settings no longer
 carries disk paths.
 """
 
-import shutil
 from dataclasses import asdict
 from pathlib import Path
 
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
 from personalscraper.core.event_bus import EventBus
-from personalscraper.core.media_types import FileType
 from personalscraper.dispatch._types import DispatchResult
+from personalscraper.dispatch.crash_recovery import DryRunPolicy, RootKind, SweepRoot, sweep_orphans
+from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
@@ -31,50 +30,41 @@ from personalscraper.verify.verifier import VerifyResult
 log = get_logger("dispatch_run")
 
 
-def _cleanup_staging_orphans(settings: Settings, config: Config, staging_dir: Path) -> int:
-    """Remove orphaned dispatch temp dirs from staging categories.
+def _sweep_dispatch_orphans(
+    config: Config,
+    staging_dir: Path,
+    *,
+    dry_run: bool,
+    recover_orphans: bool,
+) -> int:
+    """Sweep dispatch orphans via the single-owner crash-recovery sweep.
 
-    Cleans up _tmp_dispatch_* directories and .merge_backup/
-    subdirectories that were left behind by interrupted dispatches.
+    Standalone ``personalscraper dispatch`` (``recover_orphans=True``) is the
+    dispatch step's own crash-recovery entry point, so it sweeps both the
+    staging categories (``.merge_backup/`` + ``_tmp_dispatch_*``) and the
+    storage disks. In a full pipeline run the boot-time
+    :meth:`Pipeline._recover_from_previous_run` already owns that sweep, so the
+    :class:`~personalscraper.pipeline_steps.DispatchStep` passes
+    ``recover_orphans=False`` and this returns 0 (no double-execution).
+
+    Staging roots carry ``SKIP`` (invisible in dry-run, matching the historical
+    ``_cleanup_staging_orphans`` gate); storage roots carry ``REPORT`` so
+    ``dispatch --dry-run`` stays side-effect-free yet lists what it would clean.
 
     Args:
-        settings: Pipeline configuration (provides dir name attributes).
-        config: Application config for category-based dir name resolution.
-        staging_dir: Absolute path to the staging area (from Config.paths).
+        config: Application config providing the storage disks.
+        staging_dir: Absolute path to the staging area (from ``Config.paths``).
+        dry_run: Whether the dispatch step is a preview.
+        recover_orphans: When False, boot already swept — do nothing.
 
     Returns:
-        Number of orphan directories removed.
+        Number of orphan directories removed (or counted in dry-run REPORT).
     """
-    cleaned = 0
-    staging = staging_dir
-    for dir_name in (
-        folder_name(find_by_file_type(config, FileType.MOVIE)),
-        folder_name(find_by_file_type(config, FileType.TVSHOW)),
-    ):
-        cat_dir = staging / dir_name
-        if not cat_dir.exists():
-            continue
-        for item in cat_dir.iterdir():
-            if not item.is_dir():
-                continue
-            # Clean _tmp_dispatch_* orphans
-            if item.name.startswith("_tmp_dispatch_"):
-                try:
-                    shutil.rmtree(item)
-                    log.warning("staging_orphan_cleaned", name=item.name)
-                    cleaned += 1
-                except OSError as exc:
-                    log.warning("staging_orphan_cleanup_failed", name=item.name, error=str(exc))
-            # Clean .merge_backup/ inside media dirs
-            backup = item / ".merge_backup"
-            if backup.exists() and backup.is_dir():
-                try:
-                    shutil.rmtree(backup)
-                    log.warning("staging_backup_cleaned", media=item.name, backup=backup.name)
-                    cleaned += 1
-                except OSError as exc:
-                    log.warning("staging_backup_cleanup_failed", path=str(backup), error=str(exc))
-    return cleaned
+    if not recover_orphans:
+        return 0
+    roots = [SweepRoot(staging_dir, RootKind.MEDIA_TREE, DryRunPolicy.SKIP)]
+    roots.extend(SweepRoot(disk.path, RootKind.MEDIA_TREE, DryRunPolicy.REPORT) for disk in get_disk_configs(config))
+    return sweep_orphans(roots, dry_run=dry_run)
 
 
 def run_dispatch(
@@ -86,6 +76,7 @@ def run_dispatch(
     event_bus: EventBus,
     permit: DeletePermit = AllowAllPermit(),
     recorder: SeedObligationRecorder = AllowAllPermit(),
+    recover_orphans: bool = True,
 ) -> tuple[StepReport, list[DispatchResult]]:
     """Run the dispatch pipeline step.
 
@@ -103,6 +94,10 @@ def run_dispatch(
             :class:`Dispatcher` (default: ``AllowAllPermit`` — always permit).
         recorder: Injected :class:`SeedObligationRecorder` forwarded to
             :class:`Dispatcher` (default: ``AllowAllPermit`` — no-op).
+        recover_orphans: When True (standalone dispatch), run the crash-recovery
+            orphan sweep before dispatching. The full-run
+            :class:`~personalscraper.pipeline_steps.DispatchStep` passes False
+            because boot already swept once per run (PIPELINE-CORE-07).
 
     Returns:
         ``(StepReport, list[DispatchResult])`` — the step report with
@@ -116,10 +111,10 @@ def run_dispatch(
     index_path = config.indexer.db_path
     assert index_path is not None, "indexer.db_path must be resolved"
 
-    # Clean orphaned temp dirs from staging area
-    cleaned = 0
-    if not dry_run:
-        cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
+    # Crash-recovery orphan sweep (single owner). Standalone dispatch owns its
+    # own sweep; inside a full pipeline run boot already swept
+    # (``recover_orphans=False`` ⇒ no double-execution).
+    cleaned = _sweep_dispatch_orphans(config, staging_dir, dry_run=dry_run, recover_orphans=recover_orphans)
 
     report = StepReport(name="dispatch")
 
@@ -141,8 +136,6 @@ def run_dispatch(
             # Dry-run rebuilds are wrapped in a savepoint and rolled back so
             # preview commands never persist cache mutations.
             if index.count == 0:
-                from personalscraper.dispatch.disk_scanner import get_disk_configs
-
                 disk_configs = get_disk_configs(config)
                 count = index.rebuild(disk_configs, categories=config.categories)
                 event = "index_rebuilt_on_empty_preview" if dry_run else "index_rebuilt_on_empty"

@@ -162,30 +162,28 @@ def _verify_transfer(source: Path, dest: Path) -> bool:
     return _get_dir_size(source) == _get_dir_size(dest)
 
 
-def _cleanup_orphan_temps(staging_dir: Path) -> int:
-    """Remove orphaned .ingest_tmp_* directories from interrupted runs.
+def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: bool) -> int:
+    """Sweep ``.ingest_tmp_*`` orphans via the single-owner crash-recovery sweep.
+
+    Standalone ``personalscraper ingest`` (``recover_orphans=True``) owns its
+    own crash-recovery sweep of the ingest dir. In a full pipeline run boot
+    already swept it once (the :class:`~personalscraper.pipeline_steps.IngestStep`
+    passes ``recover_orphans=False``), so this is a no-op — no double-execution.
 
     Args:
-        staging_dir: The staging directory to scan.
+        ingest_dir: The ingest directory to sweep.
+        dry_run: Whether the ingest step is a preview (sweep is SKIP-in-dry-run).
+        recover_orphans: When False, boot already swept — do nothing.
 
     Returns:
         Number of orphaned temp directories removed.
     """
-    cleaned = 0
-    try:
-        entries = list(staging_dir.iterdir())
-    except OSError as e:
-        log.warning("cannot_scan_for_orphans", path=str(staging_dir), error=str(e))
+    if not recover_orphans:
         return 0
-    for item in entries:
-        if item.name.startswith(STAGING_TMP_PREFIX) and item.is_dir():
-            try:
-                shutil.rmtree(item)
-                log.info("orphan_cleaned", path=str(item))
-                cleaned += 1
-            except OSError as e:
-                log.warning("orphan_cleanup_failed", path=str(item), error=str(e))
-    return cleaned
+    # Imported lazily to avoid a dispatch↔ingest import cycle at module load.
+    from personalscraper.dispatch.crash_recovery import RootKind, SweepRoot, sweep_orphans
+
+    return sweep_orphans([SweepRoot(ingest_dir, RootKind.INGEST_DIR)], dry_run=dry_run)
 
 
 def _check_disk_space(staging_dir: Path, required_bytes: int, min_free_gb: int) -> bool:
@@ -273,6 +271,7 @@ def run_ingest(
     event_bus: EventBus,
     torrent_client: QBitClient | TransmissionClient | None = None,
     seed_checker: SeedObligationChecker | None = None,
+    recover_orphans: bool = True,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -298,6 +297,10 @@ def run_ingest(
             port). Drives the fail-safe copy-vs-move decision (§7 HnR): a
             paused torrent that still owes a seed is copied, not moved. ``None``
             ⇒ the decision relies on the live seeding probe alone.
+        recover_orphans: When True (standalone ingest), sweep ``.ingest_tmp_*``
+            orphans before ingesting. The full-run
+            :class:`~personalscraper.pipeline_steps.IngestStep` passes False
+            because boot already swept once per run (PIPELINE-CORE-07).
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -319,9 +322,10 @@ def run_ingest(
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
     resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
 
-    # Clean orphaned temp dirs from interrupted runs
-    if not dry_run:
-        _cleanup_orphan_temps(resolved_ingest_dir)
+    # Crash-recovery orphan sweep (single owner). Standalone ingest owns its
+    # own sweep; inside a full pipeline run boot already swept
+    # (``recover_orphans=False`` ⇒ no double-execution).
+    _sweep_ingest_orphans(resolved_ingest_dir, dry_run=dry_run, recover_orphans=recover_orphans)
 
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured

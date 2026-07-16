@@ -15,9 +15,9 @@ import pytest
 from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import (
     _check_disk_space,
-    _cleanup_orphan_temps,
     _get_dir_size,
     _is_orphan_tracker_entry,
+    _sweep_ingest_orphans,
     _verify_transfer,
     run_ingest,
     transfer_torrent,
@@ -120,8 +120,12 @@ class TestVerifyTransfer:
         assert _verify_transfer(src, dst) is False
 
 
-class TestCleanupOrphanTemps:
-    """Tests for _cleanup_orphan_temps helper."""
+class TestSweepIngestOrphans:
+    """Tests for the ingest ``_sweep_ingest_orphans`` adapter.
+
+    The sweep LOGIC is pinned in tests/dispatch/test_crash_recovery.py
+    (TestIngestDirSweep); these assert the ingest-step adapter's wiring.
+    """
 
     def test_cleanup_orphan(self, tmp_path: Path) -> None:
         """Should remove .ingest_tmp_* directories."""
@@ -129,7 +133,7 @@ class TestCleanupOrphanTemps:
         orphan.mkdir()
         (orphan / "file.mkv").write_bytes(b"\x00" * 100)
 
-        removed = _cleanup_orphan_temps(tmp_path)
+        removed = _sweep_ingest_orphans(tmp_path, dry_run=False, recover_orphans=True)
 
         assert removed == 1
         assert not orphan.exists()
@@ -139,10 +143,20 @@ class TestCleanupOrphanTemps:
         normal = tmp_path / "Movie (2024)"
         normal.mkdir()
 
-        removed = _cleanup_orphan_temps(tmp_path)
+        removed = _sweep_ingest_orphans(tmp_path, dry_run=False, recover_orphans=True)
 
         assert removed == 0
         assert normal.exists()
+
+    def test_recover_orphans_false_is_noop(self, tmp_path: Path) -> None:
+        """The full-run path (recover_orphans=False) never sweeps — boot owns it."""
+        orphan = tmp_path / ".ingest_tmp_Movie"
+        orphan.mkdir()
+
+        removed = _sweep_ingest_orphans(tmp_path, dry_run=False, recover_orphans=False)
+
+        assert removed == 0
+        assert orphan.exists()  # untouched — boot's sweep is the single owner
 
 
 class TestCheckDiskSpace:
@@ -593,7 +607,7 @@ class TestRunIngest:
         mock_tracker_cls: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Dry run should not call _cleanup_orphan_temps or mark ingested."""
+        """Dry run should not sweep ingest orphans or mark ingested."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
 
@@ -1233,47 +1247,9 @@ class TestHelperEdgeCases:
         events = [r.msg for r in caplog.records if isinstance(r.msg, dict)]
         assert any(e.get("event") == "cannot_scan_dir" for e in events)
 
-    def test_cleanup_orphan_temps_iterdir_failure_returns_zero(
-        self,
-        tmp_path: Path,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        """When iterdir() fails, _cleanup_orphan_temps logs and returns 0.
-
-        Covers lines 163-165 (the OSError branch).
-        """
-        from unittest.mock import patch
-
-        with patch.object(Path, "iterdir", side_effect=OSError("denied")):
-            with caplog.at_level(logging.WARNING, logger="ingest"):
-                removed = _cleanup_orphan_temps(tmp_path)
-
-        assert removed == 0
-        events = [r.msg for r in caplog.records if isinstance(r.msg, dict)]
-        assert any(e.get("event") == "cannot_scan_for_orphans" for e in events)
-
-    def test_cleanup_orphan_rmtree_failure_logs_warning(
-        self,
-        tmp_path: Path,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        """When shutil.rmtree fails, the helper logs and continues.
-
-        Covers lines 172-173 (the ``orphan_cleanup_failed`` branch).
-        """
-        from unittest.mock import patch
-
-        orphan = tmp_path / ".ingest_tmp_X"
-        orphan.mkdir()
-
-        with patch("personalscraper.ingest.ingest.shutil.rmtree", side_effect=OSError("locked")):
-            with caplog.at_level(logging.WARNING, logger="ingest"):
-                removed = _cleanup_orphan_temps(tmp_path)
-
-        # rmtree failed → not counted as cleaned
-        assert removed == 0
-        events = [r.msg for r in caplog.records if isinstance(r.msg, dict)]
-        assert any(e.get("event") == "orphan_cleanup_failed" for e in events)
+    # Ingest-orphan iterdir/rmtree OSError branches moved to the single-owner
+    # sweep: tests/dispatch/test_crash_recovery.py::TestIngestDirSweep
+    # (test_iterdir_oserror_caught) + TestMediaTreeSweep::test_rmtree_oserror_caught.
 
     def test_transfer_torrent_size_mismatch_cleans_temp(self, tmp_path: Path) -> None:
         """transfer_torrent rolls back the .ingest_tmp_ dir on size mismatch.

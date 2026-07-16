@@ -100,6 +100,9 @@ class IngestStep:
             event_bus=ctx.app.event_bus,
             torrent_client=ctx.app.torrent_client,
             seed_checker=seed_checker,
+            # Boot's _recover_from_previous_run owns the once-per-run orphan
+            # sweep (PIPELINE-CORE-07) — don't sweep again here.
+            recover_orphans=False,
         )
 
 
@@ -334,6 +337,9 @@ class DispatchStep:
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
             event_bus=ctx.app.event_bus,
+            # Boot's _recover_from_previous_run owns the once-per-run orphan
+            # sweep (PIPELINE-CORE-07) — don't sweep again here.
+            recover_orphans=False,
             **resolve_dispatch_authority(ctx.app),
         )
 
