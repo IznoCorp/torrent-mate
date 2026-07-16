@@ -15,7 +15,10 @@ rg -l "os\.replace" -t py personalscraper/ -g '!io_utils.py' -g '!core/**' -g '!
 python -c "import personalscraper" && echo IMPORT-OK
 
 # Partial ACC-09 (final assertion in P13); confirm the non-moving sites are converted
-rg -n "os\.replace" -t py personalscraper/conf/envfile.py personalscraper/ingest/tracker.py personalscraper/web/routes/config.py personalscraper/api/metadata/_omdb_quota.py  # 0
+rg -n "os\.replace" -t py personalscraper/conf/envfile.py personalscraper/ingest/tracker.py personalscraper/web/routes/config.py  # 0
+# _omdb_quota.py: plan correction (P3.8) — its remaining os.replace :292 is a corrupt-state
+# QUARANTINE RENAME (a move, not an atomic write); its write path already uses atomic_write_json.
+# It stays. P13's ACC-09 allowlist must include this site.
 ```
 
 ## Objective

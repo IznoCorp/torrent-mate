@@ -19,7 +19,7 @@
 | 0 | Worktree safety net + gate parity | phase-00-safety-net.md | [x] |
 | 1 | Pipeline step-spec + shared reporter (T2) | phase-01-step-spec.md | [x] |
 | 2 | Dispatch item template + journal parity (T3) | phase-02-dispatch-template.md | [x] |
-| 3 | CLI boundary + composition root (T7) | phase-03-cli-boundary.md | [ ] |
+| 3 | CLI boundary + composition root (T7) | phase-03-cli-boundary.md | [x] |
 | 4 | Scraper flow unification (T1) | phase-04-scraper-unification.md | [ ] |
 | 5 | Completeness read-model (T4) | phase-05-completeness-readmodel.md | [ ] |
 | 6 | Trailers ownership + single truth (T5) | phase-06-trailers.md | [ ] |
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-2 done. Next: phase 3 (CLI boundary + composition root, T7). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-3 done. Next: phase 4 (scraper flow unification, T1 — the XL seam). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
