@@ -442,11 +442,12 @@ DEFAULT_STEPS: dict[str, PipelineStep] = {
 class StepSpecError(Exception):
     """Raised at import when :data:`STEP_SPECS` disagrees with its sources of truth.
 
-    The spec list is validated against the step registry (:data:`DEFAULT_STEPS`),
-    the typed report contract (:data:`STEP_REPORT_CONTRACT`), and the web stage
-    catalog (``STEP_TO_STAGE``). A drift — a typo'd step name, a wrong payload
-    type, a spec/registry mismatch — fails loud at module load rather than at
-    the first pipeline run.
+    The spec list is validated against the step registry (:data:`DEFAULT_STEPS`)
+    and the typed report contract (:data:`STEP_REPORT_CONTRACT`). Agreement with
+    the web stage catalog (``STEP_TO_STAGE``) is enforced at test tier — the
+    engine must never import ``personalscraper.web`` (layering rule, DESIGN §9).
+    A drift — a typo'd step name, a wrong payload type, a spec/registry mismatch
+    — fails loud at module load rather than at the first pipeline run.
     """
 
 
@@ -555,13 +556,16 @@ def _validate_step_specs(
     steps: Mapping[str, PipelineStep],
     contract: Mapping[str, type],
 ) -> None:
-    """Validate :data:`STEP_SPECS` against its three sources of truth.
+    """Validate :data:`STEP_SPECS` against its two engine-internal sources of truth.
 
     Invoked once at import so a malformed spec list fails loud at module load.
     Checks: no duplicate names; the spec order/set equals the step registry;
-    every spec name is in the web stage catalog (the SoT for step names, kept
-    unaltered — we only read it) AND in the typed report contract; the declared
+    every spec name is in the typed report contract; the declared
     ``payload_type`` matches the contract; the ``adapter`` is the registry's.
+
+    Agreement with the web stage catalog (``STEP_TO_STAGE``) is enforced at
+    test tier, not at import time — the engine must never import
+    ``personalscraper.web`` (layering rule, DESIGN §9).
 
     Args:
         specs: The ordered spec list (normally :data:`STEP_SPECS`).
@@ -571,21 +575,12 @@ def _validate_step_specs(
     Raises:
         StepSpecError: On any disagreement between the sources.
     """
-    # The web stage catalog is the single source of truth for step names
-    # (DESIGN §T2). Imported inside the validator (not at module top) so
-    # pipeline_steps' top-level imports stay engine-only and this one
-    # intentional read of the web taxonomy is localised. No import cycle: the
-    # web app never imports pipeline_steps at module scope.
-    from personalscraper.web.staging.stages import STEP_TO_STAGE
-
     names = [spec.name for spec in specs]
     if len(names) != len(set(names)):
         raise StepSpecError(f"STEP_SPECS has duplicate step names: {names}")
     if names != list(steps):
         raise StepSpecError(f"STEP_SPECS must mirror DEFAULT_STEPS order/set: specs={names}, registry={list(steps)}")
     for spec in specs:
-        if spec.name not in STEP_TO_STAGE:
-            raise StepSpecError(f"step {spec.name!r} is not in the web stage catalog (STEP_TO_STAGE)")
         if spec.name not in contract:
             raise StepSpecError(f"step {spec.name!r} is not in STEP_REPORT_CONTRACT")
         if spec.payload_type is not contract[spec.name]:

@@ -140,12 +140,17 @@ class TestValidateStepSpecs:
         with pytest.raises(StepSpecError, match="mirror DEFAULT_STEPS"):
             _validate_step_specs(reordered, DEFAULT_STEPS, STEP_REPORT_CONTRACT)
 
-    def test_name_absent_from_stage_catalog_raises(self) -> None:
-        """A spec name unknown to the web stage catalog raises."""
+    def test_name_absent_from_contract_raises(self) -> None:
+        """A spec name unknown to STEP_REPORT_CONTRACT raises (engine-internal guard).
+
+        The web stage catalog agreement is enforced at test tier
+        (``TestStepSpecStageCatalogAgreement``) — the import-time validator
+        only checks the engine-internal registries (layering rule, DESIGN §9).
+        """
         adapter = DEFAULT_STEPS["ingest"]
         specs = [StepSpec("bogus", adapter, payload_type=IngestDetails)]
-        with pytest.raises(StepSpecError, match="stage catalog"):
-            _validate_step_specs(specs, {"bogus": adapter}, {"bogus": IngestDetails})
+        with pytest.raises(StepSpecError, match="STEP_REPORT_CONTRACT"):
+            _validate_step_specs(specs, {"bogus": adapter}, {})
 
     def test_payload_type_mismatch_raises(self) -> None:
         """A payload type that disagrees with the contract raises."""
