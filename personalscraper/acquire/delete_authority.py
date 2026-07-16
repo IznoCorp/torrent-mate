@@ -392,6 +392,7 @@ class DeleteAuthority:
         # detect/grab is the safety net).
         try:
             closed = self._store.wanted.mark_done_by_hash(item.hash)
+            retired: set[int] = set()
             for row in closed:
                 log.info(
                     "acquire.record_dispatch.wanted_closed",
@@ -401,6 +402,12 @@ class DeleteAuthority:
                     episode=row.episode,
                     info_hash=item.hash,
                 )
+                # D2-A — a followed FILM whose content just landed leaves the
+                # follow list HERE, not at the next nightly detect sweep. Only
+                # movies (a series continues); once per followed_id.
+                if row.kind == "movie" and row.followed_id is not None and row.followed_id not in retired:
+                    self._retire_acquired_film(row.followed_id)
+                    retired.add(row.followed_id)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
             log.warning(
                 "acquire.record_dispatch.wanted_close_failed",
@@ -464,6 +471,36 @@ class DeleteAuthority:
             tracker=tracker_name,
             dispatched_dest=str(dispatched_dest),
         )
+
+    def _retire_acquired_film(self, followed_id: int) -> None:
+        """Retire a followed film whose content just landed (D2-A) — fail-soft.
+
+        Mirrors the detect-time ownership closure but fires at dispatch, so a
+        followed film leaves the follow list the moment its media is placed in
+        the library instead of waiting for the next nightly detect sweep. The
+        retirement is traced by ``acquire.record_dispatch.film_unfollowed`` and
+        is visible in the followed list (§8 rien en silence); the live
+        ``FilmAcquired`` feed toast still fires from the detect path for films
+        the info-hash correlation misses (scraped/renamed movies) — a bus is
+        deliberately NOT injected here (that would force a required-bus on every
+        DeletePermit construction, per the Phase 5.2 architecture contract). Any
+        store error is logged and swallowed — a dispatch must never fail because
+        a follow could not be retired.
+
+        Args:
+            followed_id: The ``followed_series`` rowid to deactivate.
+        """
+        assert self._store is not None  # noqa: S101 — guarded by record_dispatch
+        try:
+            self._store.follow.set_active(followed_id, False)
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
+            log.warning(
+                "acquire.record_dispatch.film_unfollow_failed",
+                followed_id=followed_id,
+                error=str(exc),
+            )
+            return
+        log.info("acquire.record_dispatch.film_unfollowed", followed_id=followed_id)
 
     def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
         """Resolve the source tracker for *item* from its tags and the economy map.

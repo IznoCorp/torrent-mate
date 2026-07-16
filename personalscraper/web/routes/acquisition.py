@@ -137,12 +137,21 @@ def get_followed(
     """
     from personalscraper.core.identity import MediaRef  # noqa: PLC0415 — route-local, avoids web-boot cost
     from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
-    from personalscraper.web.acquisition.truth import FollowTruth, compute_follow_truth  # noqa: PLC0415
+    from personalscraper.web.acquisition.truth import (  # noqa: PLC0415
+        FollowTruth,
+        compute_follow_truth,
+        compute_movie_truth,
+    )
 
     db_path = request.app.state.config.acquire.db_path
     if db_path is None or not Path(db_path).exists():
         return FollowedResponse(items=[])
 
+    # The library ownership checker holds a live library.db connection; open it
+    # lazily (only when a row has a usable provider ref) and close it in the
+    # finally so it never leaks — films now open it far more often than the
+    # former shows-only path did.
+    ownership_checker: IndexerOwnershipChecker | None = None
     try:
         with closing(sqlite3.connect(str(db_path))) as conn:
             apply_pragmas(conn)
@@ -175,7 +184,6 @@ def get_followed(
                     timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
 
             items: list[FollowedSeriesItem] = []
-            ownership_checker: IndexerOwnershipChecker | None = None
             for row in rows:
                 # COUNT wanted pending for this series.
                 pending = conn.execute(
@@ -210,21 +218,27 @@ def get_followed(
                     effective = effective_cadence(cadence_from_json(row["cadence_json"]), global_cadence)
                     next_due, cadence_tier = _cadence_readout(timings_by_series.get(row["id"], []), effective, now)
 
-                # §5 truth table (P0-B.2): aired catalog × ownership × wanted —
-                # the card status derives from these facts, never from a raw
-                # wanted counter. Shows only; movies keep the counter fallback.
+                # §5 truth table (P0-B.2): ownership (real disk presence by
+                # provider ID) × wanted — the card status derives from these
+                # facts, never from a raw wanted counter. Shows cross the aired
+                # catalog; films (D2-B) are a catalog of one, so the same
+                # ownership-aware fields drive the movie card status too.
                 truth = FollowTruth()
                 kind = cast("str", _row_col(row, "kind")) or "show"
-                if kind == "show":
+                try:
+                    core_ref: MediaRef | None = MediaRef(
+                        tvdb_id=media_ref.tvdb_id, tmdb_id=media_ref.tmdb_id, imdb_id=media_ref.imdb_id
+                    )
+                except ValueError:  # a ref-less legacy row cannot be looked up
+                    core_ref = None
+                if core_ref is not None:
                     if ownership_checker is None:
                         ownership_checker = IndexerOwnershipChecker(Path(indexer_db_path))
-                    try:
-                        core_ref = MediaRef(
-                            tvdb_id=media_ref.tvdb_id, tmdb_id=media_ref.tmdb_id, imdb_id=media_ref.imdb_id
+                    if kind == "movie":
+                        truth = compute_movie_truth(
+                            ownership_checker, media_ref=core_ref, grabbed=grabbed, pending=pending
                         )
-                    except ValueError:  # a ref-less legacy row cannot be looked up
-                        core_ref = None
-                    if core_ref is not None:
+                    else:
                         truth = compute_follow_truth(conn, ownership_checker, followed_id=row["id"], media_ref=core_ref)
 
                 items.append(
@@ -256,6 +270,9 @@ def get_followed(
     except sqlite3.Error:
         logger.warning("acquisition_followed_read_failed", exc_info=True)
         return FollowedResponse(items=[])
+    finally:
+        if ownership_checker is not None:
+            ownership_checker.close()
 
 
 # ── /api/acquisition/followed/{id}/completeness ────────────────────────

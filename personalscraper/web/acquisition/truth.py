@@ -113,4 +113,47 @@ def compute_follow_truth(
     )
 
 
-__all__ = ["FollowTruth", "compute_follow_truth"]
+def compute_movie_truth(
+    checker: "IndexerOwnershipChecker",
+    *,
+    media_ref: "MediaRef",
+    grabbed: int,
+    pending: int,
+) -> FollowTruth:
+    """Compute the §5 truth-table facts for a followed FILM (D2-B).
+
+    A film is a catalog of exactly one unit, so the same ownership-aware fields
+    the series cards use drive the movie card status too — ownership (real disk
+    presence by provider ID) beats the raw ``grabbed`` counter, so a phantom
+    ``grabbed`` row can no longer pin a film at « en cours d'acquisition » once
+    it sits in the library, and a film absent from disk never reads « à jour ».
+
+    Precedence (a film is owned OR in-flight OR queued OR missing — never two):
+
+    - owned (on disk)            → owned=1               → ``up_to_date``
+    - absent, a ``grabbed`` row  → inflight=1            → ``acquiring``
+    - absent, a pending/searching row → queued=1         → ``pending``
+    - absent, no open row        → missing=1             → ``incomplete``
+
+    Args:
+        checker: The library ownership checker (fail-soft ``owns``).
+        media_ref: The film's provider IDs.
+        grabbed: COUNT of ``grabbed`` wanted rows for this follow.
+        pending: COUNT of ``pending``/``searching`` wanted rows for this follow.
+
+    Returns:
+        A :class:`FollowTruth` with ``aired_count == 1`` and exactly one of the
+        four state fields set — so the existing ownership-aware ``status``
+        branch renders the film card.
+    """
+    owned = checker.owns(media_ref, kind="movie")
+    if owned:
+        return FollowTruth(aired_count=1, owned_count=1, inflight_count=0, queued_count=0, missing_count=0)
+    if grabbed > 0:
+        return FollowTruth(aired_count=1, owned_count=0, inflight_count=1, queued_count=0, missing_count=0)
+    if pending > 0:
+        return FollowTruth(aired_count=1, owned_count=0, inflight_count=0, queued_count=1, missing_count=0)
+    return FollowTruth(aired_count=1, owned_count=0, inflight_count=0, queued_count=0, missing_count=1)
+
+
+__all__ = ["FollowTruth", "compute_follow_truth", "compute_movie_truth"]

@@ -140,6 +140,34 @@ describe("FollowedPanel (P0-B)", () => {
   });
 });
 
+describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
+  it("libelle un film manquant « Manquant » (pas « Épisodes manquants »)", () => {
+    renderPanel([
+      makeItem({ kind: "movie", title: "Ferrari", status: "incomplete" }),
+    ]);
+
+    expect(screen.getByText("Manquant")).toBeInTheDocument();
+    expect(screen.queryByText("Épisodes manquants")).not.toBeInTheDocument();
+  });
+
+  it("libelle un film en médiathèque « Acquis » (pas « À jour »)", () => {
+    renderPanel([
+      makeItem({ kind: "movie", title: "Ferrari", status: "up_to_date" }),
+    ]);
+
+    expect(screen.getByText("Acquis")).toBeInTheDocument();
+    expect(screen.queryByText("À jour")).not.toBeInTheDocument();
+  });
+
+  it("garde les libellés série pour une série incomplète", () => {
+    renderPanel([makeItem({ kind: "show", status: "incomplete" })]);
+
+    // The movie override must not leak into series cards.
+    expect(screen.getByText("Épisodes manquants")).toBeInTheDocument();
+    expect(screen.queryByText("Manquant")).not.toBeInTheDocument();
+  });
+});
+
 describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
   it("un suivi retiré quitte la grille et apparaît dans la section repliée", () => {
     renderPanel([
