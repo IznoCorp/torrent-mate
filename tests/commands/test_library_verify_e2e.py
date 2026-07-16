@@ -56,7 +56,7 @@ def test_verify_empty_db_zero_files_visited(tmp_path, test_config) -> None:
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["files_walked"] == 0, f"Expected 0 files walked, got {data}"
     assert data["status"] == "ok"
 
@@ -79,7 +79,7 @@ def test_verify_clean_file_no_mismatch_no_enqueue(tmp_path, test_config) -> None
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["files_walked"] >= 1, f"Expected >=1 files walked, got {data}"
     assert data["status"] == "ok"
 
@@ -107,7 +107,7 @@ def test_verify_size_mismatch_enqueues_repair(tmp_path, test_config) -> None:
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["files_walked"] >= 1, f"Expected >=1 files walked, got {data}"
 
     # A repair row must have been enqueued for the size mismatch.
@@ -134,7 +134,7 @@ def test_verify_mtime_mismatch_enqueues_repair(tmp_path, test_config) -> None:
         result = run_cli(["library-verify"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["files_walked"] >= 1, f"Expected >=1 files walked, got {data}"
 
     pending = _pending_repair_count(str(db_path))
@@ -165,7 +165,7 @@ def test_verify_disk_filter_restricts_scope(tmp_path, test_config) -> None:
         result = run_cli(["library-verify", "--disk", "DiskA"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     # Only 1 file should be walked (the one on DiskA).
     assert data["files_walked"] == 1, f"Expected exactly 1 file walked (DiskA only), got {data}"
 
@@ -188,7 +188,7 @@ def test_verify_no_enqueue_flag_no_writes(tmp_path, test_config) -> None:
         result = run_cli(["library-verify", "--no-enqueue"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["files_walked"] >= 1, f"Expected >=1 files walked, got {data}"
     assert data["no_enqueue"] is True, f"Expected no_enqueue=True, got {data}"
 
@@ -227,14 +227,14 @@ def test_verify_closes_loop_with_repair(tmp_path, test_config) -> None:
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r1.exit_code == 0, r1.output
-    d1 = json_from_result(r1)
+    d1 = json_from_result(r1, source_attr="stdout")
     assert d1["enqueued_repairs"] >= 1, f"No repairs enqueued: {d1}"
 
     # Step 2: Repair drains the queue (hard-deletes files + path).
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         r2 = run_cli(["--format", "json", "library-repair"])
     assert r2.exit_code == 0, r2.output
-    d2 = json_from_result(r2)
+    d2 = json_from_result(r2, source_attr="stdout")
     assert d2["succeeded"] >= 1, f"Repair did not succeed: {d2}"
     assert d2["pending_depth"] == 0, f"Queue not empty after repair: {d2}"
 
@@ -242,7 +242,7 @@ def test_verify_closes_loop_with_repair(tmp_path, test_config) -> None:
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         r3 = run_cli(["library-verify"])
     assert r3.exit_code == 0, r3.output
-    d3 = json_from_result(r3)
+    d3 = json_from_result(r3, source_attr="stdout")
     assert d3["files_walked"] == 0, (
         f"CLOSURE-OF-LOOP BROKEN: files_walked={d3['files_walked']} after repair (expected 0): {d3}"
     )
@@ -276,8 +276,8 @@ def test_verify_idempotent_on_clean_files(tmp_path, test_config) -> None:
 
     assert r1.exit_code == 0, r1.output
     assert r2.exit_code == 0, r2.output
-    d1 = json_from_result(r1)
-    d2 = json_from_result(r2)
+    d1 = json_from_result(r1, source_attr="stdout")
+    d2 = json_from_result(r2, source_attr="stdout")
     assert d1["files_walked"] == d2["files_walked"], f"files_walked changed between idempotent runs: {d1} vs {d2}"
     assert d1["status"] == d2["status"]
 
@@ -345,7 +345,7 @@ def test_verify_json_schema_valid(tmp_path, test_config) -> None:
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg), patch(_PATCH_GUARD, return_value=None):
         result = run_cli(["--format", "json", "library-verify"])
     assert result.exit_code == 0
-    assert_json_schema(result, required_keys=["status", "files_walked"])
+    assert_json_schema(result, required_keys=["status", "files_walked"], source_attr="stdout")
 
 
 def test_verify_error_exits_nonzero(tmp_path, test_config) -> None:

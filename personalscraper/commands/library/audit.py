@@ -8,7 +8,7 @@ from typing import Optional
 import typer
 
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import handle_cli_errors
+from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.logger import get_logger
 
@@ -17,6 +17,7 @@ log = get_logger("cli")
 
 @app.command("library-reconcile")
 @handle_cli_errors
+@boundary(needs="app", lock=False, journal=False, staging=False)
 def library_reconcile(
     ctx: typer.Context,
     scope: list[str] = typer.Option(
@@ -60,6 +61,8 @@ def library_reconcile(
         ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Detect index ↔ filesystem divergences without a full rescan.
 
@@ -96,12 +99,7 @@ def library_reconcile(
         personalscraper library-reconcile --scope path_missing
         personalscraper library-reconcile --enqueue-repairs
     """
-    from uuid import uuid4  # noqa: PLC0415
-
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
-    from personalscraper.core.event_bus import EventBus, current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
 
     # --read-only / --dry-run are mutually exclusive with --enqueue-repairs.
@@ -121,28 +119,20 @@ def library_reconcile(
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
 
-    # Build the process-scoped AppContext at the CLI boundary so the
-    # pre-open free-space guard inside ``open_db`` emits ``DiskFullWarning``
-    # on the bus subscribers are wired to (consistency with library-index).
-    loaded_config = ctx.obj.config if ctx.obj is not None else None
-    if loaded_config is not None:
-        settings = cli_compat.get_settings()
-        app_context = _build_app_context(loaded_config, settings)
-        event_bus = app_context.event_bus
-    else:
-        event_bus = EventBus()
-
-    token = current_correlation_id.set(str(uuid4()))
-    try:
-        rc, payload = library_reconcile_command(
-            scopes=scope if scope else None,
-            enqueue_repairs=effective_enqueue,
-            clean_fk_orphans=apply_fk_clean,
-            config_path=effective_config,
-            event_bus=event_bus,
-        )
-    finally:
-        current_correlation_id.reset(token)
+    # The boundary's "app" tier already built the process-scoped AppContext (via
+    # per_step_boundary, binding a fresh correlation_id) so the pre-open
+    # free-space guard inside ``open_db`` emits ``DiskFullWarning`` on the bus
+    # subscribers are wired to (consistency with library-index).
+    app_context = bundle.app_context
+    assert app_context is not None
+    loaded_config = ctx.obj.config
+    rc, payload = library_reconcile_command(
+        scopes=scope if scope else None,
+        enqueue_repairs=effective_enqueue,
+        clean_fk_orphans=apply_fk_clean,
+        config_path=effective_config,
+        event_bus=app_context.event_bus,
+    )
 
     # Proactive no-NFO visibility (DESIGN decision #3): surface items the
     # scanner flagged with the folder-name fallback so the audit output points

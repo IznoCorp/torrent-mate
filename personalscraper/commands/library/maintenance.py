@@ -9,13 +9,14 @@ import typer
 
 from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
+from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.core.event_bus import EventBus
 
 
 @app.command("library-verify")
 @handle_cli_errors
+@boundary(needs="app", lock=False, journal=False, staging=False)
 def library_verify(
     ctx: typer.Context,
     disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
@@ -33,6 +34,8 @@ def library_verify(
         ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Re-stat every indexed file and mark mismatches for repair.
 
@@ -55,38 +58,28 @@ def library_verify(
         personalscraper library-verify --budget 300
         personalscraper library-verify --no-enqueue
     """
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    loaded_config = ctx.obj.config if ctx.obj is not None else None
-    if loaded_config is not None:
-        settings = cli_compat.get_settings()
-        with per_step_boundary(loaded_config, settings) as app_context:
-            rc = library_verify_command(
-                disk=disk,
-                budget_seconds=float(budget) if budget is not None else None,
-                no_enqueue=no_enqueue,
-                config_path=effective_config,
-                event_bus=app_context.event_bus,
-            )
-    else:
-        # init-config path: ``ctx.obj.config`` was never populated. Construct
-        # a fresh unobserved bus here at the CLI boundary so the contract
-        # (event_bus required at the indexer command surface) holds locally.
-        rc = library_verify_command(
-            disk=disk,
-            budget_seconds=float(budget) if budget is not None else None,
-            no_enqueue=no_enqueue,
-            config_path=effective_config,
-            event_bus=EventBus(),
-        )
+    # The boundary's "app" tier builds the AppContext (via per_step_boundary,
+    # binding correlation_id) exactly as the pre-boundary path did; only its bus
+    # flows into the indexer command.
+    app_context = bundle.app_context
+    assert app_context is not None
+    rc = library_verify_command(
+        disk=disk,
+        budget_seconds=float(budget) if budget is not None else None,
+        no_enqueue=no_enqueue,
+        config_path=effective_config,
+        event_bus=app_context.event_bus,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 
 
 @app.command("library-repair")
 @handle_cli_errors
+@boundary(needs="app", lock=False, journal=False, staging=False)
 def library_repair(
     ctx: typer.Context,
     budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
@@ -99,6 +92,8 @@ def library_repair(
         ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Drain the repair queue within a time budget.
 
@@ -113,29 +108,17 @@ def library_repair(
         personalscraper library-repair --budget 120
         personalscraper library-repair --dry-run
     """
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    loaded_config = ctx.obj.config if ctx.obj is not None else None
-    if loaded_config is not None:
-        settings = cli_compat.get_settings()
-        with per_step_boundary(loaded_config, settings) as app_context:
-            rc = library_repair_command(
-                budget_seconds=float(budget),
-                dry_run=dry_run,
-                config_path=effective_config,
-                event_bus=app_context.event_bus,
-            )
-    else:
-        # init-config boundary (no loaded config). Fresh unobserved bus
-        # keeps the required-bus contract local to this CLI entry point.
-        rc = library_repair_command(
-            budget_seconds=float(budget),
-            dry_run=dry_run,
-            config_path=effective_config,
-            event_bus=EventBus(),
-        )
+    app_context = bundle.app_context
+    assert app_context is not None
+    rc = library_repair_command(
+        budget_seconds=float(budget),
+        dry_run=dry_run,
+        config_path=effective_config,
+        event_bus=app_context.event_bus,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 

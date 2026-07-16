@@ -49,7 +49,7 @@ def test_doctor_clean_db_overall_ok(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-doctor"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["overall_status"] in ("ok", "skip"), f"Unexpected overall_status on clean DB: {data}"
 
     # Verify every expected check is present and not FAIL.
@@ -108,7 +108,7 @@ def test_doctor_reports_canonical_provider_warn_below_threshold(tmp_path, test_c
         )
 
     assert result.exit_code != 0, f"Expected non-zero exit for WARN, got {result.exit_code}: {result.output}"
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["overall_status"] == "warn", f"Expected overall_status='warn' for 50% < 80%, got {data}"
     chk = _get_check(data, "canonical_provider_populated")
     assert chk is not None, "canonical_provider_populated check missing"
@@ -143,7 +143,7 @@ def test_doctor_reports_repair_queue_backlog_above_threshold(tmp_path, test_conf
         )
 
     assert result.exit_code != 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["overall_status"] in ("warn", "fail"), f"Expected warn/fail for backlog, got {data}"
     chk = _get_check(data, "repair_queue_backlog")
     assert chk is not None
@@ -174,7 +174,7 @@ def test_doctor_after_phantom_paths_then_repair_closes_warning(tmp_path, test_co
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r1 = run_cli(["--format", "json", "library-doctor"])
     assert r1.exit_code != 0, f"Expected non-zero exit when phantom paths present: {r1.output}"
-    d1 = json_from_result(r1)
+    d1 = json_from_result(r1, source_attr="stdout")
     phantom1 = _get_check(d1, "phantom_paths")
     assert phantom1 is not None, "phantom_paths check missing"
     assert phantom1["status"] == "warn", f"Pre-condition: expected phantom_paths=warn, got {phantom1}"
@@ -188,14 +188,14 @@ def test_doctor_after_phantom_paths_then_repair_closes_warning(tmp_path, test_co
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r3 = run_cli(["--format", "json", "library-repair"])
     assert r3.exit_code == 0, r3.output
-    d3 = json_from_result(r3)
+    d3 = json_from_result(r3, source_attr="stdout")
     assert d3["pending_depth"] == 0, f"Repair queue not empty: {d3}"
 
     # Step 4: doctor must now be OK (phantom_paths check transitions to ok).
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r4 = run_cli(["--format", "json", "library-doctor"])
     assert r4.exit_code == 0, f"CLOSURE-OF-LOOP BROKEN: doctor still non-zero after repair: {r4.output}"
-    d4 = json_from_result(r4)
+    d4 = json_from_result(r4, source_attr="stdout")
     phantom4 = _get_check(d4, "phantom_paths")
     assert phantom4 is not None, "phantom_paths check missing after repair"
     assert phantom4["status"] == "ok", (
@@ -220,8 +220,8 @@ def test_doctor_idempotent(tmp_path, test_config) -> None:
 
     assert r1.exit_code == 0
     assert r2.exit_code == 0
-    d1 = json_from_result(r1)
-    d2 = json_from_result(r2)
+    d1 = json_from_result(r1, source_attr="stdout")
+    d2 = json_from_result(r2, source_attr="stdout")
 
     # Timestamps may differ between runs, but statuses should be identical.
     assert d1["overall_status"] == d2["overall_status"], (

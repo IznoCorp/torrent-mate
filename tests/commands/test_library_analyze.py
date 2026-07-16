@@ -425,7 +425,10 @@ class TestLibraryReport:
         ):
             result = runner.invoke(app, ["--format", "json", "library-report"])
         assert result.exit_code == 0, result.output
-        raw = result.output.strip()
+        # Parse the machine-readable stdout channel: the boundary now records
+        # cli.invoke/complete telemetry on stderr, which the mixed ``.output``
+        # interleaves after the JSON.
+        raw = result.stdout.strip()
         start = raw.find("{")
         assert start != -1, f"No JSON in output: {raw!r}"
         data = json.loads(raw[start:])

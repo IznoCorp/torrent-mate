@@ -9,7 +9,7 @@ import typer
 
 from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
+from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.logger import get_logger
 
@@ -18,6 +18,7 @@ log = get_logger("cli")
 
 @app.command()
 @handle_cli_errors
+@boundary(needs="config", staging=False)
 def library_analyze(
     ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
@@ -31,6 +32,8 @@ def library_analyze(
             "the indexer DB. Kept for back-compat; the flag has no effect."
         ),
     ),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Summarize codec / audio / subtitle data read from the indexer DB.
 
@@ -55,7 +58,6 @@ def library_analyze(
     """
     import sqlite3  # noqa: PLC0415
 
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
     from personalscraper.insights.analytics import analyze_from_index  # noqa: PLC0415
@@ -70,8 +72,7 @@ def library_analyze(
     console.print("[bold]Analyzing library (from index)...[/bold]")
     db_path = config.indexer.db_path
     migrations_dir = Path(_migrations_pkg.__file__).parent
-    app_context = _build_app_context(config, cli_compat.get_settings())
-    conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
+    conn: sqlite3.Connection = open_db(db_path, event_bus=bundle.event_bus)
     apply_migrations(conn, migrations_dir)
     try:
         result = analyze_from_index(
@@ -111,6 +112,7 @@ def library_analyze(
 
 @app.command()
 @handle_cli_errors
+@boundary(needs="config", staging=False)
 def library_recommend(
     ctx: typer.Context,
     sort: str = typer.Option("priority", "--sort", help="Sort by: priority, size, codec"),
@@ -125,6 +127,8 @@ def library_recommend(
             "from the indexer DB. Kept for back-compat; the flag has no effect."
         ),
     ),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Generate re-download recommendations from the indexer DB.
 
@@ -146,7 +150,6 @@ def library_recommend(
     import csv
     import sqlite3  # noqa: PLC0415
 
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
     from personalscraper.insights.analytics import analyze_from_index  # noqa: PLC0415
@@ -170,8 +173,7 @@ def library_recommend(
     console.print("[bold]Analyzing library (from index)...[/bold]")
     db_path = config.indexer.db_path
     migrations_dir = Path(_migrations_pkg.__file__).parent
-    app_context = _build_app_context(config, cli_compat.get_settings())
-    conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
+    conn: sqlite3.Connection = open_db(db_path, event_bus=bundle.event_bus)
     apply_migrations(conn, migrations_dir)
     try:
         analysis = analyze_from_index(
@@ -414,8 +416,11 @@ def library_rescrape(
 
 @app.command()
 @handle_cli_errors
+@boundary(needs="config", staging=False)
 def library_report(
     ctx: typer.Context,
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Display library statistics and health report.
 
@@ -461,10 +466,7 @@ def library_report(
     analysis_result = None
     if db_path.exists():
         try:
-            from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
-
-            _app_context = _build_app_context(config, cli_compat.get_settings())
-            conn = open_db(db_path, event_bus=_app_context.event_bus)
+            conn = open_db(db_path, event_bus=bundle.event_bus)
             analysis_result = analyze(conn)
             conn.close()
         except Exception as exc:
