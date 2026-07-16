@@ -45,6 +45,7 @@ from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._movie import dispatch_movie
+from personalscraper.dispatch._tv import dispatch_tvshow
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
@@ -392,3 +393,73 @@ def test_dispatch_movie_replace_pins_destination_action_and_journal(
     overwrite_rows = [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)]
     assert len(overwrite_rows) == 1, f"movie replace must journal exactly one overwrite; got {rows}"
     assert overwrite_rows[0]["actor"] == "dispatch"
+
+
+# ---------------------------------------------------------------------------
+# dispatch_tvshow — merge existing (same disk); NO journal (pre-F1 asymmetry)
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tvshow_merge_pins_destination_action_and_no_journal(
+    char_config: Config,
+    char_db_path: Path,
+    char_disks: list[Path],
+    tmp_path: Path,
+    _rsync_available: None,
+) -> None:
+    """Existing show is merged in place; NO destructive-journal row is written.
+
+    An on-disk ``Fallout (2024)`` with ``Saison 01/episode1.mkv`` pre-exists on
+    disk1 and is seeded into the index, so ``dispatch_tvshow`` routes to merge
+    (not new). A staging copy carries a new ``S01E02`` episode. Pins:
+    destination = the existing on-disk path (same disk), action ``"merged"``,
+    the pre-existing episode preserved and the new one added, clean
+    temp/backup hygiene, and the journal side-effect ASYMMETRY vs the movie
+    replace above.
+
+    # Pins pre-F1 behaviour: TV merge is NOT journaled yet. Phase 2 (F1) flips
+    # this assertion — see DESIGN §6 F1.
+
+    Args:
+        char_config: Dispatch-wired Config fixture.
+        char_db_path: Resolved indexer DB path shared with the dispatcher.
+        char_disks: Four fake disk roots.
+        tmp_path: Pytest temporary directory.
+        _rsync_available: Skips when rsync is missing.
+    """
+    name = "Fallout (2024)"
+    tv_folder = char_config.category(CID.TV_SHOWS).folder_name
+
+    existing = _make_media_dir(char_disks[0] / tv_folder, name, {"Saison 01/episode1.mkv": b"x" * 16})
+    _seed_index(
+        char_db_path,
+        IndexEntry(name=name, disk="disk1", category=CID.TV_SHOWS, path=str(existing), media_type="tvshow"),
+    )
+
+    source = _make_media_dir(tmp_path / "staging_src", name, {"Saison 01/S01E02 - The Target.mkv": b"y" * 4096})
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    try:
+        result = dispatch_tvshow(dispatcher, source, CID.TV_SHOWS)
+    finally:
+        index.close()
+
+    assert _snapshot(result, tmp_path) == {
+        "action": "merged",
+        "disk": "disk1",
+        "destination": f"Disk1/{tv_folder}/{name}",
+        "reason": None,
+    }
+    # Pre-existing episode preserved; new episode merged in; source consumed.
+    assert (existing / "Saison 01" / "episode1.mkv").exists()
+    assert (existing / "Saison 01" / "S01E02 - The Target.mkv").exists()
+    assert not source.exists()
+    assert _residue(char_disks[0]) == []
+
+    # Journal side-effect ASYMMETRY (pre-F1): a TV merge writes NO overwrite row,
+    # unlike the movie replace above. This is intentional here — DO NOT fix it.
+    # Phase 2 (F1) flips this to expect a journal row — see DESIGN §6 F1.
+    rows = list_recent(char_db_path)
+    overwrite_rows = [r for r in rows if r["op"] == "overwrite"]
+    assert overwrite_rows == [], f"pre-F1: TV merge must NOT journal any overwrite; got {overwrite_rows}"
