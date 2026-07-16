@@ -67,6 +67,14 @@ check: lint test-cov
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/audit-cli-coverage.py
 	$(MAKE) cli-coverage-check
+	@echo "Checking feature map freshness..."
+	python3 scripts/update_feature_map.py --check
+	@echo "Auditing design coverage..."
+	python3 scripts/audit_design_coverage.py --strict
+	@echo "Checking OpenAPI drift..."
+	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
+	@echo "Checking version bump..."
+	@if git rev-parse --verify origin/main >/dev/null 2>&1; then python3 scripts/check_version_bump.py --base origin/main; else echo "version-bump: skipped (origin/main unavailable)"; fi
 
 cli-coverage-check:
 	@echo "Running CLI coverage check..."
