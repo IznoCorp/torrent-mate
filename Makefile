@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check format install-dev version update-ytdlp perf-rebaseline openapi
+.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -75,6 +75,7 @@ check: lint test-cov
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking version bump..."
 	@if git rev-parse --verify origin/main >/dev/null 2>&1; then python3 scripts/check_version_bump.py --base origin/main; else echo "version-bump: skipped (origin/main unavailable)"; fi
+	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
 cli-coverage-check:
 	@echo "Running CLI coverage check..."
@@ -121,3 +122,14 @@ openapi:
 	@echo "Regenerating frontend TypeScript types..."
 	cd frontend && npm run gen-api
 	@echo "OpenAPI schema and TS types are up to date."
+
+check-frontend:
+	@echo "Running frontend typecheck..."
+	cd frontend && npm run typecheck
+	@echo "Running frontend lint..."
+	cd frontend && npm run lint
+	cd frontend && npm run lint:ds
+	@echo "Running frontend tests..."
+	cd frontend && npm run test -- --run
+	@echo "Running frontend build..."
+	cd frontend && npm run build
