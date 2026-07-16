@@ -194,10 +194,15 @@ def verify(
     check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
     list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
 ) -> None:
-    """Verify and qualify scraped media before dispatch."""
-    from personalscraper.verify.run import run_verify
+    """Verify and qualify scraped media before dispatch.
 
-    config = ctx.obj.config  # Guaranteed non-None by callback.
+    The ``--list-checks`` listing and the unknown-``--check`` validation run
+    **before** any lock/journal scaffold — a pure listing or an argument error
+    must not take ``pipeline.lock`` nor write a ``pipeline_run`` row. Only once
+    the arguments are accepted does the real work run inside the shared
+    :func:`~personalscraper.cli_helpers.boundary` scaffold via
+    :func:`_verify_run`.
+    """
     console = state["console"]
     if list_checks:
         from personalscraper.verify.checks.base import CheckStage
@@ -223,36 +228,56 @@ def verify(
             raise typer.BadParameter(
                 f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
             )
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    _verify_run(ctx, dry_run=dry_run, movies_only=movies_only, tvshows_only=tvshows_only, only=only)
+
+
+@boundary(stream_events=True, command="verify")
+def _verify_run(
+    ctx: typer.Context,
+    *,
+    dry_run: bool,
+    movies_only: bool,
+    tvshows_only: bool,
+    only: frozenset[str] | None,
+    bundle: CommandContext,
+) -> None:
+    """Run the verify step inside the shared boundary scaffold.
+
+    Split out from :func:`verify` so the pre-lock ``--list-checks`` /
+    unknown-check early exits stay OUTSIDE the lock + journal, byte-identical to
+    the pre-boundary command. Journals under ``command="verify"``.
+
+    Args:
+        ctx: The Typer context (``ctx.obj.config`` holds the loaded config).
+        dry_run: Preview without modifying files.
+        movies_only: Restrict to movies.
+        tvshows_only: Restrict to TV shows.
+        only: The validated ``--check`` subset, or ``None`` for all checks.
+        bundle: The boundary-injected service bundle (``needs="app"``).
+    """
+    from personalscraper.verify.run import run_verify
+
+    config = ctx.obj.config
+    console = state["console"]
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="verify", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                try:
-                    report, dispatchable = run_verify(
-                        settings,
-                        config,
-                        dry_run=dry_run,
-                        movies_only=movies_only,
-                        tvshows_only=tvshows_only,
-                        only=only,
-                        event_bus=app_context.event_bus,
-                    )
-                except KeyError as exc:
-                    raise typer.BadParameter(str(exc)) from exc
-            console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
-            console.print(f"  {len(dispatchable)} ready for dispatch")
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        report, dispatchable = run_verify(
+            bundle.settings,
+            config,
+            dry_run=dry_run,
+            movies_only=movies_only,
+            tvshows_only=tvshows_only,
+            only=only,
+            event_bus=app_context.event_bus,
+        )
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
+    console.print(f"  {len(dispatchable)} ready for dispatch")
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
@@ -263,10 +288,13 @@ def enforce(
     check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
     list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
 ) -> None:
-    """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
-    from personalscraper.enforce.run import run_enforce
+    """Enforce staging conventions: sanitize filenames, validate structure, check coherence.
 
-    config = ctx.obj.config  # Guaranteed non-None by callback.
+    ``--list-checks`` and the unknown-``--check`` validation run **before** the
+    lock/journal scaffold (they must not take ``pipeline.lock`` nor journal a
+    run); the accepted-argument path runs the real work inside the shared
+    :func:`~personalscraper.cli_helpers.boundary` scaffold via :func:`_enforce_run`.
+    """
     console = state["console"]
     if list_checks:
         from personalscraper.verify.checks.base import CheckStage
@@ -292,27 +320,43 @@ def enforce(
             raise typer.BadParameter(
                 f"Unknown check(s): {sorted(_unknown)}. Available staging checks: {sorted(_available)}"
             )
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    _enforce_run(ctx, dry_run=dry_run, only=only)
+
+
+@boundary(stream_events=True, command="enforce")
+def _enforce_run(
+    ctx: typer.Context,
+    *,
+    dry_run: bool,
+    only: frozenset[str] | None,
+    bundle: CommandContext,
+) -> None:
+    """Run the enforce step inside the shared boundary scaffold.
+
+    Split out from :func:`enforce` so the pre-lock ``--list-checks`` /
+    unknown-check early exits stay OUTSIDE the lock + journal, byte-identical to
+    the pre-boundary command. Journals under ``command="enforce"``.
+
+    Args:
+        ctx: The Typer context (``ctx.obj.config`` holds the loaded config).
+        dry_run: Preview without modifying.
+        only: The validated ``--check`` subset, or ``None`` for all checks.
+        bundle: The boundary-injected service bundle (``needs="app"``).
+    """
+    from personalscraper.enforce.run import run_enforce
+
+    config = ctx.obj.config
+    console = state["console"]
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="enforce", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                try:
-                    report = run_enforce(settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
-                except KeyError as exc:
-                    raise typer.BadParameter(str(exc)) from exc
-            console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        report = run_enforce(bundle.settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()

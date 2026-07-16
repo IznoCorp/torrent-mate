@@ -7,6 +7,7 @@ Follows the 8-section pattern.
 
 from __future__ import annotations
 
+import importlib
 from unittest.mock import MagicMock, patch
 
 from personalscraper.models import StepReport
@@ -17,6 +18,12 @@ from tests.commands._e2e_helpers import (
     run_cli,
 )
 from tests.fixtures.settings_stub import make_typed_settings_stub
+
+# The migrated verify/enforce commands take the lock + resolve settings via the
+# ``cli_helpers.boundary`` decorator (thin command handles the pre-lock
+# --list-checks / --check validation); patch that module's namespace, not
+# ``personalscraper.cli.*``.
+_BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 
 
 def _verify_report(**kw: int) -> StepReport:
@@ -37,9 +44,9 @@ def test_verify_help_exits_zero() -> None:
 # ── 2. Realistic scenarios ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_no_media_noop(
     mock_run,
@@ -59,9 +66,9 @@ def test_verify_no_media_noop(
     assert "0 ready for dispatch" in result.output
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_some_valid_some_blocked(
     mock_run,
@@ -85,9 +92,9 @@ def test_verify_some_valid_some_blocked(
     assert "3 ready for dispatch" in result.output
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_all_blocked(
     mock_run,
@@ -113,9 +120,9 @@ def test_verify_all_blocked(
 # ── 3. Errors ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False)
 def test_verify_lock_contention(
     mock_lock,
     mock_release,
@@ -134,9 +141,9 @@ def test_verify_lock_contention(
 # ── 4. Idempotence ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_idempotent(
     mock_run,
@@ -160,9 +167,9 @@ def test_verify_idempotent(
 # ── 5. Dry-run ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_dry_run_forwards_flag(
     mock_run,
@@ -181,9 +188,9 @@ def test_verify_dry_run_forwards_flag(
     assert kwargs["dry_run"] is True
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_movies_only_forwards_flag(
     mock_run,
@@ -202,9 +209,9 @@ def test_verify_movies_only_forwards_flag(
     assert kwargs["movies_only"] is True
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_tvshows_only_forwards_flag(
     mock_run,
@@ -226,9 +233,9 @@ def test_verify_tvshows_only_forwards_flag(
 # ── 6. Output ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_output_no_traceback(
     mock_run,
@@ -246,9 +253,9 @@ def test_verify_output_no_traceback(
     assert_no_python_traceback(result)
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_summary_always_printed(
     mock_run,
@@ -268,9 +275,9 @@ def test_verify_summary_always_printed(
     assert "3 blocked" in result.output
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_verbose_prints_details(
     mock_run,
@@ -297,9 +304,9 @@ def test_verify_verbose_prints_details(
 # ── 7. Events ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 def test_verify_emits_item_progressed_events(
     mock_lock,
     mock_release,

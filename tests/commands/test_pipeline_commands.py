@@ -31,8 +31,8 @@ def _step(name: str, success: int = 1) -> StepReport:
     return sr
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestVerifyCommand:
     """Tests for the `verify` Typer subcommand."""
 
@@ -74,14 +74,14 @@ class TestVerifyLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["verify"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestEnforceCommand:
     """Tests for the `enforce` Typer subcommand."""
 
@@ -122,7 +122,7 @@ class TestEnforceLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["enforce"])
         assert result.exit_code == 1
 
