@@ -4,6 +4,8 @@ Instantiates the Verifier, processes movies and TV shows, and
 converts VerifyResult lists to StepReport.
 """
 
+from dataclasses import asdict
+
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
@@ -14,6 +16,7 @@ from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_protocol import record
+from personalscraper.reports.verify import VerifyDetails, VerifyIssue
 from personalscraper.verify.events import VerifyItemDone
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
@@ -136,9 +139,40 @@ def run_verify(
         event_bus.emit(ItemProgressed(step="verify", item=r.media_path.name, status="started"))
         _record_verify_terminal(report, event_bus, r)
 
+    # Typed details payload (STEP_REPORT_CONTRACT: VerifyDetails). Flattened to a
+    # JSON-safe dict here so the report is self-consistent on the standalone CLI
+    # path too (the pipeline re-validates it in ``Pipeline._with_details_payload``).
+    report.details_payload = asdict(_build_verify_details(all_results))
+
     dispatchable = Verifier.get_dispatchable(all_results)
 
     return report, dispatchable
+
+
+def _build_verify_details(results: list[VerifyResult]) -> VerifyDetails:
+    """Build the typed :class:`VerifyDetails` payload from verify results.
+
+    Partitions by status: ``valid`` → ``verified`` (names), ``fixed`` →
+    ``fixed`` (names), ``blocked`` → one :class:`VerifyIssue` per error
+    (``code="blocked"``, ``message`` = the error string).
+
+    Args:
+        results: Per-item verify results from the Verifier.
+
+    Returns:
+        A :class:`VerifyDetails` grouping items by verification outcome.
+    """
+    details = VerifyDetails()
+    for r in results:
+        name = r.media_path.name
+        if r.status == "valid":
+            details.verified.append(name)
+        elif r.status == "fixed":
+            details.fixed.append(name)
+        elif r.status == "blocked":
+            for err in r.errors:
+                details.issues.append(VerifyIssue(path=name, code="blocked", message=err))
+    return details
 
 
 def _record_verify_terminal(report: StepReport, bus: EventBus, r: VerifyResult) -> None:

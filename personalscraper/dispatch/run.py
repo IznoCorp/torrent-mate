@@ -9,6 +9,7 @@ carries disk paths.
 """
 
 import shutil
+from dataclasses import asdict
 from pathlib import Path
 
 from personalscraper.conf.models.config import Config
@@ -24,6 +25,7 @@ from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_protocol import record
+from personalscraper.reports.dispatch import DispatchDetails
 from personalscraper.verify.verifier import VerifyResult
 
 log = get_logger("dispatch_run")
@@ -172,6 +174,12 @@ def run_dispatch(
             for r in results:
                 _record_dispatch_terminal(report, event_bus, r)
 
+            # Typed details payload (STEP_REPORT_CONTRACT: DispatchDetails).
+            # Flattened to a JSON-safe dict here so the report is self-consistent
+            # on the standalone CLI path too (the pipeline re-validates it in
+            # ``Pipeline._with_details_payload``).
+            report.details_payload = asdict(_build_dispatch_details(results))
+
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately
             # rather than waiting for the next nightly scan.
@@ -185,6 +193,35 @@ def run_dispatch(
     if cleaned:
         report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
     return report, results
+
+
+def _build_dispatch_details(results: list[DispatchResult]) -> DispatchDetails:
+    """Build the typed :class:`DispatchDetails` payload from dispatch results.
+
+    Partitions by action: ``moved`` items are grouped under their destination
+    disk (``moved_to_disk[disk] -> [name, ...]``); ``merged``/``replaced`` land
+    in their own lists; ``error`` items become ``(name, reason)`` pairs. Unknown
+    actions are not represented (they touch no counter — see
+    ``_record_dispatch_terminal``).
+
+    Args:
+        results: Per-item dispatch results from ``Dispatcher.process``.
+
+    Returns:
+        A :class:`DispatchDetails` grouping items by dispatch outcome.
+    """
+    details = DispatchDetails()
+    for r in results:
+        name = r.source.name
+        if r.action == "moved":
+            details.moved_to_disk.setdefault(r.disk or "", []).append(name)
+        elif r.action == "merged":
+            details.merged.append(name)
+        elif r.action == "replaced":
+            details.replaced.append(name)
+        elif r.action == "error":
+            details.failed.append((name, r.reason or ""))
+    return details
 
 
 def _record_dispatch_terminal(report: StepReport, bus: EventBus, r: DispatchResult) -> None:

@@ -22,6 +22,7 @@ from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.scrape import ScrapeDetails
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
 
 if TYPE_CHECKING:
@@ -394,11 +395,14 @@ def _build_scrape_report(results: list[ScrapeResult]) -> StepReport:
     warnings: list[str] = []
     details: list[str] = []
     unmatched_paths: list[str] = []
+    # Typed-payload accumulators (STEP_REPORT_CONTRACT: ScrapeDetails).
+    payload = ScrapeDetails()
 
     for r in results:
         name = r.media_path.name
         if r.action == "scraped":
             success += 1
+            payload.scraped.append(name)
             parts = [f"[scraped] {name}"]
             if r.nfo_written:
                 parts.append("NFO")
@@ -409,30 +413,40 @@ def _build_scrape_report(results: list[ScrapeResult]) -> StepReport:
             details.append(" | ".join(parts))
         elif r.action == "artwork_recovered":
             success += 1
+            payload.scraped.append(name)
             parts = [f"[recovered] {name}"]
             if r.artwork_downloaded:
                 parts.append(f"{len(r.artwork_downloaded)} artwork")
             details.append(" | ".join(parts))
         elif r.action == "repaired":
             success += 1
+            payload.scraped.append(name)
             details.append(f"[repaired] {name}")
         elif r.action == "skipped_low_confidence":
             # Counted as both skipped (for backward compat) and unmatched
             # (distinct observable counter for diagnosis).
             skipped += 1
             unmatched += 1
+            payload.skipped_low_confidence.append(name)
             details.append(f"[unmatched] {name}")
             unmatched_paths.append(name)
         elif r.action == "queued_for_decision":
             details.append(f"[queued_for_decision] {name}")
             unmatched_paths.append(name)
+        elif r.action == "skipped_already_done":
+            skipped += 1
+            payload.existing_validated.append(name)
+            details.append(f"[skipped] {name} ({r.action})")
         elif r.action.startswith("skipped"):
             skipped += 1
             details.append(f"[skipped] {name} ({r.action})")
         elif r.action == "error":
             errors += 1
+            payload.failed.append((name, r.error or ""))
             details.append(f"[error] {name}: {r.error}")
             warnings.append(f"{name}: {r.error}")
+
+    payload.unmatched_paths = list(unmatched_paths)
 
     counts: dict[str, int] = {}
     if unmatched:
@@ -453,4 +467,5 @@ def _build_scrape_report(results: list[ScrapeResult]) -> StepReport:
         details=details,
         counts=counts,
         unmatched_paths=unmatched_paths,
+        details_payload=payload,  # type: ignore[arg-type]  # coerced to dict via StepReport.__post_init__
     )

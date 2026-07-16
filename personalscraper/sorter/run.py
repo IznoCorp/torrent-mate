@@ -10,6 +10,7 @@ explicit ``staging_dir`` parameter; when config is provided, ingest_dir is
 resolved via staging_path(config, find_ingest_dir(config)).
 """
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -21,6 +22,8 @@ from personalscraper.core.tags import SEED_PURE
 from personalscraper.logger import get_logger
 from personalscraper.models import SortResult, StepReport
 from personalscraper.pipeline_protocol import record
+from personalscraper.reports.sort import SortDetails
+from personalscraper.reports.sort import SortResult as SortResultPayload
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
@@ -106,6 +109,13 @@ def run_sort(
     report = StepReport(name="sort")
     for r in results:
         _record_sort_terminal(report, event_bus, r)
+
+    # Typed details payload (STEP_REPORT_CONTRACT): partition the sort results
+    # by terminal status. ``dry-run`` counts as a (previewed) move, mirroring
+    # the counter mapping in ``_record_sort_terminal``. Flattened to a JSON-safe
+    # dict here so the report is self-consistent on the standalone CLI path too
+    # (the pipeline path re-validates it in ``Pipeline._with_details_payload``).
+    report.details_payload = asdict(_build_sort_details(results))
 
     # After sort consumes files from the ingest dir, prune any
     # ``dest_path`` recorded inside that dir from the ingest tracker.
@@ -193,6 +203,38 @@ def _record_sort_terminal(report: StepReport, bus: EventBus, r: SortResult) -> N
             warning=f"ERROR {name}: {r.message}",
             event_details={"error": r.message or ""},
         )
+
+
+def _build_sort_details(results: list[SortResult]) -> SortDetails:
+    """Build the typed :class:`SortDetails` payload from the sort results.
+
+    Converts each domain :class:`personalscraper.models.SortResult` (Path-typed)
+    into a JSON-safe :class:`personalscraper.reports.sort.SortResult` and
+    partitions by terminal status: ``moved``/``dry-run`` → ``moved``,
+    ``skipped`` → ``skipped``, ``error`` → ``errored``.
+
+    Args:
+        results: Domain sort results produced by ``Sorter.process``.
+
+    Returns:
+        A :class:`SortDetails` with results grouped by outcome.
+    """
+    details = SortDetails()
+    for r in results:
+        payload_result = SortResultPayload(
+            source=r.source.name,
+            destination=str(r.destination) if r.destination is not None else None,
+            status=r.status,
+            media_type=r.media_type,
+            message=r.message,
+        )
+        if r.status in ("moved", "dry-run"):
+            details.moved.append(payload_result)
+        elif r.status == "error":
+            details.errored.append(payload_result)
+        else:
+            details.skipped.append(payload_result)
+    return details
 
 
 def _has_unsorted_items(ingest_dir: Path) -> bool:
