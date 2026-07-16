@@ -81,6 +81,27 @@ def _movie_match() -> MatchResult:
     return MatchResult(api_id=_MOVIE_TMDB_ID, api_title="The Matrix", api_year=1999, confidence=0.95, source="tmdb")
 
 
+# TVDB-canonical show (TVDB primary, TMDB cross-ref) with one loose episode.
+_SHOW_DATA: dict[str, Any] = {
+    "id": 66732,  # TMDB id (cross-ref / secondary)
+    "name": "Fallout",
+    "original_name": "Fallout",
+    "overview": "In a retrofuturistic post-apocalyptic wasteland.",
+    "genres": [{"name": "Sci-Fi"}],
+    "first_air_date": "2024-04-10",
+    "external_ids": {"imdb_id": "tt12637874", "tvdb_id": 420001},
+    "images": {
+        "posters": [{"file_path": "/fallout-poster.jpg", "iso_639_1": "en", "vote_average": 6.0}],
+        "backdrops": [{"file_path": "/fallout-backdrop.jpg", "iso_639_1": None, "vote_average": 7.0}],
+        "logos": [],
+    },
+    "seasons": [{"season_number": 1, "episode_count": 1, "poster_path": "/fallout-s1.jpg"}],
+}
+
+_SHOW_TVDB_ID = 420001
+_SHOW_TMDB_XREF = 66732
+
+
 # ---------------------------------------------------------------------------
 # Hermetic download stub + snapshot helpers
 # ---------------------------------------------------------------------------
@@ -148,6 +169,15 @@ def _movie_snapshot(media_path: Path) -> dict[str, Any]:
         "folder": media_path.name,
         "tree": _tree(media_path),
         "nfo": _nfo_pins(nfo),
+    }
+
+
+def _tvshow_snapshot(media_path: Path) -> dict[str, Any]:
+    """Normalized write-back snapshot for a TV-show directory."""
+    return {
+        "folder": media_path.name,
+        "tree": _tree(media_path),
+        "nfo": _nfo_pins(media_path / "tvshow.nfo"),
     }
 
 
@@ -226,6 +256,80 @@ def test_movie_writeback_pins(scraper: Scraper, tmp_path: Path) -> None:
     assert result.action == "scraped", result.error
     snapshot = _movie_snapshot(result.media_path)
     _check_golden("movie_writeback", snapshot)
+
+
+def _run_forced_movie(scraper: Scraper, movie_dir: Path) -> Any:
+    """Drive the operator-forced ``scrape_movie_forced`` path (same identity)."""
+    with (
+        patch.object(scraper._registry.get("tmdb"), "get_movie", return_value=_MOVIE_DATA),
+        patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+        patch.object(scraper._artwork, "download_image", side_effect=_fake_download_image),
+    ):
+        return scraper.scrape_movie_forced(movie_dir, _MOVIE_TMDB_ID)
+
+
+def test_movie_forced_matches_automatic_writeback(scraper: Scraper, tmp_path: Path) -> None:
+    """FORCED write-back == automatic write-back for the same match (hard invariant).
+
+    ``scrape_movie_forced`` must produce a byte-for-byte identical normalized
+    snapshot (folder name, file tree, NFO pins, artwork set) to the automatic
+    ``scrape_movie`` for the same provider id — the product invariant that a
+    manual resolution yields a COMPLETE, dispatchable item, not a partial write.
+    Compared directly here (not via a golden) so the two paths pin each other.
+    """
+    auto_dir = tmp_path / "auto" / "the.matrix.1999.1080p.BluRay.x264-GROUP"
+    auto_dir.mkdir(parents=True)
+    (auto_dir / "the.matrix.1999.1080p.BluRay.x264-GROUP.mkv").write_bytes(b"\x00")
+
+    forced_dir = tmp_path / "forced" / "the.matrix.1999.1080p.BluRay.x264-GROUP"
+    forced_dir.mkdir(parents=True)
+    (forced_dir / "the.matrix.1999.1080p.BluRay.x264-GROUP.mkv").write_bytes(b"\x00")
+
+    auto_result = _run_automatic_movie(scraper, auto_dir)
+    forced_result = _run_forced_movie(scraper, forced_dir)
+
+    assert auto_result.action == "scraped", auto_result.error
+    assert forced_result.action == "scraped", forced_result.error
+    assert _movie_snapshot(forced_result.media_path) == _movie_snapshot(auto_result.media_path)
+
+
+# ---------------------------------------------------------------------------
+# TV-show write-back pins (operator-forced resolve)
+# ---------------------------------------------------------------------------
+
+
+def test_tvshow_forced_writeback_pins(scraper: Scraper, tmp_path: Path) -> None:
+    """A raw show folder + loose episode resolves to canonical layout + NFO ids + artwork.
+
+    Pins (against ``golden/tvshow_writeback.json``): the ``Show (Year)`` folder
+    rename, the episode swept into ``Saison 01/`` with its canonical
+    ``S01E01 - Title`` name + per-episode NFO, ``tvshow.nfo`` ``<title>`` /
+    ``<uniqueid>`` (tvdb ``default="true"`` + tmdb + imdb), and the show +
+    season artwork that land next to the media. The forced entry point is the
+    reachable canonical-write seam (the automatic TV path needs the full
+    matching stack); it runs the SAME ``_write_confirmed_show``.
+    """
+    show_dir = tmp_path / "Fallout.S01.1080p.WEB.H264-GROUP"
+    show_dir.mkdir()
+    (show_dir / "Fallout.S01E01.1080p.WEB.H264-GROUP.mkv").write_bytes(b"\x00")
+
+    episode_map = {(1, 1): {"title": "The End", "still_path": ""}}
+
+    with (
+        patch(
+            "personalscraper.scraper.tv_service_write.fetch_show_data",
+            return_value=(_SHOW_DATA, _SHOW_TMDB_XREF),
+        ),
+        patch.object(scraper, "_build_episode_map", return_value=episode_map),
+        patch.object(scraper, "_xref_enrichment", return_value=None),
+        patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+        patch.object(scraper._artwork, "download_image", side_effect=_fake_download_image),
+    ):
+        result = scraper.scrape_tvshow_forced(show_dir, "tvdb", _SHOW_TVDB_ID)
+
+    assert result.action == "scraped", result.error
+    snapshot = _tvshow_snapshot(result.media_path)
+    _check_golden("tvshow_writeback", snapshot)
 
 
 def test_missing_golden_fails_not_skips(tmp_path: Path) -> None:
