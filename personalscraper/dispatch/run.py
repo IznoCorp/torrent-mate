@@ -23,6 +23,7 @@ from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.pipeline_protocol import record
 from personalscraper.verify.verifier import VerifyResult
 
 log = get_logger("dispatch_run")
@@ -118,6 +119,8 @@ def run_dispatch(
     if not dry_run:
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
+    report = StepReport(name="dispatch")
+
     with MediaIndex(index_path, config=config, auto_rebuild=not dry_run, event_bus=event_bus) as index:
         preview_index = False
         if dry_run:
@@ -161,39 +164,13 @@ def run_dispatch(
 
             results = dispatcher.process(verified=verified)
 
+            # Terminal per-item progress + report counters. ``started`` is
+            # emitted from INSIDE ``Dispatcher.process`` (F8 real lifecycle);
+            # here we record only the terminal transition, which drives both the
+            # ``ItemProgressed`` payload and the report counters through the
+            # shared ``record`` reporter (replaces the old report-conversion helper).
             for r in results:
-                event_bus.emit(ItemProgressed(step="dispatch", item=r.source.name, status="started"))
-                if r.action in ("replaced", "merged", "moved"):
-                    event_bus.emit(
-                        ItemProgressed(
-                            step="dispatch",
-                            item=r.source.name,
-                            status=r.action,
-                            details={
-                                "dest": str(r.destination) if r.destination else "",
-                                "disk": r.disk or "",
-                            },
-                        )
-                    )
-                elif r.action == "skipped":
-                    event_bus.emit(
-                        ItemProgressed(
-                            step="dispatch",
-                            item=r.source.name,
-                            status="skipped",
-                            details={"reason": r.reason or ""},
-                        )
-                    )
-                else:
-                    # error or unknown action
-                    event_bus.emit(
-                        ItemProgressed(
-                            step="dispatch",
-                            item=r.source.name,
-                            status="error",
-                            details={"action": r.action, "reason": r.reason or ""},
-                        )
-                    )
+                _record_dispatch_terminal(report, event_bus, r)
 
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately
@@ -205,10 +182,77 @@ def run_dispatch(
             if preview_index:
                 index.rollback_preview()
 
-    report = _to_step_report(results)
     if cleaned:
         report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
     return report, results
+
+
+def _record_dispatch_terminal(report: StepReport, bus: EventBus, r: DispatchResult) -> None:
+    """Record one dispatch result's terminal ``ItemProgressed`` + report counter.
+
+    Preserves the exact counter/details/warning semantics of the former
+    the former report-conversion helper + post-hoc event loop:
+
+    * ``replaced`` / ``merged`` / ``moved`` → ``success_count``; detail
+      ``action=<pad8> <name> → <disk>``; event payload ``{dest, disk}``.
+    * ``skipped`` → ``skip_count``; detail ``action=skipped  <name>: <reason>``;
+      warning appended only when a reason is present; event payload ``{reason}``.
+    * ``error`` → ``error_count``; detail ``action=error    <name>: <reason>``;
+      warning always appended; event payload ``{action, reason}``.
+    * any other (unknown) action → emits an ``error`` event WITHOUT touching any
+      counter (matches the former report-conversion helper.s fall-through).
+
+    Args:
+        report: Dispatch step report mutated in place.
+        bus: Required in-process EventBus.
+        r: One dispatch result.
+    """
+    name = r.source.name
+    # Action tags use a leading "action=" prefix (not "[action]") because
+    # Rich console.print() would silently swallow bracketed tokens as markup.
+    if r.action in ("replaced", "merged", "moved"):
+        record(
+            report,
+            bus,
+            step="dispatch",
+            item=name,
+            status=r.action,
+            detail=f"action={r.action:<8} {name} → {r.disk}",
+            event_details={"dest": str(r.destination) if r.destination else "", "disk": r.disk or ""},
+        )
+    elif r.action == "skipped":
+        record(
+            report,
+            bus,
+            step="dispatch",
+            item=name,
+            status="skipped",
+            detail=f"action=skipped  {name}: {r.reason}",
+            warning=f"{name}: {r.reason}" if r.reason else None,
+            event_details={"reason": r.reason or ""},
+        )
+    elif r.action == "error":
+        record(
+            report,
+            bus,
+            step="dispatch",
+            item=name,
+            status="error",
+            detail=f"action=error    {name}: {r.reason}",
+            warning=f"{name}: {r.reason or 'unknown error'}",
+            event_details={"action": r.action, "reason": r.reason or ""},
+        )
+    else:
+        # Unknown action: surface an error event but leave every counter
+        # untouched (the former report-conversion helper had no branch for it).
+        bus.emit(
+            ItemProgressed(
+                step="dispatch",
+                item=name,
+                status="error",
+                details={"action": r.action, "reason": r.reason or ""},
+            )
+        )
 
 
 def _drain_dispatch_outbox(config: Config) -> None:
@@ -315,45 +359,3 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
         )
     finally:
         conn.close()
-
-
-def _to_step_report(results: list[DispatchResult]) -> StepReport:
-    """Convert DispatchResult list to StepReport.
-
-    Args:
-        results: List of dispatch results.
-
-    Returns:
-        StepReport with aggregated counts.
-    """
-    success = 0
-    skipped = 0
-    errors = 0
-    warnings: list[str] = []
-    details: list[str] = []
-
-    # Action tags use a leading "action=" prefix (not "[action]") because
-    # Rich console.print() would silently swallow bracketed tokens as markup.
-    for r in results:
-        name = r.source.name
-        if r.action in ("replaced", "merged", "moved"):
-            success += 1
-            details.append(f"action={r.action:<8} {name} → {r.disk}")
-        elif r.action == "skipped":
-            skipped += 1
-            details.append(f"action=skipped  {name}: {r.reason}")
-            if r.reason:
-                warnings.append(f"{name}: {r.reason}")
-        elif r.action == "error":
-            errors += 1
-            details.append(f"action=error    {name}: {r.reason}")
-            warnings.append(f"{name}: {r.reason or 'unknown error'}")
-
-    return StepReport(
-        name="dispatch",
-        success_count=success,
-        skip_count=skipped,
-        error_count=errors,
-        warnings=warnings,
-        details=details,
-    )

@@ -2,6 +2,7 @@
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.structure_validator import validate_structure
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -35,7 +36,7 @@ def test_movie_extra_nfo_removed(tmp_path, settings, config):
     bad.write_text("<movie/>")
     (movie / "Scream 7.mkv").write_bytes(b"\x00")
 
-    results = validate_structure(settings, config, dry_run=False)
+    results = validate_structure(settings, config, dry_run=False, bus=EventBus())
     repaired = [r for r in results if r.action == "repaired"]
     assert len(repaired) == 1
     assert good.exists()
@@ -56,7 +57,7 @@ def test_movie_valid_misnamed_nfo_renamed_not_deleted(tmp_path, settings, config
     manual.write_text('<movie><uniqueid type="tmdb">1339713</uniqueid></movie>')
     (movie / "Obsession (2026).mkv").write_bytes(b"\x00")
 
-    validate_structure(settings, config, dry_run=False)
+    validate_structure(settings, config, dry_run=False, bus=EventBus())
 
     # The identification survives — renamed to the canonical name verify expects,
     # never deleted.
@@ -75,7 +76,7 @@ def test_movie_duplicate_artwork_legacy_removed(tmp_path, settings, config):
     (movie / "Film-poster.jpg").write_bytes(b"good")
     (movie / "Film-poster (1).jpg").write_bytes(b"dup")
 
-    results = validate_structure(settings, config, dry_run=False)
+    results = validate_structure(settings, config, dry_run=False, bus=EventBus())
     repaired = [r for r in results if r.action == "repaired"]
     assert len(repaired) == 1
     assert not (movie / "Film-poster (1).jpg").exists()
@@ -89,7 +90,7 @@ def test_tvshow_empty_torrent_subdir_removed(tmp_path, settings, config):
     empty_dir = show / "Show.S01E01.MULTi.1080p"
     empty_dir.mkdir()
 
-    validate_structure(settings, config, dry_run=False)
+    validate_structure(settings, config, dry_run=False, bus=EventBus())
     assert not empty_dir.exists()
 
 
@@ -102,7 +103,7 @@ def test_clean_movie_no_action(tmp_path, settings, config):
     (movie / "Film-poster.jpg").write_bytes(b"\x00")
     (movie / "Film-landscape.jpg").write_bytes(b"\x00")
 
-    results = validate_structure(settings, config, dry_run=False)
+    results = validate_structure(settings, config, dry_run=False, bus=EventBus())
     validated = [r for r in results if r.action == "validated"]
     assert len(validated) == 1
 
@@ -115,7 +116,7 @@ def test_idempotent_second_run(tmp_path, settings, config):
     (movie / "Film.mkv").write_bytes(b"\x00")
     (movie / "Film.MULTI.nfo").write_text("<movie/>")
 
-    validate_structure(settings, config, dry_run=False)
-    results2 = validate_structure(settings, config, dry_run=False)
+    validate_structure(settings, config, dry_run=False, bus=EventBus())
+    results2 = validate_structure(settings, config, dry_run=False, bus=EventBus())
     repaired = [r for r in results2 if r.action == "repaired"]
     assert len(repaired) == 0

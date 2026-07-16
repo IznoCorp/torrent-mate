@@ -12,14 +12,29 @@ from personalscraper.dispatch.run import (
     _cleanup_staging_orphans,
     _drain_dispatch_outbox,
     _enrich_after_dispatch,
-    _to_step_report,
+    _record_dispatch_terminal,
     run_dispatch,
 )
+from personalscraper.models import StepReport
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
-class TestToStepReport:
-    """Tests for _to_step_report conversion."""
+def _report_from(results: list[DispatchResult]) -> StepReport:
+    """Build a dispatch StepReport by recording each result's terminal transition.
+
+    Mirrors the per-item terminal loop in ``run_dispatch`` — the replacement for
+    the former report-conversion helper — so the counter/detail semantics are pinned
+    here without a live pipeline run.
+    """
+    report = StepReport(name="dispatch")
+    bus = EventBus()
+    for r in results:
+        _record_dispatch_terminal(report, bus, r)
+    return report
+
+
+class TestRecordDispatchTerminal:
+    """Counter/detail semantics of the per-item terminal reporter."""
 
     def test_counts(self) -> None:
         """Should count replaced/merged/moved as success."""
@@ -30,7 +45,7 @@ class TestToStepReport:
             DispatchResult(source=Path("d"), action="skipped", reason="no space"),
             DispatchResult(source=Path("e"), action="error", reason="rsync failed"),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.success_count == 3
         assert report.skip_count == 1
         assert report.error_count == 1
@@ -42,7 +57,7 @@ class TestToStepReport:
             DispatchResult(source=Path("a"), action="skipped", reason=None),
             DispatchResult(source=Path("b"), action="error", reason=None),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.skip_count == 1
         assert report.error_count == 1
 
@@ -52,7 +67,7 @@ class TestToStepReport:
             DispatchResult(source=Path("a"), action="error", reason="fail"),
             DispatchResult(source=Path("b"), action="moved", disk="Disk1"),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.error_count == 1
         assert report.success_count == 1
 
@@ -62,7 +77,7 @@ class TestToStepReport:
             DispatchResult(source=Path("a"), action="unknown_action"),
             DispatchResult(source=Path("b"), action="moved", disk="Disk1"),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.success_count == 1
         assert report.skip_count == 0
         assert report.error_count == 0

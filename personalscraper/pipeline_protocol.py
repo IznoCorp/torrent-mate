@@ -154,6 +154,7 @@ def record(
     status: StepItemStatus | str,
     detail: str | None = None,
     warning: str | None = None,
+    event_details: Mapping[str, Any] | None = None,
 ) -> None:
     """Record a per-item progress event and update the step report.
 
@@ -184,9 +185,18 @@ def record(
             string normalised via ``str(status)``).
         detail: Optional detail string appended to ``report.details``.
         warning: Optional warning string appended to ``report.warnings``.
+        event_details: Optional JSON-safe payload attached to the emitted
+            :class:`ItemProgressed` event's ``details`` field (provider name,
+            confidence, destination disk, error reason, …).  ``None`` leaves
+            the event's ``details`` at its empty-dict default.  This is the
+            structured-payload channel; it never affects ``report`` counters or
+            ``report.details``/``report.warnings``.
     """
     status_str = str(status)
-    bus.emit(ItemProgressed(step=step, item=item, status=status_str))
+    if event_details is not None:
+        bus.emit(ItemProgressed(step=step, item=item, status=status_str, details=dict(event_details)))
+    else:
+        bus.emit(ItemProgressed(step=step, item=item, status=status_str))
 
     if status_str in _SUCCESS_STATUSES:
         report.success_count += 1

@@ -344,7 +344,7 @@ def run_scrape(
         writer.mark_superseded_orphans()
 
     # Convert to StepReport
-    return _to_step_report(all_results)
+    return _build_scrape_report(all_results)
 
 
 def _is_enqueued(r: ScrapeResult) -> bool:
@@ -366,8 +366,14 @@ def _is_enqueued(r: ScrapeResult) -> bool:
     return r.decision_trigger is not None and r.action != "restored_from_db"
 
 
-def _to_step_report(results: list[ScrapeResult]) -> StepReport:
-    """Convert a list of ScrapeResult to a StepReport.
+def _build_scrape_report(results: list[ScrapeResult]) -> StepReport:
+    """Build a StepReport from a list of ScrapeResult (scrape finalizer).
+
+    Scrape's per-item ``ItemProgressed`` events are emitted separately in
+    ``run_scrape`` (the enqueued/action partition differs from the counter
+    partition below — a below-threshold item emits ``queued_for_decision`` yet
+    counts as a skip+unmatched), so the report is built by direct construction
+    rather than through the shared ``record`` reporter.
 
     Items with action ``skipped_low_confidence`` are counted separately
     in ``counts["unmatched"]`` so the caller can distinguish between

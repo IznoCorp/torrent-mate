@@ -19,8 +19,8 @@ from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.logger import get_logger
-from personalscraper.models import StepReport
-from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.models import SortResult, StepReport
+from personalscraper.pipeline_protocol import record
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
@@ -98,57 +98,14 @@ def run_sort(
                 ),
             )
 
-    # Sort processes ingest_dir ({ingest_dir}/) → categorized dirs at staging root
-    results = sorter.process(ingest_dir, dest_root=staging_dir, skip_names=skip_names)
+    # Sort processes ingest_dir ({ingest_dir}/) → categorized dirs at staging root.
+    # ``Sorter.process`` emits the per-item ``started`` events (F8) as it works.
+    results = sorter.process(ingest_dir, dest_root=staging_dir, skip_names=skip_names, bus=event_bus)
 
+    # Terminal per-item progress + report counters via the shared reporter.
     report = StepReport(name="sort")
     for r in results:
-        event_bus.emit(ItemProgressed(step="sort", item=r.source.name, status="started"))
-        if r.status == "moved":
-            report.success_count += 1
-            report.details.append(f"{r.source.name} -> {r.destination}")
-            event_bus.emit(
-                ItemProgressed(
-                    step="sort",
-                    item=r.source.name,
-                    status="moved",
-                    details={"destination": str(r.destination)},
-                )
-            )
-        elif r.status == "dry-run":
-            report.success_count += 1
-            report.details.append(f"[DRY-RUN] {r.source.name} -> {r.destination}")
-            event_bus.emit(
-                ItemProgressed(
-                    step="sort",
-                    item=r.source.name,
-                    status="moved",
-                    details={"destination": str(r.destination), "dry_run": True},
-                )
-            )
-        elif r.status == "skipped":
-            report.skip_count += 1
-            if r.message:
-                report.warnings.append(f"{r.source.name}: {r.message}")
-            event_bus.emit(
-                ItemProgressed(
-                    step="sort",
-                    item=r.source.name,
-                    status="skipped",
-                    details={"reason": r.message or ""},
-                )
-            )
-        elif r.status == "error":
-            report.error_count += 1
-            report.warnings.append(f"ERROR {r.source.name}: {r.message}")
-            event_bus.emit(
-                ItemProgressed(
-                    step="sort",
-                    item=r.source.name,
-                    status="error",
-                    details={"error": r.message or ""},
-                )
-            )
+        _record_sort_terminal(report, event_bus, r)
 
     # After sort consumes files from the ingest dir, prune any
     # ``dest_path`` recorded inside that dir from the ingest tracker.
@@ -173,6 +130,69 @@ def run_sort(
         errors=report.error_count,
     )
     return report
+
+
+def _record_sort_terminal(report: StepReport, bus: EventBus, r: SortResult) -> None:
+    """Record one sort result's terminal ``ItemProgressed`` + report counter.
+
+    Preserves the exact counter/detail/warning + event-payload semantics of the
+    former inline loop:
+
+    * ``moved`` → ``success_count``; detail ``<name> -> <dest>``; event
+      ``moved`` with ``{destination}``.
+    * ``dry-run`` → ``success_count``; detail ``[DRY-RUN] <name> -> <dest>``;
+      event ``moved`` with ``{destination, dry_run}``.
+    * ``skipped`` → ``skip_count``; warning ``<name>: <message>`` only when a
+      message is present (no detail); event ``skipped`` with ``{reason}``.
+    * ``error`` → ``error_count``; warning ``ERROR <name>: <message>`` (no
+      detail); event ``error`` with ``{error}``.
+
+    Args:
+        report: Sort step report mutated in place.
+        bus: Required in-process EventBus.
+        r: One sort result.
+    """
+    name = r.source.name
+    if r.status == "moved":
+        record(
+            report,
+            bus,
+            step="sort",
+            item=name,
+            status="moved",
+            detail=f"{name} -> {r.destination}",
+            event_details={"destination": str(r.destination)},
+        )
+    elif r.status == "dry-run":
+        record(
+            report,
+            bus,
+            step="sort",
+            item=name,
+            status="moved",
+            detail=f"[DRY-RUN] {name} -> {r.destination}",
+            event_details={"destination": str(r.destination), "dry_run": True},
+        )
+    elif r.status == "skipped":
+        record(
+            report,
+            bus,
+            step="sort",
+            item=name,
+            status="skipped",
+            warning=f"{name}: {r.message}" if r.message else None,
+            event_details={"reason": r.message or ""},
+        )
+    elif r.status == "error":
+        record(
+            report,
+            bus,
+            step="sort",
+            item=name,
+            status="error",
+            warning=f"ERROR {name}: {r.message}",
+            event_details={"error": r.message or ""},
+        )
 
 
 def _has_unsorted_items(ingest_dir: Path) -> bool:

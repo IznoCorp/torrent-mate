@@ -10,9 +10,10 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
+from personalscraper.models import StepReport
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checks.base import CheckContext, CheckResult, CheckStage, Severity
-from personalscraper.verify.run import _to_step_report, run_verify
+from personalscraper.verify.run import _record_verify_terminal, run_verify
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
 
@@ -112,8 +113,8 @@ class TestGetDispatchable:
 # ---------------------------------------------------------------------------
 
 
-class TestToStepReport:
-    """Tests for _to_step_report."""
+class TestRecordVerifyTerminal:
+    """Counter/detail semantics of the per-item verify terminal reporter."""
 
     def test_counts(self) -> None:
         """valid+fixed → success; blocked → SKIP (+warning), never an error.
@@ -129,7 +130,10 @@ class TestToStepReport:
             VerifyResult(Path("b"), "movie", status="fixed", category="films", fixes_applied=["Fixed dir"]),
             VerifyResult(Path("c"), "movie", status="blocked", errors=["No video"]),
         ]
-        report = _to_step_report(results)
+        report = StepReport(name="verify")
+        bus = EventBus()
+        for r in results:
+            _record_verify_terminal(report, bus, r)
         assert report.success_count == 2
         assert report.error_count == 0
         assert report.skip_count == 1

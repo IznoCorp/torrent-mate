@@ -6,6 +6,7 @@ import pytest
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
+from personalscraper.core.event_bus import EventBus
 from personalscraper.sorter.sorter import Sorter
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -45,21 +46,21 @@ class TestProcess:
     def test_skips_sorted_directories(self, staging, config):
         """Does not process the sorting destination directories themselves."""
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 0
 
     def test_skips_hidden_files(self, staging, config):
         """Skips dotfiles like .DS_Store."""
         (staging / ".DS_Store").touch()
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 0
 
     def test_processes_movie_file(self, staging, config):
         """Processes a standalone movie file."""
         (staging / "Movie.Title.2024.1080p.mkv").touch()
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 1
         assert results[0].media_type == "movie"
         assert results[0].status == "dry-run"
@@ -70,7 +71,7 @@ class TestProcess:
         show_dir.mkdir()
         (show_dir / "episode.mkv").touch()
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 1
         assert results[0].media_type == "tvshow"
 
@@ -80,14 +81,14 @@ class TestProcess:
         (staging / "book.epub").touch()
         (staging / "track.mp3").touch()
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 3
 
     def test_returns_sort_results(self, staging, config):
         """Returns proper SortResult objects with metadata."""
         (staging / "The.Boys.S05E01.MULTi.1080p.mkv").touch()
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         r = results[0]
         assert r.media_type == "tvshow"
         assert "The Boys" in r.title
@@ -247,7 +248,7 @@ class TestErrorHandling:
 
         monkeypatch.setattr(sorter_mod.shutil, "move", flaky_move)
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         statuses = {r.status for r in results}
         assert "error" in statuses
         assert "moved" in statuses
@@ -262,7 +263,7 @@ class TestEdgeBranches:
     def test_process_missing_source_dir(self, config, tmp_path):
         """process() returns [] and warns when source_dir does not exist."""
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(tmp_path / "no_such_dir")
+        results = sorter.process(tmp_path / "no_such_dir", bus=EventBus())
         assert results == []
 
     def test_movie_dir_replace_existing(self, staging, config):

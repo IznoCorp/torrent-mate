@@ -32,6 +32,7 @@ from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability, resolve_capability
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.text_utils import _NTFS_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
@@ -218,6 +219,10 @@ class Dispatcher:
         results: list[DispatchResult] = []
 
         for vr in verified:
+            # F8 real lifecycle: emit ``started`` from INSIDE the per-item loop,
+            # BEFORE this item's dispatch work runs. The terminal ``ItemProgressed``
+            # (+ counters) is recorded by ``run_dispatch`` from the returned results.
+            self._event_bus.emit(ItemProgressed(step="dispatch", item=vr.media_path.name, status="started"))
             if not vr.category:
                 results.append(
                     DispatchResult(

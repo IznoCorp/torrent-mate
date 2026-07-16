@@ -10,7 +10,8 @@ rg -n "def _to_step_report" -g '*.py' personalscraper/            # 0 — delete
 rg -n "_to_step_report" -g '*.py' personalscraper/ tests/         # 0 — no callers of the removed helper
 
 # Real per-item lifecycle: 'started' emitted before work on sort/dispatch/enforce (F8)
-command python -m pytest tests -k "item_progressed and (sort or dispatch or enforce) and started" -q --no-header | grep -E "passed"
+# (P1.3: the F8 regressions live in tests/event_bus/test_real_started_lifecycle.py)
+command python -m pytest tests/event_bus/test_real_started_lifecycle.py -q --no-header | grep -E "passed"
 
 # F2 / F3 regression tests (written test-first this phase)
 command python -m pytest tests -k "standalone_dispatch and permit" -q --no-header | grep -E "passed"

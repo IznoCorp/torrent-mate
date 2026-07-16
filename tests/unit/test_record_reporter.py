@@ -326,3 +326,58 @@ class TestStartedNeutral:
         assert report.success_count == 0
         assert report.skip_count == 0
         assert report.error_count == 0
+
+
+# ---------------------------------------------------------------------------
+# event_details passthrough (structured ItemProgressed.details payload)
+# ---------------------------------------------------------------------------
+
+
+class TestEventDetailsPassthrough:
+    """``event_details`` populates the emitted event's ``details`` field only."""
+
+    def test_event_details_attached_to_event(self) -> None:
+        """The emitted ``ItemProgressed`` carries the supplied ``event_details``."""
+        spy = _SpyBus()
+        report = StepReport(name="dispatch")
+        record(
+            report,
+            spy,
+            step="dispatch",
+            item="Dune (2021)",
+            status=StepItemStatus.MOVED,
+            event_details={"disk": "disk2", "dest": "/Volumes/disk2/Dune"},
+        )
+        assert spy.emitted[0].details == {"disk": "disk2", "dest": "/Volumes/disk2/Dune"}
+
+    def test_event_details_copied_not_aliased(self) -> None:
+        """The emitted event gets a copy — mutating the source dict later is safe."""
+        spy = _SpyBus()
+        report = StepReport(name="scrape")
+        payload = {"provider": "tmdb", "confidence": 0.95}
+        record(report, spy, step="scrape", item="Film", status=StepItemStatus.MATCHED, event_details=payload)
+        payload["provider"] = "mutated"
+        assert spy.emitted[0].details == {"provider": "tmdb", "confidence": 0.95}
+
+    def test_event_details_does_not_touch_report_lists(self) -> None:
+        """``event_details`` never leaks into ``report.details`` / ``report.warnings``."""
+        spy = _SpyBus()
+        report = StepReport(name="verify")
+        record(
+            report,
+            spy,
+            step="verify",
+            item="Show",
+            status=StepItemStatus.BLOCKED,
+            event_details={"errors": ["missing nfo"]},
+        )
+        assert report.details == []
+        assert report.warnings == []
+        assert report.skip_count == 1
+
+    def test_none_event_details_leaves_empty_dict(self) -> None:
+        """Omitting ``event_details`` leaves the event's ``details`` at ``{}``."""
+        spy = _SpyBus()
+        report = StepReport(name="sort")
+        record(report, spy, step="sort", item="x", status=StepItemStatus.MOVED)
+        assert spy.emitted[0].details == {}

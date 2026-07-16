@@ -12,9 +12,11 @@ from pathlib import Path
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import SortResult
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import detect_dir_type, detect_file_type
 from personalscraper.sorter.strategies import (
@@ -74,6 +76,7 @@ class Sorter:
         dest_root: Path | None = None,
         *,
         skip_names: frozenset[str] = frozenset(),
+        bus: EventBus,
     ) -> list[SortResult]:
         """Sort all items from source_dir into type subdirectories under dest_root.
 
@@ -82,6 +85,11 @@ class Sorter:
         from self.config.staging_dirs to stay in sync with config.json5.
         Each item is processed independently — errors on one item don't stop
         processing of others.
+
+        F8 real lifecycle: an ``ItemProgressed(status="started")`` is emitted on
+        *bus* for each item BEFORE that item's work runs (the ``sort_item`` move
+        or the seed-pure skip). The terminal ``ItemProgressed`` + report counters
+        are recorded by ``run_sort`` from the returned results.
 
         Args:
             source_dir: Directory to scan for unsorted items (e.g. {ingest_dir}/).
@@ -94,6 +102,8 @@ class Sorter:
                 SortResult (``message="seed_pure"``) and left untouched in the
                 source directory. Default empty frozenset = byte-identical
                 behavior for callers that do not opt into the guard.
+            bus: Required in-process EventBus. Each processed item emits its
+                ``started`` event here before its work executes.
 
         Returns:
             List of SortResult for each processed item.
@@ -118,6 +128,8 @@ class Sorter:
             # Skip sorted directories and hidden files
             if item.name in skip_dirs or item.name.startswith("."):
                 continue
+            # Real "started" lifecycle: emit before the item's work (F8).
+            bus.emit(ItemProgressed(step="sort", item=item.name, status="started"))
             # Seed-pure guard: genuinely exclude opted-in names. sort_item is
             # never called, so the item is not moved — it is reported as a
             # skipped result and left in the source directory for seeding.

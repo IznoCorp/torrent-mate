@@ -54,17 +54,19 @@ def run_enforce(
     """
     log.info("enforce_start", dry_run=dry_run)
 
-    sanitize_results = sanitize_files(settings, config, dry_run)
-    structure_results = validate_structure(settings, config, dry_run)
-    coherence_results = check_coherence(settings, config, dry_run, only)
+    # Each sub-component emits its per-item ``started`` events (F8, real
+    # lifecycle) as it works; the terminal transitions + counters are recorded
+    # below from the returned results.
+    sanitize_results = sanitize_files(settings, config, dry_run, bus=event_bus)
+    structure_results = validate_structure(settings, config, dry_run, bus=event_bus)
+    coherence_results = check_coherence(settings, config, dry_run, only, bus=event_bus)
 
     success = 0
     warnings_list: list[str] = []
     details: list[str] = []
 
-    # Sanitize actions
+    # Sanitize actions (``started`` already emitted by ``sanitize_files``, F8)
     for sanitize_result in sanitize_results:
-        event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="started"))
         if sanitize_result.action not in ("skipped",):
             success += 1
             details.append(
@@ -98,10 +100,9 @@ def run_enforce(
         else:
             event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="skipped"))
 
-    # Structure fixes
+    # Structure fixes (``started`` already emitted by ``validate_structure``, F8)
     for structure_result in structure_results:
         item_name = structure_result.path.name
-        event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
         if structure_result.action == "repaired":
             success += 1
             for fix in structure_result.fixes:
@@ -124,10 +125,9 @@ def run_enforce(
             warnings_list.append(f"{item_name}: {w}")
             log.warning("enforce_structure_warning", item=item_name, warning=w)
 
-    # Coherence warnings
+    # Coherence warnings (``started`` already emitted by ``check_coherence``, F8)
     for coherence_result in coherence_results:
         item_name = coherence_result.path.name
-        event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
         if coherence_result.warnings:
             event_bus.emit(
                 ItemProgressed(
