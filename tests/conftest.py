@@ -267,6 +267,16 @@ def _stub_pipeline_steps(request, monkeypatch):
     monkeypatch.setattr("personalscraper.cli.acquire_lock", lambda *a, **kw: True)
     monkeypatch.setattr("personalscraper.cli.acquire_pipeline_lock", lambda *a, **kw: True)
     monkeypatch.setattr("personalscraper.cli.release_lock", lambda *a, **kw: None)
+    # Migrated pipeline step commands (ingest/sort/scrape/…) take the lock via
+    # the ``cli_helpers.boundary`` decorator, which imports the lock helpers into
+    # its own module namespace — patching ``personalscraper.cli.*`` does not
+    # intercept them. Patch the boundary module too so no real ``pipeline.lock``
+    # is ever created during test_cli.py. (``run`` still uses ``personalscraper.cli``.)
+    import importlib  # noqa: PLC0415
+
+    _bmod = importlib.import_module("personalscraper.cli_helpers.boundary")
+    monkeypatch.setattr(_bmod, "acquire_pipeline_lock", lambda *a, **kw: True)
+    monkeypatch.setattr(_bmod, "release_lock", lambda *a, **kw: None)
 
     # Standalone step commands.
     monkeypatch.setattr(

@@ -6,6 +6,7 @@ and ``run`` subcommands.
 
 from __future__ import annotations
 
+import importlib
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -14,6 +15,12 @@ from personalscraper.cli import app
 from personalscraper.models import StepReport
 
 runner = CliRunner()
+
+# Migrated step commands acquire the pipeline lock through the
+# ``cli_helpers.boundary`` decorator, whose module namespace is the seam to
+# patch (``personalscraper.cli.*`` no longer intercepts them). Non-migrated
+# commands + ``run`` still use ``personalscraper.cli.*``.
+_BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 
 
 # Common patch targets and helpers
@@ -377,8 +384,8 @@ class TestCleanupLockBlocked:
 # ── ingest / sort / scrape — verbose branches not covered by test_cli.py ────
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestIngestSortScrapeVerbose:
     """Verbose branches for already-tested commands (covers details printing)."""
 

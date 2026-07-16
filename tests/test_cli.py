@@ -1,5 +1,6 @@
 """Tests for personalscraper.cli — CLI commands and global options."""
 
+import importlib
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,6 +15,15 @@ from personalscraper.models import PipelineReport, StepReport
 from tests.fixtures.settings_stub import make_typed_settings_stub
 
 runner = CliRunner()
+
+# Migrated pipeline step commands (ingest/sort/scrape/verify/enforce/dispatch/
+# clean/cleanup/process) acquire the lock through the ``cli_helpers.boundary``
+# decorator, which imports the lock helpers into its OWN module namespace —
+# patching ``personalscraper.cli.*`` alone no longer intercepts them. The
+# ``run`` command still uses ``personalscraper.cli.*``. The lock fixtures below
+# therefore patch BOTH seams with a single shared mock so call-count assertions
+# hold regardless of which command type is under test.
+_BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 
 # Patch targets for the eager config load in the CLI callback.
 # The callback does a lazy import from personalscraper.conf.loader, so we
@@ -92,20 +102,35 @@ def _cli_lock_mocks():
     """``acquire_pipeline_lock`` (True) + ``release_lock`` mocks for step-command tests.
 
     Pipeline commands route through ``acquire_pipeline_lock`` (global lock +
-    scrape-dir fail-closed check, webui-ux phase 4); release is unchanged.
+    scrape-dir fail-closed check, webui-ux phase 4); release is unchanged. One
+    shared mock backs both the ``personalscraper.cli`` seam (``run``) and the
+    ``cli_helpers.boundary`` seam (migrated step commands) so the call-count
+    assertions hold whichever seam the command under test uses.
     """
+    acquire = MagicMock(return_value=True)
+    release = MagicMock()
     with (
-        patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as al,
-        patch("personalscraper.cli.release_lock") as rl,
+        patch("personalscraper.cli.acquire_pipeline_lock", acquire),
+        patch("personalscraper.cli.release_lock", release),
+        patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", acquire),
+        patch.object(_BOUNDARY_MOD, "release_lock", release),
     ):
-        yield SimpleNamespace(acquire=al, release=rl)
+        yield SimpleNamespace(acquire=acquire, release=release)
 
 
 @pytest.fixture
 def _cli_lock_blocked():
-    """``acquire_pipeline_lock`` returning False — simulates a held pipeline lock."""
-    with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False) as mock:
-        yield mock
+    """``acquire_pipeline_lock`` returning False — simulates a held pipeline lock.
+
+    Patches both the ``personalscraper.cli`` seam (``run``) and the
+    ``cli_helpers.boundary`` seam (migrated step commands) with a single mock.
+    """
+    blocked = MagicMock(return_value=False)
+    with (
+        patch("personalscraper.cli.acquire_pipeline_lock", blocked),
+        patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", blocked),
+    ):
+        yield blocked
 
 
 @pytest.fixture
@@ -453,9 +478,15 @@ def test_run_accepts_continue_on_trailer_error(mock_pipeline_run):
 # ── Config error decorator tests ──────────────────────
 
 
-@patch("personalscraper.cli.get_settings")
+@patch.object(_BOUNDARY_MOD, "get_settings")
 def test_invalid_config_shows_friendly_error(mock_get_settings):
-    """ValidationError from get_settings() is shown as friendly 'Configuration error'."""
+    """ValidationError from get_settings() is shown as friendly 'Configuration error'.
+
+    The migrated ``ingest`` command resolves settings through the
+    ``cli_helpers.boundary`` decorator, so the ``get_settings`` seam to patch is
+    the boundary module's namespace; ``handle_cli_errors`` still catches the
+    ``ValidationError`` and renders the friendly message.
+    """
     from pydantic import ValidationError
 
     from personalscraper.config import Settings

@@ -10,8 +10,10 @@ import typer
 from personalscraper import cli as cli_compat
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
+    CommandContext,
     _bootstrap_staging,
     _build_app_context,
+    boundary,
     handle_cli_errors,
     per_step_boundary,
 )
@@ -79,97 +81,82 @@ def _run_help() -> str:
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True, build_torrent_client=True)
 def ingest(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Ingest completed torrents from qBittorrent."""
     config = ctx.obj.config
     assert config is not None  # guaranteed non-None by callback
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-    try:
-        with cli_step_journal(config, command="ingest", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            staging_dir = config.paths.staging_dir
-            ingest_dir = staging_path(config, find_ingest_dir(config))
-            with per_step_boundary(config, settings, build_torrent_client=True, stream_events=True) as app_context:
-                # Fail-safe copy-vs-move (§7 HnR): inject the seed-obligation
-                # checker from the acquire context via the core port.
-                _acquire = getattr(app_context, "acquire", None)
-                _seed_checker = getattr(_acquire, "delete_authority", None)
-                report = cli_compat.run_ingest(
-                    settings,
-                    dry_run=dry_run,
-                    ingest_dir=ingest_dir,
-                    staging_dir=staging_dir,
-                    config=config,
-                    event_bus=app_context.event_bus,
-                    torrent_client=app_context.torrent_client,
-                    seed_checker=_seed_checker,
-                )
-            console.print(
-                f"[bold]Ingest:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    app_context = bundle.app_context
+    assert app_context is not None
+    staging_dir = config.paths.staging_dir
+    ingest_dir = staging_path(config, find_ingest_dir(config))
+    # Fail-safe copy-vs-move (§7 HnR): inject the seed-obligation
+    # checker from the acquire context via the core port.
+    _acquire = getattr(app_context, "acquire", None)
+    _seed_checker = getattr(_acquire, "delete_authority", None)
+    report = cli_compat.run_ingest(
+        bundle.settings,
+        dry_run=dry_run,
+        ingest_dir=ingest_dir,
+        staging_dir=staging_dir,
+        config=config,
+        event_bus=app_context.event_bus,
+        torrent_client=app_context.torrent_client,
+        seed_checker=_seed_checker,
+    )
+    console.print(
+        f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def sort(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Sort and clean media files."""
     from personalscraper.sorter.run import run_sort
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-    try:
-        with cli_step_journal(config, command="sort", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                report = run_sort(
-                    settings,
-                    staging_dir=config.paths.staging_dir,
-                    dry_run=dry_run,
-                    config=config,
-                    event_bus=app_context.event_bus,
-                )
-            console.print(
-                f"[bold]Sort:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    app_context = bundle.app_context
+    assert app_context is not None
+    report = run_sort(
+        bundle.settings,
+        staging_dir=config.paths.staging_dir,
+        dry_run=dry_run,
+        config=config,
+        event_bus=app_context.event_bus,
+    )
+    console.print(
+        f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def scrape(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Scrape metadata and artwork from TMDB/TVDB."""
     from personalscraper.scraper.run import run_scrape
@@ -177,36 +164,24 @@ def scrape(
     config = ctx.obj.config  # Guaranteed non-None by callback.
     assert config is not None
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-    try:
-        with cli_step_journal(config, command="scrape", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                report = run_scrape(
-                    settings,
-                    config=config,
-                    dry_run=dry_run,
-                    interactive=interactive,
-                    movies_only=movies_only,
-                    tvshows_only=tvshows_only,
-                    event_bus=app_context.event_bus,
-                    registry=app_context.provider_registry,
-                )
-            console.print(
-                f"[bold]Scrape:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    app_context = bundle.app_context
+    assert app_context is not None
+    report = run_scrape(
+        bundle.settings,
+        config=config,
+        dry_run=dry_run,
+        interactive=interactive,
+        movies_only=movies_only,
+        tvshows_only=tvshows_only,
+        event_bus=app_context.event_bus,
+        registry=app_context.provider_registry,
+    )
+    console.print(
+        f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
