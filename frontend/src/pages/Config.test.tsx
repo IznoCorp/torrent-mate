@@ -18,7 +18,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
@@ -181,15 +181,22 @@ function setDefaultMocks(): void {
   mocks.getConfigStatus.mockResolvedValue(defaultStatus);
 }
 
-/** Render the Config page wrapped in providers. */
-function renderConfig(): void {
+/** Probe that surfaces the live URL search string for ?file= assertions. */
+function LocationProbe(): ReactElement {
+  const { search } = useLocation();
+  return <div data-testid="loc-search">{search}</div>;
+}
+
+/** Render the Config page wrapped in providers (?file= deep-link support). */
+function renderConfig(initialEntry = "/config"): void {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Config />
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -821,5 +828,39 @@ describe("Config", () => {
         screen.getByRole("combobox", { name: "Fichier" }),
       ).toHaveTextContent("master.json5");
     });
+  });
+});
+
+describe("Config — fichier adressable par URL (D3 / DOIT-10)", () => {
+  it("ouvre l'éditeur du fichier indiqué par ?file= (deep-link)", async () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig("/config?file=master.json5");
+
+    // The editor opened on the deep-linked file, not the placeholder.
+    await waitFor(() => {
+      expect(screen.getByText("max_retries")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche le placeholder sans paramètre ?file=", () => {
+    renderConfig();
+
+    expect(
+      screen.getByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+    ).toBeInTheDocument();
+  });
+
+  it("écrit ?file=<nom> dans l'URL en sélectionnant un fichier (partageable)", () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    fireEvent.click(screen.getByText("master.json5"));
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent(
+      "?file=master.json5",
+    );
   });
 });

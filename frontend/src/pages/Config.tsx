@@ -18,6 +18,7 @@ import {
   useState,
   type ReactElement,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -179,7 +180,11 @@ export default function Config(): ReactElement {
   const statusQ = useConfigStatus();
 
   // ---- Local state ---------------------------------------------------------
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  // The selected file is URL-addressable (?file=<name>) — DOIT-10: a shareable
+  // deep-link to a specific config file, and Back returns to the file list.
+  // Derived from the URL (single source of truth); no param = no file selected.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedFile = searchParams.get("file");
   // Dirty values per file: Map<filename, {owned_key: value}>
   const [dirtyValues, setDirtyValues] = useState<
     Map<string, Record<string, unknown>>
@@ -208,10 +213,23 @@ export default function Config(): ReactElement {
   const validate = useValidateConfig();
 
   // ---- File selection handler ----------------------------------------------
-  const handleSelectFile = useCallback((name: string) => {
-    setSelectedFile(name);
-    setFormErrors({});
-  }, []);
+  // Push the selection into the URL (?file=<name>) so it is shareable and Back
+  // returns to the previous file / the list. Per-file dirty values persist in
+  // `dirtyValues` (keyed by name), so switching never loses unsaved edits.
+  const handleSelectFile = useCallback(
+    (name: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("file", name);
+          return next;
+        },
+        { replace: false },
+      );
+      setFormErrors({});
+    },
+    [setSearchParams],
+  );
 
   // ---- Get current values for the selected file ----------------------------
   const currentValues = useMemo<Record<string, unknown>>(
@@ -721,7 +739,9 @@ interface StalledLoadRetryProps {
  * Returns:
  *   The retry affordance, or null during the grace period.
  */
-function StalledLoadRetry({ onRetry }: StalledLoadRetryProps): ReactElement | null {
+function StalledLoadRetry({
+  onRetry,
+}: StalledLoadRetryProps): ReactElement | null {
   const [stalled, setStalled] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => {
