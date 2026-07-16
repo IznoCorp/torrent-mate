@@ -50,6 +50,7 @@ import {
   cadenceInterval,
   FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_LABEL,
+  FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
   formatRunResult,
   GRAB_JOB_NAME,
@@ -316,12 +317,18 @@ export function FollowedPanel({
                       {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
                     </Badge>
                     {/* Backend-derived lifecycle status (C14): the UI only maps
-                      status → tone/label, no business derivation in JSX. */}
+                      status → tone/label, no business derivation in JSX. Films
+                      take a film-specific label for the two series-worded
+                      states (D2-B); the status itself is ownership-driven. */}
                     <Badge
                       tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
                       dot
                     >
-                      {FOLLOW_STATUS_LABEL[item.status] ?? item.status}
+                      {(isMovie
+                        ? FOLLOW_STATUS_LABEL_MOVIE[item.status]
+                        : undefined) ??
+                        FOLLOW_STATUS_LABEL[item.status] ??
+                        item.status}
                     </Badge>
                     {/* TVDB id kept as its own node (test + operator reference). */}
                     {item.media_ref.tvdb_id != null && (
@@ -488,7 +495,10 @@ export function FollowedPanel({
                 <span className="min-w-0 break-words text-sm">
                   {item.title}
                   {item.year != null && (
-                    <span className="text-muted-foreground"> ({item.year})</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      ({item.year})
+                    </span>
                   )}
                 </span>
                 <Button

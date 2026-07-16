@@ -179,6 +179,18 @@ export const FOLLOW_STATUS_LABEL: Record<string, string> = {
   up_to_date: "À jour",
 };
 
+/**
+ * Film-specific overrides for the two status labels that read as series-only
+ * (D2-B). A film has no episodes, so « Épisodes manquants » / « À jour » are
+ * wrong on a movie card — the status itself is now ownership-driven (real disk
+ * presence), so a film reads « Acquis » once in the library and « Manquant »
+ * when absent with nothing in flight. Presentational only; tones are shared.
+ */
+export const FOLLOW_STATUS_LABEL_MOVIE: Record<string, string> = {
+  incomplete: "Manquant",
+  up_to_date: "Acquis",
+};
+
 /** Followed kind → French badge label (§5 film vs série). */
 export const FOLLOW_KIND_LABEL: Record<string, string> = {
   movie: "Film",

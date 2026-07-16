@@ -16,7 +16,7 @@ import pytest
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
-from personalscraper.web.acquisition.truth import FollowTruth, compute_follow_truth
+from personalscraper.web.acquisition.truth import FollowTruth, compute_follow_truth, compute_movie_truth
 from personalscraper.web.models.acquisition import FollowedSeriesItem, MediaRefResponse
 
 
@@ -28,6 +28,17 @@ class _StubChecker:
 
     def owned_pairs(self, media_ref: MediaRef) -> set[tuple[int, int]]:
         return self._pairs
+
+
+class _MovieChecker:
+    """Ownership checker stub exposing a fixed ``owns`` verdict for a film."""
+
+    def __init__(self, *, owned: bool) -> None:
+        self._owned = owned
+
+    def owns(self, media_ref: MediaRef, *, kind: str) -> bool:
+        assert kind == "movie"
+        return self._owned
 
 
 @pytest.fixture
@@ -140,3 +151,64 @@ def _item(truth: FollowTruth, *, wanted_grabbed: int) -> FollowedSeriesItem:
         queued_count=truth.queued_count,
         missing_count=truth.missing_count,
     )
+
+
+# ── D2-B: film status keyed on ownership (disk presence), not the raw counter ──
+
+_MOVIE_REF = MediaRef(tmdb_id=100001)
+
+
+def _movie_item(truth: FollowTruth, *, wanted_grabbed: int, wanted_pending: int) -> FollowedSeriesItem:
+    """Build a kind='movie' FollowedSeriesItem carrying the film truth facts."""
+    return FollowedSeriesItem(
+        id=1,
+        title="Ferrari",
+        media_ref=MediaRefResponse(tmdb_id=100001),
+        active=True,
+        kind="movie",
+        added_at=1750000000.0,
+        wanted_pending=wanted_pending,
+        wanted_grabbed=wanted_grabbed,
+        aired_count=truth.aired_count,
+        owned_count=truth.owned_count,
+        inflight_count=truth.inflight_count,
+        queued_count=truth.queued_count,
+        missing_count=truth.missing_count,
+    )
+
+
+def test_movie_owned_beats_phantom_grabbed_counter() -> None:
+    """A film ON DISK reads ``up_to_date`` even with a stale ``grabbed`` row.
+
+    Red-on-old: the movie branch derived status purely from ``wanted_grabbed``,
+    so a phantom grabbed row pinned an already-owned film at « en cours
+    d'acquisition ». Ownership (disk presence) now wins.
+    """
+    truth = compute_movie_truth(_MovieChecker(owned=True), media_ref=_MOVIE_REF, grabbed=1, pending=0)
+    assert truth == FollowTruth(aired_count=1, owned_count=1, inflight_count=0, queued_count=0, missing_count=0)
+    assert _movie_item(truth, wanted_grabbed=1, wanted_pending=0).status == "up_to_date"
+
+
+def test_movie_absent_with_grabbed_is_acquiring() -> None:
+    """A film NOT on disk with a grabbed row → in flight → ``acquiring``."""
+    truth = compute_movie_truth(_MovieChecker(owned=False), media_ref=_MOVIE_REF, grabbed=1, pending=0)
+    assert truth.inflight_count == 1
+    assert _movie_item(truth, wanted_grabbed=1, wanted_pending=0).status == "acquiring"
+
+
+def test_movie_absent_pending_is_pending() -> None:
+    """A film NOT on disk with only a pending/searching row → ``pending``."""
+    truth = compute_movie_truth(_MovieChecker(owned=False), media_ref=_MOVIE_REF, grabbed=0, pending=1)
+    assert truth.queued_count == 1
+    assert _movie_item(truth, wanted_grabbed=0, wanted_pending=1).status == "pending"
+
+
+def test_movie_absent_no_open_row_is_incomplete() -> None:
+    """A film NOT on disk with no open wanted row → honest ``incomplete``.
+
+    Old code read ``up_to_date`` here (no grabbed, no pending) — claiming a film
+    the library does not hold is « à jour ». Ownership makes this honest.
+    """
+    truth = compute_movie_truth(_MovieChecker(owned=False), media_ref=_MOVIE_REF, grabbed=0, pending=0)
+    assert truth.missing_count == 1
+    assert _movie_item(truth, wanted_grabbed=0, wanted_pending=0).status == "incomplete"
