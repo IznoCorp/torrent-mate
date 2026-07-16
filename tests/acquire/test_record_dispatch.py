@@ -665,14 +665,16 @@ def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteA
 def test_record_dispatch_retires_acquired_film(
     store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Dispatching a followed film's content retires the follow at dispatch.
+    """Dispatching a followed film's content retires it AND returns a FilmAcquired.
 
     Red-on-old: the dispatch closure flipped the ``grabbed`` wanted row to
     ``done`` but left ``followed_series.active = 1`` — the film only left the
     list at the next nightly ``follow detect`` sweep. D2-A retires it HERE, the
-    moment the media lands, with a ``film_unfollowed`` trace (§8).
+    moment the media lands, with a ``film_unfollowed`` trace (§8) and returns a
+    ``FilmAcquired`` event (D2-A+) for the dispatch layer to emit on the feed.
     """
     from personalscraper.acquire.domain import FollowedSeries, WantedItem
+    from personalscraper.acquire.events import FilmAcquired
     from personalscraper.core.identity import MediaRef
 
     followed_id = store.follow.add(
@@ -703,7 +705,7 @@ def test_record_dispatch_retires_acquired_film(
     client = _client([item], is_seeding=True)
 
     auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
-    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+    events = auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     wanted = store.wanted.get(wanted_id)
     assert wanted is not None
@@ -714,6 +716,14 @@ def test_record_dispatch_retires_acquired_film(
     assert follow.active is False  # ← the D2-A closure; old code left this True
 
     assert "acquire.record_dispatch.film_unfollowed" in caplog.text
+
+    # D2-A+ — the FilmAcquired event is RETURNED (old code returned None); the
+    # dispatch layer emits it once the move succeeds → operator feed toast.
+    assert len(events) == 1
+    assert isinstance(events[0], FilmAcquired)
+    assert events[0].followed_id == followed_id
+    assert events[0].title == "Ferrari"
+    assert events[0].media_ref.tmdb_id == 1_000_1
 
 
 def test_record_dispatch_does_not_retire_series(store: ConcreteAcquireStore, tmp_path: Path) -> None:
@@ -756,12 +766,13 @@ def test_record_dispatch_does_not_retire_series(store: ConcreteAcquireStore, tmp
     client = _client([item], is_seeding=True)
 
     auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
-    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+    events = auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert store.wanted.get(wanted_id).status == "done"  # type: ignore[union-attr]
     follow = store.follow.get(followed_id)
     assert follow is not None
     assert follow.active is True  # the show stays followed
+    assert events == []  # no film retired → no FilmAcquired to emit
 
 
 # ═══════════════════════════════════════════════════════════════════════════
