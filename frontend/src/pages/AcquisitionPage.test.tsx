@@ -17,6 +17,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
@@ -162,16 +163,25 @@ function makeObligation(overrides: Record<string, unknown> = {}) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Render the page wrapped in a QueryClientProvider. */
-function renderPage(): void {
+/** Probe that surfaces the live URL search string for ?tab= assertions. */
+function LocationProbe(): ReactElement {
+  const { search } = useLocation();
+  return <div data-testid="loc-search">{search}</div>;
+}
+
+/** Render the page wrapped in a QueryClientProvider + router (?tab= support). */
+function renderPage(initialEntry = "/acquisition"): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
   const tree: ReactElement = (
-    <QueryClientProvider client={qc}>
-      <AcquisitionPage />
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={qc}>
+        <AcquisitionPage />
+        <LocationProbe />
+      </QueryClientProvider>
+    </MemoryRouter>
   );
   render(tree);
 }
@@ -1031,9 +1041,11 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
 
     const tree: ReactElement = (
-      <QueryClientProvider client={qc}>
-        <AcquisitionPage />
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+        </QueryClientProvider>
+      </MemoryRouter>
     );
     render(tree);
 
@@ -1056,9 +1068,11 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
 
     const tree: ReactElement = (
-      <QueryClientProvider client={qc}>
-        <AcquisitionPage />
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+        </QueryClientProvider>
+      </MemoryRouter>
     );
     render(tree);
 
@@ -1088,9 +1102,11 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
 
     const tree: ReactElement = (
-      <QueryClientProvider client={qc}>
-        <AcquisitionPage />
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+        </QueryClientProvider>
+      </MemoryRouter>
     );
     render(tree);
 
@@ -1115,9 +1131,11 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
 
     const tree: ReactElement = (
-      <QueryClientProvider client={qc}>
-        <AcquisitionPage />
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+        </QueryClientProvider>
+      </MemoryRouter>
     );
     render(tree);
 
@@ -1201,5 +1219,53 @@ describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () =
 
     const tab = screen.getByRole("tab", { name: /Téléchargements/ });
     expect(within(tab).queryByText(/^\d+$/)).not.toBeInTheDocument();
+  });
+});
+
+describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
+  it("ouvre l'onglet indiqué par ?tab= au chargement (deep-link)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=obligations");
+
+    expect(
+      screen.getByRole("tab", { name: /Obligations/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("tab", { name: /Suivis/ }),
+    ).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("retombe sur « Suivis » sans paramètre (ou paramètre inconnu)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=bogus");
+
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("écrit ?tab=<id> dans l'URL au changement d'onglet (partageable)", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Recherches/ }));
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=wanted");
+    expect(screen.getByRole("tab", { name: /Recherches/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("nettoie le paramètre en revenant sur l'onglet par défaut", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=watcher");
+
+    fireEvent.click(screen.getByRole("tab", { name: /Suivis/ }));
+
+    // Default tab carries no param → clean /acquisition URL.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab");
   });
 });

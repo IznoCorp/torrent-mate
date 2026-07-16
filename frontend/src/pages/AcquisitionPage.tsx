@@ -12,7 +12,8 @@
  */
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, type ReactElement } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { acqKeys } from "@/api/acquisition";
 import { DownloadsPanel } from "@/components/acquisition/DownloadsPanel";
@@ -46,7 +47,29 @@ import { useEventStreamContext } from "@/hooks/useEventStreamContext";
  *   The acquisition page element.
  */
 export default function AcquisitionPage(): ReactElement {
-  const [activeTab, setActiveTab] = useState<TabId>("followed");
+  // The active tab is URL-addressable (?tab=<id>) — DOIT-10: the tab is a
+  // shareable deep-link and Back returns to the previous tab. Derived from the
+  // URL (single source of truth); the default "followed" carries no param so
+  // /acquisition stays clean and ?tab=wanted is the shareable form.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const activeTab: TabId = TABS.some((t) => t.id === rawTab)
+    ? (rawTab as TabId)
+    : "followed";
+  const setActiveTab = useCallback(
+    (id: TabId) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id === "followed") next.delete("tab");
+          else next.set("tab", id);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
 
