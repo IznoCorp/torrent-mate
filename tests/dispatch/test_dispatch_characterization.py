@@ -572,9 +572,7 @@ def test_dispatch_tvshow_merge_overwrite_rescrape_rename_journals(
 # ---------------------------------------------------------------------------
 
 
-def _tvshow_nfo_bytes(
-    *, tvdb: str | None = None, tmdb: str | None = None, imdb: str | None = None
-) -> bytes:
+def _tvshow_nfo_bytes(*, tvdb: str | None = None, tmdb: str | None = None, imdb: str | None = None) -> bytes:
     """Serialize a minimal, complete ``tvshow.nfo`` with the given provider IDs.
 
     Mirrors the show-NFO shape the scraper writes: a ``<tvshow>`` root with one
@@ -596,7 +594,7 @@ def _tvshow_nfo_bytes(
             uid = ET.SubElement(root, "uniqueid")
             uid.set("type", provider)
             uid.text = value
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    return bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
 
 
 def test_dispatch_tvshow_merge_wrong_tvdb_id_is_blocked_identity(
@@ -698,9 +696,7 @@ def test_dispatch_tvshow_merge_absent_target_ids_fails_open_identity(
     name = "Fallout (2024)"
     tv_folder = char_config.category(CID.TV_SHOWS).folder_name
 
-    existing = _make_media_dir(
-        char_disks[0] / tv_folder, name, {"Saison 01/episode1.mkv": b"x" * 16}
-    )
+    existing = _make_media_dir(char_disks[0] / tv_folder, name, {"Saison 01/episode1.mkv": b"x" * 16})
     _seed_index(
         char_db_path,
         IndexEntry(name=name, disk="disk1", category=CID.TV_SHOWS, path=str(existing), media_type="tvshow"),

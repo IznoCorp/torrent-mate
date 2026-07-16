@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.dispatch import _transfer
+from personalscraper.dispatch._identity import merge_identity_conflict
 from personalscraper.dispatch._item import (
     DispatchSpec,
     _dispatch_item,
@@ -41,14 +42,16 @@ def _tv_journal_detail(source_dir: Path) -> str:
 
 
 #: TV specialisation of the shared dispatch template: merge into an existing
-#: on-disk show (backup/restore, no identity guard), journaling a supersede of
-#: an existing episode as one ``overwrite`` row (F1). An add-only merge
-#: destroys nothing and journals nothing (see ``merge_transfer``).
+#: on-disk show (backup/restore), gated by the §7 provider-ID identity guard so
+#: a same-named but DIFFERENT series is never overwritten (``tvshow.nfo``, TVDB
+#: primary; fail-open + logged when unverifiable). Journals a supersede of an
+#: existing episode as one ``overwrite`` row (F1). An add-only merge destroys
+#: nothing and journals nothing (see ``merge_transfer``).
 _TV_SPEC = DispatchSpec(
     media_type="tvshow",
     existing_action="merged",
     transfer_fn=merge_transfer,
-    identity_guard=None,
+    identity_guard=merge_identity_conflict,
     canonical_name_rule=canonical_name_from_destination,
     journal_op=OP_OVERWRITE,
     journal_detail=_tv_journal_detail,
@@ -64,8 +67,8 @@ def dispatch_tvshow(
     """Dispatch a TV show: merge if exists, move to best disk if new.
 
     Thin wrapper over :func:`personalscraper.dispatch._item._dispatch_item`
-    parameterised by :data:`_TV_SPEC` (merge strategy, no identity guard,
-    ``overwrite`` journal on a genuine episode supersede). The shared scaffold —
+    parameterised by :data:`_TV_SPEC` (merge strategy, §7 provider-ID identity
+    guard, ``overwrite`` journal on a genuine episode supersede). The shared scaffold —
     existing-copy detection, free-space + illegal-name gating, the §7.3
     seed-obligation permit consult, the transfer, the destructive journal, the
     index/outbox write-through and the ``ItemDispatched`` emit — lives in the

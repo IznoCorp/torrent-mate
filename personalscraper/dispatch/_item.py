@@ -16,8 +16,9 @@ This module extracts that shared scaffold into a single
   reports, via :class:`TransferOutcome`, whether it *genuinely destroyed*
   existing library content (an overwrite / purge) so the template can journal
   the destruction exactly once (**F1**, DESIGN §6/§7).
-- ``identity_guard`` — the §7 provider-ID overwrite guard (movie replace) or
-  ``None`` (TV merge, no guard).
+- ``identity_guard`` — the §7 provider-ID overwrite guard (movie replace via
+  ``<title>.nfo``; TV merge via ``tvshow.nfo``), or ``None`` for a family that
+  applies no identity check.
 - ``canonical_name_rule`` — how the index title is derived after the transfer.
 - ``media_type`` / ``existing_action`` / ``journal_op`` / ``journal_detail`` /
   ``bus_source`` — the family-specific labels threaded through the scaffold.
@@ -113,8 +114,9 @@ class DispatchSpec:
             existing copy is superseded (``"replaced"`` for movies, ``"merged"``
             for TV). Also drives the derived skip / dry-run verb.
         transfer_fn: The existing-copy transfer strategy (see :data:`TransferFn`).
-        identity_guard: The §7 provider-ID overwrite guard, or ``None`` when the
-            family applies no identity check (TV merge).
+        identity_guard: The §7 provider-ID overwrite guard (movie replace and TV
+            merge both wire one), or ``None`` when a family applies no identity
+            check.
         canonical_name_rule: Derives the index title after the transfer.
         journal_op: The destructive-journal op recorded on a genuine destruction
             (:data:`personalscraper.indexer.destructive_journal.OP_OVERWRITE`).
@@ -339,9 +341,10 @@ def _dispatch_item(
             return result
 
         # §7 identity guard — a supersede destroys the on-disk target, so verify
-        # by provider-ID that it is the SAME media before touching it. Families
-        # without a guard (TV merge) pass ``None`` and skip the check. Checked
-        # before the dry-run branch so the preview reports the block too.
+        # by provider-ID that it is the SAME media before touching it. Movie
+        # replace and TV merge each wire a guard; a family with ``None`` skips
+        # the check. Checked before the dry-run branch so the preview reports
+        # the block too.
         if spec.identity_guard is not None:
             identity_conflict = spec.identity_guard(src, dest)
             if identity_conflict is not None:
