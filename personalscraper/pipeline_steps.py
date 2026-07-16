@@ -8,11 +8,24 @@ avoid pulling in the entire project at module-load time.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from personalscraper.models import StepReport
 from personalscraper.pipeline_protocol import PipelineStep, StepContext
+from personalscraper.reports import (
+    STEP_REPORT_CONTRACT,
+    CleanDetails,
+    CleanupDetails,
+    DispatchDetails,
+    EnforceDetails,
+    IngestDetails,
+    ScrapeDetails,
+    SortDetails,
+    TrailersDetails,
+    VerifyDetails,
+)
 
 
 class IngestStep:
@@ -426,6 +439,167 @@ DEFAULT_STEPS: dict[str, PipelineStep] = {
 }
 
 
+class StepSpecError(Exception):
+    """Raised at import when :data:`STEP_SPECS` disagrees with its sources of truth.
+
+    The spec list is validated against the step registry (:data:`DEFAULT_STEPS`),
+    the typed report contract (:data:`STEP_REPORT_CONTRACT`), and the web stage
+    catalog (``STEP_TO_STAGE``). A drift — a typo'd step name, a wrong payload
+    type, a spec/registry mismatch — fails loud at module load rather than at
+    the first pipeline run.
+    """
+
+
+@dataclass(frozen=True)
+class StepSkip:
+    """A skip predicate paired with the operator-facing reason it reports.
+
+    ``StepSpec.skip_when`` is typed as a plain ``Callable[[StepContext], bool]``;
+    this small wrapper lets a spec carry the human reason surfaced in the
+    synthesised skip report (``StepReport.details``) alongside the boolean
+    predicate. The reason therefore travels WITH the spec (open/closed: adding a
+    skippable step touches only its spec entry) instead of being special-cased
+    in the orchestrator. The instance is itself callable and returns the
+    predicate's verdict, so it satisfies the ``skip_when`` field type.
+
+    Attributes:
+        predicate: Returns True when the step must be skipped for this run.
+        reason: Operator-facing phrase recorded as ``"Skipped: {reason}"``.
+    """
+
+    predicate: Callable[[StepContext], bool]
+    reason: str
+
+    def __call__(self, ctx: StepContext) -> bool:
+        """Return the predicate's verdict for *ctx* (skip when True)."""
+        return self.predicate(ctx)
+
+
+@dataclass(frozen=True)
+class StepSpec:
+    """Declarative specification of one pipeline step.
+
+    ``Pipeline.run()`` iterates :data:`STEP_SPECS` and drives each step purely
+    from its spec — no per-step branching in the orchestrator. Adding a
+    hypothetical step touches ONLY three seams: its adapter class, one entry
+    here, and its ``reports/*Details`` dataclass (the operator-owned web stage
+    catalog gains the matching key separately).
+
+    Attributes:
+        name: Step identifier; must be a key of :data:`DEFAULT_STEPS`, of
+            :data:`STEP_REPORT_CONTRACT`, and of the web stage catalog.
+        adapter: The default adapter instance bound to this step (identical to
+            ``DEFAULT_STEPS[name]``; per-run overrides are resolved separately
+            by :func:`apply_step_overrides`).
+        critical: When True, a fatal crash aborts the whole pipeline (the
+            downstream steps depend on this step's output — ingest, sort).
+        extras_key: When set, the step's extra return value is stored under this
+            key in the shared ``extras`` mapping for downstream steps (``verify``
+            exposes its verified-path list as ``"verified"``).
+        skip_when: Optional predicate; when it returns True the orchestrator
+            synthesises a symmetric skip report through the normal step path
+            instead of invoking the adapter (dispatch skips when nothing passed
+            verify). A :class:`StepSkip` also carries the reported reason.
+        payload_type: The typed ``reports.*Details`` dataclass declared for this
+            step in :data:`STEP_REPORT_CONTRACT`.
+    """
+
+    name: str
+    adapter: PipelineStep
+    critical: bool = False
+    extras_key: str | None = None
+    skip_when: Callable[[StepContext], bool] | None = None
+    payload_type: type | None = None
+
+
+def _no_verified_items(ctx: StepContext) -> bool:
+    """Return True when verify produced no dispatchable items.
+
+    Drives the dispatch step's ``skip_when``: with an empty ``verified`` list
+    the move phase has nothing to place, so the step is skipped (the old inline
+    ``Pipeline.run`` no-verified-items synthesis, now declarative).
+
+    Args:
+        ctx: The dispatch step's context; reads ``extras['verified']``.
+
+    Returns:
+        True when there are no verified items to dispatch.
+    """
+    return not ctx.extras.get("verified")
+
+
+#: Ordered pipeline step specifications — the single declarative driver for
+#: ``Pipeline.run()``. Order mirrors :data:`DEFAULT_STEPS` (INGEST → SORT →
+#: CLEAN → SCRAPE → CLEANUP → ENFORCE → VERIFY → TRAILERS → DISPATCH) and is
+#: asserted against it at import.
+STEP_SPECS: tuple[StepSpec, ...] = (
+    StepSpec("ingest", DEFAULT_STEPS["ingest"], critical=True, payload_type=IngestDetails),
+    StepSpec("sort", DEFAULT_STEPS["sort"], critical=True, payload_type=SortDetails),
+    StepSpec("clean", DEFAULT_STEPS["clean"], payload_type=CleanDetails),
+    StepSpec("scrape", DEFAULT_STEPS["scrape"], payload_type=ScrapeDetails),
+    StepSpec("cleanup", DEFAULT_STEPS["cleanup"], payload_type=CleanupDetails),
+    StepSpec("enforce", DEFAULT_STEPS["enforce"], payload_type=EnforceDetails),
+    StepSpec("verify", DEFAULT_STEPS["verify"], extras_key="verified", payload_type=VerifyDetails),
+    StepSpec("trailers", DEFAULT_STEPS["trailers"], payload_type=TrailersDetails),
+    StepSpec(
+        "dispatch",
+        DEFAULT_STEPS["dispatch"],
+        skip_when=StepSkip(predicate=_no_verified_items, reason="no verified items"),
+        payload_type=DispatchDetails,
+    ),
+)
+
+
+def _validate_step_specs(
+    specs: Sequence[StepSpec],
+    steps: Mapping[str, PipelineStep],
+    contract: Mapping[str, type],
+) -> None:
+    """Validate :data:`STEP_SPECS` against its three sources of truth.
+
+    Invoked once at import so a malformed spec list fails loud at module load.
+    Checks: no duplicate names; the spec order/set equals the step registry;
+    every spec name is in the web stage catalog (the SoT for step names, kept
+    unaltered — we only read it) AND in the typed report contract; the declared
+    ``payload_type`` matches the contract; the ``adapter`` is the registry's.
+
+    Args:
+        specs: The ordered spec list (normally :data:`STEP_SPECS`).
+        steps: The step registry (normally :data:`DEFAULT_STEPS`).
+        contract: The typed report contract (:data:`STEP_REPORT_CONTRACT`).
+
+    Raises:
+        StepSpecError: On any disagreement between the sources.
+    """
+    # The web stage catalog is the single source of truth for step names
+    # (DESIGN §T2). Imported inside the validator (not at module top) so
+    # pipeline_steps' top-level imports stay engine-only and this one
+    # intentional read of the web taxonomy is localised. No import cycle: the
+    # web app never imports pipeline_steps at module scope.
+    from personalscraper.web.staging.stages import STEP_TO_STAGE
+
+    names = [spec.name for spec in specs]
+    if len(names) != len(set(names)):
+        raise StepSpecError(f"STEP_SPECS has duplicate step names: {names}")
+    if names != list(steps):
+        raise StepSpecError(f"STEP_SPECS must mirror DEFAULT_STEPS order/set: specs={names}, registry={list(steps)}")
+    for spec in specs:
+        if spec.name not in STEP_TO_STAGE:
+            raise StepSpecError(f"step {spec.name!r} is not in the web stage catalog (STEP_TO_STAGE)")
+        if spec.name not in contract:
+            raise StepSpecError(f"step {spec.name!r} is not in STEP_REPORT_CONTRACT")
+        if spec.payload_type is not contract[spec.name]:
+            raise StepSpecError(
+                f"step {spec.name!r}: StepSpec.payload_type {spec.payload_type!r} "
+                f"!= STEP_REPORT_CONTRACT {contract[spec.name]!r}"
+            )
+        if spec.adapter is not steps[spec.name]:
+            raise StepSpecError(f"step {spec.name!r}: StepSpec.adapter is not DEFAULT_STEPS[{spec.name!r}]")
+
+
+_validate_step_specs(STEP_SPECS, DEFAULT_STEPS, STEP_REPORT_CONTRACT)
+
+
 def apply_step_overrides(
     steps: Mapping[str, PipelineStep],
     overrides: Mapping[str, Callable[..., Any]] | None,
@@ -447,15 +621,19 @@ def apply_step_overrides(
 
 
 __all__ = [
+    "DEFAULT_STEPS",
+    "STEP_SPECS",
     "CleanupStep",
     "CleanStep",
-    "DEFAULT_STEPS",
     "DispatchStep",
     "EnforceStep",
     "IngestStep",
     "LegacyCallableStep",
     "ScrapeStep",
     "SortStep",
+    "StepSkip",
+    "StepSpec",
+    "StepSpecError",
     "TrailersStep",
     "VerifyStep",
     "apply_step_overrides",
