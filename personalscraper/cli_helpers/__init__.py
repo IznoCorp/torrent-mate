@@ -325,12 +325,20 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
     return resolved
 
 
+# Re-export the generalised boundary() decorator + its bundle. Imported LAST so
+# the helpers it depends on (``_build_app_context``, ``per_step_boundary``,
+# ``_bootstrap_staging``) are already bound in this module's namespace when
+# ``boundary`` imports them back from the package (no circular-import gap).
+from personalscraper.cli_helpers.boundary import CommandContext, boundary  # noqa: E402
+
 __all__ = [
+    "CommandContext",
     "_bootstrap_staging",
     "_build_app_context",
     "_build_ownership_checker",
     "_format_validation",
     "_resolve_category",
+    "boundary",
     "handle_cli_errors",
     "per_step_boundary",
 ]
