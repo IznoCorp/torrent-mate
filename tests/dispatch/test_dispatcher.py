@@ -118,7 +118,7 @@ class TestDispatchMovie:
         (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
 
         with patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -147,7 +147,7 @@ class TestDispatchMovie:
         movie_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -185,7 +185,7 @@ class TestDispatchTvshow:
         show_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch._tv.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -231,7 +231,7 @@ class TestProcess:
         ]
 
         with patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -822,7 +822,7 @@ class TestDispatchDryRun:
 
         with (
             patch(
-                "personalscraper.dispatch._movie.get_disk_status",
+                "personalscraper.dispatch._item.get_disk_status",
             ) as mock_status,
             patch.object(d, "_rsync") as mock_rsync,
         ):
@@ -1043,7 +1043,7 @@ class TestNtfsIllegalAtDispatch:
 
         # Disk must resolve (free space) so dispatch reaches the post-resolution
         # gate; the resolved (NTFS) capability then drives the skip.
-        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             mock_status.return_value = DiskStatus(
                 config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=500.0,
@@ -1076,7 +1076,7 @@ class TestNtfsIllegalAtDispatch:
         # NTFS check scans file NAMES — colon in filename triggers it.
         (show_dir / "S01E01 : bad.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             mock_status.return_value = DiskStatus(
                 config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
                 free_space_gb=500.0,
@@ -1126,7 +1126,7 @@ class TestDispatchExistingItemBranches:
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1166,7 +1166,7 @@ class TestDispatchExistingItemBranches:
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1206,7 +1206,7 @@ class TestDispatchExistingItemBranches:
         show_dir.mkdir()
         (show_dir / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1246,7 +1246,7 @@ class TestDispatchExistingItemBranches:
         show_dir.mkdir()
         (show_dir / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1271,7 +1271,7 @@ class TestDispatchExistingItemBranches:
         show_dir.mkdir()
         (show_dir / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             # Disk has zero free space → pick_disk_for returns None.
@@ -1329,9 +1329,9 @@ class TestDispatchOutboxPublish:
         from personalscraper.dispatch.disk_scanner import DiskStatus as _DiskStatus
 
         with (
-            patch("personalscraper.dispatch._movie.get_disk_status") as mock_status,
-            patch("personalscraper.dispatch._movie.disk_id_for_path") as mock_disk_id,
-            patch("personalscraper.dispatch._movie.publish_event") as mock_publish,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.disk_id_for_path") as mock_disk_id,
+            patch("personalscraper.dispatch._item.publish_event") as mock_publish,
             patch("personalscraper.dispatch._movie.replace", return_value=True),
             patch("personalscraper.dispatch._movie._transfer.dir_stats", return_value=(1024, 1000000000)),
         ):
@@ -1376,9 +1376,9 @@ class TestDispatchOutboxPublish:
         from personalscraper.dispatch.disk_scanner import DiskStatus as _DiskStatus
 
         with (
-            patch("personalscraper.dispatch._tv.get_disk_status") as mock_status,
-            patch("personalscraper.dispatch._tv.disk_id_for_path") as mock_disk_id,
-            patch("personalscraper.dispatch._tv.publish_event") as mock_publish,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.disk_id_for_path") as mock_disk_id,
+            patch("personalscraper.dispatch._item.publish_event") as mock_publish,
             patch("personalscraper.dispatch._tv._transfer.rsync_merge", return_value=True),
             patch("personalscraper.dispatch._tv._transfer.verify_transfer", return_value=True),
             patch("personalscraper.dispatch._tv._transfer.dir_stats", return_value=(1024, 1000000000)),

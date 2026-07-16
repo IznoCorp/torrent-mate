@@ -6,24 +6,54 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.conf import resolver
-from personalscraper.core.delete_permit import ALLOW
 from personalscraper.dispatch import _transfer
 from personalscraper.dispatch._identity import replace_identity_conflict
+from personalscraper.dispatch._item import (
+    DispatchSpec,
+    _dispatch_item,
+    canonical_name_from_destination,
+    replace_transfer,
+)
 from personalscraper.dispatch._types import DispatchResult
-from personalscraper.dispatch.disk_scanner import get_disk_status
-from personalscraper.dispatch.events import ItemDispatched
-from personalscraper.dispatch.media_index import IndexEntry
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
-from personalscraper.indexer.destructive_journal import OP_OVERWRITE, record_destruction
-from personalscraper.indexer.outbox._disk import disk_id_for_path
-from personalscraper.indexer.outbox._publish import publish_event
+from personalscraper.indexer.destructive_journal import OP_OVERWRITE
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.dispatch.dispatcher import Dispatcher
 
 log = get_logger("dispatcher.movie")
+
+
+def _movie_journal_detail(source_dir: Path) -> str:
+    """Return the destructive-journal detail for a movie replace (byte-identical).
+
+    Preserves the exact legacy detail string so the append-only ``overwrite``
+    row shape is unchanged after routing the movie-replace path through the
+    shared :func:`personalscraper.dispatch._item._dispatch_item` template.
+
+    Args:
+        source_dir: The staging movie folder that supersedes the on-disk copy.
+
+    Returns:
+        The French journal detail string.
+    """
+    return f"REPLACE film — écrasé par « {source_dir.name} »"
+
+
+#: Movie specialisation of the shared dispatch template: supersede an existing
+#: on-disk copy via the 3-phase crash-safe replace, gated by the §7 provider-ID
+#: identity guard, journaling the destruction as one ``overwrite`` row (F1).
+_MOVIE_SPEC = DispatchSpec(
+    media_type="movie",
+    existing_action="replaced",
+    transfer_fn=replace_transfer,
+    identity_guard=replace_identity_conflict,
+    canonical_name_rule=canonical_name_from_destination,
+    journal_op=OP_OVERWRITE,
+    journal_detail=_movie_journal_detail,
+    bus_source="dispatch.movie",
+)
 
 
 def dispatch_movie(
@@ -33,6 +63,14 @@ def dispatch_movie(
 ) -> DispatchResult:
     """Dispatch a movie: replace if exists, move to best disk if new.
 
+    Thin wrapper over :func:`personalscraper.dispatch._item._dispatch_item`
+    parameterised by :data:`_MOVIE_SPEC` (replace strategy, §7 identity guard,
+    ``overwrite`` journal on a genuine destruction). The shared scaffold —
+    existing-copy detection, free-space + illegal-name gating, the §7.3
+    seed-obligation permit consult, the transfer, the destructive journal, the
+    index/outbox write-through and the ``ItemDispatched`` emit — lives in the
+    template.
+
     Args:
         dispatcher: Dispatcher instance for config, index, and helper access.
         movie_dir: Source movie directory.
@@ -41,200 +79,7 @@ def dispatch_movie(
     Returns:
         DispatchResult with operation details.
     """
-    result = DispatchResult(source=movie_dir)
-
-    # Get disk statuses keyed by disk ID for resolver
-    disk_statuses = [get_disk_status(c) for c in dispatcher._disk_configs]
-    free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
-
-    # Calculate source size
-    item_size_gb = _transfer.dir_size_gb(movie_dir)
-
-    # Check index for existing copy, validated against filesystem to avoid
-    # duplicating when the user has moved the folder between disks manually.
-    existing = dispatcher._resolve_existing_on_filesystem(movie_dir.name, "movie", media_dir=movie_dir)
-
-    if existing:
-        # Replace existing on the same disk (disk stored as disk_id in the index)
-        dest = Path(existing.path)
-        result.disk = existing.disk
-        result.destination = dest
-
-        # Check if disk has enough space for the replacement
-        threshold = max(
-            dispatcher.config.thresholds.min_free_space_disk_gb,
-            item_size_gb * 1.5,
-        )
-        disk_free = free_space_by_id.get(existing.disk, 0.0)
-        if disk_free < threshold:
-            result.action = "skipped"
-            result.reason = f"Disk {existing.disk} full, cannot replace"
-            return result
-
-        # Resolve the destination disk's capability (NTFS-safe default), then
-        # gate illegal filenames against THAT capability's regex (None on POSIX
-        # filesystems → no restriction → not skipped). Resolving before the
-        # dry-run branch keeps dry-run a faithful preview of the real run.
-        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
-        if _is_skipped_for_illegal_names(result, movie_dir, cap):
-            return result
-
-        # §7 identity guard — a REPLACE destroys the on-disk target, so verify
-        # by provider-ID that the target is the SAME media before touching it.
-        # A positive ID mismatch (same-named different movie) blocks the
-        # overwrite entirely; unverifiable IDs fail-open (see _identity.py).
-        # Checked BEFORE the dry-run branch so the preview reports the block too.
-        identity_conflict = replace_identity_conflict(movie_dir, dest)
-        if identity_conflict is not None:
-            result.action = "skipped"
-            result.reason = identity_conflict
-            return result
-
-        if dispatcher.dry_run:
-            result.action = "replaced"
-            result.reason = f"[DRY RUN] Would replace on {existing.disk}"
-            return result
-        # Three-state seedtime-aware policy (DESIGN §7.3): the replace deletes the
-        # OLD on-disk content. If a live seed obligation on it is unmet, the new
-        # real media still wins (O3) — but the breach is recorded, never silent.
-        # Relocate-not-delete is deferred to O2/O3, so we proceed either way.
-        #
-        # F2: the consult is fail-open (DESIGN §7.3 / §9). A permit whose
-        # may_delete raises must NOT crash the dispatch — treat the error as
-        # ALLOW (the replace proceeds, real media wins) and do NOT mark_breach
-        # on an errored consult (a breach is only recorded on a positive VETO).
-        try:
-            decision = dispatcher._permit.may_delete(dest)
-        except Exception as exc:
-            log.warning("dispatch.permit_error", path=str(dest), error=str(exc), action="replace")
-            decision = ALLOW
-        if decision is not ALLOW:
-            log.warning("acquire.hnr_risk", path=str(dest), reason=str(decision), action="replace")
-            dispatcher._recorder.mark_breach(dest)
-        # Write-before-move (DESIGN §7.2): record the obligation for the NEWLY
-        # dispatched media BEFORE the FS move, so a crash mid-move never loses
-        # the safety constraint. Fail-soft (never raises).
-        acquired_events = dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
-        success = replace(movie_dir, dest, capability=cap)
-        result.action = "replaced" if success else "error"
-        if success:
-            # D2-A — announce the film(s) retired at dispatch on the live feed
-            # (FilmAcquired) once the media has actually landed. The events are
-            # opaque here: the recorder built them, dispatch just emits them.
-            for _evt in acquired_events:
-                dispatcher._event_bus.emit(_evt)
-        # §7 / Star City — append-only trail of the overwrite: the previous
-        # on-disk folder was destroyed by the replace, record who/what/when/
-        # where. Best-effort (never breaks the dispatch).
-        if success:
-            _journal_db = dispatcher.config.indexer.db_path
-            if _journal_db is not None:
-                record_destruction(
-                    _journal_db,
-                    op=OP_OVERWRITE,
-                    path=dest,
-                    actor="dispatch",
-                    detail=f"REPLACE film — écrasé par « {movie_dir.name} »",
-                )
-    else:
-        # Move to best disk via resolver
-        target_disk = resolver.pick_disk_for(
-            dispatcher.config,
-            category_id,
-            free_space_by_id,
-            dispatcher.config.thresholds.min_free_space_disk_gb,
-            item_size_gb,
-        )
-        if not target_disk:
-            result.action = "skipped"
-            result.reason = f"No disk with enough space for category '{category_id}'"
-            return result
-
-        dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / movie_dir.name
-        result.disk = target_disk.id
-        result.destination = dest
-
-        # Resolve the target disk's capability (NTFS-safe default), then gate
-        # illegal filenames against THAT capability's regex (None on POSIX
-        # filesystems → no restriction → not skipped). Resolving before the
-        # dry-run branch keeps dry-run a faithful preview of the real run.
-        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
-        if _is_skipped_for_illegal_names(result, movie_dir, cap):
-            return result
-
-        if dispatcher.dry_run:
-            result.action = "moved"
-            result.reason = f"[DRY RUN] Would move to {target_disk.id}"
-            return result
-        # Write-before-move (DESIGN §7.2): the new media may itself be a live
-        # seed, so record its obligation BEFORE the FS move. No permit consult
-        # here — there is no pre-existing library content to delete (only the
-        # staging copy is removed after the move, and ingest copies seeding
-        # torrents, so that copy is not the qBit-seeding payload).
-        acquired_events = dispatcher._recorder.record_dispatch(staging_source=movie_dir, dispatched_dest=dest)
-        success = dispatcher._move_new(movie_dir, dest, capability=cap)
-        result.action = "moved" if success else "error"
-        if success:
-            # D2-A — feed toast for the film(s) retired at dispatch (see above).
-            for _evt in acquired_events:
-                dispatcher._event_bus.emit(_evt)
-
-    # Update index with current IDs
-    if result.action in ("replaced", "moved") and result.destination:
-        # ``replaced`` writes into an existing on-disk folder whose casing
-        # is canonical; record that, not the staging spelling, so the
-        # indexer never drifts away from the filesystem (see the matching
-        # comment in dispatch_tvshow for the rationale).
-        canonical_name = result.destination.name if result.action == "replaced" else movie_dir.name
-        dispatcher.index.add(
-            IndexEntry(
-                name=canonical_name,
-                disk=result.disk or "",
-                category=category_id,
-                path=str(result.destination),
-                media_type="movie",
-            )
-        )
-
-    # Best-effort outbox publish for the indexer (DESIGN §9.1).
-    if result.action in ("replaced", "moved") and result.destination is not None:
-        _db_path = dispatcher.config.indexer.db_path
-        assert _db_path is not None, "indexer.db_path must be resolved"
-        resolved = disk_id_for_path(result.destination, _db_path)
-        if resolved is not None:
-            disk_id, rel_path = resolved
-            size_bytes, max_mtime = _transfer.dir_stats(result.destination)
-            publish_event(
-                disk_id,
-                op="move",
-                payload={
-                    "src_rel_path": "",
-                    "dst_rel_path": rel_path,
-                    "filename": result.destination.name,
-                    "size_bytes": size_bytes,
-                    "mtime_ns": max_mtime,
-                },
-                db_path=_db_path,
-                source="dispatch",
-            )
-
-    # Bus emit (Sub-phase 4.3) — only on real completed transfers.
-    # Dry-run is excluded because the catalog defines ItemDispatched as the
-    # record of completed transfers; the action enum has no "skipped" value
-    # so dry-run runs logically cannot emit (DESIGN §Event catalog Notes).
-    if not dispatcher.dry_run and result.action in ("moved", "replaced") and result.destination is not None:
-        target_disk_path = _disk_root_for(dispatcher, result.disk)
-        dispatcher._event_bus.emit(
-            ItemDispatched(
-                source="dispatch.movie",
-                item=movie_dir.name,
-                target_disk=target_disk_path,
-                category_id=category_id,
-                action=result.action,  # type: ignore[arg-type]  # narrowed by guard above
-            ),
-        )
-
-    return result
+    return _dispatch_item(dispatcher, movie_dir, category_id, _MOVIE_SPEC)
 
 
 def _is_skipped_for_illegal_names(

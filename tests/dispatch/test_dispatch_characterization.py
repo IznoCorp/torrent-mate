@@ -407,17 +407,15 @@ def test_dispatch_movie_replace_pins_destination_action_and_journal(
 # asymmetry the P0 pin used to freeze). DESIGN §6/§7 F1 routes BOTH destruction
 # paths (movie replace + TV merge-overwrite) through the shared destructive
 # journal in the P2.2/P2.3 template. The two tests below encode that POST-F1
-# expectation and are xfail(strict=True) until the template lands — so the
-# intermediate gates stay green now, and the xfail flips loudly (xpass under
-# strict = failure) the moment P2.3 wires the journal call. Two distinct
-# destruction sub-paths are covered: a same-filename rsync overwrite and a
-# re-scrape rename purge (different filename, same season/episode key).
+# expectation and now PASS: P2.3 rewired dispatch_tvshow onto the shared
+# _dispatch_item template, which journals a genuine episode supersede once
+# (their xfail(strict=True) markers were removed when the journal call landed).
+# Two distinct destruction sub-paths are covered: a same-filename rsync
+# overwrite and a re-scrape rename purge (different filename, same season/
+# episode key).
 # ---------------------------------------------------------------------------
 
-_F1_XFAIL_REASON = "F1: TV merge journal lands with the P2.2/P2.3 template (DESIGN §6/§7 F1, plan phase-02)"
 
-
-@pytest.mark.xfail(strict=True, reason=_F1_XFAIL_REASON)
 def test_dispatch_tvshow_merge_overwrite_pins_destination_action_and_journal(
     char_config: Config,
     char_db_path: Path,
@@ -480,15 +478,14 @@ def test_dispatch_tvshow_merge_overwrite_pins_destination_action_and_journal(
     # F1 (flipped from the pre-F1 no-journal pin): a TV merge that OVERWRITES an
     # existing episode records exactly one destructive ``overwrite`` row by actor
     # ``dispatch`` for the show folder — parity with the movie replace above
-    # (DESIGN §6/§7 F1). Fails today (the TV path never journals); the P2.2/P2.3
-    # template makes it pass, at which point the strict xfail flips.
+    # (DESIGN §6/§7 F1). Passes since P2.3 routed dispatch_tvshow through the
+    # shared _dispatch_item template that journals a genuine episode supersede.
     rows = list_recent(char_db_path)
     overwrite_rows = [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)]
     assert len(overwrite_rows) == 1, f"F1: TV merge-overwrite must journal exactly one overwrite; got {rows}"
     assert overwrite_rows[0]["actor"] == "dispatch"
 
 
-@pytest.mark.xfail(strict=True, reason=_F1_XFAIL_REASON)
 def test_dispatch_tvshow_merge_overwrite_rescrape_rename_journals(
     char_config: Config,
     char_db_path: Path,
@@ -548,8 +545,8 @@ def test_dispatch_tvshow_merge_overwrite_rescrape_rename_journals(
     assert _residue(char_disks[0]) == []
 
     # F1: the destroyed on-disk episode is journaled as exactly one ``overwrite``
-    # row by actor ``dispatch`` for the show folder. Fails today; the P2.2/P2.3
-    # template lands the journal call (DESIGN §6/§7 F1), flipping the strict xfail.
+    # row by actor ``dispatch`` for the show folder. Passes since P2.3 landed the
+    # journal call in the shared _dispatch_item template (DESIGN §6/§7 F1).
     rows = list_recent(char_db_path)
     overwrite_rows = [r for r in rows if r["op"] == "overwrite" and str(r["path"]) == str(existing)]
     assert len(overwrite_rows) == 1, f"F1: re-scrape rename overwrite must journal exactly one overwrite; got {rows}"

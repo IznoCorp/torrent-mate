@@ -64,9 +64,9 @@ class TestMovieIllegalNameFsAware:
         (movie_dir / "Movie S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch("personalscraper.dispatch._movie.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
             patch.object(d, "_move_new", return_value=True) as mock_move,
-            patch("personalscraper.dispatch._movie.disk_id_for_path", return_value=None),
+            patch("personalscraper.dispatch._item.disk_id_for_path", return_value=None),
         ):
             mock_status.return_value = _disk_status("drive_a", tmp_path / "drive_a", ["movies"])
             result = dispatch_movie(d, movie_dir, "movies")
@@ -87,7 +87,7 @@ class TestMovieIllegalNameFsAware:
         (movie_dir / "Movie S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch("personalscraper.dispatch._movie.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
             patch.object(d, "_move_new", return_value=True) as mock_move,
         ):
             mock_status.return_value = _disk_status("drive_a", tmp_path / "drive_a", ["movies"])
@@ -113,9 +113,9 @@ class TestTvIllegalNameFsAware:
         (show_dir / "Show S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch("personalscraper.dispatch._tv.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
             patch.object(d, "_move_new", return_value=True) as mock_move,
-            patch("personalscraper.dispatch._tv.disk_id_for_path", return_value=None),
+            patch("personalscraper.dispatch._item.disk_id_for_path", return_value=None),
         ):
             mock_status.return_value = _disk_status("drive_a", tmp_path / "drive_a", ["tv_shows"])
             result = dispatch_tvshow(d, show_dir, "tv_shows")
@@ -134,7 +134,7 @@ class TestTvIllegalNameFsAware:
         (show_dir / "Show S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch("personalscraper.dispatch._tv.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
             patch.object(d, "_move_new", return_value=True) as mock_move,
         ):
             mock_status.return_value = _disk_status("drive_a", tmp_path / "drive_a", ["tv_shows"])
@@ -186,7 +186,7 @@ class TestSkipReasonPrecedence:
         (movie_dir / "Movie S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch("personalscraper.dispatch._movie.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
             patch.object(d, "_move_new", return_value=True) as mock_move,
         ):
             mock_status.return_value = DiskStatus(
@@ -228,7 +228,7 @@ class TestSkipReasonPrecedence:
         (show_dir / "Show S01E01: Pilot.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch("personalscraper.dispatch._tv.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
             patch.object(d, "_move_new", return_value=True) as mock_move,
         ):
             mock_status.return_value = DiskStatus(

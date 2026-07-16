@@ -24,7 +24,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.core.delete_permit import ALLOW, PermitDecision, veto
 from personalscraper.core.event_bus import EventBus
-from personalscraper.dispatch import _movie, _tv
+from personalscraper.dispatch import _item, _movie, _tv
 from personalscraper.dispatch.disk_scanner import DiskStatus
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
@@ -201,7 +201,7 @@ class TestMovieThreeState:
         replace_mock = MagicMock(return_value=True)
         monkeypatch.setattr(_movie, "replace", replace_mock)
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -232,7 +232,7 @@ class TestMovieThreeState:
 
         monkeypatch.setattr(_movie, "replace", MagicMock(return_value=True))
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -272,7 +272,7 @@ class TestMovieThreeState:
 
         monkeypatch.setattr(_movie, "replace", MagicMock(return_value=True))
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -304,7 +304,7 @@ class TestMovieThreeState:
 
         monkeypatch.setattr(_movie, "replace", MagicMock(return_value=False))  # move fails
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -335,7 +335,7 @@ class TestMovieThreeState:
 
         monkeypatch.setattr(_movie, "replace", _replace_spy)
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -364,7 +364,7 @@ class TestMovieThreeState:
         replace_mock = MagicMock(return_value=True)
         monkeypatch.setattr(_movie, "replace", replace_mock)
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -394,7 +394,7 @@ class TestMovieThreeState:
 
         monkeypatch.setattr(d, "_move_new", MagicMock(return_value=True))
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -432,7 +432,7 @@ class TestTvThreeState:
         merge_mock = MagicMock(return_value=True)
         monkeypatch.setattr(_tv, "merge", merge_mock)
         monkeypatch.setattr(
-            _tv,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.TV_SHOWS, 500.0),
         )
@@ -460,7 +460,7 @@ class TestTvThreeState:
 
         monkeypatch.setattr(_tv, "merge", MagicMock(return_value=True))
         monkeypatch.setattr(
-            _tv,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.TV_SHOWS, 500.0),
         )
@@ -493,7 +493,7 @@ class TestTvThreeState:
 
         monkeypatch.setattr(_tv, "merge", _merge_spy)
         monkeypatch.setattr(
-            _tv,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.TV_SHOWS, 500.0),
         )
@@ -521,7 +521,7 @@ class TestTvThreeState:
         merge_mock = MagicMock(return_value=True)
         monkeypatch.setattr(_tv, "merge", merge_mock)
         monkeypatch.setattr(
-            _tv,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.TV_SHOWS, 500.0),
         )
@@ -578,7 +578,7 @@ class TestDispatchPermitConsultFailOpen:
         replace_mock = MagicMock(return_value=True)
         monkeypatch.setattr(_movie, "replace", replace_mock)
         monkeypatch.setattr(
-            _movie,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.MOVIES, 500.0),
         )
@@ -608,7 +608,7 @@ class TestDispatchPermitConsultFailOpen:
         merge_mock = MagicMock(return_value=True)
         monkeypatch.setattr(_tv, "merge", merge_mock)
         monkeypatch.setattr(
-            _tv,
+            _item,
             "get_disk_status",
             lambda c: _disk_status(c.id, c.path, CID.TV_SHOWS, 500.0),
         )
