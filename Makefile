@@ -79,7 +79,7 @@ gate: check
 	@! rg -q "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
 	@! rg -q "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
 	@! rg -q "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
-	@! rg -l "TMDBError|TVDBError" personalscraper/ --include='*.py' 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
+	@! rg -l "TMDBError|TVDBError" -g '*.py' personalscraper/ 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
 	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
 	@echo "Gate: ALL CHECKS PASSED"
 
