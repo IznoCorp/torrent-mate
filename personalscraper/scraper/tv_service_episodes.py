@@ -21,13 +21,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import requests
-
-from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import EpisodeInfo
 from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
-from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
-from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.logger import get_logger
 from personalscraper.scraper._shared import ScrapeResult
 
@@ -136,131 +131,15 @@ def match_tvshow_candidates(
             for catching and surfacing the error in ``result.error``.
     """
     from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+    from personalscraper.scraper._match import run_chain  # noqa: PLC0415
 
     item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "tvshow"}
-    providers = registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
-    attempted: list[AttemptOutcome] = []
-    last_exception: Exception | None = None
 
-    for provider in providers:
-        provider_name = getattr(provider, "provider_name", "?")
-        try:
-            match = scraper_api.match_tvshow_single(provider, title, year, local_seasons=local_seasons)
-        except CircuitOpenError as exc:
-            last_exception = exc
-            attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open"))
-            log.debug(
-                "registry_provider_skip",
-                provider=provider_name,
-                capability="TvDetailsProvider",
-                reason="circuit_open",
-            )
-            registry.emit_provider_fallback(
-                capability="TvDetailsProvider",
-                from_provider=provider_name,
-                reason="circuit_open",
-                item=item_context,
-            )
-            continue
-        except (ApiError, requests.RequestException, OSError) as exc:
-            last_exception = exc
-            attempted.append(
-                AttemptOutcome(
-                    provider=RegistryProviderName(provider_name),
-                    reason="network",
-                    detail=type(exc).__name__,
-                )
-            )
-            log.warning(
-                "registry_provider_fail",
-                provider=provider_name,
-                capability="TvDetailsProvider",
-                exc_type=type(exc).__name__,
-            )
-            registry.emit_provider_fallback(
-                capability="TvDetailsProvider",
-                from_provider=provider_name,
-                reason="network",
-                exc_type=type(exc).__name__,
-                item=item_context,
-            )
-            continue
-        except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
-            # Unclassified provider failure — DESIGN §6.2 promises chain
-            # fallback. Phase 21 (C2): record the attempt, emit a
-            # ``reason="other"`` fallback for observers, and continue to
-            # the next provider rather than short-circuiting on the first
-            # exception. If every provider fails the post-loop branch
-            # raises ``ProviderExhausted`` and the caller preserves the
-            # ACC-13 fail-soft contract.
-            last_exception = exc
-            attempted.append(
-                AttemptOutcome(
-                    provider=RegistryProviderName(provider_name),
-                    reason="other",
-                    detail=type(exc).__name__,
-                )
-            )
-            log.warning(
-                "registry_provider_fail",
-                provider=provider_name,
-                capability="TvDetailsProvider",
-                exc_type=type(exc).__name__,
-            )
-            registry.emit_provider_fallback(
-                capability="TvDetailsProvider",
-                from_provider=provider_name,
-                reason="other",
-                exc_type=type(exc).__name__,
-                item=item_context,
-            )
-            continue
+    def _attempt(provider: Any) -> Any | None:
+        """Match one TV provider; ``None`` signals an empty result."""
+        return scraper_api.match_tvshow_single(provider, title, year, local_seasons=local_seasons)
 
-        if match is None:
-            attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
-            log.debug(
-                "registry_provider_skip",
-                provider=provider_name,
-                capability="TvDetailsProvider",
-                reason="empty_result",
-            )
-            registry.emit_provider_fallback(
-                capability="TvDetailsProvider",
-                from_provider=provider_name,
-                reason="empty_result",
-                item=item_context,
-            )
-            continue
-
-        return match
-
-    # All providers attempted and none produced a match.
-    if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
-        # At least one attempt errored. Emit the exhausted event for
-        # observers, then RAISE ``ProviderExhausted`` per DESIGN §6.2.
-        # The caller (:meth:`_lookup_series`) catches and surfaces a
-        # legacy-shape ``result.error`` carrying the original
-        # exception's detail (ACC-13 contract).
-        registry.emit_provider_exhausted(
-            capability="TvDetailsProvider",
-            attempted=attempted,
-            item=item_context,
-        )
-        log.error(
-            "registry_chain_exhausted",
-            capability="TvDetailsProvider",
-            attempted=[(a.provider, a.reason) for a in attempted],
-            item=item_context,
-        )
-        raise ProviderExhausted(
-            capability=TvDetailsProvider,
-            attempted=attempted,
-            item_context=item_context,
-            last_exception=last_exception,
-        )
-    # Empty chain or all empty_result → legacy "no confident match"
-    # path (caller branches on the None return).
-    return None
+    return run_chain(registry, TvDetailsProvider, _attempt, item_context=item_context)
 
 
 def ordered_episode_providers(

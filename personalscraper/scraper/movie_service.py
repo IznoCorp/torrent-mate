@@ -11,14 +11,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
-from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.api.metadata._contracts import MovieDetailsProvider
-from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
+from personalscraper.scraper._match import run_chain
 from personalscraper.scraper._movie_convert import _coerce_to_movie_data
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
 from personalscraper.scraper.classifier import _parse_folder_name
@@ -375,133 +374,26 @@ class MovieServiceMixin:
         from personalscraper.scraper.confidence import match_movie_detailed  # noqa: PLC0415
 
         item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "movie"}
-        providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
-        attempted: list[AttemptOutcome] = []
-        last_exception: Exception | None = None
-        all_candidates: list[DecisionCandidate] = []
 
-        for provider in providers:
-            provider_name = getattr(provider, "provider_name", "?")
-            try:
-                best, candidates = match_movie_detailed(provider, title, year)
-                all_candidates = candidates
-            except CircuitOpenError as exc:
-                last_exception = exc
-                attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open"))
-                log.debug(
-                    "registry_provider_skip",
-                    provider=provider_name,
-                    capability="MovieDetailsProvider",
-                    reason="circuit_open",
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="circuit_open",
-                    item=item_context,
-                )
-                continue
-            except (ApiError, requests.RequestException, OSError) as exc:
-                last_exception = exc
-                attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="network",
-                        detail=type(exc).__name__,
-                    )
-                )
-                log.warning(
-                    "registry_provider_fail",
-                    provider=provider_name,
-                    capability="MovieDetailsProvider",
-                    exc_type=type(exc).__name__,
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="network",
-                    exc_type=type(exc).__name__,
-                    item=item_context,
-                )
-                continue
-            except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
-                # Unclassified provider failure — DESIGN §6.2 promises chain
-                # fallback ("first provider that returns a usable result wins"),
-                # so we record the attempt, emit a ``reason="other"`` fallback
-                # event for observers, and continue to the next provider.
-                # Phase 21 (C2): restored chain semantics that previous code
-                # broke by short-circuiting here with ``result.error`` /
-                # ``return None``.
-                last_exception = exc
-                attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="other",
-                        detail=type(exc).__name__,
-                    )
-                )
-                log.warning(
-                    "registry_provider_fail",
-                    provider=provider_name,
-                    capability="MovieDetailsProvider",
-                    exc_type=type(exc).__name__,
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="other",
-                    exc_type=type(exc).__name__,
-                    item=item_context,
-                )
-                continue
-
+        def _attempt_match(provider: Any) -> tuple[MatchResult, list[DecisionCandidate]] | None:
+            """Match against one provider; ``None`` signals an empty result."""
+            best, candidates = match_movie_detailed(provider, title, year)
             if best is None:
-                attempted.append(AttemptOutcome(provider=RegistryProviderName(provider_name), reason="empty_result"))
-                log.debug(
-                    "registry_provider_skip",
-                    provider=provider_name,
-                    capability="MovieDetailsProvider",
-                    reason="empty_result",
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="empty_result",
-                    item=item_context,
-                )
-                continue
+                return None
+            return best, candidates
 
-            return best, all_candidates
-
-        # All providers attempted and none produced a match.
-        if attempted and any(a.reason in {"circuit_open", "network", "other"} for a in attempted):
-            # At least one attempt errored (chain actually broken). Emit
-            # the exhausted event for observers, then RAISE
-            # ``ProviderExhausted`` per DESIGN §6.2. The caller
-            # (:meth:`scrape_movie`) catches and surfaces a
-            # legacy-shape ``result.error`` carrying the original
-            # exception's detail (ACC-13 contract).
-            self._registry.emit_provider_exhausted(
-                capability="MovieDetailsProvider",
-                attempted=attempted,
-                item=item_context,
-            )
-            log.error(
-                "registry_chain_exhausted",
-                capability="MovieDetailsProvider",
-                attempted=[(a.provider, a.reason) for a in attempted],
-                item=item_context,
-            )
-            raise ProviderExhausted(
-                capability=MovieDetailsProvider,
-                attempted=attempted,
-                item_context=item_context,
-                last_exception=last_exception,
-            )
-        # Empty chain or all empty_result → legacy "no confident match"
-        # path (caller branches on the None return to set
-        # ``skipped_low_confidence`` and try ``_restore_from_db``).
-        return None, []
+        # ``run_chain`` owns the per-provider try/except classification,
+        # AttemptOutcome accumulation, fallback/exhausted emission and the
+        # ``ProviderExhausted`` raise (DESIGN §6.2). A classified error-exhaustion
+        # propagates ``ProviderExhausted`` — ``scrape_movie`` catches it and
+        # surfaces the ACC-13 fail-soft ``result.error`` shape.
+        outcome = run_chain(self._registry, MovieDetailsProvider, _attempt_match, item_context=item_context)
+        if outcome is None:
+            # Empty chain or every provider returned an empty result → legacy
+            # "no confident match" path (caller branches on the None return to
+            # set ``skipped_low_confidence`` and try ``_restore_from_db``).
+            return None, []
+        return outcome
 
     def _select_best_candidate(
         self,
@@ -654,104 +546,47 @@ class MovieServiceMixin:
             "media_type": "movie",
             "provider_id": match.api_id,
         }
-        movie_data: MediaDetails | dict[str, Any] | None = None
-        details_attempted: list[AttemptOutcome] = []
-        details_providers = self._registry.chain(MovieDetailsProvider)  # type: ignore[type-abstract]
-        for provider in details_providers:
-            provider_name = getattr(provider, "provider_name", "?")
-            # Honour the source-of-match invariant: only consult the provider
-            # that produced the MatchResult. Cross-provider translation (e.g.
-            # TMDB id → TVDB id) is owned by ``registry.cross_ref`` and lands
-            # in sub-phase 7.4 (existing_validator) — out of scope for 7.1.
-            if provider_name != match.source:
-                continue
-            # Runtime isinstance + narrow: the chain overload returns a
-            # union type for type-checkers (Searchable | MovieDetailsProvider
-            # | TvDetailsProvider | EpisodeFetcher); the guard restores
-            # the MovieDetailsProvider Protocol shape for ``get_movie``.
-            if not isinstance(provider, MovieDetailsProvider):
-                continue
-            try:
-                movie_data = provider.get_movie(str(match.api_id))
-                break
-            except CircuitOpenError:
-                details_attempted.append(
-                    AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="circuit_open",
-                    item=details_item_context,
-                )
-                continue
-            except (ApiError, requests.RequestException, OSError) as exc:
-                details_attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="network",
-                        detail=type(exc).__name__,
-                    )
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="network",
-                    exc_type=type(exc).__name__,
-                    item=details_item_context,
-                )
-                continue
-            except Exception as exc:  # noqa: BLE001 — DESIGN §6.2 fallback on unclassified
-                # Unclassified failure — Phase 21 (C2) restores DESIGN §6.2
-                # fallback semantics: record the attempt with reason="other",
-                # emit ProviderFallbackTriggered for observers, and continue
-                # to the next eligible provider in the chain. If every
-                # candidate fails the post-loop exhausted branch surfaces
-                # ``result.error`` (ACC-13 legacy shape).
-                details_attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="other",
-                        detail=type(exc).__name__,
-                    )
-                )
-                self._registry.emit_provider_fallback(
-                    capability="MovieDetailsProvider",
-                    from_provider=provider_name,
-                    reason="other",
-                    exc_type=type(exc).__name__,
-                    item=details_item_context,
-                )
-                log.warning(
-                    "movie_details_failed",
-                    api_title=match.api_title,
-                    provider=provider_name,
-                    exc_type=type(exc).__name__,
-                    error=str(exc),
-                )
-                continue
 
+        def _fetch_details(provider: Any) -> MediaDetails | dict[str, Any] | None:
+            """Fetch full movie details from the source-of-match provider.
+
+            ``| None`` documents run_chain's empty-result contract (a provider
+            returning ``None`` rolls the chain forward); ``get_movie`` in
+            practice returns data or raises.
+            """
+            return cast("MovieDetailsProvider", provider).get_movie(str(match.api_id))
+
+        def _is_source(provider: Any) -> bool:
+            # Honour the source-of-match invariant: only consult the provider
+            # that produced the MatchResult (cross-provider id translation is
+            # owned by ``registry.cross_ref``). The isinstance narrowing keeps
+            # the MovieDetailsProvider Protocol shape for ``get_movie``.
+            provider_name = getattr(provider, "provider_name", "?")
+            return provider_name == match.source and isinstance(provider, MovieDetailsProvider)
+
+        try:
+            # ``cast`` narrows run_chain's generic result: mypy infers ``T`` as
+            # ``object`` when the attempt returns a union of two concrete types
+            # (``MediaDetails | dict``), so pin it back to the real shape.
+            movie_data = cast(
+                "MediaDetails | dict[str, Any] | None",
+                run_chain(
+                    self._registry,
+                    MovieDetailsProvider,
+                    _fetch_details,
+                    item_context=details_item_context,
+                    source_filter=_is_source,
+                ),
+            )
+        except ProviderExhausted:
+            # Every source-matching provider errored — run_chain already emitted
+            # ProviderExhaustedEvent + logged ``registry_chain_exhausted``.
+            result.error = f"Get details failed: all providers exhausted for {MovieDetailsProvider.__name__}"
+            return result
         if movie_data is None:
-            # Either no provider matched ``match.source`` or every attempt
-            # in that subset failed. Emit the exhausted event and surface
-            # the legacy ``result.error`` path so the orchestrator records
-            # ``action="error"``.
-            if details_attempted:
-                self._registry.emit_provider_exhausted(
-                    capability="MovieDetailsProvider",
-                    attempted=details_attempted,
-                    item=details_item_context,
-                )
-                log.error(
-                    "registry_chain_exhausted",
-                    capability="MovieDetailsProvider",
-                    attempted=[(a.provider, a.reason) for a in details_attempted],
-                    item=details_item_context,
-                )
-                result.error = f"Get details failed: all providers exhausted for {MovieDetailsProvider.__name__}"
-            else:
-                result.error = f"Get details failed: no provider available for source={match.source!r}"
-                log.error("movie_details_no_provider", api_title=match.api_title, source=match.source)
+            # No provider matched ``match.source`` (all filtered out).
+            result.error = f"Get details failed: no provider available for source={match.source!r}"
+            log.error("movie_details_no_provider", api_title=match.api_title, source=match.source)
             return result
 
         return self._write_confirmed_movie(movie_dir, match, movie_data, title, year, result)

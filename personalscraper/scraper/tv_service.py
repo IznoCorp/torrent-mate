@@ -6,18 +6,16 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import requests
-
-from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
-from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
+from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._drift_persistence import DriftIssueStore
+from personalscraper.scraper._match import run_chain
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper._tvdb_convert import (
     _tvdb_series_to_show_data as _tvdb_series_to_show_data,
@@ -512,107 +510,49 @@ class TvServiceMixin:
             "media_type": "tvshow",
             "provider_id": match.api_id,
         }
-        tmdb_id: int | None = None
-        show_data: dict[str, Any] | None = None
-        details_attempted: list[AttemptOutcome] = []
-        details_providers = self._registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
-        for provider in details_providers:
-            provider_name = getattr(provider, "provider_name", "?")
-            # Honour the source-of-match invariant: only consult the
-            # provider that produced the MatchResult. Cross-provider
-            # translation lands in sub-phase 7.4.
-            if provider_name != match.source:
-                continue
-            try:
-                # Source-aware show-data fetch — the TVDB-primary / TMDB-fallback
-                # branch now lives once in fetch_show_data, shared with the
-                # maintenance rescraper so the discipline cannot diverge.
-                show_data, tmdb_id = fetch_show_data(
-                    match.source,
-                    match.api_id,
-                    provider,
-                    preferred_language=self._scraper_language,
-                    fallback_language=self._scraper_fallback_language,
-                )
-                break
-            except CircuitOpenError as exc:
-                details_attempted.append(
-                    AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
-                )
-                self._registry.emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="circuit_open",
-                    item=details_item_context,
-                )
-                log.warning("show_details_circuit_open", provider=provider_name, error=str(exc))
-                continue
-            except (ApiError, requests.RequestException, OSError) as exc:
-                details_attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="network",
-                        detail=type(exc).__name__,
-                    )
-                )
-                self._registry.emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="network",
-                    exc_type=type(exc).__name__,
-                    item=details_item_context,
-                )
-                log.warning(
-                    "show_details_network_fail",
-                    provider=provider_name,
-                    exc_type=type(exc).__name__,
-                    error=str(exc),
-                )
-                continue
-            except Exception as e:
-                # Phase 21 + 26.2: ANY unclassified exception during details
-                # fetch is treated as a chain fallback per DESIGN §6.2.
-                # Aligns with the broader ``except Exception`` already used
-                # by movie_service.py:857.
-                details_attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="other",
-                        detail=type(e).__name__,
-                    )
-                )
-                self._registry.emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="other",
-                    exc_type=type(e).__name__,
-                    item=details_item_context,
-                )
-                log.warning(
-                    "show_details_failed",
-                    provider=provider_name,
-                    exc_type=type(e).__name__,
-                    error=str(e),
-                )
-                continue
 
+        def _fetch_details(provider: Any) -> tuple[dict[str, Any] | None, int | None]:
+            """Fetch full show data from the source-of-match provider.
+
+            The TVDB-primary / TMDB-fallback branch lives once in
+            ``fetch_show_data``, shared with the maintenance rescraper so the
+            discipline cannot diverge.
+            """
+            return fetch_show_data(
+                match.source,
+                match.api_id,
+                provider,
+                preferred_language=self._scraper_language,
+                fallback_language=self._scraper_fallback_language,
+            )
+
+        def _is_source(provider: Any) -> bool:
+            # Honour the source-of-match invariant: only consult the provider
+            # that produced the MatchResult. Cross-provider translation is owned
+            # by ``registry.cross_ref``.
+            return getattr(provider, "provider_name", "?") == match.source
+
+        try:
+            fetched = run_chain(
+                self._registry,
+                TvDetailsProvider,
+                _fetch_details,
+                item_context=details_item_context,
+                source_filter=_is_source,
+            )
+        except ProviderExhausted:
+            # Every source-matching provider errored — run_chain already emitted
+            # ProviderExhaustedEvent + logged ``registry_chain_exhausted``.
+            result.error = f"Get details failed: all providers exhausted for {TvDetailsProvider.__name__}"
+            return None
+
+        show_data: dict[str, Any] | None = fetched[0] if fetched is not None else None
+        tmdb_id: int | None = fetched[1] if fetched is not None else None
         if show_data is None:
-            if details_attempted:
-                self._registry.emit_provider_exhausted(
-                    capability="TvDetailsProvider",
-                    attempted=details_attempted,
-                    item=details_item_context,
-                )
-                log.error(
-                    "registry_chain_exhausted",
-                    capability="TvDetailsProvider",
-                    attempted=[(a.provider, a.reason) for a in details_attempted],
-                    item=details_item_context,
-                )
-                result.error = f"Get details failed: all providers exhausted for {TvDetailsProvider.__name__}"
-            else:
-                result.error = f"Get details failed: no provider available for source={match.source!r}"
-                log.error("show_details_no_provider", api_title=match.api_title, source=match.source)
+            # No provider matched ``match.source`` (all filtered out), or the
+            # source provider returned no show data.
+            result.error = f"Get details failed: no provider available for source={match.source!r}"
+            log.error("show_details_no_provider", api_title=match.api_title, source=match.source)
             return None
 
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, show_data, "tvshow"))
