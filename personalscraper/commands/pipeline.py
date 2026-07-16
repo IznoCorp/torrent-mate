@@ -353,6 +353,7 @@ def dispatch(
 ) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
+    from personalscraper.pipeline_steps import resolve_dispatch_authority
 
     config = ctx.obj.config
     console = state["console"]
@@ -367,8 +368,14 @@ def dispatch(
             _bootstrap_staging(ctx)
             settings = cli_compat.get_settings()
             with per_step_boundary(config, settings, stream_events=True) as app_context:
+                # F2 parity: resolve the SAME permit/recorder the full-run
+                # DispatchStep injects, via the shared single owner.
                 report, results = run_dispatch(
-                    settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus
+                    settings,
+                    config=config,
+                    dry_run=dry_run,
+                    event_bus=app_context.event_bus,
+                    **resolve_dispatch_authority(app_context),
                 )
 
             # Collect touched disks from DispatchResult objects (index-sync DESIGN).

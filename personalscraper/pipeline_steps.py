@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from personalscraper.models import StepReport
 from personalscraper.pipeline_protocol import PipelineStep, StepContext
@@ -26,6 +26,48 @@ from personalscraper.reports import (
     TrailersDetails,
     VerifyDetails,
 )
+
+if TYPE_CHECKING:
+    from personalscraper.core.delete_permit import DeletePermit, SeedObligationRecorder
+
+
+class DispatchAuthorityKW(TypedDict, total=False):
+    """Resolved delete-permit kwargs forwarded to ``run_dispatch``.
+
+    Empty when no acquire ``delete_authority`` is configured, so
+    ``run_dispatch``'s library-level ``AllowAllPermit`` defaults apply.
+    """
+
+    permit: DeletePermit
+    recorder: SeedObligationRecorder
+
+
+def resolve_dispatch_authority(app: Any) -> DispatchAuthorityKW:  # noqa: ANN401
+    """Resolve the delete permit + seed-obligation recorder for a dispatch call.
+
+    Single owner of the acquire→dispatch injection so BOTH the full-run
+    :class:`DispatchStep` and the standalone ``personalscraper dispatch`` CLI
+    command forward the SAME ``permit``/``recorder`` to
+    :func:`~personalscraper.dispatch.run.run_dispatch`. Reads the borrowed
+    ``DeleteAuthority`` off ``app.acquire.delete_authority`` by duck-typing — the
+    engine never imports ``acquire/`` (layering rule, DESIGN §9). When no
+    authority is configured the mapping is empty, so ``run_dispatch``'s
+    library-level ``AllowAllPermit`` defaults apply — byte-identical to the
+    pre-resolution behaviour tests rely on.
+
+    Args:
+        app: The process-scoped :class:`~personalscraper.core.app_context.AppContext`
+            (or any object exposing ``acquire.delete_authority``).
+
+    Returns:
+        ``{"permit": authority, "recorder": authority}`` when an authority is
+        configured, else an empty mapping.
+    """
+    acquire = getattr(app, "acquire", None)
+    authority = getattr(acquire, "delete_authority", None)
+    if authority is None:
+        return {}
+    return {"permit": authority, "recorder": authority}
 
 
 class IngestStep:
@@ -282,28 +324,17 @@ class DispatchStep:
         Returns:
             A ``StepReport`` with per-item move/merge/replace outcomes.
         """
-        from typing import TypedDict
-
-        from personalscraper.core.delete_permit import DeletePermit, SeedObligationRecorder
         from personalscraper.dispatch.run import run_dispatch
 
-        class _DispatchKW(TypedDict, total=False):
-            permit: DeletePermit
-            recorder: SeedObligationRecorder
-
-        acquire = getattr(ctx.app, "acquire", None)
-        authority = getattr(acquire, "delete_authority", None)
-        kw: _DispatchKW = {}
-        if authority is not None:
-            kw = {"permit": authority, "recorder": authority}
-
+        # Permit/recorder resolution is the shared single owner (F2 parity with
+        # the standalone ``personalscraper dispatch`` CLI command).
         report, results = run_dispatch(
             ctx.app.settings,
             config=ctx.app.config,
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
             event_bus=ctx.app.event_bus,
-            **kw,
+            **resolve_dispatch_authority(ctx.app),
         )
 
         # Post-dispatch index maintenance (DESIGN index-sync):
@@ -620,6 +651,7 @@ __all__ = [
     "STEP_SPECS",
     "CleanupStep",
     "CleanStep",
+    "DispatchAuthorityKW",
     "DispatchStep",
     "EnforceStep",
     "IngestStep",
@@ -632,4 +664,5 @@ __all__ = [
     "TrailersStep",
     "VerifyStep",
     "apply_step_overrides",
+    "resolve_dispatch_authority",
 ]
