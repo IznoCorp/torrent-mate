@@ -15,6 +15,7 @@ context.
 
 from __future__ import annotations
 
+import importlib
 from contextlib import contextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -25,6 +26,12 @@ from personalscraper.cli import app
 from personalscraper.core.delete_permit import AllowAllPermit
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
+
+# The migrated ``dispatch`` command runs inside the ``cli_helpers.boundary``
+# scaffold, which enters ``per_step_boundary`` and takes the lock from its OWN
+# module namespace — patch that module, not ``personalscraper.commands.pipeline``
+# / ``personalscraper.cli``.
+_BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 
 runner = CliRunner()
 
@@ -57,7 +64,7 @@ def _patch_boundary(authority: Any):
     def _boundary(*_args: Any, **_kwargs: Any):
         yield _FakeAppContext(authority)
 
-    return patch("personalscraper.commands.pipeline.per_step_boundary", _boundary)
+    return patch.object(_BOUNDARY_MOD, "per_step_boundary", _boundary)
 
 
 def _invoke_dispatch_capturing_run_dispatch(authority: Any) -> MagicMock:
@@ -74,8 +81,8 @@ def _invoke_dispatch_capturing_run_dispatch(authority: Any) -> MagicMock:
     with (
         _patch_boundary(authority),
         patch("personalscraper.dispatch.run.run_dispatch", mock_dispatch),
-        patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
-        patch("personalscraper.cli.release_lock"),
+        patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True),
+        patch.object(_BOUNDARY_MOD, "release_lock"),
     ):
         result = runner.invoke(app, ["dispatch"])
     assert result.exit_code == 0, result.output

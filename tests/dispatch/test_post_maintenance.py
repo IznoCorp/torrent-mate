@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -19,6 +20,12 @@ from personalscraper.dispatch.post_maintenance import (
     run_post_dispatch_maintenance,
 )
 from personalscraper.models import StepReport
+
+# The migrated ``dispatch`` command runs inside the ``cli_helpers.boundary``
+# scaffold, which enters ``per_step_boundary`` + takes the lock from its OWN
+# module namespace — patch that module, not ``personalscraper.commands.pipeline``
+# / ``personalscraper.cli``.
+_BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 
 
 @pytest.fixture
@@ -593,15 +600,15 @@ def test_both_paths_route_through_single_owner_identically(test_config) -> None:
         # the commands-conftest autouse patch).
         patch("personalscraper.conf.loader.resolve_config_path", return_value=_Path("/fake/config.json5")),
         patch("personalscraper.conf.loader.load_config", return_value=test_config),
-        patch("personalscraper.commands.pipeline.per_step_boundary", _boundary),
+        patch.object(_BOUNDARY_MOD, "per_step_boundary", _boundary),
         patch("personalscraper.dispatch.run.run_dispatch", return_value=(StepReport(name="dispatch"), cli_results)),
         patch(
             "personalscraper.dispatch.post_maintenance.maybe_run_post_dispatch_maintenance",
             side_effect=_capture_cli,
         ),
-        patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
-        patch("personalscraper.cli.release_lock"),
-        patch("personalscraper.cli.get_settings", return_value=make_typed_settings_stub()),
+        patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True),
+        patch.object(_BOUNDARY_MOD, "release_lock"),
+        patch.object(_BOUNDARY_MOD, "get_settings", return_value=make_typed_settings_stub()),
     ):
         result = CliRunner().invoke(cli_app, ["dispatch"])
     assert result.exit_code == 0, result.output

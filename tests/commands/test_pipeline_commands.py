@@ -7,12 +7,16 @@ and ``run`` subcommands.
 from __future__ import annotations
 
 import importlib
+import sqlite3
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
 from personalscraper.models import StepReport
+from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db
+from tests.fixtures.settings_stub import make_typed_settings_stub
 
 runner = CliRunner()
 
@@ -127,8 +131,8 @@ class TestEnforceLockBlocked:
         assert result.exit_code == 1
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestDispatchCommand:
     """Tests for the `dispatch` Typer subcommand."""
 
@@ -169,13 +173,13 @@ class TestDispatchLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["dispatch"])
         assert result.exit_code == 1
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestProcessCommand:
     """Tests for the `process` Typer subcommand."""
 
@@ -245,7 +249,7 @@ class TestProcessLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["process"])
         assert result.exit_code == 1
 
@@ -253,8 +257,8 @@ class TestProcessLockBlocked:
 # ── clean / cleanup standalone CLI (SH-21 / AR-C, sub-phase 8.5) ────────────
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestCleanCommand:
     """Tests for the standalone ``clean`` Typer subcommand."""
 
@@ -311,14 +315,14 @@ class TestCleanLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["clean"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
 
 
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
-@patch("personalscraper.cli.release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "release_lock")
 class TestCleanupCommand:
     """Tests for the standalone ``cleanup`` Typer subcommand."""
 
@@ -375,7 +379,7 @@ class TestCleanupLockBlocked:
 
     def test_lock_blocked(self) -> None:
         """Lock contention exits 1."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["cleanup"])
         assert result.exit_code == 1
         assert "Another instance" in result.output
@@ -498,3 +502,49 @@ class TestRunHelpStepList:
             assert step in result.output, (
                 f"DEFAULT_STEPS key '{step}' missing from `run --help`.\nOutput was:\n{result.output}"
             )
+
+
+# ── boundary() journal command-name parity (P3.3) ───────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected_command", "run_target", "run_return"),
+    [
+        # Default-name path: boundary derives command= from the function name.
+        (["sort"], "sort", "personalscraper.sorter.run.run_sort", _step("sort")),
+        # Explicit command= on the boundary-wrapped worker (thin+worker split):
+        # the pre-lock --list-checks / --check validation lives in the thin
+        # ``verify`` command, and the real work journals under command="verify".
+        (["verify"], "verify", "personalscraper.verify.run.run_verify", (_step("verify"), [])),
+    ],
+)
+def test_migrated_command_journals_under_its_command_name(
+    tmp_path, test_config, argv, expected_command, run_target, run_return
+) -> None:
+    """A migrated pipeline command journals under its own command name.
+
+    Regression guard for the P3.3 boundary migration: the ``boundary()``
+    decorator must open its ``cli_step_journal`` ``pipeline_run`` row under the
+    SAME ``command`` value the pre-boundary manual scaffold used — ``"sort"``
+    (default-name path) and, via the thin+worker split, ``"verify"`` (explicit
+    ``command="verify"``) — so the TorrentMate run journal keeps attributing
+    standalone step runs correctly.
+    """
+    db_path = make_synthetic_db(tmp_path)
+    cfg = make_test_config_with_db(test_config, db_path)
+    with (
+        patch("personalscraper.conf.loader.load_config", return_value=cfg),
+        patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True),
+        patch.object(_BOUNDARY_MOD, "release_lock"),
+        patch.object(_BOUNDARY_MOD, "get_settings", return_value=make_typed_settings_stub()),
+        patch(run_target, return_value=run_return),
+    ):
+        result = runner.invoke(app, argv)
+
+    assert result.exit_code == 0, result.output
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute("SELECT command, trigger, kind, outcome FROM pipeline_run").fetchall()
+    finally:
+        conn.close()
+    assert rows == [(expected_command, "cli", "pipeline", "success")]
