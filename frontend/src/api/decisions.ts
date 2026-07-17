@@ -135,7 +135,7 @@ export function fetchDecisions(
 
 /**
  * Fetch live scraping activity — the scrapes running now and the pending-queue
- * size. Read-only; polled by the /scraping activity panel (§3 — the file and the
+ * size. Read-only; polled by the Contrôle activity panel (§3 — the file and the
  * in-progress scrapes must be visible).
  *
  * Returns:

@@ -38,7 +38,22 @@ import { useStagingMedia } from "@/hooks/useStagingMedia";
 const PAGE_SIZE = 24;
 
 /** Match filter option: a value + French label + which count feeds its chip. */
-type MatchFilter = "all" | StagingMediaItem["match"];
+export type MatchFilter = "all" | StagingMediaItem["match"];
+
+/**
+ * Position filter applied client-side on the fetched page items.
+ *
+ * - ``"blocked"`` → ``position_state === "blocked"`` (ambiguous, absent,
+ *   verify-blocked, and any other blocked case).
+ * - ``"active"`` → ``position_state === "active"``.
+ * - ``"ready"`` → ``match === "matched" && position_state !== "blocked"``
+ *   (verified items ready for continuation or dispatch).
+ *
+ * Pagination caveat: this filter applies to the current page of 24 items.
+ * Staging volumes are small — a server-side parameter is recorded in
+ * IMPLEMENTATION.md « Open items ».
+ */
+export type PositionFilter = "blocked" | "active" | "ready";
 
 const MATCH_FILTERS: readonly { value: MatchFilter; label: string }[] = [
   { value: "all", label: "Tous" },
@@ -59,6 +74,25 @@ const SORT_OPTIONS: readonly {
 
 /** Props for {@link StagingLibrary}. */
 export interface StagingLibraryProps {
+  /**
+   * Optional controlled match filter. When provided, the internal match chips
+   * are hidden and this value is used for the API call instead of the local
+   * state — the parent is responsible for rendering its own filter UI (e.g. a
+   * segment bar). When ``undefined``, the component manages its own match state.
+   */
+  readonly match?: MatchFilter;
+  /**
+   * Optional client-side position filter applied on the fetched page items.
+   *
+   * - ``"blocked"`` → ``position_state === "blocked"`` (all awaiting cases).
+   * - ``"active"`` → ``position_state === "active"``.
+   * - ``"ready"`` → ``match === "matched" && position_state !== "blocked"``.
+   *
+   * Pagination caveat: this filter applies to the current page of 24 items.
+   * Staging volumes are small — a server-side parameter is recorded in
+   * IMPLEMENTATION.md « Open items ».
+   */
+  readonly position?: PositionFilter | undefined;
   /**
    * Invoked when the operator sends a media to the resolution deck. Receives the
    * ``scrape_decision.id`` to open on (C18) — the ambiguous card's own
@@ -91,9 +125,12 @@ function GridSkeleton(): ReactElement {
  *   The library element.
  */
 export function StagingLibrary({
+  match: matchControlled,
+  position,
   onOpenResolution,
 }: StagingLibraryProps): ReactElement {
-  const [match, setMatch] = useState<MatchFilter>("all");
+  const [matchInternal, setMatchInternal] = useState<MatchFilter>("all");
+  const match = matchControlled ?? matchInternal;
   const [sort, setSort] =
     useState<NonNullable<StagingMediaParams["sort"]>>("recent");
   const [search, setSearch] = useState("");
@@ -159,12 +196,44 @@ export function StagingLibrary({
 
   const query = useStagingMedia(params);
   const data = query.data;
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
   const counts = data?.counts;
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  /**
+   * Client-side position filter applied on the current page of items. This is a
+   * lightweight overlay — the server-side pagination is unchanged, so the total
+   * page count may overstate the actual reachable items when a position filter is
+   * active. Staging volumes are small enough that this is acceptable for now; a
+   * server-side ``position`` query parameter is recorded in
+   * IMPLEMENTATION.md « Open items ».
+   */
+  const filteredItems = useMemo(() => {
+    if (position === undefined) return items;
+    return items.filter((item) => {
+      switch (position) {
+        case "blocked":
+          return item.position_state === "blocked";
+        case "active":
+          return item.position_state === "active";
+        case "ready":
+          return item.match === "matched" && item.position_state !== "blocked";
+      }
+    });
+  }, [items, position]);
+
   const selected = items.find((i) => i.id === selectedId) ?? null;
+
+  // D3: ?media= not found on the current page — surface an inline notice so the
+  // operator knows the param was not silently ignored (honest exit).
+  // Pure derived — clears automatically when the item becomes found (e.g. the
+  // operator clears a filter or navigates to the correct page).
+  const mediaNotFoundNotice =
+    selectedId !== null &&
+    !query.isLoading &&
+    !query.isError &&
+    selected === null;
 
   /** Count feeding a match filter chip (undefined while loading → hidden). */
   function chipCount(value: MatchFilter): number | undefined {
@@ -242,67 +311,79 @@ export function StagingLibrary({
           </div>
         </div>
 
-        <div
-          className="flex flex-wrap items-center gap-2"
-          role="group"
-          aria-label="Filtrer par identification"
-        >
-          {MATCH_FILTERS.map((filter) => {
-            const active = match === filter.value;
-            const count = chipCount(filter.value);
-            // C18: an idle "À résoudre" chip with a non-zero count wears the
-            // warning tone so pending ambiguities call for attention.
-            const pendingAmbiguous =
-              filter.value === "ambiguous" && (count ?? 0) > 0;
-            const tone = active
-              ? "solid"
-              : pendingAmbiguous
-                ? "warning"
-                : "outline";
-            return (
-              <button
-                key={filter.value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  resetTo(setMatch, filter.value);
-                }}
-              >
-                <Badge tone={tone} className="cursor-pointer">
-                  {filter.label}
-                  {count !== undefined && (
-                    <span className="ml-1 opacity-70">({count})</span>
-                  )}
-                </Badge>
-              </button>
-            );
-          })}
-          {/* A1: "sans bande-annonce" toggle — a separate axis from the match
-              chips, so it sits after them with a divider. */}
-          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-          <button
-            type="button"
-            aria-pressed={missingTrailer}
-            onClick={() => {
-              resetTo(setMissingTrailer, !missingTrailer);
-            }}
+        {matchControlled === undefined && (
+          <div
+            className="flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Filtrer par identification"
           >
-            <Badge
-              tone={missingTrailer ? "solid" : "outline"}
-              className="cursor-pointer"
+            {MATCH_FILTERS.map((filter) => {
+              const active = match === filter.value;
+              const count = chipCount(filter.value);
+              // C18: an idle "À résoudre" chip with a non-zero count wears the
+              // warning tone so pending ambiguities call for attention.
+              const pendingAmbiguous =
+                filter.value === "ambiguous" && (count ?? 0) > 0;
+              const tone = active
+                ? "solid"
+                : pendingAmbiguous
+                  ? "warning"
+                  : "outline";
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    resetTo(setMatchInternal, filter.value);
+                  }}
+                >
+                  <Badge tone={tone} className="cursor-pointer">
+                    {filter.label}
+                    {count !== undefined && (
+                      <span className="ml-1 opacity-70">({count})</span>
+                    )}
+                  </Badge>
+                </button>
+              );
+            })}
+            {/* A1: "sans bande-annonce" toggle — a separate axis from the match
+              chips, so it sits after them with a divider. */}
+            <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+            <button
+              type="button"
+              aria-pressed={missingTrailer}
+              onClick={() => {
+                resetTo(setMissingTrailer, !missingTrailer);
+              }}
             >
-              Sans bande-annonce
-              {counts !== undefined && (
-                <span className="ml-1 opacity-70">
-                  ({counts.total - counts.with_trailer})
-                </span>
-              )}
-            </Badge>
-          </button>
-        </div>
+              <Badge
+                tone={missingTrailer ? "solid" : "outline"}
+                className="cursor-pointer"
+              >
+                Sans bande-annonce
+                {counts !== undefined && (
+                  <span className="ml-1 opacity-70">
+                    ({counts.total - counts.with_trailer})
+                  </span>
+                )}
+              </Badge>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ---- Content -------------------------------------------------------- */}
+      {/* D3: ?media= not found on the current page — honest notice. */}
+      {mediaNotFoundNotice && (
+        <p
+          role="alert"
+          className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground"
+        >
+          Média introuvable sur cette page — ajustez les filtres ou la
+          recherche.
+        </p>
+      )}
       {query.isLoading ? (
         <GridSkeleton />
       ) : query.isError ? (
@@ -315,7 +396,7 @@ export function StagingLibrary({
             void query.refetch();
           }}
         />
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <EmptyState
           icon={Film}
           title="Aucun média en attente"
@@ -328,7 +409,7 @@ export function StagingLibrary({
       ) : (
         <>
           <div className={gridClass}>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const badge = matchBadge(item.match);
               const kind = posterKind(item.media_kind);
               const seasonCount = item.seasons?.length ?? 0;

@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 /**
  * BottomTabBar — the mobile navigation surface (visible only < md).
  *
- * A fixed bottom bar with the four primary destinations (Pipeline · Scraping ·
- * Acquisition · Maintenance) — the design-system reference TabBar set, which
+ * A fixed bottom bar with the four primary destinations (Contrôle · Pipeline ·
+ * Médias · Acquisition) — the design-system reference TabBar set, which
  * excludes the dashboard and the disabled stubs. The active tab is highlighted
  * in DS amber (`text-primary`); inactive tabs are dimmed
  * (`text-muted-foreground`). Each tab is a ≥ 44 px touch target (`min-h-11`).
@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  *
  * Args:
  *   badges: Optional per-path badge nodes rendered next to the label (e.g.
- *       pending-count chip on the Scraping tab).  Keys are router paths;
+ *       pending-count chip on a tab).  Keys are router paths;
  *       missing keys render no badge.
  *
  * @returns The bottom tab bar element.
@@ -49,7 +49,7 @@ export function BottomTabBar({
             }
           >
             {/* Badge is a corner superscript on the icon so it never becomes a
-                third flow child that makes the Scraping tab taller (SHELL-2). */}
+                third flow child that makes the tab taller (SHELL-2). */}
             <span className="relative">
               <Icon className="size-5 shrink-0" aria-hidden="true" />
               {badge != null && (

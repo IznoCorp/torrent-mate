@@ -66,7 +66,7 @@ export function PipelineActionBanner({
       <Button
         size="sm"
         onClick={() => {
-          void navigate("/scraping");
+          void navigate("/medias");
         }}
       >
         Ouvrir la file

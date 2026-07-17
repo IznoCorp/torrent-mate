@@ -1,10 +1,11 @@
 /**
- * Unit tests for the Decisions page (scrape-arbiter §4.1 flat list).
+ * Unit tests for the Medias page — library grid default, segments, resolution
+ * deck, and decision browse (``/medias``).
  *
- * Mocks the data hooks so the page logic (flat list, optional multi-select
- * filter chips + counts, list/detail navigation, inline quick-dismiss) is
- * tested in isolation.  The {@link DecisionDetail} component's behaviour is
- * tested in its own suite.
+ * Mocks the data hooks so the page logic (tabs, library segments, optional
+ * multi-select filter chips + counts, list/detail navigation, inline
+ * quick-dismiss) is tested in isolation. The {@link DecisionDetail}
+ * component's behaviour is tested in its own suite.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,6 +25,7 @@ import type {
   DecisionListItem,
   DecisionDetail as DecisionDetailType,
 } from "@/api/decisions";
+import type { StagingMediaItem } from "@/api/staging";
 import type { DecisionStatus } from "@/components/decisions/triggers";
 
 // ---------------------------------------------------------------------------
@@ -113,18 +115,16 @@ vi.mock("sonner", () => ({
 // The library view (?media deep-link test) mounts StagingLibrary, whose data
 // hook needs the WebSocket EventStreamProvider; stub the hook only —
 // stagingMediaKeys stays real (the deck/detail invalidations import it).
+const useStagingMediaMock = vi.fn();
+
 vi.mock("@/hooks/useStagingMedia", async () => {
   const actual = await vi.importActual<
     typeof import("@/hooks/useStagingMedia")
   >("@/hooks/useStagingMedia");
   return {
     ...actual,
-    useStagingMedia: () => ({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-      error: null,
-    }),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useStagingMedia: (...args: unknown[]) => useStagingMediaMock(...args),
   };
 });
 
@@ -134,7 +134,7 @@ import { ApiError } from "@/api/client";
 import { dismissDecision } from "@/api/decisions";
 const dismissDecisionMock = vi.mocked(dismissDecision);
 
-import Decisions from "@/pages/Decisions";
+import Medias from "@/pages/Medias";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -186,9 +186,8 @@ function setupDecisionsList(
     error: null,
   });
 
-  // The ResolutionDeck (default "À résoudre" view) calls useDecisions; give it a
-  // benign empty pending page so it mounts without crashing when a test starts
-  // on the deck before switching to the "Toutes" browse.
+  // The ResolutionDeck ("À résoudre" tab) calls useDecisions; give it a benign
+  // empty pending page so it mounts without crashing when a test switches to it.
   useDecisionsMock.mockReturnValue({
     data: { items: [], pending_count: 0, total: 0, page: 1, page_size: 200 },
     isLoading: false,
@@ -196,28 +195,41 @@ function setupDecisionsList(
     error: null,
     refetch: vi.fn(),
   });
+
+  // Default: StagingLibrary is loading (no data yet). Tests that need specific
+  // staging data override this mock before rendering.
+  useStagingMediaMock.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    error: null,
+  });
 }
 
 /**
- * Render the page. Defaults to the "Toutes" browse view (where the flat-list /
- * filter / detail assertions live); pass ``"resolve"`` to stay on the default
- * resolution deck.
+ * Render the page. Defaults to the library view (the grid default). Pass
+ * ``"decisions"`` to switch to the Décisions tab (where the flat-list /
+ * filter / detail assertions live) or ``"resolve"`` for the resolution deck.
  */
-function renderPage(view: "all" | "resolve" = "all"): void {
+function renderPage(
+  view: "decisions" | "library" | "resolve" = "library",
+): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
   const tree: ReactElement = (
-    <MemoryRouter initialEntries={["/scraping"]}>
+    <MemoryRouter initialEntries={["/medias"]}>
       <QueryClientProvider client={qc}>
-        <Decisions />
+        <Medias />
       </QueryClientProvider>
     </MemoryRouter>
   );
   render(tree);
-  if (view === "all") {
-    fireEvent.click(screen.getByRole("button", { name: "Toutes" }));
+  if (view === "decisions") {
+    fireEvent.click(screen.getByRole("button", { name: "Décisions" }));
+  } else if (view === "resolve") {
+    fireEvent.click(screen.getByRole("button", { name: /^À résoudre/ }));
   }
 }
 
@@ -240,20 +252,20 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Decisions", () => {
+describe("Medias", () => {
   // ---- Render ----------------------------------------------------------------
 
   it("affiche le titre de la page", () => {
     setupDecisionsList();
-    renderPage();
-    expect(screen.getByText("Décisions de scraping")).toBeInTheDocument();
+    renderPage("decisions");
+    expect(screen.getByText("Médias")).toBeInTheDocument();
   });
 
   it("un chargement direct avec ?media ouvre la vue bibliothèque (deep-link)", () => {
-    // Regression (caught live): a FRESH load of /scraping?media=<id> landed on
-    // the resolution deck and silently dropped the param — the detail sheet
-    // only opened for in-session navigation. The view must initialize from the
-    // URL so the route-addressable promise (#255) holds on a fresh load too.
+    // Regression (caught live): a FRESH load of /medias?media=<id> landed on
+    // a non-library view and silently dropped the param. The view must
+    // initialize from the URL so the route-addressable promise (#255) holds on
+    // a fresh load too.
     setupDecisionsList();
     const qc = new QueryClient({
       defaultOptions: {
@@ -262,9 +274,9 @@ describe("Decisions", () => {
       },
     });
     render(
-      <MemoryRouter initialEntries={["/scraping?media=0268dd337626b989"]}>
+      <MemoryRouter initialEntries={["/medias?media=0268dd337626b989"]}>
         <QueryClientProvider client={qc}>
-          <Decisions />
+          <Medias />
         </QueryClientProvider>
       </MemoryRouter>,
     );
@@ -277,9 +289,58 @@ describe("Decisions", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("affiche les chips de filtre de statut", () => {
+  // ---- Library view (default) -------------------------------------------------
+
+  it("affiche la grille de la bibliothèque par défaut", () => {
     setupDecisionsList();
     renderPage();
+    // The StagingLibrary search input is visible — proves we're on the library
+    // grid, not the deck or the decision browse.
+    expect(
+      screen.getByPlaceholderText("Rechercher un titre…"),
+    ).toBeInTheDocument();
+    // The Décisions tab's status filter chips are NOT visible on the library tab.
+    expect(
+      screen.queryByRole("group", {
+        name: /Filtrer les décisions par statut/,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche les segments de filtrage de la bibliothèque", () => {
+    setupDecisionsList();
+    renderPage();
+    const group = screen.getByRole("group", {
+      name: /Filtrer par étape du pipeline/,
+    });
+    expect(within(group).getByText("Tous")).toBeInTheDocument();
+    expect(within(group).getByText("À traiter")).toBeInTheDocument();
+    expect(within(group).getByText("En cours")).toBeInTheDocument();
+    expect(within(group).getByText("Prêts")).toBeInTheDocument();
+  });
+
+  it("marque le segment actif avec aria-pressed", () => {
+    setupDecisionsList();
+    renderPage();
+    const group = screen.getByRole("group", {
+      name: /Filtrer par étape du pipeline/,
+    });
+    const tousBtn = within(group).getByText("Tous").closest("button");
+    expect(tousBtn).toHaveAttribute("aria-pressed", "true");
+
+    const pretsBtn = within(group).getByText("Prêts").closest("button");
+    if (pretsBtn == null) throw new Error("Prêts button not found");
+    fireEvent.click(pretsBtn);
+    expect(within(group).getByText("Prêts").closest("button")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(tousBtn).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("affiche les chips de filtre de statut", () => {
+    setupDecisionsList();
+    renderPage("decisions");
     // Scope to the filter-chip group: "En attente" also appears as the row's
     // status badge (STATUS_SHORT_LABEL.pending === STATUS_LABEL.pending).
     const group = screen.getByRole("group", {
@@ -295,7 +356,7 @@ describe("Decisions", () => {
     setupDecisionsList({
       counts: { pending: 3, resolved: 12, dismissed: 4, superseded: 1 },
     });
-    renderPage();
+    renderPage("decisions");
     // Each chip shows its per-status total in parentheses.
     expect(screen.getByText("(3)")).toBeInTheDocument();
     expect(screen.getByText("(12)")).toBeInTheDocument();
@@ -312,7 +373,7 @@ describe("Decisions", () => {
         makeListItem({ id: 2, extracted_title: "Movie B", status: "resolved" }),
       ],
     });
-    renderPage();
+    renderPage("decisions");
 
     expect(screen.getByText("Movie A")).toBeInTheDocument();
     expect(screen.getByText("Movie B")).toBeInTheDocument();
@@ -326,7 +387,7 @@ describe("Decisions", () => {
 
   it("affiche un texte d'aide indiquant que tout est affiché par défaut", () => {
     setupDecisionsList();
-    renderPage();
+    renderPage("decisions");
     expect(
       screen.getByText(/Toutes les décisions sont affichées/),
     ).toBeInTheDocument();
@@ -334,13 +395,16 @@ describe("Decisions", () => {
 
   it("affiche la liste des décisions", () => {
     setupDecisionsList();
-    renderPage();
-    expect(screen.getByText("Décisions")).toBeInTheDocument();
+    renderPage("decisions");
+    // Two nodes match "Décisions": the tab button (clicked by renderPage) AND the
+    // CardTitle inside DecisionList. Both must exist to prove the decisions tab
+    // rendered correctly.
+    expect(screen.getAllByText("Décisions")).toHaveLength(2);
   });
 
   it("affiche un message d'erreur quand la requête échoue", () => {
     setupDecisionsList({ isError: true });
-    renderPage();
+    renderPage("decisions");
     expect(
       screen.getByText("Erreur lors du chargement des décisions."),
     ).toBeInTheDocument();
@@ -348,7 +412,7 @@ describe("Decisions", () => {
 
   it("affiche un placeholder desktop quand aucune décision n'est sélectionnée", () => {
     setupDecisionsList();
-    renderPage();
+    renderPage("decisions");
     expect(
       screen.getByText("Sélectionnez une décision pour voir les détails."),
     ).toBeInTheDocument();
@@ -358,7 +422,7 @@ describe("Decisions", () => {
 
   it("active le filtre 'resolved' quand le chip Résolues est cliqué", () => {
     setupDecisionsList();
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Résolues"));
 
@@ -371,7 +435,7 @@ describe("Decisions", () => {
 
   it("cumule plusieurs filtres (multi-select)", () => {
     setupDecisionsList();
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Résolues"));
     fireEvent.click(screen.getByText("Ignorées"));
@@ -385,7 +449,7 @@ describe("Decisions", () => {
 
   it("désactive un filtre déjà actif au second clic", () => {
     setupDecisionsList();
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Résolues"));
     fireEvent.click(screen.getByText("Résolues"));
@@ -399,7 +463,7 @@ describe("Decisions", () => {
 
   it("marque le chip actif avec aria-pressed", () => {
     setupDecisionsList();
-    renderPage();
+    renderPage("decisions");
 
     const chip = screen.getByText("Résolues").closest("button");
     expect(chip).toHaveAttribute("aria-pressed", "false");
@@ -416,7 +480,7 @@ describe("Decisions", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("decisions");
 
     // getAllByText — "Test Movie" appears in both the list row and the
     // detail-panel header after selection, so a single getByText would throw.
@@ -444,7 +508,7 @@ describe("Decisions", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("decisions");
 
     const selectRow = findButtonByText("Test Movie");
     fireEvent.click(selectRow);
@@ -464,7 +528,7 @@ describe("Decisions", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("decisions");
 
     const selectRow = findButtonByText("Test Movie");
     fireEvent.click(selectRow);
@@ -481,7 +545,7 @@ describe("Decisions", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("decisions");
 
     const selectRow = findButtonByText("Test Movie");
     fireEvent.click(selectRow);
@@ -507,7 +571,7 @@ describe("Decisions", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("decisions");
 
     const selectRow = findButtonByText("Test Movie");
     fireEvent.click(selectRow);
@@ -524,7 +588,7 @@ describe("Decisions", () => {
 
   it("affiche des skeletons pendant le chargement de la liste", () => {
     setupDecisionsList({ isLoading: true, items: [] });
-    renderPage();
+    renderPage("decisions");
 
     const skeletons = document.querySelectorAll(".animate-pulse");
     expect(skeletons.length).toBeGreaterThan(0);
@@ -539,7 +603,7 @@ describe("Decisions", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("decisions");
 
     const selectRow = findButtonByText("Test Movie");
     fireEvent.click(selectRow);
@@ -557,7 +621,7 @@ describe("Decisions", () => {
     setupDecisionsList({
       items: [makeListItem({ id: 5, status: "pending" })],
     });
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Ignorer"));
 
@@ -578,7 +642,7 @@ describe("Decisions", () => {
   it("affiche le message 410 sur échec du quick-dismiss inline", async () => {
     dismissDecisionMock.mockRejectedValueOnce(new ApiError(410, "Superseded"));
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Ignorer"));
 
@@ -594,7 +658,7 @@ describe("Decisions", () => {
       new ApiError(409, "No longer pending"),
     );
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Ignorer"));
 
@@ -610,7 +674,7 @@ describe("Decisions", () => {
       new ApiError(500, "Boom generic"),
     );
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Ignorer"));
 
@@ -622,7 +686,7 @@ describe("Decisions", () => {
   it("affiche un message générique sur une erreur non-ApiError du quick-dismiss inline", async () => {
     dismissDecisionMock.mockRejectedValueOnce(new Error("network down"));
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
-    renderPage();
+    renderPage("decisions");
 
     fireEvent.click(screen.getByText("Ignorer"));
 
@@ -634,7 +698,7 @@ describe("Decisions", () => {
   it("réinitialise dismissingId après un quick-dismiss en échec (onSettled)", async () => {
     dismissDecisionMock.mockRejectedValueOnce(new ApiError(409, "nope"));
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
-    renderPage();
+    renderPage("decisions");
 
     const dismissButton = screen.getByText("Ignorer");
     fireEvent.click(dismissButton);
@@ -662,7 +726,7 @@ describe("Decisions", () => {
       counts: { pending: null, resolved: 7, dismissed: 0, superseded: 0 },
       errored: ["pending"],
     });
-    renderPage();
+    renderPage("decisions");
 
     // An explicit alert surfaces the pending-load failure.
     expect(
@@ -676,5 +740,126 @@ describe("Decisions", () => {
     expect(within(group).getByText("(?)")).toBeInTheDocument();
     // The successful resolved chip still shows its real count.
     expect(within(group).getByText("(7)")).toBeInTheDocument();
+  });
+
+  // ---- Position-based segment filtering (§8 fix) -----------------------------
+
+  /** Minimal staging-media item for the position-filter tests. */
+  function makeStagingItem(
+    overrides: Partial<StagingMediaItem> = {},
+  ): StagingMediaItem {
+    return {
+      id: "abc123",
+      category: "001-MOVIES",
+      folder: "Test Movie (2024)",
+      relative_path: "001-MOVIES/Test Movie (2024)",
+      media_kind: "movie",
+      title: "Test Movie",
+      year: 2024,
+      overview: null,
+      provider_ids: {},
+      match: "matched",
+      decision_id: null,
+      decision_trigger: null,
+      has_nfo: false,
+      has_poster: false,
+      has_trailer: false,
+      poster_url: null,
+      seasons: null,
+      episode_count: null,
+      video_count: 1,
+      size_bytes: 0,
+      modified_at: null,
+      position_stage: "verify",
+      position_state: "pending",
+      stages: [],
+      dispatch_target: null,
+      ...overrides,
+    };
+  }
+
+  it("affiche un item blocked-at-verify sous « À traiter » et pas sous « Prêts »", () => {
+    // Regression (§8): a matched-but-verify-blocked item (position_state="blocked",
+    // match="matched") is counted by the nav badge (awaiting_action) but was
+    // INVISIBLE under the old match="ambiguous" proxy. The position filter
+    // (client-side on position_state) fixes this: blocked items appear under
+    // "À traiter", ready items under "Prêts", and the two never cross.
+    setupDecisionsList();
+
+    const blockedItem = makeStagingItem({
+      id: "blocked-1",
+      title: "Blocked Verified Movie",
+      match: "matched",
+      position_state: "blocked",
+      position_stage: "verify",
+      blocked_reason: "awaiting_verify",
+    });
+
+    const readyItem = makeStagingItem({
+      id: "ready-1",
+      title: "Ready Movie",
+      match: "matched",
+      position_state: "pending",
+      position_stage: "dispatch",
+    });
+
+    useStagingMediaMock.mockReturnValue({
+      data: {
+        items: [blockedItem, readyItem],
+        counts: {
+          total: 2,
+          matched: 2,
+          ambiguous: 0,
+          absent: 0,
+          scraped: 0,
+          with_trailer: 0,
+          awaiting_action: 1,
+        },
+        total: 2,
+        page: 1,
+        page_size: 24,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    renderPage();
+
+    // ---- Default "Tous" segment: both items visible ----
+    expect(screen.getByText("Blocked Verified Movie")).toBeInTheDocument();
+    expect(screen.getByText("Ready Movie")).toBeInTheDocument();
+
+    // ---- "À traiter" segment (position=blocked) ----
+    const group = screen.getByRole("group", {
+      name: /Filtrer par étape du pipeline/,
+    });
+    fireEvent.click(within(group).getByText("À traiter"));
+
+    // The blocked item appears — this is the fix: under the old match="ambiguous"
+    // proxy, a match="matched" item would NEVER appear here.
+    expect(screen.getByText("Blocked Verified Movie")).toBeInTheDocument();
+    // The ready item does NOT appear — it's not blocked.
+    expect(screen.queryByText("Ready Movie")).not.toBeInTheDocument();
+
+    // ---- "Prêts" segment (position=ready) ----
+    fireEvent.click(within(group).getByText("Prêts"));
+
+    // The blocked item does NOT appear — it fails the ready filter
+    // (match === "matched" && position_state !== "blocked").
+    expect(
+      screen.queryByText("Blocked Verified Movie"),
+    ).not.toBeInTheDocument();
+    // The ready item appears — matched and not blocked.
+    expect(screen.getByText("Ready Movie")).toBeInTheDocument();
+
+    // ---- "En cours" segment (position=active) ----
+    fireEvent.click(within(group).getByText("En cours"));
+
+    // Neither item is position_state="active", so both are filtered out.
+    expect(
+      screen.queryByText("Blocked Verified Movie"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready Movie")).not.toBeInTheDocument();
   });
 });

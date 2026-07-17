@@ -33,7 +33,7 @@ import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 /**
  * AppShellInner — the shell content with access to the event-stream context
  * (mounted inside {@link EventStreamProvider}).  Owns three nav badge queries
- * ({@link NavCountBadge} for /scraping and /acquisition, {@link StatusDot} for
+ * ({@link NavCountBadge} for /medias and /acquisition, {@link StatusDot} for
  * /pipeline) and the WebSocket listener that refreshes the staging badge,
  * decisions, and pipeline history on run-lifecycle + step-boundary events
  * ({@link useStagingMedia} has its own WS listener for the grid; /acquisition
@@ -44,7 +44,7 @@ import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 function AppShellInner(): ReactElement {
   const [navOpen, setNavOpen] = useState<boolean>(false);
 
-  // ── Badge 1: /scraping = awaiting_action count from staging ──────────
+  // ── Badge 1: /medias = awaiting_action count from staging ──────────
   // page_size=1 so we pull only the counts aggregate, not the full list.
   // Poll at 60 s (DESIGN §1.1 — the endpoint runs a filesystem scan, so
   // the badge query must not inherit the grid's 8 s cadence).
@@ -88,7 +88,7 @@ function AppShellInner(): ReactElement {
   const badges = useMemo<Record<string, ReactNode>>(() => {
     const map: Record<string, ReactNode> = {};
     if (stagingIsError) {
-      map["/scraping"] = (
+      map["/medias"] = (
         <span
           data-slot="nav-count"
           className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-danger px-1 text-[0.6875rem] font-semibold leading-none text-danger-foreground shadow-sm ring-2 ring-sidebar"
@@ -98,7 +98,7 @@ function AppShellInner(): ReactElement {
         </span>
       );
     } else if (awaitingAction > 0) {
-      map["/scraping"] = <NavCountBadge count={awaitingAction} />;
+      map["/medias"] = <NavCountBadge count={awaitingAction} />;
     }
     if (pipelineStatus.state === "paused") {
       map["/pipeline"] = (

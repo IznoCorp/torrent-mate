@@ -1,13 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
+import { MoreHorizontal } from "lucide-react";
 
+import { getPipelineHistory } from "@/api/pipeline";
 import { enqueueStagingDecision, type StagingMediaItem } from "@/api/staging";
 import { decisionsKeys } from "@/api/decisions";
 import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";
+import { useContinueMedia } from "@/hooks/useContinueMedia";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import { IgnoreDiscardButton } from "@/components/staging/IgnoreDiscardButton";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
 import {
   dispatchLabel,
@@ -17,6 +21,12 @@ import {
   posterKind,
 } from "@/components/staging/meta";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /** Props for {@link StagingMediaDetail}. */
 export interface StagingMediaDetailProps {
@@ -59,7 +69,52 @@ function MetaCell({
 }
 
 /**
- * StagingMediaDetail — the drawer body for one staged media.
+ * Poll for a promised ``run_uid`` after a non-deferred continue (A2).
+ *
+ * Checks ``GET /api/pipeline/history?limit=5`` every 2 s for up to ~10 s.  If
+ * the run does not appear within that window it surfaces a warning toast so the
+ * operator knows the run may not have started.
+ *
+ * Args:
+ *   runUid: The ``run_uid`` promised by the continue response.
+ */
+async function pollForRunUid(runUid: string): Promise<void> {
+  const maxAttempts = 5;
+  const intervalMs = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    try {
+      const history = await getPipelineHistory({
+        limit: 5,
+        kind: "pipeline",
+        sort: "-started_at",
+      });
+      const found = history.runs.some((r) => r.run_uid === runUid);
+      if (found) return;
+    } catch {
+      // History endpoint unreachable — keep trying until the window closes.
+    }
+  }
+
+  // Final check after the last sleep.
+  try {
+    const history = await getPipelineHistory({
+      limit: 5,
+      kind: "pipeline",
+      sort: "-started_at",
+    });
+    const found = history.runs.some((r) => r.run_uid === runUid);
+    if (!found) {
+      toast.warning("Le run promis n'a pas démarré — consultez les journaux.");
+    }
+  } catch {
+    toast.warning("Le run promis n'a pas démarré — consultez les journaux.");
+  }
+}
+
+/**
+ * Full detail sheet for one staged media item.
  *
  * Poster + title/year, matching verdict, provider ids, overview, season
  * breakdown, on-disk facts, the optional dispatch-target preview, and the
@@ -81,6 +136,7 @@ export function StagingMediaDetail({
   const kind = posterKind(item.media_kind);
   const dispatch = item.dispatch_target;
   const queryClient = useQueryClient();
+  const continueMut = useContinueMedia();
 
   // A non-identified (absent) movie/tvshow has no pending decision and therefore
   // no resolve path — enqueue it as a decision so it appears in the deck, then
@@ -157,6 +213,12 @@ export function StagingMediaDetail({
             <span className="text-xs text-muted-foreground">
               {kindLabel(item.media_kind)}
             </span>
+            {/* A1: durable deferral trace — « Reprise demandée » chip. */}
+            {item.continuation_requested_at != null && (
+              <span className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+                Reprise demandée
+              </span>
+            )}
           </div>
           {Object.keys(item.provider_ids).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -251,6 +313,90 @@ export function StagingMediaDetail({
         </Button>
       )}
 
+      {/* §5.2 continuation for matched-but-blocked items (verify-gate refusal,
+          etc.). The endpoint returns a truthful French detail string — use it
+          verbatim for both the toast and the deferred inline feedback (guarantor
+          override: server detail is the single source of truth). */}
+      {item.match === "matched" &&
+        item.blocked_reason != null &&
+        item.blocked_reason !== "" && (
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              disabled={continueMut.isPending}
+              onClick={() => {
+                continueMut.mutate(item.id, {
+                  onSuccess: (data) => {
+                    toast.success(data.detail);
+                    // A2: verify the promised run materialised within ~10 s.
+                    if (!data.deferred && data.run_uid != null) {
+                      void pollForRunUid(data.run_uid);
+                    }
+                  },
+                  onError: (err: unknown) => {
+                    toast.error(
+                      err instanceof Error
+                        ? err.message
+                        : "Échec de la relance",
+                    );
+                  },
+                });
+              }}
+            >
+              {continueMut.isPending
+                ? "Envoi…"
+                : "Relancer et terminer le pipeline"}
+            </Button>
+            {continueMut.isSuccess && continueMut.data.deferred && (
+              <p className="text-xs text-muted-foreground">
+                {continueMut.data.detail}
+              </p>
+            )}
+          </div>
+        )}
+
+      {/* Secondary re-scrape action for matched items that are NOT blocked.
+          Calls the same §5.2 endpoint.  The only differences from the primary
+          "Relancer" button above are: (a) it lives in a dropdown menu instead of
+          the primary slot, and (b) there is no inline deferred-feedback rendering
+          (the dropdown closes on select; the toast is the sole surface). */}
+      {item.match === "matched" &&
+        (item.blocked_reason == null || item.blocked_reason === "") && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" type="button">
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={continueMut.isPending}
+                onSelect={() => {
+                  continueMut.mutate(item.id, {
+                    onSuccess: (data) => {
+                      toast.success(data.detail);
+                      // A2: verify the promised run materialised within ~10 s.
+                      if (!data.deferred && data.run_uid != null) {
+                        void pollForRunUid(data.run_uid);
+                      }
+                    },
+                    onError: (err: unknown) => {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Échec de la relance",
+                      );
+                    },
+                  });
+                }}
+              >
+                Re-scraper cet élément
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
       {/* Manual resolution for a non-identified (absent) item — no auto match, so
           send it to the deck and search there. */}
       {canManualResolve && (
@@ -298,6 +444,18 @@ export function StagingMediaDetail({
               : "Rechercher / résoudre manuellement"}
           </Button>
         </div>
+      )}
+
+      {/* §7 — non-media artifact egress: confirmation dialog + journal-backed
+          discard.  Rendered for every "other" item so the operator can clean it
+          regardless of match status. */}
+      {needsKind && (
+        <IgnoreDiscardButton
+          mediaId={item.id}
+          onSuccess={() => {
+            onResolve?.();
+          }}
+        />
       )}
     </div>
   );

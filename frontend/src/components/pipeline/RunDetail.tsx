@@ -21,7 +21,7 @@ import {
   type RunDetail as RunDetailData,
 } from "@/api/pipeline";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
-import { STEP_LABEL } from "@/components/pipeline/summariseSteps";
+import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -333,36 +333,8 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
           <PipelineStepper steps={data.steps} />
         )}
 
-        {/* §8 — « ce qui n'a pas avancé » : per-step skip/defer/error reasons
-            persisted from the StepReport, grouped by step. Without this the run
-            showed bare counts and the operator never saw WHY items were
-            skipped/deferred (orphan tracker entry, insufficient disk, etc.). */}
-        {stepReasons.length > 0 && (
-          <div className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-4">
-            <p className="mb-2 text-xs font-semibold text-[var(--warning)]">
-              Ce qui n'a pas avancé
-            </p>
-            <div className="flex flex-col gap-2">
-              {stepReasons.map(({ step, reasons }) => (
-                <div key={step}>
-                  <span className="text-xs text-muted-foreground">
-                    {STEP_LABEL[step] ?? step}
-                  </span>
-                  <ul className="mt-0.5 flex flex-col gap-0.5 text-xs">
-                    {reasons.map((reason, i) => (
-                      <li
-                        key={`${step}-${String(i)}`}
-                        className="text-foreground/90"
-                      >
-                        {reason}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* §8 — « ce qui n'a pas avancé » extracted to StalledPanel (5.1). */}
+        <StalledPanel stepReasons={stepReasons} />
 
         {/* Error section — danger-styled Card */}
         {data.error != null && data.error !== "" && (

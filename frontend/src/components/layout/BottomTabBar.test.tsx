@@ -18,7 +18,7 @@ function renderBottomBar(initialPath = "/pipeline"): void {
 }
 
 describe("BottomTabBar", () => {
-  it("rend exactement Tableau de bord · Pipeline · Scraping · Acquisition", () => {
+  it("rend exactement Contrôle · Pipeline · Médias · Acquisition", () => {
     renderBottomBar();
 
     const nav = screen.getByRole("navigation", {
@@ -26,9 +26,9 @@ describe("BottomTabBar", () => {
     });
     const links = within(nav).getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual([
-      "Tableau de bord",
+      "Contrôle",
       "Pipeline",
-      "Scraping",
+      "Médias",
       "Acquisition",
     ]);
   });

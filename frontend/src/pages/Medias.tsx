@@ -1,17 +1,17 @@
 /**
- * Decisions page — the scrape-arbiter decision queue (``/scraping``).
+ * Medias page — the media library grid + resolution deck + decision browse
+ * (``/medias``).
  *
- * Renders a single FLAT list of all scrape decisions (§4.1) with a side-by-side
- * detail panel on desktop.  Status filter chips are OPTIONAL (multi-select, or
- * none = show everything) and carry a live per-status count.  The layout stacks
- * vertically on mobile: selecting a row replaces the list with the detail view;
- * a "Retour" button returns to the list.
+ * Default view is the library grid with pipeline-stage segments. Three tabs:
+ * ``Bibliothèque`` (grid with segments), ``À résoudre`` (resolution deck),
+ * ``Décisions`` (flat list with status filter chips + detail panel).
  *
  * Reuses:
- * - {@link DecisionList} for the row list (+ inline quick-dismiss)
- * - {@link DecisionDetail} for the selected item's full detail + actions
- * - {@link useAllDecisions} to merge every status into one flat list (the API
- *   has no "all" filter — see the hook doc), {@link useDecisionDetail} for detail
+ * - {@link StagingLibrary} for the poster grid + detail drawer
+ * - {@link ResolutionDeck} for the rapid resolution flow
+ * - {@link DecisionList} + {@link DecisionDetail} for the full-status browse
+ * - {@link useAllDecisions} to merge every status into one flat list
+ * - {@link useDecisionDetail} for the selected decision's detail
  */
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,9 +35,9 @@ import {
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
 import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
-import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
+import type { PositionFilter } from "@/components/staging/StagingLibrary";
 import {
   STATUS_SHORT_LABEL,
   STATUS_TOOLTIP,
@@ -51,6 +51,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Constants
 // ---------------------------------------------------------------------------
 
+/** Tab identifier for the three main views. */
+type TabId = "library" | "resolve" | "decisions";
+
+/** Library grid segment identifier. */
+type LibrarySegment = "all" | "awaiting" | "active" | "ready";
+
 /** Status filter chips, in display order (matches the API status Literal). */
 const STATUS_FILTERS: readonly DecisionStatus[] = [
   "pending",
@@ -59,11 +65,60 @@ const STATUS_FILTERS: readonly DecisionStatus[] = [
   "superseded",
 ];
 
+/** Library segments with French labels. */
+const LIBRARY_SEGMENTS: readonly {
+  value: LibrarySegment;
+  label: string;
+}[] = [
+  { value: "all", label: "Tous" },
+  { value: "awaiting", label: "À traiter" },
+  { value: "active", label: "En cours" },
+  { value: "ready", label: "Prêts" },
+];
+
+/**
+ * Map a library segment to the ``position`` filter passed to
+ * {@link StagingLibrary}.
+ *
+ * The position filter is applied client-side on the fetched page of 24 items
+ * (staging volumes are small; a server-side parameter is recorded in
+ * IMPLEMENTATION.md « Open items »).
+ *
+ * This replaces the previous ``match``-based proxy (§8 fix): a
+ * matched-but-verify-blocked item is counted by the nav badge (awaiting_action)
+ * but was invisible under the old ``match="ambiguous"`` filter. The new
+ * mapping uses ``position_state`` directly so every blocked item — ambiguous,
+ * absent, verify-blocked, or otherwise — appears under the correct segment.
+ *
+ * - ``Tous`` → no filter (everything).
+ * - ``À traiter`` → ``position="blocked"`` — every item whose
+ *   ``position_state`` is ``"blocked"``.
+ * - ``En cours`` → ``position="active"`` — items with an active pipeline
+ *   stage.
+ * - ``Prêts`` → ``position="ready"`` — matched items that are not blocked
+ *   (verified and ready for continuation or dispatch).
+ */
+function segmentToPosition(
+  segment: LibrarySegment,
+): PositionFilter | undefined {
+  switch (segment) {
+    case "awaiting":
+      return "blocked";
+    case "active":
+      return "active";
+    case "ready":
+      return "ready";
+    case "all":
+    default:
+      return undefined;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Skeleton placeholder shown while the list query is loading. */
+/** Skeleton placeholder shown while the decision list is loading. */
 function ListSkeleton(): ReactElement {
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -79,38 +134,42 @@ function ListSkeleton(): ReactElement {
 // ---------------------------------------------------------------------------
 
 /**
- * Decisions — the authenticated decisions route (``/scraping``).
+ * Medias — the authenticated medias route (``/medias``).
  *
  * Layout:
- * - Desktop: optional filter chips → [DecisionList | DecisionDetail] side-by-side.
- * - Mobile: filter chips → flat list (stacked), detail replaces list with a
- *   "Retour" back button.
+ * - Desktop: tab bar → content (library grid with segments, resolution deck, or
+ *   decision list + detail side-by-side).
+ * - Mobile: tab bar → content stacks vertically; decision detail replaces list
+ *   with a "Retour" back button.
+ *
+ * URL-addressable: ``?media=<id>`` opens the library detail drawer,
+ * ``?decision=<id>`` opens the decision detail panel.
  *
  * Returns:
- *   The decisions page element.
+ *   The medias page element.
  */
-export default function Decisions(): ReactElement {
+export default function Medias(): ReactElement {
   const queryClient = useQueryClient();
-  // The open decision detail is URL-addressable (?decision=<id>) so the
-  // browser/router Back button closes it like any route (on mobile it replaces
-  // the list). Opening pushes a history entry; closing replaces it.
   const [searchParams, setSearchParams] = useSearchParams();
-  // Primary view: the media library grid, the rapid resolution deck, or the
-  // full cross-status decision browse. Initialized from the URL so the
-  // route-addressable deep-links survive a FRESH page load (regression caught
-  // live: /scraping?media=<id> landed on the deck and silently dropped the
-  // param — the detail only opened for in-session navigation): ?media targets
-  // a library card (StagingLibrary restores it), ?decision the browse detail.
-  const [view, setView] = useState<"library" | "resolve" | "all">(() =>
+
+  // The active tab initialises from the URL so deep-links survive a fresh load:
+  // ?media targets the library grid, ?decision targets the decisions tab.
+  const [tab, setTab] = useState<TabId>(() =>
     searchParams.has("media")
       ? "library"
       : searchParams.has("decision")
-        ? "all"
-        : "resolve",
+        ? "decisions"
+        : "library",
   );
+
+  // Library grid segment (only relevant when tab === "library").
+  const [segment, setSegment] = useState<LibrarySegment>("all");
+
   // C18: the decision the deck should open on, set when the operator resolves a
   // specific card (ambiguous or freshly enqueued). Null = open at the head.
   const [deckDecisionId, setDeckDecisionId] = useState<number | null>(null);
+
+  // ---- Décisions tab state ----------------------------------------------------
   // Optional, multi-select status filter. Empty set = show ALL statuses (default).
   const [activeStatuses, setActiveStatuses] = useState<Set<DecisionStatus>>(
     () => new Set(),
@@ -205,7 +264,7 @@ export default function Decisions(): ReactElement {
     },
   });
 
-  // ---- event handlers --------------------------------------------------------
+  // ---- Event handlers ----------------------------------------------------------
 
   function handleSelect(id: number): void {
     openDecision(id);
@@ -250,24 +309,28 @@ export default function Decisions(): ReactElement {
         "Cette décision a été remplacée par une version plus récente.",
       );
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+    } else {
+      // D2: non-410 load failure (API unreachable, 404, etc.) — surface a
+      // French toast so the operator knows the decision is genuinely inaccessible.
+      toast.error("Décision introuvable ou inaccessible.");
     }
     closeDecision();
   }, [detailError, detailErrorObj, queryClient, closeDecision]);
 
-  // ---- render ----------------------------------------------------------------
+  // ---- Render ------------------------------------------------------------------
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-4">
       <PageHeader
-        title="Décisions de scraping"
+        title="Médias"
         actions={
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
             <Button
               type="button"
               size="sm"
-              variant={view === "library" ? "default" : "ghost"}
+              variant={tab === "library" ? "default" : "ghost"}
               onClick={() => {
-                setView("library");
+                setTab("library");
               }}
             >
               Bibliothèque
@@ -275,9 +338,9 @@ export default function Decisions(): ReactElement {
             <Button
               type="button"
               size="sm"
-              variant={view === "resolve" ? "default" : "ghost"}
+              variant={tab === "resolve" ? "default" : "ghost"}
               onClick={() => {
-                setView("resolve");
+                setTab("resolve");
               }}
             >
               À résoudre
@@ -286,27 +349,50 @@ export default function Decisions(): ReactElement {
             <Button
               type="button"
               size="sm"
-              variant={view === "all" ? "default" : "ghost"}
+              variant={tab === "decisions" ? "default" : "ghost"}
               onClick={() => {
-                setView("all");
+                setTab("decisions");
               }}
             >
-              Toutes
+              Décisions
             </Button>
           </div>
         }
       />
 
-      <ScrapeActivityPanel />
+      {tab === "library" ? (
+        <>
+          {/* ---- Library grid segments ---------------------------------------- */}
+          <div
+            className="flex items-center gap-1 rounded-md border border-border p-0.5 w-fit"
+            role="group"
+            aria-label="Filtrer par étape du pipeline"
+          >
+            {LIBRARY_SEGMENTS.map((seg) => (
+              <Button
+                key={seg.value}
+                type="button"
+                size="sm"
+                variant={segment === seg.value ? "default" : "ghost"}
+                aria-pressed={segment === seg.value}
+                onClick={() => {
+                  setSegment(seg.value);
+                }}
+              >
+                {seg.label}
+              </Button>
+            ))}
+          </div>
 
-      {view === "library" ? (
-        <StagingLibrary
-          onOpenResolution={(decisionId) => {
-            setDeckDecisionId(decisionId ?? null);
-            setView("resolve");
-          }}
-        />
-      ) : view === "resolve" ? (
+          <StagingLibrary
+            position={segmentToPosition(segment)}
+            onOpenResolution={(decisionId) => {
+              setDeckDecisionId(decisionId ?? null);
+              setTab("resolve");
+            }}
+          />
+        </>
+      ) : tab === "resolve" ? (
         <ResolutionDeck
           {...(deckDecisionId != null
             ? { initialDecisionId: deckDecisionId }
@@ -314,7 +400,7 @@ export default function Decisions(): ReactElement {
         />
       ) : (
         <>
-          {/* ---- Optional status filter chips ------------------------------------ */}
+          {/* ---- Optional status filter chips -------------------------------- */}
           <div className="flex flex-col gap-1.5">
             <div
               className="flex flex-wrap items-center gap-2"
@@ -359,10 +445,7 @@ export default function Decisions(): ReactElement {
             </p>
           </div>
 
-          {/* ---- Partial-failure banner (SF2) ------------------------------------ */}
-          {/* When the core `pending` query fails but others succeed, the flat list
-          still renders — but the pending count would otherwise read a false "0".
-          Surface it explicitly so the operator knows the signal is unreliable. */}
+          {/* ---- Partial-failure banner (SF2) -------------------------------- */}
           {!listError && pendingFailed && (
             <p role="alert" className="text-sm text-danger">
               Impossible de charger les décisions en attente — le nombre affiché
@@ -370,14 +453,15 @@ export default function Decisions(): ReactElement {
             </p>
           )}
 
-          {/* ---- Content area ---------------------------------------------------- */}
+          {/* ---- Content area ------------------------------------------------ */}
           {listError ? (
             <p className="text-sm text-danger">
               Erreur lors du chargement des décisions.
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-              {/* List panel — hidden on mobile when detail is showing, always visible on desktop */}
+              {/* List panel — hidden on mobile when detail is showing, always
+                  visible on desktop */}
               <div className={showDetailMobile ? "hidden lg:block" : "block"}>
                 {listLoading && items.length === 0 ? (
                   <ListSkeleton />
@@ -392,8 +476,9 @@ export default function Decisions(): ReactElement {
               </div>
 
               {/* Detail panel — a SINGLE DecisionDetail instance (F36): shown on
-              mobile when selected (with a back button), side-by-side on desktop,
-              and replaced by the placeholder when nothing is selected. */}
+                  mobile when selected (with a back button), side-by-side on
+                  desktop, and replaced by the placeholder when nothing is
+                  selected. */}
               <div
                 className={
                   selectedId != null
@@ -418,8 +503,9 @@ export default function Decisions(): ReactElement {
                     {detailLoading || detailData == null ? (
                       <Skeleton className="h-64 w-full" />
                     ) : (
-                      // key={id} resets DecisionDetail's local state per decision
-                      // so a search / runUid from one never leaks onto another (F02).
+                      // key={id} resets DecisionDetail's local state per
+                      // decision so a search / runUid from one never leaks onto
+                      // another (F02).
                       <DecisionDetail
                         key={detailData.id}
                         decision={detailData}

@@ -256,4 +256,23 @@ describe("StagingLibrary", () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it("shows the D3 not-found notice for an absent ?media=, then clears it when a card is clicked", () => {
+    // Start with a ?media= param pointing to an id not in the current data.
+    renderLib(["/scraping?media=nonexistent"]);
+
+    // The honest "not found" notice is shown so the operator knows the param
+    // was not silently ignored.
+    expect(
+      screen.getByText(/Média introuvable sur cette page/),
+    ).toBeInTheDocument();
+
+    // Clicking a visible card clears the notice (the find succeeds now) and
+    // opens the detail sheet.
+    fireEvent.click(screen.getByRole("button", { name: /Fight Club/ }));
+    expect(
+      screen.queryByText(/Média introuvable sur cette page/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Parcours pipeline")).toBeInTheDocument();
+  });
 });
