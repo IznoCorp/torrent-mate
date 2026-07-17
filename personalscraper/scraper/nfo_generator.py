@@ -9,6 +9,7 @@ from the {movies_dir}/ directory.
 """
 
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -107,6 +108,77 @@ def _indent(elem: ET.Element, level: int = 0) -> None:
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = indent
+
+
+def _strip_title_year(title: str, date: str) -> str:
+    """Strip a trailing ``(YYYY)`` from a title when it matches the release year.
+
+    Providers (TMDB movies, TVDB shows) occasionally bake the disambiguating
+    year into the title itself (``INVINCIBLE (2021)``). Kodi/Plex NFO
+    conventions expect ``<title>`` bare and ``<year>`` separate, so the
+    trailing ``(YYYY)`` is removed only when it matches the four-digit year
+    derived from ``date`` — never a parenthetical that is part of the real
+    title. Shared by the movie and tvshow generators (SCRAPER-05).
+
+    Args:
+        title: Raw title as returned by the provider.
+        date: Release / first-air date (``YYYY-MM-DD`` or empty); only its
+            first four characters are consulted.
+
+    Returns:
+        The title with a matching trailing ``(YYYY)`` removed, else unchanged.
+    """
+    year_str = date[:4] if date else ""
+    if year_str and title.endswith(f" ({year_str})"):
+        return title[: -len(f" ({year_str})")]
+    return title
+
+
+def _clean_id(raw: Any) -> str:
+    """Coerce a provider id to a clean string, mapping placeholders to ``""``.
+
+    A missing provider id historically surfaced as ``None``, ``0``, ``"0"`` or
+    the literal string ``"None"`` (from ``str(None)``). Written verbatim into a
+    ``<uniqueid>`` those poison Kodi's scraper cache, so they collapse to the
+    empty string, which :func:`_write_uniqueids` then omits. This is the single
+    id guard shared by all three generators (SCRAPER-05); before it, the movie
+    path applied no guard and could emit ``<uniqueid>None</uniqueid>``.
+
+    Args:
+        raw: Raw id value from a provider payload (any type).
+
+    Returns:
+        ``str(raw)`` for real ids, or ``""`` for the placeholder set.
+    """
+    return str(raw) if raw not in (None, 0, "0", "", "None") else ""
+
+
+def _write_uniqueids(root: ET.Element, ids: Sequence[tuple[str, str]], canonical_family: str) -> None:
+    """Write ordered ``<uniqueid>`` rows, skipping blanks and flagging one default.
+
+    The single ``<uniqueid>`` writer shared by the movie, tvshow and episode
+    generators (SCRAPER-05) — the episode's ordered/default logic generalised.
+    ``ids`` is an ordered sequence of ``(family, value)`` pairs; empty values
+    are skipped (a blank ``<uniqueid>`` is junk Kodi would still try to
+    resolve). The first written row whose family equals ``canonical_family``
+    receives ``default="true"`` — at most one row is ever flagged default.
+
+    Args:
+        root: Parent element to append the ``<uniqueid>`` rows to.
+        ids: Ordered ``(family, value)`` pairs (e.g. ``[("tvdb", "42"), ...]``);
+            already cleaned via :func:`_clean_id` so blanks mean "absent".
+        canonical_family: Family whose row carries ``default="true"``; when its
+            value is blank (or the family is not in ``ids``) no default is set.
+    """
+    default_applied = False
+    for family, value in ids:
+        if not value:
+            continue
+        element = _sub(root, "uniqueid", value)
+        element.set("type", family)
+        if not default_applied and family == canonical_family:
+            element.set("default", "true")
+            default_applied = True
 
 
 class NFOGenerator:
