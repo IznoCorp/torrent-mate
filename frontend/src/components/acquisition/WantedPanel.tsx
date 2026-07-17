@@ -2,7 +2,8 @@
  * WantedPanel — the "Recherches" tab: the wanted-search queue with a status
  * filter, a paginated table and per-row status badges.
  *
- * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged.
+ * Extracted from `AcquisitionPage.tsx` (C12). Superseded — kept in the tree
+ * but no longer mounted. Replaced by FileDAcquisitionPanel (Phase 03).
  */
 
 import { useState, type ReactElement } from "react";

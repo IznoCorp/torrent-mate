@@ -457,6 +457,269 @@ class TestObligationsEndpoint:
         assert len(items) == 1
         assert items[0]["info_hash"] == "a1b2c3"
 
+    # ── Title resolution (acquisition-queue Phase 01) ────────────────
+
+    def test_title_join_episode(self, client: TestClient, tmp_path: Path) -> None:
+        """Join hit, episode row (season + episode) → ``Titre S01E02``."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Breaking Bad")
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'episode', 1, 2, 'grabbed', ?, 1, ?)",
+            (fid, '{"tvdb_id": 81189}', now, "aaabbb001"),
+        )
+        _seed_obligation(conn, "aaabbb001", "lacale")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Breaking Bad S01E02"
+
+    def test_title_join_season_pack(self, client: TestClient, tmp_path: Path) -> None:
+        """Join hit, season pack (season only, episode NULL) → ``Titre S01``."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Westworld")
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'episode', 3, NULL, 'grabbed', ?, 1, ?)",
+            (fid, '{"tvdb_id": 296762}', now, "bbccdd002"),
+        )
+        _seed_obligation(conn, "bbccdd002", "c411")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Westworld S03"
+
+    def test_title_join_bare(self, client: TestClient, tmp_path: Path) -> None:
+        """Join hit, bare wanted row (no season) → title verbatim."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Dune")
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'movie', NULL, NULL, 'grabbed', ?, 1, ?)",
+            (fid, '{"tmdb_id": 438631}', now, "ddeeff003"),
+        )
+        _seed_obligation(conn, "ddeeff003", "c411")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Dune"
+
+    def test_title_dispatched_path_fallback(self, client: TestClient, tmp_path: Path) -> None:
+        """Join miss, dispatched_path set → raw basename (strip video ext)."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
+            "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
+            ("miss001", "lacale", "/media/tv/Murder.Mindfully.S01E01.mkv", now),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Murder.Mindfully.S01E01"
+
+    def test_title_none_fallback(self, client: TestClient, tmp_path: Path) -> None:
+        """Join miss, dispatched_path None → title is None."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        _seed_obligation(conn, "nomatch01", "lacale")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] is None
+
+    def test_title_resolver_exception_resilience(
+        self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Resolver exception → logged, title None, listing still returns 200."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
+            "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
+            ("boom001", "lacale", "/corrupt/path/file.mkv", now),
+        )
+        conn.commit()
+        conn.close()
+
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        # Patch Path in the routes module so Path() raises for the corrupt
+        # dispatched_path — exercises the per-item except clause.
+        orig_path = acq_routes.Path
+
+        class _BombPath:
+            def __init__(self, *args: object) -> None:
+                if args and "/corrupt/" in str(args[0]):
+                    raise OSError("simulated corrupt path")
+                self._inner = orig_path(*[str(a) for a in args])
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(self._inner, name)
+
+        monkeypatch.setattr(acq_routes, "Path", _BombPath)
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        # The per-item handler caught the OSError → title is None.
+        assert items[0]["title"] is None
+
+    # ── Mutation-proof invariants (sub-phase 5.2) ─────────────────────────
+
+    def test_title_join_case_insensitive(self, client: TestClient, tmp_path: Path) -> None:
+        """Grabbed_hash uppercase vs info_hash lowercase → composed title.
+
+        Kills the ``lower()`` removal mutation on the join condition —
+        without ``lower()`` the case-mismatch join misses and title falls
+        through to dispatched_path / None.
+        """
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Breaking Bad")
+        now = int(time.time())
+        # grabbed_hash stored in uppercase, info_hash stored in lowercase.
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'episode', 3, 4, 'grabbed', ?, 1, ?)",
+            (fid, '{"tvdb_id": 81189}', now, "ABCDEF012345"),
+        )
+        _seed_obligation(conn, "abcdef012345", "lacale")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Breaking Bad S03E04"
+
+    def test_title_two_row_isolation(self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Corrupt-path row first + joinable row second → 200 AND second title composed.
+
+        Kills removal of the per-item guard: a corrupt ``dispatched_path``
+        that raises during title resolution must not poison the sibling
+        row that resolves cleanly via the acquire.db join.
+        """
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        now = int(time.time())
+        fid = _seed_followed(conn, 1, "Koh-Lanta")
+        # Row 1: corrupt dispatched_path (added_at=now → first by ORDER BY DESC).
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
+            "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
+            ("corrupt01", "lacale", "/corrupt/path/broken.mkv", now),
+        )
+        # Row 2: joinable (added_at=now-100 → second).
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'episode', 5, 1, 'grabbed', ?, 1, ?)",
+            (fid, '{"tvdb_id": 12345}', now - 100, "joinable01"),
+        )
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, min_seed_time_s, "
+            "min_ratio, added_at) VALUES (?, ?, 86400, 1.5, ?)",
+            ("joinable01", "c411", now - 100),
+        )
+        conn.commit()
+        conn.close()
+
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        orig_path = acq_routes.Path
+
+        class _BombPath:
+            def __init__(self, *args: object) -> None:
+                if args and "/corrupt/" in str(args[0]):
+                    raise OSError("simulated corrupt path")
+                self._inner = orig_path(*[str(a) for a in args])
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(self._inner, name)
+
+        monkeypatch.setattr(acq_routes, "Path", _BombPath)
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 2, f"Expected 2 obligations, got {len(items)}"
+        # First row (by added_at DESC) = the corrupt one.
+        assert items[0]["info_hash"] == "corrupt01"
+        assert items[0]["title"] is None
+        # Second row = joinable, title composed despite sibling exception.
+        assert items[1]["info_hash"] == "joinable01"
+        assert items[1]["title"] == "Koh-Lanta S05E01"
+
+    def test_title_dispatched_path_directory(self, client: TestClient, tmp_path: Path) -> None:
+        """Dotted directory dispatched_path (no extension) → basename verbatim.
+
+        Kills unconditional ``.stem``: ``Path("Some.Show.S01").stem`` →
+        ``"Some.Show"``, but the correct output is ``"Some.Show.S01"``.
+        Directories have no extension to strip; only file paths ending in
+        ``.mkv``/``.mp4``/``.avi`` enter the extension-stripping branch.
+        """
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
+            "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
+            ("dir001", "lacale", "/media/tv/Some.Show.S01", now),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        # Basename verbatim — no .stem stripping on directory names.
+        assert items[0]["title"] == "Some.Show.S01"
+
 
 class TestStatusEndpoint:
     """GET /api/acquisition/status — watcher status + recent runs."""

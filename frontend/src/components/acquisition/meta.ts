@@ -11,12 +11,7 @@
 import { type ObligationItem } from "@/api/acquisition";
 
 /** Tab ids for the four panels. */
-export type TabId =
-  | "followed"
-  | "wanted"
-  | "downloads"
-  | "obligations"
-  | "watcher";
+export type TabId = "followed" | "file" | "obligations" | "watcher";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -66,8 +61,7 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
 /** Tabs displayed in the page header. */
 export const TABS: readonly { id: TabId; label: string }[] = [
   { id: "followed", label: "Suivis" },
-  { id: "wanted", label: "Recherches" },
-  { id: "downloads", label: "Téléchargements" },
+  { id: "file", label: "File d'acquisition" },
   { id: "obligations", label: "Obligations" },
   { id: "watcher", label: "Watcher" },
 ];
