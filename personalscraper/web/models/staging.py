@@ -291,3 +291,26 @@ class ContinueResponse(BaseModel):
     run_uid: str | None = None
     deferred: bool = False
     detail: str = ""
+
+
+class DiscardResponse(BaseModel):
+    """Response body for ``POST /api/staging/media/{id}/discard`` (§7).
+
+    The ``journaled`` flag confirms the append-only destructive-op row was
+    written. ``quarantine_path`` is the destination (None when the folder was
+    just emptied in-place).
+
+    Attributes:
+        ok: ``True`` when the discard was accepted.
+        media_id: The staging media id.
+        journaled: ``True`` when the destructive-op journal row was written.
+        quarantine_path: Absolute path to the quarantine destination, or
+            ``None`` when the folder was emptied in-place.
+        detail: Human-readable French status detail.
+    """
+
+    ok: bool
+    media_id: str
+    journaled: bool
+    quarantine_path: str | None = None
+    detail: str = ""
