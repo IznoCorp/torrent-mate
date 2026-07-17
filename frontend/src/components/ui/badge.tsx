@@ -4,9 +4,17 @@ import * as React from "react";
 import { badgeVariants } from "@/components/ui/badge-variants";
 import { cn } from "@/lib/utils";
 
+/**
+ * Semantic badge tone — the subset of {@link badgeVariants} tones reserved for
+ * status/outcome signals (healthy/done, error, attention, info, neutral).
+ * Excludes presentational-only tones (``"solid"``, ``"outline"``).
+ */
+export type BadgeTone = "success" | "danger" | "warning" | "info" | "neutral";
+
 /** Props for {@link Badge}. */
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
+  extends
+    React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {
   /** Show a leading status dot in the tone colour. @default false */
   readonly dot?: boolean;
