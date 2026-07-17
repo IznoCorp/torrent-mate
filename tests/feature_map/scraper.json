@@ -145,15 +145,9 @@
       "expires": "2028-05-28"
     },
     {
-      "anchor": "example-5--cross_refmatch-targettvdb-translate-provider-ids",
+      "anchor": "example-5--gettmdb-direct-dispatch-for-unscoped-capabilities",
       "category": "documentation_only",
-      "reason": "Phase 24 (registry docs rollout) — illustrative example of CrossRefMatch. Behavior covered by test_registry_locked.py and test_registry_chain.py integration tests. Promote to a contract test if regressions surface.",
-      "expires": "2028-05-28"
-    },
-    {
-      "anchor": "example-6--gettmdb-direct-dispatch-for-unscoped-capabilities",
-      "category": "documentation_only",
-      "reason": "Phase 24 (registry docs rollout) — illustrative example of GetTMDb direct dispatch. Behavior covered by test_registry_get.py unit tests. Promote to a contract test if regressions surface.",
+      "reason": "Phase 24 (registry docs rollout) — illustrative example of GetTMDb direct dispatch (renumbered 6->5 in solidify after the cross_ref example was removed with the IDCrossRef machinery, API-TRANSPORT-03). Behavior covered by test_registry_get.py unit tests. Promote to a contract test if regressions surface.",
       "expires": "2028-05-28"
     },
     {
