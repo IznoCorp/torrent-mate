@@ -1205,7 +1205,7 @@ class TestCircuitOpenCounter:
 
         from personalscraper.api._contracts import CircuitOpenError
         from personalscraper.core.circuit import CircuitBreaker
-        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.core.json_ttl_cache import JsonTTLCache
         from personalscraper.trailers.discovery.trailer_finder import TrailerFinder
         from personalscraper.trailers.discovery.trailers_cache import TrailersCache
         from personalscraper.trailers.discovery.youtube_search import YoutubeSearch

@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.scraper import json_ttl_cache as json_ttl_cache_mod
-from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+from personalscraper.core import json_ttl_cache as json_ttl_cache_mod
+from personalscraper.core.json_ttl_cache import JsonTTLCache
 
 
 @pytest.fixture()
@@ -346,7 +346,7 @@ class TestCorruptBackupErrorPath:
         backing.write_text("not json {{", encoding="utf-8")
         cache = JsonTTLCache(backing)
 
-        with patch("personalscraper.scraper.json_ttl_cache.shutil.copy", side_effect=OSError(errno.EACCES, "denied")):
+        with patch("personalscraper.core.json_ttl_cache.shutil.copy", side_effect=OSError(errno.EACCES, "denied")):
             with caplog.at_level("ERROR"):
                 result = cache.get("k")
 

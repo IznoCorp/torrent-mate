@@ -728,7 +728,7 @@ class TrailersOrchestrator:
         try:
             from personalscraper.config import get_settings  # noqa: PLC0415
             from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
-            from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
+            from personalscraper.core.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
             from personalscraper.trailers.discovery.trailer_finder import TrailerFinder  # noqa: PLC0415
             from personalscraper.trailers.discovery.trailers_cache import TrailersCache  # noqa: PLC0415
             from personalscraper.trailers.discovery.youtube_search import (  # noqa: PLC0415

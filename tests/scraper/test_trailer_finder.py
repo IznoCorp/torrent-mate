@@ -185,7 +185,7 @@ class TestSeasonFallbackQuotaConfig:
             tmp_path: Pytest tmp_path fixture.
         """
         from personalscraper.core.circuit import CircuitBreaker
-        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.core.json_ttl_cache import JsonTTLCache
         from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         # Build a YoutubeSearch with non-default quota values.
@@ -404,7 +404,7 @@ class TestCachePoisoningClosure:
 
         yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus())
 
-        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.core.json_ttl_cache import JsonTTLCache
 
         real_searcher = YoutubeSearch(
             "{title} {year} trailer",
@@ -460,7 +460,7 @@ class TestCachePoisoningClosure:
         import requests as _requests
 
         from personalscraper.core.circuit import CircuitState
-        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.core.json_ttl_cache import JsonTTLCache
         from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         cache_path = tmp_path / "tc.json"
@@ -539,7 +539,7 @@ class TestDownloadErrorRegression:
 
         from yt_dlp.utils import DownloadError as _YtDlpDownloadError
 
-        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.core.json_ttl_cache import JsonTTLCache
         from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         cache_path = tmp_path / "tc.json"

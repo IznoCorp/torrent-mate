@@ -104,6 +104,142 @@ def check_ttl(
     return (current - cached_at).total_seconds() < ttl_seconds
 
 
+# ---------------------------------------------------------------------------
+# Shared persistence primitives
+#
+# Single source of truth for the corrupt-backup / load / atomic-save cycle
+# reused by both ``JsonTTLCache`` (below) and ``scraper/keywords_cache.py``
+# (MECHANICAL-DUP-03). Each caller supplies its own ``logger`` and
+# ``event_prefix`` so log event names stay caller-specific
+# (``json_ttl_cache_*`` vs ``keywords_cache_*``).
+# ---------------------------------------------------------------------------
+
+
+def backup_corrupt_json(path: Path, *, logger: Any, event_prefix: str, reason: str) -> None:
+    """Copy a backing file aside before it is overwritten by a fresh save.
+
+    Without this, a parse failure followed by a write silently destroys every
+    prior entry. The backup keeps a forensic copy at
+    ``<stem>.corrupt-<unix_ts><suffix>`` (preserving the original suffix so the
+    file remains recognisable as a JSON cache).
+
+    Args:
+        path: Path to the (corrupt) backing file to preserve.
+        logger: Structlog-style logger to emit warnings/errors on.
+        event_prefix: Event-name prefix (e.g. ``"json_ttl_cache"``).
+        reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
+    """
+    try:
+        # Include the original suffix so the forensic copy is recognisable.
+        ts = int(time.time())
+        backup = path.with_name(f"{path.stem}.corrupt-{ts}{path.suffix}")
+        shutil.copy(path, backup)
+        logger.warning(
+            f"{event_prefix}_corrupt_backup",
+            original=str(path),
+            backup=str(backup),
+            reason=reason,
+        )
+    except OSError as exc:
+        logger.error(
+            f"{event_prefix}_corrupt_backup_failed",
+            path=str(path),
+            error=str(exc),
+            reason=reason,
+            exc_info=True,
+        )
+
+
+def load_json_dict(path: Path, *, logger: Any, event_prefix: str) -> dict[str, Any]:
+    """Read ``path`` and return its parsed dict-of-dict entries.
+
+    Returns an empty dict if the file does not exist or cannot be parsed. On a
+    parse error (or a non-object root), the corrupt file is backed up to a
+    sibling ``<stem>.corrupt-<ts><suffix>`` before returning ``{}``.
+
+    ``OSError`` (broken mount, EBUSY, stale NFS handle) does NOT trigger a
+    backup because the file is likely intact but temporarily inaccessible;
+    creating ``.corrupt-*`` files on every transient I/O hiccup would flood the
+    directory.  Mirrors the pattern used by ``state.py:_load``.
+
+    Args:
+        path: Path to the backing JSON file.
+        logger: Structlog-style logger to emit warnings/errors on.
+        event_prefix: Event-name prefix (e.g. ``"json_ttl_cache"``).
+
+    Returns:
+        Parsed JSON dict (only dict-valued entries kept); empty dict on any error.
+    """
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        if not isinstance(raw, dict):
+            backup_corrupt_json(path, logger=logger, event_prefix=event_prefix, reason="root_not_object")
+            return {}
+        return {k: v for k, v in raw.items() if isinstance(v, dict)}
+    except (json.JSONDecodeError, ValueError) as exc:
+        # Corrupt JSON — back up the file before the next write overwrites it.
+        backup_corrupt_json(path, logger=logger, event_prefix=event_prefix, reason=f"parse_error:{type(exc).__name__}")
+        logger.error(
+            f"{event_prefix}_load_failed",
+            path=str(path),
+            error=str(exc),
+            hint="starting with empty cache",
+            exc_info=True,
+        )
+        return {}
+    except OSError as exc:
+        # Transient I/O error (broken mount, EBUSY, stale NFS handle).
+        # Do NOT backup — the file is likely healthy but temporarily unreachable.
+        logger.warning(
+            f"{event_prefix}_read_failed",
+            path=str(path),
+            errno=exc.errno,
+            error=str(exc),
+            exc_info=True,
+        )
+        return {}
+
+
+def atomic_write_json(path: Path, data: Any) -> None:
+    """Write ``data`` to ``path`` via a temp file + ``os.replace``.
+
+    The write is atomic on POSIX systems: the temp file is fully written and
+    flushed before ``os.replace`` performs the rename, so no reader can observe
+    a partial write. On failure the orphaned temp file is unlinked and the
+    original ``OSError`` is re-raised.
+
+    Args:
+        path: Destination backing file.
+        data: JSON-serialisable object to persist.
+
+    Raises:
+        OSError: If the temp file cannot be created or the replace fails.
+    """
+    parent = path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=parent,
+        suffix=".tmp",
+        delete=False,
+    ) as tmp:
+        json.dump(data, tmp, ensure_ascii=False, indent=2)
+        tmp_path = tmp.name
+
+    try:
+        os.replace(tmp_path, path)
+    except OSError:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 class JsonTTLCache:
     """Generic file-backed key/value cache with per-entry TTL.
 
@@ -313,85 +449,22 @@ class JsonTTLCache:
             mutate(data)
             self._atomic_save(data)
 
-    def _backup_corrupt(self, reason: str) -> None:
-        """Copy the backing file aside before it gets overwritten by a fresh save.
-
-        Without this, a parse failure followed by ``set()`` silently destroys
-        every prior entry. The backup keeps a forensic copy at
-        ``<path>.corrupt-<unix_ts>.json`` (preserving the ``.json`` suffix so
-        the file remains recognisable as a JSON cache).
-
-        Args:
-            reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
-        """
-        try:
-            # Include the original suffix so the forensic copy is recognisable.
-            ts = int(time.time())
-            backup = self._path.with_name(f"{self._path.stem}.corrupt-{ts}{self._path.suffix}")
-            shutil.copy(self._path, backup)
-            logger.warning(
-                "json_ttl_cache_corrupt_backup",
-                original=str(self._path),
-                backup=str(backup),
-                reason=reason,
-            )
-        except OSError as exc:
-            logger.error(
-                "json_ttl_cache_corrupt_backup_failed",
-                path=str(self._path),
-                error=str(exc),
-                reason=reason,
-            )
-
     def _load(self) -> dict[str, Any]:
         """Read the backing file and return its parsed contents.
 
-        Returns an empty dict if the file does not exist or cannot be parsed.
-        On parse error, the corrupt file is backed up to a sibling
-        ``<name>.corrupt-<ts>.json`` before returning ``{}``.
-
-        ``OSError`` (broken mount, EBUSY, stale NFS handle) does NOT trigger a
-        backup because the file is likely intact but temporarily inaccessible;
-        creating ``.corrupt-*`` files on every transient I/O hiccup would flood
-        the directory.  Mirrors the pattern used by ``state.py:_load``.
+        Thin wrapper over the shared :func:`load_json_dict` primitive so the
+        corrupt-backup / parse / transient-I/O handling has a single source of
+        truth (MECHANICAL-DUP-03).
 
         Returns:
             Parsed JSON dict; empty dict on any error.
         """
-        if not self._path.exists():
-            return {}
-        try:
-            with self._path.open("r", encoding="utf-8") as fh:
-                raw = json.load(fh)
-            if not isinstance(raw, dict):
-                self._backup_corrupt(reason="root_not_object")
-                return {}
-            return {k: v for k, v in raw.items() if isinstance(v, dict)}
-        except (json.JSONDecodeError, ValueError) as exc:
-            # Corrupt JSON — back up the file before the next write overwrites it.
-            self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
-            logger.error(
-                "json_ttl_cache_load_failed",
-                path=str(self._path),
-                error=str(exc),
-                hint="starting with empty cache",
-                exc_info=True,
-            )
-            return {}
-        except OSError as exc:
-            # Transient I/O error (broken mount, EBUSY, stale NFS handle).
-            # Do NOT backup — the file is likely healthy but temporarily unreachable.
-            logger.warning(
-                "json_ttl_cache_read_failed",
-                path=str(self._path),
-                errno=exc.errno,
-                error=str(exc),
-                exc_info=True,
-            )
-            return {}
+        return load_json_dict(self._path, logger=logger, event_prefix="json_ttl_cache")
 
     def _atomic_save(self, data: dict[str, Any]) -> None:
         """Write ``data`` to the backing file via temp file + os.replace.
+
+        Thin wrapper over the shared :func:`atomic_write_json` primitive.
 
         Args:
             data: Dict to serialise as JSON.
@@ -399,23 +472,4 @@ class JsonTTLCache:
         Raises:
             OSError: If the temp file cannot be created or the replace fails.
         """
-        parent = self._path.parent
-        parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=parent,
-            suffix=".tmp",
-            delete=False,
-        ) as tmp:
-            json.dump(data, tmp, ensure_ascii=False, indent=2)
-            tmp_path = tmp.name
-
-        try:
-            os.replace(tmp_path, self._path)
-        except OSError:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        atomic_write_json(self._path, data)
