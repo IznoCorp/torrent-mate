@@ -11,7 +11,7 @@
 **Design**: `docs/features/pipeline-panel/DESIGN.md` ← shared spec §2.3 + §1.1 (conditional `?run=` redirect)
 **Version bump**: 0.51.1 → 0.52.0 (minor)
 
-## Status: BRANCH CREATED — awaiting plan
+## Status: ALL PHASES DONE — feature-pr (push + PR + CI + review + AUTO merge)
 
 **Master plan**: docs/features/pipeline-panel/plan/INDEX.md (4 phases)
 
@@ -21,8 +21,8 @@
 | - | ----- | ---- | ------ |
 | 1 | Stepper compression + mobile vertical | phase-01-stepper.md | [x] |
 | 2 | History repatriation + legend popover | phase-02-history.md | [x] |
-| 3 | Conditional /maintenance?run= redirect | phase-03-redirect.md | [ ] |
-| 4 | Final gate | phase-04-final-gate.md | [ ] |
+| 3 | Conditional /maintenance?run= redirect | phase-03-redirect.md | [x] |
+| 4 | Final gate | phase-04-final-gate.md | [x] |
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
