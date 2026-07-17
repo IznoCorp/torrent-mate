@@ -15,7 +15,8 @@ function formatElapsed(startedAt: number): string {
 }
 
 /**
- * "Scrapes en cours" surface for the /scraping page.
+ * "Scrapes en cours" surface, rendered on the Contrôle station (relocated from the
+ * former /scraping page (now /medias)).
  *
  * Shows each scrape running right now (title + elapsed, with a live pulse) and the
  * pending-queue size, so the operator can actually SEE true-parallel scraping happen
@@ -29,7 +30,8 @@ export function ScrapeActivityPanel(): ReactElement | null {
     // Poll briefly while something runs; go idle otherwise (WS invalidation and the
     // deck's own refetches revive it when a new scrape starts).
     refetchInterval: (query) =>
-      (query.state.data?.in_progress.length ?? 0) > 0 ? ACTIVE_POLL_MS : false,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime schema-drift guard: a 200 without in_progress crashed the relocated panel (5.3)
+      (query.state.data?.in_progress?.length ?? 0) > 0 ? ACTIVE_POLL_MS : false,
   });
 
   const inProgress = data?.in_progress ?? [];

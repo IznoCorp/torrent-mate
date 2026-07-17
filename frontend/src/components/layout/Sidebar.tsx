@@ -8,6 +8,7 @@ import {
 
 import { BrandMark } from "@/components/ds/BrandMark";
 import { NavSections } from "@/components/layout/NavSections";
+import { VersionCard } from "@/components/dashboard/VersionCard";
 import { cn } from "@/lib/utils";
 
 /** localStorage key persisting the sidebar collapsed/expanded preference. */
@@ -90,6 +91,13 @@ export function Sidebar({
         collapsed={collapsed}
         {...(badges ? { badges } : {})}
       />
+
+      {/* Version — hidden in collapsed rail, shown in expanded sidebar. */}
+      {!collapsed && (
+        <div className="border-t border-sidebar-border px-3 py-3">
+          <VersionCard />
+        </div>
+      )}
 
       <div className="border-t border-sidebar-border p-2">
         <button

@@ -20,11 +20,12 @@ import { createBrowserRouter, type RouteObject } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { LegacyRedirect } from "@/components/LegacyRedirect";
 import { RouterBridge } from "@/components/RouterBridge";
 import AcquisitionPage from "@/pages/AcquisitionPage";
 import Dashboard from "@/pages/Dashboard";
-import Decisions from "@/pages/Decisions";
 import Login from "@/pages/Login";
+import Medias from "@/pages/Medias";
 import Maintenance from "@/pages/Maintenance";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
@@ -57,8 +58,12 @@ export const routes: RouteObject[] = [
                 element: <Config />,
               },
               {
+                path: "medias",
+                element: <Medias />,
+              },
+              {
                 path: "scraping",
-                element: <Decisions />,
+                element: <LegacyRedirect to="/medias" />,
               },
               {
                 path: "registry",

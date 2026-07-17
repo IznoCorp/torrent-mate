@@ -427,6 +427,46 @@
         "title": "ConfigStatusResponse",
         "type": "object"
       },
+      "ContinueResponse": {
+        "description": "Response body for ``POST /api/staging/media/{id}/continue`` (\u00a75.2).\n\nMirrors the resolve 202 pattern: the run is either spawned now (``run_uid``\npresent) or deferred because another run holds the lock (``run_uid`` is\n``None`` \u2014 \u00ab En file \u00bb).\n\nAttributes:\n    ok: ``True`` when the continuation was accepted.\n    media_id: The staging media id.\n    run_uid: The pipeline run id when a new run was spawned, or ``None``\n        when deferred.\n    deferred: ``True`` when the run could not start because another run\n        holds the pipeline lock.\n    detail: Human-readable French status detail.",
+        "properties": {
+          "deferred": {
+            "default": false,
+            "title": "Deferred",
+            "type": "boolean"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Uid"
+          }
+        },
+        "required": [
+          "ok",
+          "media_id"
+        ],
+        "title": "ContinueResponse",
+        "type": "object"
+      },
       "CreateFollowRequest": {
         "description": "Request body for POST /api/acquisition/followed.\n\nAt least one provider ID is required (422 otherwise).  *title* is optional\n\u2014 when omitted the backend stores an empty string.  The web form will\nalways send a title, but the route accepts ``None`` for programmatic\nclients.",
         "properties": {
@@ -900,6 +940,46 @@
           "actor"
         ],
         "title": "DestructiveOp",
+        "type": "object"
+      },
+      "DiscardResponse": {
+        "description": "Response body for ``POST /api/staging/media/{id}/discard`` (\u00a77).\n\nThe ``journaled`` flag confirms the append-only destructive-op row was\nwritten and verified with a read-back. ``quarantine_path`` is always set on\nsuccess (the item is moved, never emptied in-place); the field is kept\noptional (``str | None``) for schema stability \u2014 a future error path could\nreturn ``None`` while still carrying ``ok=False``.\n\nAttributes:\n    ok: ``True`` when the discard was accepted.\n    media_id: The staging media id.\n    journaled: ``True`` when the destructive-op journal row was written and\n        verified with a read-back.\n    quarantine_path: Absolute path to the quarantine destination (always set\n        on success; optional for schema stability so a future error response\n        can carry ``None`` without a breaking model change).\n    detail: Human-readable French status detail.",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "journaled": {
+            "title": "Journaled",
+            "type": "boolean"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "quarantine_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarantine Path"
+          }
+        },
+        "required": [
+          "ok",
+          "media_id",
+          "journaled"
+        ],
+        "title": "DiscardResponse",
         "type": "object"
       },
       "DiskInfo": {
@@ -3082,7 +3162,7 @@
         "type": "object"
       },
       "StagingMediaItem": {
-        "description": "One media folder currently present in the staging area.\n\nAttributes:\n    id: Stable URL-safe identifier \u2014 the truncated SHA-1 of the staging\n        path relative to ``staging_dir``. Used by the poster route to\n        resolve back to the folder without ever trusting a client path.\n    category: The staging subfolder the media sits in (e.g.\n        ``\"001-MOVIES\"``).\n    folder: The media folder name (e.g. ``\"Fight Club (1999)\"``).\n    relative_path: ``category/folder`` \u2014 the path relative to the staging\n        root (never an absolute path, so no host layout leaks).\n    media_kind: Kind of media (drives enrichment + grid filtering).\n    title: NFO ``<title>`` when scraped, else the folder name (year\n        stripped).\n    year: Release year from the NFO or the folder name, or ``None``.\n    overview: NFO ``<plot>`` (description), or ``None`` when unscraped.\n    provider_ids: Mapping of provider family \u2192 id string from the NFO\n        ``<uniqueid>`` rows (e.g. ``{\"tvdb\": \"475278\", \"tmdb\": \"315820\"}``).\n    match: Top-level matching verdict.\n    decision_id: The ``scrape_decision.id`` when ``match == \"ambiguous\"``,\n        else ``None`` (lets the grid deep-link to the resolution deck).\n    decision_trigger: The ambiguity trigger (``\"ambiguous\"`` /\n        ``\"below_threshold\"`` / ``\"mid_band\"``), or ``None``.\n    has_nfo: Whether a ``movie.nfo`` / ``tvshow.nfo`` is present.\n    has_poster: Whether a local ``poster.jpg``/``poster.png`` is present.\n    has_trailer: Whether a trailer file is present (Plex convention).\n    poster_url: The guarded local poster route\n        (``/api/staging/media/{id}/poster``) when a poster exists, else\n        ``None`` (the frontend ``MediaPoster`` shows its initials fallback).\n    seasons: Season breakdown for a TV show, or ``None`` for other kinds.\n    episode_count: Total episode video files across seasons (TV show), or\n        ``None``.\n    video_count: Number of video files anywhere in the media tree.\n    size_bytes: Total size of the media folder in bytes.\n    modified_at: Epoch seconds of the most recent file mtime in the tree\n        (drives the default ``recent`` sort).\n    position_stage: The SINGLE stage this media is at (P0-A.1 axiom): its\n        next unsatisfied stage, or the stage it is blocked at. Board\n        stocks, the per-stage lists and the timeline all derive from it \u2014\n        one media, one station, never two.\n    position_state: Whether the media awaits its stage (``pending``), is\n        being processed there by the live run (``active``), or needs an\n        operator (``blocked`` \u2014 see ``blocked_reason``).\n    stages: The eight-stage per-media pipeline timeline (the position,\n        unrolled: done before, position state at, pending after).\n    blocked_reason: A human-readable French reason when\n        ``position_state == \"blocked\"`` \u2014 the real ``verify``-gate reason\n        (e.g. ``\"Bloqu\u00e9 : \u00e9pisodes non renomm\u00e9s \u2026\"``, the SAME gate that\n        authorizes dispatch \u2014 product-intent.md \u00a7m\u00e9thode rule 6) or the\n        identification block (pending decision / needs enqueue /\n        AUTRES kind to qualify). ``None`` when not blocked.\n    dispatch_target: Dispatch preview, or ``None`` unless requested.",
+        "description": "One media folder currently present in the staging area.\n\nAttributes:\n    id: Stable URL-safe identifier \u2014 the truncated SHA-1 of the staging\n        path relative to ``staging_dir``. Used by the poster route to\n        resolve back to the folder without ever trusting a client path.\n    category: The staging subfolder the media sits in (e.g.\n        ``\"001-MOVIES\"``).\n    folder: The media folder name (e.g. ``\"Fight Club (1999)\"``).\n    relative_path: ``category/folder`` \u2014 the path relative to the staging\n        root (never an absolute path, so no host layout leaks).\n    media_kind: Kind of media (drives enrichment + grid filtering).\n    title: NFO ``<title>`` when scraped, else the folder name (year\n        stripped).\n    year: Release year from the NFO or the folder name, or ``None``.\n    overview: NFO ``<plot>`` (description), or ``None`` when unscraped.\n    provider_ids: Mapping of provider family \u2192 id string from the NFO\n        ``<uniqueid>`` rows (e.g. ``{\"tvdb\": \"475278\", \"tmdb\": \"315820\"}``).\n    match: Top-level matching verdict.\n    decision_id: The ``scrape_decision.id`` when ``match == \"ambiguous\"``,\n        else ``None`` (lets the grid deep-link to the resolution deck).\n    decision_trigger: The ambiguity trigger (``\"ambiguous\"`` /\n        ``\"below_threshold\"`` / ``\"mid_band\"``), or ``None``.\n    has_nfo: Whether a ``movie.nfo`` / ``tvshow.nfo`` is present.\n    has_poster: Whether a local ``poster.jpg``/``poster.png`` is present.\n    has_trailer: Whether a trailer file is present (Plex convention).\n    poster_url: The guarded local poster route\n        (``/api/staging/media/{id}/poster``) when a poster exists, else\n        ``None`` (the frontend ``MediaPoster`` shows its initials fallback).\n    seasons: Season breakdown for a TV show, or ``None`` for other kinds.\n    episode_count: Total episode video files across seasons (TV show), or\n        ``None``.\n    video_count: Number of video files anywhere in the media tree.\n    size_bytes: Total size of the media folder in bytes.\n    modified_at: Epoch seconds of the most recent file mtime in the tree\n        (drives the default ``recent`` sort).\n    position_stage: The SINGLE stage this media is at (P0-A.1 axiom): its\n        next unsatisfied stage, or the stage it is blocked at. Board\n        stocks, the per-stage lists and the timeline all derive from it \u2014\n        one media, one station, never two.\n    position_state: Whether the media awaits its stage (``pending``), is\n        being processed there by the live run (``active``), or needs an\n        operator (``blocked`` \u2014 see ``blocked_reason``).\n    stages: The eight-stage per-media pipeline timeline (the position,\n        unrolled: done before, position state at, pending after).\n    blocked_reason: A human-readable French reason when\n        ``position_state == \"blocked\"`` \u2014 the real ``verify``-gate reason\n        (e.g. ``\"Bloqu\u00e9 : \u00e9pisodes non renomm\u00e9s \u2026\"``, the SAME gate that\n        authorizes dispatch \u2014 product-intent.md \u00a7m\u00e9thode rule 6) or the\n        identification block (pending decision / needs enqueue /\n        AUTRES kind to qualify). ``None`` when not blocked.\n    dispatch_target: Dispatch preview, or ``None`` unless requested.\n    continuation_requested_at: Epoch timestamp from the\n        ``.continuation-requested`` marker file written when a continue was\n        deferred (pipeline lock held). ``None`` when no deferral is recorded\n        or the marker was consumed by a subsequent run. Drives the\n        \u00ab Reprise demand\u00e9e \u00bb chip in the UI (\u00a78 durable trace).",
         "properties": {
           "blocked_reason": {
             "anyOf": [
@@ -3098,6 +3178,17 @@
           "category": {
             "title": "Category",
             "type": "string"
+          },
+          "continuation_requested_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation Requested At"
           },
           "decision_id": {
             "anyOf": [
@@ -5810,6 +5901,92 @@
           }
         },
         "summary": "List Staging Media",
+        "tags": [
+          "staging"
+        ]
+      }
+    },
+    "/api/staging/media/{media_id}/continue": {
+      "post": {
+        "description": "Restart the pipeline for a resolved (matched) staged media item.\n\nThe operator-initiated continuation (\u00a75.2) means the media was resolved\nmanually (``scrape-resolve`` wrote the NFO) and must now FINISH its\npipeline \u2014 trailers \u2192 verify \u2192 dispatch \u2014 via the single trigger\nauthority (``pipeline.lock`` is the sole gate). When the lock is held,\nno new run is spawned; the in-flight or next run will pick the item up.\n\nThe media must already have a provider-identified NFO (``match ==\n\"matched\"`` in the read model). An item without an NFO or with a\nnon-identified NFO returns 422 \u2014 the operator must resolve the matching\nfirst (via the decision deck), then continue. An item with an NFO file\nthat exists and has content but yields no provider IDs after parsing\nreturns 422 with a distinct \u00ab NFO illisible \u00bb detail (A3 \u2014 the file is\nthere but its content is malformed or truncated).\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`ContinueResponse` with ``ok=True`` and either a fresh\n    ``run_uid`` (spawned) or ``deferred=True``, ``run_uid=None`` (lock\n    held). Status code is always 202.  When deferred, a durable\n    ``.continuation-requested`` marker file is written in the media\n    folder so the read-model can surface the \u00ab Reprise demand\u00e9e \u00bb state\n    across sessions (\u00a78 \u2014 durable deferral trace).\n\nRaises:\n    404: No scrapable staged media matches the id.\n    422: The media is not yet identified (no NFO, no provider IDs, or\n        NFO present but unreadable).",
+        "operationId": "continue_staging_media_api_staging_media__media_id__continue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue Staging Media",
+        "tags": [
+          "staging"
+        ]
+      }
+    },
+    "/api/staging/media/{media_id}/discard": {
+      "post": {
+        "description": "Discard a non-media artifact from the staging area (\u00a77).\n\nOnly items with ``media_kind == \"other\"`` (the AUTRES category \u2014 items the\nsort could not type into a known file_type) qualify. They are moved into the\n``_quarantine`` directory under the staging root and recorded in the\nappend-only destructive-journal. The journal write is verified with a\nread-back before ``journaled`` is set to ``True`` (``record_destruction`` is\nfail-soft \u2014 but the audit trail is the point). A scrapable item\n(movie/tvshow) instead returns 422 with a directive to use the resolve or\npipeline-restart flow; an item whose kind is neither ``other`` nor scrapable\nreturns 404.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`DiscardResponse` with ``ok=True`` and the quarantine\n    destination when the artifact was discarded. ``journaled`` is ``True``\n    only when the destructive-op row was written and verified with a\n    read-back.\n\nRaises:\n    404: No item matches the id, or the item is in an eligible category\n        (e.g. ``unsorted``) whose kind is not ``other``.\n    422: The item is a scrapable media (movie/tvshow) \u2014 use the resolve\n        or continue endpoint instead.\n    500: The quarantine move failed (I/O error on the underlying filesystem).\n    503: No indexer database configured, or the destructive-op journal is\n        unreachable (B4 \u2014 refuse-before-destroy).",
+        "operationId": "discard_staging_media_api_staging_media__media_id__discard_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Staging Media",
         "tags": [
           "staging"
         ]

@@ -53,6 +53,17 @@ const SCHEDULERS = {
   ],
 };
 
+/** Empty staging media response — no blocked items (ATraiterList). */
+const EMPTY_STAGING = {
+  items: [],
+  total: 0,
+  page: 1,
+  page_size: 100,
+};
+
+/** Minimal pipeline history response — no runs yet. */
+const EMPTY_HISTORY = { runs: [], total: 0 };
+
 /** Route ``/api/*`` to their canned payloads. */
 function routeFetch(input: RequestInfo | URL): Promise<Response> {
   const url = urlOf(input);
@@ -68,11 +79,20 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
   // endpoint — serve minimal well-shaped payloads.
   if (url.includes("/api/pipeline/status")) {
     return Promise.resolve(
-      buildResponse(200, { state: "idle", paused: false, watcher_enabled: true }),
+      buildResponse(200, {
+        state: "idle",
+        paused: false,
+        watcher_enabled: true,
+      }),
     );
   }
   if (url.includes("/api/pipeline/stages")) {
-    return Promise.resolve(buildResponse(200, { stages: [], run_processed: null }));
+    return Promise.resolve(
+      buildResponse(200, { stages: [], run_processed: null }),
+    );
+  }
+  if (url.includes("/api/pipeline/history")) {
+    return Promise.resolve(buildResponse(200, EMPTY_HISTORY));
   }
   if (url.includes("/api/acquisition/wanted")) {
     return Promise.resolve(
@@ -142,6 +162,32 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
       }),
     );
   }
+  // ATraiterList → GET /api/staging/media
+  if (url.includes("/api/staging/media")) {
+    return Promise.resolve(buildResponse(200, EMPTY_STAGING));
+  }
+  // ScrapeActivityPanel → GET /api/decisions/activity
+  if (url.includes("/api/decisions/activity")) {
+    return Promise.resolve(buildResponse(200, { active: [], queue_size: 0 }));
+  }
+  // CompactHealth → GET /api/registry/status
+  if (url.includes("/api/registry/status")) {
+    return Promise.resolve(
+      buildResponse(200, {
+        providers: [
+          {
+            provider_name: "tmdb",
+            circuit_state: "closed",
+            failure_count_recent: 0,
+            last_failure_at: null,
+            last_latency_ms: 45.2,
+            last_success_at: Date.now() / 1000,
+            live: true,
+          },
+        ],
+      }),
+    );
+  }
   return Promise.resolve(
     buildResponse(200, { status: "ok", redis: true, db: true }),
   );
@@ -179,24 +225,98 @@ function renderDashboard(): void {
   render(tree);
 }
 
-describe("Dashboard", () => {
-  it("monte les cartes et le panneau planificateurs, sans flux d’événements", async () => {
+describe("Contrôle", () => {
+  it("affiche le titre Contrôle et les panneaux dans l'ordre prescrit (DESIGN §2.1)", async () => {
     renderDashboard();
 
-    // Structure: heading + scheduler overview.
+    // Page title.
     expect(
-      screen.getByRole("heading", { name: "Tableau de bord" }),
+      screen.getByRole("heading", { name: "Contrôle" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Planificateurs")).toBeInTheDocument();
 
-    // The event feed + recent-events table moved to Maintenance (Phase 5.1) —
-    // they must NOT render on the Dashboard anymore.
-    expect(screen.queryByText("Flux d’événements")).not.toBeInTheDocument();
+    // Wait for async content to settle before querying positions.
+    await screen.findByText("Rien à traiter");
+    await screen.findByText("Démarrer");
+
+    // ----- VersionCard NOT on the page (moved to sidebar footer in 5.4) -----
+    // VersionCard renders "<p>commit abcdef1</p>" (first 7 chars of
+    // build_commit).  If it were still imported on this page the text would
+    // resolve from the mocked /api/version payload.
+    expect(screen.queryByText(/commit [a-f0-9]{7}/)).not.toBeInTheDocument();
+
+    // Event feed + recent events moved to Maintenance (Phase 5.1).
+    expect(screen.queryByText("Flux d'événements")).not.toBeInTheDocument();
     expect(screen.queryByText("Événements récents")).not.toBeInTheDocument();
 
-    // Cards resolve from their queries (Redis online, version rendered).
+    // ----- Panel ORDER (DESIGN §2.1) -----
+    // The section labels must appear in this sequence:
+    //   1. À traiter     (ATraiterList)
+    //   2. Dernier run   (LastRunDigest)
+    //   3. Acquisitions & planificateurs  (merged section)
+    //   4. Santé         (CompactHealth)
+    //   5. Démarrer      (PipelineControls — single state-dependent button)
+    //
+    // We verify by checking text-node positions inside the Contrôle wrapper
+    // <section>, obtained by walking up from the <h1> heading.
+    const main = screen
+      .getByRole("heading", { name: "Contrôle" })
+      .closest("section");
+    if (main === null) {
+      throw new Error("outer Contrôle <section> should exist");
+    }
+    const text = main.textContent;
+
+    const posATraiter = text.indexOf("À traiter");
+    const posDernierRun = text.indexOf("Dernier run");
+    const posAcquisitions = text.indexOf("Acquisitions & planificateurs");
+    const posSante = text.indexOf("Santé");
+    const posDemarrer = text.indexOf("Démarrer");
+
+    // All four headings + the pipeline button must be present.
+    expect(
+      posATraiter,
+      "« À traiter » heading should be in the DOM",
+    ).toBeGreaterThan(-1);
+    expect(
+      posDernierRun,
+      "« Dernier run » heading should be in the DOM",
+    ).toBeGreaterThan(-1);
+    expect(
+      posAcquisitions,
+      "« Acquisitions & planificateurs » heading should be in the DOM",
+    ).toBeGreaterThan(-1);
+    expect(posSante, "« Santé » heading should be in the DOM").toBeGreaterThan(
+      -1,
+    );
+    expect(
+      posDemarrer,
+      "« Démarrer » button should be in the DOM",
+    ).toBeGreaterThan(-1);
+
+    // Each must appear before the next one in the text stream.
+    expect(posATraiter, "À traiter must come before Dernier run").toBeLessThan(
+      posDernierRun,
+    );
+    expect(
+      posDernierRun,
+      "Dernier run must come before Acquisitions",
+    ).toBeLessThan(posAcquisitions);
+    expect(posAcquisitions, "Acquisitions must come before Santé").toBeLessThan(
+      posSante,
+    );
+    expect(posSante, "Santé must come before Démarrer").toBeLessThan(
+      posDemarrer,
+    );
+
+    // CompactHealth renders health rows (Redis, disks, index, providers).
     expect(await screen.findByText("Redis en ligne")).toBeInTheDocument();
-    expect(await screen.findByText("0.40.0")).toBeInTheDocument();
+    expect(screen.getByText("Disk 1")).toBeInTheDocument();
+    expect(screen.getByText("1200 items indexés")).toBeInTheDocument();
+
+    // LastRunDigest shows the empty state (no history yet).
+    expect(
+      screen.getByText("Aucun run enregistré pour le moment."),
+    ).toBeInTheDocument();
 
     // Scheduler rows resolve from the mocked payload.
     expect(
@@ -205,7 +325,7 @@ describe("Dashboard", () => {
     expect(await screen.findByText("Récupération (grab)")).toBeInTheDocument();
   });
 
-  it("est un poste de contrôle : contrôles pipeline + acquisitions + index + disques (A3)", async () => {
+  it("est un poste de contrôle : contrôles pipeline + acquisitions + santé + disques (A3)", async () => {
     renderDashboard();
 
     // Pipeline controls are usable from home (idle status → « Démarrer »).
@@ -213,12 +333,22 @@ describe("Dashboard", () => {
 
     // Acquisitions glance: pending (total=4), in-progress downloads (1 of the
     // 2 canned rows has progress < 1), deferred torrent surfaced.
-    expect(await screen.findByText(/4 épisodes en attente/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/4 épisodes en attente/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/1 téléchargement en cours/)).toBeInTheDocument();
     expect(screen.getByText(/1 torrent différé/)).toBeInTheDocument();
 
-    // Index health + disks panels resolve from their endpoints.
-    expect(await screen.findByText("Santé de l'index")).toBeInTheDocument();
-    expect(await screen.findByText("Disk 1")).toBeInTheDocument();
+    // CompactHealth resolves disks + index from their endpoints.
+    expect(await screen.findByText("Santé")).toBeInTheDocument();
+    expect(screen.getByText("Disk 1")).toBeInTheDocument();
+    expect(screen.getByText("1200 items indexés")).toBeInTheDocument();
+  });
+
+  it("affiche la liste À traiter (vide par défaut)", async () => {
+    renderDashboard();
+
+    // Even when empty, ATraiterList renders a calm row « Rien à traiter ».
+    expect(await screen.findByText("Rien à traiter")).toBeInTheDocument();
   });
 });

@@ -68,7 +68,7 @@ describe("App", () => {
     // The browser router boots at jsdom's default path ("/"); once `me`
     // resolves authenticated the guard renders the Dashboard inside the shell.
     expect(
-      await screen.findByRole("heading", { name: /tableau de bord/i }),
+      await screen.findByRole("heading", { name: /contrôle/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /menu utilisateur/i }),

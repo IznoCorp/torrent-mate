@@ -552,6 +552,55 @@ export function enqueueStagingDecision(
 }
 
 // ---------------------------------------------------------------------------
+// Staging egress endpoints (control-medias §5.2 + §7)
+// ---------------------------------------------------------------------------
+
+/** Response type for ``POST /api/staging/media/{id}/continue`` (§5.2). */
+export type ContinueResponse = components["schemas"]["ContinueResponse"];
+
+/** Response type for ``POST /api/staging/media/{id}/discard`` (§7). */
+export type DiscardResponse = components["schemas"]["DiscardResponse"];
+
+/**
+ * Restart the pipeline for a resolved (matched) staged media item:
+ * POST /api/staging/media/{id}/continue.  Mutating — carries
+ * ``X-Requested-With``.
+ *
+ * Args:
+ *   mediaId: The stable staged-media id.
+ *
+ * Returns:
+ *   A {@link ContinueResponse} with ``ok=True`` and either a fresh ``run_uid``
+ *   or ``deferred=True`` when another run holds the lock.
+ */
+export function continueMedia(mediaId: string): Promise<ContinueResponse> {
+  return apiFetch("/api/staging/media/{media_id}/continue", {
+    method: "post",
+    params: { path: { media_id: mediaId } },
+    headers: XRW_HEADERS,
+  });
+}
+
+/**
+ * Discard a non-media artifact from the staging area:
+ * POST /api/staging/media/{id}/discard.  Mutating — carries
+ * ``X-Requested-With``.
+ *
+ * Args:
+ *   mediaId: The stable staged-media id.
+ *
+ * Returns:
+ *   A {@link DiscardResponse} with ``ok=True`` and the quarantine destination.
+ */
+export function discardMedia(mediaId: string): Promise<DiscardResponse> {
+  return apiFetch("/api/staging/media/{media_id}/discard", {
+    method: "post",
+    params: { path: { media_id: mediaId } },
+    headers: XRW_HEADERS,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Maintenance endpoints (S3 — maint-dash)
 // ---------------------------------------------------------------------------
 

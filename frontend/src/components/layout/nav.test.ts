@@ -27,7 +27,7 @@ describe("nav model", () => {
     expect(byTitle.Supervision).toEqual([
       "/",
       "/pipeline",
-      "/scraping",
+      "/medias",
       "/acquisition",
     ]);
     expect(byTitle["Système"]).toEqual(["/maintenance"]);
@@ -40,14 +40,14 @@ describe("nav model", () => {
     // Tous les items sont interactifs, y compris Registre.
     expect(
       NAV_ITEMS.map((item) => item.to),
-    ).toEqual(["/", "/pipeline", "/scraping", "/acquisition", "/maintenance", "/registry", "/config"]);
+    ).toEqual(["/", "/pipeline", "/medias", "/acquisition", "/maintenance", "/registry", "/config"]);
   });
 
   it("dérive NAV_ITEMS de la projection à plat des sections", () => {
     expect(NAV_ITEMS.map((item) => item.to)).toEqual([
       "/",
       "/pipeline",
-      "/scraping",
+      "/medias",
       "/acquisition",
       "/maintenance",
       "/registry",
@@ -55,17 +55,17 @@ describe("nav model", () => {
     ]);
   });
 
-  it("réduit la barre d'onglets mobile à Tableau de bord · Pipeline · Scraping · Acquisition", () => {
+  it("réduit la barre d'onglets mobile à Contrôle · Pipeline · Médias · Acquisition", () => {
     expect(BOTTOM_TAB_PATHS).toEqual([
       "/",
       "/pipeline",
-      "/scraping",
+      "/medias",
       "/acquisition",
     ]);
     expect(BOTTOM_TAB_ITEMS.map((item) => item.label)).toEqual([
-      "Tableau de bord",
+      "Contrôle",
       "Pipeline",
-      "Scraping",
+      "Médias",
       "Acquisition",
     ]);
     // Maintenance and the disabled stubs are excluded from the bottom bar;

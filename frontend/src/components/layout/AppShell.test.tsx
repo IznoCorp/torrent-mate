@@ -295,7 +295,7 @@ describe("AppShell nav badges", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("affiche un badge Scraping avec le compte awaiting_action, scoped au lien nav", async () => {
+  it("affiche un badge Médias avec le compte awaiting_action, scoped au lien nav", async () => {
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -327,7 +327,7 @@ describe("AppShell nav badges", () => {
 
     // The badge must appear inside a Scraping nav link — a wiring swap
     // (e.g. badge placed on Acquisition) must fail this assertion.
-    const badge = await within(firstLink(/Scraping/)).findByText("3");
+    const badge = await within(firstLink(/Médias/)).findByText("3");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
@@ -484,7 +484,7 @@ describe("AppShell nav badges", () => {
     // the correct accessible name.  Scoping to within the link avoids the
     // duplicate-label collision with the BottomTabBar (both render the same
     // badge at different breakpoints).
-    const errorMarker = await within(firstLink(/Scraping/)).findByLabelText(
+    const errorMarker = await within(firstLink(/Médias/)).findByLabelText(
       "Compteur indisponible",
     );
     expect(errorMarker).toHaveTextContent("?");
@@ -563,7 +563,7 @@ describe("AppShell nav badges", () => {
 
     // After the invalidation, the refetch should bring back awaiting_action=5
     // and the badge should appear scoped to the Scraping link.
-    const badge = await within(firstLink(/Scraping/)).findByText("5");
+    const badge = await within(firstLink(/Médias/)).findByText("5");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
@@ -626,7 +626,7 @@ describe("AppShell nav badges", () => {
       });
     });
 
-    const badge = await within(firstLink(/Scraping/)).findByText("3");
+    const badge = await within(firstLink(/Médias/)).findByText("3");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
