@@ -4,7 +4,7 @@
 
 **Feature**: Architecture consolidation — SOLID/DRY refactor (backend + frontend)
 **Type**: refactor
-**Version bump**: 0.49.15 → 0.52.0 (minor; re-bumped after main took 0.50.0 #310 then 0.51.1 #311/#312)
+**Version bump**: 0.49.15 → 0.53.0 (minor; re-bumped thrice as main advanced: #310, #311/#312, #313/#314)
 **Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
 **PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
 **PR**: _(created after last phase)_
@@ -28,7 +28,7 @@
 | 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [x] |
 | 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [x] |
 | 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [x] |
-| 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [ ] |
+| 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [x] |
 | 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [ ] |
 
 ## Review cycles
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-11 done. Next: phase 12 (tests-architecture consolidation). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-12 done. Next: phase 13 (docs, gates, module-size zero, final reintegration + PR). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
