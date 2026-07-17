@@ -66,6 +66,7 @@ from personalscraper.web.models.acquisition import (
     WantedItemResponse,
     WantedResponse,
 )
+from personalscraper.web.models.pipeline import parse_steps_json
 
 if TYPE_CHECKING:
     from personalscraper.scraper.decision_candidate import DecisionCandidate
@@ -510,16 +511,11 @@ def _parse_run_counts(steps_json: str | None) -> dict[str, int] | None:
     Returns:
         The counts mapping, or ``None`` when absent/unparseable.
     """
-    if not steps_json:
-        return None
-    try:
-        steps = json.loads(steps_json)
-    except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(steps, list):
+    steps = parse_steps_json(steps_json)
+    if not steps:
         return None
     for step in reversed(steps):
-        counts = step.get("counts") if isinstance(step, dict) else None
+        counts = step.get("counts")
         if isinstance(counts, dict):
             return {str(k): int(v) for k, v in counts.items() if isinstance(v, (int, float))}
     # Fallback: run-level summary from the native per-step count fields.
@@ -528,8 +524,6 @@ def _parse_run_counts(steps_json: str | None) -> dict[str, int] | None:
     errors = 0
     saw_any = False
     for step in steps:
-        if not isinstance(step, dict):
-            continue
         success = step.get("success_count")
         skip = step.get("skip_count")
         error = step.get("error_count")

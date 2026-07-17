@@ -6,10 +6,55 @@ models serve.
 
 from __future__ import annotations
 
+import json
 from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel
+
+
+def parse_steps_json(steps_json: str | None) -> list[dict[str, object]]:
+    """Deserialize a ``pipeline_run.steps_json`` column into step-entry dicts.
+
+    This is the single owner of ``steps_json`` deserialization (WEB-BACKEND-06):
+    every route/read site that needs the per-step summaries goes through here,
+    then applies its own domain logic on the returned list. Consolidating the
+    ×3 previously-divergent copies removes the drift between them:
+
+    - divergent exception tuples — ``(JSONDecodeError, TypeError)`` in
+      ``acquisition._parse_run_counts`` / ``pipeline._parse_steps`` /
+      ``decisions`` activity vs ``(JSONDecodeError, TypeError, ValueError)`` in
+      ``pipeline_history_detail`` vs ``(JSONDecodeError, TypeError, KeyError)``
+      in ``pipeline._build_status``;
+    - divergent shape guards — most sites checked ``isinstance(steps, list)``,
+      but the ``decisions`` activity read did ``reversed(steps)`` with no guard
+      (a non-list JSON value would raise ``TypeError`` outside its ``try``), and
+      ``pipeline_history_detail`` iterated raw entries calling ``s.get(...)``
+      without filtering non-dict members (an ``AttributeError`` waiting to 500).
+
+    The consolidated semantics are the strictest correct union: the widest
+    fail-soft exception set, a mandatory ``list`` guard, and non-dict entries
+    dropped so every consumer receives a homogeneous ``list[dict]``.
+
+    Args:
+        steps_json: The raw ``pipeline_run.steps_json`` column value (may be
+            ``None`` or an empty string for a run that recorded no steps).
+
+    Returns:
+        The list of step-entry dicts in recorded order (last entry = the
+        live/most-recent step). An empty list for a ``None``/empty column, a
+        malformed payload, or a non-list JSON value — parsing a run's history
+        must never raise.
+    """
+    if not steps_json:
+        return []
+    try:
+        raw = json.loads(steps_json)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return []
+    if not isinstance(raw, list):
+        return []
+    return [step for step in raw if isinstance(step, dict)]
 
 
 class PipelineState(str, Enum):
