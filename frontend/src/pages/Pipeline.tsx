@@ -1,31 +1,36 @@
 /**
- * Pipeline supervision page (TorrentMateUI S2 — pipe-control; webui-ux Phase 2).
+ * Pipeline supervision page (TorrentMateUI S2 — pipe-control; pipeline-panel).
  *
  * Polls ``GET /api/pipeline/status`` every 5 seconds via {@link usePipelineStatus}
  * and feeds the live status to {@link PipelineControls}. The nine-stage
- * {@link FlowBoard} is the single canonical pipeline view (OBJ1) — the legacy
- * linear stepper was retired to avoid two parallel stage models on one page.
+ * {@link FlowBoard} is the single canonical pipeline view (OBJ1).
  *
- * webui-ux Phase 2 reworks the log area:
+ * pipeline-panel Phase 02 repatriates the pipeline run-history table + RunDetail
+ * drawer from the Maintenance page. The ``?run=<uid>`` query param opens the
+ * inline RunDetail drawer (DOIT-10: every detail view is URL-addressable).
+ *
+ * Log area:
  * - The DEFAULT view is the interpreted, plain-French run narrative
  *   ({@link InterpretedRunFeed}) folded from the live WS event stream.
  * - When no run is active, the interpreted feed shows the LAST run's summary
  *   (reconstructed from the persisted per-step counts via
  *   {@link useLastPipelineRun}) so the page never blanks.
  * - The raw WS log ({@link RunLogFeed}) moves inside a collapsed {@link Accordion}.
- * - The run-history table is removed here (it lives on the Maintenance page) to
- *   de-duplicate; a small trigger legend explains the trigger labels.
+ * - The trigger legend lives as a popover on the history table header
+ *   (tap-accessible, never hover-only — DOIT-9).
  */
 
-import { type ReactElement } from "react";
+import { useCallback, type ReactElement } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
+import { RunDetail } from "@/components/pipeline/RunDetail";
+import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
-import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import {
   Accordion,
   AccordionContent,
@@ -50,6 +55,33 @@ export default function Pipeline(): ReactElement {
   // the feed never blanks. `activeRunUid` as the refetch key means a
   // freshly-finished run supersedes the previous summary.
   const lastRun = useLastPipelineRun(activeRunUid ?? "idle");
+
+  // Run-detail selection is URL-addressable (?run=<uid>) — DOIT-10.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedRun = searchParams.get("run");
+  const openRun = useCallback(
+    (uid: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("run", uid);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeRun = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("run");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -85,7 +117,15 @@ export default function Pipeline(): ReactElement {
         </AccordionItem>
       </Accordion>
 
-      <TriggerLegend />
+      {/* Pipeline run-history — repatriated from Maintenance (pipeline-panel
+          Phase 02). Maintenance keeps its own kind="maintenance" table. */}
+      <RunHistoryTable kind="pipeline" onSelect={openRun} />
+
+      {/* Inline detail view when a history row is selected (URL: ?run=<uid>).
+          showMaintenanceLink added in sub-phase 2.2 once the prop exists. */}
+      {selectedRun !== null && (
+        <RunDetail runUid={selectedRun} onClose={closeRun} />
+      )}
     </section>
   );
 }

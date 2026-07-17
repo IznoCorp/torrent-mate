@@ -1,8 +1,9 @@
 /**
- * Pipeline page tests (webui-ux Phase 2.4).
+ * Pipeline page tests (pipeline-panel Phase 02).
  *
- * Asserts the reworked pipeline log area:
- * - No run-history table on the Pipeline page (de-dup — it lives on Maintenance).
+ * Asserts the repatriated run-history area:
+ * - The run-history table renders on the Pipeline page (repatriated from Maintenance).
+ * - The ``?run=`` query param opens the RunDetail drawer.
  * - Idle → the last run's interpreted summary is shown (never blanks).
  * - Active run → the live interpreted lines are shown.
  * - The raw WS log is collapsed by default inside the accordion.
@@ -28,6 +29,7 @@ import Pipeline from "@/pages/Pipeline";
 const mocks = vi.hoisted(() => ({
   usePipelineStatus: vi.fn(),
   useLastPipelineRun: vi.fn(),
+  getPipelineHistory: vi.fn(),
 }));
 
 vi.mock("@/hooks/usePipelineStatus", async (importOriginal) => ({
@@ -37,6 +39,11 @@ vi.mock("@/hooks/usePipelineStatus", async (importOriginal) => ({
 
 vi.mock("@/hooks/useLastPipelineRun", () => ({
   useLastPipelineRun: mocks.useLastPipelineRun,
+}));
+
+vi.mock("@/api/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/client")>()),
+  getPipelineHistory: mocks.getPipelineHistory,
 }));
 
 // PipelineControls issues its own mutations/queries — stub it to keep the page
@@ -100,6 +107,12 @@ beforeEach(() => {
     lines: [],
     isLoading: false,
   });
+  mocks.getPipelineHistory.mockResolvedValue({
+    runs: [],
+    total: 0,
+    limit: 20,
+    offset: 0,
+  });
 });
 
 afterEach(() => {
@@ -108,11 +121,11 @@ afterEach(() => {
 });
 
 describe("Pipeline page", () => {
-  it("does not render the run-history table (de-dup — lives on Maintenance)", () => {
+  it("renders the run-history table (repatriated from Maintenance — pipeline-panel Phase 02)", async () => {
     renderPage();
     expect(
-      screen.queryByText("Historique des exécutions"),
-    ).not.toBeInTheDocument();
+      await screen.findByText("Historique des exécutions"),
+    ).toBeInTheDocument();
   });
 
   it("shows the last run's interpreted summary when idle", () => {
