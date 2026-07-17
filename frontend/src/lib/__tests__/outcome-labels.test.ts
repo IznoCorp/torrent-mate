@@ -142,6 +142,26 @@ describe("outcome-labels — unified vocabulary", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Cross-module vocabulary pin — STATUS_LABEL vs OUTCOME_LABEL (sub-phase 5.2)
+// ---------------------------------------------------------------------------
+
+describe("outcome-labels — cross-module vocabulary pin", () => {
+  it("STATUS_LABEL.killed is « Arrêté » (acquisition item status, NOT a run outcome)", async () => {
+    // STATUS_LABEL lives in the acquisition meta module and uses STATE_LABEL as
+    // its spread base with a single override.  OUTCOME_LABEL.killed is
+    // "Interrompu" (run-level), STATUS_LABEL.killed is "Arrêté" (item status).
+    // Both are correct in their respective contexts — this test is the guarded
+    // assertion that prevents the two from being conflated.
+    const { STATUS_LABEL } = await import("@/components/acquisition/meta");
+    expect(STATUS_LABEL.killed).toBe("Arrêté");
+  });
+
+  it("OUTCOME_LABEL.killed remains « Interrompu » (no accidental drift)", () => {
+    expect(OUTCOME_LABEL.killed).toBe("Interrompu");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Zero React dependencies
 // ---------------------------------------------------------------------------
 

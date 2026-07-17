@@ -340,6 +340,61 @@ describe("SystemePage", () => {
     expect(screen.getByText("tmdb")).toBeInTheDocument();
   });
 
+  it("affiche le badge « OK » pour un circuit fermé et la latence formatée (sub-phase 5.2)", () => {
+    useRegistryStatusMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        providers: [
+          {
+            provider_name: "tmdb",
+            circuit_state: "closed",
+            failure_count_recent: 0,
+            last_success_at: 1_719_792_000,
+            last_failure_at: null,
+            last_latency_ms: 42.5,
+            live: true,
+          },
+        ],
+      },
+      error: null,
+    });
+
+    renderSystemePage();
+
+    // CIRCUIT_LABEL.closed === "OK".
+    expect(screen.getByText("OK")).toBeInTheDocument();
+    // Latency formatted to integer + " ms".
+    expect(screen.getByText("43 ms")).toBeInTheDocument();
+  });
+
+  it("affiche le badge « Ouvert » pour un circuit ouvert (sub-phase 5.2)", () => {
+    useRegistryStatusMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        providers: [
+          {
+            provider_name: "tvdb",
+            circuit_state: "open",
+            failure_count_recent: 3,
+            last_success_at: null,
+            last_failure_at: 1_719_705_600,
+            last_latency_ms: null,
+            live: true,
+          },
+        ],
+      },
+      error: null,
+    });
+
+    renderSystemePage();
+
+    // CIRCUIT_LABEL.open === "Ouvert".
+    expect(screen.getByText("Ouvert")).toBeInTheDocument();
+    expect(screen.getByText("tvdb")).toBeInTheDocument();
+  });
+
   it("affiche l'indicateur baseline pour un fournisseur live:false", () => {
     useRegistryStatusMock.mockReturnValue({
       isLoading: false,

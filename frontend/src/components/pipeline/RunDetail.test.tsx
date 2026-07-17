@@ -261,6 +261,31 @@ describe("RunDetail", () => {
     expect(screen.getByText("something broke")).toBeInTheDocument();
   });
 
+  it("affiche le badge « Échec » (exact) pour un run en erreur (sub-phase 5.2)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({ outcome: "error", error: "traceback" }),
+    );
+    renderDetail("err-run");
+
+    await screen.findByText("Échec");
+    // "Échec" is the unified OUTCOME_LABEL badge — not "Erreur", not "Arrêté".
+    expect(screen.getByText("Échec")).toBeInTheDocument();
+  });
+
+  it("affiche le badge « Interrompu » pour un run killed (sub-phase 5.2 — tue le mutant Échec→Erreur)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({ outcome: "killed", error: "SIGTERM" }),
+    );
+    renderDetail("kill-run");
+
+    await screen.findByText("Interrompu");
+    // The unified vocabulary says OUTCOME_LABEL.killed === "Interrompu",
+    // NOT "Arrêté" (which is the acquisition STATUS_LABEL, not a run outcome).
+    expect(screen.getByText("Interrompu")).toBeInTheDocument();
+  });
+
   it("affiche la commande, les options et la sortie pour un run de maintenance sans le stepper", async () => {
     const getDetail = await mockGetDetail();
     getDetail.mockResolvedValue(
