@@ -40,6 +40,7 @@ from personalscraper.indexer.destructive_journal import list_recent
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
+from personalscraper.web._runner_engine import reserve_run_row
 from personalscraper.web.deps import (
     require_not_staging,
     require_x_requested_with,
@@ -965,64 +966,37 @@ def _reserve_run_row(
     destructive = action.risk == "destructive"
     check_concurrency = action.risk in ("write", "destructive")
 
-    if not db_path.exists():
-        # No DB yet (fresh install / test) — nothing to verify and no row to
-        # reserve. A destructive apply still requires a prior dry-run, which
-        # cannot exist without a DB → 428 (preserves the original semantics).
+    def _guard(conn: sqlite3.Connection) -> None:
+        """Guard order (§6): 409 duplicate (same command + options) → 428 dry-run-first."""
+        if check_concurrency:
+            _guard_no_duplicate_action(conn, command, options_json, dry_run)
+        if destructive and not dry_run:
+            _guard_recent_dry_run(conn, command, options_json)
+
+    def _missing_db() -> None:
+        """No DB yet: a destructive apply still needs a prior dry-run → 428."""
         if destructive and not dry_run:
             raise HTTPException(status_code=428, detail=_DRY_RUN_FIRST_DETAIL)
-        return
 
-    conn = sqlite3.connect(str(db_path), isolation_level=None)
-    try:
-        _apply_pragmas(conn)
-        conn.row_factory = sqlite3.Row
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            if check_concurrency:
-                _guard_no_duplicate_action(conn, command, options_json, dry_run)
-            if destructive and not dry_run:
-                _guard_recent_dry_run(conn, command, options_json)
-            conn.execute(
-                "INSERT INTO pipeline_run "
-                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, "
-                "kind, command, options_json) "
-                "VALUES (?, 'web', ?, ?, 'running', '[]', ?, 'maintenance', ?, ?)",
-                (run_uid, 1 if dry_run else 0, time.time(), os.getpid(), command, options_json),
-            )
-            conn.execute("COMMIT")
-        except HTTPException:
-            _safe_rollback(conn)
-            raise
-        except sqlite3.OperationalError as exc:
-            _safe_rollback(conn)
-            logger.warning("maintenance_reserve_db_error", command=command, error=str(exc))
-            if destructive:
-                # Fail-CLOSED: cannot verify no duplicate destructive action is
-                # running — refuse with the real reason (§8) rather than risk a
-                # double execution.
-                raise HTTPException(
-                    status_code=409,
-                    detail=(
-                        "Impossible de vérifier qu'aucune action identique n'est en cours "
-                        "(erreur de lecture de la base) — réessayez."
-                    ),
-                ) from exc
-            # write / ro — permissive: proceed to spawn without a reserved row.
-    finally:
-        conn.close()
-
-
-def _safe_rollback(conn: sqlite3.Connection) -> None:
-    """Roll back *conn* best-effort, ignoring "no transaction active" errors.
-
-    Args:
-        conn: The connection to roll back.
-    """
-    try:
-        conn.execute("ROLLBACK")
-    except sqlite3.OperationalError:
-        pass
+    # The atomic BEGIN IMMEDIATE + INSERT skeleton is owned by the engine; this
+    # route supplies only the maintenance-specific guards + the missing-DB rule.
+    reserve_run_row(
+        db_path,
+        run_uid=run_uid,
+        kind="maintenance",
+        command=command,
+        options_json=options_json,
+        dry_run=dry_run,
+        guard=_guard,
+        # Fail-CLOSED for destructive apply: never run a duplicate destructive
+        # action when the DB cannot be read (§8). write / ro stay permissive.
+        fail_closed=destructive,
+        fail_closed_detail=(
+            "Impossible de vérifier qu'aucune action identique n'est en cours "
+            "(erreur de lecture de la base) — réessayez."
+        ),
+        missing_db=_missing_db,
+    )
 
 
 def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
