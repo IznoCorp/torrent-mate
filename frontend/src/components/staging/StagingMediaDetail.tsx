@@ -10,6 +10,7 @@ import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 import { useContinueMedia } from "@/hooks/useContinueMedia";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { StatusBadge } from "@/components/ds/StatusBadge";
+import { IgnoreDiscardButton } from "@/components/staging/IgnoreDiscardButton";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
 import {
   dispatchLabel,
@@ -381,6 +382,18 @@ export function StagingMediaDetail({
               : "Rechercher / résoudre manuellement"}
           </Button>
         </div>
+      )}
+
+      {/* §7 — non-media artifact egress: confirmation dialog + journal-backed
+          discard.  Rendered for every "other" item so the operator can clean it
+          regardless of match status. */}
+      {needsKind && (
+        <IgnoreDiscardButton
+          mediaId={item.id}
+          onSuccess={() => {
+            onResolve?.();
+          }}
+        />
       )}
     </div>
   );
