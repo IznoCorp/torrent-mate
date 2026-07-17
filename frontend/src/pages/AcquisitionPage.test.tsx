@@ -124,8 +124,7 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
   return { status, ...merged };
 }
 
-/*
-// makeWanted kept for 3.3 — FileDAcquisitionPanel test fixtures.
+/** A single wanted item matching WantedItemResponse shape. */
 function makeWanted(overrides: Record<string, unknown> = {}) {
   return {
     id: 10,
@@ -140,7 +139,6 @@ function makeWanted(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
-*/
 
 /** A single obligation item matching ObligationItem shape. */
 function makeObligation(overrides: Record<string, unknown> = {}) {
@@ -293,9 +291,7 @@ describe("AcquisitionPage", () => {
     expect(
       screen.getByRole("tab", { name: "File d'acquisition" }),
     ).toHaveAttribute("aria-selected", "true");
-    expect(
-      await screen.findByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("switches to the Obligations panel when clicking its tab", async () => {
@@ -761,9 +757,7 @@ describe("AcquisitionPage", () => {
     fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
 
     // Stub renders both sections (3.1); full assertions in 3.3.
-    expect(
-      screen.getByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("shows pagination controls with page info", () => {
@@ -771,9 +765,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(
-      screen.getByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("disables previous button on page 1", () => {
@@ -781,9 +773,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(
-      screen.getByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("calls useWanted with status filter when changed", async () => {
@@ -791,9 +781,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(
-      await screen.findByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Recherches/)).toBeInTheDocument();
   });
 
   // ── Obligations panel ───────────────────────────────────────────────────
@@ -959,9 +947,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(
-      screen.getByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("shows empty state for obligations panel when no items", () => {
@@ -985,9 +971,7 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(
-      screen.getByText(/Recherches/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("shows error message for obligations panel on fetch failure", () => {
