@@ -23,7 +23,7 @@
 | 4 | Scraper flow unification (T1) | phase-04-scraper-unification.md | [x] |
 | 5 | Completeness read-model (T4) | phase-05-completeness-readmodel.md | [x] |
 | 6 | Trailers ownership + single truth (T5) | phase-06-trailers.md | [x] |
-| 7 | Scanner walk skeleton (T8) | phase-07-scanner-walker.md | [ ] |
+| 7 | Scanner walk skeleton (T8) | phase-07-scanner-walker.md | [x] |
 | 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [ ] |
 | 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [ ] |
 | 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [ ] |
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-6 done. Next: phase 7 (scanner walk skeleton, T8). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-7 done. Next: phase 8 (API honesty + tracker symmetry + dry-run F4). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
