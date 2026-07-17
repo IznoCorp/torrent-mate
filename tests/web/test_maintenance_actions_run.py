@@ -20,11 +20,12 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.web._web_harness import mount_guarded
+
 from .test_maintenance_panels import (
     _build_app,
     _build_authenticated_client,
     _login,
-    _mount_guarded,
 )
 
 NOW = int(time.time())
@@ -117,7 +118,7 @@ def _authenticated_client_with_history(test_config, tmp_path: Path, db_path: Pat
         tmp_path,
         indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
     )
-    _mount_guarded(app, pipeline_router)
+    mount_guarded(app, pipeline_router)
     client = TestClient(app, base_url="https://testserver")
     _login(client)
     return client

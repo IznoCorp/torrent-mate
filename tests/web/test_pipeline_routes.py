@@ -15,25 +15,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.web.auth.passwords import hash_password
-from personalscraper.web.deps import require_session
-
-
-def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
-    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14).
-
-    Handlers no longer carry a per-route ``Depends(require_session)`` — the
-    guard lives on the parent router only (web-ui.md §6), so test apps must
-    reproduce the same perimeter to exercise auth.
-    """
-    guarded_api = APIRouter(dependencies=[Depends(require_session)])
-    guarded_api.include_router(router)
-    app.include_router(guarded_api)
-
+from tests.web._web_harness import guarded_client
 
 TEST_USERNAME = "testuser"
 TEST_PASSWORD = "test-password"
@@ -96,26 +82,15 @@ def pipeline_client(
         web_jwt_secret=TEST_SECRET,
     )
 
-    app = FastAPI()
-    app.state.config = cfg
-    app.state.settings = settings
-
-    # Auth router (login/logout/me) — needed to obtain a session cookie.
-    from personalscraper.web.auth.routes import router as auth_router
-
-    app.include_router(auth_router)
-    # Pipeline control routes — the subject under test.
+    # Pipeline control routes — the subject under test, behind the guard.
     from personalscraper.web.routes.pipeline import router as pipeline_router
 
-    _mount_guarded(app, pipeline_router)
-
-    client = TestClient(app, base_url="https://testserver")
-    resp = client.post(
-        "/api/auth/login",
-        json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+    return guarded_client(
+        config=cfg,
+        settings=settings,
+        routers=pipeline_router,
+        login=(TEST_USERNAME, TEST_PASSWORD),
     )
-    assert resp.status_code == 204
-    return client
 
 
 # ── POST /run ────────────────────────────────────────────────────────────────
@@ -893,13 +868,11 @@ class TestGuards:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = FastAPI()
-        app.state.config = cfg
-        app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        _mount_guarded(app, pipeline_router)
-        client = TestClient(app, base_url="https://testserver")
+        client = guarded_client(
+            config=cfg, settings=settings, routers=pipeline_router, with_auth=False
+        )
 
         resp = client.get("/api/pipeline/status")
         assert resp.status_code == 401
@@ -917,12 +890,13 @@ class TestPipelineRoutesViaCreateApp:
     """
 
     @pytest.fixture
-    def real_app_client(self, test_config) -> TestClient:
+    def real_app_client(self, test_config, make_web_client) -> TestClient:
         """Build an authenticated ``TestClient`` through ``create_app()``.
 
         Args:
             test_config: Synthetic ``Config`` fixture (function-scoped,
                 so each test gets a fresh ``tmp_path``).
+            make_web_client: Shared full-app ``TestClient`` factory.
 
         Returns:
             Authenticated ``TestClient`` ready for guarded route assertions.
@@ -938,10 +912,7 @@ class TestPipelineRoutesViaCreateApp:
             web_password_hash=hash_password(pwd),
             web_jwt_secret="pipe-control-wiring-secret",
         )
-        from personalscraper.web.app import create_app
-
-        app = create_app(cfg, settings)
-        client = TestClient(app, base_url="https://testserver")
+        client = make_web_client(cfg, settings, https=True)
         resp = client.post(
             "/api/auth/login",
             json={"username": "admin", "password": pwd},
@@ -969,13 +940,9 @@ class TestPipelineRoutesViaCreateApp:
         assert "paused" in data
         assert "watcher_enabled" in data
 
-    def test_401_without_session(self, test_config) -> None:
+    def test_401_without_session(self, test_config, make_web_client) -> None:
         """Unauthenticated request through ``create_app`` → 401."""
-        from personalscraper.web.app import create_app
-
-        settings = Settings(_env_file=None)  # type: ignore[call-arg]
-        app = create_app(test_config, settings)
-        client = TestClient(app)
+        client = make_web_client(test_config)
         resp = client.get("/api/pipeline/status")
         assert resp.status_code == 401
 
@@ -1161,24 +1128,14 @@ class TestHistoryRoutes:
             web_jwt_secret=TEST_SECRET,
         )
 
-        app = FastAPI()
-        app.state.config = cfg
-        app.state.settings = settings
-
-        from personalscraper.web.auth.routes import router as auth_router
-
-        app.include_router(auth_router)
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        _mount_guarded(app, pipeline_router)
-
-        client = TestClient(app, base_url="https://testserver")
-        resp = client.post(
-            "/api/auth/login",
-            json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+        return guarded_client(
+            config=cfg,
+            settings=settings,
+            routers=pipeline_router,
+            login=(TEST_USERNAME, TEST_PASSWORD),
         )
-        assert resp.status_code == 204
-        return client
 
     # ── /history list ────────────────────────────────────────────────────
 
@@ -1299,23 +1256,14 @@ class TestHistoryRoutes:
             web_jwt_secret=TEST_SECRET,
         )
 
-        app = FastAPI()
-        app.state.config = cfg
-        app.state.settings = settings
-
-        from personalscraper.web.auth.routes import router as auth_router
-
-        app.include_router(auth_router)
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        _mount_guarded(app, pipeline_router)
-
-        client = TestClient(app, base_url="https://testserver")
-        resp = client.post(
-            "/api/auth/login",
-            json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+        client = guarded_client(
+            config=cfg,
+            settings=settings,
+            routers=pipeline_router,
+            login=(TEST_USERNAME, TEST_PASSWORD),
         )
-        assert resp.status_code == 204
 
         resp = client.get("/api/pipeline/history")
         assert resp.status_code == 200
@@ -1391,13 +1339,11 @@ class TestHistoryRoutes:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = FastAPI()
-        app.state.config = cfg
-        app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        _mount_guarded(app, pipeline_router)
-        client = TestClient(app, base_url="https://testserver")
+        client = guarded_client(
+            config=cfg, settings=settings, routers=pipeline_router, with_auth=False
+        )
 
         resp = client.get("/api/pipeline/history")
         assert resp.status_code == 401
@@ -1420,13 +1366,11 @@ class TestHistoryRoutes:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = FastAPI()
-        app.state.config = cfg
-        app.state.settings = settings
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        _mount_guarded(app, pipeline_router)
-        client = TestClient(app, base_url="https://testserver")
+        client = guarded_client(
+            config=cfg, settings=settings, routers=pipeline_router, with_auth=False
+        )
 
         resp = client.get("/api/pipeline/history/aaa111")
         assert resp.status_code == 401

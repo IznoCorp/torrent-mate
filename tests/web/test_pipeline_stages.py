@@ -17,7 +17,6 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.conf.models.staging import StagingDirConfig
@@ -25,7 +24,7 @@ from personalscraper.config import Settings
 from personalscraper.indexer import migrations as _migrations_pkg
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.web.auth.passwords import hash_password
-from personalscraper.web.deps import require_session
+from tests.web._web_harness import guarded_client
 
 TEST_USERNAME = "stages-test"
 TEST_PASSWORD = "stages-test-password"
@@ -45,13 +44,6 @@ _MOVIE_NFO = """<?xml version="1.0" encoding="UTF-8"?>
     <category source="personalscraper">movies</category>
 </movie>
 """
-
-
-def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
-    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14)."""
-    guarded_api = APIRouter(dependencies=[Depends(require_session)])
-    guarded_api.include_router(router)
-    app.include_router(guarded_api)
 
 
 def _staging_dirs() -> list[StagingDirConfig]:
@@ -83,23 +75,14 @@ def _make_client(test_config, db_path: Path, data_dir: Path, staging_dir: Path |
         web_jwt_secret=TEST_SECRET,
     )
 
-    app = FastAPI()
-    app.state.config = cfg
-    app.state.settings = settings
-
-    from personalscraper.web.auth.routes import router as auth_router
     from personalscraper.web.routes.pipeline import router as pipeline_router
 
-    app.include_router(auth_router)
-    _mount_guarded(app, pipeline_router)
-
-    client = TestClient(app, base_url="https://testserver")
-    resp = client.post(
-        "/api/auth/login",
-        json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+    return guarded_client(
+        config=cfg,
+        settings=settings,
+        routers=pipeline_router,
+        login=(TEST_USERNAME, TEST_PASSWORD),
     )
-    assert resp.status_code == 204, f"Login failed: {resp.status_code}"
-    return client
 
 
 def _fresh_db(tmp_path: Path) -> Path:

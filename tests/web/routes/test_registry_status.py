@@ -14,9 +14,10 @@ from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.web.registry_projection import RegistryHealthProjection
+from tests.web._web_harness import mount_guarded
 
-# Reuse the helper from the pipeline route tests.
-from tests.web.test_pipeline_routes import TEST_HASH, TEST_PASSWORD, TEST_USERNAME, _mount_guarded  # noqa: E402
+# Reuse the auth constants from the pipeline route tests.
+from tests.web.test_pipeline_routes import TEST_HASH, TEST_PASSWORD, TEST_USERNAME  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ def registry_client(test_config) -> TestClient:
     # Registry status route — the subject under test.
     from personalscraper.web.routes.registry import router as registry_router
 
-    _mount_guarded(app, registry_router)
+    mount_guarded(app, registry_router)
 
     client = TestClient(app, base_url="https://testserver")
     resp = client.post(
@@ -84,7 +85,7 @@ class TestAuthGuard:
         app.state.config = test_config
         app.state.settings = settings
         app.state.registry_projection = RegistryHealthProjection()
-        _mount_guarded(app, registry_router)
+        mount_guarded(app, registry_router)
         client = TestClient(app)
 
         resp = client.get("/api/registry/status")
@@ -159,7 +160,7 @@ class TestRegistryStatus:
         app.include_router(auth_router)
         from personalscraper.web.routes.registry import router as registry_router
 
-        _mount_guarded(app, registry_router)
+        mount_guarded(app, registry_router)
 
         client = TestClient(app, base_url="https://testserver")
         resp = client.post(
@@ -246,7 +247,7 @@ class TestFailSoft:
         from personalscraper.web.auth.routes import router as auth_router
 
         app.include_router(auth_router)
-        _mount_guarded(app, registry_router)
+        mount_guarded(app, registry_router)
 
         client = TestClient(app, base_url="https://testserver")
         resp = client.post(
