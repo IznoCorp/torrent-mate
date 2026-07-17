@@ -942,6 +942,46 @@
         "title": "DestructiveOp",
         "type": "object"
       },
+      "DiscardResponse": {
+        "description": "Response body for ``POST /api/staging/media/{id}/discard`` (\u00a77).\n\nThe ``journaled`` flag confirms the append-only destructive-op row was\nwritten. ``quarantine_path`` is the destination (None when the folder was\njust emptied in-place).\n\nAttributes:\n    ok: ``True`` when the discard was accepted.\n    media_id: The staging media id.\n    journaled: ``True`` when the destructive-op journal row was written.\n    quarantine_path: Absolute path to the quarantine destination, or\n        ``None`` when the folder was emptied in-place.\n    detail: Human-readable French status detail.",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "journaled": {
+            "title": "Journaled",
+            "type": "boolean"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "quarantine_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarantine Path"
+          }
+        },
+        "required": [
+          "ok",
+          "media_id",
+          "journaled"
+        ],
+        "title": "DiscardResponse",
+        "type": "object"
+      },
       "DiskInfo": {
         "description": "A single configured storage disk with its mount and capacity data.\n\nAttributes:\n    id: The disk identifier as declared in ``config/disks.json5``\n        (e.g. ``\"disk_1\"``, ``\"disk_2\"``).\n    label: Human-readable disk label configured by the operator.\n    mounted: ``True`` if the disk mount path currently exists and is\n        accessible on the filesystem.\n    free_gb: Free space in gibibytes, rounded to one decimal.\n    total_gb: Total capacity in gibibytes, derived from\n        ``shutil.disk_usage(path).total`` at query time.\n    used_pct: Percentage of capacity currently in use, rounded to one\n        decimal (``(1 - free_gb / total_gb) * 100``).",
         "properties": {
@@ -5893,6 +5933,49 @@
           }
         },
         "summary": "Continue Staging Media",
+        "tags": [
+          "staging"
+        ]
+      }
+    },
+    "/api/staging/media/{media_id}/discard": {
+      "post": {
+        "description": "Discard a non-media artifact from the staging area (\u00a77).\n\nOnly items with ``media_kind == \"other\"`` (unsorted / AUTRES) qualify \u2014 they\nare moved into the ``_quarantine`` directory under the staging root and\nrecorded in the append-only destructive-journal. The journal write is\nverified with a read-back before ``journaled`` is set to ``True``\n(``record_destruction`` is fail-soft \u2014 the quarantine move always succeeds,\nbut the audit trail is the point). A scrapable item (movie/tvshow) matched\ninstead returns 422 with a directive to use the resolve or pipeline-restart\nflow.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`DiscardResponse` with ``ok=True`` and the quarantine\n    destination when the artifact was discarded. ``journaled`` is ``True``\n    only when the destructive-op row was verified with a read-back.\n\nRaises:\n    404: No item matches the id.\n    422: The item is a scrapable media (movie/tvshow) \u2014 use the resolve\n        or continue endpoint instead.\n    503: No indexer database configured.",
+        "operationId": "discard_staging_media_api_staging_media__media_id__discard_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Staging Media",
         "tags": [
           "staging"
         ]

@@ -1640,6 +1640,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staging/media/{media_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard Staging Media
+         * @description Discard a non-media artifact from the staging area (§7).
+         *
+         *     Only items with ``media_kind == "other"`` (unsorted / AUTRES) qualify — they
+         *     are moved into the ``_quarantine`` directory under the staging root and
+         *     recorded in the append-only destructive-journal. The journal write is
+         *     verified with a read-back before ``journaled`` is set to ``True``
+         *     (``record_destruction`` is fail-soft — the quarantine move always succeeds,
+         *     but the audit trail is the point). A scrapable item (movie/tvshow) matched
+         *     instead returns 422 with a directive to use the resolve or pipeline-restart
+         *     flow.
+         *
+         *     Args:
+         *         media_id: The stable media id from a list item.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`DiscardResponse` with ``ok=True`` and the quarantine
+         *         destination when the artifact was discarded. ``journaled`` is ``True``
+         *         only when the destructive-op row was verified with a read-back.
+         *
+         *     Raises:
+         *         404: No item matches the id.
+         *         422: The item is a scrapable media (movie/tvshow) — use the resolve
+         *             or continue endpoint instead.
+         *         503: No indexer database configured.
+         */
+        post: operations["discard_staging_media_api_staging_media__media_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staging/media/{media_id}/enqueue": {
         parameters: {
             query?: never;
@@ -2388,6 +2432,37 @@ export interface components {
             run_uid?: string | null;
             /** Ts */
             ts: number;
+        };
+        /**
+         * DiscardResponse
+         * @description Response body for ``POST /api/staging/media/{id}/discard`` (§7).
+         *
+         *     The ``journaled`` flag confirms the append-only destructive-op row was
+         *     written. ``quarantine_path`` is the destination (None when the folder was
+         *     just emptied in-place).
+         *
+         *     Attributes:
+         *         ok: ``True`` when the discard was accepted.
+         *         media_id: The staging media id.
+         *         journaled: ``True`` when the destructive-op journal row was written.
+         *         quarantine_path: Absolute path to the quarantine destination, or
+         *             ``None`` when the folder was emptied in-place.
+         *         detail: Human-readable French status detail.
+         */
+        DiscardResponse: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Journaled */
+            journaled: boolean;
+            /** Media Id */
+            media_id: string;
+            /** Ok */
+            ok: boolean;
+            /** Quarantine Path */
+            quarantine_path?: string | null;
         };
         /**
          * DiskInfo
@@ -5573,6 +5648,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContinueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_staging_media_api_staging_media__media_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscardResponse"];
                 };
             };
             /** @description Validation Error */
