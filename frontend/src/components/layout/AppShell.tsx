@@ -29,12 +29,17 @@ import { useStagingMedia } from "@/hooks/useStagingMedia";
 import { useWanted } from "@/hooks/useAcquisition";
 import { useQueryClient } from "@tanstack/react-query";
 import { isEvent } from "@/api/events";
+import { decisionsKeys } from "@/api/decisions";
+import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 
 /**
  * AppShellInner — the shell content with access to the event-stream context
  * (mounted inside {@link EventStreamProvider}).  Owns three nav badge queries
  * ({@link NavCountBadge} for /scraping and /acquisition, {@link StatusDot} for
- * /pipeline) and the WebSocket listener that refreshes them on relevant events.
+ * /pipeline) and the WebSocket listener that refreshes the staging badge,
+ * decisions, and pipeline history on run-lifecycle + step-boundary events
+ * ({@link useStagingMedia} has its own WS listener for the grid; /acquisition
+ * polls at 60 s — no WS dependency).
  *
  * @returns The shell layout element.
  */
@@ -47,25 +52,32 @@ function AppShellInner(): ReactElement {
   // page_size=1 so we pull only the counts aggregate, not the full list.
   // Poll at 60 s (DESIGN §1.1 — the endpoint runs a filesystem scan, so
   // the badge query must not inherit the grid's 8 s cadence).
-  const { data: stagingData } = useStagingMedia(
+  const { data: stagingData, isError: stagingIsError } = useStagingMedia(
     { page_size: 1 },
     { refetchInterval: 60_000, staleTime: 55_000 },
   );
-  const awaitingAction: number = stagingData?.counts.awaiting_action ?? 0;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime schema-drift guard (SF-6)
+  const awaitingAction: number = stagingData?.counts?.awaiting_action ?? 0;
 
   // ── Badge 2: /pipeline = running dot when a run is active ────────────
   const { snapshot: pipelineStatus } = usePipelineStatus();
   const pipelineRunning: boolean = pipelineStatus.state !== "idle";
 
   // ── Badge 3: /acquisition = pending wanted count ─────────────────────
-  const { data: wantedData } = useWanted({ status: "pending", page_size: 1 });
+  const { data: wantedData, isError: wantedIsError } = useWanted(
+    { status: "pending", page_size: 1 },
+    { refetchInterval: 60_000, staleTime: 55_000 },
+  );
   const pendingWanted: number = wantedData?.total ?? 0;
 
-  // ── WS listener: invalidate staging counts + pipeline history on ─────
-  // ItemProgressed status changes and run-finished events. The pipeline-
+  // ── WS listener: invalidate staging counts + decisions + pipeline ───
+  // history on ItemProgressed status changes and run-lifecycle events
+  // (PipelineStarted included — deliberate widening vs the DESIGN's
+  // "run-finished" wording, because a run start flips the pipeline dot from
+  // idle and a new scrape tick may have queued decision rows). The pipeline-
   // status invalidation is handled by usePipelineStatus's own listener;
   // the acquisition badge has no WS dependency (wanted state changes on
-  // its own poll cycle).
+  // its own 60 s poll cycle).
   //
   // Scan every event appended since the last render, not just the last
   // one: useEventStream coalesces a synchronous replay burst (reconnect,
@@ -85,22 +97,41 @@ function AppShellInner(): ReactElement {
           e.type === "PipelineStarted"),
     );
     if (shouldInvalidate) {
-      void queryClient.invalidateQueries({ queryKey: ["staging", "media"] });
+      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
       void queryClient.invalidateQueries({
         queryKey: ["pipeline", "history"],
       });
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
     }
   }, [events, queryClient]);
 
-  // ── Badge map — always defined (not conditional); each entry guards ──
-  // its own zero/absent state (NavCountBadge returns null at count ≤ 0,
-  // StatusDot only renders when pipelineRunning is true).
+  // ── Badge map — entries inserted only when non-zero/active, or when ─
+  // the query backing the badge is in error (an indeterminate "?" marker
+  // replaces the silent absence).
   const badges = useMemo<Record<string, ReactNode>>(() => {
     const map: Record<string, ReactNode> = {};
-    if (awaitingAction > 0) {
+    if (stagingIsError) {
+      map["/scraping"] = (
+        <span
+          data-slot="nav-count"
+          className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-danger px-1 text-[0.6875rem] font-semibold leading-none text-danger-foreground shadow-sm ring-2 ring-sidebar"
+          aria-label="Compteur indisponible"
+        >
+          ?
+        </span>
+      );
+    } else if (awaitingAction > 0) {
       map["/scraping"] = <NavCountBadge count={awaitingAction} />;
     }
-    if (pipelineRunning) {
+    if (pipelineStatus.state === "paused") {
+      map["/pipeline"] = (
+        <StatusDot
+          status="warning"
+          showLabel={false}
+          aria-label="Pipeline en pause"
+        />
+      );
+    } else if (pipelineRunning) {
       map["/pipeline"] = (
         <StatusDot
           status="running"
@@ -109,11 +140,28 @@ function AppShellInner(): ReactElement {
         />
       );
     }
-    if (pendingWanted > 0) {
+    if (wantedIsError) {
+      map["/acquisition"] = (
+        <span
+          data-slot="nav-count"
+          className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-danger px-1 text-[0.6875rem] font-semibold leading-none text-danger-foreground shadow-sm ring-2 ring-sidebar"
+          aria-label="Compteur indisponible"
+        >
+          ?
+        </span>
+      );
+    } else if (pendingWanted > 0) {
       map["/acquisition"] = <NavCountBadge count={pendingWanted} />;
     }
     return map;
-  }, [awaitingAction, pipelineRunning, pendingWanted]);
+  }, [
+    awaitingAction,
+    pipelineRunning,
+    pendingWanted,
+    stagingIsError,
+    wantedIsError,
+    pipelineStatus.state,
+  ]);
 
   return (
     <div className="flex min-h-screen bg-background font-sans text-foreground">

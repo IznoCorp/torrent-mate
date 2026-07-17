@@ -58,6 +58,8 @@ export const stagingMediaKeys = {
  *
  * Args:
  *   params: Pagination / sort / filter query parameters.
+ *   queryOptions: Optional ``refetchInterval`` / ``staleTime`` overrides
+ *       (merged over the default 8 s poll).
  *
  * Returns:
  *   The TanStack Query result for the {@link StagingMediaResponse}.
