@@ -6,7 +6,7 @@
 **Type**: feat
 **Branch**: feat/pipeline-panel (off main @ dc01fb11 — V2 + hotfix 0.51.1)
 **Ticket**: #307 (epic #304) — claimed; board moves broken (kanban-mate#187), card stays in Backlog
-**PR**: _(none yet)_
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/313
 **Merge**: squash (**auto** — operator directive 2026-07-17)
 **Design**: `docs/features/pipeline-panel/DESIGN.md` ← shared spec §2.3 + §1.1 (conditional `?run=` redirect)
 **Version bump**: 0.51.1 → 0.52.0 (minor)
@@ -17,12 +17,12 @@
 
 ## Phases
 
-| # | Phase | File | Status |
-| - | ----- | ---- | ------ |
-| 1 | Stepper compression + mobile vertical | phase-01-stepper.md | [x] |
-| 2 | History repatriation + legend popover | phase-02-history.md | [x] |
-| 3 | Conditional /maintenance?run= redirect | phase-03-redirect.md | [x] |
-| 4 | Final gate | phase-04-final-gate.md | [x] |
+| #   | Phase                                  | File                   | Status |
+| --- | -------------------------------------- | ---------------------- | ------ |
+| 1   | Stepper compression + mobile vertical  | phase-01-stepper.md    | [x]    |
+| 2   | History repatriation + legend popover  | phase-02-history.md    | [x]    |
+| 3   | Conditional /maintenance?run= redirect | phase-03-redirect.md   | [x]    |
+| 4   | Final gate                             | phase-04-final-gate.md | [x]    |
 
 ## Review cycles
 
@@ -37,6 +37,15 @@
 - Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases — DONE; mutations A/B verified RED then reverted). Open items recorded there incl. **B4
   (backend calm-empty history on DB failure — LOUD operator item, candidate hotfix)** and P2
   (active outranks blocked).
+
+### Cycle 2
+
+- Verification agent on fix range 3ec5fe9e..77065ee5 (4 commits, 15 files). Gates re-run: tsc clean,
+  eslint clean, frontend suite 799/799. All 7 code findings (B1/B2/B3/D1/C1/C2/A1) + all test findings
+  (G1–G7 mutation-proof, B2/B3/D1/C1 coverage) + docs sweep genuinely FIXED. C1 keyboard-open verified
+  in real Chrome (Enter + Space → exactly one toggle each). ZERO new defects >=80 conf. Sub-threshold
+  notes (non-blocking): Escape no longer closes the legend (~50); redundant onKeyDown on button (~40).
+- Verdict: ready to merge → AUTO squash merge per operator directive.
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
