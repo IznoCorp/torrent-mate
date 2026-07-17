@@ -510,8 +510,9 @@ export interface paths {
          *        with Pydantic error loc paths on failure (no backup created).
          *     5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to
          *        10 most recent per file name.
-         *     6. Atomic write via temp file + ``os.replace`` + ``fsync``,
-         *        serialized with a module-level ``threading.Lock``.
+         *     6. Atomic, crash-durable write via
+         *        :func:`~personalscraper.io_utils.atomic_write_text` (chmod-ed back to
+         *        ``0o600``), serialized with a module-level ``threading.Lock``.
          *     7. Return 200 with warnings and restart-required flag.
          *
          *     Args:
