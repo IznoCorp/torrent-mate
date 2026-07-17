@@ -111,6 +111,31 @@ def _set_state_for_item(
         return False
 
 
+def _clear_state_for_item(state_store: TrailerStateStore, key: str, title: str) -> None:
+    """Best-effort clear of a per-item ledger entry, absorbing ``TrailerStateLocked``.
+
+    Used on the success and already-present outcomes (P6.4 single-truth): the
+    state JSON is a download-attempt ledger, never a presence claim, so an
+    outcome that leaves a trailer in place records NOTHING and clears any prior
+    failure/cooldown entry for the item. A lock contention is logged and
+    swallowed — the trailer is already present, so a lingering stale entry is
+    harmless and must neither abort the loop nor inflate the error counter.
+
+    Args:
+        state_store: The persistent state store to clear from.
+        key: Composite state key for this media item.
+        title: Human-readable title used in the log event.
+    """
+    try:
+        state_store.clear(key)
+    except TrailerStateLocked:
+        log.warning(
+            "trailers_state_locked_for_item",
+            key=key,
+            title=title,
+        )
+
+
 class TrailersOrchestrator:
     """Full trailer acquisition pipeline: scan -> find -> download -> state.
 
@@ -319,20 +344,12 @@ class TrailersOrchestrator:
                             title=item.title,
                             trailer_path=str(lib_trailer),
                         )
-                        _set_state_for_item(
-                            self._state_store,
-                            key,
-                            TrailerState(
-                                last_attempt=datetime.now(timezone.utc).isoformat(),
-                                attempts=1,
-                                status=TrailerStatus.ALREADY_PRESENT_ON_DISK,
-                                media_path=str(item.path),
-                                trailer_path=str(lib_trailer),
-                                season_number=item.season_number,
-                            ),
-                            counts,
-                            item.title,
-                        )
+                        # Single-truth (P6.4): the trailer already exists on a
+                        # storage disk — the filesystem is the truth and the
+                        # derived ``trailer_found`` index carries presence. Do NOT
+                        # persist a presence-claim state; clear any stale ledger
+                        # entry for this item instead.
+                        _clear_state_for_item(self._state_store, key, item.title)
                         counts["already_present_on_disk"] += 1
                         self._item_results.append((str(item.path), "already_present", "already_present_on_disk"))
                         continue
@@ -538,26 +555,17 @@ class TrailersOrchestrator:
                             source="trailers",
                         )
 
-                state_written = _set_state_for_item(
-                    self._state_store,
-                    key,
-                    TrailerState(
-                        last_attempt=now_iso,
-                        attempts=1,
-                        status=TrailerStatus.DOWNLOADED,
-                        media_path=str(item.path),
-                        trailer_path=str(result.output_path) if result.output_path else None,
-                        youtube_url=url,
-                        source="youtube",
-                        season_number=item.season_number,
-                    ),
-                    counts,
-                    item.title,
-                )
+                # Single-truth (P6.4): a successful download records NO presence
+                # claim in the state JSON. Presence is the filesystem's truth
+                # (constitution P26), surfaced through the derived ``trailer_found``
+                # index via the outbox publish above; the state ledger only tracks
+                # failures/cooldowns, so we clear any prior entry for this item.
+                _clear_state_for_item(self._state_store, key, item.title)
+
                 # Propagate the trailer URL into the NFO <trailer> tag so that
                 # Plex / Kodi can display the remote trailer as a fallback.
-                # Silently skip when there is no NFO or state write was blocked.
-                if state_written and item.nfo_path is not None:
+                # Silently skip when there is no NFO.
+                if item.nfo_path is not None:
                     nfo_ok = write_trailer_url_to_nfo(item.nfo_path, url)
                     if not nfo_ok:
                         log.warning(

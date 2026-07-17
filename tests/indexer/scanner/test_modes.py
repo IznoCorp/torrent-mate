@@ -393,3 +393,121 @@ class TestEnrichOneFileSkipsColumnOnNone:
         after = conn.execute("SELECT enriched_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
         assert after["enriched_at"] is not None, "enriched_at must be set even after a transient OS error"
         assert after["enriched_at"] > 0
+
+
+# ---------------------------------------------------------------------------
+# _enrich_one_file — trailer_found derived-index refresh (P6.4 single-truth)
+# ---------------------------------------------------------------------------
+
+
+def _empty_artwork_json() -> str:
+    """Return a serialised all-absent :class:`ArtworkInventory` for seeding.
+
+    Returns:
+        The ``model_dump_json`` of an inventory with every artwork kind absent.
+    """
+    return ArtworkInventory(
+        poster=False,
+        fanart=False,
+        landscape=False,
+        banner=False,
+        clearlogo=False,
+        clearart=False,
+        discart=False,
+        characterart=False,
+    ).model_dump_json()
+
+
+class TestEnrichRefreshesTrailerFound:
+    """P6.4: enrich reconciles the derived ``trailer_found`` index from the disk.
+
+    The filesystem is the single truth for trailer existence (constitution P26);
+    ``trailer_found`` is a DERIVED index that enrich refreshes from the on-disk
+    trailer via the P5 completeness read-model.
+    """
+
+    def test_trailer_found_set_when_present_and_flipped_when_deleted(self, tmp_path: Path) -> None:
+        """A present trailer sets ``trailer_found``; deleting it flips the index off.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture (real media dir for the FS probe).
+        """
+        conn = _make_conn()
+        item_id, file_id = _seed_db(conn, nfo_status="valid", artwork_json=_empty_artwork_json())
+
+        # Real movie directory + video so media_completeness can probe the disk.
+        movie_dir = tmp_path / "Fight Club (1999)"
+        movie_dir.mkdir()
+        video = movie_dir / "movie.mkv"
+        video.write_bytes(b"\x00" * 4096)
+        trailer = movie_dir / "Fight Club (1999)-trailer.mp4"
+        trailer.write_bytes(b"x" * 200_000)
+
+        # Enrich once — trailer present → trailer_found row is created.
+        _enrich_one_file(conn, file_id, video, item_id, None)
+        present = conn.execute(
+            "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'trailer_found'",
+            (item_id,),
+        ).fetchone()
+        assert present is not None, "trailer_found must be set when the trailer is on disk"
+
+        # Delete the trailer, re-enrich — the derived index flips off.
+        trailer.unlink()
+        _enrich_one_file(conn, file_id, video, item_id, None)
+        after = conn.execute(
+            "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'trailer_found'",
+            (item_id,),
+        ).fetchone()
+        assert after is None, "a trailer deleted on disk must flip trailer_found off on the next enrich"
+
+    def test_trailer_found_absent_when_no_trailer(self, tmp_path: Path) -> None:
+        """Enrich on a dir with no trailer leaves ``trailer_found`` absent.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        conn = _make_conn()
+        item_id, file_id = _seed_db(conn, nfo_status="valid", artwork_json=_empty_artwork_json())
+
+        movie_dir = tmp_path / "Heat (1995)"
+        movie_dir.mkdir()
+        video = movie_dir / "movie.mkv"
+        video.write_bytes(b"\x00" * 4096)
+
+        _enrich_one_file(conn, file_id, video, item_id, None)
+        row = conn.execute(
+            "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'trailer_found'",
+            (item_id,),
+        ).fetchone()
+        assert row is None, "trailer_found must stay absent when no trailer exists on disk"
+
+    def test_trailer_found_preserves_existing_precise_outbox_path(self, tmp_path: Path) -> None:
+        """A precise outbox-written path survives the refresh (only presence is asserted).
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        conn = _make_conn()
+        item_id, file_id = _seed_db(conn, nfo_status="valid", artwork_json=_empty_artwork_json())
+
+        movie_dir = tmp_path / "Se7en (1995)"
+        movie_dir.mkdir()
+        video = movie_dir / "movie.mkv"
+        video.write_bytes(b"\x00" * 4096)
+        trailer = movie_dir / "Se7en (1995)-trailer.mp4"
+        trailer.write_bytes(b"x" * 200_000)
+
+        # Simulate the download outbox having written the precise trailer file path.
+        precise = str(trailer)
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'trailer_found', ?)",
+            (item_id, precise),
+        )
+
+        _enrich_one_file(conn, file_id, video, item_id, None)
+        row = conn.execute(
+            "SELECT value FROM item_attribute WHERE item_id = ? AND key = 'trailer_found'",
+            (item_id,),
+        ).fetchone()
+        assert row is not None
+        assert row["value"] == precise, "the precise outbox path must be preserved (ON CONFLICT DO NOTHING)"

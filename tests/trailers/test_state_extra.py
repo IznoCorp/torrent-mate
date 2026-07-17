@@ -191,8 +191,14 @@ class TestNonFcntlBranches:
 class TestShouldSkipBranches:
     """Cover lines 560, 562, 569-571, 573 — should_skip branches."""
 
-    def test_skip_when_status_downloaded(self, tmp_path: Path) -> None:
-        """should_skip returns True when status is DOWNLOADED.
+    def test_no_skip_on_legacy_downloaded_presence_claim(self, tmp_path: Path) -> None:
+        """A legacy DOWNLOADED entry does NOT skip (P6.4 single-truth).
+
+        DOWNLOADED is a legacy presence claim, no longer written. should_skip must
+        NOT treat it as authoritative: it falls through to the ``next_retry_at is
+        None → do NOT skip`` branch so the item is re-examined against the disk
+        (the FS is the truth for presence; the orchestrator's own
+        ``trailer_exists`` short-circuit handles an already-present trailer).
 
         Args:
             tmp_path: Pytest tmp_path fixture.
@@ -207,10 +213,10 @@ class TestShouldSkipBranches:
                 media_path="/x",
             ),
         )
-        assert store.should_skip("movie:tmdb:1") is True
+        assert store.should_skip("movie:tmdb:1") is False
 
-    def test_skip_when_status_already_present_on_disk(self, tmp_path: Path) -> None:
-        """should_skip returns True when status is ALREADY_PRESENT_ON_DISK.
+    def test_no_skip_on_legacy_already_present_on_disk_claim(self, tmp_path: Path) -> None:
+        """A legacy ALREADY_PRESENT_ON_DISK entry does NOT skip (P6.4 single-truth).
 
         Args:
             tmp_path: Pytest tmp_path fixture.
@@ -225,7 +231,7 @@ class TestShouldSkipBranches:
                 media_path="/x",
             ),
         )
-        assert store.should_skip("movie:tmdb:1") is True
+        assert store.should_skip("movie:tmdb:1") is False
 
     def test_no_skip_when_next_retry_at_none_and_status_no_trailer(self, tmp_path: Path) -> None:
         """No skip when next_retry_at is None on a non-terminal status.

@@ -156,22 +156,38 @@ def _validate_season_number(value: int | None, owner: str) -> None:
 
 
 class TrailerStatus(Enum):
-    """Lifecycle status of a trailer download attempt.
+    """Status of a trailer DOWNLOAD ATTEMPT (the state JSON is an attempt ledger).
 
     Values are persisted as strings in the JSON state file. Do NOT rename
     members without a migration step.
+
+    Single-truth (P6.4 / constitution P26): the filesystem is the truth for
+    trailer *existence*; the state JSON is a download-attempt LEDGER — it records
+    failures, cooldowns and bot-detection, never a presence claim. The
+    attempt-ledger members are ``NO_TRAILER_AVAILABLE``, ``BOT_DETECTED``,
+    ``HTTP_ERROR``, ``YTDLP_ERROR`` (all carry a retry/cooldown) plus the
+    housekeeping ``ORPHAN`` / ``SKIPPED_BY_FILTER``.
+
+    ``DOWNLOADED`` and ``ALREADY_PRESENT_ON_DISK`` were presence claims — an
+    assertion that "a trailer exists". They are **no longer written** (P6.4): a
+    successful download or an already-present detection clears the ledger entry
+    instead, and presence questions route to the filesystem probe (the derived
+    ``trailer_found`` index). The two members are retained only so pre-1.0 state
+    files that still carry them deserialise without a migration; ``should_skip``
+    no longer treats them as authoritative and ``auto_gc`` still reclaims any
+    legacy ``DOWNLOADED`` rows.
     """
 
-    DOWNLOADED = "downloaded"
+    # --- Attempt-ledger members (written; failures + cooldowns) ---
     NO_TRAILER_AVAILABLE = "no_trailer_available"
     BOT_DETECTED = "bot_detected"
     HTTP_ERROR = "http_error"
     YTDLP_ERROR = "ytdlp_error"
     SKIPPED_BY_FILTER = "skipped_by_filter"
     ORPHAN = "orphan"
-    # NEW (DESIGN §8 extension — library-aware SOT recheck):
-    # the trailer was found on one of the storage disks before any network
-    # call. Distinct from the staging-only "already_present" runtime counter.
+    # --- Legacy presence-claim members (NO LONGER WRITTEN — P6.4 single-truth) ---
+    # Retained for backward deserialisation of pre-1.0 state files only.
+    DOWNLOADED = "downloaded"
     ALREADY_PRESENT_ON_DISK = "already_present_on_disk"
 
 
@@ -533,15 +549,71 @@ class TrailerStateStore:
             self._save(entries)
             self._maybe_log_recovery(len(entries))
 
+    def clear(self, key: str) -> bool:
+        """Remove the ledger entry for ``key`` if present (P6.4 single-truth).
+
+        The state JSON is a download-attempt ledger of FAILURES and cooldowns,
+        never a presence claim. A successful download — or an already-present
+        detection — has nothing to defer, so its prior ledger entry (if any) is
+        cleared rather than overwritten with a "downloaded" presence status:
+        presence is the filesystem's truth (constitution P26), surfaced through
+        the derived ``trailer_found`` index. Clearing also drops any stale
+        failure cooldown so a later disk deletion re-attempts cleanly.
+
+        The read-modify-write cycle is protected by ``fcntl.flock`` on Unix.
+
+        Args:
+            key: Composite state key.
+
+        Returns:
+            ``True`` when an entry was removed, ``False`` when ``key`` was absent.
+
+        Raises:
+            TrailerStateLocked: If the advisory lock cannot be acquired within
+                the retry budget (Unix only).
+        """
+        if _FCNTL_AVAILABLE and _fcntl is not None:
+            self._lock_file.parent.mkdir(parents=True, exist_ok=True)
+            with self._lock_file.open("a") as lock_fh:
+                self._acquire_lock(lock_fh)
+                try:
+                    return self._do_clear(key)
+                finally:
+                    _fcntl.flock(lock_fh, _fcntl.LOCK_UN)
+        else:
+            return self._do_clear(key)
+
+    def _do_clear(self, key: str) -> bool:
+        """Inner clear logic — called under lock (or directly on non-Unix).
+
+        Args:
+            key: Composite state key to remove.
+
+        Returns:
+            ``True`` when an entry was removed, ``False`` when absent.
+        """
+        entries = self._load()
+        if key not in entries:
+            return False
+        del entries[key]
+        self._save(entries)
+        return True
+
     def should_skip(self, key: str) -> bool:
         """Return ``True`` if the entry for ``key`` should be skipped.
 
-        Skip logic (DESIGN §7):
+        Skip logic (DESIGN §7, P6.4 single-truth): the ledger only defers a
+        RETRY — it never asserts presence. Presence is the filesystem's job
+        (the orchestrator's own ``trailer_exists`` short-circuit), so this method
+        no longer skips on the legacy ``DOWNLOADED`` / ``ALREADY_PRESENT_ON_DISK``
+        presence claims (those are no longer written; a stray legacy row simply
+        falls through to the ``next_retry_at is None → do NOT skip`` branch and is
+        re-examined against the disk).
+
         - Missing key → do NOT skip (first run).
         - ``BOT_DETECTED`` → never skip (always retry on next run).
-        - ``DOWNLOADED`` / ``ALREADY_PRESENT_ON_DISK`` → skip (no retry needed).
-        - Any other status with ``next_retry_at`` in the future → skip.
-        - Any other status with ``next_retry_at`` in the past or absent → do NOT skip.
+        - Any status with ``next_retry_at`` in the future → skip (cooldown active).
+        - Any status with ``next_retry_at`` in the past or absent → do NOT skip.
 
         Args:
             key: Composite state key.
@@ -555,8 +627,6 @@ class TrailerStateStore:
             return False
         if state.status == TrailerStatus.BOT_DETECTED:
             return False
-        if state.status in (TrailerStatus.DOWNLOADED, TrailerStatus.ALREADY_PRESENT_ON_DISK):
-            return True
         if state.next_retry_at is None:
             return False
         # Type is `str | datetime` for ergonomic construction; __post_init__

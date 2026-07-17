@@ -11,6 +11,7 @@ from typing import Literal
 
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.core.artwork_naming import artwork_inventory_from_names
+from personalscraper.core.completeness import media_completeness as _media_completeness
 from personalscraper.core.completeness import nfo_status as _core_nfo_status
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
@@ -27,6 +28,7 @@ __all__ = [
     "_enrich_one_file",
     "_inventory_artwork",
     "_purge_non_video_stream_rows",
+    "_refresh_trailer_found",
     "_resolve_item_root_dir",
     "_scan_disk_enrich",
 ]
@@ -81,6 +83,11 @@ from personalscraper.naming_patterns import SEASON_DIR_RE as _TV_SEASON_DIR_RE  
 # specify one. Setting nfo_status to NULL ("not applicable") is more
 # faithful than reporting them as broken in library-report.
 _NFO_NA_CATEGORIES: frozenset[str] = frozenset({"audiobooks"})
+
+# Map the DB ``media_item.kind`` to the completeness read-model media type so the
+# trailer-presence refresh applies the right Plex placement rule. Only movies and
+# TV shows have a trailer slot; every other kind is skipped.
+_TRAILER_MEDIA_TYPES: dict[str, Literal["movie", "tvshow"]] = {"movie": "movie", "show": "tvshow"}
 
 
 def _resolve_item_root_dir(file_path: Path) -> Path | None:
@@ -236,6 +243,49 @@ def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"]
     return "invalid"
 
 
+def _refresh_trailer_found(
+    conn: sqlite3.Connection,
+    item_id: int,
+    item_dir: Path,
+    media_type: Literal["movie", "tvshow"],
+) -> None:
+    """Reconcile the derived ``trailer_found`` attribute from the on-disk trailer (P6.4).
+
+    The filesystem is the single truth for trailer existence (constitution P26);
+    the ``trailer_found`` item attribute is a DERIVED index. This reads the P5
+    completeness read-model — the T4 seam
+    :func:`personalscraper.core.completeness.media_completeness`, the sole owner of
+    the on-disk trailer-placement rule — and reconciles the index on every enrich
+    pass:
+
+    * trailer present on disk → ensure a ``trailer_found`` row exists. An existing
+      precise path written by the download outbox is preserved (``DO NOTHING`` on
+      conflict); a fresh row records the media directory as an FS-detected marker —
+      only *presence* is load-bearing (``find_items_without_trailer`` tests the
+      attribute's existence, not its value).
+    * trailer absent on disk → DELETE any ``trailer_found`` row, so a trailer
+      deleted on disk flips the derived index on the next enrich pass.
+
+    Args:
+        conn: Open SQLite connection (caller is responsible for committing).
+        item_id: PK of the owning ``media_item``.
+        item_dir: The media directory whose trailer placement is probed (movie
+            dir, or show root for TV shows).
+        media_type: ``"movie"`` or ``"tvshow"`` — drives the Plex placement rule.
+    """
+    if _media_completeness(item_dir, media_type).has_trailer:
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'trailer_found', ?) "
+            "ON CONFLICT(item_id, key) DO NOTHING",
+            (item_id, str(item_dir)),
+        )
+    else:
+        conn.execute(
+            "DELETE FROM item_attribute WHERE item_id = ? AND key = 'trailer_found'",
+            (item_id,),
+        )
+
+
 def _enrich_one_file(
     conn: sqlite3.Connection,
     file_id: int,
@@ -336,8 +386,13 @@ def _enrich_one_file(
     # Sidecar folders (.actors/, Extras/, etc.) are skipped: their absence of
     # NFO/artwork must not overwrite the correct state set by sibling files. ---
     if item_id is not None and parent_dir is not None:
+        # ``cache_miss`` is True whenever the NFO/artwork scan ran fresh for this
+        # directory — i.e. once per item directory per pass (or every call when no
+        # cache is supplied). The trailer-presence refresh piggybacks it so a
+        # folder with one video and ten sidecars pays the completeness probe once.
         if nfo_artwork_cache is not None and parent_dir in nfo_artwork_cache:
             nfo_status, artwork = nfo_artwork_cache[parent_dir]
+            cache_miss = False
         else:
             from personalscraper.indexer.scanner import _modes as modes_api  # noqa: PLC0415
 
@@ -345,17 +400,20 @@ def _enrich_one_file(
             artwork = modes_api._inventory_artwork(parent_dir)
             if nfo_artwork_cache is not None:
                 nfo_artwork_cache[parent_dir] = (nfo_status, artwork)
+            cache_miss = True
 
         # Categories that do not use the Kodi NFO convention (audiobooks
         # have no ``movie.nfo`` / ``tvshow.nfo`` equivalent) must not be
         # flagged as ``missing`` just because no .nfo file is present.
         # Suppress the NFO update in that case so ``nfo_status`` stays
         # NULL — interpreted as "not applicable" by readers.
-        cat_row = conn.execute(
-            "SELECT category_id FROM media_item WHERE id = ?",
+        meta_row = conn.execute(
+            "SELECT category_id, kind FROM media_item WHERE id = ?",
             (item_id,),
         ).fetchone()
-        if cat_row is not None and cat_row[0] in _NFO_NA_CATEGORIES:
+        category_id = meta_row[0] if meta_row is not None else None
+        kind = meta_row[1] if meta_row is not None else None
+        if category_id in _NFO_NA_CATEGORIES:
             nfo_status = None
 
         # Skip column updates when either scan returned None — a transient OS error
@@ -376,6 +434,17 @@ def _enrich_one_file(
                 "UPDATE media_item SET artwork_json = ? WHERE id = ?",
                 (artwork.model_dump_json(), item_id),
             )
+
+        # --- Trailer presence refresh (P6.4 single-truth / T4) ---
+        # Reconcile the derived ``trailer_found`` index from the on-disk trailer,
+        # once per item directory per pass. A trailer deleted on disk flips the
+        # index on the next enrich; a trailer that appeared gets it back.
+        if cache_miss and parent_dir is not None:
+            media_type = _TRAILER_MEDIA_TYPES.get(kind) if kind is not None else None
+            if media_type is not None:
+                from personalscraper.indexer.scanner import _modes as modes_api  # noqa: PLC0415
+
+                modes_api._refresh_trailer_found(conn, item_id, Path(parent_dir), media_type)
 
     # --- Step 4: OSHash retry (DEV #51) ---
     # Stage-A rows and rows where a previous hash attempt failed carry

@@ -372,9 +372,14 @@ _LADDER: list[Any] = [
             "item_results": [("downloaded", "downloaded")],
             "failed_kinds": [],
             "counts": {"downloaded": 1},
-            "state_status": "downloaded",
-            "state_attempts": 1,
-            "next_retry_set": False,
+            # P6.4 single-truth: a successful download records NO presence claim in
+            # the state JSON (the ledger tracks failures/cooldowns only) — it clears
+            # any prior entry, so no state is persisted here. Presence is the
+            # filesystem's truth (``trailer_placed`` True) + the derived index.
+            # Previously pinned status="downloaded"/attempts=1/next_retry_set=False.
+            "state_status": None,
+            "state_attempts": None,
+            "next_retry_set": None,
             "trailer_placed": True,
         },
         id="downloaded",
@@ -552,7 +557,8 @@ class TestTrailerPlacementFamilies:
         assert expected_path == item.path / "Fight Club (1999)-trailer.mp4"
         assert outcome["trailer_placed"] is True
         assert outcome["counts"] == {"downloaded": 1}
-        assert outcome["state_status"] == "downloaded"
+        # P6.4 single-truth: success writes no presence claim (was "downloaded").
+        assert outcome["state_status"] is None
 
     def test_tvshow_places_trailer_in_subfolder(self, tmp_path: Path) -> None:
         """A downloaded TV-show trailer lands in ``Trailers/<name>.mp4``.
@@ -571,7 +577,8 @@ class TestTrailerPlacementFamilies:
         assert expected_path == item.path / "Trailers" / "Game of Thrones (2011).mp4"
         assert outcome["trailer_placed"] is True
         assert outcome["counts"] == {"downloaded": 1}
-        assert outcome["state_status"] == "downloaded"
+        # P6.4 single-truth: success writes no presence claim (was "downloaded").
+        assert outcome["state_status"] is None
 
 
 class TestTrailerDownloadSideEffects:
@@ -722,8 +729,13 @@ class TestTrailerLibraryOnDisk:
             "item_results": [("already_present", "already_present_on_disk")],
             "failed_kinds": [],
             "counts": {"already_present_on_disk": 1},
-            "state_status": "already_present_on_disk",
-            "state_attempts": 1,
-            "next_retry_set": False,
+            # P6.4 single-truth: the library-aware recheck no longer persists an
+            # ALREADY_PRESENT_ON_DISK presence claim — presence is the filesystem
+            # (``trailer_placed`` True) + the derived index. No state is written
+            # (any stale ledger entry is cleared). Previously pinned
+            # status="already_present_on_disk"/attempts=1/next_retry_set=False.
+            "state_status": None,
+            "state_attempts": None,
+            "next_retry_set": None,
             "trailer_placed": True,
         }
