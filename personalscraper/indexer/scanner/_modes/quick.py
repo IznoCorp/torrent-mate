@@ -3,29 +3,22 @@
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 import time
 from pathlib import Path
 
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.fingerprint import round_mtime_ns
-from personalscraper.indexer.merkle import (
-    DiskBulkChangeDetected,
-    compute_merkle_delta,
-    compute_merkle_root,
-)
-from personalscraper.indexer.repos import disk_repo
-from personalscraper.indexer.scanner._db_writes import (
-    _upsert_path_row,
+from personalscraper.indexer.scanner._merkle_gate import (
+    guard_bulk_change,
+    merkle_short_circuit,
+    recompute_disk_merkle_after_walk,
 )
 from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
 from personalscraper.indexer.scanner._walker import (
     DirMtimeSkipVisitor,
     WalkBudget,
     WalkCheckpoint,
-    _build_disk_fingerprints,
-    _sample_fresh_fingerprints,
     walk,
 )
 from personalscraper.indexer.schema import DiskRow
@@ -283,26 +276,12 @@ def _scan_disk_quick(
             ``False``.  The caller should skip this disk and surface an
             actionable message to the user.
     """
-    # --- Merkle short-circuit ---
-    # Build FS-aware fingerprints (mtime bucketed by the disk capability) so the
-    # root gate, the dir-mtime walk, and the bulk-change delta are all bucketed
-    # consistently; for NTFS this is the identity transform → byte-identical.
-    fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
-    current_root = compute_merkle_root(fingerprints)
-
-    if disk.merkle_root is not None and current_root == disk.merkle_root:
-        # DB-computed root matches stored root → disk unchanged, skip walk.
-        log.info("indexer.scan.merkle_match", disk_uuid=disk.uuid, label=disk.label, merkle_root=current_root)
-        disks_skipped[0] += 1
+    # --- Merkle short-circuit (shared single-impl) ---
+    # Returns the DB-side fingerprints on a miss (walk needed) or None on a match
+    # (disk unchanged → skip; disks_skipped already bumped inside the helper).
+    fingerprints = merkle_short_circuit(conn, disk, disks_skipped, capability)
+    if fingerprints is None:
         return
-
-    log.info(
-        "indexer.scan.merkle_miss",
-        disk_uuid=disk.uuid,
-        label=disk.label,
-        stored_root=disk.merkle_root,
-        computed_root=current_root,
-    )
 
     # --- Paranoia branch (DESIGN §17.1) ---
     # On Merkle miss, query recent outbox events and force a re-stat for any
@@ -319,26 +298,18 @@ def _scan_disk_quick(
     if paranoia_window_seconds > 0:
         _run_paranoia_branch(conn, disk, mount, paranoia_window_seconds, capability)
 
-    # --- Bulk-change guard (quick-mode only, on Merkle miss) ---
-    # Sample fresh tier-1 fingerprints by re-stat'ing all
-    # media_file paths already known to the DB and comparing size/mtime_ns.
-    # A high delta (many files changed at once) suggests a bulk restore or
-    # disk swap rather than organic drift — freeze unless confirmed by caller.
-    if not confirm_bulk_change and disk.merkle_root is not None:
-        # Sample fresh FS-side fingerprints with the SAME capability so the
-        # delta is bucketed-vs-bucketed — sub-bucket jitter on a coarse FS
-        # cannot inflate the delta and trip a spurious freeze of a healthy disk.
-        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount, capability)
-        delta = compute_merkle_delta(fingerprints, fresh_fps)
-        if delta > merkle_delta_freeze_threshold:
-            log.warning(
-                "indexer.merkle.delta_freeze",
-                disk_uuid=disk.uuid,
-                label=disk.label,
-                delta=delta,
-                threshold=merkle_delta_freeze_threshold,
-            )
-            raise DiskBulkChangeDetected(delta=delta, disk_uuid=disk.uuid)
+    # --- Bulk-change guard (quick-mode only, on Merkle miss; shared single-impl) ---
+    # A high delta (many files changed at once) suggests a bulk restore or disk
+    # swap rather than organic drift — freeze unless confirmed by the caller.
+    guard_bulk_change(
+        conn,
+        disk,
+        mount,
+        fingerprints,
+        confirm_bulk_change=confirm_bulk_change,
+        merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+        capability=capability,
+    )
 
     # --- Dir-mtime walk ---
     visitor = QuickVisitor(
@@ -373,17 +344,6 @@ def _scan_disk_quick(
     if budget_exhausted is not None and budget_exhausted[0]:
         return
 
-    # Write-through the path row for the disk root itself.
-    try:
-        root_st = os.stat(mount, follow_symlinks=False)
-        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-    except OSError:
-        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
-
-    # Recompute and persist the updated Merkle root so the next quick scan
-    # can short-circuit if the FS state is unchanged (FS-aware bucketing so the
-    # stored root matches what the next scan's short-circuit recomputes).
-    updated_fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
-    new_root = compute_merkle_root(updated_fingerprints)
-    disk_repo.update_merkle_root(conn, disk.id, new_root)
-    log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)
+    # Write-through the disk-root path row and recompute + persist the Merkle
+    # root so the next quick scan can short-circuit (shared single-impl).
+    recompute_disk_merkle_after_walk(conn, disk, mount, capability)
