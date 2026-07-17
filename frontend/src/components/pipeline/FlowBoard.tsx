@@ -164,19 +164,36 @@ export function FlowBoard(): ReactElement {
     }
   });
   useEffect(() => {
-    try {
-      const mql = window.matchMedia("(min-width: 40em)");
-      const handler = (e: MediaQueryListEvent) => {
-        setIsDesktop(e.matches);
-      };
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      // jsdom or SSR without matchMedia — leave as-is.
+      return;
+    }
+    const mql = window.matchMedia("(min-width: 40em)");
+    const handler = (e: MediaQueryListEvent) => {
+      setIsDesktop(e.matches);
+    };
+    // Feature-detect the modern API; fall back to the deprecated addListener
+    // for older browsers (Safari < 14). jsdom stubs either path.
+    // The deprecated methods are absent from the TS MediaQueryList type;
+    // the cast bridges the gap — the methods exist at runtime where this
+    // branch runs.
+    if ("addEventListener" in mql) {
       mql.addEventListener("change", handler);
       return () => {
         mql.removeEventListener("change", handler);
       };
-    } catch {
-      // jsdom or environments without matchMedia — leave as-is.
-      return;
     }
+    const legacy = mql as unknown as {
+      addListener: (h: (e: MediaQueryListEvent) => void) => void;
+      removeListener: (h: (e: MediaQueryListEvent) => void) => void;
+    };
+    legacy.addListener(handler);
+    return () => {
+      legacy.removeListener(handler);
+    };
   }, []);
   const navigate = useNavigate();
   // The open stage drawer is URL-addressable (?stage=<key>) so the browser

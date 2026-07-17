@@ -5,9 +5,16 @@
  * renders a responsive grid of monitoring panels: disks, locks, index health,
  * and run history, plus the {@link ActionCatalog} of maintenance commands with
  * generated run forms.
+ *
+ * The pipeline-run detail view lives exclusively on ``/pipeline`` (Phase 02
+ * repatriation).  Clicking a row in the maintenance history table sets
+ * ``?run=<uid>`` on this route; {@link MaintenanceRunRedirect} catches the
+ * param and teleports the user to ``/pipeline?run=<uid>`` where the detail
+ * renders with a cross-link back to ``/maintenance``.  No inline RunDetail
+ * lives here — the redirect is the single path.
  */
 
-import { useCallback, type ReactElement } from "react";
+import { type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { EventFeed } from "@/components/dashboard/EventFeed";
@@ -17,49 +24,28 @@ import { DestructiveLogPanel } from "@/components/maintenance/DestructiveLogPane
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
-import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
+import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /**
  * Maintenance — the authenticated maintenance dashboard route (``/maintenance``).
  *
- * Lays out four monitoring panels in a responsive grid (1 col mobile, 2 tablet,
- * 4 desktop) plus the {@link ActionCatalog} of maintenance commands with
- * generated, dry-run-first run forms.
+ * Lays out three monitoring panels in a responsive grid (1 col mobile, 2 tablet,
+ * 3 desktop) plus the {@link ActionCatalog} of maintenance commands with
+ * generated, dry-run-first run forms.  The run-history table carries the trigger
+ * legend so labels stay decodable here (review cycle 1, C2).
  *
  * Returns:
  *   The maintenance page element.
  */
 export default function Maintenance(): ReactElement {
-  // The selected run detail is URL-addressable (?run=<uid>) — DOIT-10: every
-  // detail view has its own URL, and Back closes it. Push on open (Back
-  // returns to the list), replace on close (no dead history entry).
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedRun = searchParams.get("run");
-  const openRun = useCallback(
-    (uid: string) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("run", uid);
-          return next;
-        },
-        { replace: false },
-      );
-    },
-    [setSearchParams],
-  );
-  const closeRun = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("run");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  // Clicking a maintenance history row sets ?run=<uid> on /maintenance.
+  // MaintenanceRunRedirect (the route wrapper) catches the param and teleports
+  // to /pipeline?run=<uid> — the detail renders there, never inline here
+  // (pipeline-panel Phase 02 + review cycle 1 B1).
+  const [, setSearchParams] = useSearchParams();
+
   // Single shared live-event stream (same WebSocket the TopBar StatusDot reads);
   // the feed + recent-events table moved here from the Dashboard (Phase 5.1).
   const { events } = useEventStreamContext();
@@ -86,13 +72,22 @@ export default function Maintenance(): ReactElement {
       <RecentEventsTable events={events} />
 
       {/* Run-history panel filtered to maintenance runs (kind param → backend).
-          Pipeline runs moved to /pipeline (pipeline-panel Phase 02). */}
-      <RunHistoryTable kind="maintenance" onSelect={openRun} />
-
-      {/* Inline detail view when a history row is selected (URL: ?run=<uid>) */}
-      {selectedRun !== null && (
-        <RunDetail runUid={selectedRun} onClose={closeRun} />
-      )}
+          Pipeline runs moved to /pipeline (pipeline-panel Phase 02).
+          The trigger legend is carried here so labels stay decodable (C2). */}
+      <RunHistoryTable
+        kind="maintenance"
+        onSelect={(uid) => {
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("run", uid);
+              return next;
+            },
+            { replace: false },
+          );
+        }}
+        legend={<TriggerLegend />}
+      />
 
       {/* Action catalog + generated forms (5.2) */}
       <ActionCatalog />

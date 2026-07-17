@@ -126,17 +126,24 @@ describe("Maintenance", () => {
     expect(MockWebSocket.instances).toHaveLength(1);
   });
 
-  it("ouvre le détail de run depuis ?run= (DOIT-10 — détail adressable par URL)", async () => {
-    // A run detail is fetched when the URL carries ?run=<uid>, proving the
-    // selection is URL-addressable (deep-linkable + Back-closable).
+  it("ne charge PAS le détail de run depuis ?run= sur Maintenance (le redirect gère — pipeline-panel Phase 02)", async () => {
+    // The RunDetail block was removed from Maintenance (pipeline-panel review
+    // cycle 1, B1).  When ?run=<uid> is present, MaintenanceRunRedirect
+    // teleports to /pipeline before this component renders — the run detail
+    // lives exclusively on /pipeline.  Rendering Maintenance directly (without
+    // the redirect wrapper) must NOT fetch a run detail.
     renderMaintenance(["/maintenance?run=abc123def456"]);
 
+    // Let any pending effects settle.
     await vi.waitFor(() => {
-      const calls = fetchMock.mock.calls.map(([input]) => urlOf(input));
-      expect(
-        calls.some((u) => u.includes("/api/pipeline/history/abc123def456")),
-      ).toBe(true);
+      expect(screen.getByText("Historique des exécutions")).toBeInTheDocument();
     });
+
+    // No fetch to the run-detail endpoint was issued.
+    const calls = fetchMock.mock.calls.map(([input]) => urlOf(input));
+    expect(
+      calls.some((u) => u.includes("/api/pipeline/history/abc123def456")),
+    ).toBe(false);
   });
 
   it("ne charge QUE l'historique maintenance, pas celui du pipeline (table pipeline repatriée — pipeline-panel Phase 02)", async () => {

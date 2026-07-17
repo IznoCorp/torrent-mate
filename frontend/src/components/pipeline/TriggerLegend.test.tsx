@@ -35,14 +35,12 @@ describe("TriggerLegend", () => {
     render(<TriggerLegend />);
 
     // The ? button is discoverable via its accessible name.
-    // Radix DropdownMenuTrigger listens for pointerdown, not click.
-    fireEvent.pointerDown(
+    fireEvent.click(
       screen.getByRole("button", { name: "Légende des déclencheurs" }),
-      { button: 0, pointerType: "mouse" },
     );
 
     await waitFor(() => {
-      // Popover heading is now visible inside the portal.
+      // Popover heading is now visible inline (no portal).
       expect(screen.getByText("Déclencheurs")).toBeInTheDocument();
     });
 
@@ -78,23 +76,22 @@ describe("TriggerLegend", () => {
     expect(screen.getByText("Déclenché manuellement.")).toBeInTheDocument();
   });
 
-  it("is NOT hover-only — mouseover does not open the popover (DOIT-9)", async () => {
+  it("is NOT hover-only — mouseover does not open the disclosure (DOIT-9)", async () => {
     render(<TriggerLegend />);
 
     const trigger = screen.getByRole("button", {
       name: "Légende des déclencheurs",
     });
 
-    // A mouseover/mouseenter must NOT open the popover — it is tap/click-driven
-    // (DOIT-9: never hover-only). The DropdownMenu trigger only responds to
-    // pointerdown, which maps cleanly to click/tap.
+    // A mouseover/mouseenter must NOT open the disclosure — it is tap/click-driven
+    // (DOIT-9: never hover-only).
     fireEvent.mouseOver(trigger);
     fireEvent.mouseEnter(trigger);
     expect(screen.queryByText("Déclencheurs")).not.toBeInTheDocument();
 
-    // pointerDown DOES open it — confirms the interaction model is tap/click,
-    // not hover.
-    fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+    // click DOES open it — confirms the interaction model is tap/click, not
+    // hover.
+    fireEvent.click(trigger);
 
     await waitFor(() => {
       expect(screen.getByText("Déclencheurs")).toBeInTheDocument();

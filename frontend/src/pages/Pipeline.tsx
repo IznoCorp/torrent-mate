@@ -59,7 +59,8 @@ export default function Pipeline(): ReactElement {
 
   // Run-detail selection is URL-addressable (?run=<uid>) — DOIT-10.
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedRun = searchParams.get("run");
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  const selectedRun = searchParams.get("run") || null;
   const openRun = useCallback(
     (uid: string) => {
       setSearchParams(

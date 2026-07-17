@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 
 import {
   getPipelineRunDetail,
+  ApiError,
   type RunDetail as RunDetailData,
 } from "@/api/client";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
@@ -25,6 +26,7 @@ import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorState } from "@/components/ds/ErrorState";
 
 // ---------------------------------------------------------------------------
 // Outcome → Badge tone mapping
@@ -276,7 +278,7 @@ export function RunDetail({
   onClose,
   showMaintenanceLink = false,
 }: RunDetailProps): ReactElement {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["pipeline", "history", runUid] as const,
     queryFn: () => getPipelineRunDetail(runUid),
   });
@@ -284,6 +286,16 @@ export function RunDetail({
   if (isLoading) {
     return (
       <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-base">Exécution</CardTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Retour
+          </button>
+        </CardHeader>
         <CardContent className="py-4 text-center text-xs text-muted-foreground">
           Chargement…
         </CardContent>
@@ -292,10 +304,31 @@ export function RunDetail({
   }
 
   if (isError || data === undefined) {
+    const is404 = error instanceof ApiError && error.status === 404;
     return (
       <Card>
-        <CardContent className="py-4 text-center text-xs text-muted-foreground">
-          Erreur lors du chargement du détail.
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-base">Exécution</CardTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Retour
+          </button>
+        </CardHeader>
+        <CardContent className="py-4">
+          {is404 ? (
+            <ErrorState title="Ce run n'existe pas (ou plus)." />
+          ) : (
+            <ErrorState
+              title="Erreur serveur — réessayez."
+              {...(error instanceof Error && { message: error.message })}
+              onRetry={() => {
+                void refetch();
+              }}
+            />
+          )}
         </CardContent>
       </Card>
     );

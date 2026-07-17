@@ -24,7 +24,9 @@ export function MaintenanceRunRedirect(): ReactElement {
   const [searchParams] = useSearchParams();
   const runUid = searchParams.get("run");
   if (runUid !== null && runUid !== "") {
-    return <Navigate to={`/pipeline?run=${runUid}`} replace />;
+    return (
+      <Navigate to={`/pipeline?run=${encodeURIComponent(runUid)}`} replace />
+    );
   }
   return <Maintenance />;
 }
