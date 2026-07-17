@@ -136,13 +136,70 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("monte la page Décisions sur « /scraping »", async () => {
+  it("monte la page Médias sur « /medias »", async () => {
+    renderAt("/medias");
+
+    // The Medias page heading replaces the old Decisions page (S3).
+    expect(
+      await screen.findByRole("heading", { name: "Médias" }),
+    ).toBeInTheDocument();
+  });
+
+  it("redirige « /scraping » vers « /medias »", async () => {
     renderAt("/scraping");
 
-    // The Decisions page heading — no longer ComingSoon (S5).
+    // /scraping → LegacyRedirect → Navigate to /medias → Medias heading visible.
     expect(
-      await screen.findByRole("heading", { name: /décisions de scraping/i }),
+      await screen.findByRole("heading", { name: "Médias" }),
     ).toBeInTheDocument();
+  });
+
+  it("transmet ?media=X de /scraping vers /medias (memory-router)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/scraping?media=tt0123456"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/medias");
+      expect(router.state.location.search).toBe("?media=tt0123456");
+    });
+  });
+
+  it("transmet ?decision=N de /scraping vers /medias (memory-router)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/scraping?decision=42"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/medias");
+      expect(router.state.location.search).toBe("?decision=42");
+    });
   });
 
   it("marque l’onglet actif du bottom tab bar via aria-current", async () => {
