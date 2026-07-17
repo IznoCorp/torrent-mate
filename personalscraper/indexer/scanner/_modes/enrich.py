@@ -9,7 +9,9 @@ import time
 from pathlib import Path
 from typing import Literal
 
+from personalscraper._fs_utils import is_apple_double
 from personalscraper.core.artwork_naming import artwork_inventory_from_names
+from personalscraper.core.completeness import nfo_status as _core_nfo_status
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.release_linker import link_file_to_release
@@ -185,13 +187,21 @@ def _purge_non_video_stream_rows(conn: sqlite3.Connection) -> int:
 
 
 def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"] | None:
-    """Check whether a ``.nfo`` file exists in *parent_dir* and return a status string.
+    """Return the strict NFO-validity status for *parent_dir* (the ONE definition).
 
-    Full NFO parsing (XML validation) is deferred to the scraper integration phases.
-    This function performs only a file-existence check:
+    §9 / VERIFY-MAINTENANCE-03: the enrich scan mode's ``nfo_status`` column now
+    converges on the single strict NFO definition shared by the scraper fast-skip,
+    ``verify`` and the full-scan item stage — content validity, not mere existence.
+    Validity is delegated to :func:`personalscraper.core.completeness.nfo_status`
+    (which itself delegates ``complete`` to
+    :func:`personalscraper.nfo_utils.is_nfo_complete`: parseable XML + at least one
+    non-placeholder ``<uniqueid>``). AppleDouble sidecars (``._*.nfo`` — binary
+    xattr blobs, not real NFOs) are skipped.
 
-    - ``'valid'`` — a ``.nfo`` file is present (we cannot validate content yet).
-    - ``'missing'`` — no ``.nfo`` file found.
+    - ``'valid'`` — at least one real ``.nfo`` in *parent_dir* is content-valid.
+    - ``'invalid'`` — one or more real ``.nfo`` files are present but none is
+      content-valid (unparseable / truncated / no non-placeholder ``<uniqueid>``).
+    - ``'missing'`` — no real ``.nfo`` file found.
     - ``None`` — the directory scan raised an :exc:`OSError` (transient permission
       error or filesystem hiccup); the caller must skip the DB column update so that
       previously-valid data is not overwritten.
@@ -200,14 +210,16 @@ def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"]
         parent_dir: Absolute path of the directory to inspect.
 
     Returns:
-        ``'valid'`` if any ``.nfo`` file exists in *parent_dir*, ``'missing'`` if
-        none are found, or ``None`` when the directory is not readable.
+        ``'valid'`` / ``'invalid'`` / ``'missing'`` per the above, or ``None`` when
+        the directory is not readable.
     """
     try:
         with os.scandir(parent_dir) as it:
-            for entry in it:
-                if entry.name.lower().endswith(".nfo"):
-                    return "valid"
+            candidates = [
+                Path(entry.path)
+                for entry in it
+                if entry.name.lower().endswith(".nfo") and not is_apple_double(entry.name)
+            ]
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -217,7 +229,11 @@ def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"]
             error_type=type(exc).__name__,
         )
         return None
-    return "missing"
+    if not candidates:
+        return "missing"
+    if any(_core_nfo_status(nfo).complete for nfo in candidates):
+        return "valid"
+    return "invalid"
 
 
 def _enrich_one_file(

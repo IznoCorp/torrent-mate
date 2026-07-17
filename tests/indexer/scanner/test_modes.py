@@ -215,6 +215,52 @@ class TestCheckNfoStatusFailSafe:
         assert "PermissionError" in all_text, f"error_type missing from warning; got: {all_text}"
 
 
+_VALID_NFO = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n<movie><title>Cube</title><uniqueid type="tmdb">280</uniqueid></movie>\n'
+)
+# Present but content-invalid: a uniqueid whose value is the "0" placeholder.
+_PLACEHOLDER_NFO = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n<movie><title>Cube</title><uniqueid type="tmdb">0</uniqueid></movie>\n'
+)
+_TRUNCATED_NFO = '<?xml version="1.0" encoding="UTF-8"?>\n<movie><title>Cube</tit'
+
+
+class TestCheckNfoStatusContent:
+    """_check_nfo_status converges on the strict content definition (§9 / VERIFY-MAINTENANCE-03).
+
+    Pre-P5.5 the enrich scan mode reported ``valid`` for *any* ``.nfo`` file
+    (existence-only). It now delegates validity to
+    ``core.completeness.nfo_status`` (→ ``nfo_utils.is_nfo_complete``): a present
+    NFO that is unparseable or carries only placeholder ``<uniqueid>`` values is
+    now ``invalid``, and AppleDouble sidecars never count as a real NFO.
+    """
+
+    def test_valid_nfo_returns_valid(self, tmp_path: Path) -> None:
+        """A parseable NFO with a non-placeholder uniqueid → 'valid'."""
+        (tmp_path / "Cube.nfo").write_text(_VALID_NFO, encoding="utf-8")
+        assert _check_nfo_status(str(tmp_path)) == "valid"
+
+    def test_placeholder_uniqueid_returns_invalid(self, tmp_path: Path) -> None:
+        """A present NFO whose only uniqueid is the '0' placeholder → 'invalid' (was 'valid')."""
+        (tmp_path / "Cube.nfo").write_text(_PLACEHOLDER_NFO, encoding="utf-8")
+        assert _check_nfo_status(str(tmp_path)) == "invalid"
+
+    def test_unparseable_nfo_returns_invalid(self, tmp_path: Path) -> None:
+        """A present but truncated/unparseable NFO → 'invalid' (was 'valid')."""
+        (tmp_path / "Cube.nfo").write_text(_TRUNCATED_NFO, encoding="utf-8")
+        assert _check_nfo_status(str(tmp_path)) == "invalid"
+
+    def test_apple_double_only_returns_missing(self, tmp_path: Path) -> None:
+        """A directory holding only an AppleDouble ``._*.nfo`` sidecar → 'missing' (was 'valid')."""
+        (tmp_path / "._Cube.nfo").write_bytes(b"\x00\x05\x16\x07binary-xattr-blob")
+        assert _check_nfo_status(str(tmp_path)) == "missing"
+
+    def test_no_nfo_returns_missing(self, tmp_path: Path) -> None:
+        """A directory with no ``.nfo`` file at all → 'missing'."""
+        (tmp_path / "Cube.mkv").write_bytes(b"video")
+        assert _check_nfo_status(str(tmp_path)) == "missing"
+
+
 # ---------------------------------------------------------------------------
 # _enrich_one_file — column-skip integration tests
 # ---------------------------------------------------------------------------
