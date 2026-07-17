@@ -20,7 +20,7 @@
 | # | Phase | File | Status |
 | - | ----- | ---- | ------ |
 | 1 | Stepper compression + mobile vertical | phase-01-stepper.md | [x] |
-| 2 | History repatriation + legend popover | phase-02-history.md | [ ] |
+| 2 | History repatriation + legend popover | phase-02-history.md | [x] |
 | 3 | Conditional /maintenance?run= redirect | phase-03-redirect.md | [ ] |
 | 4 | Final gate | phase-04-final-gate.md | [ ] |
 
