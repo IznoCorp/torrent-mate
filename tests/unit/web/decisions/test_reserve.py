@@ -303,7 +303,7 @@ class TestReserveDecisionRun:
 
         mock_conn.execute = mock_execute
 
-        with patch("personalscraper.web.decisions.reserve.sqlite3.connect", return_value=mock_conn):
+        with patch("personalscraper.web._runner_engine.sqlite3.connect", return_value=mock_conn):
             with pytest.raises(HTTPException) as exc_info:
                 _reserve_decision_run(
                     db_path,

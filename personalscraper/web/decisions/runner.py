@@ -1,27 +1,21 @@
-"""Decision runner — subprocess wrapper spawned by the resolve POST handler.
+"""Decision runner — thin config over the shared runner engine.
 
 Executable as ``python -m personalscraper.web.decisions.runner``. Reads its
 configuration from environment variables (set by the POST handler in
-``personalscraper.web.routes.decisions``) and is responsible for:
-
-1. Reading the decision row from ``scrape_decision`` (staging_path, status).
-2. Writing a ``pipeline_run`` row (``kind='maintenance'``, ``command='scrape-resolve'``).
-3. Spawning ``personalscraper scrape-resolve <staging_path> --provider X --id Y`` as a
-   detached subprocess (``start_new_session=True``).
-4. Streaming each output line to Redis (fail-soft) and a 64 KiB ring buffer.
-5. Finalizing the ``pipeline_run`` row on every exit path.
+``personalscraper.web.routes.decisions``), validates the ``scrape_decision`` row,
+then delegates the run-row / spawn / stream / requeue / finalize lifecycle to
+:func:`personalscraper.web._runner_engine.run_spawn_stream`.
 
 Lock ownership (R11 / webui-ux phase 4): the ``scrape-resolve`` CLI acquires the
 SCOPED per-staging-item scrape lock
 (:func:`~personalscraper.lock.acquire_scrape_resolve_lock`) for its lifetime — NOT
 the global ``pipeline.lock``. That scoped lock is fail-closed against the global
 lock (distinct items resolve in parallel; any global holder makes the resolve back
-off), so this runner does NOT acquire any lock on the child's behalf. The
-``"scrape-resolve"`` entry in
-``personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for this
-path: that set is consulted only by the MAINTENANCE runner (which does not spawn
-scrape-resolve); this decisions runner consults no such set and simply never
-touches a lock.
+off), so this runner does NOT hold any lock on the child's behalf. Instead it
+PROBES ``pipeline.lock`` before each spawn (visibility + pacing only — the child's
+claim stays the sole safety authority) and re-queues on the child's exit-3
+lock-busy signal, generalised through the engine's ``probe_lock_each_iter`` /
+``requeue_on_exit3`` policy.
 
 Environment contract (canonical — match the spawner):
 
@@ -33,22 +27,20 @@ Environment contract (canonical — match the spawner):
 Exit codes:
 
 * ``0`` — the CLI subprocess completed successfully.
-* ``1`` — the CLI subprocess exited non-zero (error).
+* ``1`` — the CLI subprocess exited non-zero (error) or the queue deadline passed.
 * ``2`` — misconfiguration (missing env, missing/non-pending decision, config load
   failure, DB failure, spawn failure).
-* ``143`` — runner killed via SIGTERM (same as maintenance runner).
+* ``143`` — runner killed via SIGTERM.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import random
 import signal
 import sqlite3
 import subprocess
 import sys
-import time
 from types import FrameType
 from typing import cast
 
@@ -57,35 +49,30 @@ from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web.maintenance.runner import (
-    _get_redis,
-    _kill_child_group,
-    _redis_publish_line,
-    _RingBuffer,
+from personalscraper.web._runner_engine import (
+    OUTCOME_ERROR,
+    OUTCOME_KILLED,
+    SIGTERM_EXIT_CODE,
+    RunnerSpec,
+    run_spawn_stream,
 )
-from personalscraper.web.run_queue import wait_in_visible_queue
+from personalscraper.web._runner_engine import (
+    RingBuffer as _RingBuffer,
+)
+from personalscraper.web._runner_engine import (
+    get_redis as _get_redis,
+)
+from personalscraper.web._runner_engine import (
+    kill_child_group as _kill_child_group,
+)
+from personalscraper.web._runner_engine import (
+    redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
+)
 
 log = get_logger(__name__)
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
 #: Outcome string used for CLI exit-code-0 success.
 OUTCOME_SUCCESS = "success"
-
-#: Outcome string used for CLI non-zero exit.
-OUTCOME_ERROR = "error"
-
-#: Outcome string used when the runner is killed via SIGTERM.
-OUTCOME_KILLED = "killed"
-
-#: Exit code used after a SIGTERM-initiated shutdown (128 + SIGTERM).
-_SIGTERM_EXIT_CODE = 143
-
-# ---------------------------------------------------------------------------
-# Env reading
-# ---------------------------------------------------------------------------
 
 
 def _read_mandatory_env() -> tuple[str, int, str, int]:
@@ -140,25 +127,20 @@ def _read_mandatory_env() -> tuple[str, int, str, int]:
     return run_uid, decision_id, provider, provider_id
 
 
-# ---------------------------------------------------------------------------
-# Decision row reading
-# ---------------------------------------------------------------------------
-
-
 def _read_decision_row(db_path: str, decision_id: int) -> dict[str, object] | None:
     """Read the ``scrape_decision`` row by *decision_id*.
 
     Opens a short-lived ``sqlite3`` connection and returns ``id``,
-    ``staging_path``, and ``status`` as a dict.  Returns ``None`` when the
-    row does not exist.
+    ``staging_path``, and ``status`` as a dict. Returns ``None`` when the row
+    does not exist.
 
     Args:
         db_path: Path to the indexer SQLite database.
         decision_id: Primary key of the ``scrape_decision`` row.
 
     Returns:
-        A dict with ``id``, ``staging_path``, and ``status`` keys, or
-        ``None`` when the row does not exist.
+        A dict with ``id``, ``staging_path``, and ``status`` keys, or ``None``
+        when the row does not exist.
     """
     conn = sqlite3.connect(db_path, isolation_level=None)
     apply_pragmas(conn)
@@ -173,11 +155,6 @@ def _read_decision_row(db_path: str, decision_id: int) -> dict[str, object] | No
     return dict(row)
 
 
-# ---------------------------------------------------------------------------
-# CLI argv building
-# ---------------------------------------------------------------------------
-
-
 def _build_argv(staging_path: str, provider: str, provider_id: int, via: str) -> list[str]:
     """Build the ``scrape-resolve`` CLI argument list.
 
@@ -185,12 +162,12 @@ def _build_argv(staging_path: str, provider: str, provider_id: int, via: str) ->
         staging_path: Absolute path to the staging item.
         provider: Metadata provider name (``'tmdb'`` or ``'tvdb'``).
         provider_id: Numeric identifier assigned by the provider.
-        via: Resolution provenance (``'pick'`` / ``'search_override'``),
-            forwarded so ``resolution_json.via`` is accurate (F09).
+        via: Resolution provenance (``'pick'`` / ``'search_override'``), forwarded
+            so ``resolution_json.via`` is accurate (F09).
 
     Returns:
-        A command-line argument list starting with ``sys.executable``,
-        suitable for ``subprocess.Popen``.
+        A command-line argument list starting with ``sys.executable``, suitable
+        for ``subprocess.Popen``.
     """
     return [
         sys.executable,
@@ -207,59 +184,31 @@ def _build_argv(staging_path: str, provider: str, provider_id: int, via: str) ->
     ]
 
 
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
-
-
 def main() -> None:
-    """Run the decision resolution subprocess.
+    """Run the decision resolution subprocess (see module docstring).
 
-    This is the single entry point invoked by
-    ``python -m personalscraper.web.decisions.runner``. It reads env vars,
-    validates the decision row exists and is ``'pending'``, ensures a
-    ``pipeline_run`` row exists (``if_absent=True`` — the POST handler
-    reserves it first), spawns the CLI subprocess, streams output to Redis
-    and a ring buffer, then finalizes the row.
-
-    The insert→stream→finalize region is fully guarded: any exception (config
-    failure aside) finalizes the row with an outcome so it is **never** left
-    ``'running'`` (Finding A). A ``SIGTERM`` terminates the child process group
-    and finalizes the row ``'killed'``.
-
-    Lock ownership (R11 / webui-ux phase 4): the ``scrape-resolve`` CLI acquires
-    the SCOPED per-staging-item scrape lock (fail-closed against the global
-    ``pipeline.lock``), NOT the global lock itself; this runner does NOT touch any
-    lock. The vestigial ``_CLI_SELF_LOCKING`` "scrape-resolve" entry (maintenance
-    runner) is irrelevant here — this decisions runner consults no such set.
-
-    Exit codes: 0 on CLI success, 1 on CLI error, 2 on misconfiguration,
-    143 on SIGTERM.
+    Reads env, validates the decision row exists and is ``'pending'`` (finalizing
+    the route-reserved row ``'error'`` on any bad-row path so it is never left
+    ``'running'`` — Finding A/F06), then hands the spawn / stream / requeue /
+    finalize lifecycle to the shared engine. On a ``rc == 0`` finish the engine's
+    ``on_success`` hook triggers the §4 pipeline continuation through the single
+    trigger authority so the resolved media finishes trailers → verify →
+    dispatch and leaves staging.
     """
-    # 1. Read env.
     run_uid, decision_id, provider, provider_id = _read_mandatory_env()
 
-    # 2. Load config (respects PERSONALSCRAPER_CONFIG env).
     try:
         config = load_config()
     except Exception as exc:
-        log.error(
-            "decision_runner_config_load_failed",
-            run_uid=run_uid,
-            error=str(exc),
-        )
+        log.error("decision_runner_config_load_failed", run_uid=run_uid, error=str(exc))
         sys.exit(2)
 
     db_path = config.indexer.db_path
     if db_path is None:
-        log.error(
-            "decision_runner_no_db_path",
-            run_uid=run_uid,
-        )
+        log.error("decision_runner_no_db_path", run_uid=run_uid)
         sys.exit(2)
     web_config = config.web
 
-    # 3. Build options_json for the pipeline_run row.
     options = {"decision_id": decision_id, "provider": provider, "provider_id": provider_id}
     options_json = json.dumps(options, sort_keys=True, separators=(",", ":"))
 
@@ -267,69 +216,36 @@ def main() -> None:
     # 'pick' so an absent env var never breaks the run (F09).
     via = os.environ.get("PERSONALSCRAPER_DECISION_VIA", "pick")
 
-    # 4. Read and validate the decision row.  This read happens on the
-    #    contended library.db BEFORE the guarded stream region — an unguarded
-    #    sqlite error here would kill the process and leave the route-reserved
-    #    'running' row orphaned forever, so finalize it 'error' first (F06).
+    def _finalize_bad_row(error: str) -> None:
+        """Ensure the row exists then finalize it 'error' (never left 'running')."""
+        writer_err = PipelineRunWriter(db_path)
+        writer_err.insert(
+            run_uid,
+            trigger="web",
+            dry_run=False,
+            pid=os.getpid(),
+            kind="maintenance",
+            command="scrape-resolve",
+            options_json=options_json,
+            if_absent=True,
+        )
+        writer_err.finalize(run_uid, OUTCOME_ERROR, error=error)
+
+    # Read + validate the decision row BEFORE the guarded stream region — an
+    # unguarded sqlite error here would kill the process and orphan the
+    # route-reserved 'running' row forever, so finalize it 'error' first (F06).
     try:
         decision = _read_decision_row(str(db_path), decision_id)
     except sqlite3.Error as exc:
-        writer_err = PipelineRunWriter(db_path)
-        writer_err.insert(
-            run_uid,
-            trigger="web",
-            dry_run=False,
-            pid=os.getpid(),
-            kind="maintenance",
-            command="scrape-resolve",
-            options_json=options_json,
-            if_absent=True,
-        )
-        writer_err.finalize(run_uid, OUTCOME_ERROR, error=f"Decision read failed: {exc}")
-        log.error(
-            "decision_runner_decision_read_failed",
-            run_uid=run_uid,
-            decision_id=decision_id,
-            error=str(exc),
-        )
+        _finalize_bad_row(f"Decision read failed: {exc}")
+        log.error("decision_runner_decision_read_failed", run_uid=run_uid, decision_id=decision_id, error=str(exc))
         sys.exit(2)
     if decision is None:
-        writer_err = PipelineRunWriter(db_path)
-        writer_err.insert(
-            run_uid,
-            trigger="web",
-            dry_run=False,
-            pid=os.getpid(),
-            kind="maintenance",
-            command="scrape-resolve",
-            options_json=options_json,
-            if_absent=True,
-        )
-        writer_err.finalize(run_uid, OUTCOME_ERROR, error=f"Decision {decision_id} not found")
-        log.error(
-            "decision_runner_decision_not_found",
-            run_uid=run_uid,
-            decision_id=decision_id,
-        )
+        _finalize_bad_row(f"Decision {decision_id} not found")
+        log.error("decision_runner_decision_not_found", run_uid=run_uid, decision_id=decision_id)
         sys.exit(2)
-
     if decision["status"] != "pending":
-        writer_err = PipelineRunWriter(db_path)
-        writer_err.insert(
-            run_uid,
-            trigger="web",
-            dry_run=False,
-            pid=os.getpid(),
-            kind="maintenance",
-            command="scrape-resolve",
-            options_json=options_json,
-            if_absent=True,
-        )
-        writer_err.finalize(
-            run_uid,
-            OUTCOME_ERROR,
-            error=(f"Decision {decision_id} is '{decision['status']}', expected 'pending'"),
-        )
+        _finalize_bad_row(f"Decision {decision_id} is '{decision['status']}', expected 'pending'")
         log.error(
             "decision_runner_decision_not_pending",
             run_uid=run_uid,
@@ -339,226 +255,77 @@ def main() -> None:
         sys.exit(2)
 
     staging_path = cast(str, decision["staging_path"])
-
-    # 5. Build CLI argv.
     argv = _build_argv(staging_path, provider, provider_id, via)
 
-    # 6. Ensure the pipeline_run row exists (idempotent) and claim its pid.
     writer = PipelineRunWriter(db_path)
-    writer.insert(
-        run_uid,
-        trigger="web",
-        dry_run=False,
-        pid=os.getpid(),
-        kind="maintenance",
-        command="scrape-resolve",
-        options_json=options_json,
-        if_absent=True,
-    )
-    writer.update_pid(run_uid, os.getpid())
-
-    # 7. Stream buffers + SIGTERM handler.  The child is stored in a mutable
-    #    holder so the handler (installed before the spawn) can reach it.
     ring = _RingBuffer()
     child: dict[str, subprocess.Popen[str]] = {}
 
     def _on_sigterm(_signum: int, _frame: FrameType | None) -> None:
-        """Terminate the child group, finalize ``'killed'``."""
+        """Terminate the child group (if any), finalize ``'killed'``."""
         proc_ref = child.get("proc")
         if proc_ref is not None:
             _kill_child_group(proc_ref)
         writer.finalize(run_uid, OUTCOME_KILLED, output_tail=ring.to_str())
-        log.warning(
-            "decision_runner_killed",
-            run_uid=run_uid,
-            decision_id=decision_id,
-        )
-        # os._exit bypasses the try/finally below so the 'killed' outcome is not
-        # overwritten by an 'error' finalize.
-        os._exit(_SIGTERM_EXIT_CODE)
+        log.warning("decision_runner_killed", run_uid=run_uid, decision_id=decision_id)
+        os._exit(SIGTERM_EXIT_CODE)
 
     signal.signal(signal.SIGTERM, _on_sigterm)
 
-    try:
-        # 8. QUEUE + spawn loop (operator directive 2026-07-15): a resolve must
-        #    never surface a pipeline-lock conflict. While the global
-        #    pipeline.lock is held, WAIT here — as a VISIBLE queued state (the
-        #    #249 post-mortem: an invisible queue is the founding failure) —
-        #    then spawn once free. A lost claim race inside the CLI (exit 3,
-        #    claim-first-then-verify) re-queues. The CLI's own lock remains the
-        #    ONLY safety authority; this probe is visibility + pacing only, so
-        #    the wait is race-free by construction.
-        pipeline_lock = config.paths.data_dir / "pipeline.lock"
-        queue_timeout_s = float(os.environ.get("PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT", "1800"))
-        queue_deadline = time.monotonic() + queue_timeout_s
-        redis = _get_redis(web_config)
-        stream_key = web_config.stream_key
-        stream_maxlen = web_config.stream_maxlen
-        seq = 0
-        attempt = 0
+    def _continuation() -> None:
+        """§4 — after a successful resolve, finish the media's pipeline.
 
-        while True:
-            # Shared §6 visible-queue wait (web/run_queue.py): appends the
-            # 'queue' step, paces the poll, finalizes 'error' in French on
-            # deadline. The deadline is shared with the rc==3 re-queue leg
-            # below so retries never extend the total wait.
-            if not wait_in_visible_queue(
-                try_proceed=lambda: not is_lock_held(pipeline_lock),
-                writer=writer,
-                run_uid=run_uid,
-                deadline_monotonic=queue_deadline,
-                timeout_s=queue_timeout_s,
-                timeout_error=(
-                    "Délai d'attente dépassé : pipeline.lock toujours tenu après "
-                    f"{int(queue_timeout_s)}s — résolution abandonnée, relancez-la."
-                ),
-                log_event_prefix="decision_runner",
-                log_context={"decision_id": decision_id},
-                output_tail=ring.to_str,
-            ):
-                sys.exit(1)
+        Trigger a continuation run through the single trigger authority
+        (``pipeline.lock`` is the sole gate). A held lock defers the continuation
+        (the in-flight run picks the freshly-scraped item up) — no second
+        mechanism. The lazy import lets tests patch ``spawn_pipeline_run`` at its
+        source module.
+        """
+        from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
 
-            attempt += 1
-            log.info(
-                "decision_runner_starting",
-                run_uid=run_uid,
-                decision_id=decision_id,
-                staging_path=staging_path,
-                provider=provider,
-                provider_id=provider_id,
-                argv=argv,
-                attempt=attempt,
-            )
+        continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason=RESOLVE_CONTINUATION_TRIGGER)
+        log.info(
+            "decision_runner_continuation",
+            run_uid=run_uid,
+            decision_id=decision_id,
+            continuation_run_uid=continuation_uid,
+            deferred=continuation_uid is None,
+        )
 
-            try:
-                proc = subprocess.Popen(
-                    argv,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    errors="replace",
-                    bufsize=1,
-                    start_new_session=True,
-                )
-            except (OSError, ValueError) as exc:
-                # OSError → exec failure; ValueError → embedded null byte in an arg.
-                log.error(
-                    "decision_runner_spawn_failed",
-                    run_uid=run_uid,
-                    decision_id=decision_id,
-                    error=str(exc),
-                )
-                writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
-                sys.exit(2)
+    queue_timeout_s = float(os.environ.get("PERSONALSCRAPER_RESOLVE_QUEUE_TIMEOUT", "1800"))
 
-            child["proc"] = proc
-
-            # 9. Stream output — ring buffer + Redis.  Any failure here finalizes
-            #    the row 'error' so it is never left 'running'.
-            try:
-                assert proc.stdout is not None
-                for line in proc.stdout:
-                    ring.append(line)
-                    _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
-                    seq += 1
-                rc = proc.wait()
-            except Exception as exc:
-                _kill_child_group(proc)
-                output_tail = ring.to_str()
-                writer.finalize(
-                    run_uid,
-                    OUTCOME_ERROR,
-                    error=str(exc) or type(exc).__name__,
-                    output_tail=output_tail,
-                )
-                log.error(
-                    "decision_runner_stream_failed",
-                    run_uid=run_uid,
-                    decision_id=decision_id,
-                    exc_info=True,
-                )
-                sys.exit(1)
-
-            if rc == 3:
-                # Lock busy at claim time (pipeline re-acquired between our probe
-                # and the CLI's claim, or a same-item resolve is live) — re-queue.
-                # Same deadline as the lock wait, and PACED: a child that exits 3
-                # forever (defect) must never spin the runner at full speed.
-                child.pop("proc", None)
-                if time.monotonic() > queue_deadline:
-                    writer.finalize(
-                        run_uid,
-                        OUTCOME_ERROR,
-                        error=(
-                            "Délai d'attente dépassé : verrou toujours occupé après "
-                            f"{int(queue_timeout_s)}s de tentatives — résolution abandonnée."
-                        ),
-                        output_tail=ring.to_str(),
-                    )
-                    log.error(
-                        "decision_runner_requeue_timeout",
-                        run_uid=run_uid,
-                        decision_id=decision_id,
-                        attempt=attempt,
-                    )
-                    sys.exit(1)
-                log.info(
-                    "decision_runner_requeued",
-                    run_uid=run_uid,
-                    decision_id=decision_id,
-                    attempt=attempt,
-                )
-                time.sleep(1.0 + random.uniform(0.0, 1.0))
-                continue
-            break
-
-        # 10. Finalize.
-        output_tail = ring.to_str()
-        if rc == 0:
-            writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
-            log.info(
-                "decision_runner_completed",
-                run_uid=run_uid,
-                decision_id=decision_id,
-                rc=rc,
-                lines=seq,
-            )
-            # §4 — resolving a decision must not stop at the NFO: the media has to
-            # FINISH its pipeline (trailers → verify → dispatch) and leave staging.
-            # Trigger a continuation run through the single trigger authority
-            # (pipeline.lock is the sole gate). If a run already holds the lock, the
-            # freshly-scraped item is picked up by that run — no second mechanism.
-            from personalscraper.web.pipeline_trigger import (
-                RESOLVE_CONTINUATION_TRIGGER,
-                spawn_pipeline_run,
-            )
-
-            continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason=RESOLVE_CONTINUATION_TRIGGER)
-            log.info(
-                "decision_runner_continuation",
-                run_uid=run_uid,
-                decision_id=decision_id,
-                continuation_run_uid=continuation_uid,
-                deferred=continuation_uid is None,
-            )
-        else:
-            # On failure, capture the last portion of output as the error context.
-            error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
-            writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
-            log.error(
-                "decision_runner_failed",
-                run_uid=run_uid,
-                decision_id=decision_id,
-                rc=rc,
-                lines=seq,
-            )
-
-        sys.exit(rc)
-    finally:
-        # No lock to release here — the scrape-resolve CLI owns the scoped
-        # per-item scrape lock for its own lifetime (R11); this runner never
-        # acquires a lock on its behalf.
-        pass
+    run_spawn_stream(
+        RunnerSpec(
+            writer=writer,
+            run_uid=run_uid,
+            kind="maintenance",
+            command="scrape-resolve",
+            options_json=options_json,
+            dry_run=False,
+            argv=argv,
+            child=child,
+            ring=ring,
+            redis=_get_redis(web_config),
+            stream_key=web_config.stream_key,
+            stream_maxlen=web_config.stream_maxlen,
+            event_prefix="decision_runner",
+            log_context={"decision_id": decision_id},
+            probe_lock_each_iter=True,
+            requeue_on_exit3=True,
+            is_lock_held_fn=is_lock_held,
+            lock_file=config.paths.data_dir / "pipeline.lock",
+            queue_timeout_s=queue_timeout_s,
+            queue_timeout_error=(
+                "Délai d'attente dépassé : pipeline.lock toujours tenu après "
+                f"{int(queue_timeout_s)}s — résolution abandonnée, relancez-la."
+            ),
+            requeue_timeout_error=(
+                "Délai d'attente dépassé : verrou toujours occupé après "
+                f"{int(queue_timeout_s)}s de tentatives — résolution abandonnée."
+            ),
+            on_success=_continuation,
+        )
+    )
 
 
 if __name__ == "__main__":
