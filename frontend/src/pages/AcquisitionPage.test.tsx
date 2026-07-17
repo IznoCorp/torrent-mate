@@ -352,8 +352,6 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    // TVDB ID rendered for the active card.
-    expect(screen.getByText("255968")).toBeInTheDocument();
     // Derived état badge: Top Chef (active + 3 pending) → "En attente".
     expect(screen.getByText("En attente")).toBeInTheDocument();
     // The inactive follow leaves the grid (revue mobile 2026-07-15): it lives
@@ -435,7 +433,7 @@ describe("AcquisitionPage", () => {
     expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
   });
 
-  it("shows a per-series 'Rechercher maintenant' action for active series only", () => {
+  it("shows a per-series 'Rechercher maintenant' action for active series only", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -450,16 +448,20 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // Inactive follows left the card grid (revue mobile 2026-07-15), so only
-    // the active card carries the per-series trigger — enabled.
-    const triggers = screen.getAllByRole("button", {
+    // Inactive follows left the grid (revue mobile 2026-07-15) and the
+    // compact-row actions live in a DropdownMenu. Open the active row's menu.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
+    });
+    fireEvent.pointerDown(trigger);
+    // Rechercher maintenant is a menuitem in the dropdown.
+    const searchItem = await screen.findByRole("menuitem", {
       name: "Rechercher maintenant",
     });
-    expect(triggers).toHaveLength(1);
-    expect(triggers[0]).not.toBeDisabled();
+    expect(searchItem).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("toggles a followed series active/paused in place via updateFollow (C16)", () => {
+  it("toggles a followed series active/paused in place via updateFollow (C16)", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -471,12 +473,15 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // The active toggle carries an accessible label reflecting the next action.
-    const toggle = screen.getByRole("switch", {
-      name: /Désactiver le suivi de Top Chef/,
+    // The active toggle moved to the DropdownMenu — open it first.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
     });
-    expect(toggle).toBeInTheDocument();
-    fireEvent.click(toggle);
+    fireEvent.pointerDown(trigger);
+    const deactivateItem = await screen.findByRole("menuitem", {
+      name: "Désactiver",
+    });
+    fireEvent.click(deactivateItem);
     expect(updateFollowMutateFn).toHaveBeenCalledWith({
       id: 7,
       body: { active: false },
@@ -536,13 +541,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // Next-search caption rendered with a relative "dans ~N h" estimate.
-    expect(
-      screen.getByText(/Prochaine recherche dans ~3\s?h/),
-    ).toBeInTheDocument();
+    // Next-search caption in the compact row shows a relative estimate.
+    expect(screen.getByText(/dans ~3\s?h/)).toBeInTheDocument();
   });
 
-  it('shows "Personnalisé" badge when quality_profile is set', () => {
+  it('does not render the "Personnalisé" badge in compact row (removed per E1)', () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -558,7 +561,8 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    expect(screen.getByText("Personnalisé")).toBeInTheDocument();
+    // The quality_profile badge was removed from compact rows (Phase 02).
+    expect(screen.queryByText("Personnalisé")).not.toBeInTheDocument();
   });
 
   it("shows loading skeletons while followed data loads", () => {
@@ -627,7 +631,7 @@ describe("AcquisitionPage", () => {
 
   // ── Followed panel — unfollow ──────────────────────────────────────────
 
-  it("calls useUnfollow().mutate on unfollow button click", () => {
+  it("calls useUnfollow().mutate on unfollow via dropdown", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -637,13 +641,21 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Retirer" }));
+    // Open the actions dropdown.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
+    });
+    fireEvent.pointerDown(trigger);
+    const retirerItem = await screen.findByRole("menuitem", {
+      name: "Retirer",
+    });
+    fireEvent.click(retirerItem);
     expect(unfollowMutateFn).toHaveBeenCalledWith(42);
   });
 
   // ── Followed panel — edit-cadence dialog ────────────────────────────────
 
-  it("opens the edit-cadence dialog when clicking the Cadence button", async () => {
+  it("opens the edit-cadence dialog from the dropdown", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -660,7 +672,15 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cadence" }));
+    // Open the actions dropdown, click Cadence.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
+    });
+    fireEvent.pointerDown(trigger);
+    const cadenceItem = await screen.findByRole("menuitem", {
+      name: "Cadence",
+    });
+    fireEvent.click(cadenceItem);
 
     expect(
       await screen.findByRole("dialog", { name: /modifier la cadence/i }),
@@ -682,7 +702,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cadence" }));
+    // Open dropdown, click Cadence.
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions pour Top Chef" }),
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Cadence" }));
     await screen.findByRole("dialog", { name: /modifier la cadence/i });
 
     fireEvent.change(screen.getByLabelText(/intervalle/i), {
@@ -706,7 +730,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cadence" }));
+    // Open dropdown, click Cadence.
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions pour Top Chef" }),
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Cadence" }));
     const dialog = await screen.findByRole("dialog", {
       name: /modifier la cadence/i,
     });
@@ -1158,7 +1186,7 @@ describe("AcquisitionPage", () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it("renders the followed watch list as cards", () => {
+  it("renders the followed watch list as compact rows", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -1168,11 +1196,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // The Suivis panel is a MediaCard grid (not a table): the series title +
-    // its actions render.
+    // The Suivis panel is now compact rows (Phase 02), not a MediaCard grid.
     expect(screen.getByText("Carded Show")).toBeInTheDocument();
+    // The actions dropdown trigger is rendered.
     expect(
-      screen.getByRole("button", { name: "Rechercher maintenant" }),
+      screen.getByRole("button", { name: "Actions pour Carded Show" }),
     ).toBeInTheDocument();
   });
 
