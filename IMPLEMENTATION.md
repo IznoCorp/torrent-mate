@@ -29,8 +29,9 @@ row recorded as documented deviation vs spec §5.2)
 | 4   | Media-sheet egress actions                    | phase-04-media-sheet-egress.md       | [x]    |
 | 5   | Contrôle rebuild (`/`)                        | phase-05-controle-rebuild.md         | [x]    |
 | 6   | Final gate — mobile proof + ACC               | phase-06-final-gate.md               | [x]    |
+| 7   | PR fixes cycle 1 (review findings)            | phase-07-pr-fixes-cycle-1.md         | [x]    |
 
-**Next action**: phase 7 — PR fixes cycle 1, then push + CI + verify cycle 2 + AUTO merge
+**Next action**: push + CI + verify cycle 2 + AUTO merge + prod proof
 
 ## Review cycles
 
