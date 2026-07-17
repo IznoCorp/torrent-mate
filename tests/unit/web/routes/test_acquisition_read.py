@@ -698,14 +698,14 @@ class TestParseRunCountsFallback:
 
     def test_counts_dict_still_wins(self) -> None:
         """A recorded counts mapping is returned verbatim (CLI runs)."""
-        from personalscraper.web.routes.acquisition import _parse_run_counts
+        from personalscraper.web.acquisition.service import _parse_run_counts
 
         steps = json.dumps([{"name": "detect", "counts": {"detected": 3, "enqueued": 2}}])
         assert _parse_run_counts(steps) == {"detected": 3, "enqueued": 2}
 
     def test_pipeline_steps_derive_summary(self) -> None:
         """Native per-step fields → processed (max) / skipped (ingest) / errors (sum)."""
-        from personalscraper.web.routes.acquisition import _parse_run_counts
+        from personalscraper.web.acquisition.service import _parse_run_counts
 
         steps = json.dumps(
             [
@@ -718,7 +718,7 @@ class TestParseRunCountsFallback:
 
     def test_skip_only_run_reads_skipped_not_blank(self) -> None:
         """The empty-run shape: 0 processed, N skipped — never None."""
-        from personalscraper.web.routes.acquisition import _parse_run_counts
+        from personalscraper.web.acquisition.service import _parse_run_counts
 
         steps = json.dumps(
             [
@@ -730,7 +730,7 @@ class TestParseRunCountsFallback:
 
     def test_steps_without_any_fields_stay_none(self) -> None:
         """Steps carrying neither counts nor native fields → None (unchanged)."""
-        from personalscraper.web.routes.acquisition import _parse_run_counts
+        from personalscraper.web.acquisition.service import _parse_run_counts
 
         steps = json.dumps([{"name": "boot"}])
         assert _parse_run_counts(steps) is None
