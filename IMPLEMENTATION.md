@@ -30,7 +30,30 @@ row recorded as documented deviation vs spec §5.2)
 | 5   | Contrôle rebuild (`/`)                        | phase-05-controle-rebuild.md         | [x]    |
 | 6   | Final gate — mobile proof + ACC               | phase-06-final-gate.md               | [x]    |
 
-**Next action**: feature-pr — push + PR + CI + review + AUTO merge
+**Next action**: phase 7 — PR fixes cycle 1, then push + CI + verify cycle 2 + AUTO merge
+
+## Review cycles
+
+### Cycle 1
+
+- 4 agents on PR #311 @ fadca5b3. No design contradictions.
+- Retained: 2 CRITICAL (A1 deferred continuation without durable trace §8; C1 disks-error rendered as
+  « Aucun disque configuré » — regression vs DisksPanel), 7 HIGH (B1 move failures opaque, B2 journal
+  read-back stale-row false positive §7, C2 providers calm-nothing, C4/C5 digest+StalledPanel
+  calm-nothing, D1 journaled=false as success toast §7, D3 dead ?media deep-link), mediums (A2 promised
+  run_uid unverified, A3 corrupt-NFO 422, B3/B4 journal completeness, C3 mislabeling, D2 silent
+  ?decision drop) + model-docstring factual errors exported to OpenAPI (#1 timeline_resumes, #2
+  emptied-in-place) + comment sweep (#3-#11, CM-4) + test gaps (403 staging-role ×2, quarantine
+  collision, verbatim toasts, invalidation contracts, hook derivations, collapsed sidebar).
+- Fix phase: phase-07-pr-fixes-cycle-1.md (3 sub-phases).
+
+## Open items (operator arbitration — §méthode rule 4)
+
+- Server-side `position`/`awaiting` param for GET /api/staging/media (pagination-correct segments +
+  ATraiterList >100 cap) — THE tracking record referenced by code comments.
+- B5 quarantine TOCTOU nesting (theoretical under single-writer topology).
+- E ScrapeActivityPanel drift-guard silent on schema-drifted 200 (OpenAPI CI gate compensates).
+- A2 deeper: server-side promised-runs ledger.
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
