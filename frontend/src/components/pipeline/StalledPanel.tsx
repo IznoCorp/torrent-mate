@@ -103,7 +103,13 @@ export function StalledPanel({
             </span>
             <ul className="mt-0.5 flex flex-col gap-0.5 text-xs">
               {reasons.map((reason, i) => (
-                <li key={`${step}-${String(i)}`} className="text-foreground/90">
+                <li
+                  key={`${step}-${String(i)}`}
+                  // Reasons carry unbreakable tokens (release names, absolute
+                  // disk paths) — without break-all they force horizontal
+                  // scroll at phone widths (DOIT-9, caught in the V2 prod proof).
+                  className="break-all text-foreground/90"
+                >
                   {reason}
                 </li>
               ))}
