@@ -56,9 +56,13 @@ def test_cli_telemetry_applied_via_wrapped_chain(cmd_fn_name: str) -> None:
     and ``@handle_cli_errors``, the chain depth is 2: cli_telemetry.wrapper →
     handle_cli_errors wrapper → original function.
     """
-    from personalscraper.commands import pipeline  # noqa: PLC0415
+    from personalscraper.commands import pipeline, torrents  # noqa: PLC0415
 
-    fn = getattr(pipeline, cmd_fn_name)
+    # ``torrents_list`` moved from commands/pipeline.py to commands/torrents.py
+    # (solidify P13.4 — module-size relief). Its decorator chain is unchanged
+    # (@command_with_telemetry + @handle_cli_errors), only its home module moved.
+    module = torrents if cmd_fn_name == "torrents_list" else pipeline
+    fn = getattr(module, cmd_fn_name)
     depth = _wrapped_depth(fn)
     assert depth >= 2, (
         f"{cmd_fn_name}: expected __wrapped__ depth >= 2 "
