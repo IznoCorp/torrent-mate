@@ -8,8 +8,11 @@
  * history, preserving DOIT-10.
  *
  * When ``?run=`` is absent or empty, the request redirects (replace) to
- * ``/systeme`` — the bare canonical route lands on the default État tab, and
- * the maintenance panels live under sibling tabs (systeme-hub).
+ * ``/systeme`` — the bare canonical route for the unified system hub
+ * (systeme-hub feature).  The default État tab renders there; maintenance
+ * panels (actions, history, journal) live under sibling tabs.  This clean
+ * redirect replaces the old ``/maintenance`` bookmark with a single canonical
+ * entry point.
  *
  * Only the ``run`` parameter is forwarded to the pipeline route.  Any other
  * search params on ``/maintenance`` (e.g. a future ``?tab=``) are intentionally

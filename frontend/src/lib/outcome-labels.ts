@@ -52,6 +52,13 @@ export const OUTCOME_TONE: Record<string, BadgeTone> = {
 // ---------------------------------------------------------------------------
 // State maps — live item lifecycle states (not outcomes)
 // ---------------------------------------------------------------------------
+//
+// Exception note: acquisition may carry its own local STATUS_LABEL extending
+// these keys with tokens like ``killed: "Arrêté"``.  That is an ITEM STATUS
+// (the obligation was cancelled by the operator), not a run outcome — it does
+// NOT conflict with ``OUTCOME_LABEL.killed: "Interrompu"``, which describes a
+// killed pipeline/maintenance run.  The two maps serve different domains.
+// ---------------------------------------------------------------------------
 
 /** Backend item state → French label. */
 export const STATE_LABEL: Record<string, string> = {

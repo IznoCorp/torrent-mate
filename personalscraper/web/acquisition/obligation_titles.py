@@ -104,8 +104,10 @@ def resolve_obligation_titles(items: list[ObligationItem], conn: sqlite3.Connect
                 continue
             if item.dispatched_path is not None:
                 raw = Path(item.dispatched_path).name
-                # Strip video extension from bare file names (directories
-                # pass through unchanged — Path.name already has no ext).
+                # Strip video extension from bare file names.  Directories
+                # pass through unchanged — Path.name on a directory yields
+                # the directory name, which won't match the extension guard
+                # below, so no stripping occurs.
                 if raw.lower().endswith((".mkv", ".mp4", ".avi")):
                     raw = Path(raw).stem
                 item.title = raw

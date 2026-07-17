@@ -566,7 +566,7 @@ models gained `kind` + `command` (RunDetail also `options_json` + `output_tail`)
 **Unified store.** Migration `012` adds `kind` (`'pipeline' | 'maintenance'`,
 default `'pipeline'`), `command`, `options_json`, and `output_tail` columns to
 the `pipeline_run` table. Pipeline and maintenance runs share one table — the
-frontend `RunHistoryTable` on `/maintenance` filters via `?kind=maintenance`.
+frontend `RunHistoryTable` on `/systeme?tab=maintenance` filters via `?kind=maintenance`.
 
 **Universal run journal (0.44.0).** Every pipeline invocation path writes the
 journal, not just web-launched runs:
@@ -631,15 +631,17 @@ vs `--apply` absence = dry-run).
 
 ### Frontend
 
-`/maintenance` (replaces the S1 `ComingSoon` stub) renders four panels:
+`/maintenance` is now a redirect to `/systeme` (systeme-hub feature). The
+four panels that previously rendered on the page are redistributed across tabs
+on `/systeme`:
 
-- **DisksPanel** — per-disk space gauges, mount state, category breakdown.
-- **LocksPanel** — pipeline lock status + in-flight maintenance run PID/uptime.
-- **IndexHealthPanel** — DB table sizes, repair-queue depth, last scan age.
-- **RunHistoryTable** — reused from S2, filtered to `?kind=maintenance` with
-  kind chips.
+- **DisksPanel** — `/systeme?tab=etat`.
+- **LocksPanel** — `/systeme?tab=etat`.
+- **IndexHealthPanel** — `/systeme?tab=etat`.
+- **RunHistoryTable** — `/systeme?tab=maintenance`, filtered to `?kind=maintenance`
+  with kind chips.
 
-Below the panels, the **ActionCatalog** groups actions by category with risk
+The **ActionCatalog** (on `/systeme?tab=actions`) groups actions by category with risk
 badges (`ro` / `write` / `destructive`). Selecting an action opens the
 **ActionForm** — fields are generated from the action's `options` list. The flow
 enforces dry-run-first: after a successful dry-run the Apply button unlocks;
@@ -1051,7 +1053,9 @@ Cross-references:
 
 ## Registry (§S6)
 
-The `/registry` page and `/api/registry/status` endpoint (reg-health feature,
+The `/registry` route now redirects to `/systeme`; the provider health cards
+are inlined as `ProvidersPanel` in `SystemePage`. The
+`/api/registry/status` endpoint (reg-health feature,
 ticket #185) expose the live health of every configured metadata provider:
 circuit-breaker state, recent failure count, last success/failure timestamps,
 and last call latency.
@@ -1120,16 +1124,18 @@ documents the additive change).
 
 ### Frontend
 
-- **Page**: `frontend/src/pages/RegistryPage.tsx` — one card per provider
-  with circuit-state badge, recent failures, relative timestamps, latency.
+- **Page**: `RegistryPage.tsx` was deleted (systeme-hub). The provider cards
+  are now rendered by `ProvidersPanel` — an inlined component inside
+  `frontend/src/pages/SystemePage.tsx` — with circuit-state badge, recent
+  failures, relative timestamps, latency.
 - **Typed client**: `frontend/src/api/registry.ts` — `apiFetch` with
   schema-typed paths (R15 convention, see §REST Contract Conventions).
 - **Hook**: `frontend/src/hooks/useRegistryStatus.ts` — `useQuery` with
   `registryKeys.status()` from `frontend/src/api/queryKeys.ts`.
-- **Live refresh**: the page subscribes to the WebSocket event stream
-  (`useEventStreamContext`) and filters for circuit-state events;
-  a `queryClient.invalidateQueries` on match triggers a fresh GET without
-  a page reload.
+- **Live refresh**: the inlined `ProvidersPanel` subscribes to the WebSocket
+  event stream (`useEventStreamContext`) and filters for circuit-state
+  events; a `queryClient.invalidateQueries` on match triggers a fresh GET
+  without a page reload.
 
 ### Error handling (frontend)
 

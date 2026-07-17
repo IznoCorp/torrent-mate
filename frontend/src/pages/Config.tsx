@@ -1,9 +1,10 @@
 /**
  * Config page — visual configuration editor (TorrentMateUI S4 — config-editor).
  *
- * Renders a two-panel layout: {@link FileList} sidebar on the left and a
- * {@link SchemaForm} editor on the right, with restart / staging banners and
- * a {@link SecretsTab} section below the editor.
+ * Renders a Fichiers / Secrets tab bar. The Fichiers tab shows a two-panel
+ * layout ({@link FileList} sidebar + {@link SchemaForm} editor) with restart /
+ * staging banners; the Secrets tab renders {@link SecretsTab} as a sibling
+ * panel (no more scroll-to-find, G2/E3).
  *
  * Save flow:
  * - 200 → success toast + dirty cleared for that file.
@@ -197,7 +198,7 @@ export default function Config(): ReactElement {
   const [showConflict, setShowConflict] = useState(false);
   // Restart confirmation dialog visibility.
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
-  // Left sidebar tab — Fichiers or Secrets (local UI state, not URL-driven).
+  // Active panel — Fichiers or Secrets (local UI state, not URL-driven).
   const [leftTab, setLeftTab] = useState<"files" | "secrets">("files");
 
   const queryClient = useQueryClient();
@@ -238,9 +239,9 @@ export default function Config(): ReactElement {
   // ---- Auto-select first file on initial load (G2) --------------------------
   // When no file is addressed in the URL, select the first available file so
   // the user never sees the empty "Sélectionnez un fichier" dead start.  Deep-
-  // links (?file=...) are NOT overridden — the guard `selectedFile === null`
-  // preserves the URL-addressable file selection from D3/DOIT-10.  If the
-  // user clears the param (Back), auto-select fires again.
+  // links (?file=...) are NOT overridden — the guard `leftTab === "files" &&
+  // selectedFile === null` preserves the URL-addressable file selection from
+  // D3/DOIT-10.  If the user clears the param (Back), auto-select fires again.
   useEffect(() => {
     if (
       leftTab === "files" &&

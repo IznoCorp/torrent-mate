@@ -49,7 +49,10 @@ import { useRegistryStatus } from "@/hooks/useRegistryStatus";
 // Tab model
 // ---------------------------------------------------------------------------
 
-/** Known tab identifiers. */
+/**
+ * Known tab identifiers (``"maintenance"`` = the Exécutions de maintenance
+ * history tab — not the old /maintenance page, which now redirects here).
+ */
 const TAB_IDS = ["etat", "actions", "maintenance", "journal"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
@@ -394,8 +397,8 @@ export default function SystemePage(): ReactElement {
           {/* Provider health cards — ex-RegistryPage. */}
           <ProvidersPanel />
 
-          {/* Live event feed + recent-events table (relocated from the
-              Dashboard, formerly on Maintenance). */}
+          {/* Live event feed + recent-events table (formerly on the
+              /maintenance page; relocated to /systeme?tab=etat). */}
           <EventFeed events={events} />
           <RecentEventsTable events={events} />
         </div>
