@@ -29,6 +29,7 @@ from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.pipeline import PipelineState
 from personalscraper.web.models.staging import (
+    ContinueResponse,
     EnqueueDecisionRequest,
     EnqueueDecisionResponse,
     StagingCounts,
@@ -38,6 +39,7 @@ from personalscraper.web.models.staging import (
     StagingMediaKind,
     StagingMediaResponse,
 )
+from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
 from personalscraper.web.staging.dispatch_preview import (
     build_free_space_by_id,
     preview_dispatch,
@@ -498,4 +500,78 @@ def enqueue_staging_decision(
         decision_id=decision_id,
         candidates_count=len(candidates),
         candidates_seeded=candidates_seeded,
+    )
+
+
+@router.post(
+    "/media/{media_id}/continue",
+    response_model=ContinueResponse,
+    status_code=202,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def continue_staging_media(
+    media_id: str,
+    request: Request,
+) -> ContinueResponse:
+    """Restart the pipeline for a resolved (matched) staged media item.
+
+    The operator-initiated continuation (§5.2) means the media was resolved
+    manually (``scrape-resolve`` wrote the NFO) and must now FINISH its
+    pipeline — trailers → verify → dispatch — via the single trigger
+    authority (``pipeline.lock`` is the sole gate). When the lock is held,
+    no new run is spawned; the in-flight or next run will pick the item up.
+
+    The media must already have a provider-identified NFO (``match ==
+    "matched"`` in the read model). An item without an NFO or with a
+    non-identified NFO returns 422 — the operator must resolve the matching
+    first (via the decision deck), then continue.
+
+    Args:
+        media_id: The stable media id from a list item.
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`ContinueResponse` with ``ok=True`` and either a fresh
+        ``run_uid`` (spawned) or ``deferred=True``, ``run_uid=None`` (lock
+        held). Status code is always 202.
+
+    Raises:
+        404: No scrapable staged media matches the id.
+        422: The media is not yet identified (no NFO or no provider IDs).
+    """
+    config = _config(request)
+    resolved = resolve_scrapable_item(config, media_id)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+    media_dir, media_kind, _title, _year = resolved
+
+    nfo_path = find_nfo(media_dir, media_kind)
+    if nfo_path is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Ce média n'est pas encore identifié — résolvez le matching d'abord.",
+        )
+    meta = read_nfo_metadata(nfo_path)
+    if not meta.provider_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="Ce média n'est pas encore identifié — résolvez le matching d'abord.",
+        )
+
+    run_uid = spawn_pipeline_run(
+        config.paths.data_dir,
+        trigger_reason=RESOLVE_CONTINUATION_TRIGGER,
+    )
+    deferred = run_uid is None
+    detail = (
+        "Reprise lancée — le média termine son pipeline (vérification → dispatch)."
+        if not deferred
+        else "En file — un run est en cours ; le média sera repris par le run en cours ou le suivant."
+    )
+    return ContinueResponse(
+        ok=True,
+        media_id=media_id,
+        run_uid=run_uid,
+        deferred=deferred,
+        detail=detail,
     )
