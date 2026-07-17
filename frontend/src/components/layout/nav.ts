@@ -14,7 +14,6 @@
 import {
   Activity,
   Home,
-  Plug,
   Radar,
   ScanSearch,
   Settings,
@@ -71,14 +70,11 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     title: "Système",
-    items: [{ to: "/maintenance", label: "Maintenance", icon: Wrench }],
+    items: [{ to: "/systeme", label: "Système", icon: Wrench }],
   },
   {
     title: "Configuration",
-    items: [
-      { to: "/registry", label: "Registre", icon: Plug },
-      { to: "/config", label: "Config", icon: Settings },
-    ],
+    items: [{ to: "/config", label: "Config", icon: Settings }],
   },
 ];
 
