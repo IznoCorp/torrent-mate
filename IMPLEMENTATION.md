@@ -23,14 +23,14 @@ row recorded as documented deviation vs spec §5.2)
 
 | #   | Phase                                         | File                                 | Status |
 | --- | --------------------------------------------- | ------------------------------------ | ------ |
-| 1   | Backend — `continue` endpoint                 | phase-01-continue-endpoint.md        | [ ]    |
+| 1   | Backend — `continue` endpoint                 | phase-01-continue-endpoint.md        | [x]    |
 | 2   | Backend — `discard` endpoint                  | phase-02-discard-endpoint.md         | [ ]    |
 | 3   | `/medias` page + LegacyRedirect + nav renames | phase-03-medias-page-redirect-nav.md | [ ]    |
 | 4   | Media-sheet egress actions                    | phase-04-media-sheet-egress.md       | [ ]    |
 | 5   | Contrôle rebuild (`/`)                        | phase-05-controle-rebuild.md         | [ ]    |
 | 6   | Final gate — mobile proof + ACC               | phase-06-final-gate.md               | [ ]    |
 
-**Next action**: phase 1
+**Next action**: phase 2 — discard endpoint
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
