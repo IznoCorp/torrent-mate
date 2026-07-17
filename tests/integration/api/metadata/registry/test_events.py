@@ -238,5 +238,3 @@ def test_provider_exhausted_event_fires_from_chain_iteration(
     # Non-empty item dict — the diagnostic context is preserved.
     assert event.item == item_context
     assert event.item["title"] == "Test"
-
-
