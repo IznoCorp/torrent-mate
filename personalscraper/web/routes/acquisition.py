@@ -480,7 +480,10 @@ def get_obligations(
                         hnr_count=(row["hnr_count"] if row["hnr_count"] is not None else None),
                     )
                 )
-            _resolve_obligation_titles(items, conn)
+            try:
+                _resolve_obligation_titles(items, conn)
+            except Exception:
+                logger.warning("obligation_title_resolve_failed", exc_info=True)
             return ObligationsResponse(items=items)
     except sqlite3.Error:
         logger.warning("acquisition_obligations_read_failed", exc_info=True)

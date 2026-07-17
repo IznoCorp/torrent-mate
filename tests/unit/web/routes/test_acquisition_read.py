@@ -457,6 +457,152 @@ class TestObligationsEndpoint:
         assert len(items) == 1
         assert items[0]["info_hash"] == "a1b2c3"
 
+    # ── Title resolution (acquisition-queue Phase 01) ────────────────
+
+    def test_title_join_episode(self, client: TestClient, tmp_path: Path) -> None:
+        """Join hit, episode row (season + episode) → ``Titre S01E02``."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Breaking Bad")
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'episode', 1, 2, 'grabbed', ?, 1, ?)",
+            (fid, '{"tvdb_id": 81189}', now, "aaabbb001"),
+        )
+        _seed_obligation(conn, "aaabbb001", "lacale")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Breaking Bad S01E02"
+
+    def test_title_join_season_pack(self, client: TestClient, tmp_path: Path) -> None:
+        """Join hit, season pack (season only, episode NULL) → ``Titre S01``."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Westworld")
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'episode', 3, NULL, 'grabbed', ?, 1, ?)",
+            (fid, '{"tvdb_id": 296762}', now, "bbccdd002"),
+        )
+        _seed_obligation(conn, "bbccdd002", "c411")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Westworld S03"
+
+    def test_title_join_bare(self, client: TestClient, tmp_path: Path) -> None:
+        """Join hit, bare wanted row (no season) → title verbatim."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Dune")
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts, grabbed_hash) "
+            "VALUES (?, ?, 'movie', NULL, NULL, 'grabbed', ?, 1, ?)",
+            (fid, '{"tmdb_id": 438631}', now, "ddeeff003"),
+        )
+        _seed_obligation(conn, "ddeeff003", "c411")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Dune"
+
+    def test_title_dispatched_path_fallback(self, client: TestClient, tmp_path: Path) -> None:
+        """Join miss, dispatched_path set → raw basename (strip video ext)."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
+            "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
+            ("miss001", "lacale", "/media/tv/Murder.Mindfully.S01E01.mkv", now),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] == "Murder.Mindfully.S01E01"
+
+    def test_title_none_fallback(self, client: TestClient, tmp_path: Path) -> None:
+        """Join miss, dispatched_path None → title is None."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        _seed_obligation(conn, "nomatch01", "lacale")
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["title"] is None
+
+    def test_title_resolver_exception_resilience(
+        self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Resolver exception → logged, title None, listing still returns 200."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
+            "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
+            ("boom001", "lacale", "/corrupt/path/file.mkv", now),
+        )
+        conn.commit()
+        conn.close()
+
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        # Patch Path in the routes module so Path() raises for the corrupt
+        # dispatched_path — exercises the per-item except clause.
+        orig_path = acq_routes.Path
+
+        class _BombPath:
+            def __init__(self, *args: object) -> None:
+                if args and "/corrupt/" in str(args[0]):
+                    raise OSError("simulated corrupt path")
+                self._inner = orig_path(*[str(a) for a in args])
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(self._inner, name)
+
+        monkeypatch.setattr(acq_routes, "Path", _BombPath)
+
+        resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        # The per-item handler caught the OSError → title is None.
+        assert items[0]["title"] is None
+
 
 class TestStatusEndpoint:
     """GET /api/acquisition/status — watcher status + recent runs."""
