@@ -1535,8 +1535,13 @@
         "type": "object"
       },
       "HistoryResponse": {
-        "description": "Paginated response for the run-history list endpoint.\n\nAttributes:\n    runs: List of run summaries for the current page.\n    total: Total number of runs in the database (for pagination).",
+        "description": "Paginated response for the run-history list endpoint.\n\nAttributes:\n    runs: List of run summaries for the current page.\n    total: Total number of runs in the database (for pagination).\n    degraded: ``True`` when the history DB read failed \u2014 the list may be\n        incomplete or empty for a bad reason.  ``False`` when the read\n        completed normally (even if there are zero runs).",
         "properties": {
+          "degraded": {
+            "default": false,
+            "title": "Degraded",
+            "type": "boolean"
+          },
           "runs": {
             "items": {
               "$ref": "#/components/schemas/RunSummary"

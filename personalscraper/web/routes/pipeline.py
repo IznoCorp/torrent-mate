@@ -562,8 +562,11 @@ def pipeline_history(
 
             runs = [_row_to_run_summary(row) for row in rows]
     except sqlite3.OperationalError:
-        # DB file missing or corrupt — return empty history.
-        return HistoryResponse(runs=[], total=0)
+        # DB file missing or corrupt — log at ERROR so operators can
+        # investigate.  Return a calm empty list with ``degraded=True``
+        # so the frontend can surface that this silence is not golden.
+        logger.error("pipeline_history_read_failed", exc_info=True)
+        return HistoryResponse(runs=[], total=0, degraded=True)
 
     return HistoryResponse(runs=runs, total=total)
 
@@ -830,10 +833,13 @@ def pipeline_stages(request: Request) -> StagesResponse:
         stage_items = by_stage.get(key, [])
         count = len(stage_items)
         blocked = sum(1 for i in stage_items if i.position_state == "blocked")
-        if live_stage_key == key and status.state == PipelineState.running:
-            state: str = "active"
-        elif blocked > 0:
-            state = "blocked"
+        if blocked > 0:
+            # Blocked items take visual priority even when the pipeline is
+            # running on this stage — an operator needs to see the blockage
+            # before the "active" ring colour.
+            state: str = "blocked"
+        elif live_stage_key == key and status.state == PipelineState.running:
+            state = "active"
         elif count > 0:
             state = "ok"
         else:

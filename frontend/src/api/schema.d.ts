@@ -2797,8 +2797,16 @@ export interface components {
          *     Attributes:
          *         runs: List of run summaries for the current page.
          *         total: Total number of runs in the database (for pagination).
+         *         degraded: ``True`` when the history DB read failed — the list may be
+         *             incomplete or empty for a bad reason.  ``False`` when the read
+         *             completed normally (even if there are zero runs).
          */
         HistoryResponse: {
+            /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
             /** Runs */
             runs: components["schemas"]["RunSummary"][];
             /** Total */
