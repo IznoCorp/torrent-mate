@@ -38,7 +38,7 @@ import { useStagingMedia } from "@/hooks/useStagingMedia";
 const PAGE_SIZE = 24;
 
 /** Match filter option: a value + French label + which count feeds its chip. */
-type MatchFilter = "all" | StagingMediaItem["match"];
+export type MatchFilter = "all" | StagingMediaItem["match"];
 
 const MATCH_FILTERS: readonly { value: MatchFilter; label: string }[] = [
   { value: "all", label: "Tous" },
@@ -59,6 +59,13 @@ const SORT_OPTIONS: readonly {
 
 /** Props for {@link StagingLibrary}. */
 export interface StagingLibraryProps {
+  /**
+   * Optional controlled match filter. When provided, the internal match chips
+   * are hidden and this value is used for the API call instead of the local
+   * state — the parent is responsible for rendering its own filter UI (e.g. a
+   * segment bar). When ``undefined``, the component manages its own match state.
+   */
+  readonly match?: MatchFilter;
   /**
    * Invoked when the operator sends a media to the resolution deck. Receives the
    * ``scrape_decision.id`` to open on (C18) — the ambiguous card's own
@@ -91,9 +98,11 @@ function GridSkeleton(): ReactElement {
  *   The library element.
  */
 export function StagingLibrary({
+  match: matchControlled,
   onOpenResolution,
 }: StagingLibraryProps): ReactElement {
-  const [match, setMatch] = useState<MatchFilter>("all");
+  const [matchInternal, setMatchInternal] = useState<MatchFilter>("all");
+  const match = matchControlled ?? matchInternal;
   const [sort, setSort] =
     useState<NonNullable<StagingMediaParams["sort"]>>("recent");
   const [search, setSearch] = useState("");
@@ -242,64 +251,66 @@ export function StagingLibrary({
           </div>
         </div>
 
-        <div
-          className="flex flex-wrap items-center gap-2"
-          role="group"
-          aria-label="Filtrer par identification"
-        >
-          {MATCH_FILTERS.map((filter) => {
-            const active = match === filter.value;
-            const count = chipCount(filter.value);
-            // C18: an idle "À résoudre" chip with a non-zero count wears the
-            // warning tone so pending ambiguities call for attention.
-            const pendingAmbiguous =
-              filter.value === "ambiguous" && (count ?? 0) > 0;
-            const tone = active
-              ? "solid"
-              : pendingAmbiguous
-                ? "warning"
-                : "outline";
-            return (
-              <button
-                key={filter.value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  resetTo(setMatch, filter.value);
-                }}
-              >
-                <Badge tone={tone} className="cursor-pointer">
-                  {filter.label}
-                  {count !== undefined && (
-                    <span className="ml-1 opacity-70">({count})</span>
-                  )}
-                </Badge>
-              </button>
-            );
-          })}
-          {/* A1: "sans bande-annonce" toggle — a separate axis from the match
-              chips, so it sits after them with a divider. */}
-          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-          <button
-            type="button"
-            aria-pressed={missingTrailer}
-            onClick={() => {
-              resetTo(setMissingTrailer, !missingTrailer);
-            }}
+        {matchControlled === undefined && (
+          <div
+            className="flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Filtrer par identification"
           >
-            <Badge
-              tone={missingTrailer ? "solid" : "outline"}
-              className="cursor-pointer"
+            {MATCH_FILTERS.map((filter) => {
+              const active = match === filter.value;
+              const count = chipCount(filter.value);
+              // C18: an idle "À résoudre" chip with a non-zero count wears the
+              // warning tone so pending ambiguities call for attention.
+              const pendingAmbiguous =
+                filter.value === "ambiguous" && (count ?? 0) > 0;
+              const tone = active
+                ? "solid"
+                : pendingAmbiguous
+                  ? "warning"
+                  : "outline";
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    resetTo(setMatchInternal, filter.value);
+                  }}
+                >
+                  <Badge tone={tone} className="cursor-pointer">
+                    {filter.label}
+                    {count !== undefined && (
+                      <span className="ml-1 opacity-70">({count})</span>
+                    )}
+                  </Badge>
+                </button>
+              );
+            })}
+            {/* A1: "sans bande-annonce" toggle — a separate axis from the match
+              chips, so it sits after them with a divider. */}
+            <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+            <button
+              type="button"
+              aria-pressed={missingTrailer}
+              onClick={() => {
+                resetTo(setMissingTrailer, !missingTrailer);
+              }}
             >
-              Sans bande-annonce
-              {counts !== undefined && (
-                <span className="ml-1 opacity-70">
-                  ({counts.total - counts.with_trailer})
-                </span>
-              )}
-            </Badge>
-          </button>
-        </div>
+              <Badge
+                tone={missingTrailer ? "solid" : "outline"}
+                className="cursor-pointer"
+              >
+                Sans bande-annonce
+                {counts !== undefined && (
+                  <span className="ml-1 opacity-70">
+                    ({counts.total - counts.with_trailer})
+                  </span>
+                )}
+              </Badge>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ---- Content -------------------------------------------------------- */}
