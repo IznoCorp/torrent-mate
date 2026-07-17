@@ -102,8 +102,9 @@ def library_index_command(
     from personalscraper.indexer.scanner import (  # noqa: PLC0415
         IndexerConfigError,
         ScanMode,
+        ScanRequest,
         filter_disks,
-        scan,
+        scan_with,
     )
     from personalscraper.indexer.schema import DiskRow  # noqa: PLC0415
 
@@ -238,41 +239,43 @@ def library_index_command(
                     effective_budget_seconds = cfg.indexer.scan.budget_seconds
 
                 try:
-                    result = scan(
-                        disks=filtered_disks,
-                        mode=scan_mode,
-                        generation=next_gen,
-                        conn=conn,
-                        disk_filter=disk,
-                        drop_indexes=cfg.indexer.scan.drop_indexes_during_full_scan,
-                        budget_seconds=effective_budget_seconds,
-                        db_path=db_path,
-                        checkpoint_every_n_files=cfg.indexer.scan.checkpoint_every_n_files,
-                        confirm_bulk_change=confirm_bulk_change,
-                        merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
-                        backfill_streams=backfill_streams,
-                        max_workers=cfg.indexer.scan.max_workers_total,
-                        read_rate_mb_per_sec=cfg.indexer.scan.read_rate_mb_per_sec,
-                        staging_dir=str(cfg.paths.staging_dir),
-                        spotlight_enabled=cfg.indexer.spotlight.use_when_available,
-                        paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
-                        # Thread the operator ``DiskConfig.fs_type`` overrides into
-                        # the scanner so capability resolution is consistent with
-                        # the dispatch (transfer) layer. The map is keyed on the
-                        # STABLE ``DiskConfig.id`` (persisted as the immutable
-                        # ``DiskRow.label`` by ``_bootstrap_disks_from_config``),
-                        # NOT on the mutable ``DiskRow.mount_path`` (rewritten on
-                        # remount, NULL on unmount) — so the scanner's per-disk
-                        # ``ctx.fs_type_overrides.get(disk.label)`` lookup can never
-                        # diverge from the transfer layer after a mount_path change.
-                        fs_type_overrides=indexer_cli.build_fs_type_overrides(cfg.disks),
-                        event_bus=event_bus,
-                        # DESIGN §4.1/§5 — pass the loaded config so scan()'s
-                        # full-mode branch runs the item stage (pass 1) exactly
-                        # once, library-wide, before the per-disk file walk.
-                        # The pass-1 writes land on ``conn`` inside the dry_run
-                        # SAVEPOINT scope, so a dry run still rolls them back.
-                        config=cfg,
+                    result = scan_with(
+                        ScanRequest(
+                            disks=filtered_disks,
+                            mode=scan_mode,
+                            generation=next_gen,
+                            conn=conn,
+                            disk_filter=disk,
+                            drop_indexes=cfg.indexer.scan.drop_indexes_during_full_scan,
+                            budget_seconds=effective_budget_seconds,
+                            db_path=db_path,
+                            checkpoint_every_n_files=cfg.indexer.scan.checkpoint_every_n_files,
+                            confirm_bulk_change=confirm_bulk_change,
+                            merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
+                            backfill_streams=backfill_streams,
+                            max_workers=cfg.indexer.scan.max_workers_total,
+                            read_rate_mb_per_sec=cfg.indexer.scan.read_rate_mb_per_sec,
+                            staging_dir=str(cfg.paths.staging_dir),
+                            spotlight_enabled=cfg.indexer.spotlight.use_when_available,
+                            paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                            # Thread the operator ``DiskConfig.fs_type`` overrides into
+                            # the scanner so capability resolution is consistent with
+                            # the dispatch (transfer) layer. The map is keyed on the
+                            # STABLE ``DiskConfig.id`` (persisted as the immutable
+                            # ``DiskRow.label`` by ``_bootstrap_disks_from_config``),
+                            # NOT on the mutable ``DiskRow.mount_path`` (rewritten on
+                            # remount, NULL on unmount) — so the scanner's per-disk
+                            # ``ctx.fs_type_overrides.get(disk.label)`` lookup can never
+                            # diverge from the transfer layer after a mount_path change.
+                            fs_type_overrides=indexer_cli.build_fs_type_overrides(cfg.disks),
+                            event_bus=event_bus,
+                            # DESIGN §4.1/§5 — pass the loaded config so the
+                            # full-mode branch runs the item stage (pass 1) exactly
+                            # once, library-wide, before the per-disk file walk.
+                            # The pass-1 writes land on ``conn`` inside the dry_run
+                            # SAVEPOINT scope, so a dry run still rolls them back.
+                            config=cfg,
+                        )
                     )
                 except DiskBulkChangeDetected as bulk_exc:
                     typer.echo(

@@ -143,7 +143,7 @@ class TestLibraryIndexCommandBusPassThrough:
         from personalscraper.indexer.scanner import ScanRunResult
 
         caller_bus = EventBus()
-        scan_kwargs: dict = {}
+        scan_requests: list = []
         open_db_calls: list[dict] = []
 
         # Minimal config with db_path under tmp_path so indexer_lock works.
@@ -164,8 +164,10 @@ class TestLibraryIndexCommandBusPassThrough:
             mock_conn.execute.return_value.fetchall.return_value = []
             return mock_conn
 
-        def _spy_scan(**kwargs) -> ScanRunResult:  # type: ignore[no-untyped-def]  # noqa: ANN003
-            scan_kwargs.update(kwargs)
+        def _spy_scan(request) -> ScanRunResult:  # type: ignore[no-untyped-def]  # noqa: ANN001
+            # library_index_command now builds a ScanRequest and calls
+            # scan_with(request); capture the request to assert on its bus.
+            scan_requests.append(request)
             return ScanRunResult(scan_run_id=1, files_visited=0, dirs_visited=0, status="ok", disks_skipped=0)
 
         with (
@@ -173,7 +175,7 @@ class TestLibraryIndexCommandBusPassThrough:
             patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
             patch("personalscraper.indexer.db.open_db", side_effect=_fake_open_db),
             patch("personalscraper.indexer.db.apply_migrations"),
-            patch("personalscraper.indexer.scanner.scan", side_effect=_spy_scan),
+            patch("personalscraper.indexer.scanner.scan_with", side_effect=_spy_scan),
             patch("personalscraper.indexer.outbox._drain.drain_if_present", return_value=0),
         ):
             rc = library_index_command(
@@ -188,9 +190,9 @@ class TestLibraryIndexCommandBusPassThrough:
         assert open_db_calls[0]["event_bus"] is caller_bus, (
             "open_db must receive the bus passed to library_index_command, not a fresh EventBus() with no subscribers."
         )
-        # scan must also have received the caller's bus.
-        assert "event_bus" in scan_kwargs
-        assert scan_kwargs["event_bus"] is caller_bus, (
+        # scan must also have received the caller's bus (via the ScanRequest).
+        assert scan_requests, "scan_with was not called"
+        assert scan_requests[0].event_bus is caller_bus, (
             "scan must receive the bus passed to library_index_command, not a fresh EventBus() with no subscribers."
         )
 

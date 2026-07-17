@@ -284,8 +284,9 @@ def library_verify_command(
     from personalscraper.indexer.scanner import (  # noqa: PLC0415
         IndexerConfigError,
         ScanMode,
+        ScanRequest,
         filter_disks,
-        scan,
+        scan_with,
     )
     from personalscraper.indexer.schema import DiskRow  # noqa: PLC0415
 
@@ -331,17 +332,19 @@ def library_verify_command(
             gen_row = conn.execute("SELECT MAX(scan_generation) FROM media_file").fetchone()
             next_gen: int = (gen_row[0] or 0) + 1
 
-            result = scan(
-                disks=filtered_disks,
-                mode=ScanMode.verify,
-                generation=next_gen,
-                conn=conn,
-                disk_filter=disk,
-                budget_seconds=budget_seconds,
-                merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
-                paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
-                no_enqueue=no_enqueue,
-                event_bus=event_bus,
+            result = scan_with(
+                ScanRequest(
+                    disks=filtered_disks,
+                    mode=ScanMode.verify,
+                    generation=next_gen,
+                    conn=conn,
+                    disk_filter=disk,
+                    budget_seconds=budget_seconds,
+                    merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
+                    paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                    no_enqueue=no_enqueue,
+                    event_bus=event_bus,
+                )
             )
 
             summary = {

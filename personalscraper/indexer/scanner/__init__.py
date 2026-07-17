@@ -74,6 +74,7 @@ from personalscraper.indexer.scanner._types import (
     IndexerConfigError,
     IndexerScanActiveError,
     ScanMode,
+    ScanRequest,
     ScanRunResult,
 )
 from personalscraper.indexer.scanner._walker import (
@@ -525,6 +526,88 @@ def scan(
         Exception: Any unexpected exception from the walk loop is re-raised after
             the ``scan_run`` row is updated to ``status='failed'``.
     """
+    # Backward-compatible shim: bundle the ~22 positional/keyword parameters
+    # into a single frozen :class:`ScanRequest` and delegate to
+    # :func:`scan_with`. The orchestrator and per-mode visitors consume ONE
+    # object instead of a long positional list; behaviour is byte-identical.
+    return scan_with(
+        ScanRequest(
+            disks=disks,
+            mode=mode,
+            generation=generation,
+            conn=conn,
+            event_bus=event_bus,
+            disk_filter=disk_filter,
+            drop_indexes=drop_indexes,
+            budget_seconds=budget_seconds,
+            db_path=db_path,
+            checkpoint_every_n_files=checkpoint_every_n_files,
+            disk_breaker=disk_breaker,
+            confirm_bulk_change=confirm_bulk_change,
+            merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+            quick_enrich=quick_enrich,
+            backfill_streams=backfill_streams,
+            max_workers=max_workers,
+            read_rate_mb_per_sec=read_rate_mb_per_sec,
+            staging_dir=staging_dir,
+            spotlight_enabled=spotlight_enabled,
+            paranoia_window_seconds=paranoia_window_seconds,
+            no_enqueue=no_enqueue,
+            fs_type_overrides=fs_type_overrides,
+            config=config,
+        )
+    )
+
+
+def scan_with(request: ScanRequest) -> ScanRunResult:
+    """Execute a scan described by a fully-built :class:`ScanRequest`.
+
+    This is the single-object entry point that the scan orchestrator and the
+    per-mode visitors consume. :func:`scan` is a thin backward-compatible
+    wrapper that builds a :class:`ScanRequest` from its positional/keyword
+    arguments and delegates here, so the two paths are byte-identical. See
+    :func:`scan` for the exhaustive per-parameter documentation (mirrored
+    one-line on each :class:`ScanRequest` attribute).
+
+    Args:
+        request: The immutable :class:`ScanRequest` capturing every scan input,
+            including the REQUIRED ``event_bus``.
+
+    Returns:
+        :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
+        and final status. :attr:`ScanRunResult.budget_exhausted` is ``True``
+        when the budget was reached before all files were visited.
+
+    Raises:
+        Exception: Any unexpected exception from the walk loop is re-raised after
+            the ``scan_run`` row is updated to ``status='failed'``.
+    """
+    # Unpack the request into the local names the walk body below already uses,
+    # keeping the historical body byte-identical.
+    disks = request.disks
+    mode = request.mode
+    generation = request.generation
+    conn = request.conn
+    disk_filter = request.disk_filter
+    drop_indexes = request.drop_indexes
+    budget_seconds = request.budget_seconds
+    db_path = request.db_path
+    checkpoint_every_n_files = request.checkpoint_every_n_files
+    disk_breaker = request.disk_breaker
+    confirm_bulk_change = request.confirm_bulk_change
+    merkle_delta_freeze_threshold = request.merkle_delta_freeze_threshold
+    quick_enrich = request.quick_enrich
+    backfill_streams = request.backfill_streams
+    max_workers = request.max_workers
+    read_rate_mb_per_sec = request.read_rate_mb_per_sec
+    staging_dir = request.staging_dir
+    spotlight_enabled = request.spotlight_enabled
+    paranoia_window_seconds = request.paranoia_window_seconds
+    no_enqueue = request.no_enqueue
+    fs_type_overrides = request.fs_type_overrides
+    event_bus = request.event_bus
+    config = request.config
+
     started_at = int(time.time())
     # Monotonic clock for the LibraryScanCompleted ``elapsed_s`` field —
     # the ``started_at`` epoch above is suitable for DB persistence but
@@ -706,6 +789,7 @@ __all__ = [
     "IndexerConfigError",
     "IndexerScanActiveError",
     "ScanMode",
+    "ScanRequest",
     "ScanRunResult",
     "SpotlightChangeDetector",
     "_RECOMMENDED_MOUNT_FLAGS",
@@ -725,6 +809,7 @@ __all__ = [
     "os",
     "probe_spotlight",
     "scan",
+    "scan_with",
     "tempfile",
     "verify_disk_mounted",
 ]

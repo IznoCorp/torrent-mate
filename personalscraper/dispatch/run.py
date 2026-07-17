@@ -346,8 +346,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
 
     from personalscraper.indexer.db import _apply_pragmas
     from personalscraper.indexer.repos import disk_repo
-    from personalscraper.indexer.scanner import ScanMode
-    from personalscraper.indexer.scanner import scan as _indexer_scan
+    from personalscraper.indexer.scanner import ScanMode, ScanRequest, scan_with
     from personalscraper.indexer.schema import DiskRow
 
     affected_ids: set[str] = {r.disk for r in results if r.disk and r.action in ("replaced", "merged", "moved")}
@@ -375,12 +374,14 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
             disks=[d.label for d in disk_rows],
             affected_item_count=len(affected_ids),
         )
-        result = _indexer_scan(
-            disks=disk_rows,
-            mode=ScanMode.enrich,
-            generation=next_generation,
-            conn=conn,
-            event_bus=event_bus,
+        result = scan_with(
+            ScanRequest(
+                disks=disk_rows,
+                mode=ScanMode.enrich,
+                generation=next_generation,
+                conn=conn,
+                event_bus=event_bus,
+            )
         )
         log.info(
             "dispatch_post_enrich_done",

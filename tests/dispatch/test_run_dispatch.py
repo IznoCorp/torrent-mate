@@ -430,7 +430,7 @@ class TestEnrichAfterDispatch:
         config.indexer.db_path = db_path
 
         with patch(
-            "personalscraper.indexer.scanner.scan",
+            "personalscraper.indexer.scanner.scan_with",
             return_value=MagicMock(files_visited=42, status="ok"),
         ):
             _enrich_after_dispatch(
