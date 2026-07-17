@@ -312,6 +312,47 @@ describe("AppShell nav badges", () => {
     expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("affiche un dot Pipeline quand le pipeline est en cours", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("running")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    // StatusDot renders with showLabel={false} → no visible text, no
+    // aria-label, only the CSS class .ps-dot--running reaches the DOM.
+    // findAllByLabelText (as the plan originally suggested) cannot match;
+    // fall back to a CSS-class selector via document.querySelectorAll.
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll(".ps-dot--running").length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   it("rafraîchit le badge staging lorsqu'un événement WS ItemProgressed arrive", async () => {
     let awaitingSent = 0;
     fetchMock.mockImplementation((input) => {
