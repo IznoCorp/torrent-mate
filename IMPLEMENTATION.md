@@ -27,9 +27,9 @@ badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot
 | 3   | Content width                                    | phase-03-content-width.md           | [x]    |
 | 4   | Test update (helpers + count-based badges)       | phase-04-test-update-gate.md        | [x]    |
 | 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [x]    |
-| 6   | PR fixes cycle 1 (review findings)               | phase-06-pr-fixes-cycle-1.md        | [ ]    |
+| 6   | PR fixes cycle 1 (review findings)               | phase-06-pr-fixes-cycle-1.md        | [x]    |
 
-**Next action**: phase 6 — PR fixes cycle 1, then push + re-poll CI
+**Next action**: push + re-poll CI, review cycle 2 (verify fixes), then operator merge (manual)
 
 ## Review cycles
 
