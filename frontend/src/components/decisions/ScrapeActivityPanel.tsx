@@ -29,6 +29,7 @@ export function ScrapeActivityPanel(): ReactElement | null {
     // Poll briefly while something runs; go idle otherwise (WS invalidation and the
     // deck's own refetches revive it when a new scrape starts).
     refetchInterval: (query) =>
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime schema-drift guard: a 200 without in_progress crashed the relocated panel (5.3)
       (query.state.data?.in_progress?.length ?? 0) > 0 ? ACTIVE_POLL_MS : false,
   });
 
