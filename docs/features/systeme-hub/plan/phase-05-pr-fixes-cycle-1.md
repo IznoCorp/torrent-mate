@@ -58,3 +58,19 @@
 - F7: État panel errors styled like calm notes; EventFeed can't distinguish WS-dead from no-events
   (pre-existing); legacy /maintenance journal bookmark lands on État (journal is one tab away).
 - Stale `&run=` kept on tab switch (mirrors the sanctioned AcquisitionPage pattern).
+
+## Sub-phase 5.4 — Arbitrated open items (operator directive 2026-07-17)
+
+**Commit:** `fix(systeme-hub): loud read-error states + legacy /maintenance lands on the journal`
+
+1. **Journal read failure (ex-F6)** — `DestructiveLogPanel.tsx`: the failure branch becomes a real
+   error state: `role="alert"`, danger tone, honest wording without the unverifiable
+   « momentanément » (e.g. « Impossible de lire le journal des suppressions. ») + the error detail
+   or a retry affordance; still clearly distinct from the EmptyState. Tests updated.
+2. **État panels read failure (ex-F7)** — `DisksPanel.tsx`, `LocksPanel.tsx`,
+   `IndexHealthPanel.tsx`: « Erreur lors du chargement. » branches get `role="alert"` + danger
+   styling so a dead API never reads at the same volume as a calm note. Tests updated.
+3. **Legacy /maintenance bookmark (arbitrated)** — `MaintenanceRunRedirect.tsx`: the bare branch
+   redirects to `/systeme?tab=journal` (the old page carried the journal inline; the operator's
+   bookmark must land where the journal is). `?run=` teleport unchanged. Router tests + docblock
+   updated (web-ui.md line if it states the bare destination).
