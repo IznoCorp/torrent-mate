@@ -145,10 +145,18 @@ class WantedResponse(BaseModel):
 
 
 class ObligationItem(BaseModel):
-    """A seed obligation with its current ratio state."""
+    """A seed obligation with its current ratio state.
+
+    Attributes:
+        title: Human-readable media title resolved server-side from
+            ``acquire.db`` (wanted → followed_series join), or the
+            ``dispatched_path`` basename when the join misses, or
+            ``None`` when neither is available.
+    """
 
     info_hash: str
     source_tracker: str
+    title: str | None = None
     dispatched_path: str | None = None
     min_seed_time_s: int
     min_ratio: float

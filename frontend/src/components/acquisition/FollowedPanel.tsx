@@ -1,17 +1,19 @@
 /**
- * FollowedPanel — the "Suivis" tab: followed-series cards with add-by-ID,
- * per-series manual grab, cadence editing and unfollow.
+ * FollowedPanel — the "Suivis" tab: followed-series compact rows with add-by-ID,
+ * per-series manual grab, cadence editing, unfollow, and active toggle.
  *
- * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged. All data
- * logic — the follow/unfollow/update/grab mutations, the live cadence caption
- * and the fire-and-track manual grab — lives in {@link useFollowedPanel}; this
- * component is pure presentation over that machine and its ``data`` prop.
+ * Extracted from `AcquisitionPage.tsx` (C12). Phase 02: compact rows replace the
+ * MediaCard grid — 72 px poster thumb, mono completeness, one ⋯ DropdownMenu.
+ * All data logic — the follow/unfollow/update/grab mutations, the live cadence
+ * caption and the fire-and-track manual grab — lives in {@link useFollowedPanel};
+ * this component is pure presentation over that machine and its ``data`` prop.
  */
 
+import { Clock, MoreHorizontal, Power, Search, Trash2 } from "lucide-react";
 import { type ReactElement } from "react";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
-import { MediaCard } from "@/components/ds/MediaCard";
+import { MediaPoster } from "@/components/ds/MediaPoster";
 import {
   Accordion,
   AccordionContent,
@@ -28,21 +30,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { useFollowedPanel } from "@/hooks/useFollowedPanel";
 
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
-  cadenceInterval,
   FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
-  TEMP_COLOR,
-  TIER_LABEL,
   untilLabel,
 } from "./meta";
 
@@ -167,7 +172,7 @@ export function FollowedPanel({
 
   // ── Empty ──────────────────────────────────────────────────────────────
   // Operator review (2026-07-15): a retired follow (« Retirer » → active=0)
-  // must LEAVE the card grid — rendering it identically made the button look
+  // must LEAVE the rows — rendering it identically made the button look
   // broken. Retired follows collapse into a compact list below, from which
   // they can be reactivated.
   const activeItems = data.filter((item) => item.active);
@@ -201,171 +206,125 @@ export function FollowedPanel({
         </p>
       )}
 
-      {/* Card grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Compact rows */}
+      <div className="flex flex-col gap-2">
         {activeItems.map((item) => {
-          const interval = cadenceInterval(item.cadence);
-          const seasons = item.season_count ?? 0;
           const isMovie = item.kind === "movie";
+          const statusLabel =
+            (isMovie ? FOLLOW_STATUS_LABEL_MOVIE[item.status] : undefined) ??
+            FOLLOW_STATUS_LABEL[item.status] ??
+            item.status;
+          // triggerPendingId is the id of the in-flight grab (or null) — the
+          // hook's typed narrowing of the former `isPending && variables === id`
+          // guard.
+          const isSearching = triggerPendingId === item.id;
+
           return (
-            <div key={`f-${String(item.id)}`} className="flex flex-col gap-2">
-              <MediaCard
-                title={item.title}
-                year={item.year ?? null}
-                kind={isMovie ? "movie" : "tv"}
-                posterUrl={item.poster_url ?? null}
-                overview={item.overview ?? null}
-                badges={
-                  <>
-                    {/* Film vs Série (§5). */}
-                    <Badge tone="neutral">
-                      {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
-                    </Badge>
-                    {/* Backend-derived lifecycle status (C14): the UI only maps
-                      status → tone/label, no business derivation in JSX. Films
-                      take a film-specific label for the two series-worded
-                      states (D2-B); the status itself is ownership-driven. */}
+            <div key={`f-${String(item.id)}`} className="flex flex-col">
+              {/* Compact row */}
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
+                {/* Poster thumb (~72 px height, 2:3 ratio) — DS MediaPoster
+                    handles the image + graceful initials fallback. */}
+                <div className="shrink-0">
+                  <MediaPoster
+                    title={item.title}
+                    src={item.poster_url ?? null}
+                    className="w-[48px]"
+                  />
+                </div>
+
+                {/* Title + metadata */}
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium">
+                      {item.title}
+                    </span>
                     <Badge
                       tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
                       dot
                     >
-                      {(isMovie
-                        ? FOLLOW_STATUS_LABEL_MOVIE[item.status]
-                        : undefined) ??
-                        FOLLOW_STATUS_LABEL[item.status] ??
-                        item.status}
+                      {statusLabel}
                     </Badge>
-                    {/* TVDB id kept as its own node (test + operator reference). */}
-                    {item.media_ref.tvdb_id != null && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {String(item.media_ref.tvdb_id)}
-                      </span>
+                    {/* Kind label — kept as a subtle hint for disambiguation. */}
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    {/* Completeness: NN/NN in font-mono tabular-nums.
+                        "—" when aired_count is null (no catalog). */}
+                    <span className="font-mono tabular-nums">
+                      {item.aired_count != null
+                        ? `${String(item.owned_count ?? 0)}/${String(item.aired_count)}`
+                        : "—"}
+                    </span>
+                    {/* Next due. */}
+                    {item.next_search_at != null && (
+                      <span>{untilLabel(item.next_search_at, Date.now())}</span>
                     )}
-                    {seasons > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        {seasons} saison{seasons > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {/* §5 P0-B: owned/aired caption from the cached catalog.
-                      Omitted when aired_count is null (no catalog yet) — never
-                      an invented count. */}
-                    {!isMovie && item.aired_count != null && (
-                      <span className="text-xs text-muted-foreground">
-                        {item.owned_count ?? 0}/{item.aired_count} en
-                        médiathèque
-                        {item.missing_count != null && item.missing_count > 0
-                          ? ` · ${String(item.missing_count)} manquant${
-                              item.missing_count > 1 ? "s" : ""
-                            }`
-                          : ""}
-                      </span>
-                    )}
+                    {/* Wanted pending count — operator needs to know something
+                        is queued even in the compact row. */}
                     {item.wanted_pending > 0 && (
                       <Badge tone="warning">
                         {String(item.wanted_pending)} en attente
                       </Badge>
                     )}
-                    {item.active &&
-                    item.cadence_tier != null &&
-                    item.next_search_at != null ? (
-                      <span
-                        className="inline-flex items-center gap-1 text-xs font-medium"
-                        style={{
-                          color:
-                            TEMP_COLOR[item.cadence_tier] ??
-                            "var(--muted-foreground)",
-                        }}
-                        title={
-                          TIER_LABEL[item.cadence_tier] ?? item.cadence_tier
-                        }
-                      >
-                        <span
-                          className="size-1.5 rounded-full"
-                          style={{
-                            backgroundColor:
-                              TEMP_COLOR[item.cadence_tier] ?? "currentColor",
-                          }}
-                          aria-hidden
-                        />
-                        Prochaine recherche{" "}
-                        {untilLabel(item.next_search_at, Date.now())}
-                      </span>
-                    ) : (
-                      interval > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          cadence {String(interval)} min
-                        </span>
-                      )
-                    )}
-                    {item.quality_profile != null && (
-                      <Badge tone="info">Personnalisé</Badge>
-                    )}
-                  </>
-                }
-                footer={
-                  <div className="flex w-full flex-wrap items-center gap-2">
-                    {/* C16: primary in-card action — launch a search now, with a
-                      spinner + toast + refresh (see triggerSearch). */}
+                  </div>
+                </div>
+
+                {/* Actions dropdown — ONE ⋯ button replacing all inline buttons. */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
-                      size="sm"
-                      onClick={() => {
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      aria-label={`Actions pour ${item.title}`}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      disabled={!item.active || isSearching}
+                      onSelect={() => {
                         triggerSearch(item.id);
                       }}
-                      disabled={!item.active || triggerPendingId === item.id}
-                      title={
-                        item.active
-                          ? "Lancer une recherche maintenant pour cette série"
-                          : "Série désactivée — réactivez-la pour lancer une recherche"
-                      }
                     >
-                      {triggerPendingId === item.id
-                        ? "Recherche…"
-                        : "Rechercher maintenant"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
+                      <Search className="size-4" aria-hidden="true" />
+                      {isSearching ? "Recherche…" : "Rechercher maintenant"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => {
                         openEditCadence(item);
                       }}
                     >
+                      <Clock className="size-4" aria-hidden="true" />
                       Cadence
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        handleToggleActive(item.id, !item.active);
+                      }}
+                    >
+                      <Power className="size-4" aria-hidden="true" />
+                      {item.active ? "Désactiver" : "Activer"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={unfollowPending}
+                      onSelect={() => {
                         handleUnfollow(item.id);
                       }}
-                      disabled={unfollowPending}
                     >
+                      <Trash2 className="size-4" aria-hidden="true" />
                       Retirer
-                    </Button>
-                    {/* C16: activate/pause the series in place. */}
-                    <div className="ml-auto flex items-center gap-1.5">
-                      <Switch
-                        id={`follow-active-${String(item.id)}`}
-                        checked={item.active}
-                        onCheckedChange={(checked) => {
-                          handleToggleActive(item.id, checked);
-                        }}
-                        disabled={updatePending}
-                        aria-label={
-                          item.active
-                            ? `Désactiver le suivi de ${item.title}`
-                            : `Activer le suivi de ${item.title}`
-                        }
-                      />
-                      <label
-                        htmlFor={`follow-active-${String(item.id)}`}
-                        className="text-xs text-muted-foreground"
-                      >
-                        {item.active ? "Actif" : "Inactif"}
-                      </label>
-                    </div>
-                  </div>
-                }
-              />
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
               {/* §5 completeness: series show a season-by-season / episode-by-
                   episode matrix (aired vs médiathèque vs file); movies don't
                   (their lifecycle is the card status). Lazy — loads on open. */}

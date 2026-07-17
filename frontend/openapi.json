@@ -2021,7 +2021,7 @@
         "type": "object"
       },
       "ObligationItem": {
-        "description": "A seed obligation with its current ratio state.",
+        "description": "A seed obligation with its current ratio state.\n\nAttributes:\n    title: Human-readable media title resolved server-side from\n        ``acquire.db`` (wanted \u2192 followed_series join), or the\n        ``dispatched_path`` basename when the join misses, or\n        ``None`` when neither is available.",
         "properties": {
           "accumulated_seed_time_s": {
             "anyOf": [
@@ -2119,6 +2119,17 @@
           "source_tracker": {
             "title": "Source Tracker",
             "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
         "required": [

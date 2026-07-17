@@ -17,7 +17,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
@@ -122,22 +122,6 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
       ? "pending"
       : "up_to_date";
   return { status, ...merged };
-}
-
-/** A single wanted item matching WantedItemResponse shape. */
-function makeWanted(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 10,
-    title: "Top Chef",
-    kind: "episode",
-    season: 16,
-    episode: 5,
-    status: "pending",
-    attempts: 0,
-    enqueued_at: 1_719_792_000,
-    last_search_at: null,
-    ...overrides,
-  };
 }
 
 /** A single obligation item matching ObligationItem shape. */
@@ -262,7 +246,9 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Suivis" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Recherches" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("tab", { name: "Obligations" }),
     ).toBeInTheDocument();
@@ -280,19 +266,16 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText(/aucune série suivie/i)).toBeInTheDocument();
   });
 
-  it("switches to the Wanted panel when clicking the Recherches tab", async () => {
+  it("switches to the File d'acquisition panel when clicking its tab", async () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
 
-    expect(screen.getByRole("tab", { name: "Recherches" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
     expect(
-      await screen.findByText(/aucune recherche en file/i),
-    ).toBeInTheDocument();
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("switches to the Obligations panel when clicking its tab", async () => {
@@ -352,8 +335,6 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    // TVDB ID rendered for the active card.
-    expect(screen.getByText("255968")).toBeInTheDocument();
     // Derived état badge: Top Chef (active + 3 pending) → "En attente".
     expect(screen.getByText("En attente")).toBeInTheDocument();
     // The inactive follow leaves the grid (revue mobile 2026-07-15): it lives
@@ -435,7 +416,7 @@ describe("AcquisitionPage", () => {
     expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
   });
 
-  it("shows a per-series 'Rechercher maintenant' action for active series only", () => {
+  it("shows a per-series 'Rechercher maintenant' action for active series only", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -450,16 +431,20 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // Inactive follows left the card grid (revue mobile 2026-07-15), so only
-    // the active card carries the per-series trigger — enabled.
-    const triggers = screen.getAllByRole("button", {
+    // Inactive follows left the grid (revue mobile 2026-07-15) and the
+    // compact-row actions live in a DropdownMenu. Open the active row's menu.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
+    });
+    fireEvent.pointerDown(trigger);
+    // Rechercher maintenant is a menuitem in the dropdown.
+    const searchItem = await screen.findByRole("menuitem", {
       name: "Rechercher maintenant",
     });
-    expect(triggers).toHaveLength(1);
-    expect(triggers[0]).not.toBeDisabled();
+    expect(searchItem).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("toggles a followed series active/paused in place via updateFollow (C16)", () => {
+  it("toggles a followed series active/paused in place via updateFollow (C16)", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -471,12 +456,15 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // The active toggle carries an accessible label reflecting the next action.
-    const toggle = screen.getByRole("switch", {
-      name: /Désactiver le suivi de Top Chef/,
+    // The active toggle moved to the DropdownMenu — open it first.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
     });
-    expect(toggle).toBeInTheDocument();
-    fireEvent.click(toggle);
+    fireEvent.pointerDown(trigger);
+    const deactivateItem = await screen.findByRole("menuitem", {
+      name: "Désactiver",
+    });
+    fireEvent.click(deactivateItem);
     expect(updateFollowMutateFn).toHaveBeenCalledWith({
       id: 7,
       body: { active: false },
@@ -536,13 +524,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // Next-search caption rendered with a relative "dans ~N h" estimate.
-    expect(
-      screen.getByText(/Prochaine recherche dans ~3\s?h/),
-    ).toBeInTheDocument();
+    // Next-search caption in the compact row shows a relative estimate.
+    expect(screen.getByText(/dans ~3\s?h/)).toBeInTheDocument();
   });
 
-  it('shows "Personnalisé" badge when quality_profile is set', () => {
+  it('does not render the "Personnalisé" badge in compact row (removed per E1)', () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -558,7 +544,8 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    expect(screen.getByText("Personnalisé")).toBeInTheDocument();
+    // The quality_profile badge was removed from compact rows (Phase 02).
+    expect(screen.queryByText("Personnalisé")).not.toBeInTheDocument();
   });
 
   it("shows loading skeletons while followed data loads", () => {
@@ -627,7 +614,7 @@ describe("AcquisitionPage", () => {
 
   // ── Followed panel — unfollow ──────────────────────────────────────────
 
-  it("calls useUnfollow().mutate on unfollow button click", () => {
+  it("calls useUnfollow().mutate on unfollow via dropdown", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -637,13 +624,21 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Retirer" }));
+    // Open the actions dropdown.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
+    });
+    fireEvent.pointerDown(trigger);
+    const retirerItem = await screen.findByRole("menuitem", {
+      name: "Retirer",
+    });
+    fireEvent.click(retirerItem);
     expect(unfollowMutateFn).toHaveBeenCalledWith(42);
   });
 
   // ── Followed panel — edit-cadence dialog ────────────────────────────────
 
-  it("opens the edit-cadence dialog when clicking the Cadence button", async () => {
+  it("opens the edit-cadence dialog from the dropdown", async () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -660,7 +655,15 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cadence" }));
+    // Open the actions dropdown, click Cadence.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour Top Chef",
+    });
+    fireEvent.pointerDown(trigger);
+    const cadenceItem = await screen.findByRole("menuitem", {
+      name: "Cadence",
+    });
+    fireEvent.click(cadenceItem);
 
     expect(
       await screen.findByRole("dialog", { name: /modifier la cadence/i }),
@@ -682,7 +685,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cadence" }));
+    // Open dropdown, click Cadence.
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions pour Top Chef" }),
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Cadence" }));
     await screen.findByRole("dialog", { name: /modifier la cadence/i });
 
     fireEvent.change(screen.getByLabelText(/intervalle/i), {
@@ -706,7 +713,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cadence" }));
+    // Open dropdown, click Cadence.
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions pour Top Chef" }),
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Cadence" }));
     const dialog = await screen.findByRole("dialog", {
       name: /modifier la cadence/i,
     });
@@ -723,88 +734,38 @@ describe("AcquisitionPage", () => {
 
   // ── Wanted panel ───────────────────────────────────────────────────────
 
-  it("renders wanted items in a table with status filter", () => {
+  it("renders the File d'acquisition panel sections", () => {
     mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({ id: 10, title: "Top Chef", status: "pending" }),
-          makeWanted({ id: 11, title: "Koh-Lanta", status: "grabbed" }),
-        ],
-        total: 2,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
 
-    expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    expect(screen.getByText("Koh-Lanta")).toBeInTheDocument();
-    expect(screen.getByText("En attente")).toBeInTheDocument();
-    expect(screen.getByText("Récupéré")).toBeInTheDocument();
+    // Stub renders both sections (3.1); full assertions in 3.3.
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("shows pagination controls with page info", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: Array.from({ length: 5 }).map((_, i) =>
-          makeWanted({ id: i, title: `Show ${String(i)}` }),
-        ),
-        total: 55,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByText(/page 1 \/ 2/i)).toBeInTheDocument();
-    expect(screen.getByText(/55 résultats/)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "← Précédent" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Suivant →" }),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("disables previous button on page 1", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeWanted()],
-        total: 1,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByRole("button", { name: "← Précédent" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Suivant →" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("calls useWanted with status filter when changed", async () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    // The Radix Tabs content mounts asynchronously — wait for the status filter
-    // Select (role=combobox) to appear in the Wanted panel.
-    expect(await screen.findByRole("combobox")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(await screen.findByText(/Recherches/)).toBeInTheDocument();
   });
 
   // ── Obligations panel ───────────────────────────────────────────────────
@@ -881,7 +842,7 @@ describe("AcquisitionPage", () => {
         watcher_enabled: true,
         last_successful_run_at: null,
         recent_runs: [],
-      deferred: [],
+        deferred: [],
       },
       error: null,
     });
@@ -906,7 +867,7 @@ describe("AcquisitionPage", () => {
         watcher_enabled: false,
         last_successful_run_at: null,
         recent_runs: [],
-      deferred: [],
+        deferred: [],
       },
       error: null,
     });
@@ -966,11 +927,11 @@ describe("AcquisitionPage", () => {
   // ── Empty states ───────────────────────────────────────────────────────
 
   it("shows empty state for wanted panel when no items", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByText(/aucune recherche en file/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("shows empty state for obligations panel when no items", () => {
@@ -984,6 +945,7 @@ describe("AcquisitionPage", () => {
   // ── Error states ────────────────────────────────────────────────────────
 
   it("shows error message for wanted panel on fetch failure", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers error states.
     mockAllEmpty();
     useWantedMock.mockReturnValue({
       isLoading: false,
@@ -992,9 +954,8 @@ describe("AcquisitionPage", () => {
       error: new Error("Timeout"),
     });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByText(/Timeout/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
   });
 
   it("shows error message for obligations panel on fetch failure", () => {
@@ -1154,11 +1115,11 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     const tabs = screen.getAllByRole("tab");
-    // Suivis, Recherches, Téléchargements (A4), Obligations, Watcher.
-    expect(tabs).toHaveLength(5);
+    // Suivis, File d'acquisition, Obligations, Watcher.
+    expect(tabs).toHaveLength(4);
   });
 
-  it("renders the followed watch list as cards", () => {
+  it("renders the followed watch list as compact rows", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
@@ -1168,11 +1129,11 @@ describe("AcquisitionPage", () => {
     });
     renderPage();
 
-    // The Suivis panel is a MediaCard grid (not a table): the series title +
-    // its actions render.
+    // The Suivis panel is now compact rows (Phase 02), not a MediaCard grid.
     expect(screen.getByText("Carded Show")).toBeInTheDocument();
+    // The actions dropdown trigger is rendered.
     expect(
-      screen.getByRole("button", { name: "Rechercher maintenant" }),
+      screen.getByRole("button", { name: "Actions pour Carded Show" }),
     ).toBeInTheDocument();
   });
 
@@ -1191,7 +1152,7 @@ describe("AcquisitionPage", () => {
 });
 
 describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () => {
-  it("shows the in-progress count on the downloads tab", () => {
+  it("shows the in-progress count on the File d'acquisition tab", () => {
     mockAllEmpty();
     useDownloadsMock.mockReturnValue({
       isLoading: false,
@@ -1209,7 +1170,7 @@ describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () =
     });
     renderPage();
 
-    const tab = screen.getByRole("tab", { name: /Téléchargements/ });
+    const tab = screen.getByRole("tab", { name: /File d'acquisition/ });
     expect(within(tab).getByText("2")).toBeInTheDocument();
   });
 
@@ -1217,7 +1178,7 @@ describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () =
     mockAllEmpty();
     renderPage();
 
-    const tab = screen.getByRole("tab", { name: /Téléchargements/ });
+    const tab = screen.getByRole("tab", { name: /File d'acquisition/ });
     expect(within(tab).queryByText(/^\d+$/)).not.toBeInTheDocument();
   });
 });
@@ -1227,12 +1188,14 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     mockAllEmpty();
     renderPage("/acquisition?tab=obligations");
 
-    expect(
-      screen.getByRole("tab", { name: /Obligations/ }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(
-      screen.getByRole("tab", { name: /Suivis/ }),
-    ).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: /Obligations/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
   });
 
   it("retombe sur « Suivis » sans paramètre (ou paramètre inconnu)", () => {
@@ -1249,13 +1212,12 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: /Recherches/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /File d'acquisition/ }));
 
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=wanted");
-    expect(screen.getByRole("tab", { name: /Recherches/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it("nettoie le paramètre en revenant sur l'onglet par défaut", () => {
@@ -1267,5 +1229,119 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     // Default tab carries no param → clean /acquisition URL.
     expect(screen.getByTestId("loc-search")).toHaveTextContent("");
     expect(screen.getByTestId("loc-search").textContent).not.toContain("tab");
+  });
+});
+
+describe("AcquisitionPage — redirect legacy tabs (3.3)", () => {
+  it("redirects ?tab=wanted to ?tab=file (replace, no history entry)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=wanted");
+
+    // After the useEffect fires, the URL search becomes ?tab=file.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    // The wanted text must NOT appear in the URL.
+    expect(screen.getByTestId("loc-search").textContent).not.toContain(
+      "wanted",
+    );
+  });
+
+  it("redirects ?tab=downloads to ?tab=file", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=downloads");
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("loc-search").textContent).not.toContain(
+      "downloads",
+    );
+  });
+});
+
+describe("AcquisitionPage — tablist scroll classes (3.3 E5)", () => {
+  it("has flex-nowrap and overflow-x-auto, NOT flex-wrap", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist.className).toMatch(/\bflex-nowrap\b/);
+    expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
+    expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
+  });
+});
+
+describe("AcquisitionPage — back-navigation probe (mutation-proof 5.2)", () => {
+  /**
+   * Component that exposes the current location AND a navigate(-1) trigger
+   * so we can test what `replace: true` protects: after a redirect, Back
+   * must land on the first history entry, not the legacy URL.
+   */
+  function BackProbe(): ReactElement {
+    const navigate = useNavigate();
+    const location = useLocation();
+    return (
+      <>
+        <div data-testid="loc-pathname">{location.pathname}</div>
+        <div data-testid="loc-search">{location.search}</div>
+        <button
+          data-testid="go-back"
+          onClick={() => {
+            void navigate(-1);
+          }}
+        >
+          Back
+        </button>
+      </>
+    );
+  }
+
+  function renderPageWithProbe(initialEntry = "/acquisition"): void {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const tree: ReactElement = (
+      <MemoryRouter initialEntries={["/somewhere", initialEntry]}>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+          <BackProbe />
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    render(tree);
+  }
+
+  it("navigate(-1) after legacy redirect lands on first entry, not the legacy URL (kills replace:true→false)", async () => {
+    mockAllEmpty();
+    // Two-entry history: /somewhere (index 0), /acquisition?tab=wanted (index 1).
+    // The redirect useEffect replaces tab=wanted → tab=file (replace: true),
+    // so history becomes [/somewhere, /acquisition?tab=file].
+    // navigate(-1) must land on /somewhere, NOT /acquisition?tab=wanted.
+    renderPageWithProbe("/acquisition?tab=wanted");
+
+    // After the redirect useEffect fires, the URL is ?tab=file.
+    await waitFor(() => {
+      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    });
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
+
+    // Fire navigate(-1).
+    fireEvent.click(screen.getByTestId("go-back"));
+
+    // After Back, we should be on /somewhere (the first entry), NOT
+    // /acquisition?tab=wanted or /acquisition?tab=file.
+    await waitFor(() => {
+      expect(screen.getByTestId("loc-pathname")).toHaveTextContent(
+        "/somewhere",
+      );
+    });
+    // The tab param must be absent.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
 });

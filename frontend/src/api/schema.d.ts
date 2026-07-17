@@ -3120,6 +3120,12 @@ export interface components {
         /**
          * ObligationItem
          * @description A seed obligation with its current ratio state.
+         *
+         *     Attributes:
+         *         title: Human-readable media title resolved server-side from
+         *             ``acquire.db`` (wanted → followed_series join), or the
+         *             ``dispatched_path`` basename when the join misses, or
+         *             ``None`` when neither is available.
          */
         ObligationItem: {
             /** Accumulated Seed Time S */
@@ -3146,6 +3152,8 @@ export interface components {
             satisfied_at?: number | null;
             /** Source Tracker */
             source_tracker: string;
+            /** Title */
+            title?: string | null;
         };
         /**
          * ObligationsResponse

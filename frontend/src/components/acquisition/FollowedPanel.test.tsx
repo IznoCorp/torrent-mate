@@ -1,8 +1,6 @@
 /**
- * FollowedPanel — P0-B tests: the backend-derived ``incomplete`` status maps to
- * its French badge label, and the cached-catalog owned/aired caption renders
- * (with proper singular/plural on the missing count) only when a catalog
- * exists (``aired_count != null``).
+ * FollowedPanel — Phase 02 tests: compact rows (72 px poster, mono completeness,
+ * DropdownMenu actions), synopsis absent, CompletenessAccordion preserved.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FollowedSeriesItem } from "@/api/acquisition";
 
 // Inert hook mocks: the panel's mutations/queries never fire in these render
-// tests — only the card markup derived from the `data` prop is under test.
+// tests — only the markup derived from the `data` prop is under test.
 vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
@@ -81,14 +79,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("FollowedPanel (P0-B)", () => {
+describe("FollowedPanel — compact rows (Phase 02)", () => {
   it("renders the incomplete status badge as « Épisodes manquants »", () => {
     renderPanel([makeItem({ status: "incomplete" })]);
 
     expect(screen.getByText("Épisodes manquants")).toBeInTheDocument();
   });
 
-  it("renders the owned/aired caption with a plural missing count", () => {
+  it("renders completeness as NN/NN in font-mono tabular-nums", () => {
     renderPanel([
       makeItem({
         status: "incomplete",
@@ -100,12 +98,16 @@ describe("FollowedPanel (P0-B)", () => {
       }),
     ]);
 
-    expect(
-      screen.getByText(/15\/18 en médiathèque · 3 manquants/),
-    ).toBeInTheDocument();
+    // Compact row: completeness is "15/18" — no verbose "en médiathèque".
+    const completeSpan = screen.getByText("15/18");
+    expect(completeSpan).toBeInTheDocument();
+    // The completeness node must carry font-mono AND tabular-nums classes.
+    expect(completeSpan.className).toContain("font-mono");
+    expect(completeSpan.className).toContain("tabular-nums");
+    expect(screen.queryByText(/en médiathèque/)).not.toBeInTheDocument();
   });
 
-  it("renders a singular missing count and omits the caption without a catalog", () => {
+  it("shows '—' for completeness when aired_count is null (no catalog)", () => {
     renderPanel([
       makeItem({
         id: 1,
@@ -115,28 +117,62 @@ describe("FollowedPanel (P0-B)", () => {
         owned_count: 9,
         missing_count: 1,
       }),
-      // aired_count null = no cached catalog → no invented caption.
+      // aired_count null = no cached catalog → "—" for completeness.
       makeItem({ id: 2, title: "Top Chef" }),
     ]);
 
-    expect(
-      screen.getByText(/9\/10 en médiathèque · 1 manquant$/),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText(/en médiathèque/)).toHaveLength(1);
+    expect(screen.getByText("9/10")).toBeInTheDocument();
+    // Top Chef has no catalog — completeness renders "—".
+    expect(screen.getByText("—")).toBeInTheDocument();
+    // No verbose "en médiathèque" caption anywhere.
+    expect(screen.queryByText(/en médiathèque/)).not.toBeInTheDocument();
   });
 
-  it("omits the owned/aired caption for a movie even with counters", () => {
+  it("omits the synopsis (overview) from the compact row (E3)", () => {
     renderPanel([
       makeItem({
-        kind: "movie",
-        title: "Ferrari",
-        aired_count: 1,
-        owned_count: 0,
-        missing_count: 1,
+        overview:
+          "An internal succession war within House Targaryen at the height of its power.",
       }),
     ]);
 
-    expect(screen.queryByText(/en médiathèque/)).not.toBeInTheDocument();
+    // The overview text must NOT appear in the compact row.
+    expect(
+      screen.queryByText(/internal succession war/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a poster thumb at ~72 px via DS MediaPoster", () => {
+    renderPanel([makeItem()]);
+
+    // The DS MediaPoster is always rendered (with initials fallback when
+    // poster_url is null). It renders a div[role="img"] with aria-label.
+    const poster = screen.getByRole("img", { name: "House of the Dragon" });
+    expect(poster).toBeInTheDocument();
+    // The item title is also rendered in the row.
+    expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
+  });
+
+  it("renders a DropdownMenu trigger for each active row", () => {
+    renderPanel([makeItem()]);
+
+    // The ⋯ button opens the actions dropdown.
+    expect(
+      screen.getByRole("button", { name: "Actions pour House of the Dragon" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the CompletenessAccordion below a series row", () => {
+    renderPanel([makeItem({ kind: "show" })]);
+
+    // The accordion trigger is still present below the compact row.
+    expect(screen.getByText("Détail par épisode")).toBeInTheDocument();
+  });
+
+  it("does NOT render the CompletenessAccordion for movies", () => {
+    renderPanel([makeItem({ kind: "movie", title: "Ferrari" })]);
+
+    expect(screen.queryByText("Détail par épisode")).not.toBeInTheDocument();
   });
 });
 
@@ -172,10 +208,15 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
   it("un suivi retiré quitte la grille et apparaît dans la section repliée", () => {
     renderPanel([
       makeItem(),
-      makeItem({ id: 7, title: "Le Robot sauvage", kind: "movie", active: false }),
+      makeItem({
+        id: 7,
+        title: "Le Robot sauvage",
+        kind: "movie",
+        active: false,
+      }),
     ]);
 
-    // Grid: only the active follow renders as a card.
+    // Grid: only the active follow renders as a compact row.
     expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
     // Retired section: collapsed summary with count + reactivate control.
     expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
@@ -183,8 +224,10 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
     expect(
       screen.getByRole("button", { name: "Réactiver" }),
     ).toBeInTheDocument();
-    // The retired item must NOT render its card controls (no Retirer button).
-    expect(screen.getAllByRole("button", { name: "Retirer" })).toHaveLength(1);
+    // The active row has a dropdown trigger; the retired item does not.
+    expect(
+      screen.getByRole("button", { name: "Actions pour House of the Dragon" }),
+    ).toBeInTheDocument();
   });
 
   it("aucune section retirés quand tout est actif", () => {

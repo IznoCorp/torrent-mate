@@ -2,12 +2,19 @@
  * ObligationsPanel — the "Obligations" tab: seed-obligation rows (ratio, seed
  * time, HnR) with a server-side status filter.
  *
- * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged.
+ * Phase 02: title-led rows — the first column shows the resolved title
+ * (item.title) or falls back to the truncated info_hash.  The hash is demoted
+ * to a secondary mono column with a copy-to-clipboard button.
+ *
+ * Extracted from `AcquisitionPage.tsx` (C12).
  */
 
-import { useState, type ReactElement } from "react";
+import { Check, Copy } from "lucide-react";
+import { useCallback, useState, type ReactElement } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -44,6 +51,8 @@ import {
  */
 export function ObligationsPanel(): ReactElement {
   const [status, setStatus] = useState<ObligationFilter>("all");
+  // Track which hashes have been copied (→ check icon for ~1.5 s).
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   const { data, isLoading, isError, error } = useObligations(
     status !== "all" ? { status } : {},
@@ -55,6 +64,26 @@ export function ObligationsPanel(): ReactElement {
   // so a client re-filter would silently drop it (adversarial-review finding).
   // obligationStatus() stays in use only for the per-row status BADGE.
   const items = data?.items ?? [];
+
+  /**
+   * Copy a hash to the clipboard and show the check icon for 1.5 s.
+   *
+   * Uses {@link navigator.clipboard.writeText} — no fallback for insecure
+   * contexts (the app is served over HTTPS).
+   */
+  const handleCopyHash = useCallback((hash: string): void => {
+    void navigator.clipboard
+      .writeText(hash)
+      .then(() => {
+        setCopiedHash(hash);
+        setTimeout(() => {
+          setCopiedHash((prev) => (prev === hash ? null : prev));
+        }, 1500);
+      })
+      .catch(() => {
+        toast.error("Copie du hash impossible");
+      });
+  }, []);
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -119,7 +148,8 @@ export function ObligationsPanel(): ReactElement {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Info Hash</TableHead>
+            <TableHead>Titre</TableHead>
+            <TableHead>Hash</TableHead>
             <TableHead>Tracker</TableHead>
             <TableHead>Ratio min</TableHead>
             <TableHead>Ratio obs.</TableHead>
@@ -131,10 +161,34 @@ export function ObligationsPanel(): ReactElement {
         <TableBody>
           {items.map((item) => {
             const obs = obligationStatus(item);
+            const truncatedHash = truncate(item.info_hash, 12);
+            const copied = copiedHash === item.info_hash;
             return (
               <TableRow key={`o-${item.info_hash}-${item.source_tracker}`}>
+                {/* Primary: resolved title, or fallback to truncated hash. */}
+                <TableCell className="max-w-[200px] truncate text-xs font-medium">
+                  {item.title ?? truncatedHash}
+                </TableCell>
+                {/* Hash — mono, truncated, with copy button. */}
                 <TableCell className="font-mono text-xs">
-                  {truncate(item.info_hash, 12)}
+                  <span className="flex items-center gap-1">
+                    <span title={item.info_hash}>{truncatedHash}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-5"
+                      aria-label={`Copier le hash ${item.info_hash}`}
+                      onClick={() => {
+                        handleCopyHash(item.info_hash);
+                      }}
+                    >
+                      {copied ? (
+                        <Check className="size-3 text-green-600" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </Button>
+                  </span>
                 </TableCell>
                 <TableCell className="text-xs">{item.source_tracker}</TableCell>
                 <TableCell className="font-mono text-xs">
