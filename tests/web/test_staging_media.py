@@ -64,13 +64,20 @@ def _staging_dirs() -> list[StagingDirConfig]:
     ]
 
 
-def _make_client(test_config, *, staging_dir: Path, db_path: Path, data_dir: Path) -> TestClient:
+def _make_client(
+    test_config,
+    *,
+    staging_dir: Path,
+    db_path: Path,
+    data_dir: Path,
+    staging_dirs: list[StagingDirConfig] | None = None,
+) -> TestClient:
     """Build an authenticated ``TestClient`` with staging routes wired to temp paths."""
     cfg = test_config.model_copy(
         update={
             "paths": test_config.paths.model_copy(update={"staging_dir": staging_dir, "data_dir": data_dir}),
             "indexer": test_config.indexer.model_copy(update={"db_path": db_path}),
-            "staging_dirs": _staging_dirs(),
+            "staging_dirs": staging_dirs if staging_dirs is not None else _staging_dirs(),
         },
     )
     web_cfg = cfg.web.model_copy(update={"username": TEST_USERNAME})
@@ -1723,3 +1730,65 @@ def test_continue_stale_marker_surfaced_by_read_model(test_config, tmp_path: Pat
     assert fight["continuation_requested_at"] == stale_ts
     # The marker file survives (read-model never unlinks it).
     assert marker.exists()
+
+
+def test_terminal_kind_category_hidden(test_config, tmp_path: Path) -> None:
+    """BUG A regression (2026-07-17) — terminal-kind categories are hidden.
+
+    A media parked in a terminal category (audio/ebook/app) never surfaces as
+    a pipeline item.
+
+    Operator directive: « on le met dans la staging 004-AUDIO et c'est
+    terminé » — filing IS the resolution, the web UI must not re-present it.
+    """
+    staging = tmp_path / "staging"
+    _seed_tree(staging, with_unmatched=False)
+    dirs = _staging_dirs() + [StagingDirConfig(id=4, name="audio", file_type="audio")]
+    parked = staging / "004-AUDIO" / "Rendez-vous avec X"
+    parked.mkdir(parents=True)
+    _write_video(parked / "episode-01.mp3", size=512)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    client = _make_client(
+        test_config,
+        staging_dir=staging,
+        db_path=_fresh_db(tmp_path),
+        data_dir=data_dir,
+        staging_dirs=dirs,
+    )
+    payload = client.get("/api/staging/media").json()
+    folders = {i["folder"] for i in payload["items"]}
+    assert "Rendez-vous avec X" not in folders
+    # The real (movie/tvshow) items are still there — exclusion is kind-scoped.
+    assert "Fight Club (1999)" in folders
+    assert payload["counts"]["total"] == len(payload["items"])
+
+
+def test_artifact_empty_dir_hidden(test_config, tmp_path: Path) -> None:
+    """BUG C regression (2026-07-17) — layout debris is never a media item.
+
+    An empty (or junk-only) folder must never be presented as a blocked item.
+
+    Live incident: an empty legacy « TV SHOWS » folder landed in 098-AUTRES and
+    the UI showed it as a media blocked in the pipeline.
+    """
+    staging = tmp_path / "staging"
+    _seed_tree(staging, with_unmatched=False)
+    autres = staging / "098-AUTRES"
+    (autres / "TV SHOWS").mkdir(parents=True)  # fully empty
+    junk_only = autres / "MOVIES"
+    junk_only.mkdir()
+    (junk_only / ".DS_Store").write_bytes(b"\x00")  # junk-only
+    payload_dir = autres / "Vrai artefact"
+    payload_dir.mkdir()
+    (payload_dir / "data.bin").write_bytes(b"\x01" * 64)  # real content
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+    payload = client.get("/api/staging/media").json()
+    folders = {i["folder"] for i in payload["items"]}
+    assert "TV SHOWS" not in folders
+    assert "MOVIES" not in folders
+    assert "Vrai artefact" in folders

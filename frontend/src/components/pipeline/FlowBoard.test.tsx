@@ -7,7 +7,13 @@
  * tested against genuine router behaviour.
  */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -108,11 +114,15 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("FlowBoard", () => {
   it("renders the eight stations with their stock counts — no Staging step", () => {
     renderBoard();
+    // In compact (desktop) mode, quiet station labels (idle/ok) are hidden
+    // from visible text. All stations keep an accessible name via aria-label
+    // so screen readers and getByRole queries can find them (DOIT-9/a11y).
     for (const label of [
       "Arrivée",
       "Tri",
@@ -123,16 +133,109 @@ describe("FlowBoard", () => {
       "Vérification",
       "Dispatch",
     ]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: new RegExp(label) }),
+      ).toBeInTheDocument();
     }
     expect(screen.queryByText("Staging")).not.toBeInTheDocument();
     // Identification stock is shown.
     expect(screen.getByText("4")).toBeInTheDocument();
+    // G2: normal stages container has sm:flex-wrap, NOT sm:overflow-x-auto.
+    // The container is the direct parent of the first StageStation button.
+    const firstStation = screen.getByRole("button", { name: /Arrivée/ });
+    const container = firstStation.parentElement;
+    if (container === null) throw new Error("expected parent element");
+    expect(container.className).toMatch(/\bsm:flex-wrap\b/);
+    expect(container.className).not.toMatch(/\bsm:overflow-x-auto\b/);
+  });
+
+  it("quiet stations (idle/ok) hide their label text in compact mode but keep an accessible name", () => {
+    renderBoard();
+    // Tri (state=idle, count=0) — the button exists via accessible name,
+    // but "Tri" is not visible text (hidden in compact quiet layout).
+    expect(screen.getByRole("button", { name: /Tri/ })).toBeInTheDocument();
+    // The compact quiet layout uses flex-row (icon+count+dot in one row)
+    // rather than the expanded flex-col with a visible label row.
+    const triBtn = screen.getByRole("button", { name: /Tri/ });
+    expect(triBtn.className).toMatch(/\bflex-row\b/);
+    // G7: quiet compact label text is NOT visible in the DOM.
+    // queryByText returns null — the label row is hidden in compact quiet mode.
+    expect(screen.queryByText("Tri")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nettoyage")).not.toBeInTheDocument();
+  });
+
+  it("anomalous stations (blocked) render expanded with a danger ring", () => {
+    renderBoard();
+    // Identification (blocked=4) and Vérification (blocked=1) are anomalous
+    // — they stay expanded even in compact mode with a red lavis + ring.
+    const idBtn = screen.getByRole("button", { name: /Identification/ });
+    const verifyBtn = screen.getByRole("button", { name: /Vérification/ });
+    expect(idBtn.className).toMatch(/\bborder-danger\b/);
+    expect(verifyBtn.className).toMatch(/\bborder-danger\b/);
+    // Blocked count chips are shown inside the expanded station.
+    expect(screen.getByText("4 bloqués")).toBeInTheDocument();
+    expect(screen.getByText("1 bloqué")).toBeInTheDocument();
+    // G1: expanded station label text IS visible (not flex-row collapsed).
+    // If isCompactQuiet mistakenly included "blocked", getByText would throw.
+    expect(screen.getByText("Identification")).toBeInTheDocument();
+    expect(screen.getByText("Vérification")).toBeInTheDocument();
+  });
+
+  it("on mobile (matchMedia narrow), labels become visible and stations stack vertically (CSS-driven)", () => {
+    // G3/A2: Record the listener so we can fire a change event. Start in
+    // desktop mode (compact on, quiet labels hidden), then fire {matches:false}
+    // and verify labels become visible. On unmount, removeEventListener must
+    // be called — the cleanup must fire.
+    const addEventListenerMock = vi.fn();
+    const removeEventListenerMock = vi.fn();
+    const matchMediaSpy = vi.fn().mockReturnValue({
+      matches: true, // desktop → compact on
+      addEventListener: addEventListenerMock,
+      removeEventListener: removeEventListenerMock,
+    });
+    vi.stubGlobal("matchMedia", matchMediaSpy);
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/pipeline"]}>
+        <FlowBoard />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    // Desktop: quiet station labels hidden (compact quiet mode).
+    expect(screen.queryByText("Tri")).not.toBeInTheDocument();
+
+    // addEventListener("change", handler) was registered.
+    expect(addEventListenerMock).toHaveBeenCalledWith(
+      "change",
+      expect.any(Function),
+    );
+    const firstCall = addEventListenerMock.mock.calls[0];
+    if (firstCall === undefined) throw new Error("expected addEventListener call");
+    const handler = firstCall[1] as (
+      e: MediaQueryListEvent,
+    ) => void;
+
+    // Fire the change event: viewport narrows → mobile.
+    act(() => {
+      handler({ matches: false } as MediaQueryListEvent);
+    });
+
+    // On mobile, compact is off — all labels are visible text.
+    expect(screen.getByText("Arrivée")).toBeInTheDocument();
+    expect(screen.getByText("Tri")).toBeInTheDocument();
+    expect(screen.getByText("Dispatch")).toBeInTheDocument();
+
+    // Unmount must call removeEventListener to clean up the listener.
+    unmount();
+    expect(removeEventListenerMock).toHaveBeenCalledWith("change", handler);
   });
 
   it("carries the last run's throughput in the header, not on stations", () => {
     renderBoard();
-    expect(screen.getByText(/Dernier run · .* · 3 médias traités/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Dernier run · .* · 3 médias traités/),
+    ).toBeInTheDocument();
   });
 
   it("shows a loading skeleton row while fetching", () => {
@@ -144,7 +247,12 @@ describe("FlowBoard", () => {
       refetch: vi.fn(),
     });
     const { container } = renderBoard();
-    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    const busy = container.querySelector('[aria-busy="true"]');
+    expect(busy).not.toBeNull();
+    // G2: loading skeleton container has sm:flex-wrap, NOT sm:overflow-x-auto.
+    if (busy === null) throw new Error("expected aria-busy element");
+    expect(busy.className).toMatch(/\bsm:flex-wrap\b/);
+    expect(busy.className).not.toMatch(/\bsm:overflow-x-auto\b/);
   });
 
   it("falls back to the skeleton when a settled query yields no stages", () => {
@@ -158,7 +266,12 @@ describe("FlowBoard", () => {
       refetch: vi.fn(),
     });
     const { container } = renderBoard();
-    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    const busy = container.querySelector('[aria-busy="true"]');
+    expect(busy).not.toBeNull();
+    // G2: empty fallback container has sm:flex-wrap, NOT sm:overflow-x-auto.
+    if (busy === null) throw new Error("expected aria-busy element");
+    expect(busy.className).toMatch(/\bsm:flex-wrap\b/);
+    expect(busy.className).not.toMatch(/\bsm:overflow-x-auto\b/);
     expect(screen.queryByText("Arrivée")).not.toBeInTheDocument();
   });
 

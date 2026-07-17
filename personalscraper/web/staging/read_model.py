@@ -34,6 +34,7 @@ from personalscraper.core.media_types import (
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import PATTERNS
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES
 from personalscraper.trailers.placement import find_existing_trailer
 from personalscraper.verify.completeness import dispatch_completeness
 from personalscraper.verify.verifier import Verifier
@@ -73,6 +74,12 @@ _FILE_TYPE_TO_KIND: dict[str, StagingMediaKind] = {
 #: Media kinds enriched with NFO + poster + trailer + seasons (and that flow
 #: through match/scrape/trailer/verify). Other kinds skip those stages.
 _SCRAPABLE_KINDS: frozenset[str] = frozenset({"movie", "tvshow"})
+
+#: Kinds whose staging category is a terminal parking spot (operator directive
+#: 2026-07-16: an audio/ebook/app filed in its category is DONE — it must not
+#: appear in the web UI as a pipeline item). Items of these kinds still in the
+#: ingest dir keep their ``unsorted`` kind and stay visible until routed.
+_TERMINAL_KINDS: frozenset[str] = frozenset({"ebook", "audio", "app"})
 
 #: ``Saison NN`` season-folder pattern (French library convention).
 _SEASON_RE = re.compile(r"^Saison\s+(\d+)$", re.IGNORECASE)
@@ -173,6 +180,33 @@ def _find_poster(media_dir: Path) -> Path | None:
     """
     poster_name = artwork_status(media_dir).poster_name
     return media_dir / poster_name if poster_name is not None else None
+
+
+def _is_artifact_dir(media_dir: Path) -> bool:
+    """Check whether a staged folder holds no real content at all.
+
+    A folder is an artifact when it contains no file anywhere in its tree
+    other than junk files (``.DS_Store``, ``Thumbs.db``, ``desktop.ini``).
+    Such folders are layout debris (e.g. an empty legacy ``TV SHOWS/`` dir
+    copied into staging), not media — presenting one as a blocked pipeline
+    item is absurd (operator directive 2026-07-16).
+
+    Fail-soft: an unreadable tree is NOT treated as an artifact (the item
+    stays visible rather than silently vanishing on I/O errors).
+
+    Args:
+        media_dir: First-level staged folder to inspect.
+
+    Returns:
+        True when the folder tree contains no non-junk file.
+    """
+    try:
+        for path in media_dir.rglob("*"):
+            if path.is_file() and path.name not in _JUNK_FILES:
+                return False
+    except OSError:
+        return False
+    return True
 
 
 def find_nfo(media_dir: Path, media_kind: str) -> Path | None:
@@ -582,6 +616,10 @@ def scan_staging_media(
         if not category_dir.is_dir():
             continue
         media_kind = _kind_for_entry(entry.file_type, entry.role)
+        if media_kind in _TERMINAL_KINDS:
+            # Parked-and-done categories (audio/ebook/app) never surface as
+            # pipeline items — filing a media there IS the resolution.
+            continue
         in_ingest = entry.role == "ingest"
         try:
             children = sorted(category_dir.iterdir())
@@ -590,6 +628,9 @@ def scan_staging_media(
             continue
         for child in children:
             if not child.is_dir():
+                continue
+            if _is_artifact_dir(child):
+                logger.debug("staging_artifact_dir_skipped", category=category, folder=child.name)
                 continue
             items.append(
                 _build_item(

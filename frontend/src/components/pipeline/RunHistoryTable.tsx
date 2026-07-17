@@ -24,7 +24,7 @@ import {
 } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
-import { useCallback, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from "react";
 
 import {
   getPipelineHistory,
@@ -116,6 +116,14 @@ export interface RunHistoryTableProps {
    * restricts to pipeline runs.  Omitted or undefined → all run kinds.
    */
   readonly kind?: string;
+  /**
+   * Optional legend element rendered next to the "Historique des exécutions"
+   * heading (e.g. a trigger-legend popover on the Pipeline page).
+   *
+   * Omitted on Maintenance — the popover only lives on Pipeline
+   * (pipeline-panel Phase 02).
+   */
+  readonly legend?: ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +140,8 @@ export interface RunHistoryTableProps {
  * Args:
  *   onSelect: Callback invoked with the selected run UID.
  *   kind: Optional run-kind filter (``"maintenance"`` or ``"pipeline"``).
+ *   legend: Optional element rendered next to the heading (e.g. a
+ *     {@link TriggerLegend} popover on the Pipeline page).
  *
  * Returns:
  *   The history table element.
@@ -139,6 +149,7 @@ export interface RunHistoryTableProps {
 export function RunHistoryTable({
   onSelect,
   kind,
+  legend,
 }: RunHistoryTableProps): ReactElement {
   // Server-side pagination + sorting state.
   const [offset, setOffset] = useState(0);
@@ -202,8 +213,9 @@ export function RunHistoryTable({
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold tracking-tight">
+      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
         Historique des exécutions
+        {legend !== undefined && legend}
       </h2>
 
       <div className="rounded-lg border border-border bg-card">

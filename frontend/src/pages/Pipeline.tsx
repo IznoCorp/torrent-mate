@@ -1,29 +1,35 @@
 /**
- * Pipeline supervision page (TorrentMateUI S2 — pipe-control; webui-ux Phase 2).
+ * Pipeline supervision page (TorrentMateUI S2 — pipe-control; pipeline-panel).
  *
  * Polls ``GET /api/pipeline/status`` every 5 seconds via {@link usePipelineStatus}
- * and feeds the live status to {@link PipelineControls}. The nine-stage
- * {@link FlowBoard} is the single canonical pipeline view (OBJ1) — the legacy
- * linear stepper was retired to avoid two parallel stage models on one page.
+ * and feeds the live status to {@link PipelineControls}. The eight-stage
+ * {@link FlowBoard} is the single canonical pipeline view (OBJ1).
  *
- * webui-ux Phase 2 reworks the log area:
+ * pipeline-panel Phase 02 repatriates the pipeline run-history table + RunDetail
+ * drawer from the Maintenance page. The ``?run=<uid>`` query param opens the
+ * inline RunDetail drawer (DOIT-10: every detail view is URL-addressable).
+ *
+ * Log area:
  * - The DEFAULT view is the interpreted, plain-French run narrative
  *   ({@link InterpretedRunFeed}) folded from the live WS event stream.
  * - When no run is active, the interpreted feed shows the LAST run's summary
  *   (reconstructed from the persisted per-step counts via
  *   {@link useLastPipelineRun}) so the page never blanks.
  * - The raw WS log ({@link RunLogFeed}) moves inside a collapsed {@link Accordion}.
- * - The run-history table is removed here (it lives on the Maintenance page) to
- *   de-duplicate; a small trigger legend explains the trigger labels.
+ * - The trigger legend lives as a popover on the history table header
+ *   (tap-accessible, never hover-only — DOIT-9).
  */
 
-import { type ReactElement } from "react";
+import { useCallback, type ReactElement } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
+import { RunDetail } from "@/components/pipeline/RunDetail";
+import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import {
@@ -51,6 +57,34 @@ export default function Pipeline(): ReactElement {
   // freshly-finished run supersedes the previous summary.
   const lastRun = useLastPipelineRun(activeRunUid ?? "idle");
 
+  // Run-detail selection is URL-addressable (?run=<uid>) — DOIT-10.
+  const [searchParams, setSearchParams] = useSearchParams();
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  const selectedRun = searchParams.get("run") || null;
+  const openRun = useCallback(
+    (uid: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("run", uid);
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+  const closeRun = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("run");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
@@ -58,7 +92,7 @@ export default function Pipeline(): ReactElement {
       {/* Human-action banner — impossible to miss when decisions await (C5). */}
       <PipelineActionBanner />
 
-      {/* OBJ1 living pipeline — the Flow Board of the nine stages. */}
+      {/* OBJ1 living pipeline — the Flow Board of the eight stages. */}
       <FlowBoard />
 
       <PipelineControls status={liveStatus} />
@@ -85,7 +119,25 @@ export default function Pipeline(): ReactElement {
         </AccordionItem>
       </Accordion>
 
-      <TriggerLegend />
+      {/* Pipeline run-history — repatriated from Maintenance (pipeline-panel
+          Phase 02). The trigger legend lives as a popover on the history
+          header (tap-accessible, never hover-only — DOIT-9). */}
+      <RunHistoryTable
+        kind="pipeline"
+        onSelect={openRun}
+        legend={<TriggerLegend />}
+      />
+
+      {/* Inline detail view when a history row is selected (URL: ?run=<uid>).
+          showMaintenanceLink adds a cross-link to /maintenance when the
+          selected run is a maintenance run (pipeline-panel Phase 02). */}
+      {selectedRun !== null && (
+        <RunDetail
+          runUid={selectedRun}
+          onClose={closeRun}
+          showMaintenanceLink
+        />
+      )}
     </section>
   );
 }

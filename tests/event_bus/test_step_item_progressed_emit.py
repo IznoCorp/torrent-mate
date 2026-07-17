@@ -162,6 +162,7 @@ def test_run_cleanup_emits_item_progressed_per_category(
     config.paths.staging_dir = staging
 
     monkeypatch.setattr("personalscraper.process.run.find_by_file_type", lambda _c, _t: MagicMock())
+    monkeypatch.setattr("personalscraper.process.run.find_ingest_dir", lambda _c: MagicMock())
     monkeypatch.setattr("personalscraper.process.run.folder_name", lambda _e: "X")
     monkeypatch.setattr(
         "personalscraper.process.cleanup.cleanup_empty_dirs",
