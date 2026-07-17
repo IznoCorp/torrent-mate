@@ -161,29 +161,6 @@ class TMDBClient(
             return self.search_tv(title, year=year)
         return self.search_movie(title, year=year)
 
-    # -- Protocol: get_details ----------------------------------------------
-
-    def get_details(
-        self,
-        media_id: str,
-        media_type: MediaType = MediaType.MOVIE,
-    ) -> MediaDetails:
-        """Fetch full details for a movie or TV show.
-
-        Uses append_to_response to fetch images, videos, keywords, and
-        external_ids in a single request.
-
-        Args:
-            media_id: TMDB movie or TV ID.
-            media_type: "movie" or "tv".
-
-        Returns:
-            Populated MediaDetails with artwork, genres, and external IDs.
-        """
-        if media_type == "tv":
-            return self.get_tv(media_id)
-        return self.get_movie(media_id)
-
     # -- TMDB-specific: movie search ----------------------------------------
 
     def search_movie(
@@ -466,20 +443,6 @@ class TMDBClient(
             ``list[EpisodeInfo]`` for the requested season.
         """
         return self.get_tv_season(int(series_id), season).episodes
-
-    # -- Protocol: get_season -----------------------------------------------
-
-    def get_season(self, tv_id: str, season: int) -> SeasonDetails:
-        """Fetch TV season details.
-
-        Args:
-            tv_id: TMDB TV show ID.
-            season: Season number (1-indexed).
-
-        Returns:
-            SeasonDetails with parsed episodes.
-        """
-        return self.get_tv_season(int(tv_id), season)
 
     # -- Helpers ------------------------------------------------------------
 

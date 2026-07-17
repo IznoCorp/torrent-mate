@@ -22,16 +22,19 @@ Cross-provider ID resolution (TVDB ↔ TMDB ↔ IMDb) is owned by the
 external-ids flow (``scraper._xref`` + the indexer backfill), not by a
 capability Protocol.
 
-The remaining 9 capabilities derive from the 8 public methods of the
-existing ``MetadataProvider`` Protocol (``get_details()`` splits into
-``MovieDetailsProvider`` + ``TvDetailsProvider``).
+The remaining 9 capabilities derive from the public methods of the
+historical ``MetadataProvider`` Protocol (``get_details()`` split into
+``MovieDetailsProvider.get_movie`` + ``TvDetailsProvider.get_tv``;
+``get_season`` became ``EpisodeFetcher.get_episodes``).
 
-Phase 1.2 ships only these contracts. Client classes (``TMDbClient``,
-``TVDbClient``, …) are not modified here; they continue to expose the
-legacy method names (``get_details``, ``get_season``, ``get_notations``)
-until later phases refactor them. ``isinstance`` checks against current
-clients will therefore return ``False`` until those phases land — by
-design, since these capabilities describe the *target* shape.
+The concrete clients (``TMDBClient``, ``TVDBClient``, ``TraktClient``, …)
+now expose **only** the typed capability surface — the legacy public
+``get_details`` / ``get_season`` names were removed (API-TRANSPORT-04), so
+``isinstance`` checks are honest. Two method names survive but are NOT
+capability duplicates: ``get_notations`` is the internal rating-backend
+method on ``OMDbAdapter`` / ``TraktClient`` that the IMDb / RT façades wrap
+into :class:`RatingProvider`, and ``OMDbAdapter.get_details`` is the
+backend detail fetch with no capability twin.
 """
 
 from __future__ import annotations

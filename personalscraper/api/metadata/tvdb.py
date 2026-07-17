@@ -384,22 +384,6 @@ class TVDBClient(
             return []
         return [parse_search_result(item, "tvdb") for item in data]
 
-    # -- Protocol: get_details ----------------------------------------------
-
-    def get_details(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> MediaDetails:
-        """Fetch full details for a series or movie.
-
-        Args:
-            media_id: TVDB ID.
-            media_type: "movie" or "tv".
-
-        Returns:
-            Populated MediaDetails.
-        """
-        if media_type == "tv":
-            return self.get_series(int(media_id))
-        return self.get_movie(media_id)
-
     def get_series(self, series_id: int) -> MediaDetails:
         """Fetch extended series details.
 
@@ -498,23 +482,6 @@ class TVDBClient(
             ``list[EpisodeInfo]`` for the requested season.
         """
         return self.get_series_episodes(int(series_id), season).episodes
-
-    # -- Protocol: get_season -----------------------------------------------
-
-    def get_season(self, tv_id: str, season: int) -> SeasonDetails:
-        """Fetch TV season episodes.
-
-        Uses /series/{id}/episodes/default with required page param.
-        Iterates pages if more than 100 episodes.
-
-        Args:
-            tv_id: TVDB series ID.
-            season: Season number (1-indexed).
-
-        Returns:
-            SeasonDetails with parsed episodes.
-        """
-        return self.get_series_episodes(int(tv_id), season)
 
     def get_series_episodes(self, series_id: int, season: int) -> SeasonDetails:
         """Fetch episodes for a specific season.

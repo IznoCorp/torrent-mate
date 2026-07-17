@@ -515,8 +515,8 @@ def mock_tvdb_client(monkeypatch: Any) -> Any:
     """Mock TVDB API client returning realistic payloads by default.
 
     Returns a minimal show for ``get_show``.  Callers can override
-    ``get_show.return_value``, ``get_season.return_value``, etc. for
-    scenario-specific tests.
+    ``get_show.return_value``, ``get_series_episodes.return_value``, etc.
+    for scenario-specific tests.
 
     The mock instance uses ``MagicMock(spec=TVDBClient)`` so the
     real :class:`ProviderRegistry` ``protocol_mismatch`` check (which
@@ -534,7 +534,6 @@ def mock_tvdb_client(monkeypatch: Any) -> Any:
     # ``mock.get_show`` will now see an explicit ``AttributeError``.
     mock.get_tv.return_value = _make_minimal_show_details()
     mock.get_series.return_value = _make_minimal_show_details()
-    mock.get_season.return_value = None
     mock.search.return_value = []
     mock.search_series.return_value = []
 

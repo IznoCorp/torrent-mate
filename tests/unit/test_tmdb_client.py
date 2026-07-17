@@ -95,20 +95,20 @@ class TestSearchDispatch:
 
 
 class TestGetDetailsDispatch:
-    """Protocol-level ``get_details`` dispatcher routes by media_type."""
+    """Typed detail capabilities accept the string-id Protocol path."""
 
-    def test_get_details_movie(self, client: TMDBClient, transport: MagicMock) -> None:
-        """Movie → /movie/{id}."""
+    def test_get_movie_string_id(self, client: TMDBClient, transport: MagicMock) -> None:
+        """get_movie(str) → /movie/{id}."""
         transport.get.return_value = _load("movie_details.json")
-        md = client.get_details("550", media_type="movie")
+        md = client.get_movie("550")
         assert isinstance(md, MediaDetails)
         assert md.provider_id == "550"
         assert transport.get.call_args.args[0] == "/movie/550"
 
-    def test_get_details_tv(self, client: TMDBClient, transport: MagicMock) -> None:
-        """Tv → /tv/{id}."""
+    def test_get_tv_string_id(self, client: TMDBClient, transport: MagicMock) -> None:
+        """get_tv(str) → /tv/{id}."""
         transport.get.return_value = _load("tv_details.json")
-        md = client.get_details("1396", media_type="tv")
+        md = client.get_tv("1396")
         assert isinstance(md, MediaDetails)
         assert transport.get.call_args.args[0] == "/tv/1396"
 
@@ -221,7 +221,7 @@ class TestGetTv:
             client.get_tv(1)
 
 
-# ── get_tv_season / get_season ────────────────────────────────────────
+# ── get_tv_season / get_episodes ──────────────────────────────────────
 
 
 class TestGetTvSeason:
@@ -244,11 +244,11 @@ class TestGetTvSeason:
         with pytest.raises(TypeError, match="Expected dict"):
             client.get_tv_season(1, 1)
 
-    def test_get_season_delegates_to_get_tv_season(self, client: TMDBClient, transport: MagicMock) -> None:
-        """The Protocol ``get_season`` accepts a string tv_id and delegates."""
+    def test_get_episodes_string_id(self, client: TMDBClient, transport: MagicMock) -> None:
+        """The ``get_episodes`` capability accepts a string tv_id and returns the episode list."""
         transport.get.return_value = _load("season_details.json")
-        sd = client.get_season("1396", 1)
-        assert sd.tv_id == "1396"
+        episodes = client.get_episodes("1396", 1)
+        assert len(episodes) > 0
 
 
 # ── get_artwork_urls ──────────────────────────────────────────────────
