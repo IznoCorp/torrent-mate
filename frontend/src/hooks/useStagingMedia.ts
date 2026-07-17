@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import {
   useQuery,
   useQueryClient,
+  type UseQueryOptions,
   type UseQueryResult,
 } from "@tanstack/react-query";
 
@@ -63,6 +64,9 @@ export const stagingMediaKeys = {
  */
 export function useStagingMedia(
   params: StagingMediaParams = {},
+  queryOptions?: Partial<
+    Pick<UseQueryOptions<StagingMediaResponse>, "refetchInterval" | "staleTime">
+  >,
 ): UseQueryResult<StagingMediaResponse> {
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
@@ -71,6 +75,7 @@ export function useStagingMedia(
     queryKey: stagingMediaKeys.list(params),
     queryFn: () => getStagingMedia(params),
     refetchInterval: STAGING_REFETCH_MS,
+    ...queryOptions,
   });
 
   // Invalidate every staging-media query (all filter variants) on the newest

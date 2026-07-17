@@ -25,12 +25,43 @@ function buildResponse(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
-/** A decisions list payload carrying the ``pending_count`` the badge reads. */
-function decisionsPayload(pendingCount: number): Record<string, unknown> {
+/** A staging payload carrying the ``counts.awaiting_action`` the badge reads. */
+function stagingPayload(awaitingAction: number): Record<string, unknown> {
   return {
     items: [],
-    pending_count: pendingCount,
-    total: pendingCount,
+    counts: {
+      absent: 0,
+      ambiguous: 0,
+      awaiting_action: awaitingAction,
+      matched: 0,
+      scraped: 0,
+      total: 0,
+    },
+    total: 0,
+    page: 1,
+    page_size: 1,
+  };
+}
+
+/** A pipeline status payload for the running-dot badge. */
+function pipelineStatusPayload(
+  state: "idle" | "running" | "paused",
+): Record<string, unknown> {
+  return {
+    state,
+    run_uid: state === "idle" ? null : "run-123",
+    step: state === "idle" ? null : "scrape",
+    paused: state === "paused",
+    watcher_enabled: true,
+    pid: state === "idle" ? null : 12345,
+  };
+}
+
+/** A wanted payload carrying the ``total`` the badge reads. */
+function wantedPayload(total: number): Record<string, unknown> {
+  return {
+    items: [],
+    total,
     page: 1,
     page_size: 1,
   };
@@ -41,8 +72,34 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   fetchMock.mockReset();
   MockWebSocket.reset();
-  // Authenticated identity so the TopBar's UserMenu has a session to read.
-  fetchMock.mockResolvedValue(buildResponse(200, { username: "izno" }));
+  // Provide sensible defaults for every endpoint AppShellInner hits so
+  // tests that don't override fetchMock still get well-shaped responses.
+  fetchMock.mockImplementation((input) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes("/api/auth/me")) {
+      return Promise.resolve(buildResponse(200, { username: "izno" }));
+    }
+    if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+      return Promise.resolve(buildResponse(200, stagingPayload(0)));
+    }
+    if (url.includes("/api/pipeline/status")) {
+      return Promise.resolve(
+        buildResponse(200, pipelineStatusPayload("idle")),
+      );
+    }
+    if (
+      url.includes("/api/acquisition/wanted") &&
+      url.includes("status=pending")
+    ) {
+      return Promise.resolve(buildResponse(200, wantedPayload(0)));
+    }
+    return Promise.resolve(buildResponse(200, {}));
+  });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("WebSocket", MockWebSocket);
 });
@@ -134,10 +191,10 @@ describe("AppShell mobile nav Sheet", () => {
   });
 });
 
-describe("AppShell pending-count badge", () => {
+describe("AppShell nav badges", () => {
   beforeEach(() => {
-    // The badge query fires a lightweight count-only request
-    // (page_size=1).  Stub it with the pending_count the test wants.
+    // Stub the three badge sources — all idle/zero by default so the zero-
+    // state test works without per-test overrides.
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -148,29 +205,40 @@ describe("AppShell pending-count badge", () => {
       if (url.includes("/api/auth/me")) {
         return Promise.resolve(buildResponse(200, { username: "izno" }));
       }
-      if (url.includes("/api/decisions") && url.includes("page_size=1")) {
-        return Promise.resolve(buildResponse(200, decisionsPayload(0)));
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
   });
 
-  it("n'affiche pas de badge quand le nombre de décisions en attente est zéro", async () => {
+  it("n'affiche pas de badge quand awaiting_action = 0, pipeline idle et wanted = 0", async () => {
     renderShell();
 
-    // Let the badge query resolve.
+    // Let the badge queries resolve.
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    // No badge element with data-slot="badge" should be in the document —
-    // the badge map is undefined when pending_count is 0.
+    // No nav-count badge element should be in the document — every badge
+    // source is at its zero state.
     expect(
-      document.querySelector('[data-slot="badge"]'),
+      document.querySelector('[data-slot="nav-count"]'),
     ).not.toBeInTheDocument();
   });
 
-  it("affiche un badge avec le compte exact de décisions en attente", async () => {
+  it("affiche un badge avec le compte awaiting_action depuis le staging", async () => {
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -181,8 +249,19 @@ describe("AppShell pending-count badge", () => {
       if (url.includes("/api/auth/me")) {
         return Promise.resolve(buildResponse(200, { username: "izno" }));
       }
-      if (url.includes("/api/decisions") && url.includes("page_size=1")) {
-        return Promise.resolve(buildResponse(200, decisionsPayload(3)));
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(3)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -190,18 +269,16 @@ describe("AppShell pending-count badge", () => {
     renderShell();
 
     // Two nav surfaces render the badge (Sidebar + BottomTabBar); both
-    // carry the same count and data-slot="badge".
+    // carry the same count and data-slot="nav-count".
     const badges = await screen.findAllByText("3");
-    // At least one badge must appear — filtering to <span> elements with
-    // data-slot="badge" confirms these are Badge components.
     const badgeSpans = badges.filter(
       (el) => el.getAttribute("data-slot") === "nav-count",
     );
     expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("rafraîchit le badge lorsqu'un événement WS « queued_for_decision » arrive", async () => {
-    let countSent = 0;
+  it("rafraîchit le badge staging lorsqu'un événement WS ItemProgressed arrive", async () => {
+    let awaitingSent = 0;
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -212,22 +289,35 @@ describe("AppShell pending-count badge", () => {
       if (url.includes("/api/auth/me")) {
         return Promise.resolve(buildResponse(200, { username: "izno" }));
       }
-      if (url.includes("/api/decisions") && url.includes("page_size=1")) {
-        return Promise.resolve(buildResponse(200, decisionsPayload(countSent)));
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(
+          buildResponse(200, stagingPayload(awaitingSent)),
+        );
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
 
     renderShell();
 
-    // Wait for the initial badge query to settle.
+    // Wait for the initial badge queries to settle.
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    // No badge initially (count = 0).
+    // No badge initially (awaiting_action = 0).
     expect(
-      document.querySelector('[data-slot="badge"]'),
+      document.querySelector('[data-slot="nav-count"]'),
     ).not.toBeInTheDocument();
 
     // Now drive the WebSocket: complete the handshake so the event-stream
@@ -241,23 +331,24 @@ describe("AppShell pending-count badge", () => {
     });
 
     // Bump the mocked response for the refetch that the invalidation triggers.
-    countSent = 5;
+    awaitingSent = 5;
 
-    // Emit an ItemProgressed event with status "queued_for_decision" — the
-    // AppShell's useEffect should catch it and invalidate the decisions cache.
+    // Emit an ItemProgressed event — the AppShell's useEffect should catch
+    // it (any status now, not just queued_for_decision) and invalidate the
+    // staging-media cache.
     act(() => {
       latestSocket().emitMessage({
         id: "1680000000000-0",
         type: "ItemProgressed",
         data: {
           step: "scrape",
-          status: "queued_for_decision",
+          status: "blocked",
           staging_path: "/staging/001-MOVIES/Test (2024)",
         },
       });
     });
 
-    // After the invalidation, the refetch should bring back pending_count=5
+    // After the invalidation, the refetch should bring back awaiting_action=5
     // and the badge should appear on both nav surfaces.
     const badges = await screen.findAllByText("5");
     const badgeSpans = badges.filter(
