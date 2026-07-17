@@ -11,13 +11,18 @@
 **Design**: `docs/features/systeme-hub/DESIGN.md` ← shared spec §3.2 + §3.3 + §4 + §1.1
 **Version bump**: 0.53.0 → 0.54.0 (minor)
 
-## Status: branch created — awaiting plan (/implement:plan)
+## Status: plan ready — awaiting Phase 1 (/implement:phase)
 
-**Master plan**: _(to be generated)_
+**Master plan**: `docs/features/systeme-hub/plan/INDEX.md`
 
 ## Phases
 
-_(plan pending)_
+| #   | Phase                                    | File                                                                                    | Status |
+| --- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------ |
+| 1   | Outcome-labels foundation                | [phase-01-outcome-labels.md](docs/features/systeme-hub/plan/phase-01-outcome-labels.md) | [ ]    |
+| 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [ ]    |
+| 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [ ]    |
+| 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [ ]    |
 
 ## Review cycles
 
