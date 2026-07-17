@@ -49,6 +49,21 @@ log = get_logger("api.torrent.qbittorrent")
 _LOCKOUT_FILE = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
 _LOCKOUT_DURATION_SECONDS = 3600
 
+# The narrow set of qbittorrentapi exceptions that ``add`` / ``inject`` translate
+# to a uniform ApiError (via ``_map_qbit_api_error``). A bare
+# ``APIConnectionError`` / generic ``APIError`` is deliberately EXCLUDED so it
+# keeps propagating uncaught (historical behaviour) — only these observable,
+# actionable failures are mapped (D8). A real 401 on ``torrents_add`` is
+# ``Unauthorized401Error`` (HTTP401Error MRO), a DISTINCT class from
+# ``LoginFailed`` (neither subclasses the other), so both are listed.
+_QBIT_ADD_ERRORS: tuple[type[qbittorrentapi.APIError], ...] = (
+    qbittorrentapi.Forbidden403Error,
+    qbittorrentapi.Unauthorized401Error,
+    qbittorrentapi.LoginFailed,
+    qbittorrentapi.UnsupportedMediaType415Error,
+    qbittorrentapi.TorrentFileError,
+)
+
 # ``QBitAuthLockoutError`` is defined in ``_errors.py`` (its canonical home, to
 # break the ``qbittorrent.py`` ↔ ``_errors.py`` import cycle) and imported above
 # because ``_check_lockout`` raises it. Import it from ``_errors`` in new code.
@@ -219,36 +234,8 @@ class QBitClient(
         """
         try:
             files = self._client.torrents_files(torrent_hash=info_hash)
-        except qbittorrentapi.NotFound404Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=404,
-                message=f"Torrent {info_hash} not found",
-            ) from exc
-        except qbittorrentapi.Forbidden403Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=403,
-                message=f"qBittorrent list_files forbidden: {exc}",
-            ) from exc
-        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=401,
-                message=f"qBittorrent list_files unauthorized: {exc}",
-            ) from exc
-        except qbittorrentapi.APIConnectionError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=0,
-                message=f"qBittorrent list_files connection error: {exc}",
-            ) from exc
         except qbittorrentapi.APIError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=502,
-                message=f"qBittorrent list_files failed: {exc}",
-            ) from exc
+            raise _map_qbit_api_error("list_files", exc, not_found_id=info_hash) from exc
         return [(entry.name, entry.size) for entry in files]
 
     def properties(self, info_hash: str) -> dict[str, object]:
@@ -270,36 +257,8 @@ class QBitClient(
         """
         try:
             props = self._client.torrents_properties(torrent_hash=info_hash)
-        except qbittorrentapi.NotFound404Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=404,
-                message=f"Torrent {info_hash} not found",
-            ) from exc
-        except qbittorrentapi.Forbidden403Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=403,
-                message=f"qBittorrent properties forbidden: {exc}",
-            ) from exc
-        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=401,
-                message=f"qBittorrent properties unauthorized: {exc}",
-            ) from exc
-        except qbittorrentapi.APIConnectionError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=0,
-                message=f"qBittorrent properties connection error: {exc}",
-            ) from exc
         except qbittorrentapi.APIError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=502,
-                message=f"qBittorrent properties failed: {exc}",
-            ) from exc
+            raise _map_qbit_api_error("properties", exc, not_found_id=info_hash) from exc
         return dict(props)
 
     # -- Protocol: mutations -------------------------------------------------
@@ -323,30 +282,8 @@ class QBitClient(
         """
         try:
             self._client.torrents_resume(torrent_hashes=hash)
-        except qbittorrentapi.Forbidden403Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=403,
-                message=f"qBittorrent resume forbidden: {exc}",
-            ) from exc
-        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=401,
-                message=f"qBittorrent resume unauthorized: {exc}",
-            ) from exc
-        except qbittorrentapi.APIConnectionError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=0,
-                message=f"qBittorrent resume connection error: {exc}",
-            ) from exc
         except qbittorrentapi.APIError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=502,
-                message=f"qBittorrent resume failed: {exc}",
-            ) from exc
+            raise _map_qbit_api_error("resume", exc) from exc
 
     def delete(self, hash: str, *, delete_files: bool = False) -> None:
         """Delete a torrent by hash.
@@ -360,30 +297,8 @@ class QBitClient(
         """
         try:
             self._client.torrents_delete(torrent_hashes=hash, delete_files=delete_files)
-        except qbittorrentapi.Forbidden403Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=403,
-                message=f"qBittorrent delete forbidden: {exc}",
-            ) from exc
-        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=401,
-                message=f"qBittorrent delete unauthorized: {exc}",
-            ) from exc
-        except qbittorrentapi.APIConnectionError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=0,
-                message=f"qBittorrent delete connection error: {exc}",
-            ) from exc
         except qbittorrentapi.APIError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=502,
-                message=f"qBittorrent delete failed: {exc}",
-            ) from exc
+            raise _map_qbit_api_error("delete", exc) from exc
 
     def add(
         self,
@@ -443,38 +358,13 @@ class QBitClient(
             # raising 409. This is the real D7 path: idempotent success.
             log.debug("qbit_add_duplicate", info_hash=source.info_hash)
             return source.info_hash
-        except qbittorrentapi.Forbidden403Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=403,
-                message=f"qBittorrent add forbidden: {exc}",
-            ) from exc
-        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
-            # A real 401 on torrents_add is Unauthorized401Error (HTTP401Error
-            # MRO), a DISTINCT class from LoginFailed — neither subclasses the
-            # other, so both must be caught explicitly. LoginFailed is kept
-            # defensively; Unauthorized401Error is the one the daemon actually
-            # raises here. Both map to a uniform 401 ApiError (D8).
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=401,
-                message=f"qBittorrent add unauthorized: {exc}",
-            ) from exc
-        except qbittorrentapi.UnsupportedMediaType415Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=415,
-                message=f"qBittorrent rejected corrupt torrent payload: {exc}",
-            ) from exc
-        except qbittorrentapi.TorrentFileError as exc:
-            # TorrentFileError is the base of the torrent-file family
-            # (TorrentFileNotFoundError / TorrentFilePermissionError) — a
-            # corrupt or unreadable .torrent must be observable (D8).
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=0,
-                message=f"qBittorrent could not read torrent file: {exc}",
-            ) from exc
+        except _QBIT_ADD_ERRORS as exc:
+            # Narrow set only (auth + corrupt-payload + torrent-file); a bare
+            # connection/generic APIError deliberately propagates uncaught, as
+            # before. A real 401 on torrents_add is Unauthorized401Error
+            # (HTTP401Error MRO) — a DISTINCT class from LoginFailed, so both are
+            # listed. ``_map_qbit_api_error`` produces the uniform ApiError (D8).
+            raise _map_qbit_api_error("add", exc) from exc
         # torrents_add has two success shapes (qbittorrent-api 2025.11.x):
         #   * a plain-text body → the str "Ok." (current qBit) or "Fails." on a
         #     generic failure (bad magnet, disk full, bad save path);
@@ -546,30 +436,11 @@ class QBitClient(
             if recheck:
                 self._recheck_safe(info_hash)
             return info_hash
-        except qbittorrentapi.Forbidden403Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=403,
-                message=f"qBittorrent inject forbidden: {exc}",
-            ) from exc
-        except (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error) as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=401,
-                message=f"qBittorrent inject unauthorized: {exc}",
-            ) from exc
-        except qbittorrentapi.UnsupportedMediaType415Error as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=415,
-                message=f"qBittorrent rejected corrupt torrent payload: {exc}",
-            ) from exc
-        except qbittorrentapi.TorrentFileError as exc:
-            raise ApiError(
-                provider=ProviderName.QBITTORRENT,
-                http_status=0,
-                message=f"qBittorrent could not read torrent file: {exc}",
-            ) from exc
+        except _QBIT_ADD_ERRORS as exc:
+            # Same narrow catch set as add(): auth + corrupt-payload +
+            # torrent-file only. ``_map_qbit_api_error`` builds the uniform
+            # ApiError (D8); a bare connection error still propagates.
+            raise _map_qbit_api_error("inject", exc) from exc
         # Same result handling as add(): "Ok." / TorrentsAddedMetadata → success;
         # "Fails." → ApiError.
         if isinstance(result, str) and result.strip().rstrip(".").lower() != "ok":
@@ -774,6 +645,56 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
 
 
 # -- Internal helpers --------------------------------------------------------
+
+
+def _map_qbit_api_error(op: str, exc: qbittorrentapi.APIError, *, not_found_id: str | None = None) -> ApiError:
+    """Map a ``qbittorrentapi`` exception to the provider-uniform :class:`ApiError`.
+
+    Single source of the mutation/inspection methods' error translation (D8) —
+    ``list_files`` / ``properties`` / ``resume`` / ``delete`` / ``add`` /
+    ``inject`` previously each duplicated this except-chain. Dispatch is by
+    concrete type, most-specific first, because the ``qbittorrentapi`` HTTP
+    exceptions all subclass ``APIConnectionError`` (itself an ``APIError``):
+
+    - ``NotFound404Error`` (only when ``not_found_id`` is given) → 404;
+    - ``Forbidden403Error`` → 403;
+    - ``LoginFailed`` / ``Unauthorized401Error`` → 401;
+    - ``UnsupportedMediaType415Error`` → 415 (corrupt torrent payload);
+    - ``TorrentFileError`` family → 0 (unreadable ``.torrent``);
+    - any other ``APIConnectionError`` → 0 (connection error);
+    - any remaining ``APIError`` → 502.
+
+    The caller decides *which* exceptions to route here (some catch the broad
+    ``APIError``; ``add`` / ``inject`` catch only a narrow set so a bare
+    connection error keeps propagating as before). This function only maps —
+    it never widens the caught set.
+
+    Args:
+        op: Operation name embedded in the message (e.g. ``"resume"``).
+        exc: The caught ``qbittorrentapi`` exception.
+        not_found_id: When set, a ``NotFound404Error`` maps to a 404 naming this
+            hash; when ``None`` a 404 falls through to the connection-error arm
+            (the historical behaviour of the mutation methods).
+
+    Returns:
+        The mapped :class:`ApiError` (the caller raises it ``from exc``).
+    """
+    provider = ProviderName.QBITTORRENT.value
+    if not_found_id is not None and isinstance(exc, qbittorrentapi.NotFound404Error):
+        return ApiError(provider=provider, http_status=404, message=f"Torrent {not_found_id} not found")
+    if isinstance(exc, qbittorrentapi.Forbidden403Error):
+        return ApiError(provider=provider, http_status=403, message=f"qBittorrent {op} forbidden: {exc}")
+    if isinstance(exc, (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error)):
+        return ApiError(provider=provider, http_status=401, message=f"qBittorrent {op} unauthorized: {exc}")
+    if isinstance(exc, qbittorrentapi.UnsupportedMediaType415Error):
+        return ApiError(
+            provider=provider, http_status=415, message=f"qBittorrent rejected corrupt torrent payload: {exc}"
+        )
+    if isinstance(exc, qbittorrentapi.TorrentFileError):
+        return ApiError(provider=provider, http_status=0, message=f"qBittorrent could not read torrent file: {exc}")
+    if isinstance(exc, qbittorrentapi.APIConnectionError):
+        return ApiError(provider=provider, http_status=0, message=f"qBittorrent {op} connection error: {exc}")
+    return ApiError(provider=provider, http_status=502, message=f"qBittorrent {op} failed: {exc}")
 
 
 def _raise_neutral_torrent_error(op: str, exc: BaseException) -> NoReturn:
