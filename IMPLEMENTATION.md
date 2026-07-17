@@ -46,7 +46,15 @@ row recorded as documented deviation vs spec §5.2)
   ?decision drop) + model-docstring factual errors exported to OpenAPI (#1 timeline_resumes, #2
   emptied-in-place) + comment sweep (#3-#11, CM-4) + test gaps (403 staging-role ×2, quarantine
   collision, verbatim toasts, invalidation contracts, hook derivations, collapsed sidebar).
-- Fix phase: phase-07-pr-fixes-cycle-1.md (3 sub-phases).
+- Fix phase: phase-07-pr-fixes-cycle-1.md (3 sub-phases + salvage inline).
+
+### Cycle 2
+
+- Verification agent on f0f3e51a..31841106: 12/14 FIXED, 2 PARTIAL (B3 test non-reproducing, D3
+  notice not clearing) + NEW-1 false marker comment, NEW-3 stale banner. Closure commit fixes all
+  three (comment truthed, B3 repro test added, notice = pure derived boolean + test).
+- ec46760f verified comment-only (no smuggled behavior). pollForRunUid assessed leak-free.
+- Loop exit: Case A — remaining items minor/recorded. Merge mode = AUTO (operator directive).
 
 ## Open items (operator arbitration — §méthode rule 4)
 
