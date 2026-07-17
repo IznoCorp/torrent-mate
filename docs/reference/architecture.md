@@ -600,21 +600,187 @@ This replaces the previous lazy-per-step `build_active_torrent_client()` calls
 in `ingest/ingest.py` and `commands/pipeline.py`, which now read
 `ctx.torrent_client` directly.
 
+## `web/` Subsystem
+
+The `personalscraper/web/` package is the TorrentMate web management UI backend —
+a **single** async FastAPI daemon (`personalscraper web`) that supervises the
+otherwise-synchronous pipeline engine. It is ~14.5 K LOC in-tree and is the only
+HTTP server in the codebase. Full topology, auth, WS protocol, deploy runbook and
+REST conventions live in [`web-ui.md`](web-ui.md); the constitution it must serve
+is [`product-intent.md`](product-intent.md) (binding). This chapter states the
+lobe's role, boundaries and seams.
+
+### One server, sync engine
+
+- The engine stays **fully synchronous, one process per command**. The web daemon
+  (uvicorn) is the sole exception; there is no other embedded server.
+- **Only the WS relay is async** (`web/ws/relay.py` on `redis.asyncio`). Every REST
+  handler is a plain `def` run in FastAPI's threadpool, calling the sync domain
+  directly. The sync engine is never imported into async paths beyond the uvicorn
+  boundary.
+- **Composition root**: `_build_app_context(config, settings)` (the same
+  `cli_helpers` root every command uses) builds the context; `create_app(config,
+  settings)` (`web/app.py`) receives the already-built context and stores it on
+  `app.state`. This is the AppContext boundary rule — routes read `app.state`, they
+  never rebuild a context.
+
+### `guarded_api` — the single auth perimeter
+
+`web/app.py` mounts one `APIRouter(dependencies=[Depends(require_session)])` named
+`guarded_api` and includes every protected router under it. The auth perimeter is
+this **single dependency** — never a per-route `Depends(require_session)`. Only
+`GET /api/health` (liveness) and `POST /api/auth/login` are public; `/api/version`
+sits inside the guard. Auth is single-user: a `tm_session` JWT (HS256) cookie over
+a scrypt password hash, with a sliding-window login rate limiter (`web/auth/`).
+
+### Staging read-only role
+
+The daemon runs in one of two roles via `PERSONALSCRAPER_WEB_ROLE` (default
+`"prod"`). In `"staging"`, `require_not_staging` (`web/deps.py`) returns `403` on
+every **mutating** endpoint. Each mutating route composes both
+`Depends(require_not_staging)` and `Depends(require_x_requested_with)`; read-only
+routes (e.g. `web/routes/staging.py` read-model) compose neither. Every mutating
+route is also **typed** (Pydantic `response_model` → `frontend/openapi.json` →
+`schema.d.ts`), so any route change needs `make openapi` + committing the
+regenerated files.
+
+### `_runner_engine` — long-running action supervisor
+
+`web/_runner_engine.py` is the shared spawn-and-stream substrate for every
+long-running web action (pipeline runs, maintenance actions, decision-resolve,
+acquisition downloads). It reserves a run row (`reserve_run_row`), spawns the CLI
+in a child process group (`RunnerSpec` / `run_spawn_stream`), streams stdout lines
+into a `RingBuffer` and onto Redis (`redis_publish_line`) for the WS relay, and
+tears the group down cleanly (`kill_child_group` / `terminate_quietly`). Each
+per-lobe `runner.py` (`web/{maintenance,decisions,acquisition}/runner.py`) drives
+this engine. A write/destructive action holds `pipeline.lock` for its runner's
+whole lifetime (see [`maintenance.md`](maintenance.md)); run timestamps are
+Unix-epoch `time.time()`.
+
+### WS relay + Redis event stream
+
+Producer processes (`personalscraper run / watch / grab / …`) publish EventBus
+events through `subscribers/redis_stream.py` (`RedisEventPublisher`, fail-soft)
+as envelopes `XADD`-ed to the Redis Stream `personalscraper:events`. The web
+daemon's `web/ws/relay.py` tails that stream (`redis.asyncio`), fans out to
+connected sockets and replays from a client-supplied `?last_id=` cursor on
+reconnect. `GET /ws/events` is auth-guarded by the same `tm_session` cookie.
+
+### Stage catalog — single source of truth
+
+`web/staging/stages.py` is the **ONE** source of truth for the Flow Board stage
+taxonomy and a staged media's position. `STAGE_DEFS` is the eight ordered stations
+(Arrivée · Tri · Nettoyage · Identification · Scraping · Trailers · Vérification ·
+Dispatch) mapping the real engine steps (`product-intent.md` §2 — honest labels,
+no invented "Staging" step). The **single-position axiom** (P0-A.1): a media in the
+staging area is at exactly one position (awaiting or blocked at one stage); board
+stocks, per-stage lists and the per-item timeline all derive from one
+`compute_position` verdict, so they never disagree. Agreement between this catalog
+(`STEP_TO_STAGE`) and the engine's `pipeline_steps` registry is enforced by tests.
+
+### Package layout
+
+```
+personalscraper/web/
+  app.py              # create_app(config, settings) → FastAPI (lifespan, guarded_api, SPA mount)
+  deps.py             # require_session, require_not_staging, require_x_requested_with, is_staging
+  _runner_engine.py   # spawn-and-stream substrate (RingBuffer, RunnerSpec, run_spawn_stream)
+  auth/               # routes, tokens (JWT), passwords (scrypt), ratelimit
+  ws/                 # relay (Redis tail + fan-out), routes (/ws/events)
+  routes/             # health, version, pipeline, maintenance, config, decisions,
+                      #   registry, staging, acquisition, acquisition_triggers
+  staging/            # stages.py (SoT), read_model, dispatch_preview, nfo (Flow Board)
+  acquisition/        # runner, service, completeness, downloads, truth (acq pages)
+  decisions/          # runner, reserve, search (interactive scraping)
+  maintenance/        # runner, service, registry, models (maint dashboard)
+  schedulers/         # registry (cron/schedule projection)
+  models/             # Pydantic response models per lobe (→ OpenAPI → schema.d.ts)
+  static.py, static/  # SPA mount + BUILD_COMMIT; static/ is the (gitignored) Vite build
+personalscraper/commands/web.py                # typer: `web` daemon + `web set-password`
+personalscraper/subscribers/redis_stream.py    # RedisEventPublisher (producer side)
+```
+
+## `acquire/` Subsystem
+
+The `personalscraper/acquire/` package is the **acquisition lobe** — the closed-loop
+half of the pipeline (follow series → detect wanted → grab torrents → track seed
+obligations & ratio). It is structurally isolated from the triage engine: its own
+`acquire.db` file, its own event set, and a hard import boundary. Grab-flow internals
+are in [`grab-core.md`](grab-core.md); the lock invariant is in
+`docs/features/acquire-store/lock-order.md`. This chapter states the lobe's role,
+boundaries, store and events.
+
+### Role & boundaries
+
+- **Import direction — downward only** (`api/`, `core/`, `conf/`, `events/`). `acquire/`
+  must **never** import a triage package (`ingest`, `sort`, `sorter`, `process`,
+  `scraper`, `dispatch`, `indexer`, `enforce`, `verify`, `insights`, `maintenance`,
+  `reports`, `trailers`, `pipeline`, `commands`). Enforced by the AST layering guard
+  (`tests/architecture/test_layering.py`).
+- **Ownership boundary (RP6)**: reads ownership via `ctx.acquire.ownership`
+  (`core.ownership.OwnershipChecker`); it never imports `personalscraper.indexer`.
+  The `IndexerOwnershipChecker` adapter lives in `indexer/` and is wired at the
+  composition root — same shape as the deletion authority (`core.delete_permit`).
+- **Delete authority**: `delete_authority.py` implements `DeletePermit` +
+  `SeedObligationRecorder` (fail-open) so triage can ask "may I delete this?" without
+  importing acquire internals.
+
+### Store — `acquire.db`
+
+`ConcreteAcquireStore` (`store.py`, over `core/sqlite`) backs one `acquire.db` file
+with six sub-store method namespaces on a single connection: `store.follow.*`,
+`store.wanted.*`, `store.seed.*`, `store.ratio.*`, `store.cross_seed.*`,
+`store.watch.*` (the larger sub-stores — wanted/watch/aired — live in their own
+`_*_store.py` modules to stay under the module-size ceiling). Concurrency matches
+the indexer precedent: cross-process single-writer via **WAL + `BEGIN IMMEDIATE`**
+(`_write_tx`) + `busy_timeout`, **reads are lock-free**, the `core` `db_lock` is a
+**brief migration-only leaf** taken only around open+migrate. `build_acquire_store`
+returns an inert lazy handle — commands that never touch acquire state open nothing
+and take no lock (see [Lock order](#lock-order)).
+
+### Events (15)
+
+`acquire/events.py` defines 15 frozen `Event` subclasses across the lobe's concerns —
+Follow (`SeriesFollowed`, `SeriesUnfollowed`), Grab (`FilmAcquired`, `WantedEnqueued`,
+`WantedAbandoned`, `GrabSucceeded`, `GrabFailed`), Seed (`SeedObligationRecorded`,
+`SeedObligationBreached`, `SeedObligationSatisfied`), Ratio (`RatioMeasured`),
+Tracker (`TrackerAuthFailed`), Watcher (`WatcherRunTriggered`) and cross-seed
+(`CrossSeedInjected`, `CrossSeedRejected`). All are auto-registered in
+`_EVENT_CLASS_REGISTRY` and envelope-round-trippable (they count toward the
+[event catalog](#registry-events-on-the-event-contract) total).
+
+### Grab flow & CLI
+
+`GrabOrchestrator` (`orchestrator.py`) runs the single-item grab chain (claim →
+resolve profile → search → hard-filter → dedup → rank → fetch → add → mark) with a
+first-class failure taxonomy (RETRYABLE → row back to `pending`; TERMINAL → row to
+`abandoned`) and an atomic-claim state machine (`claim_for_search` /
+`mark_grabbed`, no get-then-set race). `AcquisitionService` (`service.py`) is the
+batch loop over pending + stale-searching rows with a `MAX_ATTEMPTS` cap. Seed
+obligations are written at **dispatch** time only (`reconcile.py` /
+`record_dispatch`), never at grab time. Surrounding modules: `airing.py` (RP9
+stateless `poll_aired`), `cadence.py` (Follow D2 re-search backoff), `detect.py`,
+`cross_seed.py`, `watcher.py`. CLI surface: `personalscraper grab` / `follow` /
+`seed` (all built with `build_torrent_client=True`). Migrations: `acquire/migrations/`
+(SQL files, applied by the same `core/sqlite` applier as the indexer).
+
 ## Anti-decisions (out of scope for 1.0)
 
 These were considered and explicitly deferred past 1.0. Re-opening any of these
 requires a new design document. Listed here so future contributors don't waste
 time proposing what was already declined.
 
-- **No microservices.** Single Python process. The pipeline runs end-to-end
-  in-tree; the BDD is local SQLite. Splitting into services trades clarity for
-  operability cost we don't yet have a reason to pay.
-- **No network server / web UI _in 1.0_.** The CLI is the only interface for
-  1.0 — no FastAPI, no Flask, no embedded server in-tree today. A Web Management
-  UI is now a planned post-1.0 feature (see `ROADMAP.md` P2 — Web Management UI),
-  with `arch-cleanup-2` landing the event-contract prerequisites first.
-- **No authentication / multi-user.** Single operator on a single machine.
-  Files inherit OS permissions; the BDD is owned by the running user.
+- **No microservices.** The pipeline engine is a single synchronous Python
+  process, one process per command; the BDD is local SQLite. The one HTTP daemon
+  (`personalscraper web`, see the [`web/` chapter](#web-subsystem)) is a thin
+  async wrapper over the same in-tree engine — not a service split. Breaking the
+  engine itself into services trades clarity for operability cost we don't yet
+  have a reason to pay.
+- **No multi-user / no RBAC.** The pipeline runs as a single operator on a
+  single machine; files inherit OS permissions and the BDD is owned by the
+  running user. The web UI adds a **single-user** auth perimeter (one
+  username + scrypt password, JWT cookie — see the [`web/` chapter](#web-subsystem)),
+  not multi-user accounts or role-based access control.
 - **No plugin loader.** Scrapers and torrent clients are configured via
   `config/*.json5`, not loaded from a plugin directory. Adding a provider =
   editing source.
