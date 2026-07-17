@@ -24,6 +24,11 @@ from personalscraper.api.metadata._base import (
 from personalscraper.api.transport._policy import CircuitPolicy
 from personalscraper.conf.models.providers import ProvidersConfig
 
+# The EventBus double is behaviourally identical across tiers → shared module.
+from tests._doubles.registry import MockEventBus
+
+__all__ = ["MockEventBus"]
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -222,16 +227,6 @@ class FakeArtwork:
 
     def close(self) -> None:
         self.closed = True
-
-
-class MockEventBus:
-    """In-memory EventBus stub that records emitted events."""
-
-    def __init__(self) -> None:
-        self.emitted: list[object] = []
-
-    def emit(self, event: object) -> None:
-        self.emitted.append(event)
 
 
 # ---------------------------------------------------------------------------

@@ -39,49 +39,13 @@ from personalscraper.api.metadata._base import (
 from personalscraper.conf.models.providers import ProvidersConfig
 from personalscraper.core.circuit import CircuitState
 
-# ---------------------------------------------------------------------------
-# Mock EventBus
-# ---------------------------------------------------------------------------
+# The two EventBus doubles are behaviourally identical across every tier, so
+# they live in the shared doubles module (tests-arch consolidation).  Re-exported
+# here so the registry conftest fixtures and its sibling tests keep importing
+# them from ``.conftest`` unchanged.
+from tests._doubles.registry import FailingEventBus, MockEventBus
 
-
-class MockEventBus:
-    """In-memory EventBus that records emitted events.
-
-    Attributes:
-        emitted: List of every event passed to ``emit()``.
-    """
-
-    def __init__(self) -> None:
-        """Initialize an empty emitted-events list."""
-        self.emitted: list[object] = []
-
-    def emit(self, event: object) -> None:
-        """Append ``event`` to ``self.emitted`` without further dispatch.
-
-        Args:
-            event: The event payload to record.
-        """
-        self.emitted.append(event)
-
-
-class FailingEventBus:
-    """EventBus that raises on every ``emit()`` call.
-
-    Used to verify the registry's ``_event_bus_safe_emit`` swallows
-    failures without propagating.
-    """
-
-    def emit(self, event: object) -> None:
-        """Raise to simulate a bus implementation that has failed.
-
-        Args:
-            event: Ignored — this bus never accepts events.
-
-        Raises:
-            RuntimeError: Always.
-        """
-        raise RuntimeError("event bus is broken")
-
+__all__ = ["FailingEventBus", "MockEventBus"]
 
 # ---------------------------------------------------------------------------
 # Fake provider classes (implement capability Protocols structurally)
