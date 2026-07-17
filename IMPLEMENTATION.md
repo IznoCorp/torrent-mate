@@ -34,7 +34,7 @@
   residual risk in error paths around the repatriated history (B1 dead teleported code, B2 empty ?run=,
   B3 non-dismissible 404/500-conflated error card, D1 unencoded uid, C1 SR-invisible legend menu,
   C2 legend lost on Maintenance). Comments: nine→eight-stage + RunDetail module doc + 5 precisions.
-- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases). Open items recorded there incl. **B4
+- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases — DONE; mutations A/B verified RED then reverted). Open items recorded there incl. **B4
   (backend calm-empty history on DB failure — LOUD operator item, candidate hotfix)** and P2
   (active outranks blocked).
 
