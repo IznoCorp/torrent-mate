@@ -24,6 +24,7 @@ Flags specific to ``download`` and ``purge`` only::
 from __future__ import annotations
 
 import subprocess
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -753,6 +754,231 @@ def audit(
 
 
 # ---------------------------------------------------------------------------
+# purge — filesystem-truth orphan detection (P6.4 single-truth)
+# ---------------------------------------------------------------------------
+
+
+def _normalize_path(p: Path) -> str:
+    """Return an NFC-normalized string form of *p* for stable set membership.
+
+    macOS (macFUSE/HFS+) yields NFD path components from ``iterdir`` while the
+    indexer stores NFC, so a naive ``==`` between a walked path and an indexer
+    item path silently misses. NFC-normalizing BOTH sides makes the cross-
+    reference reliable (project NFC/NFD dedup gotcha).
+
+    Args:
+        p: The path to normalize.
+
+    Returns:
+        The NFC-normalized ``str(p)``.
+    """
+    return unicodedata.normalize("NFC", str(p))
+
+
+def _disk_paths_for(config: Any, disk: str | None) -> list[Path]:
+    """Return the on-disk root paths for a ``--disk`` id (empty when unknown).
+
+    Args:
+        config: Loaded pipeline Config.
+        disk: The disk id to resolve, or None.
+
+    Returns:
+        A list of matching disk root paths (usually one), or empty.
+    """
+    if disk is None:
+        return []
+    paths: list[Path] = []
+    try:
+        for d in config.disks:
+            if d.id == disk:
+                paths.append(Path(str(d.path)))
+    except (AttributeError, TypeError):
+        pass
+    return paths
+
+
+def _orphan_walk_roots(config: Any, disk: str | None) -> list[Path]:
+    """Return the storage roots to walk for orphan trailers (FS truth).
+
+    When ``disk`` is set, only that disk's path is walked; otherwise every
+    configured disk PLUS the staging root. Non-existent roots are dropped.
+
+    Args:
+        config: Loaded pipeline Config.
+        disk: Optional ``--disk`` id restricting the walk to a single disk.
+
+    Returns:
+        Existing root directories to walk.
+    """
+    roots: list[Path] = []
+    try:
+        for d in config.disks:
+            if disk is not None and d.id != disk:
+                continue
+            p = Path(str(d.path))
+            if p.exists():
+                roots.append(p)
+    except (AttributeError, TypeError):
+        pass
+    if disk is None:
+        try:
+            staging = Path(str(config.paths.staging_dir))
+            if staging.exists():
+                roots.append(staging)
+        except (AttributeError, TypeError):
+            pass
+    return roots
+
+
+def _live_item_dirs(
+    config: Any,
+    app_context: Any,
+    disk: str | None,
+    *,
+    seasons_enabled: bool,
+    min_size: int,
+) -> set[str] | None:
+    """Return the NFC set of current library item directories (indexer truth).
+
+    Mirrors the audit FS probe: enumerates every dispatched item via
+    :meth:`Scanner.scan_library_all` and returns their media directories,
+    NFC-normalized. This is the cross-reference the FS orphan walk uses to
+    decide whether a trailer's media is still in the library.
+
+    Returns ``None`` — NOT an empty set — when the index is unavailable
+    (no resolved ``db_path``, or the open/scan fails). ``None`` tells the
+    caller to SKIP the FS walk entirely so an unreadable index can never make
+    every on-disk trailer look orphaned (a destructive false-positive).
+
+    Args:
+        config: Loaded pipeline Config.
+        app_context: The AppContext (supplies the shared ``event_bus``).
+        disk: Optional ``--disk`` id forwarded to the library scan.
+        seasons_enabled: Whether season-level items are enumerated.
+        min_size: Minimum trailer size forwarded to the scanner constructor.
+
+    Returns:
+        NFC-normalized set of live item directories, or ``None`` when the
+        index is unavailable.
+    """
+    import sqlite3  # noqa: PLC0415 — deferred to avoid top-level import cost
+
+    from personalscraper.indexer.db import open_db  # noqa: PLC0415
+
+    db_path = getattr(getattr(config, "indexer", None), "db_path", None)
+    if not isinstance(db_path, (str, Path)):
+        return None
+
+    scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
+    try:
+        conn = open_db(Path(db_path), event_bus=app_context.event_bus)
+    except (sqlite3.Error, OSError):
+        log.warning("trailers_purge_index_unavailable", db_path=str(db_path))
+        return None
+    try:
+        items = scanner.scan_library_all(conn=conn, disk_filter=disk, category_filter=None)
+    except (sqlite3.Error, OSError):
+        log.warning("trailers_purge_index_scan_failed", db_path=str(db_path))
+        return None
+    finally:
+        conn.close()
+    return {_normalize_path(item.path) for item in items}
+
+
+def _trailers_in_media_dir(media_dir: Path) -> list[Path]:
+    """Return every trailer file physically present under a media directory.
+
+    Covers all placement conventions (see ``trailers.placement``): flat movie
+    ``*-trailer.<ext>``, TV show ``Trailers/*.<ext>`` and season
+    ``Saison NN/Trailers/*.<ext>``.
+
+    Args:
+        media_dir: The media directory to probe.
+
+    Returns:
+        Trailer files found inside ``media_dir`` (possibly empty).
+    """
+    from personalscraper.trailers.placement import (  # noqa: PLC0415
+        _KNOWN_TRAILER_EXTENSIONS,
+    )
+
+    found: list[Path] = []
+    # Flat movie-style trailers next to the media file.
+    for ext in _KNOWN_TRAILER_EXTENSIONS:
+        found.extend(p for p in media_dir.glob(f"*-trailer.{ext}") if p.is_file())
+    # Show-level Trailers/ subfolder and per-season Saison NN/Trailers/ subfolders.
+    subfolders = [media_dir / "Trailers"]
+    try:
+        subfolders.extend(sd / "Trailers" for sd in media_dir.glob("Saison *") if sd.is_dir())
+    except OSError:
+        pass
+    for sub in subfolders:
+        if sub.is_dir():
+            for ext in _KNOWN_TRAILER_EXTENSIONS:
+                found.extend(p for p in sub.glob(f"*.{ext}") if p.is_file())
+    return found
+
+
+def _discover_fs_orphan_trailers(
+    config: Any,
+    app_context: Any,
+    *,
+    disk: str | None,
+    seasons_enabled: bool,
+    min_size: int,
+) -> list[Path]:
+    """Find orphan trailers on the FILESYSTEM (P6.4 single-truth).
+
+    Since P6.4 a successful download CLEARS its ledger entry, so the ledger can
+    no longer be the source of orphan detection. This walks the storage disks +
+    staging for trailer files whose media directory is NOT a current library
+    item (the indexer item set — built by :func:`_live_item_dirs` — is the
+    cross-reference, mirroring the audit FS probe). A trailer under an unindexed
+    media directory is an orphan: its media is gone or has moved elsewhere.
+
+    Safety: when the index is unavailable (:func:`_live_item_dirs` returns
+    ``None``) the walk is skipped entirely rather than treating every on-disk
+    trailer as orphaned.
+
+    Args:
+        config: Loaded pipeline Config.
+        app_context: The AppContext (supplies the shared ``event_bus``).
+        disk: Optional ``--disk`` id restricting the walk.
+        seasons_enabled: Whether season-level items are enumerated.
+        min_size: Minimum trailer size forwarded to the scanner constructor.
+
+    Returns:
+        Orphan trailer file paths discovered on disk (possibly empty).
+    """
+    roots = _orphan_walk_roots(config, disk)
+    if not roots:
+        return []
+
+    live_dirs = _live_item_dirs(config, app_context, disk, seasons_enabled=seasons_enabled, min_size=min_size)
+    if live_dirs is None:
+        # Index unavailable — do NOT purge on FS alone (would flag everything).
+        log.warning("trailers_purge_fs_skipped_index_unavailable")
+        return []
+
+    orphans: list[Path] = []
+    for root in roots:
+        try:
+            categories = [c for c in root.iterdir() if c.is_dir()]
+        except OSError:
+            continue
+        for category in categories:
+            try:
+                media_dirs = [m for m in category.iterdir() if m.is_dir()]
+            except OSError:
+                continue
+            for media_dir in media_dirs:
+                if _normalize_path(media_dir) in live_dirs:
+                    continue  # live library item — its trailers are legitimate
+                orphans.extend(_trailers_in_media_dir(media_dir))
+    return orphans
+
+
+# ---------------------------------------------------------------------------
 # purge
 # ---------------------------------------------------------------------------
 
@@ -799,43 +1025,60 @@ def purge(
     config = ctx.obj.config
     console = Console()
 
-    with _trailers_boundary(config):
+    with _trailers_boundary(config) as app_context:
         seasons_enabled = _seasons_enabled_from_config(config)
         _resolve_level_and_season(level, season, seasons_enabled)  # validate args eagerly
         _parse_since(since)  # validate date format eagerly
+        min_size = _min_file_size(config)
 
         state_file = Path(str(config.trailers.state_file))
         state_store = TrailerStateStore(state_file=state_file)
 
-        entries = state_store.all_entries()
+        # Orphan trailers come from the FILESYSTEM (P6.4 single-truth): a
+        # successful download no longer records a ledger row, so the ledger
+        # cannot be the source of orphan detection. The FS walk cross-references
+        # on-disk trailer files against the indexer item set (mirrors the audit
+        # FS probe). Legacy ledger entries are still honoured as HINTS (union)
+        # so pre-P6.4 rows aren't lost. Keyed by NFC path to dedupe FS vs ledger.
+        orphan_by_path: dict[str, Path] = {}
 
-        # Identify orphan entries: those whose media_path no longer exists on disk
-        orphan_trailer_paths: list[Path] = []
-        for _key, entry_state in entries.items():
+        # 1. FS truth (primary) — finds orphans regardless of ledger state.
+        for trailer_p in _discover_fs_orphan_trailers(
+            config,
+            app_context,
+            disk=disk,
+            seasons_enabled=seasons_enabled,
+            min_size=min_size,
+        ):
+            orphan_by_path[_normalize_path(trailer_p)] = trailer_p
+
+        # 2. Legacy ledger hints — entries whose media_path is gone but whose
+        #    trailer_path still exists on disk (pre-P6.4 DOWNLOADED rows).
+        for _key, entry_state in state_store.all_entries().items():
             media_path_str = getattr(entry_state, "media_path", None)
             if media_path_str and not Path(str(media_path_str)).exists():
                 trailer_path_str = getattr(entry_state, "trailer_path", None)
                 if trailer_path_str:
                     trailer_p = Path(str(trailer_path_str))
                     if trailer_p.exists():
-                        orphan_trailer_paths.append(trailer_p)
+                        orphan_by_path.setdefault(_normalize_path(trailer_p), trailer_p)
 
-        # Apply --disk filter
-        if disk is not None:
-            disk_paths: list[Path] = []
-            try:
-                for d in config.disks:
-                    if d.id == disk:
-                        disk_paths.append(Path(str(d.path)))
-            except (AttributeError, TypeError):
-                pass
-            if disk_paths:
-                orphan_trailer_paths = [
-                    p for p in orphan_trailer_paths if any(str(p).startswith(str(dp)) for dp in disk_paths)
-                ]
+        orphan_trailer_paths = list(orphan_by_path.values())
+
+        # Apply --disk filter uniformly (FS roots are already disk-scoped; this
+        # also scopes the ledger hints, whose paths can live anywhere).
+        disk_paths = _disk_paths_for(config, disk)
+        if disk_paths:
+            orphan_trailer_paths = [
+                p for p in orphan_trailer_paths if any(str(p).startswith(str(dp)) for dp in disk_paths)
+            ]
 
         if dry_run:
             console.print(f"[yellow]DRY-RUN:[/yellow] Would purge {len(orphan_trailer_paths)} orphan trailer(s).")
+            # §8 (rien en silence): show WHICH trailers, not just a count.
+            # ``soft_wrap`` keeps long paths on one line (no width-dependent crop).
+            for trailer_p in orphan_trailer_paths:
+                console.print(f"  - {trailer_p}", soft_wrap=True)
             if include_state:
                 console.print("[yellow]DRY-RUN:[/yellow] Would also wipe orphan state entries (--include-state).")
             return
