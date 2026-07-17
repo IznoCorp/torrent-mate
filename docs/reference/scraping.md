@@ -316,7 +316,7 @@ caller threading a flag.
 
 ### Example 4 — `locked(ArtworkProvider, match)`: identity-locked fetch
 
-Production site: `personalscraper/scraper/trailer_finder.py:360` (illustrated
+Production site: `personalscraper/trailers/discovery/trailer_finder.py:360` (illustrated
 here with `VideoProvider`; `ArtworkProvider`/`KeywordProvider` follow the same
 shape). `locked` returns a `LockedProvider[C]` carrying the resolved
 `bound_id` (already cross-referenced if the match's own provider lacks the
