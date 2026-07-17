@@ -89,7 +89,11 @@ beforeEach(() => {
     }
     if (url.includes("/api/pipeline/status")) {
       return Promise.resolve(
-        buildResponse(200, { state: "idle", paused: false, watcher_enabled: true }),
+        buildResponse(200, {
+          state: "idle",
+          paused: false,
+          watcher_enabled: true,
+        }),
       );
     }
     if (url.includes("/api/acquisition/wanted")) {
@@ -118,14 +122,26 @@ beforeEach(() => {
     if (url.includes("/api/maintenance/index-health")) {
       return Promise.resolve(
         buildResponse(200, {
-          items: 0, movies: 0, shows: 0, files: 0, size_gb: 0,
+          items: 0,
+          movies: 0,
+          shows: 0,
+          files: 0,
+          size_gb: 0,
           nfo: { valid: 0, invalid: 0, missing: 0 },
-          repair_queue_pending: 0, repair_queue_oldest_age_s: null,
-          outbox_pending: 0, outbox_oldest_age_s: null,
-          last_scan_id: null, last_scan_mode: null, last_scan_status: null,
-          last_scan_started_at: null, last_scan_finished_at: null,
-          last_scan_stuck: false, soft_deleted: 0, canonical_null: 0,
-          degraded: false, error: null,
+          repair_queue_pending: 0,
+          repair_queue_oldest_age_s: null,
+          outbox_pending: 0,
+          outbox_oldest_age_s: null,
+          last_scan_id: null,
+          last_scan_mode: null,
+          last_scan_status: null,
+          last_scan_started_at: null,
+          last_scan_finished_at: null,
+          last_scan_stuck: false,
+          soft_deleted: 0,
+          canonical_null: 0,
+          degraded: false,
+          error: null,
         }),
       );
     }
@@ -194,6 +210,56 @@ describe("router", () => {
     expect(
       await screen.findByRole("heading", { name: "Maintenance" }),
     ).toBeInTheDocument();
+  });
+
+  it("redirige /maintenance?run=<uid> vers /pipeline?run=<uid> (DOIT-10)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/maintenance?run=abc123def456"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/pipeline");
+      expect(router.state.location.search).toBe("?run=abc123def456");
+    });
+  });
+
+  it("ne redirige PAS /maintenance (sans ?run=) — rend la page Maintenance", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/maintenance"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    // The heading "Maintenance" renders — no Navigate redirect.
+    expect(
+      await screen.findByRole("heading", { name: "Maintenance" }),
+    ).toBeInTheDocument();
+    // The location stays on /maintenance.
+    expect(router.state.location.pathname).toBe("/maintenance");
   });
 
   it("monte la page Médias sur « /medias »", async () => {
