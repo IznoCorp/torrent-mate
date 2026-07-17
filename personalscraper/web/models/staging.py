@@ -266,3 +266,28 @@ class EnqueueDecisionResponse(BaseModel):
     decision_id: int | None = None
     candidates_count: int = 0
     candidates_seeded: bool = False
+
+
+class ContinueResponse(BaseModel):
+    """Response body for ``POST /api/staging/media/{id}/continue`` (§5.2).
+
+    Mirrors the resolve 202 pattern: the run is either spawned now (run_uid
+    present) or deferred because another run holds the lock (run_uid is None —
+    « En file »). The ``timeline_resumes`` flag lets the UI know to start
+    polling for progress.
+
+    Attributes:
+        ok: ``True`` when the continuation was accepted.
+        media_id: The staging media id.
+        run_uid: The pipeline run id when a new run was spawned, or ``None``
+            when deferred.
+        deferred: ``True`` when the run could not start because another run
+            holds the pipeline lock.
+        detail: Human-readable French status detail.
+    """
+
+    ok: bool
+    media_id: str
+    run_uid: str | None = None
+    deferred: bool = False
+    detail: str = ""
