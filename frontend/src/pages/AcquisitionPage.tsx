@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { acqKeys } from "@/api/acquisition";
-import { DownloadsPanel } from "@/components/acquisition/DownloadsPanel";
+import { FileDAcquisitionPanel } from "@/components/acquisition/FileDAcquisitionPanel";
 import { FollowedPanel } from "@/components/acquisition/FollowedPanel";
 import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
 import {
@@ -28,7 +28,6 @@ import {
   type TabId,
 } from "@/components/acquisition/meta";
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
-import { WantedPanel } from "@/components/acquisition/WantedPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +52,22 @@ export default function AcquisitionPage(): ReactElement {
   // /acquisition stays clean and ?tab=wanted is the shareable form.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
+
+  // Redirect legacy ?tab=wanted|downloads → ?tab=file (replace so Back doesn't
+  // cycle through the redirect — DOIT-10 deep-link survives).
+  useEffect(() => {
+    if (rawTab === "wanted" || rawTab === "downloads") {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("tab", "file");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [rawTab, setSearchParams]);
+
   const activeTab: TabId = TABS.some((t) => t.id === rawTab)
     ? (rawTab as TabId)
     : "followed";
@@ -119,11 +134,12 @@ export default function AcquisitionPage(): ReactElement {
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Acquisition</h1>
 
-      {/* Tabs — wrap to 2-per-row on narrow screens (4 tabs overflowed a single
-          row at ~390px, clipping "Watcher"); a single filled row on sm+. */}
+      {/* Tabs — horizontal scroll on narrow screens (4 tabs at ~390px: no wrap,
+          natural width per tab, scroll inside the tablist). On sm+ tabs fill
+          the row evenly (flex-1). E5 segmented control. */}
       <div
         role="tablist"
-        className="flex flex-wrap gap-1 rounded-lg bg-muted p-1"
+        className="flex flex-nowrap gap-1 overflow-x-auto rounded-lg bg-muted p-1"
       >
         {TABS.map((tab) => (
           <button
@@ -133,7 +149,7 @@ export default function AcquisitionPage(): ReactElement {
             onClick={() => {
               setActiveTab(tab.id);
             }}
-            className={`flex-1 basis-[calc(50%-0.125rem)] whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors sm:basis-0 ${
+            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-1 ${
               activeTab === tab.id
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -141,9 +157,7 @@ export default function AcquisitionPage(): ReactElement {
           >
             <span className="inline-flex items-center gap-1.5">
               {tab.label}
-              {tab.id === "downloads" && (
-                <NavCountBadge count={activeDownloads} />
-              )}
+              {tab.id === "file" && <NavCountBadge count={activeDownloads} />}
             </span>
           </button>
         ))}
@@ -163,8 +177,7 @@ export default function AcquisitionPage(): ReactElement {
               />
             </div>
           )}
-          {activeTab === "wanted" && <WantedPanel />}
-          {activeTab === "downloads" && <DownloadsPanel />}
+          {activeTab === "file" && <FileDAcquisitionPanel />}
           {activeTab === "obligations" && <ObligationsPanel />}
           {activeTab === "watcher" && <WatcherPanel />}
         </CardContent>

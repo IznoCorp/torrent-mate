@@ -41,7 +41,7 @@ function formatSize(bytes: number): string {
 }
 
 /** One download row: title, progress bar, state badge, size. */
-function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
+export function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
   const pct = Math.round(d.progress * 100);
   const tone = DOWNLOAD_STATE_TONE[d.state] ?? "neutral";
   const label = DOWNLOAD_STATE_LABEL[d.state] ?? d.state;

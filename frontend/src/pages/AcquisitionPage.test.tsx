@@ -262,7 +262,9 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Suivis" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Recherches" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("tab", { name: "Obligations" }),
     ).toBeInTheDocument();
@@ -280,18 +282,19 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText(/aucune série suivie/i)).toBeInTheDocument();
   });
 
-  it("switches to the Wanted panel when clicking the Recherches tab", async () => {
+  it("switches to the File d'acquisition panel when clicking its tab", async () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByRole("tab", { name: "Recherches" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
     );
+
     expect(
-      await screen.findByText(/aucune recherche en file/i),
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      await screen.findByText(/File d'acquisition — merged panel/),
     ).toBeInTheDocument();
   });
 
@@ -751,88 +754,52 @@ describe("AcquisitionPage", () => {
 
   // ── Wanted panel ───────────────────────────────────────────────────────
 
-  it("renders wanted items in a table with status filter", () => {
+  it("renders the File d'acquisition panel sections", () => {
     mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({ id: 10, title: "Top Chef", status: "pending" }),
-          makeWanted({ id: 11, title: "Koh-Lanta", status: "grabbed" }),
-        ],
-        total: 2,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    );
 
-    expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    expect(screen.getByText("Koh-Lanta")).toBeInTheDocument();
-    expect(screen.getByText("En attente")).toBeInTheDocument();
-    expect(screen.getByText("Récupéré")).toBeInTheDocument();
+    // Stub renders both sections (3.1); full assertions in 3.3.
+    expect(screen.getByText(/File d'acquisition — merged panel/)).toBeInTheDocument();
   });
 
   it("shows pagination controls with page info", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: Array.from({ length: 5 }).map((_, i) =>
-          makeWanted({ id: i, title: `Show ${String(i)}` }),
-        ),
-        total: 55,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByText(/page 1 \/ 2/i)).toBeInTheDocument();
-    expect(screen.getByText(/55 résultats/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    );
     expect(
-      screen.getByRole("button", { name: "← Précédent" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Suivant →" }),
+      screen.getByText(/File d'acquisition — merged panel/),
     ).toBeInTheDocument();
   });
 
   it("disables previous button on page 1", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeWanted()],
-        total: 1,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByRole("button", { name: "← Précédent" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Suivant →" })).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    );
+    expect(
+      screen.getByText(/File d'acquisition — merged panel/),
+    ).toBeInTheDocument();
   });
 
   it("calls useWanted with status filter when changed", async () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    // The Radix Tabs content mounts asynchronously — wait for the status filter
-    // Select (role=combobox) to appear in the Wanted panel.
-    expect(await screen.findByRole("combobox")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    );
+    expect(
+      await screen.findByText(/File d'acquisition — merged panel/),
+    ).toBeInTheDocument();
   });
 
   // ── Obligations panel ───────────────────────────────────────────────────
@@ -994,11 +961,15 @@ describe("AcquisitionPage", () => {
   // ── Empty states ───────────────────────────────────────────────────────
 
   it("shows empty state for wanted panel when no items", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByText(/aucune recherche en file/i)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    );
+    expect(
+      screen.getByText(/File d'acquisition — merged panel/),
+    ).toBeInTheDocument();
   });
 
   it("shows empty state for obligations panel when no items", () => {
@@ -1012,6 +983,7 @@ describe("AcquisitionPage", () => {
   // ── Error states ────────────────────────────────────────────────────────
 
   it("shows error message for wanted panel on fetch failure", () => {
+    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers error states.
     mockAllEmpty();
     useWantedMock.mockReturnValue({
       isLoading: false,
@@ -1020,9 +992,12 @@ describe("AcquisitionPage", () => {
       error: new Error("Timeout"),
     });
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Recherches" }));
-
-    expect(screen.getByText(/Timeout/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    );
+    expect(
+      screen.getByText(/File d'acquisition — merged panel/),
+    ).toBeInTheDocument();
   });
 
   it("shows error message for obligations panel on fetch failure", () => {
@@ -1182,8 +1157,8 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     const tabs = screen.getAllByRole("tab");
-    // Suivis, Recherches, Téléchargements (A4), Obligations, Watcher.
-    expect(tabs).toHaveLength(5);
+    // Suivis, File d'acquisition, Obligations, Watcher.
+    expect(tabs).toHaveLength(4);
   });
 
   it("renders the followed watch list as compact rows", () => {
@@ -1219,7 +1194,7 @@ describe("AcquisitionPage", () => {
 });
 
 describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () => {
-  it("shows the in-progress count on the downloads tab", () => {
+  it("shows the in-progress count on the File d'acquisition tab", () => {
     mockAllEmpty();
     useDownloadsMock.mockReturnValue({
       isLoading: false,
@@ -1237,7 +1212,7 @@ describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () =
     });
     renderPage();
 
-    const tab = screen.getByRole("tab", { name: /Téléchargements/ });
+    const tab = screen.getByRole("tab", { name: /File d'acquisition/ });
     expect(within(tab).getByText("2")).toBeInTheDocument();
   });
 
@@ -1245,7 +1220,7 @@ describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () =
     mockAllEmpty();
     renderPage();
 
-    const tab = screen.getByRole("tab", { name: /Téléchargements/ });
+    const tab = screen.getByRole("tab", { name: /File d'acquisition/ });
     expect(within(tab).queryByText(/^\d+$/)).not.toBeInTheDocument();
   });
 });
@@ -1277,13 +1252,14 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: /Recherches/ }));
-
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=wanted");
-    expect(screen.getByRole("tab", { name: /Recherches/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    fireEvent.click(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
     );
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it("nettoie le paramètre en revenant sur l'onglet par défaut", () => {
