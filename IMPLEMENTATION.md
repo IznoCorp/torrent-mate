@@ -4,7 +4,7 @@
 
 **Feature**: Architecture consolidation — SOLID/DRY refactor (backend + frontend)
 **Type**: refactor
-**Version bump**: 0.49.15 → 0.51.0 (minor; re-bumped after main took 0.50.0 via PR #310)
+**Version bump**: 0.49.15 → 0.52.0 (minor; re-bumped after main took 0.50.0 #310 then 0.51.1 #311/#312)
 **Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
 **PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
 **PR**: _(created after last phase)_
@@ -26,7 +26,7 @@
 | 7 | Scanner walk skeleton (T8) | phase-07-scanner-walker.md | [x] |
 | 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [x] |
 | 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [x] |
-| 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [ ] |
+| 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [x] |
 | 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [ ] |
 | 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [ ] |
 | 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [ ] |
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-9 done. Next: phase 10 (frontend data kit, T9a). Frontend node_modules installed; make check now runs the full frontend lane. Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-10 done. Next: phase 11 (frontend god-component decomposition, T9b). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
