@@ -27,7 +27,7 @@
 | 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [x] |
 | 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [x] |
 | 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [x] |
-| 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [ ] |
+| 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [x] |
 | 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [ ] |
 | 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [ ] |
 
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-10 done. Next: phase 11 (frontend god-component decomposition, T9b). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-11 done. Next: phase 12 (tests-architecture consolidation). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
