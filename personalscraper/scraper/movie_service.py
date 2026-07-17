@@ -18,6 +18,7 @@ from personalscraper.scraper._db_restore import Restored, _restore_from_db
 from personalscraper.scraper._match import run_chain
 from personalscraper.scraper._movie_convert import _coerce_to_movie_data
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
+from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.decision_triage import apply_decision_to_result, classify_decision_trigger
 from personalscraper.scraper.rename_service import _cleanup_stale_files, apply_canonical_dir_rename
@@ -62,7 +63,6 @@ class MovieServiceMixin:
     _resolve_title: "Callable[..., str]"
     _strip_trailing_year: "Callable[[str], str]"
     _check_missing_movie_artwork: "Callable[..., list[str]]"
-    _recover_movie_artwork: "Callable[..., None]"
     _repair_movie_dir: "Callable[..., bool]"
 
     def _match_movie_candidates(
@@ -222,7 +222,15 @@ class MovieServiceMixin:
             # Check for missing artwork -- recover without re-scraping
             missing = self._check_missing_movie_artwork(movie_dir, title)
             if missing and not self.dry_run:
-                self._recover_movie_artwork(nfo_path, movie_dir, result)
+                recover_artwork(
+                    nfo_path,
+                    movie_dir,
+                    result,
+                    kind="movie",
+                    registry=self._registry,
+                    artwork=self._artwork,
+                    patterns=self.patterns,
+                )
             # Set action: artwork_recovered if recovery succeeded, else skipped
             # Repair pass: remove residual NFOs
             repaired = self._repair_movie_dir(movie_dir, title)

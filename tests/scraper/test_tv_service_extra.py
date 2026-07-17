@@ -129,7 +129,6 @@ def _make_mixin(
     mixin._strip_trailing_year = MagicMock(side_effect=lambda s: s)  # type: ignore[assignment]
     mixin._verify_existing_scrape = MagicMock(return_value=(True, ""))  # type: ignore[assignment]
     mixin._check_missing_tvshow_artwork = MagicMock(return_value=[])  # type: ignore[assignment]
-    mixin._recover_tvshow_artwork = MagicMock()  # type: ignore[assignment]
     mixin._repair_tvshow_dir = MagicMock(return_value=False)  # type: ignore[assignment]
     return mixin
 
@@ -996,13 +995,15 @@ class TestScrapeTvshowDriftAndFastPath:
         mixin = _make_scrape_mocks()
         mixin._check_missing_tvshow_artwork = MagicMock(return_value=["poster.jpg"])  # type: ignore[assignment]
 
-        def _set_action(_nfo: Path, _show: Path, result: ScrapeResult) -> None:
+        def _set_action(_nfo: Path, _show: Path, result: ScrapeResult, **_kw: Any) -> None:
             result.action = "artwork_recovered"
 
-        mixin._recover_tvshow_artwork = MagicMock(side_effect=_set_action)  # type: ignore[assignment]
-        with patch(
-            "personalscraper.scraper.tv_service._is_nfo_complete",
-            return_value=True,
+        with (
+            patch("personalscraper.scraper.tv_service.recover_artwork", side_effect=_set_action),
+            patch(
+                "personalscraper.scraper.tv_service._is_nfo_complete",
+                return_value=True,
+            ),
         ):
             res = mixin.scrape_tvshow(show)
         assert res.action == "artwork_recovered"
@@ -1029,6 +1030,7 @@ class TestScrapeTvshowDriftAndFastPath:
             return_value=["season22-poster.jpg"]
         )
         with (
+            patch("personalscraper.scraper.tv_service.recover_artwork") as mock_recover,
             patch(
                 "personalscraper.scraper.tv_service._is_nfo_complete",
                 return_value=True,
@@ -1040,7 +1042,7 @@ class TestScrapeTvshowDriftAndFastPath:
         assert "artwork_would_recover" in caplog.text
         assert "season22-poster.jpg" in caplog.text
         # Recovery helper must not run in dry-run mode.
-        assert not mixin._recover_tvshow_artwork.called  # type: ignore[union-attr]
+        assert not mock_recover.called
 
     def test_fast_path_repaired(self, tmp_path: Path) -> None:
         """Valid NFO + repair makes changes → ``repaired`` action."""

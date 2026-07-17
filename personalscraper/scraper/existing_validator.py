@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.metadata.tvdb import TVDBClient
@@ -37,16 +39,16 @@ if TYPE_CHECKING:
 # These are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
 # without a capability Protocol).
 #
-# The single-call artwork refetch (``_recover_movie_artwork`` /
-# ``_recover_tvshow_artwork``) was folded (P4.4, SCRAPER-09) into the ONE
-# canonical-family helper ``_writeback.recover_artwork`` — resolving the
-# provider from the item's canonical family (TVDB-primary for TV) rather than
-# the TMDB-hardwired path — so those two cast sites now live there.
+# The single-call artwork refetch (formerly the ``_recover_movie_artwork`` /
+# ``_recover_tvshow_artwork`` mixin delegates) was folded (P4.4, SCRAPER-09)
+# into the ONE canonical-family helper ``_writeback.recover_artwork`` —
+# resolving the provider from the item's canonical family (TVDB-primary for TV)
+# rather than the TMDB-hardwired path. The thin delegates were removed (P4.6,
+# SCRAPER-11) so the movie/TV scrape entry points call ``recover_artwork``
+# directly, dropping two ``Callable`` cross-mixin contracts.
 
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.nfo_utils import extract_nfo_metadata
-from personalscraper.scraper._shared import ScrapeResult
-from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.episode_manager import (
     _extract_season_episode,
     create_season_dirs,
@@ -120,7 +122,7 @@ class ExistingValidatorMixin:
     dry_run: bool
     _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
-    _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
+    _generate_episode_nfos: "Callable[..., list[str]]"  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
 
     def _repair_season_dir(self, show_dir: Path) -> tuple[set[tuple[int, int]], bool]:
         """Collect organised episodes and replace them when a new root duplicate exists.
@@ -515,61 +517,6 @@ class ExistingValidatorMixin:
         """
         raw = extract_nfo_metadata(nfo_path).get("tvdb_id")
         return _coerce_numeric_nfo_id(raw, nfo_path, "tvdb")
-
-    def _recover_movie_artwork(
-        self,
-        nfo_path: Path,
-        movie_dir: Path,
-        result: ScrapeResult,
-    ) -> None:
-        """Re-download missing movie artwork via the canonical (TMDB) family.
-
-        Thin delegate to :func:`personalscraper.scraper._writeback.recover_artwork`
-        — the single canonical-family recovery folded out of the two hand-synced
-        copies (SCRAPER-09). Movies are always TMDB-canonical.
-
-        Args:
-            nfo_path: Path to the valid NFO file.
-            movie_dir: Path to the movie directory.
-            result: ScrapeResult to update with recovery info.
-        """
-        recover_artwork(
-            nfo_path,
-            movie_dir,
-            result,
-            kind="movie",
-            registry=self._registry,
-            artwork=self._artwork,
-            patterns=self.patterns,
-        )
-
-    def _recover_tvshow_artwork(
-        self,
-        nfo_path: Path,
-        show_dir: Path,
-        result: ScrapeResult,
-    ) -> None:
-        """Re-download missing TV-show artwork from the item's canonical family.
-
-        Thin delegate to :func:`personalscraper.scraper._writeback.recover_artwork`.
-        Resolves the provider from the canonical family — TVDB-primary when the
-        NFO carries a TVDB id, else TMDB — which is the F7 fix: a TVDB-only show
-        (no TMDB id) now recovers its artwork instead of short-circuiting.
-
-        Args:
-            nfo_path: Path to the valid tvshow.nfo file.
-            show_dir: Path to the TV show directory.
-            result: ScrapeResult to update with recovery info.
-        """
-        recover_artwork(
-            nfo_path,
-            show_dir,
-            result,
-            kind="tvshow",
-            registry=self._registry,
-            artwork=self._artwork,
-            patterns=self.patterns,
-        )
 
     def _repair_movie_dir(self, movie_dir: Path, title: str) -> bool:
         """Repair a movie directory with valid NFO.

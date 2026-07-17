@@ -23,6 +23,7 @@ from personalscraper.scraper._tvdb_convert import (
 from personalscraper.scraper._tvdb_convert import (
     fetch_show_data,
 )
+from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.episode_manager import (
     _file_season,
@@ -220,9 +221,8 @@ class TvServiceMixin:
     _strip_trailing_year: "Callable[[str], str]"
     _verify_existing_scrape: "Callable[..., tuple[bool, str]]"
     _check_missing_tvshow_artwork: "Callable[..., list[str]]"
-    _recover_tvshow_artwork: "Callable[..., None]"
     _repair_tvshow_dir: "Callable[..., bool]"
-    _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 extraction)
+    _generate_episode_nfos: "Callable[..., list[str]]"  # from TvServiceNfoMixin (Phase 27.2 extraction)
     _write_confirmed_show: "Callable[..., ScrapeResult]"  # from TvServiceWriteMixin
 
     @staticmethod
@@ -324,7 +324,15 @@ class TvServiceMixin:
                             missing=missing_art,
                         )
                     else:
-                        self._recover_tvshow_artwork(nfo_path, show_dir, result)
+                        recover_artwork(
+                            nfo_path,
+                            show_dir,
+                            result,
+                            kind="tvshow",
+                            registry=self._registry,
+                            artwork=self._artwork,
+                            patterns=self.patterns,
+                        )
                 # Repair pass: remove residual NFOs, root MKV duplicates, etc.
                 repaired = self._repair_tvshow_dir(show_dir)
                 if repaired and result.action != "artwork_recovered":

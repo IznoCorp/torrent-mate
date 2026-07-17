@@ -65,9 +65,9 @@ class TvServiceWriteMixin:
     _classify_item: "Callable[..., str | None]"
     _resolve_title: "Callable[..., str]"
     _strip_trailing_year: "Callable[[str], str]"
-    _build_episode_map: Any
-    _xref_enrichment: Any
-    _match_seasons: Any
+    _build_episode_map: "Callable[..., dict[tuple[int, int], dict[str, Any]]]"
+    _xref_enrichment: "Callable[..., None]"
+    _match_seasons: "Callable[..., tuple[int, list[str]]]"
 
     def _write_confirmed_show(
         self,

@@ -10,8 +10,9 @@ and downloads the missing artwork from that family — never falling through to
 TMDB for a TVDB-only show.
 
 Written test-first (Cocktail A): this file is committed RED against the pre-fix
-TMDB-hardwired path and turns GREEN once ``_recover_tvshow_artwork`` delegates
-to the consolidated canonical-family recovery.
+TMDB-hardwired path and turns GREEN once ``_writeback.recover_artwork`` resolves
+the canonical family. The mixin delegate that once wrapped it was removed in
+P4.6 (SCRAPER-11); the test now calls ``recover_artwork`` directly.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
+from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.artwork import ArtworkDownloader
 from personalscraper.scraper.existing_validator import ExistingValidatorMixin
 
@@ -96,7 +98,15 @@ def test_tvdb_only_show_recovers_artwork_f7(tmp_path: Path) -> None:
         ) as fake_fetch,
         patch.object(artwork, "download_image", side_effect=_fake_download_image),
     ):
-        validator._recover_tvshow_artwork(nfo, show_dir, result)
+        recover_artwork(
+            nfo,
+            show_dir,
+            result,
+            kind="tvshow",
+            registry=validator._registry,
+            artwork=validator._artwork,
+            patterns=validator.patterns,
+        )
 
     # The canonical family for a TVDB-only show is TVDB — artwork must land.
     assert (show_dir / "poster.jpg").exists(), "F7: TVDB-only show must recover its poster from the TVDB family"

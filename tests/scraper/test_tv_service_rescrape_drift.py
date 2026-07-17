@@ -46,7 +46,6 @@ def _make_mixin(**kwargs: Any) -> TvServiceMixin:
     mixin._strip_trailing_year = MagicMock(side_effect=lambda s: s)
     mixin._verify_existing_scrape = MagicMock(return_value=kwargs.get("verify_return", (True, "")))
     mixin._check_missing_tvshow_artwork = MagicMock(return_value=[])
-    mixin._recover_tvshow_artwork = MagicMock()
     mixin._repair_tvshow_dir = MagicMock(return_value=False)
     return mixin
 
