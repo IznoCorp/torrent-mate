@@ -128,6 +128,19 @@ function latestSocket(): MockWebSocket {
  * Returns:
  *   The QueryClient used (the caller's or a freshly created one).
  */
+/**
+ * First nav link matching ``name`` — narrowed via a runtime guard so the
+ * suite satisfies both no-non-null-assertion and assertion-style rules.
+ */
+function firstLink(name: RegExp | string): HTMLElement {
+  const links = screen.getAllByRole("link", { name });
+  const link = links[0];
+  if (!link) {
+    throw new Error(`no nav link matching ${String(name)}`);
+  }
+  return link;
+}
+
 function renderShell(client?: QueryClient): QueryClient {
   const qc =
     client ??
@@ -314,10 +327,7 @@ describe("AppShell nav badges", () => {
 
     // The badge must appear inside a Scraping nav link — a wiring swap
     // (e.g. badge placed on Acquisition) must fail this assertion.
-    const scrapingLinks = screen.getAllByRole("link", { name: /Scraping/ });
-    const scrapingLink = scrapingLinks[0];
-    expect(scrapingLink).toBeDefined();
-    const badge = await within(scrapingLink).findByText("3");
+    const badge = await within(firstLink(/Scraping/)).findByText("3");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
@@ -352,10 +362,7 @@ describe("AppShell nav badges", () => {
     renderShell();
 
     // The badge must appear inside an Acquisition nav link.
-    const acqLinks = screen.getAllByRole("link", { name: /Acquisition/ });
-    const acqLink = acqLinks[0];
-    expect(acqLink).toBeDefined();
-    const badge = await within(acqLink).findByText("3");
+    const badge = await within(firstLink(/Acquisition/)).findByText("3");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
@@ -390,10 +397,9 @@ describe("AppShell nav badges", () => {
     renderShell();
 
     // The running dot must appear inside a Pipeline nav link.
-    const pipelineLinks = screen.getAllByRole("link", { name: /Pipeline/ });
-    const runningDot = await within(
-      pipelineLinks[0] as HTMLElement,
-    ).findByLabelText(/Pipeline en cours d/);
+    const runningDot = await within(firstLink(/Pipeline/)).findByLabelText(
+      /Pipeline en cours d/,
+    );
     expect(runningDot).toBeInTheDocument();
   });
 
@@ -428,17 +434,14 @@ describe("AppShell nav badges", () => {
     renderShell();
 
     // The paused dot has its own truthful label, scoped to the nav link.
-    const pipelineLinks = screen.getAllByRole("link", { name: /Pipeline/ });
-    const pausedDot = await within(
-      pipelineLinks[0] as HTMLElement,
-    ).findByLabelText("Pipeline en pause");
+    const pausedDot = await within(firstLink(/Pipeline/)).findByLabelText(
+      "Pipeline en pause",
+    );
     expect(pausedDot).toBeInTheDocument();
 
     // Must NOT claim "en cours" — that label is only for running.
     expect(
-      within(pipelineLinks[0] as HTMLElement).queryByLabelText(
-        /Pipeline en cours d/,
-      ),
+      within(firstLink(/Pipeline/)).queryByLabelText(/Pipeline en cours d/),
     ).not.toBeInTheDocument();
   });
 
@@ -481,12 +484,9 @@ describe("AppShell nav badges", () => {
     // the correct accessible name.  Scoping to within the link avoids the
     // duplicate-label collision with the BottomTabBar (both render the same
     // badge at different breakpoints).
-    const scrapingLinks = screen.getAllByRole("link", { name: /Scraping/ });
-    const scrapingLink = scrapingLinks[0];
-    expect(scrapingLink).toBeDefined();
-    const errorMarker = await within(
-      scrapingLink as HTMLElement,
-    ).findByLabelText("Compteur indisponible");
+    const errorMarker = await within(firstLink(/Scraping/)).findByLabelText(
+      "Compteur indisponible",
+    );
     expect(errorMarker).toHaveTextContent("?");
   });
 
@@ -563,14 +563,7 @@ describe("AppShell nav badges", () => {
 
     // After the invalidation, the refetch should bring back awaiting_action=5
     // and the badge should appear scoped to the Scraping link.
-    const scrapingLinks = screen.getAllByRole("link", { name: /Scraping/ });
-    const badge = await within(
-      (() => {
-        const [l] = scrapingLinks;
-        expect(l).toBeDefined();
-        return l;
-      })(),
-    ).findByText("5");
+    const badge = await within(firstLink(/Scraping/)).findByText("5");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
@@ -633,14 +626,7 @@ describe("AppShell nav badges", () => {
       });
     });
 
-    const scrapingLinks = screen.getAllByRole("link", { name: /Scraping/ });
-    const badge = await within(
-      (() => {
-        const [l] = scrapingLinks;
-        expect(l).toBeDefined();
-        return l;
-      })(),
-    ).findByText("3");
+    const badge = await within(firstLink(/Scraping/)).findByText("3");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
