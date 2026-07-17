@@ -29,7 +29,7 @@
 | 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [x] |
 | 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [x] |
 | 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [x] |
-| 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [ ] |
+| 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [x] |
 
 ## Review cycles
 
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-12 done. Next: phase 13 (docs, gates, module-size zero, final reintegration + PR). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+ALL 14 PHASES DONE. ACC suite 15/15 green. PR opened — operator squash-merges manually, then runbook-post-merge (incl. the deferred authenticated-routes 390px staging audit). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
