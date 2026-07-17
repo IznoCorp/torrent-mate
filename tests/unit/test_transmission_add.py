@@ -146,16 +146,17 @@ class TestTransmissionAdd:
         assert c._client.add_torrent.call_args[1]["labels"] == []
 
     def test_category_none_with_tags_raises(self):
-        """category=None + non-empty tags raises ValueError (D5 round-trip guard, review #6).
+        """category=None + non-empty tags raises UnsupportedCapabilityError (adder honesty).
 
-        labels=[category, *tags] cannot round-trip tags without a leading
-        category — the read side (_torrent_item) would promote the first tag to
-        category. Rather than silently mangle the labels, add() rejects the
-        unrepresentable combination.
+        Transmission's single add-call encodes the category as labels[0] and
+        does not emit the category-less "" sentinel (that path is owned by the
+        read-first add_tags flow). Supplying tags without a category is an
+        explicit capability gap (parity with the limits gap), not a silent
+        label munge and not a caller-input ValueError.
         """
         c = _c()
         c._client.add_torrent.return_value = _mock_torrent()
-        with pytest.raises(ValueError, match="non-None category"):
+        with pytest.raises(UnsupportedCapabilityError, match="without a category"):
             c.add(TorrentSource.from_magnet(MAGNET), category=None, tags=["action"])
         c._client.add_torrent.assert_not_called()  # rejected before any RPC
 

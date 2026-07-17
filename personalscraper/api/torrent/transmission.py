@@ -226,12 +226,14 @@ class TransmissionClient(
 
         Labels encode category + tags per D5: ``labels = [category, *tags]`` so
         the read side (``_torrent_item``) recovers ``category = labels[0]`` and
-        ``tags = labels[1:]``. This flat-labels scheme can only round-trip when
-        a category is present: ``category=None`` with a non-empty ``tags`` is
-        unrepresentable (the read side would promote the first tag to category),
-        so it is rejected with ``ValueError`` rather than silently mangling the
-        labels (no-silent-failure norm; review #6). ``category=None`` with no
-        tags is fine (empty labels).
+        ``tags = labels[1:]``. This single-call adder encodes the category as
+        ``labels[0]`` and does NOT emit the category-less ``""`` sentinel (that
+        path is owned by the read-first :meth:`add_tags` flow). Supplying
+        ``tags`` without a ``category`` is therefore a capability gap of the
+        adder — surfaced as an explicit :class:`UnsupportedCapabilityError`
+        (parity with the ``limits`` gap) rather than silently munging the
+        labels. Apply category-less tags via :meth:`add_tags` after the add.
+        ``category=None`` with no tags is fine (empty labels).
 
         Duplicate adds are idempotent (torrent-duplicate → return info_hash, no
         exception). Passing limits raises UnsupportedCapabilityError (D8 — no
@@ -241,7 +243,7 @@ class TransmissionClient(
             source: TorrentSource — magnet or file bytes.
             category: Category (becomes labels[0]).
             tags: Tags (appended after category in labels). Requires a non-None
-                ``category`` when non-empty (D5 round-trip constraint).
+                ``category`` when non-empty (single-call adder constraint).
             paused: Add in paused state if True.
             limits: Must be None; raises if set (D8).
 
@@ -249,9 +251,11 @@ class TransmissionClient(
             info_hash of the added (or already-present) torrent.
 
         Raises:
-            UnsupportedCapabilityError: limits is not None.
-            ValueError: ``category`` is None while ``tags`` is non-empty
-                (unrepresentable in Transmission's flat-labels round-trip, D5).
+            UnsupportedCapabilityError: ``limits`` is not None, OR ``category``
+                is None while ``tags`` is non-empty — Transmission's single-call
+                adder cannot carry tags without a category (use
+                :meth:`add_tags` for category-less tags). Both are capability
+                gaps that must bubble uncaught, not silent degradations (D8).
         """
         if limits is not None:
             raise UnsupportedCapabilityError(
@@ -259,13 +263,16 @@ class TransmissionClient(
                 "Gate via isinstance(client, TorrentLimiter) before passing limits."
             )
         if category is None and tags:
-            # D5 flat-labels (labels=[category, *tags]) cannot round-trip tags
-            # without a category: _torrent_item would read the first tag back as
-            # the category. Reject rather than silently lose/relabel (review #6).
-            raise ValueError(
-                "TransmissionClient.add requires a non-None category when tags are "
-                "provided: labels=[category, *tags] cannot round-trip tags without "
-                "a leading category (the first tag would be read back as the category)."
+            # Transmission's single add_torrent call encodes the category as
+            # labels[0]; this adder does not emit the category-less "" sentinel
+            # (that path is owned by the read-first add_tags flow). Supplying
+            # tags without a category is a capability gap of the adder, not a
+            # caller-input error — raise the explicit capability signal (parity
+            # with the limits gap) rather than silently munging the labels.
+            raise UnsupportedCapabilityError(
+                "TransmissionClient.add cannot attach tags without a category "
+                "(its single add-call encodes category as labels[0]). Add the "
+                "torrent first, then apply category-less tags via add_tags()."
             )
         torrent_arg: str | bytes
         if source.magnet is not None:
