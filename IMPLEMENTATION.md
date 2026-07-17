@@ -1,68 +1,30 @@
-# Implementation Progress — overhaul-shell
+# Implementation Progress — control-medias
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Design overhaul V1 — shell : sidebar sticky, badges d'attention, largeur
+**Feature**: Design overhaul V2 — Contrôle (poste de contrôle) + Médias (hub + fiche cockpit)
 **Type**: feat
-**Branch**: feat/overhaul-shell (off main @ 5a62a4ba)
-**Ticket**: #305 (epic #304) — claimed via /kanban-work, card in Brainstorming
-**PR**: #310 → main (https://github.com/IznoCorp/torrent-mate/pull/310) — OPEN, CI en cours
-**Merge**: squash (manual — operator merges)
-**Design**: `docs/features/overhaul-shell/DESIGN.md` (wave design) ← binding shared spec
-`docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
-**Version bump**: 0.49.16 → 0.50.0 (minor) — ⚠ solidify (worktree) also targets 0.50.0; whichever PR merges
-second re-bumps at merge-conformance time (flagged to operator)
+**Branch**: feat/control-medias (off main @ 27b6e21c — V1 squash)
+**Ticket**: #306 (epic #304) — claimed; board moves broken (kanban-mate#187), card stays in Backlog
+**PR**: _(none yet — created by /implement:feature-pr after last phase)_
+**Merge**: squash (**auto** — operator directive 2026-07-17: chain all waves automatically)
+**Design**: `docs/features/control-medias/DESIGN.md` ← binding shared spec
+`docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.1 + §2.2 + §5.2 + §1.1(scoped)
+**Version bump**: 0.50.0 → 0.51.0 (minor) — ⚠ solidify (worktree) targeted 0.50.0 which V1 took;
+solidify re-bumps at its merge
 
-## Status: PLAN READY — next action `/implement:phase`
+## Status: BRANCH CREATED — awaiting plan
 
-**Master plan**: `docs/features/overhaul-shell/plan/INDEX.md` (5 phases; guarantor-realigned:
-badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot real props)
+**Master plan**: _(docs/features/control-medias/plan/INDEX.md)_
 
 ## Phases
 
-| #   | Phase                                            | File                                | Status |
-| --- | ------------------------------------------------ | ----------------------------------- | ------ |
-| 1   | Sticky sidebar                                   | phase-01-sticky-sidebar.md          | [x]    |
-| 2   | Attention badges (data sources + WS refresh)     | phase-02-attention-badges.md        | [x]    |
-| 3   | Content width                                    | phase-03-content-width.md           | [x]    |
-| 4   | Test update (helpers + count-based badges)       | phase-04-test-update-gate.md        | [x]    |
-| 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [x]    |
-| 6   | PR fixes cycle 1 (review findings)               | phase-06-pr-fixes-cycle-1.md        | [x]    |
+| #                     | Phase | File | Status |
+| --------------------- | ----- | ---- | ------ |
+| _(populated by plan)_ |       |      |        |
 
-**Next action**: OPERATOR — squash-merge PR #310 (merge=manual), then post-merge ACCEPTANCE proof
-(prod déroulé daté + iframe 390px + SW cache-bust) and V2 (#306) via /implement:feature
+## Scope guardrails (spec §6 sequencing invariant)
 
-## Review cycles
-
-### Cycle 1
-
-- 4 agents (code / tests / comments / silent-failures) on PR #310 @ 086155eb.
-- Retained: **1 major** — SF-1 regression (decisions WS bridge dropped: Decisions live-refresh +
-  ScrapeActivityPanel reviver orphaned); **8 medium** — SF-2 badge error rendered as all-clear,
-  SF-3 acquisition badge without refresh + false comment, paused dot labelled « en cours d'exécution »,
-  TC-1/TC-3/TC-4 test gaps, docstring/docblock inaccuracies (queryOptions undocumented, WS list
-  incomplete), SF-6/SF-7 hardening (optional chain, key constant).
-- Ignored (with reason): none out-of-scope dismissed silently — 4 items surfaced for operator
-  arbitration in phase-06 §« Explicitly NOT fixed » (SF-4 ring deafness parity, SF-5 parse drops
-  pre-existing, ItemProgressed load observation, eslint message cosmetics).
-- Design contradictions: none.
-- Fix phase: phase-06-pr-fixes-cycle-1.md (2 sub-phases).
-
-### Cycle 2
-
-- Verification agent on the fix range bfa7f3ec..bbe4f38e + gates re-run (34 targeted tests,
-  tsc, eslint, timer suite 3× stable). Verdict: **all 8 retained findings genuinely FIXED**
-  (file:line evidence per finding).
-- 1 new finding: NEW-1 misplaced renderShell docblock in AppShell.test.tsx (introduced by an
-  orchestrator inline transform — recorded honestly) → fixed in this cycle's commit.
-- Remaining observations, ALL minor (operator arbitration, §méthode rule 4): duplicated "?"
-  marker span (DRY cosmetic), hardcoded ["pipeline","history"] key (pre-existing), split imports
-  from useStagingMedia, SF-4/SF-5/load-observation/eslint-message items carried from cycle 1
-  (listed in phase-06 §« Explicitly NOT fixed »).
-- Loop exit: Case A (no critical/major/medium remaining). Merge mode = manual → operator merges.
-
-## Scope guardrails (from spec §6 sequencing invariant)
-
-- NO route additions/removals/renames, no redirects, no nav-entry changes in this wave.
-- No page-content redesign (V2–V5).
-- Optional-only backend: `GET /api/attention/counts` if badge chattiness measured too high.
+- Only `/` rebuild, NEW `/medias`, `/scraping`→`/medias` redirect, 2 nav label renames.
+- Backend: ONLY `continue` + `discard` endpoints (+ make openapi). No other route changes.
+- No V3–V5 surfaces (pipeline/maintenance/registry/config/acquisition pages untouched).
