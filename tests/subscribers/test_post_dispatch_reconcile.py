@@ -194,11 +194,15 @@ def test_post_dispatch_reconcile_subscriber_close_unsubscribes(store: ConcreteAc
 
 
 def test_build_post_dispatch_reconcile_subscriber_none_without_store() -> None:
-    """The builder returns None when the app context has no acquire store."""
-    app = MagicMock()
-    app.acquire = None
-    assert build_post_dispatch_reconcile_subscriber(app) is None
+    """The builder returns None when there is no acquire handle or no store.
 
-    app2 = MagicMock()
-    app2.acquire.store = None
-    assert build_post_dispatch_reconcile_subscriber(app2) is None
+    The signature is narrow (boundary rule): the builder takes the bus + the
+    acquire lobe handle, never the whole AppContext — the composition roots
+    destructure the bundle themselves.
+    """
+    bus = EventBus()
+    assert build_post_dispatch_reconcile_subscriber(bus, None) is None
+
+    acquire = MagicMock()
+    acquire.store = None
+    assert build_post_dispatch_reconcile_subscriber(bus, acquire) is None

@@ -119,8 +119,7 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
         guard=_guard,
         fail_closed=True,
         fail_closed_detail=(
-            "Impossible de vérifier qu'aucun lancement n'est déjà en file "
-            "(erreur de lecture de la base) — réessayez."
+            "Impossible de vérifier qu'aucun lancement n'est déjà en file (erreur de lecture de la base) — réessayez."
         ),
     )
 

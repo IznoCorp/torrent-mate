@@ -384,8 +384,13 @@ def dispatch(
     # ACQUIRE-02: the post-dispatch reconcile subscriber closes owned wanted
     # rows + retires acquired films after the dispatch step's enrich scan
     # refreshes the library. Wired here (a dispatch composition root) so a plain
-    # library-index scan never gains a reconciliation side effect.
-    reconcile_sub = build_post_dispatch_reconcile_subscriber(app_context)
+    # library-index scan never gains a reconciliation side effect. The app
+    # bundle is destructured HERE (boundary rule) — the builder takes only the
+    # narrow services it consumes (bus + acquire lobe handle).
+    reconcile_sub = build_post_dispatch_reconcile_subscriber(
+        app_context.event_bus,
+        getattr(app_context, "acquire", None),
+    )
     try:
         # F2 parity: resolve the SAME permit/recorder the full-run
         # DispatchStep injects, via the shared single owner.

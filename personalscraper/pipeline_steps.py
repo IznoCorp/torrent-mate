@@ -334,7 +334,12 @@ class DispatchStep:
         # rows + retires acquired films after the enrich scan refreshes the
         # library (F2 parity with the standalone ``personalscraper dispatch``
         # command). Wired here — a dispatch composition root — not universally.
-        reconcile_sub = build_post_dispatch_reconcile_subscriber(ctx.app)
+        # The app bundle is destructured HERE (boundary rule) — the builder
+        # takes only the narrow services it consumes (bus + acquire handle).
+        reconcile_sub = build_post_dispatch_reconcile_subscriber(
+            ctx.app.event_bus,
+            getattr(ctx.app, "acquire", None),
+        )
         try:
             # Permit/recorder resolution is the shared single owner (F2 parity with
             # the standalone ``personalscraper dispatch`` CLI command).

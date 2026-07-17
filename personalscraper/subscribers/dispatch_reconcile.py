@@ -40,7 +40,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
-    from personalscraper.core.app_context import AppContext
+    from personalscraper.acquire.context import AcquireContext
     from personalscraper.core.ownership import OwnershipChecker
 
 log = get_logger("acquire.post_dispatch_reconcile")
@@ -134,30 +134,36 @@ class PostDispatchReconcileSubscriber:
         self._bus.emit(FilmAcquired(media_ref=follow.media_ref, title=follow.title, followed_id=followed_id))
 
 
-def build_post_dispatch_reconcile_subscriber(app: "AppContext") -> PostDispatchReconcileSubscriber | None:
+def build_post_dispatch_reconcile_subscriber(
+    event_bus: EventBus,
+    acquire: "AcquireContext | None",
+) -> PostDispatchReconcileSubscriber | None:
     """Build + wire the post-dispatch reconcile subscriber for a dispatch call.
 
-    Reads the acquire store + ownership off ``app.acquire`` and the process bus
-    off ``app.event_bus``. Returns ``None`` when no acquire store is configured
+    Takes the two specific services it consumes — the process bus and the
+    acquire lobe handle — never the whole ``AppContext`` (boundary rule: the
+    composition roots destructure the bundle; internal builders receive narrow
+    services). Returns ``None`` when no acquire store/ownership is configured
     (nothing to reconcile) so the dispatch entry points can wire it
     unconditionally and simply skip when absent.
 
     Args:
-        app: The process-scoped :class:`AppContext`.
+        event_bus: The process :class:`EventBus` (subscribe + FilmAcquired emit).
+        acquire: The :class:`AcquireContext` carrying ``store`` + ``ownership``,
+            or ``None`` when the caller has no acquire lobe.
 
     Returns:
         A live (already-subscribed) :class:`PostDispatchReconcileSubscriber`, or
         ``None`` when there is no acquire store.
     """
-    # Duck-typed like ``resolve_dispatch_authority`` (the engine layer never
-    # imports acquire/): a bare fake context carrying only ``delete_authority``
-    # yields no store and simply gets no subscriber.
-    acquire = getattr(app, "acquire", None)
+    # Duck-typed reads like ``resolve_dispatch_authority``: a bare fake acquire
+    # handle carrying only ``delete_authority`` yields no store and simply gets
+    # no subscriber.
     store = getattr(acquire, "store", None)
     ownership = getattr(acquire, "ownership", None)
     if store is None or ownership is None:
         return None
-    return PostDispatchReconcileSubscriber(app.event_bus, store, ownership)
+    return PostDispatchReconcileSubscriber(event_bus, store, ownership)
 
 
 __all__ = ["PostDispatchReconcileSubscriber", "build_post_dispatch_reconcile_subscriber"]
