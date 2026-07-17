@@ -23,7 +23,7 @@
 | 2   | Suivis compact + Obligations rows | [phase-02-compact-rows.md](phase-02-compact-rows.md)                         | [x]    |
 | 3   | File d'acquisition (merge + tabs) | [phase-03-file-dacquisition.md](phase-03-file-dacquisition.md)               | [x]    |
 | 4   | Final gate                        | [phase-04-final-gate.md](phase-04-final-gate.md)                             | [x]    |
-| 5   | PR fixes cycle 1                  | [phase-05-pr-fixes-cycle-1.md](phase-05-pr-fixes-cycle-1.md)                 | [ ]    |
+| 5   | PR fixes cycle 1                  | [phase-05-pr-fixes-cycle-1.md](phase-05-pr-fixes-cycle-1.md)                 | [x]    |
 
 ## Review cycles
 
