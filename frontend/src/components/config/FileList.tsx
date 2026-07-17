@@ -9,7 +9,7 @@
  * - A dirty dot when the parent page has unsaved edits for this file.
  */
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,9 @@ export function FileList({
   const files = useConfigFiles();
   const schema = useConfigSchema();
   const status = useConfigStatus();
+
+  // Track which file's restart badge is expanded for tap-accessible microcopy.
+  const [expandedRestart, setExpandedRestart] = useState<string | null>(null);
 
   // Loading / error states.
   if (files.isLoading || schema.isLoading || status.isLoading) {
@@ -109,9 +112,22 @@ export function FileList({
 
               {/* Badges */}
               {hasRestart && (
-                <Badge tone="warning" mono>
-                  restart
-                </Badge>
+                <button
+                  type="button"
+                  className="cursor-pointer"
+                  aria-label="Redémarrage requis après modification"
+                  aria-expanded={expandedRestart === file.name}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedRestart((prev) =>
+                      prev === file.name ? null : file.name,
+                    );
+                  }}
+                >
+                  <Badge tone="warning" mono>
+                    restart
+                  </Badge>
+                </button>
               )}
               {isStale && (
                 <Badge tone="info" mono>
@@ -124,6 +140,14 @@ export function FileList({
                 </Badge>
               )}
             </div>
+
+            {/* Tap-accessible restart microcopy — visible when the restart
+                badge is tapped (NOT hover-only, DOIT-9). */}
+            {hasRestart && expandedRestart === file.name && (
+              <p className="text-xs text-muted-foreground pl-0">
+                Redémarrage requis après modification
+              </p>
+            )}
 
             {/* Owned keys as muted chips */}
             {file.owned_keys.length > 0 && (
