@@ -72,48 +72,122 @@ function renderControls(status: StatusResponse): void {
   render(tree);
 }
 
+/** Opens the "Plus d'actions" dropdown if present. */
+function openDropdown(): void {
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: /Plus d'actions/i }),
+  );
+}
+
 describe("PipelineControls", () => {
-  it("renders the Démarrer, Pause, Reprendre, Arrêter buttons and Auto-trigger switch", () => {
+  // ---- Idle state ----
+
+  it("renders Démarrer and Auto-trigger, hides secondary actions when idle", () => {
     renderControls(IDLE_STATUS);
 
     expect(
       screen.getByRole("button", { name: /Démarrer/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Pause/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Reprendre/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Arrêter/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("switch", { name: /Auto-trigger/i }),
     ).toBeInTheDocument();
+
+    // Secondary actions are not visible when idle — no dropdown trigger needed.
+    expect(
+      screen.queryByRole("button", { name: /Pause/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Reprendre/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Arrêter/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Plus d'actions/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("disables Pause and Reprendre when idle", () => {
+  it("Démarrer is enabled when idle", () => {
     renderControls(IDLE_STATUS);
-    expect(screen.getByRole("button", { name: /Pause/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Reprendre/i })).toBeDisabled();
-    // Démarrer should be enabled when idle.
     expect(
       screen.getByRole("button", { name: /Démarrer/i }),
     ).not.toBeDisabled();
   });
 
-  it("disables Démarrer and enables Pause when running", () => {
+  // ---- Running state ----
+
+  it("renders Arrêter and dropdown trigger, hides other primary actions when running", () => {
     renderControls(RUNNING_STATUS);
-    expect(screen.getByRole("button", { name: /Démarrer/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Pause/i })).not.toBeDisabled();
+
+    expect(
+      screen.getByRole("button", { name: /Arrêter/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Plus d'actions/i }),
+    ).toBeInTheDocument();
+
+    // Primary actions for other states are not visible.
+    expect(
+      screen.queryByRole("button", { name: /Démarrer/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Reprendre/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("enables Reprendre and disables Pause when paused", () => {
+  it("dropdown contains Pause when running", () => {
+    renderControls(RUNNING_STATUS);
+    openDropdown();
+    expect(
+      screen.getByRole("menuitem", { name: /Pause/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("Pause in dropdown is enabled when running", () => {
+    renderControls(RUNNING_STATUS);
+    openDropdown();
+    expect(
+      screen.getByRole("menuitem", { name: /Pause/i }),
+    ).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  // ---- Paused state ----
+
+  it("renders Reprendre and dropdown trigger, hides other primary actions when paused", () => {
+    renderControls(PAUSED_STATUS);
+
+    expect(
+      screen.getByRole("button", { name: /Reprendre/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Plus d'actions/i }),
+    ).toBeInTheDocument();
+
+    // Primary actions for other states are not visible.
+    expect(
+      screen.queryByRole("button", { name: /Démarrer/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Pause/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Reprendre is enabled when paused", () => {
     renderControls(PAUSED_STATUS);
     expect(
       screen.getByRole("button", { name: /Reprendre/i }),
     ).not.toBeDisabled();
-    expect(screen.getByRole("button", { name: /Pause/i })).toBeDisabled();
   });
+
+  it("dropdown contains Arrêter when paused", () => {
+    renderControls(PAUSED_STATUS);
+    openDropdown();
+    expect(
+      screen.getByRole("menuitem", { name: /Arrêter/i }),
+    ).toBeInTheDocument();
+  });
+
+  // ---- Watcher switch ----
 
   it("reflects watcher_enabled in the Switch", () => {
     renderControls(RUNNING_STATUS);
@@ -121,6 +195,27 @@ describe("PipelineControls", () => {
       screen.getByRole("switch", { name: /Auto-trigger/i }),
     ).toHaveAttribute("aria-checked", "true");
   });
+
+  it("Auto-trigger switch is visible in every state", () => {
+    renderControls(IDLE_STATUS);
+    expect(
+      screen.getByRole("switch", { name: /Auto-trigger/i }),
+    ).toBeInTheDocument();
+
+    cleanup();
+    renderControls(RUNNING_STATUS);
+    expect(
+      screen.getByRole("switch", { name: /Auto-trigger/i }),
+    ).toBeInTheDocument();
+
+    cleanup();
+    renderControls(PAUSED_STATUS);
+    expect(
+      screen.getByRole("switch", { name: /Auto-trigger/i }),
+    ).toBeInTheDocument();
+  });
+
+  // ---- Dialogs ----
 
   it("opens the Démarrer dialog on click", () => {
     renderControls(IDLE_STATUS);
@@ -133,11 +228,20 @@ describe("PipelineControls", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the Kill confirmation dialog on click", () => {
+  it("opens the Kill confirmation dialog on Arrêter click (running primary)", () => {
     renderControls(RUNNING_STATUS);
     fireEvent.click(screen.getByRole("button", { name: /Arrêter/i }));
     expect(screen.getByText("Arrêter le pipeline ?")).toBeInTheDocument();
   });
+
+  it("opens the Kill confirmation dialog on Arrêter menu item click (paused dropdown)", () => {
+    renderControls(PAUSED_STATUS);
+    openDropdown();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Arrêter/i }));
+    expect(screen.getByText("Arrêter le pipeline ?")).toBeInTheDocument();
+  });
+
+  // ---- Mutations (toasts, §6 queue) ----
 
   it("shows the backend error detail on a duplicate run (409)", async () => {
     // Arrange: stub runPipeline to reject with the French duplicate 409 (§6 —

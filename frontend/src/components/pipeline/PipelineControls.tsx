@@ -1,15 +1,16 @@
 /**
  * PipelineControls — the action bar for the pipeline supervision page.
  *
- * Exposes the six actions from the ``/api/pipeline/*`` control routes as compact
- * icon buttons with confirmation dialogs where destructive, plus a Watcher toggle
- * Switch. Every mutation is backed by TanStack Query ``useMutation`` and
- * invalidates ``["pipeline", "status"]`` on success so the status card and
- * stepper pick up the new state.
+ * Exposes the six actions from the ``/api/pipeline/*`` control routes as a
+ * single state-dependent primary button with secondary actions in a
+ * ``DropdownMenu``, plus a Watcher toggle ``Switch``. Every mutation is
+ * backed by TanStack Query ``useMutation`` and invalidates
+ * ``["pipeline", "status"]`` on success so the status card and stepper pick
+ * up the new state.
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, Square } from "lucide-react";
+import { MoreHorizontal, Pause, Play, Square } from "lucide-react";
 import type { ReactElement } from "react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -32,6 +33,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 
 /** The status shape from GET /api/pipeline/status. */
@@ -44,7 +51,16 @@ interface PipelineControlsProps {
 }
 
 /**
- * PipelineControls — Démarrer / Pause / Reprendre / Kill buttons + Watcher Switch.
+ * PipelineControls — single state-dependent primary button + DropdownMenu.
+ *
+ * Layout per state:
+ * - idle:   « Démarrer » (primary / signal-amber)
+ * - running: « Arrêter » (destructive) + ⋮ dropdown with Pause
+ * - paused:  « Reprendre » (primary) + ⋮ dropdown with Arrêter
+ *
+ * The Auto-trigger switch stays visible in every state. All 5 mutations
+ * (run / pause / resume / kill / setWatcher) are preserved — only the
+ * visual layout changes.
  *
  * Args:
  *   status: The live pipeline status object.
@@ -142,62 +158,93 @@ export function PipelineControls({
   const isIdle = status.state === "idle";
   const isRunning = status.state === "running";
   const isPaused = status.state === "paused";
+  const hasDropdown = isRunning || isPaused;
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {/* Démarrer */}
-        <Button
-          size="sm"
-          disabled={!isIdle || runMutation.isPending}
-          onClick={() => {
-            setShowRunDialog(true);
-          }}
-        >
-          <Play className="size-4" aria-hidden="true" />
-          Démarrer
-        </Button>
+        {/* ---- State-dependent primary button ---- */}
 
-        {/* Pause */}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!isRunning || pauseMutation.isPending}
-          onClick={() => {
-            pauseMutation.mutate();
-          }}
-        >
-          <Pause className="size-4" aria-hidden="true" />
-          Pause
-        </Button>
+        {/* Idle: Démarrer (signal-amber primary) */}
+        {isIdle && (
+          <Button
+            size="sm"
+            disabled={runMutation.isPending}
+            onClick={() => {
+              setShowRunDialog(true);
+            }}
+          >
+            <Play className="size-4" aria-hidden="true" />
+            Démarrer
+          </Button>
+        )}
 
-        {/* Reprendre */}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!isPaused || resumeMutation.isPending}
-          onClick={() => {
-            resumeMutation.mutate();
-          }}
-        >
-          <Play className="size-4" aria-hidden="true" />
-          Reprendre
-        </Button>
+        {/* Running: Arrêter (destructive) */}
+        {isRunning && (
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={killMutation.isPending}
+            onClick={() => {
+              setShowKillDialog(true);
+            }}
+          >
+            <Square className="size-4" aria-hidden="true" />
+            Arrêter
+          </Button>
+        )}
 
-        {/* Kill */}
-        <Button
-          size="sm"
-          variant="destructive"
-          disabled={(isIdle && !status.run_uid) || killMutation.isPending}
-          onClick={() => {
-            setShowKillDialog(true);
-          }}
-        >
-          <Square className="size-4" aria-hidden="true" />
-          Arrêter
-        </Button>
+        {/* Paused: Reprendre (primary) */}
+        {isPaused && (
+          <Button
+            size="sm"
+            disabled={resumeMutation.isPending}
+            onClick={() => {
+              resumeMutation.mutate();
+            }}
+          >
+            <Play className="size-4" aria-hidden="true" />
+            Reprendre
+          </Button>
+        )}
 
-        {/* Watcher toggle */}
+        {/* ---- Dropdown for secondary actions ---- */}
+        {hasDropdown && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" aria-label="Plus d'actions">
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {isRunning && (
+                <DropdownMenuItem
+                  disabled={pauseMutation.isPending}
+                  onClick={() => {
+                    pauseMutation.mutate();
+                  }}
+                >
+                  <Pause className="size-4" aria-hidden="true" />
+                  Pause
+                </DropdownMenuItem>
+              )}
+              {isPaused && (
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={killMutation.isPending}
+                  onClick={() => {
+                    setShowKillDialog(true);
+                  }}
+                >
+                  <Square className="size-4" aria-hidden="true" />
+                  Arrêter
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Watcher toggle — always visible */}
         <label className="ml-auto flex items-center gap-2 text-sm">
           <Switch
             checked={status.watcher_enabled}
