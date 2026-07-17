@@ -100,13 +100,13 @@ class Sentinels(BaseModel):
 class TmpOrphan(BaseModel):
     """A single temporary orphan entry found during a bounded filesystem sweep.
 
-    Matched by prefix (``_tmp_dispatch_*``, ``_tmp_ingest_*``) and reported
-    up to a hard cap of 100 entries.
+    Matched by the crash-recovery marker prefixes (``_tmp_dispatch_*``,
+    ``.ingest_tmp_*``) and reported up to a hard cap of 100 entries.
 
     Attributes:
         path: Absolute or relative path to the orphan entry.
         prefix: The matched prefix (``"_tmp_dispatch_"`` or
-            ``"_tmp_ingest_"``).
+            ``".ingest_tmp_"``).
         age_s: Age of the orphan entry in seconds (``time.time() - mtime``).
     """
 

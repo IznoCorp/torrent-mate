@@ -288,6 +288,33 @@ class TestLocksRoute:
         for prefix in reported_prefixes:
             assert prefix == "_tmp_dispatch_"
 
+    def test_locks_detects_ingest_tmp_orphans(self, test_config, tmp_path: Path) -> None:
+        """A real ingest copy-stage orphan (``.ingest_tmp_*``) is surfaced.
+
+        Regression: the sweep used to match the literal ``_tmp_ingest_`` which
+        never occurs — the real ingest tmp prefix is ``.ingest_tmp_`` (the
+        crash-recovery ``INGEST_TMP_PREFIX``). The screen could therefore NEVER
+        report an ingest orphan. The prefix now comes from the artifact table.
+        """
+        from personalscraper.dispatch.crash_recovery import INGEST_TMP_PREFIX
+
+        staging = test_config.paths.staging_dir
+        staging.mkdir(parents=True, exist_ok=True)
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+
+        orphan = staging / f"{INGEST_TMP_PREFIX}Robot_sauvage"
+        orphan.mkdir()
+
+        client = _build_authenticated_client(test_config, tmp_path)
+
+        data = self._wait_for_sweep(client)
+        orphans = data["sweep"]["orphans"]
+
+        reported_paths = [e["path"] for e in orphans]
+        assert str(orphan) in reported_paths
+        entry = next(e for e in orphans if e["path"] == str(orphan))
+        assert entry["prefix"] == INGEST_TMP_PREFIX == ".ingest_tmp_"
+
     def test_locks_orphan_sweep_is_cached(self, test_config, tmp_path: Path) -> None:
         """The disk walk runs once per TTL — reads within it hit the cache (C25)."""
         from unittest.mock import patch

@@ -33,6 +33,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
+from personalscraper.dispatch.crash_recovery import (
+    DISPATCH_TMP_PREFIX,
+    INGEST_TMP_PREFIX,
+)
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.indexer.destructive_journal import list_recent
 from personalscraper.lock import is_lock_held
@@ -76,7 +80,12 @@ router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 logger = get_logger(__name__)
 
 # ── Sentinel prefixes matched during the bounded tmp-orphan sweep ─────────
-_TMP_ORPHAN_PREFIXES = ("_tmp_dispatch_", "_tmp_ingest_")
+# Imported from the crash-recovery artifact table — the SINGLE home for these
+# markers — so the maintenance sweep can never drift from the prefixes the
+# pipeline actually creates. The local literals used to read ``_tmp_ingest_``,
+# which never matched the real ingest copy-stage dirs (``.ingest_tmp_*``): the
+# screen could NEVER surface an ingest orphan.
+_TMP_ORPHAN_PREFIXES = (DISPATCH_TMP_PREFIX, INGEST_TMP_PREFIX)
 _MAX_ORPHANS = 100
 _MAX_SCAN_DEPTH = 2
 _STUCK_SCAN_THRESHOLD_S = 3600  # 1 hour
@@ -270,8 +279,9 @@ def _sweep_tmp_orphans(config: Config) -> list[TmpOrphan]:
 
     Scans the staging root, each staging subdirectory, and each mounted
     disk root at depth ≤ :data:`_MAX_SCAN_DEPTH`.  Only entries whose
-    **name** starts with ``_tmp_dispatch_`` or ``_tmp_ingest_`` are
-    collected.  Unreadable roots are silently skipped (fail-soft).
+    **name** starts with a crash-recovery marker prefix (dispatch
+    ``_tmp_dispatch_*`` or ingest ``.ingest_tmp_*``) are collected.
+    Unreadable roots are silently skipped (fail-soft).
 
     Args:
         config: The application :class:`Config`.
@@ -379,7 +389,7 @@ def get_locks(
 
     Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the
     configured ``data_dir`` and returns them immediately. The bounded filesystem
-    sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at
+    sweep for stale ``_tmp_dispatch_*`` / ``.ingest_tmp_*`` entries (capped at
     100 entries, depth ≤ 2) runs on a background thread (C25): the response
     carries ``sweep.status = "pending"`` on the cold first read and the cached
     result thereafter, so ``/locks`` never blocks on the slow disk walk.

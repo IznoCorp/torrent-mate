@@ -192,7 +192,7 @@ describe("LocksPanel", () => {
               prefix: "_tmp_dispatch_",
               age_s: 300,
             },
-            { path: "/tmp/_tmp_ingest_xyz", prefix: "_tmp_ingest_", age_s: 600 },
+            { path: "/tmp/.ingest_tmp_xyz", prefix: ".ingest_tmp_", age_s: 600 },
           ],
         },
       }),
@@ -205,7 +205,7 @@ describe("LocksPanel", () => {
     // Expand the orphans list.
     fireEvent.click(toggle);
     expect(screen.getByText(/_tmp_dispatch_abc/)).toBeInTheDocument();
-    expect(screen.getByText(/_tmp_ingest_xyz/)).toBeInTheDocument();
+    expect(screen.getByText(/\.ingest_tmp_xyz/)).toBeInTheDocument();
     expect(screen.getByText("— 5 min")).toBeInTheDocument();
     expect(screen.getByText("— 10 min")).toBeInTheDocument();
   });

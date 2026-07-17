@@ -1186,7 +1186,7 @@ export interface paths {
          *
          *     Reads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the
          *     configured ``data_dir`` and returns them immediately. The bounded filesystem
-         *     sweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at
+         *     sweep for stale ``_tmp_dispatch_*`` / ``.ingest_tmp_*`` entries (capped at
          *     100 entries, depth ≤ 2) runs on a background thread (C25): the response
          *     carries ``sweep.status = "pending"`` on the cold first read and the cached
          *     result thereafter, so ``/locks`` never blocks on the slow disk walk.
@@ -4158,13 +4158,13 @@ export interface components {
          * TmpOrphan
          * @description A single temporary orphan entry found during a bounded filesystem sweep.
          *
-         *     Matched by prefix (``_tmp_dispatch_*``, ``_tmp_ingest_*``) and reported
-         *     up to a hard cap of 100 entries.
+         *     Matched by the crash-recovery marker prefixes (``_tmp_dispatch_*``,
+         *     ``.ingest_tmp_*``) and reported up to a hard cap of 100 entries.
          *
          *     Attributes:
          *         path: Absolute or relative path to the orphan entry.
          *         prefix: The matched prefix (``"_tmp_dispatch_"`` or
-         *             ``"_tmp_ingest_"``).
+         *             ``".ingest_tmp_"``).
          *         age_s: Age of the orphan entry in seconds (``time.time() - mtime``).
          */
         TmpOrphan: {

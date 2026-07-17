@@ -237,7 +237,10 @@ class TestRunDispatch:
             report, _ = run_dispatch(settings, config=config, dry_run=False, verified=[], event_bus=EventBus())
 
         assert report.name == "dispatch"
-        assert any("Cleaned" in d and "staging orphan" in d for d in report.details)
+        # Honest French label (§2/§8): the sweep covers staging + disks, so the
+        # detail says "orphelin(s) de dispatch nettoyé(s)", not the former
+        # (inaccurate) "staging orphan(s)" that mislabelled disk orphans.
+        assert any("orphelin" in d and "nettoyé" in d for d in report.details)
 
     def test_outbox_drain_called_after_dispatch(self, tmp_path: Path) -> None:
         """After non-dry-run dispatch, _drain_dispatch_outbox is called."""

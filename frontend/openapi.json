@@ -3670,7 +3670,7 @@
         "type": "object"
       },
       "TmpOrphan": {
-        "description": "A single temporary orphan entry found during a bounded filesystem sweep.\n\nMatched by prefix (``_tmp_dispatch_*``, ``_tmp_ingest_*``) and reported\nup to a hard cap of 100 entries.\n\nAttributes:\n    path: Absolute or relative path to the orphan entry.\n    prefix: The matched prefix (``\"_tmp_dispatch_\"`` or\n        ``\"_tmp_ingest_\"``).\n    age_s: Age of the orphan entry in seconds (``time.time() - mtime``).",
+        "description": "A single temporary orphan entry found during a bounded filesystem sweep.\n\nMatched by the crash-recovery marker prefixes (``_tmp_dispatch_*``,\n``.ingest_tmp_*``) and reported up to a hard cap of 100 entries.\n\nAttributes:\n    path: Absolute or relative path to the orphan entry.\n    prefix: The matched prefix (``\"_tmp_dispatch_\"`` or\n        ``\".ingest_tmp_\"``).\n    age_s: Age of the orphan entry in seconds (``time.time() - mtime``).",
         "properties": {
           "age_s": {
             "title": "Age S",
@@ -5334,7 +5334,7 @@
     },
     "/api/maintenance/locks": {
       "get": {
-        "description": "Return pipeline lock state, sentinels, and the tmp-orphan sweep state.\n\nReads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the\nconfigured ``data_dir`` and returns them immediately. The bounded filesystem\nsweep for stale ``_tmp_dispatch_*`` / ``_tmp_ingest_*`` entries (capped at\n100 entries, depth \u2264 2) runs on a background thread (C25): the response\ncarries ``sweep.status = \"pending\"`` on the cold first read and the cached\nresult thereafter, so ``/locks`` never blocks on the slow disk walk.\n\nReturns:\n    A :class:`LocksResponse` with lock, sentinel, and sweep state.",
+        "description": "Return pipeline lock state, sentinels, and the tmp-orphan sweep state.\n\nReads ``pipeline.lock``, ``pipeline.pause``, and ``watcher.paused`` from the\nconfigured ``data_dir`` and returns them immediately. The bounded filesystem\nsweep for stale ``_tmp_dispatch_*`` / ``.ingest_tmp_*`` entries (capped at\n100 entries, depth \u2264 2) runs on a background thread (C25): the response\ncarries ``sweep.status = \"pending\"`` on the cold first read and the cached\nresult thereafter, so ``/locks`` never blocks on the slow disk walk.\n\nReturns:\n    A :class:`LocksResponse` with lock, sentinel, and sweep state.",
         "operationId": "get_locks_api_maintenance_locks_get",
         "responses": {
           "200": {

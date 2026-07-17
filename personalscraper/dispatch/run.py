@@ -184,7 +184,15 @@ def run_dispatch(
                 index.rollback_preview()
 
     if cleaned:
-        report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
+        # Honest, French label (§2/§8 — libellé clair, rien en silence). The
+        # sweep covers BOTH the staging categories AND the storage disks, so the
+        # former "staging orphan(s)" wording mislabelled disk orphans. In dry-run
+        # only the storage roots REPORT (staging is SKIP) and nothing is deleted,
+        # so the preview says "à nettoyer", not "nettoyé(s)".
+        if dry_run:
+            report.details.insert(0, f"{cleaned} orphelin(s) de dispatch à nettoyer (aperçu — disques de stockage)")
+        else:
+            report.details.insert(0, f"{cleaned} orphelin(s) de dispatch nettoyé(s) (staging + disques)")
     return report, results
 
 
