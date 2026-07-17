@@ -11,7 +11,7 @@
 **Design**: `docs/features/systeme-hub/DESIGN.md` ← shared spec §3.2 + §3.3 + §4 + §1.1
 **Version bump**: 0.53.0 → 0.54.0 (minor)
 
-## Status: phase 1 done — next: phase 2 (/systeme hub)
+## Status: phase 2 done — next: phase 3 (Config polish)
 
 **Master plan**: `docs/features/systeme-hub/plan/INDEX.md`
 
@@ -20,7 +20,7 @@
 | #   | Phase                                    | File                                                                                    | Status |
 | --- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------ |
 | 1   | Outcome-labels foundation                | [phase-01-outcome-labels.md](docs/features/systeme-hub/plan/phase-01-outcome-labels.md) | [x]    |
-| 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [ ]    |
+| 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [x]    |
 | 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [ ]    |
 | 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [ ]    |
 
