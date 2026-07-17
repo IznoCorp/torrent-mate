@@ -41,6 +41,18 @@
   partial groups (needs arbitrage), badge-on-error, multi-row hash label non-determinism, crash vs
   no-data indistinguishable in UI.
 
+### Cycle 2
+
+- Verification agent on fix range 74a0e3ef..4488a5e4. All six retained findings genuinely FIXED
+  (F1 error branch + hoisted notice; F2 clipboard catch+toast, no false icon; per-row guards both
+  loops + honest docstring; Film/« (série retirée) » rows; five hardening tests all real —
+  case-insensitive join seeds mixed case, isolation sibling asserted, back-nav exercises history;
+  docs sweep behavior-preserving). Orchestrator personally re-ran mutations A (lower() removal) and
+  B (replace:false) → both RED then reverted. Gates re-run: tsc 0, vitest 845, pytest routes 64.
+  ZERO new defects >=80. Verdict: ready to merge → AUTO squash per operator directive.
+- Note: composition-loop guard has no dedicated test (apply-pass guard is the tested one) —
+  accepted, guard code verified by reading.
+
 ## Dispatch notes
 
 - Phase 3 notes: two max-turns salvages (3.1 committed by dispatch, 2.1/3.3-repairs committed by orchestrator after green gates); commit 96a1c8c9 label overstates (fixture repairs only — real redirect tests landed in 6077d914); 3 non-null lint errors from 3.2 fixed by orchestrator.
