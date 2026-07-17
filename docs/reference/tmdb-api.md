@@ -1692,9 +1692,9 @@ Within the same language, sort by `vote_average` descending.
 `TMDBClient` composes the atomic capability protocols (`Searchable`,
 `MovieDetailsProvider`, `TvDetailsProvider`, `EpisodeFetcher`, `ArtworkProvider`,
 `KeywordProvider`, `VideoProvider`) from `api/metadata/_contracts.py`. It does
-_not_ compose `IDValidator`/`IDCrossRef` (cross-provider ID validation flows
-through `scraper._xref`) nor `RecommendationProvider` (no recommendations
-endpoint wired in).
+_not_ compose `IDValidator` (cross-provider ID validation flows through
+`scraper._xref`) nor `RecommendationProvider` (no recommendations endpoint
+wired in).
 
 ### TransportPolicy
 

@@ -501,7 +501,7 @@ instantiating the registry:
 
 - `chain(capability)` — ordered list of eligible providers (CLOSED or HALF_OPEN). For chain capabilities (Searchable, MovieDetailsProvider, TvDetailsProvider, EpisodeFetcher).
 - `fan_out(capability)` — all eligible providers, in config order. For aggregation capabilities (RatingProvider). Always emits `RegistryFanOutCompleted`.
-- `locked(capability, match)` — provider bound to the match's id, with `IDCrossRef` escape for cross-provider id translation. For identity-locked capabilities (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider).
+- `locked(capability, match)` — provider bound to the match's id (the match's own provider only; returns `None` if it can't serve, no cross-provider translation). For identity-locked capabilities (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider).
 
 ### Configuration
 

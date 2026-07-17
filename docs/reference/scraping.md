@@ -20,7 +20,7 @@ Never include API keys in documentation or brainstorming files — use `.env` re
   - **User Subscription** (requires PIN).
 - TVDB uses **3-char** language codes (`fra`, `eng`). Always convert between TVDB (`fra`) and TMDB (`fr-FR`) systems.
 - **No "landscape" type** — use "Background" (type 3 for series, 15 for movies, 1920×1080).
-- **No cross-provider ID translation in TVDBClient**: it raises `NotImplementedError` for `IDCrossRef` / `get_cross_refs` (`api/metadata/tvdb.py`). Cross-provider ID mapping is handled at the registry level via `registry.cross_ref(match, target=...)` → the source provider's `get_cross_refs()` (`api/metadata/registry/__init__.py`). See [`external-ids-flow.md`](external-ids-flow.md).
+- **No cross-provider ID translation in TVDBClient**: it does not compose `IDValidator`, and there is no registry-level ID translation (the `IDCrossRef` capability was removed — its only implementation returned an empty mapping). Cross-provider ID mapping now lives in the external-ids flow: the `external_ids` payloads returned by provider details are reconciled in `personalscraper/scraper/_xref.py`. See [`external-ids-flow.md`](external-ids-flow.md).
 
 ## ffprobe Language Codes
 
@@ -135,8 +135,8 @@ change a capability's mode through config, only the ordered provider list.
 | ------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | chain   | `Searchable`, `MovieDetailsProvider`, `TvDetailsProvider`, `EpisodeFetcher`     | Try providers in config order; first usable result wins.                                                                  | `raise ProviderExhausted`    |
 | fan_out | `RatingProvider`                                                                | Call all eligible providers; aggregate results.                                                                           | Return empty list (no error) |
-| locked  | `ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider` | Use the provider that produced the original match. If it lacks the capability, translate the match's id via `IDCrossRef`. | Return `None`                |
-| direct  | `IDValidator`, `IDCrossRef`                                                     | No semantic — dispatched by explicit provider name (`registry.get("tmdb").validate(id)`).                                 | N/A                          |
+| locked  | `ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider` | Use the provider that produced the original match. If it lacks the capability, nothing is returned (no cross-provider translation). | Return `None`                |
+| direct  | `IDValidator`                                                                   | No semantic — dispatched by explicit provider name (`registry.get("tmdb").validate(id)`).                                 | N/A                          |
 
 ### Fallback triggers (chain)
 
@@ -165,7 +165,7 @@ See `docs/reference/architecture.md#provider-registry` for the module layout and
 
 ## Capability Cookbook
 
-Six worked examples covering every production registry call shape. Each snippet
+Five worked examples covering every production registry call shape. Each snippet
 mirrors an actual call site (path + line) so the recipe can be traced back to
 working code.
 
@@ -175,9 +175,9 @@ The patterns map onto the four semantics described above:
   MovieDetailsProvider, TvDetailsProvider, EpisodeFetcher).
 - `fan_out` — call every eligible provider; aggregate results (RatingProvider).
 - `locked` — bind to the provider that produced the match (Artwork, Keyword,
-  Video, Recommendation); IDCrossRef escape if the bound provider can't serve.
-- `direct` — `registry.get("tmdb")` / `registry.cross_ref(...)` for IDValidator,
-  IDCrossRef, or non-Protocol APIs the registry doesn't model.
+  Video, Recommendation); returns `None` if the bound provider can't serve.
+- `direct` — `registry.get("tmdb")` for IDValidator or non-Protocol APIs the
+  registry doesn't model.
 
 ### Example 1 — `chain(Searchable)`: search a title across providers
 
@@ -238,8 +238,10 @@ Production site: `personalscraper/scraper/movie_service.py:552` (matching) and
 `movie_service.py:789` (details lookup). The pattern is identical to Example 1
 but illustrates the **source-of-match invariant**: when iterating for details
 after a successful match, skip providers whose `provider_name` does not match
-`match.source` — cross-provider id translation is delegated to
-`registry.cross_ref` (Example 5), not to chain re-iteration.
+`match.source` — the id space is provider-scoped, so the details lookup stays
+bound to the match's own provider. Foreign ids are reconciled separately in the
+external-ids flow (see [`external-ids-flow.md`](external-ids-flow.md)), not by
+chain re-iteration.
 
 ```python
 from personalscraper.api.metadata._contracts import MovieDetailsProvider
@@ -276,7 +278,7 @@ for provider in registry.chain(MovieDetailsProvider):  # type: ignore[type-abstr
 the canonical way to resolve full movie metadata after a successful search.
 Calling `registry.get("tmdb").get_movie(...)` directly would bypass the
 circuit-breaker eligibility check and the fallback observability — only do
-that for IDValidator-style unscoped fetches (Example 6).
+that for IDValidator-style unscoped fetches (Example 5).
 
 ### Example 3 — `fan_out(RatingProvider)`: aggregate ratings
 
@@ -319,8 +321,8 @@ caller threading a flag.
 Production site: `personalscraper/trailers/discovery/trailer_finder.py:360` (illustrated
 here with `VideoProvider`; `ArtworkProvider`/`KeywordProvider` follow the same
 shape). `locked` returns a `LockedProvider[C]` carrying the resolved
-`bound_id` (already cross-referenced if the match's own provider lacks the
-capability). `None` signals total resolution failure — the registry emits
+`bound_id` (the match's own provider only — there is no cross-provider
+fallback). `None` signals total resolution failure — the registry emits
 `LockedCapabilityUnresolved` for that case before returning.
 
 ```python
@@ -343,54 +345,25 @@ videos = locked.provider.get_videos(locked.bound_id, MediaType("movie"), languag
 capabilities where the answer must come from the **same provider as the
 scraped match** (artwork that matches the TMDB-source metadata; keywords from
 the TMDB taxonomy; trailers from TMDB's `/videos` endpoint). `chain` would let
-a different provider's id contaminate the result. The IDCrossRef escape lives
-inside `locked` itself — callers never call `cross_ref` manually for locked
-capabilities.
+a different provider's id contaminate the result. When the match's own provider
+lacks the capability, `locked` returns `None` — there is no cross-provider
+fallback to another provider.
 
-### Example 5 — `cross_ref(match, target="tvdb")`: translate provider IDs
-
-Production wire-up: invoked implicitly by `registry.locked()` step 2 (see
-`registry/__init__.py:562`), and available as a direct call for callers that
-need only the foreign id without a Protocol dispatch.
-
-```python
-from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
-from personalscraper.api._contracts import MediaType
-
-match = ProviderMatch(
-    provider=RegistryProviderName("tmdb"),
-    id=str(tmdb_id),
-    media_type=MediaType("tv"),
-)
-tvdb_id = registry.cross_ref(match, target="tvdb")
-if tvdb_id is None:
-    # No translation path — match's provider has no IDCrossRef, or the
-    # IDCrossRef call returned nothing for the target, or the target is
-    # absent from the IDCrossRef section. Fail-soft and skip.
-    return None
-```
-
-**When to use this over the alternatives.** Use the direct `cross_ref` only
-when you need the raw foreign id (e.g. to seed an `external_ids` payload or
-to enqueue a backfill task on a different provider). For dispatch of a
-capability call on the foreign provider, prefer `locked()` — it does the
-translation **and** returns the right provider in one call.
-
-### Example 6 — `get("tmdb")`: direct dispatch for unscoped capabilities
+### Example 5 — `get("tmdb")`: direct dispatch for unscoped capabilities
 
 Production sites: `personalscraper/scraper/tv_service_episodes.py:397`
 (TMDB-specific episode hydration) and IDValidator usage in scraper internals.
 
 ```python
 tmdb_client = registry.get("tmdb")
-# `tmdb_client` is the raw provider instance. Use this for IDValidator,
-# IDCrossRef, or provider-specific endpoints not modelled by a registry
-# Protocol. The circuit breaker still applies on the HTTP layer, but
-# eligibility is NOT pre-filtered as it is with chain/fan_out.
+# `tmdb_client` is the raw provider instance. Use this for IDValidator or
+# provider-specific endpoints not modelled by a registry Protocol. The
+# circuit breaker still applies on the HTTP layer, but eligibility is NOT
+# pre-filtered as it is with chain/fan_out.
 ```
 
 **When to use this over the alternatives.** Reserved for two cases: (1) the
-capability is `direct` per the semantics table (IDValidator, IDCrossRef);
+capability is `direct` per the semantics table (IDValidator);
 (2) the code path is provider-specific and the registry cannot model it
 generically (e.g. `_fetch_videos_strict` duck-typing on TMDB in
 `trailer_finder.py:373`). In all other cases the chain/fan_out/locked
