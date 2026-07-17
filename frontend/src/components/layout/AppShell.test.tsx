@@ -342,15 +342,11 @@ describe("AppShell nav badges", () => {
 
     renderShell();
 
-    // StatusDot renders with showLabel={false} → no visible text, no
-    // aria-label, only the CSS class .ps-dot--running reaches the DOM.
-    // findAllByLabelText (as the plan originally suggested) cannot match;
-    // fall back to a CSS-class selector via document.querySelectorAll.
-    await waitFor(() => {
-      expect(
-        document.querySelectorAll(".ps-dot--running").length,
-      ).toBeGreaterThanOrEqual(1);
-    });
+    // StatusDot renders with showLabel={false} → no visible text, but
+    // aria-label lands on the span via {...rest} so the dot has an
+    // accessible name screen readers can discover.
+    const dots = await screen.findAllByLabelText(/Pipeline en cours d/i);
+    expect(dots.length).toBeGreaterThanOrEqual(1);
   });
 
   it("rafraîchit le badge staging lorsqu'un événement WS ItemProgressed arrive", async () => {

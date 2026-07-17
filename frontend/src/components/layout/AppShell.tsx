@@ -105,7 +105,7 @@ function AppShellInner(): ReactElement {
         <StatusDot
           status="running"
           showLabel={false}
-          label="Pipeline en cours d'exécution"
+          aria-label="Pipeline en cours d'exécution"
         />
       );
     }

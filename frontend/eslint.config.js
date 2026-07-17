@@ -199,9 +199,9 @@ export default tseslint.config(
         // <StatusDot>
         {
           selector:
-            "JSXOpeningElement[name.name='StatusDot'] > JSXAttribute > JSXIdentifier[name!=/^(?:status|label|showLabel|className|key|ref|className|style|children)$/]",
+            "JSXOpeningElement[name.name='StatusDot'] > JSXAttribute > JSXIdentifier[name!=/^(?:status|label|showLabel|className|aria-label|key|ref|className|style|children)$/]",
           message:
-            "<StatusDot> doesn't accept that prop. Declared props: status, label, showLabel, className.",
+            "<StatusDot> doesn't accept that prop. Declared props: status, label, showLabel, className, aria-label.",
         },
 
         // <TemperatureBadge>
