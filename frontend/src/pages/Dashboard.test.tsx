@@ -53,6 +53,17 @@ const SCHEDULERS = {
   ],
 };
 
+/** Empty staging media response — no blocked items (ATraiterList). */
+const EMPTY_STAGING = {
+  items: [],
+  total: 0,
+  page: 1,
+  page_size: 100,
+};
+
+/** Minimal pipeline history response — no runs yet. */
+const EMPTY_HISTORY = { runs: [], total: 0 };
+
 /** Route ``/api/*`` to their canned payloads. */
 function routeFetch(input: RequestInfo | URL): Promise<Response> {
   const url = urlOf(input);
@@ -68,11 +79,20 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
   // endpoint — serve minimal well-shaped payloads.
   if (url.includes("/api/pipeline/status")) {
     return Promise.resolve(
-      buildResponse(200, { state: "idle", paused: false, watcher_enabled: true }),
+      buildResponse(200, {
+        state: "idle",
+        paused: false,
+        watcher_enabled: true,
+      }),
     );
   }
   if (url.includes("/api/pipeline/stages")) {
-    return Promise.resolve(buildResponse(200, { stages: [], run_processed: null }));
+    return Promise.resolve(
+      buildResponse(200, { stages: [], run_processed: null }),
+    );
+  }
+  if (url.includes("/api/pipeline/history")) {
+    return Promise.resolve(buildResponse(200, EMPTY_HISTORY));
   }
   if (url.includes("/api/acquisition/wanted")) {
     return Promise.resolve(
@@ -142,6 +162,14 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
       }),
     );
   }
+  // ATraiterList → GET /api/staging/media
+  if (url.includes("/api/staging/media")) {
+    return Promise.resolve(buildResponse(200, EMPTY_STAGING));
+  }
+  // ScrapeActivityPanel → GET /api/decisions/activity
+  if (url.includes("/api/decisions/activity")) {
+    return Promise.resolve(buildResponse(200, { active: [], queue_size: 0 }));
+  }
   return Promise.resolve(
     buildResponse(200, { status: "ok", redis: true, db: true }),
   );
@@ -179,24 +207,24 @@ function renderDashboard(): void {
   render(tree);
 }
 
-describe("Dashboard", () => {
-  it("monte les cartes et le panneau planificateurs, sans flux d’événements", async () => {
+describe("Contrôle", () => {
+  it("affiche le titre Contrôle et le panneau planificateurs", async () => {
     renderDashboard();
 
-    // Structure: heading + scheduler overview.
     expect(
-      screen.getByRole("heading", { name: "Tableau de bord" }),
+      screen.getByRole("heading", { name: "Contrôle" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Planificateurs")).toBeInTheDocument();
+    expect(
+      screen.getByText("Acquisitions & planificateurs"),
+    ).toBeInTheDocument();
 
     // The event feed + recent-events table moved to Maintenance (Phase 5.1) —
     // they must NOT render on the Dashboard anymore.
-    expect(screen.queryByText("Flux d’événements")).not.toBeInTheDocument();
+    expect(screen.queryByText("Flux d'événements")).not.toBeInTheDocument();
     expect(screen.queryByText("Événements récents")).not.toBeInTheDocument();
 
-    // Cards resolve from their queries (Redis online, version rendered).
+    // HealthCard still rendered (compaction in 5.4).
     expect(await screen.findByText("Redis en ligne")).toBeInTheDocument();
-    expect(await screen.findByText("0.40.0")).toBeInTheDocument();
 
     // Scheduler rows resolve from the mocked payload.
     expect(
@@ -213,12 +241,21 @@ describe("Dashboard", () => {
 
     // Acquisitions glance: pending (total=4), in-progress downloads (1 of the
     // 2 canned rows has progress < 1), deferred torrent surfaced.
-    expect(await screen.findByText(/4 épisodes en attente/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/4 épisodes en attente/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/1 téléchargement en cours/)).toBeInTheDocument();
     expect(screen.getByText(/1 torrent différé/)).toBeInTheDocument();
 
     // Index health + disks panels resolve from their endpoints.
     expect(await screen.findByText("Santé de l'index")).toBeInTheDocument();
     expect(await screen.findByText("Disk 1")).toBeInTheDocument();
+  });
+
+  it("affiche la liste À traiter (vide par défaut)", async () => {
+    renderDashboard();
+
+    // Even when empty, ATraiterList renders a calm row.
+    expect(await screen.findByText("Rien à traiter")).toBeInTheDocument();
   });
 });

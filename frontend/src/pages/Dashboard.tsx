@@ -1,53 +1,76 @@
 import type { ReactElement } from "react";
 
+import { ATraiterList } from "@/components/controle/ATraiterList";
 import { AcquisitionSummaryCard } from "@/components/dashboard/AcquisitionSummaryCard";
 import { HealthCard } from "@/components/dashboard/HealthCard";
 import { SchedulersPanel } from "@/components/dashboard/SchedulersPanel";
-import { VersionCard } from "@/components/dashboard/VersionCard";
+import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
-import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
+import { StalledPanel } from "@/components/pipeline/StalledPanel";
+import { useLastPipelineRun } from "@/hooks/useLastPipelineRun";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 
 /**
- * Dashboard — the authenticated home page (`/`), the operator's control
- * station (A3).
+ * Contrôle — the authenticated home page (``/``), the operator's attention-first
+ * control station.
  *
- * From this single view the operator can SEE the load-bearing state — health,
- * disks, index health, acquisitions, schedulers — and ACT: the pipeline
- * controls (run / pause / resume / kill / watcher) live here too, and the
- * action banner leads to the resolution deck. Panels are the same
- * self-contained components used by their home pages (Pipeline / Maintenance /
- * Acquisition), so the dashboard adds no new data path — only composition.
+ * Panels are ordered by operator attention priority (DESIGN §2.1):
  *
- * @returns The dashboard element.
+ * 1. **À traiter** — every blocked staged item, unified across all pipeline
+ *    stages (the reason the operator opens the app).
+ * 2. **Activité scraping** — live scrape-activity feed (relocated from
+ *    ``/medias``).
+ * 3. **Ce qui n'a pas avancé** — per-step skip/defer/error reasons from the
+ *    last pipeline run, so stalled items are visible at a glance.
+ * 4. **Acquisitions & planificateurs** — pending wanted + active downloads +
+ *    deferred torrents, plus the scheduler overview, visually merged.
+ * 5. **Santé** — health card, index health, and disk usage (compacted in 5.4).
+ * 6. **Pipeline** — single state-dependent primary control button.
+ *
+ * Returns:
+ *   The Contrôle page element.
  */
 export default function Dashboard(): ReactElement {
   const { data: pipelineStatus } = usePipelineStatus();
+  const lastRun = useLastPipelineRun();
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Tableau de bord</h1>
+    <section className="mx-auto flex max-w-[1280px] flex-col gap-4">
+      <h1 className="text-xl font-semibold tracking-tight">Contrôle</h1>
 
-      {/* Compact human-action banner (C5) — leads to the resolution deck. */}
-      <PipelineActionBanner compact />
+      {/* 1. À traiter — all blocked cases, unified (DESIGN §2.1). */}
+      <ATraiterList />
 
-      {/* Control station (A3): the pipeline is drivable from home. */}
+      {/* 2. Activité scraping — live scrape feed, relocated from /medias. */}
+      <ScrapeActivityPanel />
+
+      {/* 3. Ce qui n'avance pas — StalledPanel on the last run. */}
+      <StalledPanel stepReasons={lastRun.stepReasons} />
+
+      {/* 4. Acquisitions & planificateurs — merged section (guarantor amendment a). */}
+      <section>
+        <h2 className="mb-3 text-base font-semibold tracking-tight">
+          Acquisitions &amp; planificateurs
+        </h2>
+        <div className="flex flex-col gap-4">
+          <AcquisitionSummaryCard />
+          <SchedulersPanel />
+        </div>
+      </section>
+
+      {/* 5. Santé — kept for now; compaction into CompactHealth in 5.4. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <HealthCard />
+        <IndexHealthPanel />
+      </div>
+      <DisksPanel />
+
+      {/* 6. Pipeline control — single state-dependent primary (DESIGN §2.1). */}
       {pipelineStatus !== undefined && (
         <PipelineControls status={pipelineStatus} />
       )}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <HealthCard />
-        <VersionCard />
-        <AcquisitionSummaryCard />
-        <IndexHealthPanel />
-      </div>
-
-      <DisksPanel />
-
-      <SchedulersPanel />
     </section>
   );
 }

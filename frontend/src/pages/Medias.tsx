@@ -10,7 +10,6 @@
  * - {@link StagingLibrary} for the poster grid + detail drawer
  * - {@link ResolutionDeck} for the rapid resolution flow
  * - {@link DecisionList} + {@link DecisionDetail} for the full-status browse
- * - {@link ScrapeActivityPanel} for the live scrape-activity feed
  * - {@link useAllDecisions} to merge every status into one flat list
  * - {@link useDecisionDetail} for the selected decision's detail
  */
@@ -32,7 +31,6 @@ import { useAllDecisions, useDecisionDetail } from "@/hooks/useDecisions";
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
 import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
-import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
 import type { PositionFilter } from "@/components/staging/StagingLibrary";
@@ -350,8 +348,6 @@ export default function Medias(): ReactElement {
           </div>
         }
       />
-
-      <ScrapeActivityPanel />
 
       {tab === "library" ? (
         <>

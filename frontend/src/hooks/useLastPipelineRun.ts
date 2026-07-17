@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getPipelineHistory, getPipelineRunDetail } from "@/api/client";
 import type { InterpretedLine } from "@/components/pipeline/interpretRun";
+import type { StepReasonsEntry } from "@/components/pipeline/StalledPanel";
 import { summariseSteps } from "@/components/pipeline/summariseSteps";
 
 /** Result of {@link useLastPipelineRun}. */
@@ -25,6 +26,11 @@ export interface LastPipelineRun {
   readonly runUid: string | null;
   /** The last run's interpreted summary lines (empty when none / loading). */
   readonly lines: InterpretedLine[];
+  /**
+   * Per-step skip/defer/error reasons, derived from the same filter+map used by
+   * {@link RunDetail} — fed directly to {@link StalledPanel}.
+   */
+  readonly stepReasons: StepReasonsEntry[];
   /** Whether either underlying query is still loading. */
   readonly isLoading: boolean;
 }
@@ -65,9 +71,19 @@ export function useLastPipelineRun(refetchKey = "idle"): LastPipelineRun {
   const lines =
     detailQuery.data !== undefined ? summariseSteps(detailQuery.data.steps) : [];
 
+  // §8 — per-step skip/defer/error reasons, same derivation as RunDetail (the
+  // 'queue' pseudo-step is excluded — it has its own banner in the run detail).
+  const stepReasons: StepReasonsEntry[] =
+    detailQuery.data !== undefined
+      ? detailQuery.data.steps
+          .filter((s) => s.name !== "queue" && (s.reasons?.length ?? 0) > 0)
+          .map((s) => ({ step: s.name, reasons: s.reasons ?? [] }))
+      : [];
+
   return {
     runUid,
     lines,
+    stepReasons,
     isLoading: historyQuery.isLoading || (runUid !== null && detailQuery.isLoading),
   };
 }

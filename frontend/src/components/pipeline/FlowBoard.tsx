@@ -380,7 +380,7 @@ export function FlowBoard(): ReactElement {
               {selected.key === "matching" && selected.count > 0 && (
                 <Button
                   onClick={() => {
-                    void navigate("/scraping");
+                    void navigate("/medias");
                   }}
                 >
                   <Target className="size-4" aria-hidden="true" />
@@ -397,10 +397,10 @@ export function FlowBoard(): ReactElement {
                 <StageMediaList
                   stageKey={selected.key as StageKey}
                   onOpenResolution={() => {
-                    void navigate("/scraping");
+                    void navigate("/medias");
                   }}
                   onOpenMedia={(mediaId) => {
-                    void navigate(`/scraping?media=${mediaId}`);
+                    void navigate(`/medias?media=${mediaId}`);
                   }}
                 />
               </div>

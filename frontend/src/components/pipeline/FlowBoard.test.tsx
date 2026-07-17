@@ -205,6 +205,6 @@ describe("FlowBoard", () => {
     });
     fireEvent.click(action);
     // Real router: the action leaves /pipeline for the resolution deck.
-    expect(screen.getByTestId("location-search").textContent).toBe("/scraping");
+    expect(screen.getByTestId("location-search").textContent).toBe("/medias");
   });
 });

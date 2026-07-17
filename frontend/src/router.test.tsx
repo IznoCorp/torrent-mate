@@ -72,6 +72,66 @@ beforeEach(() => {
         }),
       );
     }
+    // Contrôle dashboard panels (phase 5.3) — minimal well-shaped payloads
+    // so the page renders without crashing.
+    if (url.includes("/api/staging/media")) {
+      return Promise.resolve(
+        buildResponse(200, { items: [], total: 0, page: 1, page_size: 100 }),
+      );
+    }
+    if (url.includes("/api/decisions/activity")) {
+      return Promise.resolve(
+        buildResponse(200, { in_progress: [], pending_count: 0 }),
+      );
+    }
+    if (url.includes("/api/pipeline/history")) {
+      return Promise.resolve(buildResponse(200, { runs: [], total: 0 }));
+    }
+    if (url.includes("/api/pipeline/status")) {
+      return Promise.resolve(
+        buildResponse(200, { state: "idle", paused: false, watcher_enabled: true }),
+      );
+    }
+    if (url.includes("/api/acquisition/wanted")) {
+      return Promise.resolve(
+        buildResponse(200, { items: [], total: 0, page: 1, page_size: 1 }),
+      );
+    }
+    if (url.includes("/api/acquisition/downloads")) {
+      return Promise.resolve(
+        buildResponse(200, { downloads: [], client_available: true }),
+      );
+    }
+    if (url.includes("/api/acquisition/status")) {
+      return Promise.resolve(
+        buildResponse(200, {
+          watcher_enabled: true,
+          last_successful_run_at: null,
+          recent_runs: [],
+          deferred: [],
+        }),
+      );
+    }
+    if (url.includes("/api/maintenance/disks")) {
+      return Promise.resolve(buildResponse(200, { disks: [] }));
+    }
+    if (url.includes("/api/maintenance/index-health")) {
+      return Promise.resolve(
+        buildResponse(200, {
+          items: 0, movies: 0, shows: 0, files: 0, size_gb: 0,
+          nfo: { valid: 0, invalid: 0, missing: 0 },
+          repair_queue_pending: 0, repair_queue_oldest_age_s: null,
+          outbox_pending: 0, outbox_oldest_age_s: null,
+          last_scan_id: null, last_scan_mode: null, last_scan_status: null,
+          last_scan_started_at: null, last_scan_finished_at: null,
+          last_scan_stuck: false, soft_deleted: 0, canonical_null: 0,
+          degraded: false, error: null,
+        }),
+      );
+    }
+    if (url.includes("/api/maintenance/schedulers")) {
+      return Promise.resolve(buildResponse(200, { schedulers: [] }));
+    }
     // Unmocked endpoints: an honest 404 — panels show their error state
     // instead of crashing on a fake 200 with a non-contract body.
     return Promise.resolve(buildResponse(404, { detail: "not mocked" }));
@@ -115,7 +175,7 @@ describe("router", () => {
 
     // Dashboard page rendered inside the shell (once `me` resolves authed).
     expect(
-      await screen.findByRole("heading", { name: /tableau de bord/i }),
+      await screen.findByRole("heading", { name: /contrôle/i }),
     ).toBeInTheDocument();
     // Shell chrome present: the top bar's user menu and the mobile nav.
     expect(
@@ -242,7 +302,7 @@ describe("router", () => {
 
     // Open-redirect guard: `//evil` collapses to the app root (Dashboard).
     expect(
-      await screen.findByRole("heading", { name: /tableau de bord/i }),
+      await screen.findByRole("heading", { name: /contrôle/i }),
     ).toBeInTheDocument();
   });
 
@@ -263,7 +323,7 @@ describe("router", () => {
     ).toBeInTheDocument();
     await waitFor(() => {
       expect(
-        screen.queryByRole("heading", { name: /tableau de bord/i }),
+        screen.queryByRole("heading", { name: /contrôle/i }),
       ).not.toBeInTheDocument();
     });
   });
@@ -319,7 +379,7 @@ describe("router", () => {
     ).toBeInTheDocument();
     await waitFor(() => {
       expect(
-        screen.queryByRole("heading", { name: /tableau de bord/i }),
+        screen.queryByRole("heading", { name: /contrôle/i }),
       ).not.toBeInTheDocument();
     });
     // Settle any pending microtasks, then re-assert we did not ping-pong back.
@@ -330,7 +390,7 @@ describe("router", () => {
       screen.getByRole("button", { name: /se connecter/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /tableau de bord/i }),
+      screen.queryByRole("heading", { name: /contrôle/i }),
     ).not.toBeInTheDocument();
   });
 

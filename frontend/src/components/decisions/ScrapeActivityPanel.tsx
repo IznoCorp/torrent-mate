@@ -29,7 +29,7 @@ export function ScrapeActivityPanel(): ReactElement | null {
     // Poll briefly while something runs; go idle otherwise (WS invalidation and the
     // deck's own refetches revive it when a new scrape starts).
     refetchInterval: (query) =>
-      (query.state.data?.in_progress.length ?? 0) > 0 ? ACTIVE_POLL_MS : false,
+      (query.state.data?.in_progress?.length ?? 0) > 0 ? ACTIVE_POLL_MS : false,
   });
 
   const inProgress = data?.in_progress ?? [];

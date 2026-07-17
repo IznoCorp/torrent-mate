@@ -54,6 +54,6 @@ describe("PipelineActionBanner", () => {
     render(<PipelineActionBanner />);
     expect(screen.getByText(/3 médias à identifier/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Ouvrir la file/ }));
-    expect(navigateMock).toHaveBeenCalledWith("/scraping");
+    expect(navigateMock).toHaveBeenCalledWith("/medias");
   });
 });

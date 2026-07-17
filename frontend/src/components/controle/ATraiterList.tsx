@@ -83,6 +83,7 @@ function blockedItems(
   data: StagingMediaResponse | undefined,
 ): StagingMediaItem[] {
   if (data == null) return [];
+  if (!Array.isArray(data.items)) return [];
   return data.items.filter((i) => i.position_state === "blocked");
 }
 
