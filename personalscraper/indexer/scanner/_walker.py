@@ -16,7 +16,7 @@ Provides:
 - :class:`WalkBudget` / :class:`WalkCheckpoint` — traversal-control state owned by :func:`walk`.
 - :class:`SkeletonVisitor` — records files with ``oshash=NULL`` (Stage-A deferred).
 - :func:`_walk_dir` — thin backward-compatible wrapper over :func:`walk`.
-- :func:`_scandir_entries` — shared ``os.scandir`` listing primitive (ACC-08:
+- :func:`_list_dir_entries` — shared ``os.scandir`` listing primitive (ACC-08:
   the ONLY ``scandir`` call-site in ``scanner/``).
 - :func:`_verify_dir_mtime_reliable` — one-time check that dir mtime is updated on child writes.
 - :func:`_sample_fresh_fingerprints` — sample fresh tier-1 fingerprints for Merkle delta.
@@ -270,7 +270,7 @@ def _sample_fresh_fingerprints(
 # ---------------------------------------------------------------------------
 
 
-def _scandir_entries(dir_abs: str) -> list[os.DirEntry[str]]:
+def _list_dir_entries(dir_abs: str) -> list[os.DirEntry[str]]:
     """Materialise the directory entries of *dir_abs* via a single ``os.scandir``.
 
     This is the ONE ``os.scandir`` call-site in the whole ``scanner/`` package
@@ -474,7 +474,7 @@ def _walk_subtree(
     assert mount is not None  # guard: mount_path checked before the walk begins
 
     try:
-        entries = sorted(_scandir_entries(dir_abs), key=lambda e: e.name)
+        entries = sorted(_list_dir_entries(dir_abs), key=lambda e: e.name)
     except PermissionError:
         # PermissionError is swallowed (skip the unreadable dir); every other
         # OSError (EIO, ENOTCONN, …) propagates to the per-disk error handling.

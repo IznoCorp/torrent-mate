@@ -228,7 +228,7 @@ def _scan_disk_quick(
        stored ``path.dir_mtime_ns`` to the current filesystem value.
 
     On Merkle miss (stored root differs from DB-computed root), a bulk-change
-    check is performed by sampling fresh tier-1 fingerprints from ``os.scandir``
+    check is performed by sampling fresh tier-1 fingerprints from the filesystem
     and computing the Merkle delta against stored.  If the delta exceeds
     *merkle_delta_freeze_threshold* and *confirm_bulk_change* is ``False``,
     the disk is skipped (no walk performed) and
@@ -320,7 +320,7 @@ def _scan_disk_quick(
         _run_paranoia_branch(conn, disk, mount, paranoia_window_seconds, capability)
 
     # --- Bulk-change guard (quick-mode only, on Merkle miss) ---
-    # Sample fresh tier-1 fingerprints by doing a shallow scandir for all
+    # Sample fresh tier-1 fingerprints by re-stat'ing all
     # media_file paths already known to the DB and comparing size/mtime_ns.
     # A high delta (many files changed at once) suggests a bulk restore or
     # disk swap rather than organic drift — freeze unless confirmed by caller.

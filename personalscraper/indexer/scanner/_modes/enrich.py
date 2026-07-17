@@ -16,6 +16,7 @@ from personalscraper.core.completeness import nfo_status as _core_nfo_status
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.release_linker import link_file_to_release
+from personalscraper.indexer.scanner._walker import _list_dir_entries
 from personalscraper.indexer.schema import ArtworkInventory, DiskRow, MediaStreamRow
 from personalscraper.logger import get_logger
 
@@ -138,8 +139,7 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
         or ``None`` when the directory is not readable (transient OS error).
     """
     try:
-        with os.scandir(parent_dir) as it:
-            names = [entry.name for entry in it if entry.is_file()]
+        names = [entry.name for entry in _list_dir_entries(parent_dir) if entry.is_file()]
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -221,12 +221,11 @@ def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"]
         the directory is not readable.
     """
     try:
-        with os.scandir(parent_dir) as it:
-            candidates = [
-                Path(entry.path)
-                for entry in it
-                if entry.name.lower().endswith(".nfo") and not is_apple_double(entry.name)
-            ]
+        candidates = [
+            Path(entry.path)
+            for entry in _list_dir_entries(parent_dir)
+            if entry.name.lower().endswith(".nfo") and not is_apple_double(entry.name)
+        ]
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(

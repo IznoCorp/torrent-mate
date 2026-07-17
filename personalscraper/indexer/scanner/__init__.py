@@ -393,7 +393,8 @@ def scan(
         2. If ``mode == ScanMode.full`` and ``drop_indexes`` is ``True``, drop
            secondary indexes and use ``executemany`` batches for inserts.  Always
            recreate the indexes in a ``try/finally`` block.
-        3. Walk the disk root via recursive :func:`os.scandir` calls.
+        3. Walk the disk root via the shared
+           :func:`~personalscraper.indexer.scanner._walker.walk` skeleton.
            - Never follow symlinks (``entry.stat(follow_symlinks=False)``).
            - Skip any entry whose name is in :data:`EXCLUDED_NAMES` or starts with ``"._"``.
            - After visiting all children of a directory, upsert the ``path`` row
