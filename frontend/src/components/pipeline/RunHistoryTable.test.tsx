@@ -182,6 +182,20 @@ describe("RunHistoryTable", () => {
     ).toBeInTheDocument();
   });
 
+  it("affiche l'alerte dégradée quand la lecture DB a échoué (B4)", async () => {
+    const getHistory = await mockGetHistory();
+    getHistory.mockResolvedValue({ runs: [], total: 0, degraded: true });
+    renderTable();
+
+    // The loud alert replaces the calm empty state — a broken library.db
+    // must never read as « aucune exécution » (§8/DOIT-2).
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Historique indisponible");
+    expect(
+      screen.queryByText("Aucune exécution enregistrée."),
+    ).not.toBeInTheDocument();
+  });
+
   it("affiche la pagination", async () => {
     const getHistory = await mockGetHistory();
     // 25 runs with a limit of 20 → 2 pages.

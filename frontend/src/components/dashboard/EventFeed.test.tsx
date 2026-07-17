@@ -111,12 +111,22 @@ describe("EventFeed", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
-  it("montre l’alerte déconnectée quand le WS reconnecte et aucun événement", () => {
+  it("reste calme pendant une reconnexion (état in-flight, pas une panne)", () => {
     mockConnectionState = "reconnecting";
     render(<EventFeed events={[]} />);
     expect(
-      screen.getByText("Flux d'événements déconnecté."),
-    ).toBeInTheDocument();
+      screen.queryByText("Flux d'événements déconnecté."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("En attente d'événements…")).toBeInTheDocument();
+  });
+
+  it("reste calme pendant la connexion initiale (pas de flash rouge au mount)", () => {
+    mockConnectionState = "connecting";
+    render(<EventFeed events={[]} />);
+    expect(
+      screen.queryByText("Flux d'événements déconnecté."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("En attente d'événements…")).toBeInTheDocument();
   });
 
   it("NE montre PAS l’alerte quand le WS est connecté même sans événements", () => {

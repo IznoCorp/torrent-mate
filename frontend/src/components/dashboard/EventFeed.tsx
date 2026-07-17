@@ -51,7 +51,10 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
   const [autoFollow, setAutoFollow] = useState(true);
 
   const { connectionState } = useEventStreamContext();
-  const wsDead = connectionState !== "connected";
+  // Only a settled "disconnected" is dead — "connecting"/"reconnecting" are
+  // normal in-flight states (TopBar palette: warning, not danger); flagging
+  // them here would flash the red alert on every dashboard mount.
+  const wsDead = connectionState === "disconnected";
 
   const rowVirtualizer = useVirtualizer({
     count: events.length,
