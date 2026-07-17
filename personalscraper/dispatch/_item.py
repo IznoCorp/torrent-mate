@@ -476,13 +476,24 @@ def _dispatch_item(
     # the action enum has no "skipped" value so dry-run logically cannot emit.
     if not dispatcher.dry_run and result.action in ("moved", spec.existing_action) and result.destination is not None:
         target_disk_path = _disk_root_for(dispatcher, result.disk)
+        # ``result.action`` is typed ``str`` on DispatchResult; the guard above
+        # restricts it to the three ItemDispatched literals, but narrowing a
+        # ``str`` through ``in`` with a non-literal tuple element
+        # (``spec.existing_action``) is not portable across mypy versions.
+        # Re-derive the literal explicitly instead of casting: the value is
+        # ``"moved"`` iff it is not the family's ``existing_action``. The result
+        # is a genuine literal join every mypy computes identically — no cast,
+        # no ignore directive. Behaviour is identical to passing ``result.action``.
+        dispatched_action: Literal["moved", "merged", "replaced"] = (
+            "moved" if result.action == "moved" else spec.existing_action
+        )
         dispatcher._event_bus.emit(
             ItemDispatched(
                 source=spec.bus_source,
                 item=src.name,
                 target_disk=target_disk_path,
                 category_id=category_id,
-                action=result.action,  # type: ignore[arg-type]  # narrowed by guard above
+                action=dispatched_action,
             ),
         )
 
