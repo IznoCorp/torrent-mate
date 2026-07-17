@@ -145,6 +145,49 @@ def filter_to_episode(
     return [r for r in results if pattern.search(r.title)]
 
 
+def rank_candidates(
+    results: "list[TrackerResult]",
+    profile: "QualityProfile",
+    media_ref: "MediaRef | None",
+    ranking: "RankingConfig",
+) -> "tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]":
+    """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
+
+    Shared by :meth:`GrabOrchestrator.grab` (the real acquisition path) and the
+    ``grab --dry-run`` preview so both consume the SAME ranked result — F4: a
+    preview that ranks differently from the run is a lie (a lying preview once
+    surfaced a 3D SBS release as "top"), which the operator's dry-run-first rule
+    exists to prevent. It returns BOTH intermediate lists so callers can
+    distinguish the two empty cases the grab failure taxonomy separates:
+
+    - empty ``representatives`` ⇒ every candidate failed the hard profile
+      (``all_filtered``);
+    - non-empty ``representatives`` but empty ``ranked`` ⇒ nothing met
+      ``ranking.min_seeders`` (``no_seeders``).
+
+    ``dedup([])`` is ``[]``, so ``not representatives`` is exactly
+    ``not apply_hard_filters(...)`` — the orchestrator's original
+    ``if not survivors`` guard is preserved bit-for-bit.
+
+    Args:
+        results: Candidate results from the search (already narrowed to the
+            exact episode for TV items — see :func:`filter_to_episode`).
+        profile: Effective quality profile for the hard-filter stage.
+        media_ref: The wanted item's provider IDs (TMDB-identity filter seam);
+            ``None`` for a manual CLI grab with no wanted item.
+        ranking: Ranking configuration for the soft-score sort.
+
+    Returns:
+        ``(representatives, ranked)`` — the deduped post-hard-filter survivors
+        and the scored, sub-``min_seeders``-dropped, descending
+        ``(result, score)`` list (highest score first).
+    """
+    survivors = apply_hard_filters(results, profile, media_ref)
+    representatives = dedup(survivors)
+    ranked = rank(representatives, ranking)
+    return representatives, ranked
+
+
 @dataclass(frozen=True, kw_only=True)
 class GrabOutcome:
     """Result of one :meth:`GrabOrchestrator.grab` call.
@@ -318,16 +361,16 @@ class GrabOrchestrator:
                 # episode may be uploaded later. Same not-found semantics.
                 return self._not_found(media_ref, "no_matching_episode")
 
-        # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
-        survivors = apply_hard_filters(results, profile, media_ref)
-        if not survivors:
+        # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
+        # Shared with the grab --dry-run preview via rank_candidates so both act
+        # on the SAME ranked result (F4). Empty representatives ⇔ empty
+        # hard-filter survivors (dedup([]) is []), so the two guards below keep
+        # the original all_filtered / no_seeders taxonomy bit-for-bit.
+        representatives, ranked = rank_candidates(results, profile, media_ref, self._ranking)
+        if not representatives:
             # Every candidate violated the hard profile (resolution/3D/lang) —
             # a conforming release can still appear later. Not-found, not fatal.
             return self._not_found(media_ref, "all_filtered")
-
-        # --- Dedup → rank → pick top ---
-        representatives = dedup(survivors)
-        ranked = rank(representatives, self._ranking)
         if not ranked:
             # Everything dropped below min_seeders during ranking — no healthy
             # swarm right now → retry next run rather than abandon permanently.
@@ -483,4 +526,4 @@ class GrabOrchestrator:
         return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen)
 
 
-__all__ = ["GrabOrchestrator", "GrabOutcome"]
+__all__ = ["GrabOrchestrator", "GrabOutcome", "rank_candidates"]

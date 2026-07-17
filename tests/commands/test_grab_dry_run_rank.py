@@ -161,9 +161,7 @@ def test_grab_dry_run_top_is_real_ranked_candidate(tmp_path: Path, monkeypatch) 
 
     # The printed Top must be the REAL ranked winner (B, 800 seeders) — the
     # unranked dedup[0] (A) must NOT be presented as the candidate.
-    assert "x265-QTB" in result.output, (
-        f"F4: dry-run must preview the ranked winner (B); got:\n{result.output}"
-    )
+    assert "x265-QTB" in result.output, f"F4: dry-run must preview the ranked winner (B); got:\n{result.output}"
     assert "800 seeders" in result.output, f"F4: expected B's seeder count; got:\n{result.output}"
     assert "x264-QTA" not in result.output, (
         f"F4: dry-run must NOT present the unranked dedup[0] (A) as Top; got:\n{result.output}"

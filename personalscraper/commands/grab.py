@@ -174,8 +174,6 @@ def _run_dry(
         followed_id: When set, restrict the dry-run to one followed series'
             pending items (mirrors the real run's OBJ3 per-series scoping).
     """
-    from personalscraper.acquire._dedup import dedup  # noqa: PLC0415
-    from personalscraper.acquire._filters import apply_hard_filters  # noqa: PLC0415
     from personalscraper.api._contracts import MediaType  # noqa: PLC0415
 
     store = acquire.store
@@ -193,7 +191,7 @@ def _run_dry(
         console.print("[yellow]No pending wanted items.[/yellow]")
         return
 
-    from personalscraper.acquire.orchestrator import build_search_query  # noqa: PLC0415
+    from personalscraper.acquire.orchestrator import build_search_query, rank_candidates  # noqa: PLC0415
     from personalscraper.core._contracts import CircuitOpenError  # noqa: PLC0415
 
     registry = acquire.tracker_registry
@@ -241,13 +239,21 @@ def _run_dry(
         from personalscraper.acquire.service import resolve_effective_profile  # noqa: PLC0415
 
         profile = resolve_effective_profile(store, item)
-        filtered = apply_hard_filters(results, profile, item.media_ref)
-        deduped = dedup(filtered)
-        console.print(f"  After filter+dedup: {len(deduped)} candidates")
-        if deduped:
-            top = deduped[0]
-            console.print(
-                f"  [green]Top:[/green] [{top.provider}] {top.title} ({top.seeders} seeders, {top.resolution})"
-            )
-        else:
+        # F4: run the SAME hard-filter → dedup → rank tail the real grab runs
+        # (rank_candidates), with the SAME ranking source (config.ranking, held
+        # by the registry). The old preview printed dedup[0] — the UNRANKED first
+        # candidate — so the operator validated a decision the real run would
+        # never make (a lower-seeder / wrong-variant release); the dry-run-first
+        # rule needs the Top to be the actual ranked winner, rank[0].
+        representatives, ranked = rank_candidates(results, profile, item.media_ref, registry.ranking)
+        console.print(f"  After filter+dedup: {len(representatives)} candidates")
+        if not representatives:
             console.print("  [yellow]All filtered.[/yellow]")
+            continue
+        if not ranked:
+            # Survivors exist but none meets min_seeders — the real grab returns
+            # no_seeders (retryable), so there is no candidate to act on today.
+            console.print("  [yellow]No candidate meets the minimum seeders threshold.[/yellow]")
+            continue
+        top, _score = ranked[0]
+        console.print(f"  [green]Top:[/green] [{top.provider}] {top.title} ({top.seeders} seeders, {top.resolution})")
