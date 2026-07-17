@@ -22,88 +22,9 @@ import {
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { STEP_LABEL } from "@/components/pipeline/summariseSteps";
 import { triggerLabel } from "@/components/pipeline/triggers";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-// ---------------------------------------------------------------------------
-// Outcome → Badge tone mapping
-// ---------------------------------------------------------------------------
-
-/** Maps an outcome string to a DS Badge tone + French label. */
-const OUTCOME_BADGE: Record<
-  string,
-  { readonly tone: BadgeProps["tone"]; readonly label: string }
-> = {
-  success: { tone: "success", label: "Succès" },
-  error: { tone: "danger", label: "Erreur" },
-  killed: { tone: "warning", label: "Arrêté" },
-  running: { tone: "info", label: "En cours" },
-  paused: { tone: "info", label: "En pause" },
-};
-
-/** Default outcome info for null/unknown outcomes. */
-const DEFAULT_OUTCOME = {
-  tone: "neutral" as BadgeProps["tone"],
-  label: "—",
-};
-
-/**
- * Look up the tone + label for a given outcome string.
- *
- * Args:
- *   outcome: The pipeline outcome, or null.
- *
- * Returns:
- *   A ``{tone, label}`` pair for the Badge.
- */
-function outcomeInfo(outcome: string | null | undefined): {
-  readonly tone: BadgeProps["tone"];
-  readonly label: string;
-} {
-  if (outcome == null) return DEFAULT_OUTCOME;
-  return OUTCOME_BADGE[outcome] ?? DEFAULT_OUTCOME;
-}
-
-// ---------------------------------------------------------------------------
-// Formatting helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Format an ISO 8601 UTC timestamp into a French-localised date string.
- *
- * Args:
- *   iso: The ISO 8601 UTC timestamp.
- *
- * Returns:
- *   A short date+time string formatted for the ``fr`` locale.
- */
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
-
-/**
- * Format a duration in seconds to a compact ``Xm Ys`` or ``Ys`` string.
- *
- * Args:
- *   seconds: Duration in seconds, or null/undefined.
- *
- * Returns:
- *   A human-readable duration string, or ``"—"`` if null.
- */
-function formatDuration(seconds: number | null | undefined): string {
-  if (seconds == null) return "—";
-  const s = Math.round(seconds);
-  if (s < 60) return `${String(s)}s`;
-  const mins = Math.floor(s / 60);
-  const secs = s % 60;
-  return `${String(mins)}m ${String(secs).padStart(2, "0")}s`;
-}
+import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -302,7 +223,7 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
     .filter((s) => s.name !== "queue" && (s.reasons?.length ?? 0) > 0)
     .map((s) => ({ step: s.name, reasons: s.reasons ?? [] }));
 
-  const { tone, label } = outcomeInfo(data.outcome);
+  const { tone, label } = runOutcomeInfo(data.outcome);
 
   return (
     <Card className="gap-4">

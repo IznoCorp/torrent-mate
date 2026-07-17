@@ -20,35 +20,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { relativeTime } from "@/lib/format";
 import { useSchedulers } from "@/hooks/useSchedulers";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Format a Unix-epoch float as a French relative-time string.
- *
- * Mirrors the AcquisitionPage ``relativeTime`` convention so the two surfaces
- * read the same. ``null`` / ``undefined`` → an em-dash placeholder.
- *
- * Args:
- *   epoch: Unix-epoch seconds, or ``null`` / ``undefined``.
- *
- * Returns:
- *   A string like ``"il y a 12 min"``, ``"il y a 3 h"``, or ``"—"``.
- */
-function relativeTime(epoch: number | null | undefined): string {
-  if (epoch === null || epoch === undefined) return "—";
-  const secs = Math.max(0, Math.floor(Date.now() / 1000 - epoch));
-  const mins = Math.floor(secs / 60);
-  if (mins < 1) return "à l’instant";
-  if (mins < 60) return `il y a ${String(mins)} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${String(hours)} h`;
-  const days = Math.floor(hours / 24);
-  return `il y a ${String(days)} j`;
-}
 
 /**
  * Map a scheduler's last outcome to a {@link Badge} tone.

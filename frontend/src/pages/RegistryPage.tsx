@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactElement } from "react";
 
 import { registryKeys } from "@/api/registry";
+import { relativeTime } from "@/lib/format";
 import { useRegistryStatus } from "@/hooks/useRegistryStatus";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { Badge } from "@/components/ui/badge";
@@ -57,23 +58,6 @@ const CIRCUIT_LABEL: Record<string, string> = {
   open: "Ouvert",
   half_open: "Semi-ouvert",
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Format a Unix-epoch float as a relative-time string in French. */
-function relativeTime(epoch: number | null | undefined): string {
-  if (epoch == null) return "—";
-  const diff = Date.now() - epoch * 1000;
-  if (diff < 60_000) return "à l'instant";
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `il y a ${String(mins)} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${String(hours)} h`;
-  const days = Math.floor(hours / 24);
-  return `il y a ${String(days)} j`;
-}
 
 // ---------------------------------------------------------------------------
 // Page

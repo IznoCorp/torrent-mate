@@ -61,11 +61,6 @@ export function dispatchLabel(
   }
 }
 
-/** Format a byte size as a compact human string (e.g. ``1.6 Go``). */
-export function formatSize(bytes: number): string {
-  if (bytes <= 0) return "—";
-  const gb = bytes / 1_000_000_000;
-  if (gb >= 1) return `${gb.toFixed(1)} Go`;
-  const mb = bytes / 1_000_000;
-  return `${String(Math.max(1, Math.round(mb)))} Mo`;
-}
+// Compact byte-size formatter — re-exported from the single `lib/format`
+// owner (ACC-10).
+export { formatSize } from "@/lib/format";
