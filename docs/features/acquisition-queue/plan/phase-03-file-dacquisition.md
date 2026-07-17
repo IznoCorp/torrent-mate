@@ -69,13 +69,15 @@ In `frontend/src/pages/AcquisitionPage.tsx`:
 
 Create `frontend/src/components/acquisition/FileDAcquisitionPanel.tsx`:
 
-**Layout** (segmented control + two sections):
+**Layout — GROUND-TRUTH CORRECTED 2026-07-17 by the orchestrator**: NO internal
+segmented control — an internal Recherches/Téléchargements toggle would re-create the
+very separation the merge removes (§9 « one flow »). The merged panel is ONE stacked
+flow: the searches section followed by the downloads section, both always visible.
+E5's « segmented control with a clear active state + mobile horizontal scroll » applies
+to the PAGE tab bar (see 3.1bis below), not to an internal toggle.
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Segmented: [Recherches] [Téléchargements]  │
-│  (clear active state per E5)                │
-├─────────────────────────────────────────────┤
 │  Recherches section:                        │
 │  ┌─ Status filter (Select, survives) ──────┐│
 │  │  Tous · En attente · En recherche · …   ││
@@ -99,15 +101,16 @@ Create `frontend/src/components/acquisition/FileDAcquisitionPanel.tsx`:
 └─────────────────────────────────────────────┘
 ```
 
-**Segmented control** (E5):
+**3.1bis — Page tab bar becomes the E5 segmented control** (fold into sub-phase 3.1):
 
-- Two segments: « Recherches » · « Téléchargements ».
-- Clear active state: the active segment has `bg-background text-foreground shadow-sm`
-  (matching the tab active state pattern from `AcquisitionPage.tsx:138-139`). Inactive
-  segment has `text-muted-foreground hover:text-foreground`.
-- Mobile: horizontal scroll via `overflow-x-auto` on the segmented control container
-  (no 3-row wrap — E5). At 390px, the two segments scroll horizontally without
-  page-level overflow.
+- The `role="tablist"` container in `AcquisitionPage.tsx` (~L125) currently uses
+  `flex flex-wrap` + `basis-[calc(50%-0.125rem)]` — at 390 px the tabs wrap into
+  multiple rows (the E5 finding). Replace with horizontal scroll:
+  `flex flex-nowrap overflow-x-auto` (+ keep `sm:basis-0 flex-1` desktop behavior,
+  drop the 50% basis on mobile — tabs keep natural width and scroll).
+- Active state unchanged (`bg-background text-foreground shadow-sm`) — already clear;
+  ensure inactive stays `text-muted-foreground`.
+- No page-level horizontal overflow at 390 px: the scroll is INSIDE the tablist.
 
 **Grouped searches** (E6 + DOIT-2):
 
@@ -162,13 +165,13 @@ Create `frontend/src/components/acquisition/FileDAcquisitionPanel.tsx`:
 
 **FileDAcquisitionPanel.test.tsx** (new):
 
-- Assert segmented control renders with two segments
-- Assert « Recherches » segment shows grouped wanted items by title
-- Assert episode row renders status badge + FR reason (for an `abandoned` row)
-- Assert « Téléchargements » segment shows download rows
+- Assert BOTH sections render together (no internal toggle): grouped searches AND downloads
+- Assert « Recherches » section shows grouped wanted items by title → season, expandable
+- Assert episode row renders status badge + FR label (for an `abandoned` row — meta.ts labels)
+- Assert « Téléchargements » section shows download rows
 - Assert `client_available=false` notice renders, download rows still list
 - Assert status filter survives (change filter → re-fetch with new params)
-- Assert 390px horizontal scroll: container `overflow-x-auto`, no page-level overflow
+- Assert the PAGE tablist has `overflow-x-auto` + `flex-nowrap` (E5 — no wrap at 390px)
 
 ## Gate
 
@@ -180,9 +183,9 @@ Create `frontend/src/components/acquisition/FileDAcquisitionPanel.tsx`:
 - [ ] `make lint && make test` (backend — assert zero regressions)
 - [ ] Visual check: `?tab=wanted` → `?tab=file` redirect works, URL bar shows `?tab=file`
 - [ ] Visual check: Back button from `?tab=file` goes to `?tab=followed` (not through the redirect)
-- [ ] Visual check: File d'acquisition at 1440px shows segmented control + grouped searches + downloads active
-- [ ] Visual check: An `abandoned` episode row shows its status badge AND FR reason
+- [ ] Visual check: File d'acquisition at 1440px shows grouped searches + downloads stacked (one flow)
+- [ ] Visual check: An `abandoned` episode row shows its status badge AND FR label
 - [ ] Visual check: Downloads section shows « client torrent injoignable » when client down (not empty)
-- [ ] Visual check: Segmented control at 390px scrolls horizontally, no page overflow
+- [ ] Visual check: The 4-tab bar at 390px scrolls horizontally (no wrap), no page overflow
 - [ ] Watcher tab untouched — numbered results still render (DOIT-6)
 - [ ] MediaSearchAdd flow untouched — add-by-search still works
