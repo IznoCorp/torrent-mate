@@ -28,9 +28,9 @@ row recorded as documented deviation vs spec §5.2)
 | 3   | `/medias` page + LegacyRedirect + nav renames | phase-03-medias-page-redirect-nav.md | [x]    |
 | 4   | Media-sheet egress actions                    | phase-04-media-sheet-egress.md       | [x]    |
 | 5   | Contrôle rebuild (`/`)                        | phase-05-controle-rebuild.md         | [x]    |
-| 6   | Final gate — mobile proof + ACC               | phase-06-final-gate.md               | [ ]    |
+| 6   | Final gate — mobile proof + ACC               | phase-06-final-gate.md               | [x]    |
 
-**Next action**: phase 6 — final gate
+**Next action**: feature-pr — push + PR + CI + review + AUTO merge
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
