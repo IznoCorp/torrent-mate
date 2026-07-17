@@ -13,8 +13,9 @@ independently-owned presence signals:
   single definition of "valid NFO" the scraper fast-skip, verify and indexer all
   converge onto (P5.5).
 * **renamed video** (movies) — the main video file renamed to the canonical
-  ``{Title}`` stem, the library convention ``verify`` does not itself enforce
-  (mirrors ``verify.completeness.video_rename_gap``).
+  ``{Title}`` stem. This module is the single owner of that gate:
+  ``verify``'s ``movie_video_renamed`` catalog check consumes this component
+  (VERIFY-MAINTENANCE-04), as do the web read-model and ``check-media-complete``.
 * **trailer** — filesystem presence only. Ownership of trailer placement stays
   with ``personalscraper.trailers`` (DESIGN P6); this module merely *reads* the
   path, so the placement rule is duplicated here as a small read-only copy
@@ -216,10 +217,11 @@ def _nfo_path_for(directory: Path, media_type: MediaType) -> Path:
 def _main_video(directory: Path) -> Path | None:
     """Return the largest top-level non-trailer video file, or ``None``.
 
-    Mirrors ``verify.completeness.main_video`` but uses the canonical
-    :data:`personalscraper.core.media_types.VIDEO_EXTENSIONS` SSOT (a strict
-    superset of that helper's ad-hoc set). AppleDouble sidecars (``._*``) and
-    files whose stem contains ``trailer`` are skipped.
+    The single main-video selector for the completeness read-model, using the
+    canonical :data:`personalscraper.core.media_types.VIDEO_EXTENSIONS` SSOT.
+    AppleDouble sidecars (``._*``) and files whose stem contains ``trailer`` are
+    skipped. (The former ``verify.completeness.main_video`` bolt-on that this
+    replaced was removed in VERIFY-MAINTENANCE-04.)
 
     Args:
         directory: The movie directory.
@@ -250,10 +252,10 @@ def _main_video(directory: Path) -> Path | None:
 def _renamed_video_present(directory: Path, media_type: MediaType) -> bool | None:
     """Return whether the movie's main video carries the canonical ``{Title}`` stem.
 
-    Mirrors ``verify.completeness.video_rename_gap`` (a movie-only convention
-    ``verify`` does not itself enforce). The expected stem is
-    ``PATTERNS.format("movie_video", Title=<folder title>)`` — the folder title
-    with the year stripped, sanitized. Returns ``None`` for TV shows (episode
+    The movie-only canonical-rename gate — ``verify``'s ``movie_video_renamed``
+    catalog check consumes this component (VERIFY-MAINTENANCE-04). The expected
+    stem is ``PATTERNS.format("movie_video", Title=<folder title>)`` — the folder
+    title with the year stripped, sanitized. Returns ``None`` for TV shows (episode
     renaming is a ``verify`` episode-check concern, not this component).
 
     Args:
