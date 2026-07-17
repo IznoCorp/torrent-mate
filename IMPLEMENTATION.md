@@ -13,13 +13,16 @@
 
 ## Status: BRANCH CREATED — awaiting plan
 
-**Master plan**: _(docs/features/pipeline-panel/plan/INDEX.md)_
+**Master plan**: docs/features/pipeline-panel/plan/INDEX.md (4 phases)
 
 ## Phases
 
-| #                     | Phase | File | Status |
-| --------------------- | ----- | ---- | ------ |
-| _(populated by plan)_ |       |      |        |
+| # | Phase | File | Status |
+| - | ----- | ---- | ------ |
+| 1 | Stepper compression + mobile vertical | phase-01-stepper.md | [ ] |
+| 2 | History repatriation + legend popover | phase-02-history.md | [ ] |
+| 3 | Conditional /maintenance?run= redirect | phase-03-redirect.md | [ ] |
+| 4 | Final gate | phase-04-final-gate.md | [ ] |
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
