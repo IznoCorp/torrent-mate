@@ -2,20 +2,15 @@
  * FollowedPanel — the "Suivis" tab: followed-series cards with add-by-ID,
  * per-series manual grab, cadence editing and unfollow.
  *
- * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged.
+ * Extracted from `AcquisitionPage.tsx` (C12). Behaviour unchanged. All data
+ * logic — the follow/unfollow/update/grab mutations, the live cadence caption
+ * and the fire-and-track manual grab — lives in {@link useFollowedPanel}; this
+ * component is pure presentation over that machine and its ``data`` prop.
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactElement } from "react";
-import { toast } from "sonner";
+import { type ReactElement } from "react";
 
-import {
-  acqKeys,
-  triggerFollowedSearch,
-  type CreateFollowRequest,
-  type FollowedSeriesItem,
-} from "@/api/acquisition";
-import { ApiError } from "@/api/client";
+import { type FollowedSeriesItem } from "@/api/acquisition";
 import { MediaCard } from "@/components/ds/MediaCard";
 import {
   Accordion,
@@ -37,13 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import {
-  useFollow,
-  useTrackedAcquisitionRun,
-  useUnfollow,
-  useUpdateFollow,
-} from "@/hooks/useAcquisition";
-import { useSchedulers } from "@/hooks/useSchedulers";
+import { useFollowedPanel } from "@/hooks/useFollowedPanel";
 
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
@@ -52,8 +41,6 @@ import {
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
-  formatRunResult,
-  GRAB_JOB_NAME,
   TEMP_COLOR,
   TIER_LABEL,
   untilLabel,
@@ -85,109 +72,27 @@ export function FollowedPanel({
   isError,
   error,
 }: FollowedPanelProps): ReactElement {
-  const queryClient = useQueryClient();
-  const followMutation = useFollow();
-  const unfollowMutation = useUnfollow();
-  const updateMutation = useUpdateFollow();
-
-  // C15: the automatic-search cadence caption is read from the live grab
-  // scheduler, never hardcoded — and omitted entirely when the job is absent.
-  const { data: schedulers } = useSchedulers();
-  const grabSchedule =
-    schedulers?.schedulers.find((s) => s.name === GRAB_JOB_NAME)?.schedule ??
-    null;
-
-  // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
-  // grab run; feedback is a toast (409 = already running, 404 = gone). On
-  // success we also refresh the acquisition views (C16) so the card's pending
-  // count / status reflect the freshly enqueued search without a manual reload.
-  // §5: never a success toast on the 202 — track the launched grab to its
-  // NUMERIC result and toast only once the run actually ends.
-  const [trackedRun, setTrackedRun] = useState<string | null>(null);
-  const finishedRun = useTrackedAcquisitionRun(trackedRun);
-  if (finishedRun?.ended_at != null && trackedRun != null) {
-    if (finishedRun.outcome === "success") {
-      const summary = formatRunResult(finishedRun.result);
-      toast.success(`Recherche terminée${summary ? ` — ${summary}` : ""}.`);
-    } else {
-      toast.error("La recherche a échoué — voir les exécutions récentes.");
-    }
-    setTrackedRun(null);
-    void queryClient.invalidateQueries({ queryKey: acqKeys.all });
-  }
-
-  const triggerMutation = useMutation({
-    mutationFn: (id: number) => triggerFollowedSearch(id),
-    onSuccess: (res) => {
-      toast.info("Recherche lancée…");
-      setTrackedRun(res.run_uid);
-    },
-    onError: (err: unknown) => {
-      if (err instanceof ApiError) {
-        if (err.status === 409) {
-          toast.error("Une recherche est déjà en cours pour cette série.");
-        } else if (err.status === 404) {
-          toast.error("Série introuvable.");
-        } else {
-          toast.error(err.detail);
-        }
-      } else {
-        toast.error("Erreur lors du lancement de la recherche.");
-      }
-    },
-  });
-
-  // Add-form state
-  const [tvdbId, setTvdbId] = useState("");
-  const [title, setTitle] = useState("");
-
-  // Edit-cadence dialog state
-  const [editTarget, setEditTarget] = useState<FollowedSeriesItem | null>(null);
-  const [editInterval, setEditInterval] = useState("");
-
-  const handleAdd = (): void => {
-    const tvdb = tvdbId.trim() ? Number(tvdbId.trim()) : null;
-    if (tvdb === null || !Number.isFinite(tvdb)) return;
-    // The manual add-by-TVDB-id form is series-only (a TVDB id is a series id);
-    // films are followed from the search cards, which carry kind='movie'.
-    const body: CreateFollowRequest = { tvdb_id: tvdb, kind: "show" };
-    if (title.trim()) body.title = title.trim();
-    followMutation.mutate(body, {
-      onSuccess: () => {
-        setTvdbId("");
-        setTitle("");
-      },
-    });
-  };
-
-  const handleUnfollow = (id: number): void => {
-    unfollowMutation.mutate(id);
-  };
-
-  // Toggle active/paused in place (C16) — the update hook invalidates the
-  // acquisition views, so the status badge follows without leaving the card.
-  const handleToggleActive = (id: number, active: boolean): void => {
-    updateMutation.mutate({ id, body: { active } });
-  };
-
-  const openEditCadence = (item: FollowedSeriesItem): void => {
-    setEditTarget(item);
-    setEditInterval(String(cadenceInterval(item.cadence)));
-  };
-
-  const handleSaveCadence = (): void => {
-    if (editTarget === null) return;
-    const interval = Number(editInterval);
-    if (!Number.isFinite(interval) || interval < 0) return;
-    updateMutation.mutate(
-      { id: editTarget.id, body: { cadence: { interval_minutes: interval } } },
-      {
-        onSuccess: () => {
-          setEditTarget(null);
-        },
-      },
-    );
-  };
+  const {
+    grabSchedule,
+    tvdbId,
+    setTvdbId,
+    title,
+    setTitle,
+    handleAdd,
+    followPending,
+    triggerSearch,
+    triggerPendingId,
+    handleUnfollow,
+    unfollowPending,
+    handleToggleActive,
+    updatePending,
+    editTarget,
+    setEditTarget,
+    editInterval,
+    setEditInterval,
+    openEditCadence,
+    handleSaveCadence,
+  } = useFollowedPanel();
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -249,10 +154,10 @@ export function FollowedPanel({
             </div>
             <Button
               className="w-full sm:w-auto sm:shrink-0"
-              disabled={!tvdbId.trim() || followMutation.isPending}
+              disabled={!tvdbId.trim() || followPending}
               onClick={handleAdd}
             >
-              {followMutation.isPending ? "Ajout…" : "Suivre"}
+              {followPending ? "Ajout…" : "Suivre"}
             </Button>
           </div>
         </AccordionContent>
@@ -400,25 +305,20 @@ export function FollowedPanel({
                 footer={
                   <div className="flex w-full flex-wrap items-center gap-2">
                     {/* C16: primary in-card action — launch a search now, with a
-                      spinner + toast + refresh (see triggerMutation). */}
+                      spinner + toast + refresh (see triggerSearch). */}
                     <Button
                       size="sm"
                       onClick={() => {
-                        triggerMutation.mutate(item.id);
+                        triggerSearch(item.id);
                       }}
-                      disabled={
-                        !item.active ||
-                        (triggerMutation.isPending &&
-                          triggerMutation.variables === item.id)
-                      }
+                      disabled={!item.active || triggerPendingId === item.id}
                       title={
                         item.active
                           ? "Lancer une recherche maintenant pour cette série"
                           : "Série désactivée — réactivez-la pour lancer une recherche"
                       }
                     >
-                      {triggerMutation.isPending &&
-                      triggerMutation.variables === item.id
+                      {triggerPendingId === item.id
                         ? "Recherche…"
                         : "Rechercher maintenant"}
                     </Button>
@@ -437,7 +337,7 @@ export function FollowedPanel({
                       onClick={() => {
                         handleUnfollow(item.id);
                       }}
-                      disabled={unfollowMutation.isPending}
+                      disabled={unfollowPending}
                     >
                       Retirer
                     </Button>
@@ -449,7 +349,7 @@ export function FollowedPanel({
                         onCheckedChange={(checked) => {
                           handleToggleActive(item.id, checked);
                         }}
-                        disabled={updateMutation.isPending}
+                        disabled={updatePending}
                         aria-label={
                           item.active
                             ? `Désactiver le suivi de ${item.title}`
@@ -507,7 +407,7 @@ export function FollowedPanel({
                   onClick={() => {
                     handleToggleActive(item.id, true);
                   }}
-                  disabled={updateMutation.isPending}
+                  disabled={updatePending}
                 >
                   Réactiver
                 </Button>
@@ -555,11 +455,8 @@ export function FollowedPanel({
             >
               Annuler
             </Button>
-            <Button
-              onClick={handleSaveCadence}
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+            <Button onClick={handleSaveCadence} disabled={updatePending}>
+              {updatePending ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>
