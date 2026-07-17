@@ -71,7 +71,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "registry",
-                element: <LegacyRedirect to="/systeme?tab=etat" />,
+                element: <LegacyRedirect to="/systeme" />,
               },
               {
                 path: "acquisition",

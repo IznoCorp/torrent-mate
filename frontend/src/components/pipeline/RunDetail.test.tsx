@@ -313,7 +313,7 @@ describe("RunDetail", () => {
     // Cross-link from Pipeline page to Maintenance (pipeline-panel Phase 02).
     const link = screen.getByText("→ Voir les exécutions de maintenance");
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/maintenance");
+    expect(link).toHaveAttribute("href", "/systeme?tab=maintenance");
   });
 
   it("n'affiche PAS le lien croisé quand showMaintenanceLink est absent (défaut false)", async () => {

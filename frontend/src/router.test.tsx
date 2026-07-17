@@ -202,7 +202,7 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("redirige /maintenance (sans ?run=) vers /systeme?tab=etat (systeme-hub)", async () => {
+  it("redirige /maintenance (sans ?run=) vers /systeme (canonical, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -222,7 +222,7 @@ describe("router", () => {
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/systeme");
-      expect(router.state.location.search).toBe("?tab=etat");
+      expect(router.state.location.search).toBe("");
     });
   });
 
@@ -250,7 +250,7 @@ describe("router", () => {
     });
   });
 
-  it("redirige /maintenance (sans ?run=) vers /systeme?tab=etat (remplace le rendu direct de Maintenance)", async () => {
+  it("redirige /maintenance (sans ?run=) vers /systeme (canonical, remplace le rendu direct de Maintenance)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -304,7 +304,7 @@ describe("router", () => {
 
   // --- B2: empty ?run= stays on Maintenance (no redirect) ---
 
-  it("redirige /maintenance?run= (paramètre vide) vers /systeme?tab=etat (no-run branch, systeme-hub)", async () => {
+  it("redirige /maintenance?run= (paramètre vide) vers /systeme (no-run branch, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -322,10 +322,10 @@ describe("router", () => {
       </QueryClientProvider>,
     );
 
-    // Empty ?run= → no-run branch → redirect to /systeme?tab=etat.
+    // Empty ?run= → no-run branch → redirect to /systeme (canonical).
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/systeme");
-      expect(router.state.location.search).toBe("?tab=etat");
+      expect(router.state.location.search).toBe("");
     });
   });
 
@@ -348,7 +348,7 @@ describe("router", () => {
 
   // --- /registry redirect (systeme-hub Phase 02) ---
 
-  it("redirige /registry vers /systeme?tab=etat", async () => {
+  it("redirige /registry vers /systeme (canonical, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -368,7 +368,7 @@ describe("router", () => {
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/systeme");
-      expect(router.state.location.search).toBe("?tab=etat");
+      expect(router.state.location.search).toBe("");
     });
   });
 
@@ -392,9 +392,11 @@ describe("router", () => {
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/systeme");
-      // LegacyRedirect appends source params to the target path.
-      expect(router.state.location.search).toContain("tab=etat");
-      expect(router.state.location.search).toContain("extra=keepme");
+      // LegacyRedirect appends source params to the clean target path.
+      // Assert PARSED params — not toContain on the raw string (which would
+      // certify a double-? broken URL from the old ?tab=etat-in-to approach).
+      const params = new URLSearchParams(router.state.location.search);
+      expect(params.get("extra")).toBe("keepme");
     });
   });
 

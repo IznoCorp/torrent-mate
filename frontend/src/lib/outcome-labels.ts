@@ -104,10 +104,11 @@ export const DEFAULT_OUTCOME: { readonly tone: BadgeTone; readonly label: string
  *   outcome: The backend outcome token, or ``null`` / ``undefined``.
  *
  * Returns:
- *   The corresponding French label from {@link OUTCOME_LABEL}, or
- *   ``"Jamais exécuté"`` when the outcome is unknown or absent.
+ *   The corresponding French label from {@link OUTCOME_LABEL}, the raw token
+ *   itself when the outcome is a non-null unmapped value (honest fallback), or
+ *   ``"Jamais exécuté"`` when the outcome is ``null`` or ``undefined``.
  */
 export function outcomeLabel(outcome: string | null | undefined): string {
   if (outcome == null) return "Jamais exécuté";
-  return OUTCOME_LABEL[outcome] ?? "Jamais exécuté";
+  return OUTCOME_LABEL[outcome] ?? outcome;
 }

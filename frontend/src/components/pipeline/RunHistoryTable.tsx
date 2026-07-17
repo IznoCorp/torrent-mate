@@ -115,10 +115,9 @@ function outcomeInfo(outcome: string | null | undefined): {
   readonly label: string;
 } {
   if (outcome == null) return DEFAULT_OUTCOME;
-  const tone = OUTCOME_TONE[outcome];
-  const label = OUTCOME_LABEL[outcome];
-  if (tone !== undefined && label !== undefined) return { tone, label };
-  return DEFAULT_OUTCOME;
+  const tone = OUTCOME_TONE[outcome] ?? "neutral";
+  const label = OUTCOME_LABEL[outcome] ?? outcome;
+  return { tone, label };
 }
 
 /** Column definitions typed against {@link RunSummary}. */

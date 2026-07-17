@@ -97,8 +97,8 @@ describe("outcomeLabel — fallback behaviour", () => {
     expect(outcomeLabel(undefined)).toBe("Jamais exécuté");
   });
 
-  it("returns « Jamais exécuté » for an unknown key", () => {
-    expect(outcomeLabel("nonexistent_key")).toBe("Jamais exécuté");
+  it("returns the raw token for an unknown non-null outcome (honest fallback)", () => {
+    expect(outcomeLabel("nonexistent_key")).toBe("nonexistent_key");
   });
 
   it("returns the French label for a known outcome", () => {

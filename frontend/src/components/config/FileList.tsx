@@ -86,17 +86,25 @@ export function FileList({
         );
 
         return (
-          <button
+          <div
             key={file.name}
-            type="button"
+            role="button"
+            tabIndex={0}
             className={cn(
               "flex flex-col gap-1 rounded-md px-3 py-2 text-left w-full",
               "hover:bg-accent hover:text-accent-foreground transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               isSelected && "bg-accent text-accent-foreground font-medium",
             )}
             aria-current={isSelected ? "page" : undefined}
             onClick={() => {
               onSelect(file.name);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(file.name);
+              }
             }}
           >
             <div className="flex items-center gap-2">
@@ -159,7 +167,7 @@ export function FileList({
                 ))}
               </div>
             )}
-          </button>
+          </div>
         );
       })}
 

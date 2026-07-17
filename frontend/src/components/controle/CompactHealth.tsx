@@ -5,7 +5,7 @@
  * Reuses the same data hooks as {@link DisksPanel}, {@link IndexHealthPanel},
  * {@link HealthCard}, and the registry status endpoint — presentation-only
  * compaction, no new data paths.  Each row is a single line of text and a
- * {@link StatusDot}, with detail links to ``/maintenance`` or ``/registry``.
+ * {@link StatusDot}, with detail links to ``/systeme`` (systeme-hub).
  */
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
@@ -189,7 +189,7 @@ export function CompactHealth(): ReactElement {
         <div className="flex items-center justify-between gap-2">
           {disksSummary()}
           <Link
-            to="/maintenance"
+            to="/systeme"
             className="shrink-0 text-xs font-medium text-primary hover:underline"
           >
             Détails →
@@ -200,7 +200,7 @@ export function CompactHealth(): ReactElement {
         <div className="flex items-center justify-between gap-2">
           {indexDot()}
           <Link
-            to="/maintenance"
+            to="/systeme"
             className="shrink-0 text-xs font-medium text-primary hover:underline"
           >
             Maintenance →
@@ -219,10 +219,10 @@ export function CompactHealth(): ReactElement {
         <div className="flex items-center justify-between gap-2">
           {providersDot()}
           <Link
-            to="/registry"
+            to="/systeme"
             className="shrink-0 text-xs font-medium text-primary hover:underline"
           >
-            Registre →
+            Fournisseurs →
           </Link>
         </div>
       </CardContent>

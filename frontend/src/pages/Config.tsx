@@ -242,7 +242,12 @@ export default function Config(): ReactElement {
   // preserves the URL-addressable file selection from D3/DOIT-10.  If the
   // user clears the param (Back), auto-select fires again.
   useEffect(() => {
-    if (selectedFile === null && filesQ.data && filesQ.data.files.length > 0) {
+    if (
+      leftTab === "files" &&
+      selectedFile === null &&
+      filesQ.data &&
+      filesQ.data.files.length > 0
+    ) {
       const first = filesQ.data.files[0];
       if (first) {
         setSearchParams(
@@ -255,7 +260,7 @@ export default function Config(): ReactElement {
         );
       }
     }
-  }, [selectedFile, filesQ.data, setSearchParams]);
+  }, [leftTab, selectedFile, filesQ.data, setSearchParams]);
 
   // ---- Get current values for the selected file ----------------------------
   const currentValues = useMemo<Record<string, unknown>>(
@@ -569,7 +574,9 @@ export default function Config(): ReactElement {
             : {})}
           onValueChange={(value: string) => {
             if (value === "__secrets__") {
-              // Clear file selection and switch to Secrets tab.
+              // Switch to Secrets tab and clear the file param. The clear is
+              // durable: auto-select is gated on leftTab === "files", so the
+              // param stays gone while viewing Secrets.
               setSearchParams(
                 (prev) => {
                   const next = new URLSearchParams(prev);

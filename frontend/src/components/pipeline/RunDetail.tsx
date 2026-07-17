@@ -7,11 +7,12 @@
  * READ-ONLY mode, and an error section when the run terminated abnormally.
  *
  * Displayed inline on the ``/pipeline`` page when a row in the single
- * {@link RunHistoryTable} is clicked. Maintenance-page users are redirected
- * here via ``?run=<uid>`` (DOIT-10) — the ``/maintenance`` route itself has no
- * detail view (pipeline-panel Phase 02 repatriation). A "Retour" button calls
- * ``onClose`` (which clears the query param). When ``showMaintenanceLink`` is
- * set, a cross-link back to ``/maintenance`` appears for maintenance runs.
+ * {@link RunHistoryTable} is clicked. The ``/maintenance`` route redirects
+ * (``MaintenanceRunRedirect``) here via ``?run=<uid>`` (DOIT-10) — the
+ * maintenance panels now live on ``/systeme`` (systeme-hub). A "Retour"
+ * button calls ``onClose`` (which clears the query param). When
+ * ``showMaintenanceLink`` is set, a cross-link to
+ * ``/systeme?tab=maintenance`` appears for maintenance runs.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -53,10 +54,9 @@ function outcomeInfo(outcome: string | null | undefined): {
   readonly label: string;
 } {
   if (outcome == null) return DEFAULT_OUTCOME;
-  const tone = OUTCOME_TONE[outcome];
-  const label = OUTCOME_LABEL[outcome];
-  if (tone !== undefined && label !== undefined) return { tone, label };
-  return DEFAULT_OUTCOME;
+  const tone = OUTCOME_TONE[outcome] ?? "neutral";
+  const label = OUTCOME_LABEL[outcome] ?? outcome;
+  return { tone, label };
 }
 
 // ---------------------------------------------------------------------------
@@ -392,12 +392,12 @@ export function RunDetail({
           </div>
         </div>
 
-        {/* Cross-link to /maintenance when viewing a maintenance run from
-            the Pipeline page (pipeline-panel Phase 02). Not rendered on the
-            Maintenance page itself (showMaintenanceLink defaults to false). */}
+        {/* Cross-link to /systeme?tab=maintenance when viewing a maintenance
+            run from the Pipeline page (systeme-hub). Not rendered on the
+            /systeme page itself (showMaintenanceLink defaults to false). */}
         {showMaintenanceLink && data.kind === "maintenance" && (
           <Link
-            to="/maintenance"
+            to="/systeme?tab=maintenance"
             className="text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
             → Voir les exécutions de maintenance

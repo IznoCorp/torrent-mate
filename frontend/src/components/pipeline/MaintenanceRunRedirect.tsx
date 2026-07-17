@@ -8,8 +8,8 @@
  * history, preserving DOIT-10.
  *
  * When ``?run=`` is absent or empty, the request redirects (replace) to
- * ``/systeme?tab=etat`` — the maintenance panels now live on the system hub
- * (systeme-hub Phase 02, orchestrator correction 2026-07-17).
+ * ``/systeme`` — the bare canonical route lands on the default État tab, and
+ * the maintenance panels live under sibling tabs (systeme-hub).
  *
  * Only the ``run`` parameter is forwarded to the pipeline route.  Any other
  * search params on ``/maintenance`` (e.g. a future ``?tab=``) are intentionally
@@ -26,5 +26,5 @@ export function MaintenanceRunRedirect(): ReactElement {
       <Navigate to={`/pipeline?run=${encodeURIComponent(runUid)}`} replace />
     );
   }
-  return <Navigate to="/systeme?tab=etat" replace />;
+  return <Navigate to="/systeme" replace />;
 }
