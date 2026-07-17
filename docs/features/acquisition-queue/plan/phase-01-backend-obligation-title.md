@@ -31,16 +31,22 @@ In `personalscraper/web/routes/acquisition.py`, in `get_obligations` just before
 return statement (~L479), add a resolver loop over `items`:
 
 **Resolution order** (fail-soft — every resolver error is caught and logged, never breaks
-the listing):
+the listing). GROUND TRUTH corrected 2026-07-17 by the orchestrator against the real
+schemas: `library.db` has NO `info_hash` column anywhere (indexer lookup is impossible);
+the clean title lives in **acquire.db itself** — the same DB the listing already reads.
 
-1. `dispatched_path` basename when `dispatched_path is not None`:
-   `Path(item.dispatched_path).name` → strip common extensions (`.mkv`, `.mp4`, `.avi`)
-   if the result is just a bare filename with nothing meaningful.
+1. **acquire.db join** (primary — clean title): `wanted.grabbed_hash = seed_obligation.info_hash`
+   → `wanted.followed_id` → `followed_series.title`, composed with the wanted row's
+   scope: episode row (`season` + `episode` non-NULL) → `"{title} S{ss:02d}E{ee:02d}"`;
+   season pack (`season` only) → `"{title} S{ss:02d}"`; else bare `title`.
+   Verified live: 4/5 current obligations joinable. One SQL join added to the existing
+   obligations query (or a second query over the collected hashes) — same connection.
 
-2. Indexer lookup by `info_hash` when `dispatched_path is None` or basename is empty:
-   Query the library database — `SELECT title FROM media_file WHERE info_hash = ?` on the
-   indexer DB (fail-soft: if the indexer DB is unreachable or the hash is unknown, title
-   stays `None`).
+2. `dispatched_path` basename when the join misses and `dispatched_path is not None`:
+   `Path(item.dispatched_path).name` — this is a RAW RELEASE NAME
+   (e.g. `Murder.Mindfully.S01.MULTi.1080p.WEB.H265-TyHD`), still far better than a hash.
+   No extension-stripping heuristics needed for directories; strip a video extension
+   (`.mkv/.mp4/.avi`) only if present.
 
 3. Fallback: `None` — the frontend renders the truncated info_hash with copy affordance
    (Phase 2).
@@ -56,15 +62,15 @@ not take down the obligations listing.
 Test cases (new file `tests/unit/web/routes/test_acquisition_obligations.py` or extend
 existing):
 
-- `dispatched_path` set with a real basename → `title` = basename (stripped)
-- `dispatched_path` set but basename is empty/invalid → falls through to indexer
-- `dispatched_path` is `None`, indexer lookup succeeds → `title` from indexer
-- `dispatched_path` is `None`, indexer lookup fails → `title` is `None`
-- Indexer DB unreachable → `title` is `None`, listing still returns (fail-soft)
-- Resolver exception → logged, `title` is `None`, listing still returns
+- Join hit, episode row (season+episode) → `title` = `"Titre S01E02"`
+- Join hit, season pack (season only, episode NULL) → `title` = `"Titre S01"`
+- Join hit, bare wanted row (no season) → `title` = followed_series title verbatim
+- Join miss, `dispatched_path` set → `title` = raw basename of the path
+- Join miss, `dispatched_path` `None` → `title` is `None`
+- Resolver exception (e.g. corrupted row) → logged, `title` is `None`, listing still returns
 
-Use a temporary SQLite database for the indexer lookup test (inject path via config or
-monkeypatch).
+Use the existing temp acquire.db test fixture pattern (see current obligations route tests)
+seeded with followed_series + wanted + seed_obligation rows.
 
 ### 1.3 — OpenAPI regen + commit
 
