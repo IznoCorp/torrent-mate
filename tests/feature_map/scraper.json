@@ -51,7 +51,7 @@
       "tests": [
         "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",
         "tests/unit/api/metadata/registry/test_registry_fan_out.py::test_fan_out_wrong_semantic_raises",
-        "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
+        "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path"
       ]
     },
     "three-triggers": {
