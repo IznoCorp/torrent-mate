@@ -11,7 +11,7 @@
 **Design**: `docs/features/acquisition-queue/DESIGN.md` ← shared spec §3.1 + §5.1 + §7.2
 **Version bump**: 0.52.1 → 0.53.0 (minor)
 
-## Status: phase 1 done — next: phase 2 (compact rows)
+## Status: phase 2 done — next: phase 3 (File d'acquisition)
 
 **Master plan**: `docs/features/acquisition-queue/plan/INDEX.md`
 
@@ -20,7 +20,7 @@
 | #   | Phase                             | File                                                                         | Status |
 | --- | --------------------------------- | ---------------------------------------------------------------------------- | ------ |
 | 1   | Backend: ObligationItem.title     | [phase-01-backend-obligation-title.md](phase-01-backend-obligation-title.md) | [x]    |
-| 2   | Suivis compact + Obligations rows | [phase-02-compact-rows.md](phase-02-compact-rows.md)                         | [ ]    |
+| 2   | Suivis compact + Obligations rows | [phase-02-compact-rows.md](phase-02-compact-rows.md)                         | [x]    |
 | 3   | File d'acquisition (merge + tabs) | [phase-03-file-dacquisition.md](phase-03-file-dacquisition.md)               | [ ]    |
 | 4   | Final gate                        | [phase-04-final-gate.md](phase-04-final-gate.md)                             | [ ]    |
 
