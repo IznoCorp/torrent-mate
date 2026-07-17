@@ -427,6 +427,46 @@
         "title": "ConfigStatusResponse",
         "type": "object"
       },
+      "ContinueResponse": {
+        "description": "Response body for ``POST /api/staging/media/{id}/continue`` (\u00a75.2).\n\nMirrors the resolve 202 pattern: the run is either spawned now (run_uid\npresent) or deferred because another run holds the lock (run_uid is None \u2014\n\u00ab En file \u00bb). The ``timeline_resumes`` flag lets the UI know to start\npolling for progress.\n\nAttributes:\n    ok: ``True`` when the continuation was accepted.\n    media_id: The staging media id.\n    run_uid: The pipeline run id when a new run was spawned, or ``None``\n        when deferred.\n    deferred: ``True`` when the run could not start because another run\n        holds the pipeline lock.\n    detail: Human-readable French status detail.",
+        "properties": {
+          "deferred": {
+            "default": false,
+            "title": "Deferred",
+            "type": "boolean"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Uid"
+          }
+        },
+        "required": [
+          "ok",
+          "media_id"
+        ],
+        "title": "ContinueResponse",
+        "type": "object"
+      },
       "CreateFollowRequest": {
         "description": "Request body for POST /api/acquisition/followed.\n\nAt least one provider ID is required (422 otherwise).  *title* is optional\n\u2014 when omitted the backend stores an empty string.  The web form will\nalways send a title, but the route accepts ``None`` for programmatic\nclients.",
         "properties": {
@@ -5810,6 +5850,49 @@
           }
         },
         "summary": "List Staging Media",
+        "tags": [
+          "staging"
+        ]
+      }
+    },
+    "/api/staging/media/{media_id}/continue": {
+      "post": {
+        "description": "Restart the pipeline for a resolved (matched) staged media item.\n\nThe operator-initiated continuation (\u00a75.2) means the media was resolved\nmanually (``scrape-resolve`` wrote the NFO) and must now FINISH its\npipeline \u2014 trailers \u2192 verify \u2192 dispatch \u2014 via the single trigger\nauthority (``pipeline.lock`` is the sole gate). When the lock is held,\nno new run is spawned; the in-flight or next run will pick the item up.\n\nThe media must already have a provider-identified NFO (``match ==\n\"matched\"`` in the read model). An item without an NFO or with a\nnon-identified NFO returns 422 \u2014 the operator must resolve the matching\nfirst (via the decision deck), then continue.\n\nArgs:\n    media_id: The stable media id from a list item.\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`ContinueResponse` with ``ok=True`` and either a fresh\n    ``run_uid`` (spawned) or ``deferred=True``, ``run_uid=None`` (lock\n    held). Status code is always 202.\n\nRaises:\n    404: No scrapable staged media matches the id.\n    422: The media is not yet identified (no NFO or no provider IDs).",
+        "operationId": "continue_staging_media_api_staging_media__media_id__continue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue Staging Media",
         "tags": [
           "staging"
         ]

@@ -1596,6 +1596,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staging/media/{media_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Continue Staging Media
+         * @description Restart the pipeline for a resolved (matched) staged media item.
+         *
+         *     The operator-initiated continuation (§5.2) means the media was resolved
+         *     manually (``scrape-resolve`` wrote the NFO) and must now FINISH its
+         *     pipeline — trailers → verify → dispatch — via the single trigger
+         *     authority (``pipeline.lock`` is the sole gate). When the lock is held,
+         *     no new run is spawned; the in-flight or next run will pick the item up.
+         *
+         *     The media must already have a provider-identified NFO (``match ==
+         *     "matched"`` in the read model). An item without an NFO or with a
+         *     non-identified NFO returns 422 — the operator must resolve the matching
+         *     first (via the decision deck), then continue.
+         *
+         *     Args:
+         *         media_id: The stable media id from a list item.
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`ContinueResponse` with ``ok=True`` and either a fresh
+         *         ``run_uid`` (spawned) or ``deferred=True``, ``run_uid=None`` (lock
+         *         held). Status code is always 202.
+         *
+         *     Raises:
+         *         404: No scrapable staged media matches the id.
+         *         422: The media is not yet identified (no NFO or no provider IDs).
+         */
+        post: operations["continue_staging_media_api_staging_media__media_id__continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staging/media/{media_id}/enqueue": {
         parameters: {
             query?: never;
@@ -2032,6 +2076,42 @@ export interface components {
             role: string;
             /** Stale Files */
             stale_files: string[];
+        };
+        /**
+         * ContinueResponse
+         * @description Response body for ``POST /api/staging/media/{id}/continue`` (§5.2).
+         *
+         *     Mirrors the resolve 202 pattern: the run is either spawned now (run_uid
+         *     present) or deferred because another run holds the lock (run_uid is None —
+         *     « En file »). The ``timeline_resumes`` flag lets the UI know to start
+         *     polling for progress.
+         *
+         *     Attributes:
+         *         ok: ``True`` when the continuation was accepted.
+         *         media_id: The staging media id.
+         *         run_uid: The pipeline run id when a new run was spawned, or ``None``
+         *             when deferred.
+         *         deferred: ``True`` when the run could not start because another run
+         *             holds the pipeline lock.
+         *         detail: Human-readable French status detail.
+         */
+        ContinueResponse: {
+            /**
+             * Deferred
+             * @default false
+             */
+            deferred: boolean;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Media Id */
+            media_id: string;
+            /** Ok */
+            ok: boolean;
+            /** Run Uid */
+            run_uid?: string | null;
         };
         /**
          * CreateFollowRequest
@@ -5462,6 +5542,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StagingMediaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    continue_staging_media_api_staging_media__media_id__continue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContinueResponse"];
                 };
             };
             /** @description Validation Error */
