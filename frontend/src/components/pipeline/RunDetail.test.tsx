@@ -191,7 +191,7 @@ describe("RunDetail", () => {
 
     await screen.findByText("abc123-r…");
 
-    // Both the outcome badge AND the error section heading say "Erreur".
+    // Both the outcome badge ("Échec") AND the error section heading ("Erreur").
     const erreurElements = screen.getAllByText("Erreur");
     expect(erreurElements.length).toBeGreaterThanOrEqual(1);
     // Error body text (partial).
@@ -205,8 +205,8 @@ describe("RunDetail", () => {
 
     await screen.findByText("abc123-r…");
 
-    // "Erreur" should only appear once if it's the outcome label, not a
-    // section. Our success outcome label is "Succès", not "Erreur".
+    // "Erreur" should only appear once from the section heading, not the
+    // outcome badge. The outcome label for success is "Succès", nor "Erreur".
     expect(screen.queryByText("Erreur")).not.toBeInTheDocument();
   });
 
@@ -254,7 +254,7 @@ describe("RunDetail", () => {
 
     await screen.findByText("abc123-r…");
 
-    // Both the outcome badge AND the error section heading say "Erreur".
+    // Both the outcome badge ("Échec") AND the error section heading ("Erreur").
     const erreurElements = screen.getAllByText("Erreur");
     expect(erreurElements.length).toBeGreaterThanOrEqual(1);
     // The error body should also be visible.

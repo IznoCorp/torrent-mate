@@ -29,28 +29,15 @@ import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ds/ErrorState";
+import {
+  DEFAULT_OUTCOME,
+  OUTCOME_LABEL,
+  OUTCOME_TONE,
+} from "@/lib/outcome-labels";
 
 // ---------------------------------------------------------------------------
 // Outcome → Badge tone mapping
 // ---------------------------------------------------------------------------
-
-/** Maps an outcome string to a DS Badge tone + French label. */
-const OUTCOME_BADGE: Record<
-  string,
-  { readonly tone: BadgeProps["tone"]; readonly label: string }
-> = {
-  success: { tone: "success", label: "Succès" },
-  error: { tone: "danger", label: "Erreur" },
-  killed: { tone: "warning", label: "Arrêté" },
-  running: { tone: "info", label: "En cours" },
-  paused: { tone: "info", label: "En pause" },
-};
-
-/** Default outcome info for null/unknown outcomes. */
-const DEFAULT_OUTCOME = {
-  tone: "neutral" as BadgeProps["tone"],
-  label: "—",
-};
 
 /**
  * Look up the tone + label for a given outcome string.
@@ -66,7 +53,10 @@ function outcomeInfo(outcome: string | null | undefined): {
   readonly label: string;
 } {
   if (outcome == null) return DEFAULT_OUTCOME;
-  return OUTCOME_BADGE[outcome] ?? DEFAULT_OUTCOME;
+  const tone = OUTCOME_TONE[outcome];
+  const label = OUTCOME_LABEL[outcome];
+  if (tone !== undefined && label !== undefined) return { tone, label };
+  return DEFAULT_OUTCOME;
 }
 
 // ---------------------------------------------------------------------------

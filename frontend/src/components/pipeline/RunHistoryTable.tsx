@@ -24,7 +24,13 @@ import {
 } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
-import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import { getPipelineHistory, type HistoryParams } from "@/api/client";
 import type { components } from "@/api/schema";
@@ -38,6 +44,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DEFAULT_OUTCOME,
+  OUTCOME_LABEL,
+  OUTCOME_TONE,
+} from "@/lib/outcome-labels";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,25 +59,6 @@ type RunSummary = components["schemas"]["RunSummary"];
 
 /** Page size for the history table. */
 const PAGE_SIZE = 20;
-
-/** Maps an outcome string to a DS Badge tone (design-system signal palette). */
-const OUTCOME_BADGE: Record<
-  string,
-  { readonly tone: BadgeProps["tone"]; readonly label: string }
-> = {
-  success: { tone: "success", label: "Succès" },
-  error: { tone: "danger", label: "Erreur" },
-  killed: { tone: "warning", label: "Arrêté" },
-  running: { tone: "info", label: "En cours" },
-  paused: { tone: "info", label: "En pause" },
-};
-
-/** Default outcome info for null/unknown outcomes. */
-const DEFAULT_OUTCOME = { tone: "neutral" as BadgeProps["tone"], label: "—" };
-
-// ---------------------------------------------------------------------------
-// Formatting helpers
-// ---------------------------------------------------------------------------
 
 /**
  * Format an ISO 8601 UTC timestamp into a French-localised date string.
@@ -123,7 +115,10 @@ function outcomeInfo(outcome: string | null | undefined): {
   readonly label: string;
 } {
   if (outcome == null) return DEFAULT_OUTCOME;
-  return OUTCOME_BADGE[outcome] ?? DEFAULT_OUTCOME;
+  const tone = OUTCOME_TONE[outcome];
+  const label = OUTCOME_LABEL[outcome];
+  if (tone !== undefined && label !== undefined) return { tone, label };
+  return DEFAULT_OUTCOME;
 }
 
 /** Column definitions typed against {@link RunSummary}. */
@@ -400,7 +395,6 @@ export function RunHistoryTable({
           </div>
         </div>
       )}
-
     </section>
   );
 }

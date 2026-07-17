@@ -12,7 +12,8 @@
 import type { ReactElement } from "react";
 
 import type { SchedulerItem } from "@/api/client";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import type { BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -21,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useSchedulers } from "@/hooks/useSchedulers";
+import { OUTCOME_TONE, outcomeLabel } from "@/lib/outcome-labels";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -48,50 +50,6 @@ function relativeTime(epoch: number | null | undefined): string {
   if (hours < 24) return `il y a ${String(hours)} h`;
   const days = Math.floor(hours / 24);
   return `il y a ${String(days)} j`;
-}
-
-/**
- * Map a scheduler's last outcome to a {@link Badge} tone.
- *
- * Args:
- *   outcome: The row's ``last_outcome`` (``"success"`` / ``"error"`` /
- *       ``"killed"`` / ``null``).
- *
- * Returns:
- *   A DS badge tone.
- */
-function outcomeTone(outcome: string | null | undefined): BadgeProps["tone"] {
-  switch (outcome) {
-    case "success":
-      return "success";
-    case "error":
-    case "killed":
-      return "danger";
-    default:
-      return "neutral";
-  }
-}
-
-/**
- * Human-readable French label for a last outcome.
- *
- * Args:
- *   outcome: The row's ``last_outcome``.
- *
- * Returns:
- *   A French label, or ``"Jamais exécuté"`` when unknown.
- */
-function outcomeLabel(outcome: string | null | undefined): string {
-  switch (outcome) {
-    case "success":
-      return "Réussi";
-    case "error":
-      return "Échec";
-    case "killed":
-      return "Interrompu";
-    default:
-      return "Jamais exécuté";
-  }
 }
 
 /**
@@ -132,8 +90,7 @@ function SchedulerRow({
 }: {
   readonly item: SchedulerItem;
 }): ReactElement {
-  const kindTone: BadgeProps["tone"] =
-    item.kind === "watcher" ? "info" : "neutral";
+  const kindTone: BadgeTone = item.kind === "watcher" ? "info" : "neutral";
   const kindLabel = item.kind === "watcher" ? "Surveillance" : "Cron";
 
   return (
@@ -151,7 +108,7 @@ function SchedulerRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end sm:gap-1">
-        <Badge tone={outcomeTone(item.last_outcome)} dot>
+        <Badge tone={OUTCOME_TONE[item.last_outcome ?? ""] ?? "neutral"} dot>
           {outcomeLabel(item.last_outcome)}
         </Badge>
         <span className="text-xs tabular-nums text-muted-foreground">
