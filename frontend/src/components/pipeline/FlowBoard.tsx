@@ -23,7 +23,13 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
-import { Fragment, useCallback, type ReactElement } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useState,
+  type ReactElement,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import type { StagesResponse } from "@/api/client";
@@ -147,6 +153,31 @@ function toStationSplit(
  */
 export function FlowBoard(): ReactElement {
   const query = usePipelineStages();
+  // sm: breakpoint (640px) drives compact vs sm-size variant. Guarded for
+  // jsdom where matchMedia may be absent or return a stub without addEventListener.
+  const [isDesktop, setIsDesktop] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return window.matchMedia("(min-width: 40em)").matches;
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      const mql = window.matchMedia("(min-width: 40em)");
+      const handler = (e: MediaQueryListEvent) => {
+        setIsDesktop(e.matches);
+      };
+      mql.addEventListener("change", handler);
+      return () => {
+        mql.removeEventListener("change", handler);
+      };
+    } catch {
+      // jsdom or environments without matchMedia — leave as-is.
+      return;
+    }
+  }, []);
   const navigate = useNavigate();
   // The open stage drawer is URL-addressable (?stage=<key>) so the browser
   // Back button closes it like any route — same discipline as ?media/?decision
@@ -180,7 +211,7 @@ export function FlowBoard(): ReactElement {
   if (query.isLoading) {
     return (
       <div
-        className="flex flex-col gap-2 pb-2 sm:flex-row sm:gap-2 sm:overflow-x-auto"
+        className="flex flex-col gap-2 pb-2 sm:flex-row sm:flex-wrap sm:gap-2"
         aria-busy="true"
       >
         {Array.from({ length: 8 }).map((_, i) => (
@@ -216,7 +247,7 @@ export function FlowBoard(): ReactElement {
   if (stages.length === 0) {
     return (
       <div
-        className="flex flex-col gap-2 pb-2 sm:flex-row sm:gap-2 sm:overflow-x-auto"
+        className="flex flex-col gap-2 pb-2 sm:flex-row sm:flex-wrap sm:gap-2"
         aria-busy="true"
       >
         {Array.from({ length: 8 }).map((_, i) => (
@@ -254,9 +285,10 @@ export function FlowBoard(): ReactElement {
         <StatusBadge tone={runBadge.tone} label={runBadge.label} />
       </div>
 
-      {/* Stations stack vertically on mobile (readable + tappable, no lateral
-          scroll); a horizontal scroll row on sm+ where the flow reads L→R. */}
-      <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-stretch sm:gap-1 sm:overflow-x-auto">
+      {/* Mobile: vertical list (readable + tappable, no lateral scroll).
+          Desktop: horizontal wrapping row — stations wrap instead of
+          overflowing so the anomaly signal is always visible (DOIT-2, §8). */}
+      <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-1">
         {stages.map((stage, i) => {
           const split = toStationSplit(stage.split);
           const icon = STAGE_ICON[stage.key];
@@ -277,12 +309,17 @@ export function FlowBoard(): ReactElement {
                 count={stage.count}
                 state={stage.state}
                 blocked={stage.blocked}
+                // Desktop: compact quiet stations (idle/ok) only show icon+count
+                // so the rail never overflows. Anomalous always stay expanded.
+                // Mobile: sm-sized rows (~40 px) with full labels visible.
+                compact={isDesktop}
                 onClick={() => {
                   openStage(stage.key);
                 }}
                 {...(timeframe !== undefined ? { timeframe } : {})}
                 {...(icon !== undefined ? { icon } : {})}
                 {...(split !== null ? { split } : {})}
+                {...(isDesktop ? {} : ({ size: "sm" } as const))}
               />
               {i < stages.length - 1 &&
                 (running ? (
