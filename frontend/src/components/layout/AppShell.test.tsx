@@ -88,9 +88,7 @@ beforeEach(() => {
       return Promise.resolve(buildResponse(200, stagingPayload(0)));
     }
     if (url.includes("/api/pipeline/status")) {
-      return Promise.resolve(
-        buildResponse(200, pipelineStatusPayload("idle")),
-      );
+      return Promise.resolve(buildResponse(200, pipelineStatusPayload("idle")));
     }
     if (
       url.includes("/api/acquisition/wanted") &&
@@ -270,6 +268,43 @@ describe("AppShell nav badges", () => {
 
     // Two nav surfaces render the badge (Sidebar + BottomTabBar); both
     // carry the same count and data-slot="nav-count".
+    const badges = await screen.findAllByText("3");
+    const badgeSpans = badges.filter(
+      (el) => el.getAttribute("data-slot") === "nav-count",
+    );
+    expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("affiche un badge Acquisition avec le pending wanted", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(3)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
     const badges = await screen.findAllByText("3");
     const badgeSpans = badges.filter(
       (el) => el.getAttribute("data-slot") === "nav-count",
