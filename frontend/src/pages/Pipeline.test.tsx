@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   usePipelineStatus: vi.fn(),
   useLastPipelineRun: vi.fn(),
   getPipelineHistory: vi.fn(),
+  getPipelineRunDetail: vi.fn(),
 }));
 
 vi.mock("@/hooks/usePipelineStatus", async (importOriginal) => ({
@@ -44,6 +45,7 @@ vi.mock("@/hooks/useLastPipelineRun", () => ({
 vi.mock("@/api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/client")>()),
   getPipelineHistory: mocks.getPipelineHistory,
+  getPipelineRunDetail: mocks.getPipelineRunDetail,
 }));
 
 // PipelineControls issues its own mutations/queries — stub it to keep the page
@@ -79,13 +81,16 @@ function streamState(events: EventMessage[]): EventStreamState {
   };
 }
 
-function renderPage(events: EventMessage[] = []): void {
+function renderPage(
+  events: EventMessage[] = [],
+  initialEntries: string[] = ["/pipeline"],
+): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <EventStreamContext.Provider value={streamState(events)}>
           <Pipeline />
         </EventStreamContext.Provider>
@@ -191,5 +196,47 @@ describe("Pipeline page", () => {
     expect(
       screen.getByText("Aucun log pour cette exécution."),
     ).toBeInTheDocument();
+  });
+
+  it("opens RunDetail drawer when ?run=<uid> is in the URL (DOIT-10 — URL-addressable detail)", async () => {
+    // A conscious reversal of the old de-dup assertion: the history table AND
+    // RunDetail now coexist on the Pipeline page (repatriated from Maintenance
+    // — pipeline-panel Phase 02). The drawer opens because the URL carries
+    // ?run=<uid>.
+    mocks.getPipelineRunDetail.mockResolvedValue({
+      run_uid: "abc123-run-uid",
+      kind: "pipeline",
+      trigger: "web",
+      dry_run: false,
+      started_at: "2026-07-06T10:00:00Z",
+      ended_at: "2026-07-06T10:05:30Z",
+      outcome: "success",
+      duration_s: 330,
+      error: null,
+      steps: [
+        { name: "ingest", status: "done", elapsed_s: 12.3 },
+        { name: "sort", status: "done", elapsed_s: 5.1 },
+        { name: "scrape", status: "done", elapsed_s: 180.5 },
+        { name: "dispatch", status: "done", elapsed_s: 83.1 },
+      ],
+    });
+    renderPage([], ["/pipeline?run=abc123-run-uid"]);
+
+    // The drawer opens — the run UID (truncated) and outcome are visible.
+    expect(await screen.findByText("abc123-r…")).toBeInTheDocument();
+    expect(screen.getByText("Succès")).toBeInTheDocument();
+    // The "Retour" button is rendered.
+    expect(screen.getByText("Retour")).toBeInTheDocument();
+  });
+
+  it("shows no RunDetail drawer when ?run= is absent from the URL", () => {
+    renderPage([], ["/pipeline"]);
+
+    // RunDetail heading text "Exécution abc123-r…" must NOT be present.
+    // (/Exécution/ with capital E is specific to the RunDetail CardTitle —
+    //  "Historique des exécutions" uses lowercase "e" and won't match.)
+    expect(screen.queryByText(/Exécution/)).not.toBeInTheDocument();
+    // "Retour" button (exclusive to RunDetail) is not rendered.
+    expect(screen.queryByText("Retour")).not.toBeInTheDocument();
   });
 });

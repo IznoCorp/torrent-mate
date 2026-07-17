@@ -138,4 +138,24 @@ describe("Maintenance", () => {
       ).toBe(true);
     });
   });
+
+  it("ne charge QUE l'historique maintenance, pas celui du pipeline (table pipeline repatriée — pipeline-panel Phase 02)", async () => {
+    renderMaintenance();
+
+    // Wait for the history heading to render (proves RunHistoryTable mounted).
+    expect(
+      await screen.findByText("Historique des exécutions"),
+    ).toBeInTheDocument();
+
+    // The ONLY RunHistoryTable on this page passes kind="maintenance" — never
+    // kind="pipeline" (the pipeline-run table was repatriated to /pipeline in
+    // Phase 02).  Verify via the fetch URL params.
+    const historyCalls = fetchMock.mock.calls
+      .map(([input]) => urlOf(input))
+      .filter((u) => u.startsWith("/api/pipeline/history?"));
+    // At least one call includes kind=maintenance.
+    expect(historyCalls.some((u) => u.includes("kind=maintenance"))).toBe(true);
+    // NO call includes kind=pipeline — the table is gone.
+    expect(historyCalls.some((u) => u.includes("kind=pipeline"))).toBe(false);
+  });
 });

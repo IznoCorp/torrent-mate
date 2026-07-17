@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RunDetail } from "@/components/pipeline/RunDetail";
@@ -61,14 +62,26 @@ async function mockGetDetail() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Render RunDetail wrapped in a fresh QueryClientProvider. */
-function renderDetail(runUid: string, onClose: () => void = vi.fn()): void {
+/** Render RunDetail wrapped in a fresh QueryClientProvider + MemoryRouter. */
+function renderDetail(
+  runUid: string,
+  onClose: () => void = vi.fn(),
+  opts: { showMaintenanceLink?: boolean } = {},
+): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <RunDetail runUid={runUid} onClose={onClose} />
+      <MemoryRouter>
+        <RunDetail
+          runUid={runUid}
+          onClose={onClose}
+          {...(opts.showMaintenanceLink !== undefined
+            ? { showMaintenanceLink: opts.showMaintenanceLink }
+            : {})}
+        />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   render(tree);
@@ -280,6 +293,59 @@ describe("RunDetail", () => {
     expect(screen.queryByText("Collecte")).not.toBeInTheDocument();
     expect(screen.queryByText("Scraping")).not.toBeInTheDocument();
     expect(screen.queryByText("Dispatch")).not.toBeInTheDocument();
+  });
+
+  it("affiche un lien croisé vers /maintenance quand showMaintenanceLink=true et le run est maintenance", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "maintenance",
+        command: "library-clean",
+        options_json: '{"only":"empty"}',
+        steps: [],
+      }),
+    );
+    renderDetail("abc123-run-uid", vi.fn(), { showMaintenanceLink: true });
+
+    await screen.findByText("abc123-r…");
+
+    // Cross-link from Pipeline page to Maintenance (pipeline-panel Phase 02).
+    const link = screen.getByText("→ Voir les exécutions de maintenance");
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/maintenance");
+  });
+
+  it("n'affiche PAS le lien croisé quand showMaintenanceLink est absent (défaut false)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "maintenance",
+        command: "library-clean",
+        steps: [],
+      }),
+    );
+    renderDetail("abc123-run-uid", vi.fn()); // no opts → showMaintenanceLink defaults to false
+
+    await screen.findByText("abc123-r…");
+
+    // Cross-link must NOT render when showMaintenanceLink isn't passed.
+    expect(
+      screen.queryByText("→ Voir les exécutions de maintenance"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("n'affiche PAS le lien croisé pour un run pipeline même avec showMaintenanceLink=true", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(makeDetail({ kind: "pipeline" }));
+    renderDetail("abc123-run-uid", vi.fn(), { showMaintenanceLink: true });
+
+    await screen.findByText("abc123-r…");
+
+    // The cross-link is gated on kind === "maintenance" — pipeline runs
+    // never show it even when showMaintenanceLink is true.
+    expect(
+      screen.queryByText("→ Voir les exécutions de maintenance"),
+    ).not.toBeInTheDocument();
   });
 });
 
