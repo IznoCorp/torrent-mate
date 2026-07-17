@@ -375,20 +375,30 @@ def dispatch(
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
     from personalscraper.pipeline_steps import resolve_dispatch_authority
+    from personalscraper.subscribers.dispatch_reconcile import build_post_dispatch_reconcile_subscriber
 
     config = ctx.obj.config
     console = state["console"]
     app_context = bundle.app_context
     assert app_context is not None
-    # F2 parity: resolve the SAME permit/recorder the full-run
-    # DispatchStep injects, via the shared single owner.
-    report, results = run_dispatch(
-        bundle.settings,
-        config=config,
-        dry_run=dry_run,
-        event_bus=app_context.event_bus,
-        **resolve_dispatch_authority(app_context),
-    )
+    # ACQUIRE-02: the post-dispatch reconcile subscriber closes owned wanted
+    # rows + retires acquired films after the dispatch step's enrich scan
+    # refreshes the library. Wired here (a dispatch composition root) so a plain
+    # library-index scan never gains a reconciliation side effect.
+    reconcile_sub = build_post_dispatch_reconcile_subscriber(app_context)
+    try:
+        # F2 parity: resolve the SAME permit/recorder the full-run
+        # DispatchStep injects, via the shared single owner.
+        report, results = run_dispatch(
+            bundle.settings,
+            config=config,
+            dry_run=dry_run,
+            event_bus=app_context.event_bus,
+            **resolve_dispatch_authority(app_context),
+        )
+    finally:
+        if reconcile_sub is not None:
+            reconcile_sub.close()
 
     # Post-dispatch index maintenance runs through the single owner
     # shared with the full-run DispatchStep (PIPELINE-CORE-01): the

@@ -248,9 +248,11 @@ class DeleteAuthority:
                 (does not yet exist at call time).
 
         Returns:
-            Bus events for the caller to emit after the move succeeds (a
-            ``FilmAcquired`` per followed film retired at dispatch, D2-A). Empty
-            on any MISS or fail-soft path — the caller emits nothing then.
+            Always an empty list. Wanted-row closure + followed-film retirement
+            (D2-A) moved to the post-dispatch reconcile subscriber (ACQUIRE-02);
+            this recorder only persists the seed obligation. The ``list[Event]``
+            return type is kept so the dispatch template's emit loop is
+            byte-identical (it iterates an empty list).
         """
         if self._store is None or self._torrent_client is None:
             log.debug(
@@ -355,6 +357,14 @@ class DeleteAuthority:
         single fail-soft guard in :meth:`record_dispatch`.  Emits the normal
         §7.2 MISS reasons for the deterministic branches and the HIT on success.
 
+        Wanted-row closure + followed-film retirement (D2-A) do NOT run here:
+        that reconciliation left the delete-permit (ACQUIRE-02) for an explicit
+        post-dispatch reconcile subscriber
+        (:class:`~personalscraper.subscribers.dispatch_reconcile.PostDispatchReconcileSubscriber`),
+        which closes owned rows via the canonical ownership pass over the
+        freshly-enriched library. This method now records ONLY the seed
+        obligation.
+
         Args:
             completed: The cached list of completed torrents.
             basename: ``staging_source.name`` to correlate on.
@@ -362,17 +372,15 @@ class DeleteAuthority:
             dispatched_dest: The destination path recorded on the obligation.
 
         Returns:
-            Bus events to emit after the move (a ``FilmAcquired`` per retired
-            film). Films are retired even on the later MISS branches
-            (not-seeding, tracker-unresolved), so those return the accumulated
-            events, not an empty list.
+            Always an empty list — the recorder announces nothing itself. The
+            ``list[Event]`` return is kept so the dispatch template's emit loop
+            is byte-identical (it iterates an empty list).
         """
         # ``self._store`` is non-None here (guarded by the record_dispatch
         # pre-checks); assert for the type checker.
         assert self._store is not None  # noqa: S101
         assert self._torrent_client is not None  # noqa: S101
 
-        events: list[Event] = []
         matches = [t for t in completed if t.name == basename and t.size_bytes == size]
 
         if not matches:
@@ -383,7 +391,7 @@ class DeleteAuthority:
                 size=size,
                 dispatched_dest=str(dispatched_dest),
             )
-            return events
+            return []
 
         if len(matches) > 1:
             log.warning(
@@ -393,44 +401,9 @@ class DeleteAuthority:
                 match_count=len(matches),
                 dispatched_dest=str(dispatched_dest),
             )
-            return events
+            return []
 
         item = matches[0]
-
-        # P0-B.3 — the §5 wanted closure this correlation always promised:
-        # the torrent's content is being dispatched into the library, so its
-        # ``grabbed`` wanted row(s) close ``done`` HERE, at the moment the
-        # media physically lands — independent of index freshness and of the
-        # seed-obligation branches below (fail-soft: the ownership sweep in
-        # detect/grab is the safety net).
-        try:
-            closed = self._store.wanted.mark_done_by_hash(item.hash)
-            retired: set[int] = set()
-            for row in closed:
-                log.info(
-                    "acquire.record_dispatch.wanted_closed",
-                    wanted_id=row.id,
-                    kind=row.kind,
-                    season=row.season,
-                    episode=row.episode,
-                    info_hash=item.hash,
-                )
-                # D2-A — a followed FILM whose content just landed leaves the
-                # follow list HERE, not at the next nightly detect sweep. Only
-                # movies (a series continues); once per followed_id. The
-                # returned FilmAcquired event is emitted by the dispatch layer
-                # once the move succeeds (the operator-visible feed toast).
-                if row.kind == "movie" and row.followed_id is not None and row.followed_id not in retired:
-                    evt = self._retire_acquired_film(row.followed_id)
-                    retired.add(row.followed_id)
-                    if evt is not None:
-                        events.append(evt)
-        except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
-            log.warning(
-                "acquire.record_dispatch.wanted_close_failed",
-                error=str(exc),
-                info_hash=item.hash,
-            )
 
         if not self._torrent_client.is_seeding(item):
             log.debug(
@@ -439,7 +412,7 @@ class DeleteAuthority:
                 info_hash=item.hash,
                 dispatched_dest=str(dispatched_dest),
             )
-            return events
+            return []
 
         resolved = self._resolve_tracker(item)
         if resolved is None:
@@ -450,7 +423,7 @@ class DeleteAuthority:
                 tags=list(item.tags),
                 dispatched_dest=str(dispatched_dest),
             )
-            return events
+            return []
 
         tracker_name, economy = resolved
 
@@ -480,7 +453,7 @@ class DeleteAuthority:
                 info_hash=item.hash,
                 dispatched_dest=str(dispatched_dest),
             )
-            return events
+            return []
 
         log.info(
             "acquire.record_dispatch.hit",
@@ -488,45 +461,7 @@ class DeleteAuthority:
             tracker=tracker_name,
             dispatched_dest=str(dispatched_dest),
         )
-        return events
-
-    def _retire_acquired_film(self, followed_id: int) -> "Event | None":
-        """Retire a followed film whose content just landed (D2-A) — fail-soft.
-
-        Mirrors the detect-time ownership closure but fires at dispatch, so a
-        followed film leaves the follow list the moment its media is placed in
-        the library instead of waiting for the next nightly detect sweep. The
-        retirement is traced by ``acquire.record_dispatch.film_unfollowed`` and
-        is visible in the followed list (§8 rien en silence). Returns a
-        ``FilmAcquired`` event (as an opaque :class:`Event`) for the dispatch
-        layer to emit once the move succeeds — the same operator-visible feed
-        toast the detect path emits — or ``None`` when the follow could not be
-        read/deactivated (fail-soft; a dispatch must never fail because a follow
-        could not be retired).
-
-        Args:
-            followed_id: The ``followed_series`` rowid to deactivate.
-
-        Returns:
-            The ``FilmAcquired`` event to emit, or ``None`` on any fail-soft path.
-        """
-        from personalscraper.acquire.events import FilmAcquired  # noqa: PLC0415 — avoid import cycle at module load
-
-        assert self._store is not None  # noqa: S101 — guarded by record_dispatch
-        try:
-            follow = self._store.follow.get(followed_id)
-            self._store.follow.set_active(followed_id, False)
-        except Exception as exc:  # noqa: BLE001 — fail-soft: never interrupt a dispatch
-            log.warning(
-                "acquire.record_dispatch.film_unfollow_failed",
-                followed_id=followed_id,
-                error=str(exc),
-            )
-            return None
-        log.info("acquire.record_dispatch.film_unfollowed", followed_id=followed_id)
-        if follow is None:
-            return None
-        return FilmAcquired(media_ref=follow.media_ref, title=follow.title, followed_id=followed_id)
+        return []
 
     def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
         """Resolve the source tracker for *item* from its tags and the economy map.

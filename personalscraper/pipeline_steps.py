@@ -328,20 +328,30 @@ class DispatchStep:
             A ``StepReport`` with per-item move/merge/replace outcomes.
         """
         from personalscraper.dispatch.run import run_dispatch
+        from personalscraper.subscribers.dispatch_reconcile import build_post_dispatch_reconcile_subscriber
 
-        # Permit/recorder resolution is the shared single owner (F2 parity with
-        # the standalone ``personalscraper dispatch`` CLI command).
-        report, results = run_dispatch(
-            ctx.app.settings,
-            config=ctx.app.config,
-            dry_run=ctx.dry_run,
-            verified=ctx.extras.get("verified"),
-            event_bus=ctx.app.event_bus,
-            # Boot's _recover_from_previous_run owns the once-per-run orphan
-            # sweep (PIPELINE-CORE-07) — don't sweep again here.
-            recover_orphans=False,
-            **resolve_dispatch_authority(ctx.app),
-        )
+        # ACQUIRE-02: the post-dispatch reconcile subscriber closes owned wanted
+        # rows + retires acquired films after the enrich scan refreshes the
+        # library (F2 parity with the standalone ``personalscraper dispatch``
+        # command). Wired here — a dispatch composition root — not universally.
+        reconcile_sub = build_post_dispatch_reconcile_subscriber(ctx.app)
+        try:
+            # Permit/recorder resolution is the shared single owner (F2 parity with
+            # the standalone ``personalscraper dispatch`` CLI command).
+            report, results = run_dispatch(
+                ctx.app.settings,
+                config=ctx.app.config,
+                dry_run=ctx.dry_run,
+                verified=ctx.extras.get("verified"),
+                event_bus=ctx.app.event_bus,
+                # Boot's _recover_from_previous_run owns the once-per-run orphan
+                # sweep (PIPELINE-CORE-07) — don't sweep again here.
+                recover_orphans=False,
+                **resolve_dispatch_authority(ctx.app),
+            )
+        finally:
+            if reconcile_sub is not None:
+                reconcile_sub.close()
 
         # Post-dispatch index maintenance (DESIGN index-sync) is triggered
         # through the single owner shared with the standalone
