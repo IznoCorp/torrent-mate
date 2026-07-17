@@ -3,7 +3,11 @@ import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 
-import { enqueueStagingDecision, type StagingMediaItem } from "@/api/client";
+import {
+  enqueueStagingDecision,
+  getPipelineHistory,
+  type StagingMediaItem,
+} from "@/api/client";
 import { decisionsKeys } from "@/api/decisions";
 import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";
@@ -68,7 +72,54 @@ function MetaCell({
 }
 
 /**
- * StagingMediaDetail — the drawer body for one staged media.
+ * Poll for a promised ``run_uid`` after a non-deferred continue (A2).
+ *
+ * Checks ``GET /api/pipeline/history?limit=5`` every 2 s for up to ~10 s.  If
+ * the run does not appear within that window it surfaces a warning toast so the
+ * operator knows the run may not have started.
+ *
+ * Args:
+ *   runUid: The ``run_uid`` promised by the continue response.
+ */
+async function pollForRunUid(runUid: string): Promise<void> {
+  const maxAttempts = 5;
+  const intervalMs = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    try {
+      const history = await getPipelineHistory({
+        limit: 5,
+        kind: "pipeline",
+        sort: "-started_at",
+      });
+      const found = history.runs.some((r) => r.run_uid === runUid);
+      if (found) return;
+    } catch {
+      // History endpoint unreachable — keep trying until the window closes.
+    }
+  }
+
+  // Final check after the last sleep.
+  try {
+    const history = await getPipelineHistory({
+      limit: 5,
+      kind: "pipeline",
+      sort: "-started_at",
+    });
+    const found = history.runs.some((r) => r.run_uid === runUid);
+    if (!found) {
+      toast.warning(
+        "Le run promis n'a pas démarré — consultez les journaux.",
+      );
+    }
+  } catch {
+    toast.warning("Le run promis n'a pas démarré — consultez les journaux.");
+  }
+}
+
+/**
+ * Full detail sheet for one staged media item.
  *
  * Poster + title/year, matching verdict, provider ids, overview, season
  * breakdown, on-disk facts, the optional dispatch-target preview, and the
@@ -167,6 +218,12 @@ export function StagingMediaDetail({
             <span className="text-xs text-muted-foreground">
               {kindLabel(item.media_kind)}
             </span>
+            {/* A1: durable deferral trace — « Reprise demandée » chip. */}
+            {item.continuation_requested_at != null && (
+              <span className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+                Reprise demandée
+              </span>
+            )}
           </div>
           {Object.keys(item.provider_ids).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -276,6 +333,10 @@ export function StagingMediaDetail({
                 continueMut.mutate(item.id, {
                   onSuccess: (data) => {
                     toast.success(data.detail);
+                    // A2: verify the promised run materialised within ~10 s.
+                    if (!data.deferred && data.run_uid != null) {
+                      void pollForRunUid(data.run_uid);
+                    }
                   },
                   onError: (err: unknown) => {
                     toast.error(
@@ -318,6 +379,10 @@ export function StagingMediaDetail({
                   continueMut.mutate(item.id, {
                     onSuccess: (data) => {
                       toast.success(data.detail);
+                      // A2: verify the promised run materialised within ~10 s.
+                      if (!data.deferred && data.run_uid != null) {
+                        void pollForRunUid(data.run_uid);
+                      }
                     },
                     onError: (err: unknown) => {
                       toast.error(

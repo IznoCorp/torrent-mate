@@ -47,6 +47,13 @@ export interface StalledPanelProps {
    * 3. Map each remaining step to ``{step: s.name, reasons: s.reasons}``.
    */
   readonly stepReasons: readonly StepReasonsEntry[];
+  /**
+   * Whether the query that produced ``stepReasons`` failed (API unreachable).
+   *
+   * When ``true`` the panel renders an explicit error line so the operator can
+   * distinguish « API unreachable » from « no stalled items » (C5).
+   */
+  readonly isError?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +76,17 @@ export interface StalledPanelProps {
  */
 export function StalledPanel({
   stepReasons,
+  isError = false,
 }: StalledPanelProps): ReactElement | null {
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-danger/30 bg-danger/10 p-4">
+        <p className="text-xs font-semibold text-danger">
+          Ce qui n'a pas avancé — historique indisponible
+        </p>
+      </div>
+    );
+  }
   if (stepReasons.length === 0) return null;
 
   return (

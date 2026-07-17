@@ -66,6 +66,20 @@ export interface LastRunDigestProps {
  *   The digest card element.
  */
 export function LastRunDigest({ lastRun }: LastRunDigestProps): ReactElement {
+  // API unreachable — honest error card (C4).
+  if (lastRun?.isError === true) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Dernier run</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-destructive">Historique indisponible</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // No history yet — calm empty state.
   if (lastRun?.runUid == null) {
     return (

@@ -88,9 +88,15 @@ export function IgnoreDiscardButton({
               onClick={() => {
                 discardMut.mutate(mediaId, {
                   onSuccess: (data) => {
-                    // §7 — render the server detail verbatim (includes the
-                    // ATTENTION variant when the journal write failed).
-                    toast.success(data.detail);
+                    // §7 — render the server detail verbatim.  When journaled is
+                    // false the destructive-op row could not be written — surface
+                    // it as a warning (danger-tinted) so the operator can inspect
+                    // the filesystem.
+                    if (!data.journaled) {
+                      toast.warning(data.detail);
+                    } else {
+                      toast.success(data.detail);
+                    }
                     setOpen(false);
                     onSuccess?.();
                   },

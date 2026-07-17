@@ -49,7 +49,10 @@ export default function Dashboard(): ReactElement {
       <LastRunDigest lastRun={lastRun} />
 
       {/* 4. Ce qui n'avance pas — StalledPanel on the last run. */}
-      <StalledPanel stepReasons={lastRun.stepReasons} />
+      <StalledPanel
+        stepReasons={lastRun.stepReasons}
+        isError={lastRun.isError}
+      />
 
       {/* 4. Acquisitions & planificateurs — merged section (guarantor amendment a). */}
       <section>

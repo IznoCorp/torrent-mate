@@ -28,6 +28,30 @@ import { useStagingMedia } from "@/hooks/useStagingMedia";
  *  inventory (usually < 20 items) without pagination overhead. */
 const BLOCKED_PAGE_SIZE = 100;
 
+/**
+ * Format a continuation-requested epoch timestamp as a relative-time label.
+ *
+ * Args:
+ *   ts: The epoch seconds, or ``null``/``undefined``.
+ *
+ * Returns:
+ *   A French relative-age string like ``"Reprise demandée il y a 3 min"``,
+ *   or ``null`` when ``ts`` is absent.
+ */
+function continuationRequestedLabel(
+  ts: number | null | undefined,
+): string | null {
+  if (ts == null) return null;
+  const diff = Date.now() - ts * 1000;
+  if (diff < 60_000) return "Reprise demandée à l'instant";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `Reprise demandée il y a ${String(mins)} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Reprise demandée il y a ${String(hours)} h`;
+  const days = Math.floor(hours / 24);
+  return `Reprise demandée il y a ${String(days)} j`;
+}
+
 /** Poll interval in ms — same rationale as the nav badge (filesystem scan
  *  latency). */
 const REFETCH_MS = 60_000;
@@ -170,6 +194,13 @@ export function ATraiterList(): ReactElement {
                 <span className="ml-2 text-xs text-muted-foreground">
                   {reasonLabel(item)}
                 </span>
+                {/* A1: durable deferral trace chip */}
+                {continuationRequestedLabel(item.continuation_requested_at) !==
+                  null && (
+                  <span className="ml-2 inline-flex items-center rounded border border-border px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+                    {continuationRequestedLabel(item.continuation_requested_at)}
+                  </span>
+                )}
               </div>
 
               {/* Resolve link */}

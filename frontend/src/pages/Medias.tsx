@@ -302,6 +302,10 @@ export default function Medias(): ReactElement {
         "Cette décision a été remplacée par une version plus récente.",
       );
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+    } else {
+      // D2: non-410 load failure (API unreachable, 404, etc.) — surface a
+      // French toast so the operator knows the decision is genuinely inaccessible.
+      toast.error("Décision introuvable ou inaccessible.");
     }
     closeDecision();
   }, [detailError, detailErrorObj, queryClient, closeDecision]);

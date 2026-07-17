@@ -33,6 +33,8 @@ export interface LastPipelineRun {
   readonly stepReasons: StepReasonsEntry[];
   /** Whether either underlying query is still loading. */
   readonly isLoading: boolean;
+  /** Whether the history or detail query failed (API unreachable). */
+  readonly isError: boolean;
   /** The trigger that started the run, or ``null`` when no history yet. */
   readonly trigger: string | null;
   /** ISO 8601 UTC start timestamp, or ``null`` when no history yet. */
@@ -108,6 +110,7 @@ export function useLastPipelineRun(refetchKey = "idle"): LastPipelineRun {
     lines,
     stepReasons,
     isLoading: historyQuery.isLoading || (runUid !== null && detailQuery.isLoading),
+    isError: historyQuery.isError || (runUid !== null && detailQuery.isError),
     trigger: lastSummary?.trigger ?? null,
     startedAt: lastSummary?.started_at ?? null,
     endedAt: lastSummary?.ended_at ?? null,

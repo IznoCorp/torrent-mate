@@ -12,7 +12,13 @@
  */
 
 import { Film } from "lucide-react";
-import { useCallback, useMemo, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 
 import type { StagingMediaItem, StagingMediaParams } from "@/api/client";
@@ -222,6 +228,22 @@ export function StagingLibrary({
 
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
+  // D3: ?media= not found on the current page — surface an inline notice so the
+  // operator knows the param was not silently ignored (honest exit).
+  const [mediaNotFoundNotice, setMediaNotFoundNotice] = useState(false);
+  useEffect(() => {
+    if (
+      selectedId !== null &&
+      !query.isLoading &&
+      !query.isError &&
+      selected === null
+    ) {
+      setMediaNotFoundNotice(true);
+    } else if (selectedId === null) {
+      setMediaNotFoundNotice(false);
+    }
+  }, [selectedId, selected, query.isLoading, query.isError]);
+
   /** Count feeding a match filter chip (undefined while loading → hidden). */
   function chipCount(value: MatchFilter): number | undefined {
     if (counts === undefined) return undefined;
@@ -361,6 +383,16 @@ export function StagingLibrary({
       </div>
 
       {/* ---- Content -------------------------------------------------------- */}
+      {/* D3: ?media= not found on the current page — honest notice. */}
+      {mediaNotFoundNotice && (
+        <p
+          role="alert"
+          className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground"
+        >
+          Média introuvable sur cette page — ajustez les filtres ou la
+          recherche.
+        </p>
+      )}
       {query.isLoading ? (
         <GridSkeleton />
       ) : query.isError ? (

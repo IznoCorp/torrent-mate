@@ -67,7 +67,7 @@ export function CompactHealth(): ReactElement {
   const healthChecking = healthData === undefined && !healthError;
 
   // ---- providers (registry) -------------------------------------------------
-  const { data: registryData } = useRegistryStatus();
+  const { data: registryData, isError: registryError } = useRegistryStatus();
   const providers = registryData?.providers ?? [];
   const providersOk = providers.filter(
     (p) => p.circuit_state === "closed",
@@ -80,6 +80,13 @@ export function CompactHealth(): ReactElement {
 
   /** Build the disks summary fragment (e.g. "Disk 1 500 Go libre"). */
   function disksSummary(): ReactElement {
+    if (disksQuery.isError) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-destructive">
+          <StatusDot status="error" label="Disques — état indisponible" />
+        </span>
+      );
+    }
     if (disksLoading) {
       return <span className="text-sm text-muted-foreground">Chargement…</span>;
     }
@@ -122,7 +129,10 @@ export function CompactHealth(): ReactElement {
     if (indexQuery.isLoading) {
       return <StatusDot status="idle" label="Index — chargement…" />;
     }
-    if (indexQuery.isError || indexQuery.data?.degraded) {
+    if (indexQuery.isError) {
+      return <StatusDot status="error" label="API injoignable" />;
+    }
+    if (indexQuery.data?.degraded) {
       return <StatusDot status="error" label="Index dégradé" />;
     }
     const items = indexQuery.data?.items ?? 0;
@@ -134,6 +144,9 @@ export function CompactHealth(): ReactElement {
     if (healthChecking) {
       return <StatusDot status="idle" label="Redis — vérification…" />;
     }
+    if (healthError) {
+      return <StatusDot status="error" label="API injoignable" />;
+    }
     if (redisOk) {
       return <StatusDot status="done" label="Redis en ligne" />;
     }
@@ -142,6 +155,11 @@ export function CompactHealth(): ReactElement {
 
   // ---- Providers row --------------------------------------------------------
   function providersDot(): ReactElement {
+    if (registryError) {
+      return (
+        <StatusDot status="error" label="Fournisseurs — état indisponible" />
+      );
+    }
     if (providersTotal === 0) {
       return <StatusDot status="idle" label="Fournisseurs — aucun configuré" />;
     }
