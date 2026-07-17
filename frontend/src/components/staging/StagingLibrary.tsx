@@ -12,13 +12,7 @@
  */
 
 import { Film } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactElement,
-} from "react";
+import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import type { StagingMediaItem, StagingMediaParams } from "@/api/client";
@@ -233,19 +227,13 @@ export function StagingLibrary({
 
   // D3: ?media= not found on the current page — surface an inline notice so the
   // operator knows the param was not silently ignored (honest exit).
-  const [mediaNotFoundNotice, setMediaNotFoundNotice] = useState(false);
-  useEffect(() => {
-    if (
-      selectedId !== null &&
-      !query.isLoading &&
-      !query.isError &&
-      selected === null
-    ) {
-      setMediaNotFoundNotice(true);
-    } else if (selectedId === null) {
-      setMediaNotFoundNotice(false);
-    }
-  }, [selectedId, selected, query.isLoading, query.isError]);
+  // Pure derived — clears automatically when the item becomes found (e.g. the
+  // operator clears a filter or navigates to the correct page).
+  const mediaNotFoundNotice =
+    selectedId !== null &&
+    !query.isLoading &&
+    !query.isError &&
+    selected === null;
 
   /** Count feeding a match filter chip (undefined while loading → hidden). */
   function chipCount(value: MatchFilter): number | undefined {

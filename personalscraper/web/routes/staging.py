@@ -626,8 +626,8 @@ def continue_staging_media(
     # because the lock is held, write a marker file so the read-model can
     # surface the « Reprise demandée » state even after a server restart.
     # The marker is consumed (unlinked) on the NEXT successful continue call
-    # for the same item, and also by the read-model when position_state is
-    # no longer 'blocked' (the item has moved on).
+    # for the same item — a successful re-spawn consumes it; the read-model is
+    # display-only and never unlinks it.
     if deferred:
         marker = media_dir / ".continuation-requested"
         try:

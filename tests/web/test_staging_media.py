@@ -1593,6 +1593,65 @@ def test_discard_readback_exact_detail_match(test_config, tmp_path: Path) -> Non
     assert body["detail"] == ("Artefact mis en quarantaine — trace écrite au journal des suppressions.")
 
 
+def test_discard_journal_fail_readback_not_fooled_by_stale_row(test_config, tmp_path: Path) -> None:
+    """B3 — a stale row with the same path does NOT fake ``journaled=True``.
+
+    Seeds an old ``destructive_op`` row with the SAME source path but a
+    DIFFERENT detail, then patches ``record_destruction`` to no-op (simulating
+    a silent journal-write failure).  The exact-detail read-back must NOT match
+    the stale row — ``journaled`` must be ``False``.  A path-only read-back
+    would incorrectly return True.
+    """
+    import sqlite3
+    import time as _time
+    from unittest.mock import patch
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "stale.row-fail-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "data.bin", size=64)
+    db_path = _fresh_db(tmp_path)
+
+    # Seed a stale row with the same source path but a different detail (an old,
+    # unrelated discard of a same-named folder).
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO destructive_op (ts, op, path, actor, detail, run_uid) VALUES (?, 'delete', ?, 'web', ?, NULL)",
+        (
+            _time.time() - 3600,
+            str(item),
+            "Discard non-media artifact: stale.row-fail-GRP -> /tmp/old/quarantine/ffffffffffffffff",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+    media_id = media_id_for("098-AUTRES/stale.row-fail-GRP")
+
+    # record_destruction is a no-op — the fresh row is NEVER written.
+    with patch(
+        "personalscraper.web.routes.staging.record_destruction",
+        return_value=None,
+    ):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/discard",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # The exact-detail read-back must NOT find the stale row (different detail).
+    # A path-only read-back would incorrectly return True here.
+    assert body["journaled"] is False
+    assert "ATTENTION" in body["detail"]
+
+
 def test_continue_deferred_writes_marker_and_read_model_exposes_it(
     test_config,
     tmp_path: Path,
@@ -1601,8 +1660,9 @@ def test_continue_deferred_writes_marker_and_read_model_exposes_it(
 
     When the pipeline lock is held, the continue endpoint writes a marker file
     in the media folder.  The read-model then exposes ``continuation_requested_at``
-    on the staging item.  When position_state is no longer ``blocked``, the marker
-    is consumed (unlinked).
+    on the staging item.  A successful re-spawn (subsequent continue call that
+    starts the pipeline) consumes (unlinks) the marker; the read-model never
+    unlinks it — it is display-only.
     """
     from unittest.mock import patch
 
