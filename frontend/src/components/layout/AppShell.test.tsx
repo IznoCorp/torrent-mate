@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthProvider } from "@/components/AuthProvider";
 import { MockWebSocket } from "@/test/mockWebSocket";
+import { decisionsKeys } from "@/api/decisions";
 
 /** Build a minimal ``Response``-shaped object the API client can consume. */
 function buildResponse(status: number, body: unknown): Response {
@@ -25,12 +26,43 @@ function buildResponse(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
-/** A decisions list payload carrying the ``pending_count`` the badge reads. */
-function decisionsPayload(pendingCount: number): Record<string, unknown> {
+/** A staging payload carrying the ``counts.awaiting_action`` the badge reads. */
+function stagingPayload(awaitingAction: number): Record<string, unknown> {
   return {
     items: [],
-    pending_count: pendingCount,
-    total: pendingCount,
+    counts: {
+      absent: 0,
+      ambiguous: 0,
+      awaiting_action: awaitingAction,
+      matched: 0,
+      scraped: 0,
+      total: 0,
+    },
+    total: 0,
+    page: 1,
+    page_size: 1,
+  };
+}
+
+/** A pipeline status payload for the running-dot badge. */
+function pipelineStatusPayload(
+  state: "idle" | "running" | "paused",
+): Record<string, unknown> {
+  return {
+    state,
+    run_uid: state === "idle" ? null : "run-123",
+    step: state === "idle" ? null : "scrape",
+    paused: state === "paused",
+    watcher_enabled: true,
+    pid: state === "idle" ? null : 12345,
+  };
+}
+
+/** A wanted payload carrying the ``total`` the badge reads. */
+function wantedPayload(total: number): Record<string, unknown> {
+  return {
+    items: [],
+    total,
     page: 1,
     page_size: 1,
   };
@@ -41,8 +73,32 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   fetchMock.mockReset();
   MockWebSocket.reset();
-  // Authenticated identity so the TopBar's UserMenu has a session to read.
-  fetchMock.mockResolvedValue(buildResponse(200, { username: "izno" }));
+  // Provide sensible defaults for every endpoint AppShellInner hits so
+  // tests that don't override fetchMock still get well-shaped responses.
+  fetchMock.mockImplementation((input) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes("/api/auth/me")) {
+      return Promise.resolve(buildResponse(200, { username: "izno" }));
+    }
+    if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+      return Promise.resolve(buildResponse(200, stagingPayload(0)));
+    }
+    if (url.includes("/api/pipeline/status")) {
+      return Promise.resolve(buildResponse(200, pipelineStatusPayload("idle")));
+    }
+    if (
+      url.includes("/api/acquisition/wanted") &&
+      url.includes("status=pending")
+    ) {
+      return Promise.resolve(buildResponse(200, wantedPayload(0)));
+    }
+    return Promise.resolve(buildResponse(200, {}));
+  });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("WebSocket", MockWebSocket);
 });
@@ -62,14 +118,38 @@ function latestSocket(): MockWebSocket {
   return socket;
 }
 
-/** Render the shell as a layout route with a trivial index child. */
-function renderShell(): void {
-  const client = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+/**
+ * First nav link matching ``name`` — narrowed via a runtime guard so the
+ * suite satisfies both no-non-null-assertion and assertion-style rules.
+ */
+function firstLink(name: RegExp | string): HTMLElement {
+  const links = screen.getAllByRole("link", { name });
+  const link = links[0];
+  if (!link) {
+    throw new Error(`no nav link matching ${String(name)}`);
+  }
+  return link;
+}
+
+/**
+ * Render the shell as a layout route with a trivial index child.
+ *
+ * Args:
+ *   client: Optional pre-configured QueryClient (for tests that need to
+ *       seed cache data or observe invalidation).
+ *
+ * Returns:
+ *   The QueryClient used (the caller's or a freshly created one).
+ */
+function renderShell(client?: QueryClient): QueryClient {
+  const qc =
+    client ??
+    new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
   const router = createMemoryRouter(
     [
       {
@@ -80,12 +160,13 @@ function renderShell(): void {
     { initialEntries: ["/"] },
   );
   render(
-    <QueryClientProvider client={client}>
+    <QueryClientProvider client={qc}>
       <AuthProvider>
         <RouterProvider router={router} />
       </AuthProvider>
     </QueryClientProvider>,
   );
+  return qc;
 }
 
 describe("AppShell mobile nav Sheet", () => {
@@ -134,10 +215,10 @@ describe("AppShell mobile nav Sheet", () => {
   });
 });
 
-describe("AppShell pending-count badge", () => {
+describe("AppShell nav badges", () => {
   beforeEach(() => {
-    // The badge query fires a lightweight count-only request
-    // (page_size=1).  Stub it with the pending_count the test wants.
+    // Stub the three badge sources — all idle/zero by default so the zero-
+    // state test works without per-test overrides.
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -148,29 +229,73 @@ describe("AppShell pending-count badge", () => {
       if (url.includes("/api/auth/me")) {
         return Promise.resolve(buildResponse(200, { username: "izno" }));
       }
-      if (url.includes("/api/decisions") && url.includes("page_size=1")) {
-        return Promise.resolve(buildResponse(200, decisionsPayload(0)));
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
   });
 
-  it("n'affiche pas de badge quand le nombre de décisions en attente est zéro", async () => {
+  it("n'affiche pas de badge et pas de dot quand tout est à zéro / idle (zero-state)", async () => {
     renderShell();
 
-    // Let the badge query resolve.
+    // Wait until both the staging AND wanted URLs were actually fetched
+    // (the initial fetchMock call alone does not prove both queries settled).
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      const stagingFetched = fetchMock.mock.calls.some((c) => {
+        const arg = c[0];
+        const u =
+          typeof arg === "string"
+            ? arg
+            : arg instanceof URL
+              ? arg.href
+              : arg.url;
+        return u.includes("/api/staging/media") && u.includes("page_size=1");
+      });
+      const wantedFetched = fetchMock.mock.calls.some((c) => {
+        const arg = c[0];
+        const u =
+          typeof arg === "string"
+            ? arg
+            : arg instanceof URL
+              ? arg.href
+              : arg.url;
+        return (
+          u.includes("/api/acquisition/wanted") && u.includes("status=pending")
+        );
+      });
+      expect(stagingFetched && wantedFetched).toBe(true);
     });
 
-    // No badge element with data-slot="badge" should be in the document —
-    // the badge map is undefined when pending_count is 0.
+    // No nav-count badge element should be in the document — every badge
+    // source is at its zero state.
     expect(
-      document.querySelector('[data-slot="badge"]'),
+      document.querySelector('[data-slot="nav-count"]'),
+    ).not.toBeInTheDocument();
+
+    // No pipeline running dot should appear (pipeline is idle).
+    expect(
+      screen.queryByLabelText(/Pipeline en cours d/),
+    ).not.toBeInTheDocument();
+
+    // No paused pipeline dot either.
+    expect(
+      screen.queryByLabelText("Pipeline en pause"),
     ).not.toBeInTheDocument();
   });
 
-  it("affiche un badge avec le compte exact de décisions en attente", async () => {
+  it("affiche un badge Scraping avec le compte awaiting_action, scoped au lien nav", async () => {
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -181,27 +306,32 @@ describe("AppShell pending-count badge", () => {
       if (url.includes("/api/auth/me")) {
         return Promise.resolve(buildResponse(200, { username: "izno" }));
       }
-      if (url.includes("/api/decisions") && url.includes("page_size=1")) {
-        return Promise.resolve(buildResponse(200, decisionsPayload(3)));
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(3)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
 
     renderShell();
 
-    // Two nav surfaces render the badge (Sidebar + BottomTabBar); both
-    // carry the same count and data-slot="badge".
-    const badges = await screen.findAllByText("3");
-    // At least one badge must appear — filtering to <span> elements with
-    // data-slot="badge" confirms these are Badge components.
-    const badgeSpans = badges.filter(
-      (el) => el.getAttribute("data-slot") === "nav-count",
-    );
-    expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
+    // The badge must appear inside a Scraping nav link — a wiring swap
+    // (e.g. badge placed on Acquisition) must fail this assertion.
+    const badge = await within(firstLink(/Scraping/)).findByText("3");
+    expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
-  it("rafraîchit le badge lorsqu'un événement WS « queued_for_decision » arrive", async () => {
-    let countSent = 0;
+  it("affiche un badge Acquisition avec le pending wanted, scoped au lien nav", async () => {
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -212,22 +342,195 @@ describe("AppShell pending-count badge", () => {
       if (url.includes("/api/auth/me")) {
         return Promise.resolve(buildResponse(200, { username: "izno" }));
       }
-      if (url.includes("/api/decisions") && url.includes("page_size=1")) {
-        return Promise.resolve(buildResponse(200, decisionsPayload(countSent)));
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(3)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
 
     renderShell();
 
-    // Wait for the initial badge query to settle.
+    // The badge must appear inside an Acquisition nav link.
+    const badge = await within(firstLink(/Acquisition/)).findByText("3");
+    expect(badge.getAttribute("data-slot")).toBe("nav-count");
+  });
+
+  it("affiche un dot Pipeline quand le pipeline est en cours, scoped au lien nav", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("running")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    // The running dot must appear inside a Pipeline nav link.
+    const runningDot = await within(firstLink(/Pipeline/)).findByLabelText(
+      /Pipeline en cours d/,
+    );
+    expect(runningDot).toBeInTheDocument();
+  });
+
+  it("affiche un dot Pipeline avec aria-label 'Pipeline en pause' quand paused", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("paused")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    // The paused dot has its own truthful label, scoped to the nav link.
+    const pausedDot = await within(firstLink(/Pipeline/)).findByLabelText(
+      "Pipeline en pause",
+    );
+    expect(pausedDot).toBeInTheDocument();
+
+    // Must NOT claim "en cours" — that label is only for running.
+    expect(
+      within(firstLink(/Pipeline/)).queryByLabelText(/Pipeline en cours d/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche un marqueur '?' Compteur indisponible quand staging est en erreur (500)", async () => {
+    // Return 500 for the staging badge query (the default 200s are set in
+    // beforeEach; we override only the staging URL here).  The retry: false
+    // on the default QueryClient makes the query error immediately.
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(
+          buildResponse(500, { detail: "Internal Server Error" }),
+        );
+      }
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    // The "?" indeterminate marker appears inside a Scraping nav link with
+    // the correct accessible name.  Scoping to within the link avoids the
+    // duplicate-label collision with the BottomTabBar (both render the same
+    // badge at different breakpoints).
+    const errorMarker = await within(firstLink(/Scraping/)).findByLabelText(
+      "Compteur indisponible",
+    );
+    expect(errorMarker).toHaveTextContent("?");
+  });
+
+  it("rafraîchit le badge staging lorsqu'un événement WS ItemProgressed arrive", async () => {
+    let awaitingSent = 0;
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(
+          buildResponse(200, stagingPayload(awaitingSent)),
+        );
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    // Wait for the initial badge queries to settle.
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    // No badge initially (count = 0).
+    // No badge initially (awaiting_action = 0).
     expect(
-      document.querySelector('[data-slot="badge"]'),
+      document.querySelector('[data-slot="nav-count"]'),
     ).not.toBeInTheDocument();
 
     // Now drive the WebSocket: complete the handshake so the event-stream
@@ -241,13 +544,127 @@ describe("AppShell pending-count badge", () => {
     });
 
     // Bump the mocked response for the refetch that the invalidation triggers.
-    countSent = 5;
+    awaitingSent = 5;
 
-    // Emit an ItemProgressed event with status "queued_for_decision" — the
-    // AppShell's useEffect should catch it and invalidate the decisions cache.
+    // Emit an ItemProgressed event — the AppShell's useEffect should catch
+    // it (any status now, not just queued_for_decision) and invalidate the
+    // staging-media cache.
     act(() => {
       latestSocket().emitMessage({
         id: "1680000000000-0",
+        type: "ItemProgressed",
+        data: {
+          step: "scrape",
+          status: "blocked",
+          staging_path: "/staging/001-MOVIES/Test (2024)",
+        },
+      });
+    });
+
+    // After the invalidation, the refetch should bring back awaiting_action=5
+    // and the badge should appear scoped to the Scraping link.
+    const badge = await within(firstLink(/Scraping/)).findByText("5");
+    expect(badge.getAttribute("data-slot")).toBe("nav-count");
+  });
+
+  it("rafraîchit le badge staging sur un événement WS PipelineEnded", async () => {
+    let awaitingSent = 0;
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(
+          buildResponse(200, stagingPayload(awaitingSent)),
+        );
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (
+        url.includes("/api/acquisition/wanted") &&
+        url.includes("status=pending")
+      ) {
+        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    expect(
+      document.querySelector('[data-slot="nav-count"]'),
+    ).not.toBeInTheDocument();
+
+    act(() => {
+      latestSocket().emitOpen();
+      latestSocket().emitMessage({
+        type: "ws.hello",
+        data: { build_commit: "test-sha" },
+      });
+    });
+
+    awaitingSent = 3;
+
+    act(() => {
+      latestSocket().emitMessage({
+        id: "1680000000001-0",
+        type: "PipelineEnded",
+        data: { run_uid: "run-001" },
+      });
+    });
+
+    const badge = await within(firstLink(/Scraping/)).findByText("3");
+    expect(badge.getAttribute("data-slot")).toBe("nav-count");
+  });
+
+  it("invalide le cache decisions quand un événement WS ItemProgressed arrive (cache observation)", async () => {
+    const qc = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    // Seed the decisions cache so we can observe the invalidation.
+    qc.setQueryData(decisionsKeys.all, [
+      { id: 1, status: "pending", staging_path: "/s/Test" },
+    ]);
+    expect(qc.getQueryState(decisionsKeys.all)?.isInvalidated).toBeFalsy();
+
+    renderShell(qc);
+
+    // Wait for the initial badge queries to settle.
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    // Drive the WebSocket handshake.
+    act(() => {
+      latestSocket().emitOpen();
+      latestSocket().emitMessage({
+        type: "ws.hello",
+        data: { build_commit: "test-sha" },
+      });
+    });
+
+    // Emit ItemProgressed with status queued_for_decision — the useEffect
+    // must invalidate decisionsKeys.all.
+    act(() => {
+      latestSocket().emitMessage({
+        id: "1680000000002-0",
         type: "ItemProgressed",
         data: {
           step: "scrape",
@@ -257,12 +674,9 @@ describe("AppShell pending-count badge", () => {
       });
     });
 
-    // After the invalidation, the refetch should bring back pending_count=5
-    // and the badge should appear on both nav surfaces.
-    const badges = await screen.findAllByText("5");
-    const badgeSpans = badges.filter(
-      (el) => el.getAttribute("data-slot") === "nav-count",
-    );
-    expect(badgeSpans.length).toBeGreaterThanOrEqual(1);
+    // After invalidation, the decisions query state is marked invalidated.
+    await waitFor(() => {
+      expect(qc.getQueryState(decisionsKeys.all)?.isInvalidated).toBe(true);
+    });
   });
 });
