@@ -274,7 +274,7 @@ class TestFolderRenameBranches:
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
-                "personalscraper.scraper.movie_service._merge_dirs",
+                "personalscraper.scraper.rename_service._merge_dirs",
                 return_value=(1, 0),
             ) as mock_merge,
         ):
@@ -298,7 +298,7 @@ class TestFolderRenameBranches:
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
-                "personalscraper.scraper.movie_service._merge_dirs",
+                "personalscraper.scraper.rename_service._merge_dirs",
                 return_value=(1, 2),  # 1 moved, 2 failed
             ),
         ):

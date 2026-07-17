@@ -1320,7 +1320,7 @@ class TestScrapeTvshowFullPath:
                 return_value=(match, []),
             ),
             patch(
-                "personalscraper.scraper.tv_service_write._rename_dir_case_safe",
+                "personalscraper.scraper.rename_service._rename_dir_case_safe",
                 side_effect=OSError("denied"),
             ),
         ):

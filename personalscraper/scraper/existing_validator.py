@@ -24,34 +24,29 @@ if TYPE_CHECKING:
 #
 # Sub-phase 7.4 audit + sub-phase 17.3 migration (registry feature): every
 # ``cast(...)`` site in this module is intentionally direct-dispatch — see the
-# per-site rationale comments. All six sites fall into a single family:
+# per-site rationale comments. All remaining sites fall into a single family:
 # ID-bound canonical-provider refetch where the ID was minted by a specific
 # provider (recorded in the NFO at scrape time) and any chain fallback would
 # silently switch the canonical data source.
 #
-# Two sub-families exist:
-#
-# * Multi-method provider-specific sequences (``_repair_episode_files``,
-#   ``_repair_artwork``): combine ``get_series`` / ``get_tv`` with
-#   ``get_tv_season`` / ``get_series_episodes`` and helpers that consume the
-#   concrete client (``_fetch_season_episodes_tvdb``,
-#   ``_tvdb_series_to_show_data``). The Protocols in ``_contracts.py`` do not
-#   cover these methods → 4 sites keep ``cast("TMDBClient"|"TVDBClient", ...)``
-#   (lines 237, 258, 349, 371).
-# * Single-call artwork refetch (``_recover_movie_artwork``,
-#   ``_recover_tvshow_artwork``): the Protocol signatures
-#   (``MovieDetailsProvider.get_movie`` / ``TvDetailsProvider.get_tv``) now
-#   accept ``int | str`` (sub-phase 17.2 widening), so the cast targets the
-#   capability Protocol → 2 sites use ``cast("MovieDetailsProvider"|
-#   "TvDetailsProvider", ...)`` (lines 544, 590).
-#
-# Net outcome: 4 of 6 sites keep concrete-client cast (episode-fetching methods
-# outside any Protocol); 2 of 6 migrated to Protocol-typed cast. The remaining
-# 4 are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
+# The remaining sites are the Multi-method provider-specific sequences
+# (``_repair_episode_files``, ``_repair_artwork``): they combine ``get_series``
+# / ``get_tv`` with ``get_tv_season`` / ``get_series_episodes`` and helpers that
+# consume the concrete client (``_fetch_season_episodes_tvdb``,
+# ``_tvdb_series_to_show_data``). The Protocols in ``_contracts.py`` do not
+# cover these methods → 4 sites keep ``cast("TMDBClient"|"TVDBClient", ...)``.
+# These are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
 # without a capability Protocol).
+#
+# The single-call artwork refetch (``_recover_movie_artwork`` /
+# ``_recover_tvshow_artwork``) was folded (P4.4, SCRAPER-09) into the ONE
+# canonical-family helper ``_writeback.recover_artwork`` — resolving the
+# provider from the item's canonical family (TVDB-primary for TV) rather than
+# the TMDB-hardwired path — so those two cast sites now live there.
 
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.scraper._shared import ScrapeResult
+from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.episode_manager import (
     _extract_season_episode,
     create_season_dirs,
@@ -523,59 +518,26 @@ class ExistingValidatorMixin:
         movie_dir: Path,
         result: ScrapeResult,
     ) -> None:
-        """Re-download missing artwork using TMDB ID from existing NFO.
+        """Re-download missing movie artwork via the canonical (TMDB) family.
 
-        Extracts the TMDB ID, fetches movie data, and downloads artwork
-        (existing files are automatically skipped by the downloader).
+        Thin delegate to :func:`personalscraper.scraper._writeback.recover_artwork`
+        — the single canonical-family recovery folded out of the two hand-synced
+        copies (SCRAPER-09). Movies are always TMDB-canonical.
 
         Args:
             nfo_path: Path to the valid NFO file.
             movie_dir: Path to the movie directory.
             result: ScrapeResult to update with recovery info.
         """
-        tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
-        if not tmdb_id:
-            return
-        # Broad catch: get_movie() can raise ApiError, CircuitOpenError, or requests
-        # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
-        # a lazy import — narrowing this mixed path is not worthwhile here.
-        # Pre-check (I4, PR review cycle 4): ``registry.get("tmdb")`` raises
-        # ``UnknownProviderError`` when tmdb is not configured, which the
-        # broad ``except Exception`` below would swallow silently. Detect
-        # the missing-provider case explicitly so the operator sees a
-        # debug-level forensic anchor instead of a generic
-        # "Artwork recovery failed: Unknown provider 'tmdb'" warning.
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
-
-        try:
-            from personalscraper.api.metadata._contracts import MovieDetailsProvider  # noqa: PLC0415
-            from personalscraper.scraper._movie_convert import _coerce_to_movie_data
-
-            # Protocol-typed direct-dispatch (sub-phase 17.3): the TMDB id
-            # was minted by TMDB when the NFO was written, and artwork must
-            # be re-pulled from the same canonical source. Chain fallback
-            # would silently switch the provider mid-refetch — forbidden
-            # for ID-bound canonical refetch. Now that the Protocol accepts
-            # ``int | str`` (sub-phase 17.2), the cast can target the
-            # capability Protocol instead of the concrete ``TMDBClient``.
-            try:
-                provider = cast("MovieDetailsProvider", self._registry.get("tmdb"))
-            except UnknownProviderError:
-                log.debug("artwork_recovery_skipped_no_tmdb", directory=movie_dir.name)
-                return
-            movie_data = provider.get_movie(tmdb_id)
-            downloaded = self._artwork.download_movie_artwork(
-                _coerce_to_movie_data(movie_data),
-                movie_dir,
-                self.patterns,
-            )
-            if downloaded:
-                result.action = "artwork_recovered"
-                result.artwork_downloaded = [p.name for p in downloaded]
-                log.info("artwork_recovered", count=len(downloaded), directory=movie_dir.name)
-        except Exception as e:  # noqa: BLE001 — see block comment above
-            log.warning("artwork_recovery_failed", directory=movie_dir.name, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork recovery failed: {e}")
+        recover_artwork(
+            nfo_path,
+            movie_dir,
+            result,
+            kind="movie",
+            registry=self._registry,
+            artwork=self._artwork,
+            patterns=self.patterns,
+        )
 
     def _recover_tvshow_artwork(
         self,
@@ -583,55 +545,27 @@ class ExistingValidatorMixin:
         show_dir: Path,
         result: ScrapeResult,
     ) -> None:
-        """Re-download missing artwork for a TV show using NFO TMDB ID.
+        """Re-download missing TV-show artwork from the item's canonical family.
 
-        Extracts the TMDB ID, fetches show data, and downloads artwork
-        (existing files are automatically skipped by the downloader).
+        Thin delegate to :func:`personalscraper.scraper._writeback.recover_artwork`.
+        Resolves the provider from the canonical family — TVDB-primary when the
+        NFO carries a TVDB id, else TMDB — which is the F7 fix: a TVDB-only show
+        (no TMDB id) now recovers its artwork instead of short-circuiting.
 
         Args:
             nfo_path: Path to the valid tvshow.nfo file.
             show_dir: Path to the TV show directory.
             result: ScrapeResult to update with recovery info.
         """
-        tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
-        if not tmdb_id:
-            return
-        # Broad catch: get_tv() can raise ApiError, CircuitOpenError, or requests
-        # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
-        # a lazy import — narrowing this mixed path is not worthwhile here.
-        # Pre-check (I4, PR review cycle 4): symmetric to
-        # ``_recover_movie_artwork`` — guard against tmdb not being
-        # configured so the missing-provider case surfaces as a debug log
-        # rather than getting swallowed by the broad ``except Exception``.
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
-
-        try:
-            from personalscraper.api.metadata._contracts import TvDetailsProvider  # noqa: PLC0415
-            from personalscraper.scraper._movie_convert import _coerce_to_show_data
-
-            # Protocol-typed direct-dispatch (sub-phase 17.3): mirror of
-            # ``_recover_movie_artwork`` — TMDB-minted id, canonical refetch
-            # for artwork, chain fallback forbidden. The Protocol now accepts
-            # ``int | str`` (sub-phase 17.2), so the cast targets the
-            # capability instead of the concrete ``TMDBClient``.
-            try:
-                provider = cast("TvDetailsProvider", self._registry.get("tmdb"))
-            except UnknownProviderError:
-                log.debug("artwork_recovery_skipped_no_tmdb", directory=show_dir.name)
-                return
-            show_data = provider.get_tv(tmdb_id)
-            downloaded = self._artwork.download_tvshow_artwork(
-                _coerce_to_show_data(show_data),
-                show_dir,
-                self.patterns,
-            )
-            if downloaded:
-                result.action = "artwork_recovered"
-                result.artwork_downloaded = [p.name for p in downloaded]
-                log.info("artwork_recovered", count=len(downloaded), directory=show_dir.name)
-        except Exception as e:  # noqa: BLE001 — mixed API+IO path; see comment above
-            log.warning("artwork_recovery_failed", directory=show_dir.name, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork recovery failed: {e}")
+        recover_artwork(
+            nfo_path,
+            show_dir,
+            result,
+            kind="tvshow",
+            registry=self._registry,
+            artwork=self._artwork,
+            patterns=self.patterns,
+        )
 
     def _repair_movie_dir(self, movie_dir: Path, title: str) -> bool:
         """Repair a movie directory with valid NFO.

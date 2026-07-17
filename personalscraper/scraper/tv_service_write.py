@@ -12,7 +12,6 @@ NFO-only write that left episodes unrenamed and ``verify`` blocking dispatch.
 
 from __future__ import annotations
 
-import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -29,9 +28,9 @@ from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
     _cleanup_stale_files,
-    _merge_dirs,
-    _rename_dir_case_safe,
+    apply_canonical_dir_rename,
 )
+from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -111,54 +110,37 @@ class TvServiceWriteMixin:
         Returns:
             The populated :class:`ScrapeResult` (``action="scraped"`` on success).
         """
-        # Rename folder to canonical name
+        # Canonical folder name — the SAME ``movie_dir`` pattern the movie
+        # write-back uses, with an explicit no-year branch. (SCRAPER-04: this
+        # side used to pass ``Year=""`` into the pattern and produce ``Title ()``
+        # when the year was unknown; the movie side hand-rolled an f-string that
+        # bypassed the pattern entirely — the inverted use both now avoid by
+        # going through ``format`` with a real no-year path.)
         old_dir_name = show_dir.name  # Save before potential rename
-        canonical = self.patterns.format(
-            "movie_dir",
-            Title=resolved_title,
-            Year=match.api_year or year or "",
+        api_year = match.api_year or year
+        canonical = (
+            self.patterns.format("movie_dir", Title=resolved_title, Year=api_year)
+            if api_year
+            else sanitize_filename(resolved_title)
         )
-        # NFC-compare: macOS stores filenames in NFD, Python strings are typically
-        # NFC; a naive string compare treats them as different and triggers a
-        # rename-into-self merge that empties the folder. See
+
+        # Rename the folder to its canonical name via the shared rename block
+        # (rename_service — NFC-aware, case-safe, merge-on-collision). NFC guard
+        # + case-only-rename trap live in that helper; see
         # ``verify_tvshow_scrape_drift`` for the matching normalization on the
         # read side.
-        if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
-            new_dir = show_dir.parent / canonical
-            if not self.dry_run:
-                try:
-                    if new_dir.exists():
-                        try:
-                            is_same_dir = show_dir.samefile(new_dir)
-                        except OSError:
-                            is_same_dir = False
-                        if is_same_dir:
-                            _rename_dir_case_safe(show_dir, new_dir)
-                            log.info("show_folder_renamed", title=title, dest=canonical)
-                        else:
-                            moved, merge_failed = _merge_dirs(show_dir, new_dir)
-                            log.info("show_folder_merged", title=title, dest=canonical, items=moved)
-                            if merge_failed:
-                                result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
-                    else:
-                        _rename_dir_case_safe(show_dir, new_dir)
-                        log.info("show_folder_renamed", title=title, dest=canonical)
-                    show_dir = new_dir
-                    result.media_path = new_dir
-                except OSError as exc:
-                    result.error = f"Rename/merge failed: {exc}"
-                    log.error("show_folder_rename_failed", title=title, dest=canonical, error=str(exc))
-                    return result
-                # Non-critical: clean stale files from before rename.
-                # TV show artwork uses fixed names (poster.jpg, tvshow.nfo),
-                # so this is a no-op for standard shows. Kept as safety net.
-                try:
-                    _cleanup_stale_files(show_dir, old_dir_name, canonical)
-                except OSError as exc:
-                    log.warning("stale_cleanup_failed", directory=show_dir.name, error=str(exc))
-            else:
-                action = "merge into" if new_dir.exists() else "rename"
-                log.info("show_folder_would_rename", action=action, title=title, dest=canonical)
+        renamed = apply_canonical_dir_rename(show_dir, canonical, dry_run=self.dry_run, result=result)
+        if result.error is not None:
+            return result
+        if renamed != show_dir:
+            show_dir = renamed
+            # Non-critical: clean stale files from before the rename. TV show
+            # artwork uses fixed names (poster.jpg, tvshow.nfo), so this is a
+            # no-op for standard shows — kept as a safety net.
+            try:
+                _cleanup_stale_files(show_dir, old_dir_name, canonical)
+            except OSError as exc:
+                log.warning("stale_cleanup_failed", directory=show_dir.name, error=str(exc))
 
         # Classify item — must run before NFO write so the
         # category_id can be embedded in the NFO by nfo_generator.
