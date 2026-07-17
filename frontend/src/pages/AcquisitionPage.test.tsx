@@ -17,7 +17,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
@@ -1271,5 +1271,77 @@ describe("AcquisitionPage — tablist scroll classes (3.3 E5)", () => {
     expect(tablist.className).toMatch(/\bflex-nowrap\b/);
     expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
     expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
+  });
+});
+
+describe("AcquisitionPage — back-navigation probe (mutation-proof 5.2)", () => {
+  /**
+   * Component that exposes the current location AND a navigate(-1) trigger
+   * so we can test what `replace: true` protects: after a redirect, Back
+   * must land on the first history entry, not the legacy URL.
+   */
+  function BackProbe(): ReactElement {
+    const navigate = useNavigate();
+    const location = useLocation();
+    return (
+      <>
+        <div data-testid="loc-pathname">{location.pathname}</div>
+        <div data-testid="loc-search">{location.search}</div>
+        <button
+          data-testid="go-back"
+          onClick={() => {
+            void navigate(-1);
+          }}
+        >
+          Back
+        </button>
+      </>
+    );
+  }
+
+  function renderPageWithProbe(initialEntry = "/acquisition"): void {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const tree: ReactElement = (
+      <MemoryRouter initialEntries={["/somewhere", initialEntry]}>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+          <BackProbe />
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    render(tree);
+  }
+
+  it("navigate(-1) after legacy redirect lands on first entry, not the legacy URL (kills replace:true→false)", async () => {
+    mockAllEmpty();
+    // Two-entry history: /somewhere (index 0), /acquisition?tab=wanted (index 1).
+    // The redirect useEffect replaces tab=wanted → tab=file (replace: true),
+    // so history becomes [/somewhere, /acquisition?tab=file].
+    // navigate(-1) must land on /somewhere, NOT /acquisition?tab=wanted.
+    renderPageWithProbe("/acquisition?tab=wanted");
+
+    // After the redirect useEffect fires, the URL is ?tab=file.
+    await waitFor(() => {
+      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    });
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
+
+    // Fire navigate(-1).
+    fireEvent.click(screen.getByTestId("go-back"));
+
+    // After Back, we should be on /somewhere (the first entry), NOT
+    // /acquisition?tab=wanted or /acquisition?tab=file.
+    await waitFor(() => {
+      expect(screen.getByTestId("loc-pathname")).toHaveTextContent(
+        "/somewhere",
+      );
+    });
+    // The tab param must be absent.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
 });

@@ -99,7 +99,11 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
     ]);
 
     // Compact row: completeness is "15/18" — no verbose "en médiathèque".
-    expect(screen.getByText("15/18")).toBeInTheDocument();
+    const completeSpan = screen.getByText("15/18");
+    expect(completeSpan).toBeInTheDocument();
+    // The completeness node must carry font-mono AND tabular-nums classes.
+    expect(completeSpan.className).toContain("font-mono");
+    expect(completeSpan.className).toContain("tabular-nums");
     expect(screen.queryByText(/en médiathèque/)).not.toBeInTheDocument();
   });
 
@@ -142,8 +146,10 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
     renderPanel([makeItem()]);
 
     // The DS MediaPoster is always rendered (with initials fallback when
-    // poster_url is null). Check that the row renders the item title, which
-    // confirms the row layout is present.
+    // poster_url is null). It renders a div[role="img"] with aria-label.
+    const poster = screen.getByRole("img", { name: "House of the Dragon" });
+    expect(poster).toBeInTheDocument();
+    // The item title is also rendered in the row.
     expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
   });
 

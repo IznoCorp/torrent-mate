@@ -40,6 +40,14 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useTrackedAcquisitionRun: () => undefined,
 }));
 
+const { toastError } = vi.hoisted(() => ({
+  toastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: toastError },
+}));
+
 import { ObligationsPanel } from "./ObligationsPanel";
 
 /** A single obligation item matching ObligationItem shape. */
@@ -180,6 +188,32 @@ describe("ObligationsPanel — hash copy button", () => {
     fireEvent.click(btn);
 
     expect(writeText).toHaveBeenCalledWith(fullHash);
+  });
+
+  it("toasts error on clipboard rejection, no check icon (mutation-proof 5.2)", async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException("Blocked"));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    });
+
+    const fullHash = "aaaa1111222233334444aaaa1111222233334444";
+    renderPanel({
+      items: [makeObligation({ info_hash: fullHash })],
+    });
+
+    const btn = screen.getByRole("button", { name: /copier le hash/i });
+    fireEvent.click(btn);
+
+    // The rejection path calls toast.error — wait for the microtask.
+    await vi.waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Copie du hash impossible");
+    });
+
+    // No check icon (text-green-600) must appear — the hash was NOT copied.
+    const checkIcons = document.querySelectorAll(".text-green-600");
+    expect(checkIcons.length).toBe(0);
   });
 });
 

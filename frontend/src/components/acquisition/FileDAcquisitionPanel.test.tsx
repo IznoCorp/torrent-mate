@@ -578,4 +578,137 @@ describe("FileDAcquisitionPanel", () => {
     const nextButton = screen.getByRole("button", { name: /Suivant/ });
     expect(nextButton).not.toBeDisabled();
   });
+
+  // ── Mutation-proof invariants (sub-phase 5.2) ─────────────────────────────
+
+  it("shows error message for downloads when useDownloads isError, hides calm empty state", () => {
+    useWantedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [], total: 0, page: 1, page_size: 50 },
+      error: null,
+    });
+    useDownloadsMock.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: undefined,
+      error: new Error("Connexion refusée"),
+    });
+    renderPanel();
+
+    // FR error message is present.
+    expect(screen.getByText(/Erreur de chargement/)).toBeInTheDocument();
+    expect(screen.getByText(/Connexion refusée/)).toBeInTheDocument();
+    // Calm empty state « Aucun téléchargement en cours » must NOT appear.
+    expect(
+      screen.queryByText(/Aucun téléchargement en cours/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows « client torrent injoignable » notice when downloads empty and client is down (post-hoist)", () => {
+    useWantedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [], total: 0, page: 1, page_size: 50 },
+      error: null,
+    });
+    // downloads=[], client_available=false — notice must still render because
+    // it was hoisted above the length>0 guard (F3).
+    useDownloadsMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { downloads: [], client_available: false },
+      error: null,
+    });
+    renderPanel();
+
+    // The fail-soft notice is visible even with zero downloads.
+    expect(screen.getByText(/Client torrent injoignable/)).toBeInTheDocument();
+    // The empty state is also shown (downloads.length === 0).
+    expect(
+      screen.getByText(/Aucun téléchargement en cours/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders an abandoned badge with danger tone (not just the FR label)", () => {
+    useWantedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [
+          makeWanted({
+            id: 99,
+            title: "Top Chef",
+            season: 16,
+            episode: 5,
+            status: "abandoned",
+            attempts: 0,
+          }),
+        ],
+        total: 1,
+        page: 1,
+        page_size: 50,
+      },
+      error: null,
+    });
+    useDownloadsMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { downloads: [], client_available: true },
+      error: null,
+    });
+    renderPanel();
+
+    // Expand the accordion.
+    fireEvent.click(screen.getByRole("button", { name: /Top Chef/ }));
+
+    const badgeEl = screen.getByText("Abandonné");
+    expect(badgeEl).toBeInTheDocument();
+    // The badge element carries the data-slot and the danger tone class.
+    const badgeWrapper = badgeEl.closest('[data-slot="badge"]');
+    expect(badgeWrapper).not.toBeNull();
+    expect(badgeWrapper?.className).toContain("var(--danger)");
+  });
+
+  it("renders « Film » label for kind:movie wanted rows, no « Saison ?? »", () => {
+    useWantedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        items: [
+          makeWanted({
+            id: 50,
+            title: "Le Robot sauvage",
+            kind: "movie",
+            season: null,
+            episode: null,
+            status: "pending",
+          }),
+        ],
+        total: 1,
+        page: 1,
+        page_size: 50,
+      },
+      error: null,
+    });
+    useDownloadsMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { downloads: [], client_available: true },
+      error: null,
+    });
+    renderPanel();
+
+    // Expand the accordion.
+    fireEvent.click(screen.getByRole("button", { name: /Le Robot sauvage/ }));
+
+    // Group heading reads « Film (1) » (not « Saison ?? »).
+    expect(screen.getByText(/Film \(1\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/Saison \?/)).not.toBeInTheDocument();
+    // Row label uses FOLLOW_KIND_LABEL["movie"] → "Film", never raw "movie".
+    expect(screen.getByText("Film")).toBeInTheDocument();
+    // The raw enum value must not leak.
+    const rawMovie = screen.queryByText((content) => content === "movie");
+    expect(rawMovie).not.toBeInTheDocument();
+  });
 });
