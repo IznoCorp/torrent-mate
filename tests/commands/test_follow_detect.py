@@ -116,7 +116,7 @@ def _run_detect(
 
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.commands.follow.poll_aired", return_value=aired_eps),
+        patch("personalscraper.acquire.detect.poll_aired", return_value=aired_eps),
     ):
         ctx = MagicMock()
         ctx.obj.config = MagicMock()
@@ -394,7 +394,7 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         poll_spy = MagicMock(return_value=[aired])
         with (
             patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-            patch("personalscraper.commands.follow.poll_aired", poll_spy),
+            patch("personalscraper.acquire.detect.poll_aired", poll_spy),
         ):
             ctx = MagicMock()
             ctx.obj.config = MagicMock()
@@ -456,7 +456,7 @@ def test_detect_resurrects_wrongfully_abandoned_episode() -> None:
     ctx.obj.config.acquire.cadence = CadenceConfig()
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.commands.follow.poll_aired", return_value=[ep]),
+        patch("personalscraper.acquire.detect.poll_aired", return_value=[ep]),
     ):
         follow_detect(ctx, dry_run=False, series=None)
 
@@ -495,7 +495,7 @@ def test_detect_past_cutoff_abandoned_stays_abandoned() -> None:
     ctx.obj.config.acquire.cadence = CadenceConfig()
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.commands.follow.poll_aired", return_value=[ep]),
+        patch("personalscraper.acquire.detect.poll_aired", return_value=[ep]),
     ):
         follow_detect(ctx, dry_run=False, series=None)
 
