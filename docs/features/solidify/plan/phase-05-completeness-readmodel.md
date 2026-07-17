@@ -14,7 +14,11 @@ command python -m pytest tests -k "layering and artwork" -q --no-header | grep -
 python -c "import personalscraper" && echo IMPORT-OK
 
 # ACC hook (DESIGN §10 ACC-04 — one artwork-presence implementation, no local globbing outside core)
-test "$(rg -l 'poster\.(jpg|png)' -t py personalscraper/ -g '!core/*' | wc -l)" -le 2 && echo ACC-04-OK
+# P5.8 arbitration: the naive literal grep counts 10 files, but NONE is a presence
+# detector (docstrings, NamingPatterns templates, messages, dict keys). The ENFORCEABLE
+# form of ACC-04 is the P5.7 AST guard (exact 3-entry allowlist, bidirectional, trip-proven):
+command python -m pytest tests/architecture/test_artwork_glob_guard.py -q --no-header | grep -E "passed" && echo ACC-04-OK
+# P13 finalizes the DESIGN §10 ACC-04 wording accordingly.
 ```
 
 ## Objective
