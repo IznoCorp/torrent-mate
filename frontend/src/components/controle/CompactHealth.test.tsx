@@ -147,21 +147,26 @@ describe("CompactHealth", () => {
 
   it("affiche le statut des fournisseurs", async () => {
     renderCompactHealth();
-    expect(
-      await screen.findByText("1/1 fournisseurs OK"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("1/1 fournisseurs OK")).toBeInTheDocument();
   });
 
-  it("affiche des liens vers Maintenance et Registre", async () => {
+  it("affiche des liens vers /systeme (systeme-hub)", async () => {
     renderCompactHealth();
 
-    const maintLinks = await screen.findAllByRole("link", {
-      name: /Maintenance →/,
-    });
-    expect(maintLinks.length).toBeGreaterThanOrEqual(1);
-
+    // Disks row → "Détails →" links to /systeme.
     expect(
-      screen.getByRole("link", { name: "Registre →" }),
-    ).toHaveAttribute("href", "/registry");
+      await screen.findByRole("link", { name: "Détails →" }),
+    ).toHaveAttribute("href", "/systeme");
+
+    // Index row → "Maintenance →" links to /systeme.
+    expect(screen.getByRole("link", { name: "Maintenance →" })).toHaveAttribute(
+      "href",
+      "/systeme",
+    );
+
+    // Providers row → "Fournisseurs →" (was "Registre →") links to /systeme.
+    expect(
+      screen.getByRole("link", { name: "Fournisseurs →" }),
+    ).toHaveAttribute("href", "/systeme");
   });
 });

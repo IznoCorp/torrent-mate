@@ -145,8 +145,8 @@ describe("RunHistoryTable", () => {
     renderTable();
 
     await screen.findByText("Succès");
-    expect(screen.getByText("Erreur")).toBeInTheDocument();
-    expect(screen.getByText("Arrêté")).toBeInTheDocument();
+    expect(screen.getByText("Échec")).toBeInTheDocument();
+    expect(screen.getByText("Interrompu")).toBeInTheDocument();
     // "running" → "En cours", "paused" → "En pause" (distinct labels).
     expect(screen.getByText("En cours")).toBeInTheDocument();
     expect(screen.getByText("En pause")).toBeInTheDocument();

@@ -9,11 +9,13 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { ScrollText } from "lucide-react";
 import { type ReactElement } from "react";
 
 import { getDestructiveLog } from "@/api/client";
 import type { components } from "@/api/schema";
 import { formatDatetime } from "@/components/acquisition/meta";
+import { EmptyState } from "@/components/ds/EmptyState";
 import {
   Card,
   CardContent,
@@ -65,7 +67,7 @@ function LogRow({ op }: { op: DestructiveOp }): ReactElement {
  *
  * Returns:
  *   The panel element (skeleton while loading, empty-state when the trail is
- *   empty, error-soft note on failure).
+ *   empty, loud error alert on failure).
  */
 export function DestructiveLogPanel(): ReactElement {
   const query = useQuery({
@@ -91,17 +93,23 @@ export function DestructiveLogPanel(): ReactElement {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : query.isError ? (
-          <p className="text-xs text-muted-foreground">
-            Journal momentanément indisponible.
+          <p className="text-sm text-danger" role="alert">
+            Impossible de lire le journal des suppressions.
+            {query.error instanceof Error ? ` (${query.error.message})` : ""}
           </p>
         ) : entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Aucune suppression enregistrée.
-          </p>
+          <EmptyState
+            icon={ScrollText}
+            title="Aucune opération destructive"
+            description="Le journal des suppressions et remplacements apparaîtra ici."
+          />
         ) : (
           <ul className="flex flex-col">
             {entries.map((op, i) => (
-              <LogRow key={`${String(op.ts)}-${op.path}-${String(i)}`} op={op} />
+              <LogRow
+                key={`${String(op.ts)}-${op.path}-${String(i)}`}
+                op={op}
+              />
             ))}
           </ul>
         )}

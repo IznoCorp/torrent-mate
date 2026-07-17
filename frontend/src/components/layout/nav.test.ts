@@ -30,17 +30,17 @@ describe("nav model", () => {
       "/medias",
       "/acquisition",
     ]);
-    expect(byTitle["Système"]).toEqual(["/maintenance"]);
-    expect(byTitle.Configuration).toEqual(["/registry", "/config"]);
+    expect(byTitle["Système"]).toEqual(["/systeme"]);
+    expect(byTitle.Configuration).toEqual(["/config"]);
   });
 
-  it("Registre (S6) est désormais actif — plus aucun item désactivé", () => {
+  it("Système (S3+) est désormais actif — plus aucun item désactivé", () => {
     const disabled = NAV_ITEMS.filter((item) => item.disabled);
     expect(disabled).toEqual([]);
-    // Tous les items sont interactifs, y compris Registre.
+    // Tous les items sont interactifs — Maintenance et Registre fusionnés dans /systeme.
     expect(
       NAV_ITEMS.map((item) => item.to),
-    ).toEqual(["/", "/pipeline", "/medias", "/acquisition", "/maintenance", "/registry", "/config"]);
+    ).toEqual(["/", "/pipeline", "/medias", "/acquisition", "/systeme", "/config"]);
   });
 
   it("dérive NAV_ITEMS de la projection à plat des sections", () => {
@@ -49,8 +49,7 @@ describe("nav model", () => {
       "/pipeline",
       "/medias",
       "/acquisition",
-      "/maintenance",
-      "/registry",
+      "/systeme",
       "/config",
     ]);
   });
@@ -68,9 +67,9 @@ describe("nav model", () => {
       "Médias",
       "Acquisition",
     ]);
-    // Maintenance and the disabled stubs are excluded from the bottom bar;
-    // the dashboard (control station, A3) leads it.
-    expect(BOTTOM_TAB_ITEMS.some((item) => item.to === "/maintenance")).toBe(false);
+    // Systeme (replacing Maintenance) and the disabled stubs are excluded from
+    // the bottom bar; the dashboard (control station, A3) leads it.
+    expect(BOTTOM_TAB_ITEMS.some((item) => item.to === "/systeme")).toBe(false);
     expect(BOTTOM_TAB_ITEMS.some((item) => item.disabled)).toBe(false);
   });
 });

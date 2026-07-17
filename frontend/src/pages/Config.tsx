@@ -1,9 +1,10 @@
 /**
  * Config page — visual configuration editor (TorrentMateUI S4 — config-editor).
  *
- * Renders a two-panel layout: {@link FileList} sidebar on the left and a
- * {@link SchemaForm} editor on the right, with restart / staging banners and
- * a {@link SecretsTab} section below the editor.
+ * Renders a Fichiers / Secrets tab bar. The Fichiers tab shows a two-panel
+ * layout ({@link FileList} sidebar + {@link SchemaForm} editor) with restart /
+ * staging banners; the Secrets tab renders {@link SecretsTab} as a sibling
+ * panel (no more scroll-to-find, G2/E3).
  *
  * Save flow:
  * - 200 → success toast + dirty cleared for that file.
@@ -30,6 +31,7 @@ import {
 import { FileList } from "@/components/config/FileList";
 import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
 import { SecretsTab } from "@/components/config/SecretsTab";
+import { EmptyState } from "@/components/ds/EmptyState";
 import { StagingBanner } from "@/components/StagingBanner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -59,6 +61,7 @@ import {
 } from "@/hooks/useConfig";
 import { useQueryClient } from "@tanstack/react-query";
 import { configKeys } from "@/hooks/useConfigKeys";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -195,6 +198,8 @@ export default function Config(): ReactElement {
   const [showConflict, setShowConflict] = useState(false);
   // Restart confirmation dialog visibility.
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  // Active panel — Fichiers or Secrets (local UI state, not URL-driven).
+  const [leftTab, setLeftTab] = useState<"files" | "secrets">("files");
 
   const queryClient = useQueryClient();
 
@@ -230,6 +235,33 @@ export default function Config(): ReactElement {
     },
     [setSearchParams],
   );
+
+  // ---- Auto-select first file on initial load (G2) --------------------------
+  // When no file is addressed in the URL, select the first available file so
+  // the user never sees the empty "Sélectionnez un fichier" dead start.  Deep-
+  // links (?file=...) are NOT overridden — the guard `leftTab === "files" &&
+  // selectedFile === null` preserves the URL-addressable file selection from
+  // D3/DOIT-10.  If the user clears the param (Back), auto-select fires again.
+  useEffect(() => {
+    if (
+      leftTab === "files" &&
+      selectedFile === null &&
+      filesQ.data &&
+      filesQ.data.files.length > 0
+    ) {
+      const first = filesQ.data.files[0];
+      if (first) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("file", first.name);
+            return next;
+          },
+          { replace: true },
+        );
+      }
+    }
+  }, [leftTab, selectedFile, filesQ.data, setSearchParams]);
 
   // ---- Get current values for the selected file ----------------------------
   const currentValues = useMemo<Record<string, unknown>>(
@@ -531,16 +563,42 @@ export default function Config(): ReactElement {
         </div>
       )}
 
-      {/* Mobile-only file selector — the 240px sidebar is hidden < md, so a
-          top dropdown keeps the editor usable at 375px. */}
+      {/* Mobile-only file / Secrets selector — the 240px sidebar is hidden
+          < md, so a top dropdown keeps both surfaces usable at 375px. */}
       <div className="flex flex-col gap-1.5 md:hidden">
-        <Label htmlFor="config-file-mobile-select">Fichier</Label>
+        <Label htmlFor="config-file-mobile-select">
+          {leftTab === "secrets" ? "Secrets" : "Fichier"}
+        </Label>
         <Select
-          {...(selectedFile !== null ? { value: selectedFile } : {})}
-          onValueChange={handleSelectFile}
+          {...(selectedFile !== null && leftTab === "files"
+            ? { value: selectedFile }
+            : {})}
+          onValueChange={(value: string) => {
+            if (value === "__secrets__") {
+              // Switch to Secrets tab and clear the file param. The clear is
+              // durable: auto-select is gated on leftTab === "files", so the
+              // param stays gone while viewing Secrets.
+              setSearchParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete("file");
+                  return next;
+                },
+                { replace: true },
+              );
+              setLeftTab("secrets");
+            } else {
+              setLeftTab("files");
+              handleSelectFile(value);
+            }
+          }}
         >
-          <SelectTrigger id="config-file-mobile-select" aria-label="Fichier">
-            <SelectValue placeholder="Sélectionner un fichier…" />
+          <SelectTrigger id="config-file-mobile-select" aria-label="Section">
+            <SelectValue
+              placeholder={
+                leftTab === "secrets" ? "Secrets" : "Sélectionner un fichier…"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {(filesQ.data?.files ?? []).map((f) => (
@@ -549,91 +607,142 @@ export default function Config(): ReactElement {
                 {dirtyFileNames.has(f.name) ? " •" : ""}
               </SelectItem>
             ))}
+            <SelectItem
+              value="__secrets__"
+              className="border-t border-border mt-1 pt-1"
+            >
+              Secrets
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Two-panel layout: FileList (sidebar) + SchemaForm editor */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-        {/* Left panel: file list (hidden < md — replaced by the mobile Select) */}
-        <div className="hidden rounded-md border border-border p-2 md:block">
-          <FileList
-            dirtyFiles={dirtyFileNames}
-            selected={selectedFile}
-            onSelect={handleSelectFile}
-          />
-        </div>
-
-        {/* Right panel: form or placeholder */}
-        <div className="rounded-md border border-border p-4">
-          {selectedFile === null ? (
-            <p className="text-sm text-muted-foreground">
-              Sélectionnez un fichier dans la liste pour l&apos;éditer.
-            </p>
-          ) : fileQ.isLoading ? (
-            <p className="text-sm text-muted-foreground">
-              Chargement du fichier…
-            </p>
-          ) : fileQ.isError ? (
-            <p className="text-sm text-danger" role="alert">
-              Erreur lors du chargement de &quot;{selectedFile}&quot;.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold">{selectedFile}</h2>
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={readOnly || validate.isPending}
-                    onClick={() => {
-                      void handleValidate();
-                    }}
-                  >
-                    Valider
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={readOnly || !isDirty || putFile.isPending}
-                    onClick={() => {
-                      void handleSave();
-                    }}
-                  >
-                    {putFile.isPending ? "Enregistrement…" : "Enregistrer"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* SchemaForm */}
-              <SchemaForm
-                schema={fileSchema}
-                rootSchema={rootSchema ?? fileSchema}
-                values={currentValues}
-                onChange={(newValues) => {
-                  setDirtyValues((prev) => {
-                    const next = new Map(prev);
-                    next.set(selectedFile, newValues);
-                    return next;
-                  });
-                }}
-                errors={formErrors}
-                readOnly={readOnly}
-                shadowedKeys={fileQ.data?.shadowed_keys ?? []}
-              />
-            </div>
+      {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above. */}
+      <div
+        className="hidden md:flex gap-0.5 rounded-lg bg-muted p-1 w-fit"
+        role="tablist"
+        aria-label="Section"
+      >
+        <button
+          role="tab"
+          aria-selected={leftTab === "files"}
+          type="button"
+          onClick={() => {
+            setLeftTab("files");
+          }}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            leftTab === "files"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
           )}
-        </div>
+        >
+          Fichiers
+        </button>
+        <button
+          role="tab"
+          aria-selected={leftTab === "secrets"}
+          type="button"
+          onClick={() => {
+            setLeftTab("secrets");
+          }}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            leftTab === "secrets"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Secrets
+        </button>
       </div>
 
-      {/* Secrets section */}
-      <div className="rounded-md border border-border p-4">
-        <SecretsTab readOnly={readOnly} />
-      </div>
+      {/* Files tab: two-panel layout (FileList sidebar + SchemaForm editor). */}
+      {leftTab === "files" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+          {/* Left panel: file list (hidden < md — replaced by the mobile Select). */}
+          <div className="hidden rounded-md border border-border p-2 md:block">
+            <FileList
+              dirtyFiles={dirtyFileNames}
+              selected={selectedFile}
+              onSelect={handleSelectFile}
+            />
+          </div>
+
+          {/* Right panel: form or placeholder */}
+          <div className="rounded-md border border-border p-4">
+            {selectedFile === null ? (
+              <EmptyState
+                title="Aucun fichier disponible"
+                description="La configuration ne contient aucun fichier éditable."
+              />
+            ) : fileQ.isLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Chargement du fichier…
+              </p>
+            ) : fileQ.isError ? (
+              <p className="text-sm text-danger" role="alert">
+                Erreur lors du chargement de &quot;{selectedFile}&quot;.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold">{selectedFile}</h2>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={readOnly || validate.isPending}
+                      onClick={() => {
+                        void handleValidate();
+                      }}
+                    >
+                      Valider
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={readOnly || !isDirty || putFile.isPending}
+                      onClick={() => {
+                        void handleSave();
+                      }}
+                    >
+                      {putFile.isPending ? "Enregistrement…" : "Enregistrer"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* SchemaForm */}
+                <SchemaForm
+                  schema={fileSchema}
+                  rootSchema={rootSchema ?? fileSchema}
+                  values={currentValues}
+                  onChange={(newValues) => {
+                    setDirtyValues((prev) => {
+                      const next = new Map(prev);
+                      next.set(selectedFile, newValues);
+                      return next;
+                    });
+                  }}
+                  errors={formErrors}
+                  readOnly={readOnly}
+                  shadowedKeys={fileQ.data?.shadowed_keys ?? []}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Secrets tab (sibling of the file list — no more scroll-to-find, G2/E3) */}
+      {leftTab === "secrets" && (
+        <div className="rounded-md border border-border p-4">
+          <SecretsTab readOnly={readOnly} />
+        </div>
+      )}
 
       {/* Conflict dialog */}
       <Dialog

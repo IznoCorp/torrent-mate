@@ -1,67 +1,49 @@
-# Implementation Progress — acquisition-queue
+# Implementation Progress — systeme-hub
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Design overhaul V4 — Acquisition : rangées compactes, File d'acquisition, obligations titrées
+**Feature**: Design overhaul V5 — Système + Config + passe visuelle transversale
 **Type**: feat
-**Branch**: feat/acquisition-queue (off main @ 3a7200e9 — bug wave 0.52.1)
-**Ticket**: #308 (epic #304) — claimed; board moves broken (kanban-mate#187), card stays put
-**PR**: https://github.com/IznoCorp/torrent-mate/pull/315
+**Branch**: feat/systeme-hub (off main @ 33472fc7 — V4 0.53.0)
+**Ticket**: #309 (epic #304, dernière vague) — claimed; board moves broken (kanban-mate#187)
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/317
 **Merge**: squash (**auto** — operator directive 2026-07-17)
-**Design**: `docs/features/acquisition-queue/DESIGN.md` ← shared spec §3.1 + §5.1 + §7.2
-**Version bump**: 0.52.1 → 0.53.0 (minor)
+**Design**: `docs/features/systeme-hub/DESIGN.md` ← shared spec §3.2 + §3.3 + §4 + §1.1
+**Version bump**: 0.53.0 → 0.54.0 (minor)
 
 ## Status: ALL PHASES DONE — feature-pr (push + PR + CI + review + AUTO merge)
 
-**Master plan**: `docs/features/acquisition-queue/plan/INDEX.md`
+**Master plan**: `docs/features/systeme-hub/plan/INDEX.md`
 
 ## Phases
 
-| #   | Phase                             | File                                                                         | Status |
-| --- | --------------------------------- | ---------------------------------------------------------------------------- | ------ |
-| 1   | Backend: ObligationItem.title     | [phase-01-backend-obligation-title.md](phase-01-backend-obligation-title.md) | [x]    |
-| 2   | Suivis compact + Obligations rows | [phase-02-compact-rows.md](phase-02-compact-rows.md)                         | [x]    |
-| 3   | File d'acquisition (merge + tabs) | [phase-03-file-dacquisition.md](phase-03-file-dacquisition.md)               | [x]    |
-| 4   | Final gate                        | [phase-04-final-gate.md](phase-04-final-gate.md)                             | [x]    |
-| 5   | PR fixes cycle 1                  | [phase-05-pr-fixes-cycle-1.md](phase-05-pr-fixes-cycle-1.md)                 | [x]    |
+| #   | Phase                                    | File                                                                                    | Status |
+| --- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------ |
+| 1   | Outcome-labels foundation                | [phase-01-outcome-labels.md](docs/features/systeme-hub/plan/phase-01-outcome-labels.md) | [x]    |
+| 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [x]    |
+| 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [x]    |
+| 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [x]    |
+| 5   | PR fixes cycle 1                         | [phase-05-pr-fixes-cycle-1.md](docs/features/systeme-hub/plan/phase-05-pr-fixes-cycle-1.md) | [x]    |
 
 ## Review cycles
 
 ### Cycle 1
 
-- 4 agents on PR #315 @ 74a0e3ef. Code review: ZERO findings >=80. Silent-failures: F1 CRITICAL
-  (downloads network-error renders the calm « Aucun téléchargement » lie — NE-DOIT-PAS-1/5; the
-  wanted section has its error branch, downloads doesn't), F2 clipboard silent no-op, F3 latent
-  notice nesting, F5 resolver fail-soft accepted. Tests review: 2 critical mutation gaps
-  (case-insensitive join unpinned; per-row isolation unproven) + replace:true unpinned + 2 vacuous
-  FollowedPanel assertions. Comments: 4 stale AcquisitionPage docblocks + resolver docstring
-  overstates the per-row guarantee. Reviewer sub-threshold retained by orchestrator: movie rows
-  render « Saison ?? » + raw enum (DOIT-2 polish, real data since D2 film ownership).
-- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases). Open items recorded there: pagination
-  partial groups (needs arbitrage), badge-on-error, multi-row hash label non-determinism, crash vs
-  no-data indistinguishable in UI.
+- 4 agents on PR #317 @ 77003a6c. Code: 2 findings >=80 (button-in-button FileList; RunDetail
+  cross-link lands on État instead of ?tab=maintenance, test locks the stale target). Silent-failures:
+  F1 HIGH « Jamais exécuté » for an executed-but-unmapped outcome canonized in the shared module;
+  F2 « — » erases unknown tokens; F3 /registry LegacyRedirect builds a double-? URL and the test
+  certifies the broken param forwarding; F5 auto-select re-adds ?file= behind Secrets. Tests (live
+  mutation probes): redirects + deep-link guard proven RED; RunDetail divergent-label revert is a
+  PROVEN SURVIVING MUTANT; circuit-badge labels lost in suite migration; restart hint + FR secrets
+  shipped with zero tests. Comments: Config/nav/RunDetail/CompactHealth stale docblocks + 6 active
+  claims in web-ui.md/maintenance.md now false. Backend extraction verified byte-identical, clean.
+- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases). Open items recorded there (F6/F7
+  pre-existing quiet-error styling, stale &run= sanctioned pattern).
 
-### Cycle 2
+## Scope guardrails (epic close-out)
 
-- Verification agent on fix range 74a0e3ef..4488a5e4. All six retained findings genuinely FIXED
-  (F1 error branch + hoisted notice; F2 clipboard catch+toast, no false icon; per-row guards both
-  loops + honest docstring; Film/« (série retirée) » rows; five hardening tests all real —
-  case-insensitive join seeds mixed case, isolation sibling asserted, back-nav exercises history;
-  docs sweep behavior-preserving). Orchestrator personally re-ran mutations A (lower() removal) and
-  B (replace:false) → both RED then reverted. Gates re-run: tsc 0, vitest 845, pytest routes 64.
-  ZERO new defects >=80. Verdict: ready to merge → AUTO squash per operator directive.
-- Note: composition-loop guard has no dedicated test (apply-pass guard is the tested one) —
-  accepted, guard code verified by reading.
-
-## Dispatch notes
-
-- Phase 3 notes: two max-turns salvages (3.1 committed by dispatch, 2.1/3.3-repairs committed by orchestrator after green gates); commit 96a1c8c9 label overstates (fixture repairs only — real redirect tests landed in 6077d914); 3 non-null lint errors from 3.2 fixed by orchestrator.
-- Phase 1 dispatch: report OK but MODEL_IDENTITY probe MISSING (protocol anomaly recorded); content independently verified by orchestrator (lint 0, 61 tests, scope audit, code read).
-
-## Scope guardrails (spec §6 sequencing invariant)
-
-- Only `/acquisition` (tabs, rows, merge, obligations title) + `ObligationItem.title` backend enrichment.
-- No Système/Config work (V5). Watcher tab untouched.
-- No regression: watcher numbered results, obligations release flow, per-episode badges + FR reasons,
-  downloads fail-soft notice, MediaSearchAdd flow.
-- Route change ⇒ `make openapi` + commit regenerated files.
+- /systeme (4 tabs) + /config (G2/Secrets/FR) + lib/outcome-labels.ts migration (5 maps) + redirects
+  /registry + /maintenance → /systeme?tab=etat (V3 ?run= teleport preserved).
+- ZERO backend change. Every V1–V4 acquis un-regressed.
+- Maintenance invariants intact (runner lock lifetime, staging guards, journal §7/§8).
