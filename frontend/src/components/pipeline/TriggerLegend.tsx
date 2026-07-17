@@ -1,38 +1,66 @@
 /**
- * TriggerLegend — a compact caption explaining the run-trigger labels.
+ * TriggerLegend — a tap-accessible popover explaining the run-trigger labels.
  *
- * Renders one chip per known trigger (label + tone) with its one-line French
- * meaning, so the human labels shown in the run tables / detail are decoded in
- * place (webui-ux Phase 2.1). Purely presentational — reads the static
- * {@link TRIGGER_INFO} map.
+ * Renders a ``?`` icon button that opens a popover (Radix DropdownMenu) listing
+ * every known trigger with its Badge + one-line French meaning, so the human
+ * labels shown in the run tables / detail are decoded in place. Opens on
+ * click/tap and closes on click outside — never hover-only (DOIT-9).
+ *
+ * pipeline-panel Phase 02: converted from an inline chip-paragraph to a
+ * popover anchored to the history table header.
  */
 
+import { HelpCircle } from "lucide-react";
 import { type ReactElement } from "react";
 
 import { TRIGGER_INFO } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /**
- * TriggerLegend — the trigger-label legend caption.
+ * TriggerLegend — the trigger-label legend popover.
  *
  * Returns:
- *   A caption listing every known trigger with its badge + meaning.
+ *   A ``?`` icon button that opens a popover listing every known trigger.
  */
 export function TriggerLegend(): ReactElement {
   return (
-    <div
-      className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
-      aria-label="Légende des déclencheurs"
-    >
-      <span className="font-medium">Déclencheurs :</span>
-      {Object.entries(TRIGGER_INFO).map(([key, info]) => (
-        <span key={key} className="inline-flex items-center gap-1.5">
-          <Badge tone={info.tone} dot>
-            {info.label}
-          </Badge>
-          <span>{info.meaning}</span>
-        </span>
-      ))}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex size-5 items-center justify-center rounded-full border border-border text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="Légende des déclencheurs"
+        >
+          <HelpCircle className="size-3.5" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={6}
+        className="w-72 p-3"
+      >
+        <p className="mb-2 text-xs font-semibold text-foreground">
+          Déclencheurs
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {Object.entries(TRIGGER_INFO).map(([key, info]) => (
+            <div
+              key={key}
+              className="flex items-start gap-2 text-xs"
+            >
+              <Badge tone={info.tone} dot className="mt-0.5 shrink-0">
+                {info.label}
+              </Badge>
+              <span className="text-muted-foreground">{info.meaning}</span>
+            </div>
+          ))}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

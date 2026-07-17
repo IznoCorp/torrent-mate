@@ -31,6 +31,7 @@ import { RecentResolutions } from "@/components/pipeline/RecentResolutions";
 import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
+import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import {
   Accordion,
   AccordionContent,
@@ -118,8 +119,13 @@ export default function Pipeline(): ReactElement {
       </Accordion>
 
       {/* Pipeline run-history — repatriated from Maintenance (pipeline-panel
-          Phase 02). Maintenance keeps its own kind="maintenance" table. */}
-      <RunHistoryTable kind="pipeline" onSelect={openRun} />
+          Phase 02). The trigger legend lives as a popover on the history
+          header (tap-accessible, never hover-only — DOIT-9). */}
+      <RunHistoryTable
+        kind="pipeline"
+        onSelect={openRun}
+        legend={<TriggerLegend />}
+      />
 
       {/* Inline detail view when a history row is selected (URL: ?run=<uid>).
           showMaintenanceLink adds a cross-link to /maintenance when the
