@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
-import { enqueueStagingDecision, type StagingMediaItem } from "@/api/client";
+import { enqueueStagingDecision, type StagingMediaItem } from "@/api/staging";
 import { decisionsKeys } from "@/api/decisions";
 import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";

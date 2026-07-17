@@ -19,8 +19,8 @@ import type { components } from "@/api/schema";
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/api/client")>();
+vi.mock("@/api/pipeline", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/pipeline")>();
   return {
     ...actual,
     runPipeline: vi.fn(),
@@ -142,7 +142,7 @@ describe("PipelineControls", () => {
   it("shows the backend error detail on a duplicate run (409)", async () => {
     // Arrange: stub runPipeline to reject with the French duplicate 409 (§6 —
     // the only refusal left is another PIPELINE run already in flight).
-    const mod = await import("@/api/client");
+    const mod = await import("@/api/pipeline");
     const mockedRun = mod.runPipeline as ReturnType<typeof vi.fn>;
     mockedRun.mockRejectedValueOnce(
       new ApiError(
@@ -177,7 +177,7 @@ describe("PipelineControls", () => {
   it("announces the visible queue when the launch is queued (§6)", async () => {
     // Arrange: the backend accepted (202) but a maintenance run holds the
     // lock — the launch waits in the visible pipeline-queue.
-    const mod = await import("@/api/client");
+    const mod = await import("@/api/pipeline");
     const mockedRun = mod.runPipeline as ReturnType<typeof vi.fn>;
     mockedRun.mockResolvedValueOnce({ run_uid: "queued123", queued: true });
 

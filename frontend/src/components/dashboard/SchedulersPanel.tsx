@@ -11,7 +11,7 @@
 
 import type { ReactElement } from "react";
 
-import type { SchedulerItem } from "@/api/client";
+import type { SchedulerItem } from "@/api/maintenance";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Card,

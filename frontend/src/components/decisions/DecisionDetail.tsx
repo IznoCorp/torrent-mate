@@ -14,7 +14,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
-import { ApiError, getPipelineRunDetail } from "@/api/client";
+import { ApiError } from "@/api/client";
+import { getPipelineRunDetail } from "@/api/pipeline";
 import type {
   DecisionCandidate,
   DecisionDetail as DecisionDetailType,

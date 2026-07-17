@@ -13,7 +13,8 @@ import { ActionForm } from "@/components/maintenance/ActionForm";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 import { ApiError } from "@/api/client";
-import type { MaintenanceAction, RunDetail } from "@/api/client";
+import type { MaintenanceAction } from "@/api/maintenance";
+import type { RunDetail } from "@/api/pipeline";
 import type { EventMessage } from "@/api/events";
 import type { EventStreamState } from "@/hooks/useEventStream";
 import { EventStreamContext } from "@/hooks/useEventStreamContext";
@@ -96,23 +97,33 @@ function makeStreamState(events: EventMessage[]): EventStreamState {
 // Mock the client module (runMaintenanceAction + getPipelineRunDetail)
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     runMaintenanceAction: vi.fn(),
+  };
+});
+
+vi.mock("@/api/pipeline", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/api/pipeline")>("@/api/pipeline");
+  return {
+    ...actual,
     getPipelineRunDetail: vi.fn(),
   };
 });
 
 async function mockRun() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.runMaintenanceAction as ReturnType<typeof vi.fn>;
 }
 
 async function mockDetail() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/pipeline");
   return mod.getPipelineRunDetail as ReturnType<typeof vi.fn>;
 }
 

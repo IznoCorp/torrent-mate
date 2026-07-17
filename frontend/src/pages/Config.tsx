@@ -21,12 +21,12 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import {
-  ApiError,
   getConfigStatus,
   type ConfigStatusResponse,
   type PutFileRequest,
-} from "@/api/client";
+} from "@/api/config";
 import { FileList } from "@/components/config/FileList";
 import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
 import { SecretsTab } from "@/components/config/SecretsTab";

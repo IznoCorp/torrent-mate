@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
 
-import type { LocksResponse } from "@/api/client";
+import type { LocksResponse } from "@/api/maintenance";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -66,9 +66,9 @@ function makeLocksResponse(
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
   return {
     ...actual,
     getLocks: vi.fn(),
@@ -76,7 +76,7 @@ vi.mock("@/api/client", async () => {
 });
 
 async function mockGetLocks() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.getLocks as ReturnType<typeof vi.fn>;
 }
 

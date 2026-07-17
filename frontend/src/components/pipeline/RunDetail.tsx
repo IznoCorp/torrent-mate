@@ -18,7 +18,7 @@ import { Fragment, type ReactElement } from "react";
 import {
   getPipelineRunDetail,
   type RunDetail as RunDetailData,
-} from "@/api/client";
+} from "@/api/pipeline";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { STEP_LABEL } from "@/components/pipeline/summariseSteps";
 import { triggerLabel } from "@/components/pipeline/triggers";

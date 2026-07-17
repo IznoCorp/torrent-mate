@@ -15,7 +15,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getPipelineHistory, getPipelineRunDetail } from "@/api/client";
+import { getPipelineHistory, getPipelineRunDetail } from "@/api/pipeline";
 import type { InterpretedLine } from "@/components/pipeline/interpretRun";
 import { summariseSteps } from "@/components/pipeline/summariseSteps";
 

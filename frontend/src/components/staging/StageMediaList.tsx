@@ -11,7 +11,7 @@
 
 import { useState, type ReactElement } from "react";
 
-import type { StagingMediaParams } from "@/api/client";
+import type { StagingMediaParams } from "@/api/staging";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { StatusBadge } from "@/components/ds/StatusBadge";

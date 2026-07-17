@@ -16,7 +16,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 
-import { getPipelineStatus } from "@/api/client";
+import { getPipelineStatus } from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 

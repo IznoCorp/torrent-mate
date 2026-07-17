@@ -23,7 +23,7 @@ import {
   getStagingMedia,
   type StagingMediaParams,
   type StagingMediaResponse,
-} from "@/api/client";
+} from "@/api/staging";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /** Staging read-model poll interval, in ms. */

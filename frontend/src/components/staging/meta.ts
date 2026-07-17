@@ -5,7 +5,7 @@
  * so the match verdict, media kind, and dispatch mode read consistently.
  */
 
-import type { StagingMediaItem } from "@/api/client";
+import type { StagingMediaItem } from "@/api/staging";
 import type { StatusTone } from "@/components/ds/StatusBadge";
 
 /** Matching verdict → status chip tone + French label. */

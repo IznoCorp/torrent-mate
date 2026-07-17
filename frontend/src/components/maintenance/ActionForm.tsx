@@ -23,12 +23,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactElement } from "react";
 
+import { ApiError } from "@/api/client";
+import { getPipelineRunDetail } from "@/api/pipeline";
 import {
-  ApiError,
-  getPipelineRunDetail,
   runMaintenanceAction,
   type MaintenanceAction,
-} from "@/api/client";
+} from "@/api/maintenance";
 import { LogLine } from "@/components/ds/LogLine";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";

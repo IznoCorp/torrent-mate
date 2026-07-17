@@ -14,14 +14,14 @@ import type { ReactElement } from "react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import {
-  ApiError,
   killPipeline,
   pausePipeline,
   resumePipeline,
   runPipeline,
   setWatcher,
-} from "@/api/client";
+} from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { Button } from "@/components/ui/button";
 import {

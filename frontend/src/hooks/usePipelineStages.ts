@@ -17,7 +17,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 
-import { getPipelineStages, type StagesResponse } from "@/api/client";
+import { getPipelineStages, type StagesResponse } from "@/api/pipeline";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /** Flow Board query poll interval, in ms. */

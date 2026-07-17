@@ -137,10 +137,10 @@ vi.mock("@/hooks/useConfig", () => ({
   useValidateConfig: () => mocks.useValidateConfig(),
 }));
 
-// Partial mock: keep ApiError (a real class used with `instanceof`) but stub the
-// restart-outcome poll's status fetch.
-vi.mock("@/api/client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/api/client")>()),
+// Stub the restart-outcome poll's status fetch (getConfigStatus). ApiError stays
+// the real class from @/api/client (unmocked), so `instanceof` checks still hold.
+vi.mock("@/api/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/config")>()),
   getConfigStatus: () => mocks.getConfigStatus(),
 }));
 

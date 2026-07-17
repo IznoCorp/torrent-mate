@@ -26,7 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 
-import { getPipelineHistory, type HistoryParams } from "@/api/client";
+import { getPipelineHistory, type HistoryParams } from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
