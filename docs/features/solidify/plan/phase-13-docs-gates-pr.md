@@ -22,7 +22,8 @@ make check && echo ACC-01-OK
 python3 scripts/check-module-size.py && echo ACC-02-OK
 test "$(rg -c 'def _?resolve_external_ids' -t py personalscraper/ | wc -l)" = "1" \
  && test "$(rg -c 'def _?family_to_client' -t py personalscraper/ | wc -l)" = "1" && echo ACC-03-OK
-test "$(rg -l 'poster\.(jpg|png)' -t py personalscraper/ -g '!core/*' | wc -l)" -le 2 && echo ACC-04-OK
+# ACC-04 arbitrated at P5.8: the ENFORCEABLE form is the AST guard (exact allowlist, trip-proven)
+command python -m pytest tests/architecture/test_artwork_glob_guard.py -q --no-header | grep -E "passed" && echo ACC-04-OK
 command python3 - <<'EOF' && echo ACC-05-OK
 import subprocess
 out = subprocess.run(["rg", r"Details\(", "-t", "py", "personalscraper/",
@@ -32,7 +33,9 @@ EOF
 command python -m pytest tests -k "journal and (merge or tv)" -q --no-header | grep -E "passed" && echo ACC-06-OK
 command python -m pytest tests -k "dry_run and rank" -q --no-header | grep -E "passed" && echo ACC-07-OK
 test "$(rg -l 'scandir' -t py personalscraper/indexer/scanner/ | wc -l)" = "1" && echo ACC-08-OK
-test "$(rg -l 'os\.replace' -t py personalscraper/ -g '!io_utils.py' -g '!core/**' | wc -l)" = "0" && echo ACC-09-OK
+# ACC-09 corrected forms (P13.6): CALL sites only (not docstrings); '!**/core/**' (the original
+# '!core/**' glob never matched prefixed paths); _omdb_quota.py allowlisted (quarantine RENAME, P3.8)
+test "$(rg -l 'os\.replace\(' -t py personalscraper/ -g '!io_utils.py' -g '!**/core/**' -g '!**/_omdb_quota.py' | wc -l)" = "0" && echo ACC-09-OK
 test "$(rg -c 'function relativeTime|const relativeTime' -g '*.ts*' frontend/src/ | wc -l)" = "1" \
  && test "$(rg -l 'useRunToCompletion' -g '*.ts*' frontend/src/hooks/ | wc -l)" -ge 1 && echo ACC-10-OK
 cd frontend && npm run lint && npm run typecheck && npx vitest run --reporter=dot && cd .. && echo ACC-11-OK
