@@ -1,48 +1,68 @@
-# Implementation Progress — webui-overhaul
+# Implementation Progress — overhaul-shell
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: TorrentMate Web UI — UX/UI Overhaul (3 objectives)
+**Feature**: Design overhaul V1 — shell : sidebar sticky, badges d'attention, largeur
 **Type**: feat
-**Branch**: feat/webui-overhaul (off the merged post-S7 polish; #249 in main)
-**PR**: #251 → main (https://github.com/IznoCorp/torrent-mate/pull/251) — **OPEN, awaiting review + squash merge**
-**Merge**: squash (operator merges)
-**Design**: `DESIGN_VISION.md` (brief) + `DESIGN_REPORT.md` (closing report) — both at repo root
-**Deploy**: pushed to the `staging` branch on every commit (autodeploy → tm-staging.iznogoudatall.xyz), live-verified
+**Branch**: feat/overhaul-shell (off main @ 5a62a4ba)
+**Ticket**: #305 (epic #304) — claimed via /kanban-work, card in Brainstorming
+**PR**: #310 → main (https://github.com/IznoCorp/torrent-mate/pull/310) — OPEN, CI en cours
+**Merge**: squash (manual — operator merges)
+**Design**: `docs/features/overhaul-shell/DESIGN.md` (wave design) ← binding shared spec
+`docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
+**Version bump**: 0.49.16 → 0.50.0 (minor) — ⚠ solidify (worktree) also targets 0.50.0; whichever PR merges
+second re-bumps at merge-conformance time (flagged to operator)
 
-## Status: FUNCTIONALLY COMPLETE — all 3 objectives + L9 + L10 shipped
+## Status: PLAN READY — next action `/implement:phase`
 
-| #   | Objective / block                                                                                          | Status |
-| --- | ---------------------------------------------------------------------------------------------------------- | ------ |
-| 0   | Immersion + DESIGN_VISION.md                                                                               | [x]    |
-| L0  | Design-system foundation (shared components)                                                               | [x]    |
-| 1   | OBJ1 — living pipeline (Flow Board + per-media timeline)                                                   | [x]    |
-| 2   | OBJ2 — scraping/matching (Resolution Deck + staging library)                                               | [x]    |
-| 3   | OBJ3 — acquisitions (per-series trigger + card redesign)                                                   | [x]    |
-| B   | Operator bug batch (#1 mobile board, #2 resolved read-only, #3 scrape drift-unlink root cause, #4 summary) | [x]    |
-| L9  | Transverse — vendor chunk split + /locks 60s cache + states                                                | [x]    |
-| L10 | Final audit + DESIGN_REPORT.md                                                                             | [x]    |
+**Master plan**: `docs/features/overhaul-shell/plan/INDEX.md` (5 phases; guarantor-realigned:
+badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot real props)
 
-## Key artefacts (for resume)
+## Phases
 
-- Backend: `web/routes/staging.py` + `web/staging/` (OBJ2A read-model + poster route);
-  `web/routes/pipeline.py` `pipeline_stages` (OBJ1); `web/acquisition/runner.py` +
-  `web/routes/acquisition.py` trigger/enrichment (OBJ3); `acquire/migrations/005_followed_metadata.sql`.
-- Frontend: `components/pipeline/FlowBoard.tsx` + `StageMediaList.tsx`; `components/staging/*`
-  (library grid + timeline); `pages/AcquisitionPage.tsx` (card grid); `components/pipeline/RecentResolutions.tsx`.
-- Scrape fix (#3): `scraper/movie_service.py` + `scraper/tv_service.py` (no premature NFO unlink) +
-  `commands/scrape_resolve.py` (NFO-landed invariant).
+| #   | Phase                                            | File                                | Status |
+| --- | ------------------------------------------------ | ----------------------------------- | ------ |
+| 1   | Sticky sidebar                                   | phase-01-sticky-sidebar.md          | [x]    |
+| 2   | Attention badges (data sources + WS refresh)     | phase-02-attention-badges.md        | [x]    |
+| 3   | Content width                                    | phase-03-content-width.md           | [x]    |
+| 4   | Test update (helpers + count-based badges)       | phase-04-test-update-gate.md        | [x]    |
+| 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [x]    |
+| 6   | PR fixes cycle 1 (review findings)               | phase-06-pr-fixes-cycle-1.md        | [x]    |
 
-## Next action
-
-1. **Operator: review + squash-merge PR #251** into `main` (I never merge without explicit go).
-   After merge: sync `main` back onto the dev checkout + confirm prod autodeploy serves the new sha.
-2. **Follow-ups (operator's call, not blocking the merge):**
-   - Re-scrape the 2 legacy partial folders (`Obsession (2026)`, `Ferrari … Trio (2025)`) — they hold
-     artwork but no NFO from before the #3 fix; a fresh scrape recovers their NFO.
-   - Optional: backfill card posters for pre-existing follows (poster URL is only cached at follow-time;
-     the indexer stores a poster boolean, not a URL — existing follows show the initials fallback).
+**Next action**: OPERATOR — squash-merge PR #310 (merge=manual), then post-merge ACCEPTANCE proof
+(prod déroulé daté + iframe 390px + SW cache-bust) and V2 (#306) via /implement:feature
 
 ## Review cycles
 
-_(none yet — PR #251 just opened)_
+### Cycle 1
+
+- 4 agents (code / tests / comments / silent-failures) on PR #310 @ 086155eb.
+- Retained: **1 major** — SF-1 regression (decisions WS bridge dropped: Decisions live-refresh +
+  ScrapeActivityPanel reviver orphaned); **8 medium** — SF-2 badge error rendered as all-clear,
+  SF-3 acquisition badge without refresh + false comment, paused dot labelled « en cours d'exécution »,
+  TC-1/TC-3/TC-4 test gaps, docstring/docblock inaccuracies (queryOptions undocumented, WS list
+  incomplete), SF-6/SF-7 hardening (optional chain, key constant).
+- Ignored (with reason): none out-of-scope dismissed silently — 4 items surfaced for operator
+  arbitration in phase-06 §« Explicitly NOT fixed » (SF-4 ring deafness parity, SF-5 parse drops
+  pre-existing, ItemProgressed load observation, eslint message cosmetics).
+- Design contradictions: none.
+- Fix phase: phase-06-pr-fixes-cycle-1.md (2 sub-phases).
+
+### Cycle 2
+
+- Verification agent on the fix range bfa7f3ec..bbe4f38e + gates re-run (34 targeted tests,
+  tsc, eslint, timer suite 3× stable). Verdict: **all 8 retained findings genuinely FIXED**
+  (file:line evidence per finding).
+- 1 new finding: NEW-1 misplaced renderShell docblock in AppShell.test.tsx (introduced by an
+  orchestrator inline transform — recorded honestly) → fixed in this cycle's commit.
+- Remaining observations, ALL minor (operator arbitration, §méthode rule 4): duplicated "?"
+  marker span (DRY cosmetic), hardcoded ["pipeline","history"] key (pre-existing), split imports
+  from useStagingMedia, SF-4/SF-5/load-observation/eslint-message items carried from cycle 1
+  (listed in phase-06 §« Explicitly NOT fixed »).
+- Loop exit: Case A (no critical/major/medium remaining). Merge mode = manual → operator merges.
+
+## Scope guardrails (from spec §6 sequencing invariant)
+
+- NO route additions/removals/renames, no redirects, no nav-entry changes in this wave.
+- No page-content redesign (V2–V5).
+- Optional-only backend: `GET /api/attention/counts` if badge chattiness measured too high.

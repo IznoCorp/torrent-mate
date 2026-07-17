@@ -6,7 +6,7 @@
  * (namespaced arrays, mirroring useMaintenanceKeys / useConfigKeys).
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions, type UseQueryResult } from "@tanstack/react-query";
 
 import {
   acqKeys,
@@ -26,6 +26,7 @@ import {
   type ObligationsParams,
   type UpdateFollowRequest,
   type WantedParams,
+  type WantedResponse,
 } from "@/api/acquisition";
 
 // ---------------------------------------------------------------------------
@@ -85,14 +86,23 @@ export function useMediaSearch(q: string, kind?: "movie" | "tv") {
  *   params: Optional filter (``status``, ``page``, ``page_size``).  Defaults
  *       to ``{}`` which the backend interprets as status=all, page=1,
  *       page_size=50.
+ *   queryOptions: Optional ``refetchInterval`` / ``staleTime`` overrides.
+ *       Omitted by existing callers (the default React Query behaviour —
+ *       cache-while-stale, no polling).
  *
  * Returns:
  *   The TanStack Query result for a {@link WantedResponse}.
  */
-export function useWanted(params: WantedParams = {}) {
+export function useWanted(
+  params: WantedParams = {},
+  queryOptions?: Partial<
+    Pick<UseQueryOptions<WantedResponse>, "refetchInterval" | "staleTime">
+  >,
+): UseQueryResult<WantedResponse> {
   return useQuery({
     queryKey: acqKeys.wanted(params),
     queryFn: () => getWanted(params),
+    ...queryOptions,
   });
 }
 
