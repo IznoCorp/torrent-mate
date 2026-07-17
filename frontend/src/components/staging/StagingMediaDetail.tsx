@@ -1,11 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
+import { MoreHorizontal } from "lucide-react";
 
 import { enqueueStagingDecision, type StagingMediaItem } from "@/api/client";
 import { decisionsKeys } from "@/api/decisions";
 import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";
+import { useContinueMedia } from "@/hooks/useContinueMedia";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
@@ -17,6 +19,12 @@ import {
   posterKind,
 } from "@/components/staging/meta";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /** Props for {@link StagingMediaDetail}. */
 export interface StagingMediaDetailProps {
@@ -81,6 +89,7 @@ export function StagingMediaDetail({
   const kind = posterKind(item.media_kind);
   const dispatch = item.dispatch_target;
   const queryClient = useQueryClient();
+  const continueMut = useContinueMedia();
 
   // A non-identified (absent) movie/tvshow has no pending decision and therefore
   // no resolve path — enqueue it as a decision so it appears in the deck, then
@@ -250,6 +259,80 @@ export function StagingMediaDetail({
           Résoudre le matching
         </Button>
       )}
+
+      {/* §5.2 continuation for matched-but-blocked items (verify-gate refusal,
+          etc.). The endpoint returns a truthful French detail string — use it
+          verbatim for both the toast and the deferred inline feedback (guarantor
+          override: server detail is the single source of truth). */}
+      {item.match === "matched" &&
+        item.blocked_reason != null &&
+        item.blocked_reason !== "" && (
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              disabled={continueMut.isPending}
+              onClick={() => {
+                continueMut.mutate(item.id, {
+                  onSuccess: (data) => {
+                    toast.success(data.detail);
+                  },
+                  onError: (err: unknown) => {
+                    toast.error(
+                      err instanceof Error
+                        ? err.message
+                        : "Échec de la relance",
+                    );
+                  },
+                });
+              }}
+            >
+              {continueMut.isPending
+                ? "Envoi…"
+                : "Relancer et terminer le pipeline"}
+            </Button>
+            {continueMut.isSuccess && continueMut.data.deferred && (
+              <p className="text-xs text-muted-foreground">
+                {continueMut.data.detail}
+              </p>
+            )}
+          </div>
+        )}
+
+      {/* Secondary re-scrape action for matched items that are NOT blocked.
+          Calls the same §5.2 endpoint — the label is the only difference
+          (contextual wording for a clean item the operator wants to re-process). */}
+      {item.match === "matched" &&
+        (item.blocked_reason == null || item.blocked_reason === "") && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" type="button">
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={continueMut.isPending}
+                onSelect={() => {
+                  continueMut.mutate(item.id, {
+                    onSuccess: (data) => {
+                      toast.success(data.detail);
+                    },
+                    onError: (err: unknown) => {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Échec de la relance",
+                      );
+                    },
+                  });
+                }}
+              >
+                Re-scraper cet élément
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
       {/* Manual resolution for a non-identified (absent) item — no auto match, so
           send it to the deck and search there. */}
