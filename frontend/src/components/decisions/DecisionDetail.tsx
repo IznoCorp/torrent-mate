@@ -10,7 +10,7 @@
  * 409 (lock-held retry hint) and 410 (superseded — refetch list).
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
@@ -20,18 +20,17 @@ import {
   isTerminalRunOutcome,
   useRunToCompletion,
 } from "@/hooks/useRunToCompletion";
+import {
+  useDismissDecision,
+  useResolveDecision,
+  useSearchDecision,
+} from "@/hooks/useDecisions";
 import type {
   DecisionCandidate,
   DecisionDetail as DecisionDetailType,
-  ResolveResponse,
-  SearchResponse,
+  ResolveRequest,
 } from "@/api/decisions";
-import {
-  decisionsKeys,
-  resolveDecision,
-  searchDecisionCandidates,
-  dismissDecision,
-} from "@/api/decisions";
+import { decisionsKeys } from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
 import {
@@ -195,17 +194,8 @@ export function DecisionDetail({
 
   // ---- mutations -------------------------------------------------------------
 
-  const searchMutation = useMutation<
-    SearchResponse,
-    Error,
-    { title: string; year?: number | null }
-  >({
-    mutationFn: ({ title, year: yr }) =>
-      searchDecisionCandidates(decision.id, {
-        title,
-        year: yr ?? null,
-      }),
-    onSuccess: (data) => {
+  const searchMutation = useSearchDecision({
+    onResults: (data) => {
       setErrorDetail(null);
       setSearchResults(data.candidates);
       // Clear selection when results change.
@@ -235,37 +225,17 @@ export function DecisionDetail({
     },
   });
 
-  const resolveMutation = useMutation<
-    ResolveResponse,
-    Error,
-    DecisionCandidate
-  >({
-    mutationFn: (candidate) =>
-      resolveDecision(decision.id, {
-        provider: candidate.provider,
-        provider_id: candidate.provider_id,
-        // A candidate present in the live-search results was found via the
-        // search-override flow; otherwise it was picked from the queue
-        // snapshot (F09 — persisted in resolution_json.via).
-        via:
-          searchResults?.some(
-            (c) =>
-              c.provider === candidate.provider &&
-              c.provider_id === candidate.provider_id,
-          ) === true
-            ? "search_override"
-            : "pick",
-      }),
-    onSuccess: (data) => {
+  const resolveMutation = useResolveDecision({
+    onResolved: (data) => {
       setErrorDetail(null);
       setRunUid(data.run_uid);
       setRunDone(false);
       toast.success("Résolu — le média poursuit son pipeline jusqu'au dispatch.");
-      // Optimistic invalidation at 202. The row is still 'pending' until the
-      // detached runner marks it resolved — the completion poll below fires a
-      // second invalidation once the run is terminal (F19/F49).
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      void queryClient.invalidateQueries({ queryKey: pipelineKeys.history });
+      // The UNION invalidation set (decisions + pipeline history + Flow Board +
+      // staging) already fired in the shared hook — an optimistic refresh at the
+      // 202. The row is still 'pending' until the detached runner marks it
+      // resolved; the completion poll below fires a second decisions
+      // invalidation once the run is terminal (F19/F49).
     },
     onError: (error) => {
       if (error instanceof ApiError) {
@@ -290,13 +260,11 @@ export function DecisionDetail({
     },
   });
 
-  const dismissMutation = useMutation({
-    mutationFn: () => dismissDecision(decision.id),
-    onSuccess: () => {
+  const dismissMutation = useDismissDecision({
+    onDismissed: () => {
       toast.success("Décision ignorée.");
-      // Refresh the list + badge so the dismissed row leaves the queue
-      // immediately (F01 — the success path previously never invalidated).
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      // The decisions list/badge invalidation fired in the shared hook so the
+      // dismissed row leaves the queue immediately (F01).
       setDismissed(true);
       onDecisionHandled();
     },
@@ -378,9 +346,12 @@ export function DecisionDetail({
         setErrorDetail("L'année doit être un nombre valide.");
         return;
       }
-      searchMutation.mutate({ title: trimmed, year });
+      searchMutation.mutate({ id: decision.id, body: { title: trimmed, year } });
     } else {
-      searchMutation.mutate({ title: trimmed, year: null });
+      searchMutation.mutate({
+        id: decision.id,
+        body: { title: trimmed, year: null },
+      });
     }
   }
 
@@ -388,13 +359,31 @@ export function DecisionDetail({
   function handleResolve(candidate: DecisionCandidate): void {
     setSelectedCandidate(candidate);
     setErrorDetail(null);
-    resolveMutation.mutate(candidate);
+    // A candidate present in the live-search results was found via the
+    // search-override flow; otherwise it was picked from the queue snapshot
+    // (F09 — persisted in resolution_json.via).
+    const via: ResolveRequest["via"] =
+      searchResults?.some(
+        (c) =>
+          c.provider === candidate.provider &&
+          c.provider_id === candidate.provider_id,
+      ) === true
+        ? "search_override"
+        : "pick";
+    resolveMutation.mutate({
+      id: decision.id,
+      body: {
+        provider: candidate.provider,
+        provider_id: candidate.provider_id,
+        via,
+      },
+    });
   }
 
   /** Dismiss the decision. */
   function handleDismiss(): void {
     setErrorDetail(null);
-    dismissMutation.mutate();
+    dismissMutation.mutate(decision.id);
   }
 
   // ---- render ----------------------------------------------------------------

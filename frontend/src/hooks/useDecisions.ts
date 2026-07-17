@@ -8,18 +8,35 @@
  * :class:`ApiError`.
  */
 
-import { useQueries, useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseMutationResult,
+} from "@tanstack/react-query";
 
 import {
   type DecisionListItem,
   type DecisionsParams,
   type DecisionsResponse,
   type DecisionDetailResponse,
+  type ResolveRequest,
+  type ResolveResponse,
+  type SearchRequest,
+  type SearchResponse,
   decisionsKeys,
+  dismissDecision,
   fetchDecisionDetail,
   fetchDecisions,
+  resolveDecision,
+  searchDecisionCandidates,
 } from "@/api/decisions";
+import { pipelineKeys } from "@/api/pipeline";
 import type { DecisionStatus } from "@/components/decisions/triggers";
+import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
+import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 
 // ---------------------------------------------------------------------------
 // Query hooks
@@ -197,9 +214,164 @@ export function useAllDecisions(
   return { items, counts, isLoading, isError, errored };
 }
 
-// NOTE (coherence study F12): the resolve / dismiss / search MUTATIONS live
-// inline in DecisionDetail.tsx, where they carry the per-call toast, local
-// state, via-computation (F09), and completion-poll (F19) logic. The former
-// useResolveDecision / useDismissDecision / useSearchCandidates hooks here were
-// dead code that had already diverged from those inline copies (dual source of
-// truth) and were deleted. Keep only the two query hooks above.
+// ---------------------------------------------------------------------------
+// Shared decision mutations (FRONTEND-DATA-06)
+// ---------------------------------------------------------------------------
+//
+// resolve / dismiss / search-override used to live inline in three components
+// (DecisionDetail, ResolutionDeck, and the Decisions page quick-dismiss) with
+// divergent invalidation sets — a divergence the codebase documented (F12) then
+// resolved in the wrong direction by deleting the hooks. These re-centralize the
+// mutations with ONE invalidation set (the UNION of the divergent sets), while
+// the per-surface toast copy, local state, via-computation (F09), completion
+// poll (F19) and flip animation stay in the components via callbacks — so the
+// ratified per-surface UX is untouched.
+
+/** Variables for {@link useResolveDecision}: the decision id + chosen identity. */
+export interface ResolveDecisionVars {
+  /** Primary key of the ``scrape_decision`` row. */
+  readonly id: number;
+  /** The chosen provider identity + ``via`` provenance. */
+  readonly body: ResolveRequest;
+}
+
+/** Per-surface callbacks for {@link useResolveDecision}. */
+export interface ResolveDecisionCallbacks {
+  /** Called after the invalidation set fires, with the 202 ``run_uid``. */
+  readonly onResolved?: (data: ResolveResponse, vars: ResolveDecisionVars) => void;
+  /** Called on failure (surface owns the toast / 409 / 410 handling). */
+  readonly onError?: (error: unknown, vars: ResolveDecisionVars) => void;
+}
+
+/**
+ * The UNION invalidation set fired after a decision resolve (FRONTEND-DATA-06).
+ *
+ * ResolutionDeck refreshed the Flow Board + staging grid so the operator SEES
+ * the media advance and leave staging; DecisionDetail refreshed the decisions
+ * list + pipeline history for its completion poll. The shared mutation fires the
+ * union of both — more invalidation ≥ correctness — so neither surface can drift
+ * to a narrower set. (Perf: on the /scraping page this refetches the staging
+ * grid + Flow Board too; both are cheap read-model queries and already polling.)
+ */
+function invalidateAfterResolve(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+  void queryClient.invalidateQueries({ queryKey: pipelineKeys.history });
+  void queryClient.invalidateQueries({ queryKey: pipelineStagesKeys.stages });
+  void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
+}
+
+/**
+ * Launch a targeted re-scrape for a decision (``resolve``), shared across the
+ * detail panel and the resolution deck.
+ *
+ * On success the UNION invalidation set ({@link invalidateAfterResolve}) fires,
+ * then the surface's ``onResolved`` runs (toast, run-tracking, flip animation).
+ *
+ * Args:
+ *   callbacks: Per-surface success/error callbacks.
+ *
+ * Returns:
+ *   The mutation result; call ``mutate({ id, body })``.
+ */
+export function useResolveDecision(
+  callbacks: ResolveDecisionCallbacks = {},
+): UseMutationResult<ResolveResponse, Error, ResolveDecisionVars> {
+  const queryClient = useQueryClient();
+  return useMutation<ResolveResponse, Error, ResolveDecisionVars>({
+    mutationFn: (vars) => resolveDecision(vars.id, vars.body),
+    onSuccess: (data, vars) => {
+      invalidateAfterResolve(queryClient);
+      callbacks.onResolved?.(data, vars);
+    },
+    onError: (error, vars) => {
+      callbacks.onError?.(error, vars);
+    },
+  });
+}
+
+/** Per-surface callbacks for {@link useDismissDecision}. */
+export interface DismissDecisionCallbacks {
+  /** Called after the decisions list is invalidated. */
+  readonly onDismissed?: (data: DecisionDetailResponse, id: number) => void;
+  /** Called on failure (surface owns the toast / 409 / 410 handling). */
+  readonly onError?: (error: unknown, id: number) => void;
+  /** Called on settle (success or error) — e.g. to clear an in-flight flag. */
+  readonly onSettled?: (id: number) => void;
+}
+
+/**
+ * Dismiss a decision, shared across the detail panel, the deck and the list's
+ * inline quick-dismiss.
+ *
+ * On success the decisions namespace is invalidated (the one common set), then
+ * the surface's ``onDismissed`` runs. Error/settle handling is delegated to the
+ * surface (each has its own 409/410 copy).
+ *
+ * Args:
+ *   callbacks: Per-surface success/error/settle callbacks.
+ *
+ * Returns:
+ *   The mutation result; call ``mutate(id)``.
+ */
+export function useDismissDecision(
+  callbacks: DismissDecisionCallbacks = {},
+): UseMutationResult<DecisionDetailResponse, Error, number> {
+  const queryClient = useQueryClient();
+  return useMutation<DecisionDetailResponse, Error, number>({
+    mutationFn: (id) => dismissDecision(id),
+    onSuccess: (data, id) => {
+      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      callbacks.onDismissed?.(data, id);
+    },
+    onError: (error, id) => {
+      callbacks.onError?.(error, id);
+    },
+    onSettled: (_data, _error, id) => {
+      callbacks.onSettled?.(id);
+    },
+  });
+}
+
+/** Variables for {@link useSearchDecision}: the decision id + search body. */
+export interface SearchDecisionVars {
+  /** Primary key of the ``scrape_decision`` row. */
+  readonly id: number;
+  /** The search title + optional year. */
+  readonly body: SearchRequest;
+}
+
+/** Per-surface callbacks for {@link useSearchDecision}. */
+export interface SearchDecisionCallbacks {
+  /** Called with the fresh candidate results. */
+  readonly onResults?: (data: SearchResponse, vars: SearchDecisionVars) => void;
+  /** Called on failure (surface owns the toast / 410 / 502 handling). */
+  readonly onError?: (error: unknown, vars: SearchDecisionVars) => void;
+}
+
+/**
+ * Search live providers for candidate matches (search-override), shared across
+ * the detail panel and the deck.
+ *
+ * A search mutates no server state (the results are ephemeral, applied to local
+ * component state), so there is NO invalidation — the surface's ``onResults``
+ * owns the local update.
+ *
+ * Args:
+ *   callbacks: Per-surface success/error callbacks.
+ *
+ * Returns:
+ *   The mutation result; call ``mutate({ id, body })``.
+ */
+export function useSearchDecision(
+  callbacks: SearchDecisionCallbacks = {},
+): UseMutationResult<SearchResponse, Error, SearchDecisionVars> {
+  return useMutation<SearchResponse, Error, SearchDecisionVars>({
+    mutationFn: (vars) => searchDecisionCandidates(vars.id, vars.body),
+    onSuccess: (data, vars) => {
+      callbacks.onResults?.(data, vars);
+    },
+    onError: (error, vars) => {
+      callbacks.onError?.(error, vars);
+    },
+  });
+}

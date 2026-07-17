@@ -23,12 +23,20 @@ import type { DecisionCandidate, DecisionListItem } from "@/api/decisions";
 const useDecisionsMock = vi.fn();
 const useDecisionDetailMock = vi.fn();
 
-vi.mock("@/hooks/useDecisions", () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useDecisions: (...a: unknown[]) => useDecisionsMock(...a),
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useDecisionDetail: (...a: unknown[]) => useDecisionDetailMock(...a),
-}));
+// Stub only the two query hooks the deck reads; keep the REAL shared mutation
+// hooks (useResolveDecision / useDismissDecision / useSearchDecision) so they
+// still route through the mocked @/api/decisions functions asserted below.
+vi.mock("@/hooks/useDecisions", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/useDecisions")>();
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useDecisions: (...a: unknown[]) => useDecisionsMock(...a),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useDecisionDetail: (...a: unknown[]) => useDecisionDetailMock(...a),
+  };
+});
 
 vi.mock("@/api/decisions", async () => {
   const actual =

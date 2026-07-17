@@ -20,7 +20,7 @@
  * ``poster_url``/``overview``/``score`` and the live search all already exist.
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import {
   useCallback,
@@ -35,9 +35,6 @@ import { toast } from "sonner";
 
 import {
   decisionsKeys,
-  dismissDecision,
-  resolveDecision,
-  searchDecisionCandidates,
   type DecisionCandidate,
   type ResolveRequest,
 } from "@/api/decisions";
@@ -52,9 +49,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDecisionDetail, useDecisions } from "@/hooks/useDecisions";
-import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
-import { stagingMediaKeys } from "@/hooks/useStagingMedia";
+import {
+  useDecisionDetail,
+  useDecisions,
+  useDismissDecision,
+  useResolveDecision,
+  useSearchDecision,
+} from "@/hooks/useDecisions";
 import { cn } from "@/lib/utils";
 
 /** Whether the current focus is a text field (so shortcuts don't hijack typing). */
@@ -167,20 +168,14 @@ export function ResolutionDeck({
     [queryClient],
   );
 
-  const resolveMut = useMutation({
-    mutationFn: (vars: { id: number; body: ResolveRequest }) =>
-      resolveDecision(vars.id, vars.body),
-    onSuccess: (_data, vars) => {
+  const resolveMut = useResolveDecision({
+    onResolved: (_data, vars) => {
       toast.success(
         "Décision validée — le média poursuit son pipeline (scraping → trailers → vérification → dispatch)",
       );
-      // §4 — the runner spawns a continuation run through the single trigger
-      // authority; refresh the Flow Board + staging grid so the operator SEES the
-      // media advance and leave staging now, not only on the next WS tick / poll.
-      void queryClient.invalidateQueries({
-        queryKey: pipelineStagesKeys.stages,
-      });
-      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
+      // §4 — the shared UNION invalidation set already refreshed the Flow Board +
+      // staging grid (plus decisions + history) so the operator SEES the media
+      // advance and leave staging now, not only on the next WS tick / poll.
       // C8: fade the resolved decision out (~400 ms) before the next slides in.
       // A rafale of validations finalises any in-flight flip immediately so the
       // flow never slows down — only the last one gets to play out in full.
@@ -210,9 +205,8 @@ export function ResolutionDeck({
     },
   });
 
-  const dismissMut = useMutation({
-    mutationFn: (id: number) => dismissDecision(id),
-    onSuccess: (_data, id) => {
+  const dismissMut = useDismissDecision({
+    onDismissed: (_data, id) => {
       toast.success("Décision ignorée — dossier laissé tel quel");
       markProcessed(id);
     },
@@ -227,13 +221,8 @@ export function ResolutionDeck({
     },
   });
 
-  const searchMut = useMutation({
-    mutationFn: (vars: { id: number; title: string; year: number | null }) =>
-      searchDecisionCandidates(vars.id, {
-        title: vars.title,
-        ...(vars.year != null ? { year: vars.year } : {}),
-      }),
-    onSuccess: (data) => {
+  const searchMut = useSearchDecision({
+    onResults: (data) => {
       setOverrides(data.candidates);
       // Preselect the first fresh result and RELEASE the search input so the
       // arrow/enter shortcuts work immediately (C7: the search sits on the
@@ -291,8 +280,10 @@ export function ResolutionDeck({
       const yearNum = Number.parseInt(searchYear, 10);
       searchMut.mutate({
         id: current.id,
-        title: searchTitle.trim(),
-        year: Number.isFinite(yearNum) ? yearNum : null,
+        body: {
+          title: searchTitle.trim(),
+          ...(Number.isFinite(yearNum) ? { year: yearNum } : {}),
+        },
       });
     },
     [current, searchTitle, searchYear, searchMut],

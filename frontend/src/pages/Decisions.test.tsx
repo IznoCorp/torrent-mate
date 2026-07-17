@@ -74,14 +74,22 @@ const useAllDecisionsMock = vi.fn();
 const useDecisionDetailMock = vi.fn();
 const useDecisionsMock = vi.fn();
 
-vi.mock("@/hooks/useDecisions", () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useAllDecisions: (...args: unknown[]) => useAllDecisionsMock(...args),
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useDecisionDetail: (...args: unknown[]) => useDecisionDetailMock(...args),
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useDecisions: (...args: unknown[]) => useDecisionsMock(...args),
-}));
+// Stub the query hooks the page reads; keep the REAL shared mutation hooks
+// (useDismissDecision for the inline quick-dismiss) so it still routes through
+// the mocked @/api/decisions dismissDecision asserted below.
+vi.mock("@/hooks/useDecisions", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/useDecisions")>();
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useAllDecisions: (...args: unknown[]) => useAllDecisionsMock(...args),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useDecisionDetail: (...args: unknown[]) => useDecisionDetailMock(...args),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useDecisions: (...args: unknown[]) => useDecisionsMock(...args),
+  };
+});
 
 // The page uses dismissDecision for the inline quick-dismiss mutation; stub it
 // so the mutation never hits the network. Unlike DecisionDetail's dismiss, the

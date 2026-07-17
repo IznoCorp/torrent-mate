@@ -14,7 +14,7 @@
  *   has no "all" filter — see the hook doc), {@link useDecisionDetail} for detail
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
   useEffect,
@@ -26,8 +26,12 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
-import { decisionsKeys, dismissDecision } from "@/api/decisions";
-import { useAllDecisions, useDecisionDetail } from "@/hooks/useDecisions";
+import { decisionsKeys } from "@/api/decisions";
+import {
+  useAllDecisions,
+  useDecisionDetail,
+  useDismissDecision,
+} from "@/hooks/useDecisions";
 import { DecisionDetail } from "@/components/decisions/DecisionDetail";
 import { DecisionList } from "@/components/decisions/DecisionList";
 import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
@@ -175,11 +179,10 @@ export default function Decisions(): ReactElement {
   // A pending row can be dismissed straight from the list without opening the
   // detail panel (§4.1). Concurrency is per-decision: dismissing row A never
   // blocks selecting/resolving row B.
-  const quickDismissMutation = useMutation({
-    mutationFn: (id: number) => dismissDecision(id),
-    onSuccess: () => {
+  const quickDismissMutation = useDismissDecision({
+    onDismissed: () => {
       toast.success("Décision ignorée.");
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
+      // The decisions namespace invalidation fired in the shared hook.
     },
     onError: (error) => {
       if (error instanceof ApiError) {
