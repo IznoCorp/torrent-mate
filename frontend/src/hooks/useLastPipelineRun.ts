@@ -33,6 +33,18 @@ export interface LastPipelineRun {
   readonly stepReasons: StepReasonsEntry[];
   /** Whether either underlying query is still loading. */
   readonly isLoading: boolean;
+  /** The trigger that started the run, or ``null`` when no history yet. */
+  readonly trigger: string | null;
+  /** ISO 8601 UTC start timestamp, or ``null`` when no history yet. */
+  readonly startedAt: string | null;
+  /** ISO 8601 UTC end timestamp, or ``null`` when still running / no history. */
+  readonly endedAt: string | null;
+  /** Final outcome, or ``null`` when still running / no history. */
+  readonly outcome: string | null;
+  /** Total items processed across all steps. */
+  readonly totalProcessed: number;
+  /** Total items skipped across all steps. */
+  readonly totalSkipped: number;
 }
 
 /**
@@ -52,7 +64,8 @@ export function useLastPipelineRun(refetchKey = "idle"): LastPipelineRun {
     queryFn: () => getPipelineHistory({ limit: 1, kind: "pipeline", sort: "-started_at" }),
   });
 
-  const runUid = historyQuery.data?.runs[0]?.run_uid ?? null;
+  const lastSummary = historyQuery.data?.runs[0] ?? null;
+  const runUid = lastSummary?.run_uid ?? null;
 
   const detailQuery = useQuery({
     queryKey: ["pipeline", "history", "last-detail", runUid] as const,
@@ -80,10 +93,26 @@ export function useLastPipelineRun(refetchKey = "idle"): LastPipelineRun {
           .map((s) => ({ step: s.name, reasons: s.reasons ?? [] }))
       : [];
 
+  // Aggregate counts across all steps for the LastRunDigest summary.
+  let totalProcessed = 0;
+  let totalSkipped = 0;
+  if (detailQuery.data !== undefined) {
+    for (const step of detailQuery.data.steps) {
+      totalProcessed += step.success_count ?? 0;
+      totalSkipped += step.skip_count ?? 0;
+    }
+  }
+
   return {
     runUid,
     lines,
     stepReasons,
     isLoading: historyQuery.isLoading || (runUid !== null && detailQuery.isLoading),
+    trigger: lastSummary?.trigger ?? null,
+    startedAt: lastSummary?.started_at ?? null,
+    endedAt: lastSummary?.ended_at ?? null,
+    outcome: lastSummary?.outcome ?? null,
+    totalProcessed,
+    totalSkipped,
   };
 }

@@ -1,12 +1,11 @@
 import type { ReactElement } from "react";
 
 import { ATraiterList } from "@/components/controle/ATraiterList";
+import { CompactHealth } from "@/components/controle/CompactHealth";
+import { LastRunDigest } from "@/components/controle/LastRunDigest";
 import { AcquisitionSummaryCard } from "@/components/dashboard/AcquisitionSummaryCard";
-import { HealthCard } from "@/components/dashboard/HealthCard";
 import { SchedulersPanel } from "@/components/dashboard/SchedulersPanel";
 import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
-import { DisksPanel } from "@/components/maintenance/DisksPanel";
-import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { PipelineControls } from "@/components/pipeline/PipelineControls";
 import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { useLastPipelineRun } from "@/hooks/useLastPipelineRun";
@@ -46,7 +45,10 @@ export default function Dashboard(): ReactElement {
       {/* 2. Activité scraping — live scrape feed, relocated from /medias. */}
       <ScrapeActivityPanel />
 
-      {/* 3. Ce qui n'avance pas — StalledPanel on the last run. */}
+      {/* 3. Dernier run — digest card (trigger + counts + detail link). */}
+      <LastRunDigest lastRun={lastRun} />
+
+      {/* 4. Ce qui n'avance pas — StalledPanel on the last run. */}
       <StalledPanel stepReasons={lastRun.stepReasons} />
 
       {/* 4. Acquisitions & planificateurs — merged section (guarantor amendment a). */}
@@ -60,12 +62,8 @@ export default function Dashboard(): ReactElement {
         </div>
       </section>
 
-      {/* 5. Santé — kept for now; compaction into CompactHealth in 5.4. */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <HealthCard />
-        <IndexHealthPanel />
-      </div>
-      <DisksPanel />
+      {/* 5. Santé — compact rows (disks, index, Redis, providers). */}
+      <CompactHealth />
 
       {/* 6. Pipeline control — single state-dependent primary (DESIGN §2.1). */}
       {pipelineStatus !== undefined && (

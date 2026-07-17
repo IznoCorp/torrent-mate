@@ -170,6 +170,24 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
   if (url.includes("/api/decisions/activity")) {
     return Promise.resolve(buildResponse(200, { active: [], queue_size: 0 }));
   }
+  // CompactHealth → GET /api/registry/status
+  if (url.includes("/api/registry/status")) {
+    return Promise.resolve(
+      buildResponse(200, {
+        providers: [
+          {
+            provider_name: "tmdb",
+            circuit_state: "closed",
+            failure_count_recent: 0,
+            last_failure_at: null,
+            last_latency_ms: 45.2,
+            last_success_at: Date.now() / 1000,
+            live: true,
+          },
+        ],
+      }),
+    );
+  }
   return Promise.resolve(
     buildResponse(200, { status: "ok", redis: true, db: true }),
   );
@@ -223,8 +241,14 @@ describe("Contrôle", () => {
     expect(screen.queryByText("Flux d'événements")).not.toBeInTheDocument();
     expect(screen.queryByText("Événements récents")).not.toBeInTheDocument();
 
-    // HealthCard still rendered (compaction in 5.4).
+    // CompactHealth renders health rows (Redis, index, disks, providers).
     expect(await screen.findByText("Redis en ligne")).toBeInTheDocument();
+    expect(screen.getByText("Santé")).toBeInTheDocument();
+
+    // LastRunDigest shows the empty state (no history yet).
+    expect(
+      screen.getByText("Aucun run enregistré pour le moment."),
+    ).toBeInTheDocument();
 
     // Scheduler rows resolve from the mocked payload.
     expect(
@@ -233,7 +257,7 @@ describe("Contrôle", () => {
     expect(await screen.findByText("Récupération (grab)")).toBeInTheDocument();
   });
 
-  it("est un poste de contrôle : contrôles pipeline + acquisitions + index + disques (A3)", async () => {
+  it("est un poste de contrôle : contrôles pipeline + acquisitions + santé + disques (A3)", async () => {
     renderDashboard();
 
     // Pipeline controls are usable from home (idle status → « Démarrer »).
@@ -247,9 +271,10 @@ describe("Contrôle", () => {
     expect(screen.getByText(/1 téléchargement en cours/)).toBeInTheDocument();
     expect(screen.getByText(/1 torrent différé/)).toBeInTheDocument();
 
-    // Index health + disks panels resolve from their endpoints.
-    expect(await screen.findByText("Santé de l'index")).toBeInTheDocument();
-    expect(await screen.findByText("Disk 1")).toBeInTheDocument();
+    // CompactHealth resolves disks + index from their endpoints.
+    expect(await screen.findByText("Santé")).toBeInTheDocument();
+    expect(screen.getByText("Disk 1")).toBeInTheDocument();
+    expect(screen.getByText("1200 items indexés")).toBeInTheDocument();
   });
 
   it("affiche la liste À traiter (vide par défaut)", async () => {
