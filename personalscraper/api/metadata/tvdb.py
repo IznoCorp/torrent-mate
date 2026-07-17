@@ -401,8 +401,41 @@ class TVDBClient(
             return self.get_series(int(media_id))
         return self.get_movie(media_id)
 
+    def _apply_translation(self, raw: dict[str, Any], translations_path: str) -> dict[str, Any]:
+        """Overlay the configured-language name/overview onto an extended payload.
+
+        TVDB ``/extended`` responses carry the DEFAULT-language ``name`` /
+        ``overview`` (usually English). The client is configured with a
+        language (``fr-FR`` → ``fra``) that details calls must honour, so
+        this fetches ``/translations/{lang}`` and, when a non-empty
+        translated field exists, replaces the payload's field in place.
+
+        Fail-soft: a missing translation (TVDB 404) or any API error keeps
+        the default-language payload — never blocks a scrape.
+
+        Args:
+            raw: Unwrapped ``data`` dict from an ``/extended`` call.
+            translations_path: Translation endpoint path for the same entity
+                (e.g. ``/series/123/translations/fra``).
+
+        Returns:
+            The same ``raw`` dict, with ``name``/``overview`` translated when
+            available.
+        """
+        try:
+            translated = self._get_dict(translations_path)
+        except ApiError:
+            return raw
+        name = translated.get("name")
+        if isinstance(name, str) and name.strip():
+            raw["name"] = name
+        overview = translated.get("overview")
+        if isinstance(overview, str) and overview.strip():
+            raw["overview"] = overview
+        return raw
+
     def get_series(self, series_id: int) -> MediaDetails:
-        """Fetch extended series details.
+        """Fetch extended series details (configured-language title/overview).
 
         Args:
             series_id: TVDB series ID.
@@ -411,6 +444,7 @@ class TVDBClient(
             Populated MediaDetails.
         """
         raw = self._get_dict(f"/series/{series_id}/extended")
+        raw = self._apply_translation(raw, f"/series/{series_id}/translations/{self._tvdb_lang}")
         return parse_media_details(raw, "tvdb")
 
     def get_tv(self, provider_id: str | int) -> MediaDetails:
@@ -463,6 +497,7 @@ class TVDBClient(
                 message=f"Non-numeric TVDB movie id rejected: {movie_id!r}",
             ) from exc
         raw = self._get_dict(f"/movies/{numeric_id}/extended")
+        raw = self._apply_translation(raw, f"/movies/{numeric_id}/translations/{self._tvdb_lang}")
         return parse_media_details(raw, "tvdb")
 
     # -- Protocol: get_artwork_urls -----------------------------------------
