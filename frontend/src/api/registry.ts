@@ -8,6 +8,7 @@
  * change breaks at compile time, not at runtime.
  */
 
+import type { SuccessBody } from "./_schema-helpers";
 import type { components, paths } from "./schema";
 import { apiFetch } from "./client";
 
@@ -17,20 +18,6 @@ import { apiFetch } from "./client";
 
 /** A single provider's runtime status as returned by GET /api/registry/status. */
 export type ProviderStatusItem = components["schemas"]["ProviderStatusItem"];
-
-// ---------------------------------------------------------------------------
-// Inline type helper (mirrors decisions.ts)
-// ---------------------------------------------------------------------------
-
-/**
- * Extract the ``application/json`` response body from an openapi-typescript
- * response map (200).
- */
-type SuccessBody<T> = T extends {
-  200: { content: { "application/json": infer B } };
-}
-  ? B
-  : never;
 
 // ---------------------------------------------------------------------------
 // Response types

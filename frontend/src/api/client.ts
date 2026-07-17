@@ -8,6 +8,14 @@
  */
 
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import type {
+  MethodOf,
+  PathParamsOf,
+  QueryParamsOf,
+  RequestBodyOf,
+  ResponseBodyOf,
+  SuccessBody,
+} from "./_schema-helpers";
 import type { components, paths } from "./schema";
 
 // ---------------------------------------------------------------------------
@@ -38,103 +46,6 @@ export class ApiError extends Error {
     this.isReadOnly = isReadOnly;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Unwrap the 200 application/json content type from openapi-fetch shape
-// ---------------------------------------------------------------------------
-
-/**
- * Extract the ``200 application/json`` response body from an
- * openapi-typescript response map.
- *
- * Example::
- *
- *     type HealthBody = SuccessBody<
- *       paths["/api/health"]["get"]["responses"]
- *     >;
- *     // → { [key: string]: unknown }
- */
-type SuccessBody<T> = T extends {
-  200: {
-    content: {
-      "application/json": infer B;
-    };
-  };
-}
-  ? B
-  : T extends {
-        202: {
-          content: {
-            "application/json": infer B;
-          };
-        };
-      }
-    ? B
-    : never;
-
-// ---------------------------------------------------------------------------
-// Path/method binding to the generated OpenAPI `paths` (DESIGN §5.3)
-// ---------------------------------------------------------------------------
-
-/** The HTTP verbs openapi-typescript emits as keys on every path item. */
-type HttpMethod =
-  | "get"
-  | "put"
-  | "post"
-  | "delete"
-  | "options"
-  | "head"
-  | "patch"
-  | "trace";
-
-/**
- * The verbs a path actually **defines** — the operation objects, excluding the
- * ``verb?: never`` slots openapi-typescript stamps for every absent method.
- *
- * A defined verb's value is an operation object; an absent verb's indexed value
- * collapses to ``undefined`` (optional ``never``). Passing a method a path does
- * not declare therefore fails the constraint at compile time.
- */
-type MethodOf<P extends keyof paths> = {
-  [M in HttpMethod]: paths[P][M] extends undefined ? never : M;
-}[HttpMethod];
-
-/**
- * The ``application/json`` request body of an operation (required OR optional),
- * or ``never`` when the operation declares no body. openapi-typescript stamps an
- * optional body as ``requestBody?: {...}`` (e.g. a FastAPI ``Body(default_factory=…)``
- * param); matching ``requestBody?`` — like {@link QueryParamsOf} does for ``query?`` —
- * covers both, where matching only ``requestBody:`` would collapse optional bodies to
- * ``never``.
- */
-type RequestBodyOf<Op> = Op extends {
-  requestBody?: { content: { "application/json": infer B } };
-}
-  ? B
-  : never;
-
-/**
- * The **required** path parameters of an operation, or ``never`` when the
- * operation declares none (openapi-typescript stamps ``path?: never`` on
- * parameterless operations, which fails the required-property match below).
- */
-type PathParamsOf<Op> = Op extends { parameters: { path: infer P } }
-  ? P
-  : never;
-
-/**
- * The optional query parameters of an operation, or ``never`` when the
- * operation declares none.  Query params are always optional in the generated
- * types (``query?: {...}``), so the match strips the ``undefined`` arm.
- */
-type QueryParamsOf<Op> = Op extends { parameters: { query?: infer Q } }
-  ? NonNullable<Q>
-  : never;
-
-/** The 2xx ``application/json`` response body inferred from an operation. */
-type ResponseBodyOf<Op> = Op extends { responses: infer R }
-  ? SuccessBody<R>
-  : never;
 
 // ---------------------------------------------------------------------------
 // Error detail normalisation
