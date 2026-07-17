@@ -573,59 +573,10 @@ def _walk_dir_incremental(
                     return
 
 
-# ---------------------------------------------------------------------------
-# Artwork filename constants
-# ---------------------------------------------------------------------------
-
-# Canonical artwork filenames checked during enrich (Kodi convention).
-# Matched lowercase against entry.name.lower() to handle case-insensitive FS.
-_ARTWORK_FILENAMES: dict[str, str] = {
-    "poster.jpg": "poster",
-    "poster.png": "poster",
-    "fanart.jpg": "fanart",
-    "fanart.png": "fanart",
-    "banner.jpg": "banner",
-    "banner.png": "banner",
-    "landscape.jpg": "landscape",
-    "landscape.png": "landscape",
-    "clearlogo.png": "clearlogo",
-    "clearlogo.jpg": "clearlogo",
-    "clearart.png": "clearart",
-    "clearart.jpg": "clearart",
-    "discart.png": "discart",
-    "discart.jpg": "discart",
-    "characterart.png": "characterart",
-    "characterart.jpg": "characterart",
-}
-
-# MediaElch / Plex local-artwork suffixes. Matched against the trailing portion
-# of the filename (e.g. "Movie Title (2020)-poster.jpg" → suffix "-poster.jpg").
-# This is the format produced by MediaElch (the project's manual scraper
-# fallback) and used by Plex local-art agents, both very common in real
-# libraries. Without these the canonical-only pattern misses the artwork even
-# though it sits next to the video file.
-_ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
-    ("-poster.jpg", "poster"),
-    ("-poster.png", "poster"),
-    ("-fanart.jpg", "fanart"),
-    ("-fanart.png", "fanart"),
-    ("-banner.jpg", "banner"),
-    ("-banner.png", "banner"),
-    ("-landscape.jpg", "landscape"),
-    ("-landscape.png", "landscape"),
-    ("-clearlogo.png", "clearlogo"),
-    ("-clearlogo.jpg", "clearlogo"),
-    ("-logo.png", "clearlogo"),  # MediaElch alternative
-    ("-logo.jpg", "clearlogo"),
-    ("-clearart.png", "clearart"),
-    ("-clearart.jpg", "clearart"),
-    ("-discart.png", "discart"),
-    ("-discart.jpg", "discart"),
-    ("-disc.png", "discart"),  # MediaElch alternative
-    ("-disc.jpg", "discart"),
-    ("-characterart.png", "characterart"),
-    ("-characterart.jpg", "characterart"),
-)
+# Artwork filename detection is owned by ``core.artwork_naming`` (INDEXER-03);
+# this scan mode does not inventory artwork itself — the enrich pass does, via
+# the shared canonical union. The old ``_ARTWORK_FILENAMES`` / ``_ARTWORK_SUFFIXES``
+# copies here were dead duplicates and have been removed.
 
 
 # Subfolders whose contents must NEVER drive the parent item's NFO/artwork

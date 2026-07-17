@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Literal
 
+from personalscraper.core.artwork_naming import artwork_inventory_from_names
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.release_linker import link_file_to_release
@@ -29,58 +30,12 @@ __all__ = [
 ]
 
 # ---------------------------------------------------------------------------
-# Artwork filename constants
+# Item-root resolution + NFO/NA constants
 # ---------------------------------------------------------------------------
 
-# Canonical artwork filenames checked during enrich (Kodi convention).
-# Matched lowercase against entry.name.lower() to handle case-insensitive FS.
-_ARTWORK_FILENAMES: dict[str, str] = {
-    "poster.jpg": "poster",
-    "poster.png": "poster",
-    "fanart.jpg": "fanart",
-    "fanart.png": "fanart",
-    "banner.jpg": "banner",
-    "banner.png": "banner",
-    "landscape.jpg": "landscape",
-    "landscape.png": "landscape",
-    "clearlogo.png": "clearlogo",
-    "clearlogo.jpg": "clearlogo",
-    "clearart.png": "clearart",
-    "clearart.jpg": "clearart",
-    "discart.png": "discart",
-    "discart.jpg": "discart",
-    "characterart.png": "characterart",
-    "characterart.jpg": "characterart",
-}
-
-# MediaElch / Plex local-artwork suffixes. Matched against the trailing portion
-# of the filename (e.g. "Movie Title (2020)-poster.jpg" → suffix "-poster.jpg").
-# This is the format produced by MediaElch (the project's manual scraper
-# fallback) and used by Plex local-art agents, both very common in real
-# libraries. Without these the canonical-only pattern misses the artwork even
-# though it sits next to the video file.
-_ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
-    ("-poster.jpg", "poster"),
-    ("-poster.png", "poster"),
-    ("-fanart.jpg", "fanart"),
-    ("-fanart.png", "fanart"),
-    ("-banner.jpg", "banner"),
-    ("-banner.png", "banner"),
-    ("-landscape.jpg", "landscape"),
-    ("-landscape.png", "landscape"),
-    ("-clearlogo.png", "clearlogo"),
-    ("-clearlogo.jpg", "clearlogo"),
-    ("-logo.png", "clearlogo"),  # MediaElch alternative
-    ("-logo.jpg", "clearlogo"),
-    ("-clearart.png", "clearart"),
-    ("-clearart.jpg", "clearart"),
-    ("-discart.png", "discart"),
-    ("-discart.jpg", "discart"),
-    ("-disc.png", "discart"),  # MediaElch alternative
-    ("-disc.jpg", "discart"),
-    ("-characterart.png", "characterart"),
-    ("-characterart.jpg", "characterart"),
-)
+# Artwork filename detection is owned by ``core.artwork_naming`` (the ONE union
+# of bare/Kodi/scraper/MediaElch spellings). Both scan modes classify through it
+# so ``artwork_json`` is written identically regardless of scan path (INDEXER-03).
 
 
 # Subfolders whose contents must NEVER drive the parent item's NFO/artwork
@@ -154,9 +109,17 @@ def _resolve_item_root_dir(file_path: Path) -> Path | None:
 def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     """Scan *parent_dir* for known artwork filenames and return an :class:`ArtworkInventory`.
 
-    Only the presence of a file is checked — no content validation is performed.
-    Each artwork type resolves to ``True`` as soon as *any* matching filename is
-    found in the directory.
+    Detection is delegated to the canonical owner
+    (:func:`personalscraper.core.artwork_naming.artwork_inventory_from_names`) so
+    this enrich scan mode and the full/item-stage scan mode write an identical
+    ``artwork_json`` for the same directory (INDEXER-03). Only presence is
+    checked — no content validation. Season posters (``seasonNN-*``) are excluded
+    from item-level artwork, and MediaElch's ``-logo``/``-disc`` short aliases and
+    the Kodi ``folder.jpg`` are recognized, all via the shared union.
+
+    The directory is listed here (rather than in ``core``) so a transient
+    :exc:`OSError` is caught and reported as ``None`` — the caller must skip the
+    DB column update in that case so previously-valid data is not overwritten.
 
     Args:
         parent_dir: Absolute path of the directory to scan.
@@ -164,25 +127,10 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     Returns:
         :class:`ArtworkInventory` instance reflecting what artwork files exist,
         or ``None`` when the directory is not readable (transient OS error).
-        Callers must skip the DB column update when ``None`` is returned so that
-        previously-valid data is not overwritten on a transient permission error.
     """
-    found: dict[str, bool] = {}
     try:
         with os.scandir(parent_dir) as it:
-            for entry in it:
-                lname = entry.name.lower()
-                key = _ARTWORK_FILENAMES.get(lname)
-                if key is not None:
-                    found[key] = True
-                    continue
-                # Match MediaElch / Plex local-art suffixes (e.g.
-                # "Title (2020)-poster.jpg"). The longest suffix wins, but
-                # tuple ordering covers the alternatives explicitly.
-                for suffix, art_key in _ARTWORK_SUFFIXES:
-                    if lname.endswith(suffix) and len(lname) > len(suffix):
-                        found[art_key] = True
-                        break
+            names = [entry.name for entry in it if entry.is_file()]
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -193,16 +141,7 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
         )
         return None
 
-    return ArtworkInventory(
-        poster=found.get("poster", False),
-        fanart=found.get("fanart", False),
-        landscape=found.get("landscape", False),
-        banner=found.get("banner", False),
-        clearlogo=found.get("clearlogo", False),
-        clearart=found.get("clearart", False),
-        discart=found.get("discart", False),
-        characterart=found.get("characterart", False),
-    )
+    return ArtworkInventory.from_presence(artwork_inventory_from_names(names))
 
 
 def _purge_non_video_stream_rows(conn: sqlite3.Connection) -> int:
