@@ -93,9 +93,7 @@ def _build_app(
 
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
-    app = build_guarded_app(
-        config=cfg, settings=settings, routers=maintenance_router, with_auth=with_auth
-    )
+    app = build_guarded_app(config=cfg, settings=settings, routers=maintenance_router, with_auth=with_auth)
 
     return app, settings
 

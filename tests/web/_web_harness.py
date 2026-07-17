@@ -163,14 +163,10 @@ def guarded_client(
     Returns:
         A ``TestClient`` (authenticated when *login* is supplied).
     """
-    app = build_guarded_app(
-        config=config, settings=settings, routers=routers, with_auth=with_auth
-    )
+    app = build_guarded_app(config=config, settings=settings, routers=routers, with_auth=with_auth)
     client = TestClient(app, base_url=HTTPS_BASE_URL) if https else TestClient(app)
     if login is not None:
-        resp = client.post(
-            "/api/auth/login", json={"username": login[0], "password": login[1]}
-        )
+        resp = client.post("/api/auth/login", json={"username": login[0], "password": login[1]})
         assert resp.status_code == 204, f"Login failed: {resp.status_code}"
     return client
 

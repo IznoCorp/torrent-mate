@@ -85,9 +85,7 @@ def _build_app(
 
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
-    return build_guarded_app(
-        config=cfg, settings=settings, routers=maintenance_router, with_auth=with_auth
-    )
+    return build_guarded_app(config=cfg, settings=settings, routers=maintenance_router, with_auth=with_auth)
 
 
 def _authenticated_client(test_config, tmp_path: Path, **config_overrides) -> TestClient:

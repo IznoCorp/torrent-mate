@@ -528,9 +528,7 @@ class TestUnifiedHistoryGuards:
         )
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        client = guarded_client(
-            config=cfg, settings=settings, routers=pipeline_router, with_auth=False
-        )
+        client = guarded_client(config=cfg, settings=settings, routers=pipeline_router, with_auth=False)
 
         resp = client.get("/api/pipeline/history")
         assert resp.status_code == 401
@@ -552,9 +550,7 @@ class TestUnifiedHistoryGuards:
         )
         from personalscraper.web.routes.pipeline import router as pipeline_router
 
-        client = guarded_client(
-            config=cfg, settings=settings, routers=pipeline_router, with_auth=False
-        )
+        client = guarded_client(config=cfg, settings=settings, routers=pipeline_router, with_auth=False)
 
         resp = client.get("/api/pipeline/history/p1-aaa111")
         assert resp.status_code == 401
