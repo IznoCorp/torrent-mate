@@ -296,3 +296,52 @@ class TestRunProcessRevertWiring:
         run_process(_make_settings(), config=_make_config(tmp_path), event_bus=EventBus(), registry=MagicMock())
 
         assert not mock_revert.called
+
+
+# ---------------------------------------------------------------------------
+# run_cleanup — artifact sweep in ingest + other categories
+# ---------------------------------------------------------------------------
+
+
+class TestCleanupSweepsArtifactDirs:
+    """BUG C regression (2026-07-17): empty layout debris self-heals.
+
+    An empty legacy « TV SHOWS » folder copied into staging was sorted to
+    098-AUTRES and presented by the web UI as a blocked media. The cleanup
+    step now also sweeps effectively-empty trees in the ingest (097) and
+    other (098) categories — folders with real content are untouched.
+    """
+
+    def test_removes_empty_dirs_in_ingest_and_other(self, tmp_path: Path) -> None:
+        """Empty/junk-only dirs in 097/098 are removed; real content stays."""
+        from personalscraper.process.run import run_cleanup
+
+        for name in ("001-MOVIES", "002-TVSHOWS", "097-TEMP", "098-AUTRES"):
+            (tmp_path / name).mkdir()
+        (tmp_path / "097-TEMP" / "MOVIES").mkdir()
+        tv_shows = tmp_path / "098-AUTRES" / "TV SHOWS"
+        tv_shows.mkdir()
+        (tv_shows / ".DS_Store").write_bytes(b"\x00")
+        keep = tmp_path / "098-AUTRES" / "Vrai artefact"
+        keep.mkdir()
+        (keep / "data.bin").write_bytes(b"\x01" * 32)
+
+        report = run_cleanup(_make_settings(), config=_make_config(tmp_path), dry_run=False, event_bus=EventBus())
+
+        assert not (tmp_path / "097-TEMP" / "MOVIES").exists()
+        assert not tv_shows.exists()
+        assert keep.exists()
+        assert (keep / "data.bin").exists()
+        assert report.success_count >= 2
+
+    def test_category_roots_never_removed(self, tmp_path: Path) -> None:
+        """The swept category roots themselves survive even when fully empty."""
+        from personalscraper.process.run import run_cleanup
+
+        for name in ("001-MOVIES", "002-TVSHOWS", "097-TEMP", "098-AUTRES"):
+            (tmp_path / name).mkdir()
+
+        run_cleanup(_make_settings(), config=_make_config(tmp_path), dry_run=False, event_bus=EventBus())
+
+        for name in ("001-MOVIES", "002-TVSHOWS", "097-TEMP", "098-AUTRES"):
+            assert (tmp_path / name).is_dir()

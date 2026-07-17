@@ -314,14 +314,14 @@ class TestGetDetailsDispatchTvdb:
         transport.get.return_value = _load("series_extended.json")
         md = client.get_details("81189", media_type="tv")
         assert isinstance(md, MediaDetails)
-        assert transport.get.call_args.args[0] == "/series/81189/extended"
+        assert transport.get.call_args_list[0].args[0] == "/series/81189/extended"
 
     def test_movie_details(self, client: TVDBClient, transport: MagicMock) -> None:
         """media_type='movie' calls /movies/{id}/extended."""
         transport.get.return_value = _load("movie_extended.json")
         md = client.get_details("12345", media_type="movie")
         assert isinstance(md, MediaDetails)
-        assert transport.get.call_args.args[0] == "/movies/12345/extended"
+        assert transport.get.call_args_list[0].args[0] == "/movies/12345/extended"
 
 
 # ── get_series / get_movie ────────────────────────────────────────────
@@ -331,19 +331,68 @@ class TestGetSeriesAndMovie:
     """get_series and get_movie hit /extended endpoints."""
 
     def test_get_series_endpoint(self, client: TVDBClient, transport: MagicMock) -> None:
-        """get_series → /series/{id}/extended."""
+        """get_series → /series/{id}/extended, then the fra translation overlay."""
         transport.get.return_value = _load("series_extended.json")
         md = client.get_series(81189)
         assert isinstance(md, MediaDetails)
         assert md.title == "Breaking Bad"
-        assert transport.get.call_args.args[0] == "/series/81189/extended"
+        called_paths = [c.args[0] for c in transport.get.call_args_list]
+        assert called_paths == [
+            "/series/81189/extended",
+            "/series/81189/translations/fra",
+        ]
 
     def test_get_movie_endpoint(self, client: TVDBClient, transport: MagicMock) -> None:
-        """get_movie → /movies/{id}/extended."""
+        """get_movie → /movies/{id}/extended, then the fra translation overlay."""
         transport.get.return_value = _load("movie_extended.json")
         md = client.get_movie(12345)
         assert isinstance(md, MediaDetails)
-        assert transport.get.call_args.args[0] == "/movies/12345/extended"
+        called_paths = [c.args[0] for c in transport.get.call_args_list]
+        assert called_paths == [
+            "/movies/12345/extended",
+            "/movies/12345/translations/fra",
+        ]
+
+    def test_get_series_applies_configured_language_translation(self, client: TVDBClient, transport: MagicMock) -> None:
+        """A non-empty fra translation replaces the default-language title/overview.
+
+        Regression (2026-07-17): « Disparues : Le tueur de Long Island » exists
+        on TVDB (series 459609) but the NFO got the English default name — the
+        client stored its configured language and never applied it.
+        """
+        extended = _load("series_extended.json")
+        translation = {
+            "status": "success",
+            "data": {
+                "name": "Disparues : Le tueur de Long Island",
+                "overview": "Résumé en français.",
+                "language": "fra",
+            },
+        }
+        transport.get.side_effect = [extended, translation]
+        md = client.get_series(459609)
+        assert md.title == "Disparues : Le tueur de Long Island"
+        assert md.overview == "Résumé en français."
+
+    def test_get_series_keeps_default_when_translation_missing(self, client: TVDBClient, transport: MagicMock) -> None:
+        """A 404 on /translations/{lang} keeps the default-language payload (fail-soft)."""
+        from personalscraper.api._contracts import ApiError
+
+        extended = _load("series_extended.json")
+        transport.get.side_effect = [
+            extended,
+            ApiError(provider="tvdb", http_status=404, message="no translation"),
+        ]
+        md = client.get_series(81189)
+        assert md.title == "Breaking Bad"
+
+    def test_get_series_ignores_empty_translation_fields(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Blank/absent translated fields never overwrite the default values."""
+        extended = _load("series_extended.json")
+        translation = {"status": "success", "data": {"name": "   ", "language": "fra"}}
+        transport.get.side_effect = [extended, translation]
+        md = client.get_series(81189)
+        assert md.title == "Breaking Bad"
 
 
 # ── get_artwork_urls (already partly covered in test_tvdb_artwork_endpoint) ──
