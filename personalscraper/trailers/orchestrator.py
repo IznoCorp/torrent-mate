@@ -21,7 +21,7 @@ from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.indexer.repos import item_repo as _indexer_item_repo
 from personalscraper.logger import get_logger
-from personalscraper.scraper.ytdlp_downloader import (
+from personalscraper.trailers.discovery.ytdlp_downloader import (
     CookieConfig,
     CookieError,
     DownloadStatus,
@@ -47,7 +47,7 @@ from personalscraper.trailers.state import (
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.core.event_bus import EventBus
-    from personalscraper.scraper.trailer_finder import TrailerFinder
+    from personalscraper.trailers.discovery.trailer_finder import TrailerFinder
 
 log = get_logger(__name__)
 
@@ -729,9 +729,9 @@ class TrailersOrchestrator:
             from personalscraper.config import get_settings  # noqa: PLC0415
             from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
             from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
-            from personalscraper.scraper.trailer_finder import TrailerFinder  # noqa: PLC0415
-            from personalscraper.scraper.trailers_cache import TrailersCache  # noqa: PLC0415
-            from personalscraper.scraper.youtube_search import (  # noqa: PLC0415
+            from personalscraper.trailers.discovery.trailer_finder import TrailerFinder  # noqa: PLC0415
+            from personalscraper.trailers.discovery.trailers_cache import TrailersCache  # noqa: PLC0415
+            from personalscraper.trailers.discovery.youtube_search import (  # noqa: PLC0415
                 YoutubeSearch,
                 youtube_api_key_from_env,
             )

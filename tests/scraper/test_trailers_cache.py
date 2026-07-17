@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.api.metadata._base import Video
-from personalscraper.scraper.trailers_cache import TrailersCache
+from personalscraper.trailers.discovery.trailers_cache import TrailersCache
 
 UTC = timezone.utc
 
@@ -112,7 +112,7 @@ class TestContainsSearch:
         trailers_cache = TrailersCache(cache_path)
 
         # Import the internal key builder to inject the expired entry directly.
-        from personalscraper.scraper.trailers_cache import _yt_key
+        from personalscraper.trailers.discovery.trailers_cache import _yt_key
 
         key = _yt_key("Stale Movie", 2010)
         # Write an entry dated 8 days ago (past the 7-day TTL).

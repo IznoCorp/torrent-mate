@@ -45,7 +45,7 @@ import pytest
 from personalscraper.api._contracts import CircuitOpenError, MediaType
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
-from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 from personalscraper.trailers.events import TrailerDownloaded
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.placement import trailer_path_for

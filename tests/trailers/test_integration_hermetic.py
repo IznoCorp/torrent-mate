@@ -22,7 +22,7 @@ from xml.etree import ElementTree as ET
 
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
-from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.placement import trailer_exists, trailer_path_for, trailer_path_for_season
 from personalscraper.trailers.scanner import ScanItem

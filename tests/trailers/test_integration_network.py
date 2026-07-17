@@ -29,10 +29,10 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.core.circuit import CircuitBreaker
     from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-    from personalscraper.scraper.trailer_finder import TrailerFinder
-    from personalscraper.scraper.trailers_cache import TrailersCache
-    from personalscraper.scraper.youtube_search import YoutubeSearch
-    from personalscraper.scraper.ytdlp_downloader import DownloadStatus, YtdlpDownloader
+    from personalscraper.trailers.discovery.trailer_finder import TrailerFinder
+    from personalscraper.trailers.discovery.trailers_cache import TrailersCache
+    from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
+    from personalscraper.trailers.discovery.ytdlp_downloader import DownloadStatus, YtdlpDownloader
     from personalscraper.trailers.placement import trailer_exists, trailer_path_for
 
     # Big Buck Bunny TMDB ID -- a freely licensed Blender Foundation film,

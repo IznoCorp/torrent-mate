@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.scraper.ytdlp_downloader import (
+from personalscraper.trailers.discovery.ytdlp_downloader import (
     CookieConfig,
     CookieError,
     DownloadResult,
@@ -80,7 +80,7 @@ class TestCookieConfig:
         monkeypatch.setenv("YOUTUBE_COOKIES_FILE", str(cookie_file))
         # Simulate NTFS detection by patching the internal check.
         with patch(
-            "personalscraper.scraper.ytdlp_downloader._is_apfs_native",
+            "personalscraper.trailers.discovery.ytdlp_downloader._is_apfs_native",
             return_value=False,
         ):
             with pytest.raises(CookieError, match="NTFS"):
@@ -127,7 +127,7 @@ class TestBotDetectionPhrases:
     )
     def test_phrase_triggers_bot_detected_path(self, tmp_path: Path, phrase: str) -> None:
         """A typo dropping any phrase from the tuple would fail this test."""
-        from personalscraper.scraper.ytdlp_downloader import _is_bot_detection_error
+        from personalscraper.trailers.discovery.ytdlp_downloader import _is_bot_detection_error
 
         assert _is_bot_detection_error(phrase) is True
 
@@ -616,7 +616,7 @@ class TestCookieStatFailure:
             return original_stat(self, *args, **kwargs)  # type: ignore[arg-type]
 
         with patch.object(Path, "stat", selective_stat):
-            with caplog.at_level(logging.DEBUG, logger="personalscraper.scraper.ytdlp_downloader"):
+            with caplog.at_level(logging.DEBUG, logger="personalscraper.trailers.discovery.ytdlp_downloader"):
                 cfg = CookieConfig.from_env()
 
         assert cfg is not None
@@ -668,7 +668,7 @@ class TestNoSigalrmPlatform:
         output_file = tmp_path / "clip.mp4"
 
         # Patch hasattr so the SIGALRM gate evaluates to False inside _attempt_download.
-        import personalscraper.scraper.ytdlp_downloader as mod
+        import personalscraper.trailers.discovery.ytdlp_downloader as mod
 
         original_hasattr = mod.hasattr if hasattr(mod, "hasattr") else hasattr
 
@@ -677,7 +677,7 @@ class TestNoSigalrmPlatform:
                 return False
             return original_hasattr(obj, name)
 
-        with patch("personalscraper.scraper.ytdlp_downloader.hasattr", fake_hasattr, create=True):
+        with patch("personalscraper.trailers.discovery.ytdlp_downloader.hasattr", fake_hasattr, create=True):
             with patch("yt_dlp.YoutubeDL") as MockYDL:
                 instance = MockYDL.return_value.__enter__.return_value
                 instance.download.side_effect = lambda urls: output_file.write_bytes(b"x" * 1024) or 0

@@ -35,12 +35,12 @@ import yt_dlp.utils
 
 from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.logger import get_logger
-from personalscraper.scraper.trailers_cache import TrailersCache
+from personalscraper.trailers.discovery.trailers_cache import TrailersCache
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata._base import Video
     from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: F811
-    from personalscraper.scraper.youtube_search import YoutubeSearch
+    from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
 logger = get_logger(__name__)
 
@@ -437,7 +437,7 @@ class TrailerFinder:
             )
             # Create a one-shot searcher with a passthrough format so the
             # pre-formatted season query is used verbatim.
-            from personalscraper.scraper.youtube_search import YoutubeSearch  # noqa: PLC0415
+            from personalscraper.trailers.discovery.youtube_search import YoutubeSearch  # noqa: PLC0415
 
             passthrough_searcher = YoutubeSearch(
                 "{title}",

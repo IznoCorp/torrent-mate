@@ -14,8 +14,8 @@ from personalscraper.api.metadata._base import Video
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.circuit import CircuitBreaker, CircuitOpenError
 from personalscraper.core.event_bus import EventBus
-from personalscraper.scraper.trailer_finder import TrailerFinder
-from personalscraper.scraper.trailers_cache import TrailersCache
+from personalscraper.trailers.discovery.trailer_finder import TrailerFinder
+from personalscraper.trailers.discovery.trailers_cache import TrailersCache
 
 
 def _mock_registry(finder: TrailerFinder) -> MagicMock:
@@ -186,7 +186,7 @@ class TestSeasonFallbackQuotaConfig:
         """
         from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-        from personalscraper.scraper.youtube_search import YoutubeSearch
+        from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         # Build a YoutubeSearch with non-default quota values.
         custom_daily = 5000
@@ -391,7 +391,7 @@ class TestCachePoisoningClosure:
         """
         from unittest.mock import patch
 
-        from personalscraper.scraper.youtube_search import YoutubeSearch
+        from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
@@ -461,7 +461,7 @@ class TestCachePoisoningClosure:
 
         from personalscraper.core.circuit import CircuitState
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-        from personalscraper.scraper.youtube_search import YoutubeSearch
+        from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
@@ -540,7 +540,7 @@ class TestDownloadErrorRegression:
         from yt_dlp.utils import DownloadError as _YtDlpDownloadError
 
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-        from personalscraper.scraper.youtube_search import YoutubeSearch
+        from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)

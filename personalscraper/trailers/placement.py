@@ -17,7 +17,7 @@ Naming conventions, derived directly from the Plex documentation:
 
 This module is pure path computation + a small NFO XML tweak. It does NOT
 write media files -- download is owned by
-``personalscraper.scraper.ytdlp_downloader.YtdlpDownloader``.
+``personalscraper.trailers.discovery.ytdlp_downloader.YtdlpDownloader``.
 """
 
 from __future__ import annotations

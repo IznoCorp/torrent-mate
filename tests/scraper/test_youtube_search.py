@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.core.event_bus import EventBus
-from personalscraper.scraper.youtube_search import YoutubeSearch
+from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "youtube"
 
