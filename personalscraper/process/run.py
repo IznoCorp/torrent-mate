@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.staging import find_by_file_type, folder_name
+from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
@@ -237,10 +237,16 @@ def run_cleanup(
     staging = config.paths.staging_dir
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    # Artifact-prone dirs: layout debris (e.g. an empty legacy "TV SHOWS/"
+    # folder) lands in the ingest dir and gets sorted to the "other" category,
+    # where the web UI would present it as a blocked media. Sweeping empty
+    # trees here auto-heals that class (operator directive 2026-07-16).
+    ingest_dir = staging / folder_name(find_ingest_dir(config))
+    other_dir = staging / folder_name(find_by_file_type(config, FileType.OTHER))
 
     cleanup_report = StepReport(name="cleanup")
 
-    for category_dir in (movies_dir, tvshows_dir):
+    for category_dir in (movies_dir, tvshows_dir, ingest_dir, other_dir):
         event_bus.emit(ItemProgressed(step="cleanup", item=str(category_dir.name), status="started"))
         cat_report = cleanup_empty_dirs(category_dir, dry_run=dry_run)
         cleanup_report.success_count += cat_report.success_count

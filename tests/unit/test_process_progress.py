@@ -23,7 +23,15 @@ def _make_config() -> MagicMock:
     tv_e.id = 2
     tv_e.file_type = "tvshow"
     tv_e.role = "tvshows"
-    config.staging_dirs = [movie_e, tv_e]
+    ingest_e = MagicMock()
+    ingest_e.id = 97
+    ingest_e.file_type = None
+    ingest_e.role = "ingest"
+    other_e = MagicMock()
+    other_e.id = 98
+    other_e.file_type = "other"
+    other_e.role = None
+    config.staging_dirs = [movie_e, tv_e, ingest_e, other_e]
     config.categories = []
     return config
 
