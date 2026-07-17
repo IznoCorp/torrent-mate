@@ -19,10 +19,14 @@ from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner._db_writes import (
     _upsert_path_row,
 )
+from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
 from personalscraper.indexer.scanner._walker import (
+    SkeletonVisitor,
+    WalkBudget,
+    WalkCheckpoint,
     _build_disk_fingerprints,
     _sample_fresh_fingerprints,
-    _walk_dir_quick,
+    walk,
 )
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
@@ -30,9 +34,64 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.scan")
 
 __all__ = [
+    "QuickVisitor",
     "_run_paranoia_branch",
     "_scan_disk_quick",
 ]
+
+
+class QuickVisitor(SkeletonVisitor):
+    """Quick-mode visitor over :func:`~personalscraper.indexer.scanner._walker.walk`.
+
+    Records files exactly like :class:`SkeletonVisitor` (tier-1 fields, no oshash
+    recompute in quick mode) but overrides :meth:`enter_dir` with the dir-mtime
+    subtree short-circuit: an unchanged directory (stored ``dir_mtime_ns`` equals
+    the live value, both bucketed by the disk capability) is skipped entirely —
+    zero file reads in that subtree — exactly like the legacy ``_walk_dir_quick``.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` being walked.
+        generation: Scan generation stamped on every ``media_file`` row.
+        files_visited: Single-element mutable counter for files.
+        dirs_visited: Single-element mutable counter for directories.
+        dir_mtime_reliable: When ``False`` the skip is disabled (every subtree is
+            walked and re-fingerprinted at tier-1).
+        capability: Per-disk :class:`FilesystemCapability` governing the mtime
+            granularity bucketing of the stored-vs-live comparison.
+    """
+
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        disk: DiskRow,
+        generation: int,
+        files_visited: list[int],
+        dirs_visited: list[int],
+        dir_mtime_reliable: bool,
+        capability: FilesystemCapability,
+    ) -> None:
+        """Bind the per-disk state plus the dir-mtime skip configuration."""
+        super().__init__(conn, disk, generation, files_visited, dirs_visited)
+        self.dir_mtime_reliable = dir_mtime_reliable
+        self.capability = capability
+
+    def enter_dir(self, entry: os.DirEntry[str], st: os.stat_result, rel: str) -> bool:
+        """Skip an unchanged subtree (dir-mtime match) or recurse into it."""
+        if self.dir_mtime_reliable:
+            # Both the stored and live dir mtimes are bucketed via the disk
+            # capability so sub-bucket jitter on a coarse FS does not force a
+            # spurious re-walk (NTFS granularity 1 → identity → exact compare).
+            existing_path = disk_repo.get_path_by_disk_and_relpath(self.conn, self.disk.id, rel)
+            if (
+                existing_path is not None
+                and existing_path.dir_mtime_ns is not None
+                and round_mtime_ns(existing_path.dir_mtime_ns, self.capability)
+                == round_mtime_ns(st.st_mtime_ns, self.capability)
+            ):
+                log.debug("indexer.scan.dir_unchanged", path=entry.path, dir_mtime_ns=st.st_mtime_ns)
+                return False
+        return True
 
 
 def _run_paranoia_branch(
@@ -203,9 +262,10 @@ def _scan_disk_quick(
        ``disk.merkle_root``, the disk has not changed since the last scan —
        skip all filesystem access for this disk.
 
-    2. **Dir-mtime walk** (on Merkle miss): walk the disk using
-       :func:`_walk_dir_quick`, which skips unchanged subtrees by comparing
-       the stored ``path.dir_mtime_ns`` to the current filesystem value.
+    2. **Dir-mtime walk** (on Merkle miss): drive the shared
+       :func:`~personalscraper.indexer.scanner._walker.walk` skeleton with a
+       :class:`QuickVisitor`, which skips unchanged subtrees by comparing the
+       stored ``path.dir_mtime_ns`` to the current filesystem value.
 
     On Merkle miss (stored root differs from DB-computed root), a bulk-change
     check is performed by sampling fresh tier-1 fingerprints from ``os.scandir``
@@ -230,13 +290,14 @@ def _scan_disk_quick(
         dir_mtime_reliable: Whether the dir-mtime skip optimisation is enabled
             for this scan session (from :func:`_verify_dir_mtime_reliable`).
         resume_from: Single-element list holding the opaque path string of the last
-            checkpoint (or ``None``).  Forwarded to :func:`_walk_dir_quick`.
-        files_since_checkpoint: Single-element mutable counter forwarded to
-            :func:`_walk_dir_quick`.
+            checkpoint (or ``None``).  Forwarded to the walk skeleton's
+            :class:`~personalscraper.indexer.scanner._walker.WalkCheckpoint`.
+        files_since_checkpoint: Single-element mutable counter forwarded to the
+            walk skeleton's checkpoint context.
         budget_exhausted: Single-element flag; set to ``True`` when the time budget
-            is exceeded inside :func:`_walk_dir_quick`.
+            is exceeded inside the walk.
         started_at_monotonic: :func:`time.monotonic` timestamp forwarded to the
-            walk helper.
+            walk skeleton's budget context.
         budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
         scan_run_id: PK of the active ``scan_run`` row.
         checkpoint_every: How many files to process between checkpoint writes.
@@ -320,22 +381,30 @@ def _scan_disk_quick(
             raise DiskBulkChangeDetected(delta=delta, disk_uuid=disk.uuid)
 
     # --- Dir-mtime walk ---
-    _walk_dir_quick(
+    visitor = QuickVisitor(
         conn,
         disk,
-        mount,
+        generation,
         files_visited,
         dirs_visited,
-        generation,
         dir_mtime_reliable,
-        resume_from,
-        files_since_checkpoint,
-        budget_exhausted,
-        started_at_monotonic,
-        budget_seconds,
-        scan_run_id,
-        checkpoint_every,
         capability,
+    )
+    walk(
+        mount,
+        visitor,
+        budget=WalkBudget(
+            budget_seconds=budget_seconds,
+            started_at_monotonic=started_at_monotonic,
+            budget_exhausted=budget_exhausted if budget_exhausted is not None else [False],
+        ),
+        shutdown=is_shutdown_requested,
+        checkpoint=WalkCheckpoint(
+            scan_run_id=scan_run_id,
+            checkpoint_every=checkpoint_every,
+            files_since_checkpoint=files_since_checkpoint if files_since_checkpoint is not None else [0],
+            resume_from=resume_from if resume_from is not None else [None],
+        ),
     )
 
     # Skip post-walk bookkeeping if the budget was exhausted during the walk —
