@@ -23,10 +23,23 @@
 | 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [x]    |
 | 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [x]    |
 | 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [x]    |
+| 5   | PR fixes cycle 1                         | [phase-05-pr-fixes-cycle-1.md](docs/features/systeme-hub/plan/phase-05-pr-fixes-cycle-1.md) | [ ]    |
 
 ## Review cycles
 
-_(none yet)_
+### Cycle 1
+
+- 4 agents on PR #317 @ 77003a6c. Code: 2 findings >=80 (button-in-button FileList; RunDetail
+  cross-link lands on État instead of ?tab=maintenance, test locks the stale target). Silent-failures:
+  F1 HIGH « Jamais exécuté » for an executed-but-unmapped outcome canonized in the shared module;
+  F2 « — » erases unknown tokens; F3 /registry LegacyRedirect builds a double-? URL and the test
+  certifies the broken param forwarding; F5 auto-select re-adds ?file= behind Secrets. Tests (live
+  mutation probes): redirects + deep-link guard proven RED; RunDetail divergent-label revert is a
+  PROVEN SURVIVING MUTANT; circuit-badge labels lost in suite migration; restart hint + FR secrets
+  shipped with zero tests. Comments: Config/nav/RunDetail/CompactHealth stale docblocks + 6 active
+  claims in web-ui.md/maintenance.md now false. Backend extraction verified byte-identical, clean.
+- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases). Open items recorded there (F6/F7
+  pre-existing quiet-error styling, stale &run= sanctioned pattern).
 
 ## Scope guardrails (epic close-out)
 
