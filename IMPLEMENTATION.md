@@ -1,54 +1,32 @@
-# Implementation Progress — pipeline-panel
+# Implementation Progress — acquisition-queue
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Design overhaul V3 — Pipeline : stepper réparé + historique rapatrié
+**Feature**: Design overhaul V4 — Acquisition : rangées compactes, File d'acquisition, obligations titrées
 **Type**: feat
-**Branch**: feat/pipeline-panel (off main @ dc01fb11 — V2 + hotfix 0.51.1)
-**Ticket**: #307 (epic #304) — claimed; board moves broken (kanban-mate#187), card stays in Backlog
-**PR**: https://github.com/IznoCorp/torrent-mate/pull/313
+**Branch**: feat/acquisition-queue (off main @ 3a7200e9 — bug wave 0.52.1)
+**Ticket**: #308 (epic #304) — claimed; board moves broken (kanban-mate#187), card stays put
+**PR**: _(none yet)_
 **Merge**: squash (**auto** — operator directive 2026-07-17)
-**Design**: `docs/features/pipeline-panel/DESIGN.md` ← shared spec §2.3 + §1.1 (conditional `?run=` redirect)
-**Version bump**: 0.51.1 → 0.52.0 (minor)
+**Design**: `docs/features/acquisition-queue/DESIGN.md` ← shared spec §3.1 + §5.1 + §7.2
+**Version bump**: 0.52.1 → 0.53.0 (minor)
 
-## Status: ALL PHASES DONE — feature-pr (push + PR + CI + review + AUTO merge)
+## Status: branch created — awaiting plan (/implement:plan)
 
-**Master plan**: docs/features/pipeline-panel/plan/INDEX.md (4 phases)
+**Master plan**: _(to be generated)_
 
 ## Phases
 
-| #   | Phase                                  | File                   | Status |
-| --- | -------------------------------------- | ---------------------- | ------ |
-| 1   | Stepper compression + mobile vertical  | phase-01-stepper.md    | [x]    |
-| 2   | History repatriation + legend popover  | phase-02-history.md    | [x]    |
-| 3   | Conditional /maintenance?run= redirect | phase-03-redirect.md   | [x]    |
-| 4   | Final gate                             | phase-04-final-gate.md | [x]    |
+_(plan pending)_
 
 ## Review cycles
 
-### Cycle 1
-
-- 4 agents on PR #313 @ 44fa6fed. No design contradictions. Code review: ZERO findings >=80 conf
-  (cleanest wave). Tests review: mutation-PROVEN suite blindness (G1/G2/G7 — suite green with the
-  DOIT-2 invariant broken). Silent-failures: core anomaly-visibility requirement STRUCTURALLY HOLDS;
-  residual risk in error paths around the repatriated history (B1 dead teleported code, B2 empty ?run=,
-  B3 non-dismissible 404/500-conflated error card, D1 unencoded uid, C1 SR-invisible legend menu,
-  C2 legend lost on Maintenance). Comments: nine→eight-stage + RunDetail module doc + 5 precisions.
-- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases — DONE; mutations A/B verified RED then reverted). Open items recorded there incl. **B4
-  (backend calm-empty history on DB failure — LOUD operator item, candidate hotfix)** and P2
-  (active outranks blocked).
-
-### Cycle 2
-
-- Verification agent on fix range 3ec5fe9e..77065ee5 (4 commits, 15 files). Gates re-run: tsc clean,
-  eslint clean, frontend suite 799/799. All 7 code findings (B1/B2/B3/D1/C1/C2/A1) + all test findings
-  (G1–G7 mutation-proof, B2/B3/D1/C1 coverage) + docs sweep genuinely FIXED. C1 keyboard-open verified
-  in real Chrome (Enter + Space → exactly one toggle each). ZERO new defects >=80 conf. Sub-threshold
-  notes (non-blocking): Escape no longer closes the legend (~50); redundant onKeyDown on button (~40).
-- Verdict: ready to merge → AUTO squash merge per operator directive.
+_(none yet)_
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
-- Only `/pipeline` (stepper + history + legend popover) + the CONDITIONAL `/maintenance?run=` redirect.
-- Maintenance loses ONLY its pipeline-runs table; everything else untouched (V5 does /systeme).
-- ZERO backend changes (no openapi run expected).
+- Only `/acquisition` (tabs, rows, merge, obligations title) + `ObligationItem.title` backend enrichment.
+- No Système/Config work (V5). Watcher tab untouched.
+- No regression: watcher numbered results, obligations release flow, per-episode badges + FR reasons,
+  downloads fail-soft notice, MediaSearchAdd flow.
+- Route change ⇒ `make openapi` + commit regenerated files.
