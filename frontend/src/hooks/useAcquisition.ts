@@ -204,7 +204,7 @@ export function useTrackedAcquisitionRun(runUid: string | null) {
   // this surface polls the acquisition status list and watches the tracked
   // run's ``ended_at`` (not a pipeline-run ``outcome``).
   const query = useRunToCompletion<AcquisitionStatusResponse>({
-    queryKey: [...acqKeys.status(), "tracked", runUid],
+    queryKey: acqKeys.trackedRun(runUid),
     queryFn: getAcquisitionStatus,
     enabled: runUid != null,
     intervalMs: 2000,

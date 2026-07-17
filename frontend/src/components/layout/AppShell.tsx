@@ -30,6 +30,7 @@ import { useWanted } from "@/hooks/useAcquisition";
 import { useQueryClient } from "@tanstack/react-query";
 import { isEvent } from "@/api/events";
 import { decisionsKeys } from "@/api/decisions";
+import { pipelineKeys } from "@/api/pipeline";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 
 /**
@@ -98,9 +99,7 @@ function AppShellInner(): ReactElement {
     );
     if (shouldInvalidate) {
       void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
-      void queryClient.invalidateQueries({
-        queryKey: ["pipeline", "history"],
-      });
+      void queryClient.invalidateQueries({ queryKey: pipelineKeys.history });
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
     }
   }, [events, queryClient]);

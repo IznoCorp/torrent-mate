@@ -4,7 +4,7 @@
  * Exposes the six actions from the ``/api/pipeline/*`` control routes as compact
  * icon buttons with confirmation dialogs where destructive, plus a Watcher toggle
  * Switch. Every mutation is backed by TanStack Query ``useMutation`` and
- * invalidates ``["pipeline", "status"]`` on success so the status card and
+ * invalidates ``pipelineKeys.status`` on success so the status card and
  * stepper pick up the new state.
  */
 
@@ -18,6 +18,7 @@ import { ApiError } from "@/api/client";
 import {
   killPipeline,
   pausePipeline,
+  pipelineKeys,
   resumePipeline,
   runPipeline,
   setWatcher,
@@ -57,7 +58,7 @@ export function PipelineControls({
 }: PipelineControlsProps): ReactElement {
   const queryClient = useQueryClient();
   const invalidate = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] }),
+    () => queryClient.invalidateQueries({ queryKey: pipelineKeys.status }),
     [queryClient],
   );
 

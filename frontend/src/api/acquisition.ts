@@ -133,6 +133,13 @@ export const acqKeys = {
   /** Acquisition status query key: ``['acquisition', 'status']``. */
   status: () => [...acqKeys.all, "status"] as const,
 
+  /**
+   * Tracked-run key: ``['acquisition', 'status', 'tracked', runUid]`` — the
+   * status list scoped to one launched run's terminal poll (A4 / §5).
+   */
+  trackedRun: (runUid: string | null) =>
+    [...acqKeys.status(), "tracked", runUid] as const,
+
   /** Media search query key: ``['acquisition', 'search', {q, kind}]``. */
   search: (params: MediaSearchParams) =>
     [...acqKeys.all, "search", params] as const,

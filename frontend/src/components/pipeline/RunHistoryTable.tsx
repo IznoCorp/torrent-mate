@@ -26,7 +26,11 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 
-import { getPipelineHistory, type HistoryParams } from "@/api/pipeline";
+import {
+  getPipelineHistory,
+  pipelineKeys,
+  type HistoryParams,
+} from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
@@ -161,7 +165,7 @@ export function RunHistoryTable({
   );
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["pipeline", "history", queryParams] as const,
+    queryKey: pipelineKeys.historyList(queryParams),
     queryFn: () => getPipelineHistory(queryParams),
   });
 

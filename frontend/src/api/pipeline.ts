@@ -17,6 +17,47 @@ import type { paths } from "./schema";
 import { XRW_HEADERS, apiFetch } from "./client";
 
 // ---------------------------------------------------------------------------
+// Stable TanStack Query keys
+// ---------------------------------------------------------------------------
+
+/**
+ * Stable React-Query keys for the pipeline domain (status + run history).
+ *
+ * The ONE home for pipeline query keys (FRONTEND-DATA-05): the run-history keys
+ * were hand-assembled as ``["pipeline", "history", …]`` literals in 8+ places
+ * with only string-coincidence coherence. Every site now derives its key from
+ * this factory so a shape change is made once and mutations invalidate the
+ * exact same cache entries the queries read.
+ *
+ * ``history`` is the shared prefix: invalidating it partial-matches every
+ * detail / list / last-run key beneath it (the existing invalidation contract).
+ * The Flow-Board ``stages`` key keeps its own factory in ``usePipelineStages``.
+ */
+export const pipelineKeys = {
+  /** Pipeline-status query key: ``['pipeline', 'status']``. */
+  status: ["pipeline", "status"] as const,
+
+  /** Run-history prefix key: ``['pipeline', 'history']`` (invalidation root). */
+  history: ["pipeline", "history"] as const,
+
+  /** Run-history list key: ``['pipeline', 'history', params]``. */
+  historyList: (params: HistoryParams) =>
+    ["pipeline", "history", params] as const,
+
+  /** Single-run detail key: ``['pipeline', 'history', runUid]``. */
+  historyDetail: (runUid: string | null) =>
+    ["pipeline", "history", runUid] as const,
+
+  /** Last-run summary key: ``['pipeline', 'history', 'last', refetchKey]``. */
+  historyLast: (refetchKey: string) =>
+    ["pipeline", "history", "last", refetchKey] as const,
+
+  /** Last-run detail key: ``['pipeline', 'history', 'last-detail', runUid]``. */
+  historyLastDetail: (runUid: string | null) =>
+    ["pipeline", "history", "last-detail", runUid] as const,
+};
+
+// ---------------------------------------------------------------------------
 // Pipeline control endpoints
 // ---------------------------------------------------------------------------
 

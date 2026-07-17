@@ -15,7 +15,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getPipelineHistory, getPipelineRunDetail } from "@/api/pipeline";
+import {
+  getPipelineHistory,
+  getPipelineRunDetail,
+  pipelineKeys,
+} from "@/api/pipeline";
 import type { InterpretedLine } from "@/components/pipeline/interpretRun";
 import { summariseSteps } from "@/components/pipeline/summariseSteps";
 
@@ -42,14 +46,14 @@ export interface LastPipelineRun {
  */
 export function useLastPipelineRun(refetchKey = "idle"): LastPipelineRun {
   const historyQuery = useQuery({
-    queryKey: ["pipeline", "history", "last", refetchKey] as const,
+    queryKey: pipelineKeys.historyLast(refetchKey),
     queryFn: () => getPipelineHistory({ limit: 1, kind: "pipeline", sort: "-started_at" }),
   });
 
   const runUid = historyQuery.data?.runs[0]?.run_uid ?? null;
 
   const detailQuery = useQuery({
-    queryKey: ["pipeline", "history", "last-detail", runUid] as const,
+    queryKey: pipelineKeys.historyLastDetail(runUid),
     // ``enabled`` gates execution to a non-null run_uid; the queryFn narrows it
     // once more so neither a non-null assertion nor a cast is needed (eslint
     // bans both).

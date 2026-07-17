@@ -17,6 +17,7 @@ import { Fragment, type ReactElement } from "react";
 
 import {
   getPipelineRunDetail,
+  pipelineKeys,
   type RunDetail as RunDetailData,
 } from "@/api/pipeline";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
@@ -185,7 +186,7 @@ function queueWaitInfo(
 
 export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["pipeline", "history", runUid] as const,
+    queryKey: pipelineKeys.historyDetail(runUid),
     queryFn: () => getPipelineRunDetail(runUid),
   });
 

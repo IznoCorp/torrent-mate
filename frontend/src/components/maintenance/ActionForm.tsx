@@ -24,7 +24,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactElement } from "react";
 
 import { ApiError } from "@/api/client";
-import { getPipelineRunDetail } from "@/api/pipeline";
+import { getPipelineRunDetail, pipelineKeys } from "@/api/pipeline";
 import {
   runMaintenanceAction,
   type MaintenanceAction,
@@ -178,7 +178,7 @@ function RunOutput({
   // Poll the durable run detail; stop once the run reaches a terminal outcome
   // (the shared launch-202 → poll → terminal machine).
   const { data } = useRunToCompletion({
-    queryKey: ["pipeline", "history", runUid] as const,
+    queryKey: pipelineKeys.historyDetail(runUid),
     queryFn: () => getPipelineRunDetail(runUid),
     isTerminal: (d) => isTerminalRunOutcome(d?.outcome),
     intervalMs: RUN_DETAIL_POLL_MS,
@@ -334,12 +334,12 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
   const canonical = JSON.stringify(buildOptions());
 
   // Poll the tracked dry-run so the destructive gate reacts to its REAL outcome
-  // rather than the 202 spawn. Reuses the same ``["pipeline", "history", uid]``
+  // rather than the 202 spawn. Reuses the same ``pipelineKeys.historyDetail(uid)``
   // queryKey as RunOutput, so React Query dedupes to a single fetch while both
   // observe the same run; the poll stops once the run reaches a terminal outcome.
   const trackedUid = dryRunTracking?.runUid ?? null;
   const { data: trackedDetail } = useRunToCompletion({
-    queryKey: ["pipeline", "history", trackedUid] as const,
+    queryKey: pipelineKeys.historyDetail(trackedUid),
     queryFn: () => getPipelineRunDetail(trackedUid ?? ""),
     enabled: trackedUid !== null,
     isTerminal: (d) => isTerminalRunOutcome(d?.outcome),
@@ -383,7 +383,7 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
       // R21 — the 202 reserved a fresh pipeline_run row (kind='maintenance'):
       // refresh every history-table query so the new run appears without a
       // manual re-sort/paginate/reload.
-      void queryClient.invalidateQueries({ queryKey: ["pipeline", "history"] });
+      void queryClient.invalidateQueries({ queryKey: pipelineKeys.history });
       // Destructive gate: record the launched dry-run so the poll above can
       // track its real outcome. Do NOT unlock here — a 202 only means "spawn
       // accepted", not "dry-run succeeded" (finding G). Re-lock until the poll

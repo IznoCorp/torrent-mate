@@ -15,7 +15,7 @@ import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
-import { getPipelineRunDetail } from "@/api/pipeline";
+import { getPipelineRunDetail, pipelineKeys } from "@/api/pipeline";
 import {
   isTerminalRunOutcome,
   useRunToCompletion,
@@ -265,7 +265,7 @@ export function DecisionDetail({
       // detached runner marks it resolved — the completion poll below fires a
       // second invalidation once the run is terminal (F19/F49).
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      void queryClient.invalidateQueries({ queryKey: ["pipeline", "history"] });
+      void queryClient.invalidateQueries({ queryKey: pipelineKeys.history });
     },
     onError: (error) => {
       if (error instanceof ApiError) {
@@ -329,7 +329,7 @@ export function DecisionDetail({
   // persistently errors so a 404 (row never written) does not poll forever (SF1
   // stuck-poll guard). ``onTerminal`` / ``onError`` share one fire-once latch.
   useRunToCompletion({
-    queryKey: ["pipeline", "history", runUid],
+    queryKey: pipelineKeys.historyDetail(runUid),
     queryFn: () => getPipelineRunDetail(runUid ?? ""),
     enabled: runUid != null && !runDone,
     // Do not retry a failing run-detail GET forever — surface it via the

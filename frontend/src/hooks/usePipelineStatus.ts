@@ -8,7 +8,7 @@
  * for the next poll tick.
  *
  * - {@link pipelineKeys} — stable query keys so mutations and cache resets target
- *   the same cache entry.
+ *   the same cache entry (the single factory lives in ``@/api/pipeline``).
  * - {@link usePipelineStatus} — the hook wired into{@link PipelineControls},
  *   {@link PipelineStepper}, and {@link RunLogFeed}.
  */
@@ -16,7 +16,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 
-import { getPipelineStatus } from "@/api/pipeline";
+import { getPipelineStatus, pipelineKeys } from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
@@ -38,17 +38,6 @@ const INVALIDATE_EVENT_TYPES = new Set([
   "StepStarted",
   "StepCompleted",
 ]);
-
-/**
- * Stable React-Query keys for the pipeline status domain.
- *
- * Exported so mutations ({@link PipelineControls}) invalidate the exact same cache
- * entry as the poll query.
- */
-export const pipelineKeys = {
-  /** Pipeline-status query key: ``['pipeline', 'status']``. */
-  status: ["pipeline", "status"] as const,
-};
 
 /**
  * The flattened status shape consumed by the pipeline page components.
