@@ -6,6 +6,10 @@
  * progress bar, a state badge, and the size. Surfaces the fail-soft
  * ``client_available=false`` as a soft note rather than an empty "no downloads"
  * (which would read as "nothing grabbed").
+ *
+ * Superseded — kept in the tree but no longer mounted. Replaced by
+ * FileDAcquisitionPanel (Phase 03). DownloadRow is exported for reuse by
+ * FileDAcquisitionPanel.
  */
 
 import { Download } from "lucide-react";
@@ -40,7 +44,11 @@ function formatSize(bytes: number): string {
   return `${String(Math.round(bytes / 1e6))} Mo`;
 }
 
-/** One download row: title, progress bar, state badge, size. */
+/**
+ * One download row: title, progress bar, state badge, size.
+ *
+ * Exported for reuse by FileDAcquisitionPanel (the superseding merged panel).
+ */
 export function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
   const pct = Math.round(d.progress * 100);
   const tone = DOWNLOAD_STATE_TONE[d.state] ?? "neutral";
@@ -97,6 +105,9 @@ export function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
 
 /**
  * DownloadsPanel — the acquisition "Téléchargements" card.
+ *
+ * No longer mounted — superseded by FileDAcquisitionPanel (Phase 03). Kept in
+ * the tree so DownloadRow remains importable.
  *
  * Returns:
  *   The panel element (skeleton while loading, empty-state when idle).

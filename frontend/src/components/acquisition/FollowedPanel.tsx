@@ -6,13 +6,7 @@
  * MediaCard grid — 72 px poster thumb, mono completeness, one ⋯ DropdownMenu.
  */
 
-import {
-  Clock,
-  MoreHorizontal,
-  Power,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Clock, MoreHorizontal, Power, Search, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
@@ -177,7 +171,7 @@ export function FollowedPanel({
   };
 
   // Toggle active/paused in place (C16) — the update hook invalidates the
-  // acquisition views, so the status badge follows without leaving the card.
+  // acquisition views, so the status badge follows without leaving the row.
   const handleToggleActive = (id: number, active: boolean): void => {
     updateMutation.mutate({ id, body: { active } });
   };
@@ -274,7 +268,7 @@ export function FollowedPanel({
 
   // ── Empty ──────────────────────────────────────────────────────────────
   // Operator review (2026-07-15): a retired follow (« Retirer » → active=0)
-  // must LEAVE the card grid — rendering it identically made the button look
+  // must LEAVE the rows — rendering it identically made the button look
   // broken. Retired follows collapse into a compact list below, from which
   // they can be reactivated.
   const activeItems = data.filter((item) => item.active);

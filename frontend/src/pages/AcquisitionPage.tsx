@@ -1,10 +1,12 @@
 /**
  * Acquisition + Watcher page (acq-watch feature).
  *
- * Four tabbed panels — Followed (CRUD), Wanted (status queue), Obligations
- * (seed/ratio), Watcher (status + toggle + recent runs) — each extracted into
- * its own component under `components/acquisition/` (C12). This shell owns only
- * the tab state, the shared followed query and the live-event invalidation.
+ * Four tabbed panels — Followed (CRUD), File d&apos;acquisition (wanted queue
+ * + live downloads), Obligations (seed/ratio), Watcher (status + toggle +
+ * recent runs) — each extracted into its own component under
+ * ``components/acquisition/`` (C12). This shell owns only the tab state, the
+ * shared followed query, the downloads poll (for the File d&apos;acquisition
+ * badge), and the live-event invalidation.
  *
  * Live updates: the acquisition event stream (via useEventStreamContext)
  * invalidates the matching query when a relevant event arrives, using the R13
@@ -37,10 +39,12 @@ import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 /**
  * AcquisitionPage — the authenticated acquisition route (``/acquisition``).
  *
- * Four tabbed panels for followed series CRUD, wanted queue, seed
- * obligations, and watcher status. Live events from the WebSocket invalidate
- * the matching TanStack Query caches (R13 — processes only new events, not the
- * whole ring on every render).
+ * Four tabbed panels for followed series CRUD, File d&apos;acquisition
+ * (wanted queue + live downloads), seed obligations, and watcher status.
+ * This shell also owns the downloads poll so the File d&apos;acquisition tab
+ * badge renders the live download count. Live events from the WebSocket
+ * invalidate the matching TanStack Query caches (R13 — processes only new
+ * events, not the whole ring on every render).
  *
  * Returns:
  *   The acquisition page element.
@@ -49,7 +53,7 @@ export default function AcquisitionPage(): ReactElement {
   // The active tab is URL-addressable (?tab=<id>) — DOIT-10: the tab is a
   // shareable deep-link and Back returns to the previous tab. Derived from the
   // URL (single source of truth); the default "followed" carries no param so
-  // /acquisition stays clean and ?tab=wanted is the shareable form.
+  // /acquisition stays clean and ?tab=file is the shareable form.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
 
@@ -123,8 +127,9 @@ export default function AcquisitionPage(): ReactElement {
   // Followed data is shared across tabs — kept alive by the hook at page level.
   const followedQuery = useFollowed({ active: "all" });
 
-  // Arrival badge on the « Téléchargements » tab (A4 limite avouée s2): the
-  // count of torrents still downloading, visible without opening the tab.
+  // Arrival badge on the « File d&apos;acquisition » tab (A4 limite avouée
+  // s2): the count of torrents still downloading, visible without opening
+  // the tab. This shell owns the downloads poll so the badge is always live.
   const downloadsQuery = useDownloads();
   const activeDownloads = (downloadsQuery.data?.downloads ?? []).filter(
     (d) => d.state !== "missing" && d.progress < 1,

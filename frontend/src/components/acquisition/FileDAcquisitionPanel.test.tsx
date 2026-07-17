@@ -2,7 +2,7 @@
  * Unit tests for the FileDAcquisitionPanel component (Phase 03).
  *
  * Tests the merged "File d'acquisition" panel: grouped wanted searches
- * (status filter + accordion per series/season, DOIT-2 FR reasons) followed
+ * (status filter + accordion per series/season, DOIT-2 FR status labels) followed
  * by live downloads with the fail-soft « client torrent injoignable » notice
  * (NE-DOIT-PAS-1/5).
  */

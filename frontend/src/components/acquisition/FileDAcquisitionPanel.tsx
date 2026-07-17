@@ -2,7 +2,7 @@
  * FileDAcquisitionPanel — merged "File d'acquisition" tab (Phase 03).
  *
  * One stacked flow (§9 — wanted → grabbed → ingest): grouped wanted searches
- * (status filter + accordion per series/season, DOIT-2 FR reasons) followed by
+ * (status filter + accordion per series/season, DOIT-2 FR status labels) followed by
  * live downloads with the fail-soft « client torrent injoignable » notice
  * (NE-DOIT-PAS-1/5).
  *
