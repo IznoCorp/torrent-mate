@@ -1121,3 +1121,205 @@ def test_continue_deferred_when_lock_held(test_config, tmp_path: Path) -> None:
     assert body["deferred"] is True
     assert "En file" in body["detail"]
     mock_popen.assert_not_called()
+
+
+# ── Discard endpoint tests ─────────────────────────────────────────────────────
+
+
+def test_discard_other_artifact_moves_to_quarantine_and_journals(test_config, tmp_path: Path) -> None:
+    """A non-media 'other' artifact is moved to _quarantine/ with a journal entry.
+
+    Seeds a folder in 098-AUTRES, discards it, and asserts the quarantine move,
+    ``journaled=True``, and the correct FR success detail (§7).
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "random.subs.pack-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "subs.srt", size=64)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/random.subs.pack-GRP")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["media_id"] == media_id
+    assert body["journaled"] is True
+    assert body["quarantine_path"] is not None
+    assert "_quarantine" in body["quarantine_path"]
+    assert body["detail"] == ("Artefact mis en quarantaine — trace écrite au journal des suppressions.")
+
+    # Folder was physically moved, not deleted in-place.
+    assert not item.exists()
+    quarantine_dir = Path(body["quarantine_path"])
+    assert quarantine_dir.exists()
+    assert quarantine_dir.is_dir()
+
+
+def test_discard_journal_row_written(test_config, tmp_path: Path) -> None:
+    """After a discard, ``destructive_op`` contains exactly one row for this delete.
+
+    Direct SELECT on the journal table — the row is the audit trail (§7).
+    """
+    import sqlite3
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "junk.folder-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "notes.txt", size=32)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/junk.folder-GRP")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["journaled"] is True
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT op, path, actor, detail FROM destructive_op WHERE actor = 'web' AND op = 'delete'"
+    ).fetchall()
+    conn.close()
+
+    assert len(rows) == 1
+    assert rows[0]["op"] == "delete"
+    assert rows[0]["actor"] == "web"
+    assert str(item) in rows[0]["path"]
+    assert "Discard non-media artifact" in rows[0]["detail"]
+
+
+def test_discard_movie_or_tvshow_returns_422(test_config, tmp_path: Path) -> None:
+    """A scrapable (movie/tvshow) item returns 422 with the FR directive detail.
+
+    The operator must use resolve or pipeline-restart, not discard, for
+    identifiable media.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Fight Club (1999)")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"] == (
+        "Cet élément est un média identifiable — utilisez "
+        "'Rechercher / résoudre' ou 'Relancer le pipeline', pas 'Ignorer'."
+    )
+
+
+def test_discard_unknown_media_returns_404(test_config, tmp_path: Path) -> None:
+    """A bogus media id returns 404 with the English detail."""
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "001-MOVIES").mkdir(parents=True)
+    (staging / "097-TEMP").mkdir(parents=True)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    resp = client.post(
+        "/api/staging/media/deadbeefdeadbeef/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"] == "No media matches this id"
+
+
+def test_discard_requires_x_requested_with(test_config, tmp_path: Path) -> None:
+    """The discard POST is CSRF-guarded — 400 without X-Requested-With.
+
+    Mirrors ``test_continue_requires_x_requested_with``: the dependency runs
+    before the route handler, so a valid media_id is needed to reach the guard,
+    but the item itself can be anything — including an 'other' artifact.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "NoHeader.Item-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "file.bin", size=32)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+    media_id = media_id_for("098-AUTRES/NoHeader.Item-GRP")
+    assert client.post(f"/api/staging/media/{media_id}/discard").status_code == 400
+
+
+def test_discard_journal_write_failure_sets_journaled_false(test_config, tmp_path: Path) -> None:
+    """When the journal write fails, the response has ``journaled=False`` + ATTENTION.
+
+    §7 honesty regression: ``record_destruction`` is fail-soft — the quarantine
+    move always succeeds, but a journal failure must be surfaced to the operator.
+    A db_path pointing into a non-existent directory triggers the fail-soft path
+    (sqlite3.connect raises OperationalError → swallowed → logged).
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "journal.fail-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "data.bin", size=64)
+
+    # Bootstrap with a valid db so the client / login works, then swap the
+    # db_path on the app's config to a path whose parent directory does not
+    # exist — ``sqlite3.connect()`` will raise OperationalError.
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    # Reach into the app state and point db_path at a non-existent directory.
+    bogus_db = tmp_path / "nonexistent" / "library.db"
+
+    # FastAPI's TestClient wraps Starlette's — the app is accessible via the
+    # transport attribute on newer Starlette or directly on the client.
+    app = client.app if hasattr(client, "app") else None
+    if app is None:
+        # Fallback: access via the underlying Starlette TestClient.
+        app = client._app  # type: ignore[attr-defined]
+    app.state.config.indexer.db_path = bogus_db
+
+    media_id = media_id_for("098-AUTRES/journal.fail-GRP")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["media_id"] == media_id
+    assert body["journaled"] is False
+    assert body["detail"] == (
+        "Artefact mis en quarantaine — ATTENTION : l'écriture au journal des suppressions a échoué."
+    )
+    # The quarantine move still happened — journal failure never breaks the destroy.
+    assert not item.exists()
+    assert Path(body["quarantine_path"]).exists()
