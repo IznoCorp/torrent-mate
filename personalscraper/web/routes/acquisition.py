@@ -29,7 +29,7 @@ import sqlite3
 import time
 from contextlib import closing
 from pathlib import Path
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -73,6 +73,9 @@ from personalscraper.web.models.acquisition import (
     WantedResponse,
 )
 
+if TYPE_CHECKING:
+    from personalscraper.acquire.store import ConcreteAcquireStore
+
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 logger = get_logger(__name__)
 
@@ -83,7 +86,7 @@ _MAX_PAGE_SIZE = 200
 
 
 def _write_follow_metadata(
-    acquire_db_path: Path | None,
+    store: "ConcreteAcquireStore",
     followed_id: int,
     body: CreateFollowRequest,
 ) -> None:
@@ -92,24 +95,26 @@ def _write_follow_metadata(
     A no-op when nothing was supplied. Fail-soft: a DB error is logged and
     swallowed — the follow itself already succeeded, the metadata is a nicety.
 
+    Routes the write through the acquire store's ``follow.set_metadata`` (single
+    ``_write_tx`` BEGIN IMMEDIATE) rather than opening a raw connection, so the
+    web layer never bypasses the store's single-writer discipline (ACQUIRE-09).
+    Reuses the caller's already-open ``store`` — no second connection.
+
     Args:
-        acquire_db_path: Absolute path to ``acquire.db``, or ``None``.
+        store: The already-open acquire store the caller owns.
         followed_id: The row to update.
         body: The create request carrying optional ``poster_url``/``overview``/``year``.
     """
-    if acquire_db_path is None:
-        return
     if body.poster_url is None and body.overview is None and body.year is None:
         return
     try:
-        with closing(sqlite3.connect(str(acquire_db_path))) as conn:
-            apply_pragmas(conn)
-            conn.execute(
-                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
-                (body.poster_url, body.overview, body.year, followed_id),
-            )
-            conn.commit()
-    except sqlite3.Error:
+        store.follow.set_metadata(
+            followed_id,
+            poster_url=body.poster_url,
+            overview=body.overview,
+            year=body.year,
+        )
+    except Exception:  # noqa: BLE001 — fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
 
 
@@ -672,7 +677,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # series-shaped and no movie wanted row is ever produced).
             store.follow.set_active(existing.id, True)
             store.follow.set_kind(existing.id, body.kind)
-            _write_follow_metadata(config.acquire.db_path, existing.id, body)
+            _write_follow_metadata(store, existing.id, body)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
             item = _item_from_followed(reactivated)
@@ -694,7 +699,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
         # Persist + echo the card metadata captured from the search candidate.
-        _write_follow_metadata(config.acquire.db_path, new_id, body)
+        _write_follow_metadata(store, new_id, body)
         item = _item_from_followed(created)
         item.poster_url = body.poster_url
         item.overview = body.overview

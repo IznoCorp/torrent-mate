@@ -373,6 +373,35 @@ class _FollowSubStore:
                 (cadence_json, followed_id),
             )
 
+    def set_metadata(
+        self,
+        followed_id: int,
+        *,
+        poster_url: str | None,
+        overview: str | None,
+        year: int | None,
+    ) -> None:
+        """Overwrite the OBJ3 card metadata columns for a followed series.
+
+        Persists the ``poster_url`` / ``overview`` / ``year`` captured from an
+        add-by-search candidate. All three columns are written together (a
+        ``None`` clears its column), matching the web layer's former raw
+        ``UPDATE``. Runs inside a single ``_write_tx`` BEGIN IMMEDIATE so the web
+        route no longer opens its own connection — single-writer discipline
+        (ACQUIRE-09).
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            poster_url: Poster URL, or ``None`` to clear it.
+            overview: Overview/synopsis text, or ``None`` to clear it.
+            year: Release/first-air year, or ``None`` to clear it.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
+                (poster_url, overview, year, followed_id),
+            )
+
 
 class _SeedSubStore:
     """Writer + reader for the ``seed_obligation`` table (deletion authority)."""

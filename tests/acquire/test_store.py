@@ -474,6 +474,40 @@ def test_follow_set_active_flips_flag(store: ConcreteAcquireStore) -> None:
     assert any(s.id == row_id for s in active_list), "Reactivated row must appear in list_active()"
 
 
+def test_follow_set_metadata_overwrites_card_columns(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """set_metadata overwrites poster_url/overview/year together — the web write path (ACQUIRE-09).
+
+    Replaces the web layer's former raw ``UPDATE followed_series`` — the full
+    three-column overwrite (a ``None`` clears its column) must be byte-identical
+    so the create-follow route keeps persisting the search-candidate card.
+    """
+    import sqlite3
+
+    row_id = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tvdb_id=88888), title="Card Show", added_at=1_700_000_000)
+    )
+
+    def _cols() -> sqlite3.Row:
+        with sqlite3.connect(str(tmp_path / "acquire.db")) as conn:
+            conn.row_factory = sqlite3.Row
+            return conn.execute(
+                "SELECT poster_url, overview, year FROM followed_series WHERE id = ?", (row_id,)
+            ).fetchone()
+
+    store.follow.set_metadata(row_id, poster_url="https://x/p.jpg", overview="A synopsis.", year=2023)
+    row = _cols()
+    assert row["poster_url"] == "https://x/p.jpg"
+    assert row["overview"] == "A synopsis."
+    assert row["year"] == 2023
+
+    # A None clears its column (the route's full 3-column overwrite semantics).
+    store.follow.set_metadata(row_id, poster_url=None, overview="kept", year=None)
+    row = _cols()
+    assert row["poster_url"] is None
+    assert row["overview"] == "kept"
+    assert row["year"] is None
+
+
 def test_follow_add_same_ref_twice_no_duplicate_reactivates(store: ConcreteAcquireStore) -> None:
     """RACE/IDEMPOTENCY: two adds of the same media_ref → ONE active row, same id, no IntegrityError.
 
