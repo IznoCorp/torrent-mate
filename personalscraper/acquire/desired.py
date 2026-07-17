@@ -95,9 +95,6 @@ class QualityProfile:
             REMUX/BluRay sources that the ranking engine soft-scores).
         required_audio: Set of required audio language markers
             (``{"VF", "VOSTFR", "VO"}`` tiers).  Empty = no language filter.
-        allowed_codecs: Optional codec allow-list (empty = allow all).
-        min_size: Minimum file size in bytes, or ``None`` (no lower bound).
-        max_size: Maximum file size in bytes, or ``None`` (no upper bound).
         require_known_resolution: When ``True``, fail-closed on unparseable
             resolution.  Default ``False`` (fail-open) — an unparseable
             resolution is usually a naming-style gap (REMUX/COMPLETE.BLURAY)
@@ -109,9 +106,6 @@ class QualityProfile:
 
     min_resolution: Resolution | None = None
     required_audio: frozenset[str] = field(default_factory=frozenset)
-    allowed_codecs: frozenset[str] = field(default_factory=frozenset)
-    min_size: int | None = None
-    max_size: int | None = None
     require_known_resolution: bool = False
     exclude_3d: bool = True
 
@@ -153,9 +147,6 @@ def quality_profile_to_json(p: QualityProfile) -> str:
         {
             "min_resolution": p.min_resolution.value if p.min_resolution is not None else None,
             "required_audio": sorted(p.required_audio),
-            "allowed_codecs": sorted(p.allowed_codecs),
-            "min_size": p.min_size,
-            "max_size": p.max_size,
             "require_known_resolution": p.require_known_resolution,
             "exclude_3d": p.exclude_3d,
         }
@@ -183,9 +174,6 @@ def quality_profile_from_json(blob: str | None) -> QualityProfile:
     return QualityProfile(
         min_resolution=Resolution(min_res_val) if min_res_val is not None else None,
         required_audio=frozenset(data.get("required_audio", [])),
-        allowed_codecs=frozenset(data.get("allowed_codecs", [])),
-        min_size=data.get("min_size"),
-        max_size=data.get("max_size"),
         require_known_resolution=bool(data.get("require_known_resolution", False)),
         # Absent key → True: a profile stored before the 3D filter existed still
         # gets the (correctness-floor) exclusion.
@@ -354,9 +342,6 @@ def effective_quality(series: QualityProfile, item: SourceCriteria) -> QualityPr
     return QualityProfile(
         min_resolution=min_res,
         required_audio=audio,
-        allowed_codecs=series.allowed_codecs,
-        min_size=series.min_size,
-        max_size=series.max_size,
         require_known_resolution=series.require_known_resolution,
         exclude_3d=series.exclude_3d,
     )

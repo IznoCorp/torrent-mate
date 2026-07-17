@@ -78,9 +78,6 @@ def test_quality_profile_permissive_defaults() -> None:
     p = QualityProfile()
     assert p.min_resolution is None
     assert p.required_audio == frozenset()
-    assert p.allowed_codecs == frozenset()
-    assert p.min_size is None
-    assert p.max_size is None
     assert p.require_known_resolution is False
 
 
@@ -148,9 +145,6 @@ def test_quality_profile_null_column_default() -> None:
     p = quality_profile_from_json(None)
     assert p.min_resolution is None
     assert p.required_audio == frozenset()
-    assert p.allowed_codecs == frozenset()
-    assert p.min_size is None
-    assert p.max_size is None
     assert p.require_known_resolution is False
 
 
@@ -211,18 +205,14 @@ def test_effective_quality_series_nonne_fields_preserved() -> None:
     """Item overrides ONLY resolution + audio; other fields stay from series."""
     series_profile = QualityProfile(
         min_resolution=Resolution.R1080P,
-        allowed_codecs=frozenset({"x264", "x265"}),
-        min_size=100_000_000,
-        max_size=10_000_000_000,
         require_known_resolution=True,
+        exclude_3d=False,
     )
     item_criteria = SourceCriteria(preferred_resolution=Resolution.R2160P)
     result = effective_quality(series_profile, item_criteria)
     assert result.min_resolution == Resolution.R2160P  # overridden
-    assert result.allowed_codecs == frozenset({"x264", "x265"})  # preserved
-    assert result.min_size == 100_000_000  # preserved
-    assert result.max_size == 10_000_000_000  # preserved
     assert result.require_known_resolution is True  # preserved
+    assert result.exclude_3d is False  # preserved
 
 
 def test_effective_quality_empty_item_no_op() -> None:
