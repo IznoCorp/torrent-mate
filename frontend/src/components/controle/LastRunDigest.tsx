@@ -51,7 +51,9 @@ function relativeTime(iso: string | null): string {
  * remain a pure renderer — no data fetching of its own.
  */
 export interface LastRunDigestProps {
-  /** The last run's interpreted summary, or ``null`` when no history exists. */
+  /** The last run's interpreted summary.  {@link useLastPipelineRun} never
+   * returns ``null`` — when there is no history ``runUid`` is ``null`` and the
+   * component renders a calm empty-state card. */
   readonly lastRun: LastPipelineRun | null;
 }
 

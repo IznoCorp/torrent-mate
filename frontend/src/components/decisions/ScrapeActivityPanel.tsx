@@ -15,7 +15,8 @@ function formatElapsed(startedAt: number): string {
 }
 
 /**
- * "Scrapes en cours" surface, rendered on the Contrôle station (relocated from /scraping).
+ * "Scrapes en cours" surface, rendered on the Contrôle station (relocated from the
+ * former /scraping page (now /medias)).
  *
  * Shows each scrape running right now (title + elapsed, with a live pulse) and the
  * pending-queue size, so the operator can actually SEE true-parallel scraping happen

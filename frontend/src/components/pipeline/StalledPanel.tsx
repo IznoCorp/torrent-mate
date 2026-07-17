@@ -25,7 +25,8 @@ export interface StepReasonsEntry {
    * The step identifier (e.g. ``"ingest"``, ``"scrape"``).
    *
    * Used as the lookup key into {@link STEP_LABEL} for French display names
-   * and as a React ``key`` fallback.
+   * (falls back to ``step`` verbatim when the label is unknown) and as the
+   * React ``key`` — ``step`` IS the primary key, not a fallback.
    */
   readonly step: string;
   /**

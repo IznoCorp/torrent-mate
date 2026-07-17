@@ -7,10 +7,10 @@
  * the match-state label), and a « Résoudre → » link that opens the media sheet
  * (or the resolution deck for an ambiguous item).
  *
- * There is **no** ``awaiting_action`` server-side filter param (contrary to the
- * original plan). The component fetches all staging items at a generous page
- * size and filters ``position_state === "blocked"`` client-side — document any
- * server-side filter addition as a follow-up.
+ * There is **no** ``awaiting_action`` server-side filter param (the original plan
+ * added one, but it was deferred — see IMPLEMENTATION.md « Open items »). The
+ * component fetches all staging items at a generous page size and filters
+ * ``position_state === "blocked"`` client-side.
  */
 
 import { AlertCircle } from "lucide-react";

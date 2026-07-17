@@ -109,9 +109,7 @@ async function pollForRunUid(runUid: string): Promise<void> {
     });
     const found = history.runs.some((r) => r.run_uid === runUid);
     if (!found) {
-      toast.warning(
-        "Le run promis n'a pas démarré — consultez les journaux.",
-      );
+      toast.warning("Le run promis n'a pas démarré — consultez les journaux.");
     }
   } catch {
     toast.warning("Le run promis n'a pas démarré — consultez les journaux.");
@@ -361,8 +359,10 @@ export function StagingMediaDetail({
         )}
 
       {/* Secondary re-scrape action for matched items that are NOT blocked.
-          Calls the same §5.2 endpoint — the label is the only difference
-          (contextual wording for a clean item the operator wants to re-process). */}
+          Calls the same §5.2 endpoint.  The only differences from the primary
+          "Relancer" button above are: (a) it lives in a dropdown menu instead of
+          the primary slot, and (b) there is no inline deferred-feedback rendering
+          (the dropdown closes on select; the toast is the sole surface). */}
       {item.match === "matched" &&
         (item.blocked_reason == null || item.blocked_reason === "") && (
           <DropdownMenu>

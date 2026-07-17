@@ -87,8 +87,8 @@ export function useMediaSearch(q: string, kind?: "movie" | "tv") {
  *       to ``{}`` which the backend interprets as status=all, page=1,
  *       page_size=50.
  *   queryOptions: Optional ``refetchInterval`` / ``staleTime`` overrides.
- *       Omitted by existing callers (the default React Query behaviour —
- *       cache-while-stale, no polling).
+ *       Omitted by most callers (the AcquireStatusBadge in the AppShell
+ *       passes ``refetchInterval`` for live polling).
  *
  * Returns:
  *   The TanStack Query result for a {@link WantedResponse}.

@@ -56,7 +56,8 @@ export type MatchFilter = "all" | StagingMediaItem["match"];
  *   (verified items ready for continuation or dispatch).
  *
  * Pagination caveat: this filter applies to the current page of 24 items.
- * Staging volumes are small — a server-side parameter is a recorded follow-up.
+ * Staging volumes are small — a server-side parameter is recorded in
+ * IMPLEMENTATION.md « Open items ».
  */
 export type PositionFilter = "blocked" | "active" | "ready";
 
@@ -94,7 +95,8 @@ export interface StagingLibraryProps {
    * - ``"ready"`` → ``match === "matched" && position_state !== "blocked"``.
    *
    * Pagination caveat: this filter applies to the current page of 24 items.
-   * Staging volumes are small — a server-side parameter is a recorded follow-up.
+   * Staging volumes are small — a server-side parameter is recorded in
+   * IMPLEMENTATION.md « Open items ».
    */
   readonly position?: PositionFilter | undefined;
   /**
@@ -210,7 +212,8 @@ export function StagingLibrary({
    * lightweight overlay — the server-side pagination is unchanged, so the total
    * page count may overstate the actual reachable items when a position filter is
    * active. Staging volumes are small enough that this is acceptable for now; a
-   * server-side ``position`` query parameter is a recorded follow-up.
+   * server-side ``position`` query parameter is recorded in
+   * IMPLEMENTATION.md « Open items ».
    */
   const filteredItems = useMemo(() => {
     if (position === undefined) return items;

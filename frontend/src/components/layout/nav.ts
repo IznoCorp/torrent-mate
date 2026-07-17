@@ -32,7 +32,7 @@ export interface NavItem {
   readonly icon: LucideIcon;
   /**
    * When `true` the entry is a non-interactive stub whose wave has not shipped
-   * yet (Registre → S6). It renders greyed and unclickable — never
+   * yet (e.g. a future S8 surface). It renders greyed and unclickable — never
    * a `NavLink` — with its {@link wave} tag shown as a hint chip.
    */
   readonly disabled?: boolean;

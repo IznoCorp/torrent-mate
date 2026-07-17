@@ -19,14 +19,15 @@ import { usePipelineStatus } from "@/hooks/usePipelineStatus";
  *
  * 1. **À traiter** — every blocked staged item, unified across all pipeline
  *    stages (the reason the operator opens the app).
- * 2. **Activité scraping** — live scrape-activity feed (relocated from
- *    ``/medias``).
- * 3. **Ce qui n'a pas avancé** — per-step skip/defer/error reasons from the
+ * 2. **Activité scraping** — live scrape-activity feed (relocated from the
+ *    former ``/scraping`` page (now ``/medias``)).
+ * 3. **Dernier run** — digest card (trigger + counts + detail link).
+ * 4. **Ce qui n'a pas avancé** — per-step skip/defer/error reasons from the
  *    last pipeline run, so stalled items are visible at a glance.
- * 4. **Acquisitions & planificateurs** — pending wanted + active downloads +
+ * 5. **Acquisitions & planificateurs** — pending wanted + active downloads +
  *    deferred torrents, plus the scheduler overview, visually merged.
- * 5. **Santé** — health card, index health, and disk usage (compacted in 5.4).
- * 6. **Pipeline** — single state-dependent primary control button.
+ * 6. **Santé** — health card, index health, and disk usage (compacted in 5.4).
+ * 7. **Pipeline** — single state-dependent primary control button.
  *
  * Returns:
  *   The Contrôle page element.
@@ -42,19 +43,19 @@ export default function Dashboard(): ReactElement {
       {/* 1. À traiter — all blocked cases, unified (DESIGN §2.1). */}
       <ATraiterList />
 
-      {/* 2. Activité scraping — live scrape feed, relocated from /medias. */}
+      {/* 2. Activité scraping — live scrape feed, relocated from the former /scraping page (now /medias). */}
       <ScrapeActivityPanel />
 
       {/* 3. Dernier run — digest card (trigger + counts + detail link). */}
       <LastRunDigest lastRun={lastRun} />
 
-      {/* 4. Ce qui n'avance pas — StalledPanel on the last run. */}
+      {/* 4. Ce qui n'a pas avancé — StalledPanel on the last run. */}
       <StalledPanel
         stepReasons={lastRun.stepReasons}
         isError={lastRun.isError}
       />
 
-      {/* 4. Acquisitions & planificateurs — merged section (guarantor amendment a). */}
+      {/* 5. Acquisitions & planificateurs — merged section (guarantor amendment a). */}
       <section>
         <h2 className="mb-3 text-base font-semibold tracking-tight">
           Acquisitions &amp; planificateurs
@@ -65,10 +66,10 @@ export default function Dashboard(): ReactElement {
         </div>
       </section>
 
-      {/* 5. Santé — compact rows (disks, index, Redis, providers). */}
+      {/* 6. Santé — compact rows (disks, index, Redis, providers). */}
       <CompactHealth />
 
-      {/* 6. Pipeline control — single state-dependent primary (DESIGN §2.1). */}
+      {/* 7. Pipeline control — single state-dependent primary (DESIGN §2.1). */}
       {pipelineStatus !== undefined && (
         <PipelineControls status={pipelineStatus} />
       )}

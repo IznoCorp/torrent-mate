@@ -4,8 +4,8 @@
  * react-router's {@link https://reactrouter.com/en/main/components/navigate | <Navigate>}
  * drops query strings on redirect: ``<Navigate to="/medias" />`` strips
  * ``?media=123`` from the URL, breaking deep-link preservation mandated by
- * {@link https://github.com/izno/PersonalScraper/blob/main/docs/reference/product-intent.md | DOIT-10}
- * ("l'URL encode l'état complet de la page").
+ * {@link https://github.com/IznoCorp/torrent-mate/blob/main/docs/reference/product-intent.md | DOIT-10}
+ * (« Retrouvable. Chaque détail a son URL ; Retour ferme ce qu'il doit fermer. »).
  *
  * This component reads the current search params via {@link useSearchParams} and
  * appends them to the target path, so a legacy URL like

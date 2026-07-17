@@ -1,7 +1,7 @@
 /**
  * PipelineControls — the action bar for the pipeline supervision page.
  *
- * Exposes the six actions from the ``/api/pipeline/*`` control routes as a
+ * Exposes the five actions from the ``/api/pipeline/*`` control routes as a
  * single state-dependent primary button with secondary actions in a
  * ``DropdownMenu``, plus a Watcher toggle ``Switch``. Every mutation is
  * backed by TanStack Query ``useMutation`` and invalidates

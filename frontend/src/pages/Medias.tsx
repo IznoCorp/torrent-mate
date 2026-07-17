@@ -77,7 +77,8 @@ const LIBRARY_SEGMENTS: readonly {
  * {@link StagingLibrary}.
  *
  * The position filter is applied client-side on the fetched page of 24 items
- * (staging volumes are small; a server-side parameter is a recorded follow-up).
+ * (staging volumes are small; a server-side parameter is recorded in
+ * IMPLEMENTATION.md « Open items »).
  *
  * This replaces the previous ``match``-based proxy (§8 fix): a
  * matched-but-verify-blocked item is counted by the nav badge (awaiting_action)
