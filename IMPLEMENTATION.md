@@ -29,7 +29,8 @@ badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot
 | 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [x]    |
 | 6   | PR fixes cycle 1 (review findings)               | phase-06-pr-fixes-cycle-1.md        | [x]    |
 
-**Next action**: push + re-poll CI, review cycle 2 (verify fixes), then operator merge (manual)
+**Next action**: OPERATOR — squash-merge PR #310 (merge=manual), then post-merge ACCEPTANCE proof
+(prod déroulé daté + iframe 390px + SW cache-bust) and V2 (#306) via /implement:feature
 
 ## Review cycles
 
@@ -46,6 +47,19 @@ badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot
   pre-existing, ItemProgressed load observation, eslint message cosmetics).
 - Design contradictions: none.
 - Fix phase: phase-06-pr-fixes-cycle-1.md (2 sub-phases).
+
+### Cycle 2
+
+- Verification agent on the fix range bfa7f3ec..bbe4f38e + gates re-run (34 targeted tests,
+  tsc, eslint, timer suite 3× stable). Verdict: **all 8 retained findings genuinely FIXED**
+  (file:line evidence per finding).
+- 1 new finding: NEW-1 misplaced renderShell docblock in AppShell.test.tsx (introduced by an
+  orchestrator inline transform — recorded honestly) → fixed in this cycle's commit.
+- Remaining observations, ALL minor (operator arbitration, §méthode rule 4): duplicated "?"
+  marker span (DRY cosmetic), hardcoded ["pipeline","history"] key (pre-existing), split imports
+  from useStagingMedia, SF-4/SF-5/load-observation/eslint-message items carried from cycle 1
+  (listed in phase-06 §« Explicitly NOT fixed »).
+- Loop exit: Case A (no critical/major/medium remaining). Merge mode = manual → operator merges.
 
 ## Scope guardrails (from spec §6 sequencing invariant)
 

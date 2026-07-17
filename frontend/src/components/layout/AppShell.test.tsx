@@ -119,16 +119,6 @@ function latestSocket(): MockWebSocket {
 }
 
 /**
- * Render the shell as a layout route with a trivial index child.
- *
- * Args:
- *   client: Optional pre-configured QueryClient (for tests that need to
- *       seed cache data or observe invalidation).
- *
- * Returns:
- *   The QueryClient used (the caller's or a freshly created one).
- */
-/**
  * First nav link matching ``name`` — narrowed via a runtime guard so the
  * suite satisfies both no-non-null-assertion and assertion-style rules.
  */
@@ -141,6 +131,16 @@ function firstLink(name: RegExp | string): HTMLElement {
   return link;
 }
 
+/**
+ * Render the shell as a layout route with a trivial index child.
+ *
+ * Args:
+ *   client: Optional pre-configured QueryClient (for tests that need to
+ *       seed cache data or observe invalidation).
+ *
+ * Returns:
+ *   The QueryClient used (the caller's or a freshly created one).
+ */
 function renderShell(client?: QueryClient): QueryClient {
   const qc =
     client ??
