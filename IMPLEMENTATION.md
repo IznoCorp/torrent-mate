@@ -11,7 +11,7 @@
 **Design**: `docs/features/acquisition-queue/DESIGN.md` ← shared spec §3.1 + §5.1 + §7.2
 **Version bump**: 0.52.1 → 0.53.0 (minor)
 
-## Status: plan generated — awaiting implementation (/implement:phase)
+## Status: phase 1 done — next: phase 2 (compact rows)
 
 **Master plan**: `docs/features/acquisition-queue/plan/INDEX.md`
 
@@ -19,14 +19,14 @@
 
 | #   | Phase                             | File                                                                         | Status |
 | --- | --------------------------------- | ---------------------------------------------------------------------------- | ------ |
-| 1   | Backend: ObligationItem.title     | [phase-01-backend-obligation-title.md](phase-01-backend-obligation-title.md) | [ ]    |
+| 1   | Backend: ObligationItem.title     | [phase-01-backend-obligation-title.md](phase-01-backend-obligation-title.md) | [x]    |
 | 2   | Suivis compact + Obligations rows | [phase-02-compact-rows.md](phase-02-compact-rows.md)                         | [ ]    |
 | 3   | File d'acquisition (merge + tabs) | [phase-03-file-dacquisition.md](phase-03-file-dacquisition.md)               | [ ]    |
 | 4   | Final gate                        | [phase-04-final-gate.md](phase-04-final-gate.md)                             | [ ]    |
 
 ## Review cycles
 
-_(none yet)_
+- Phase 1 dispatch: report OK but MODEL_IDENTITY probe MISSING (protocol anomaly recorded); content independently verified by orchestrator (lint 0, 61 tests, scope audit, code read).
 
 ## Scope guardrails (spec §6 sequencing invariant)
 
