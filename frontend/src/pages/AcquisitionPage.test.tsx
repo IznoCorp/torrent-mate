@@ -124,7 +124,8 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
   return { status, ...merged };
 }
 
-/** A single wanted item matching WantedItemResponse shape. */
+/*
+// makeWanted kept for 3.3 — FileDAcquisitionPanel test fixtures.
 function makeWanted(overrides: Record<string, unknown> = {}) {
   return {
     id: 10,
@@ -139,6 +140,7 @@ function makeWanted(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+*/
 
 /** A single obligation item matching ObligationItem shape. */
 function makeObligation(overrides: Record<string, unknown> = {}) {
@@ -286,15 +288,13 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
 
     expect(
       screen.getByRole("tab", { name: "File d'acquisition" }),
     ).toHaveAttribute("aria-selected", "true");
     expect(
-      await screen.findByText(/File d'acquisition — merged panel/),
+      await screen.findByText(/Recherches/),
     ).toBeInTheDocument();
   });
 
@@ -758,23 +758,21 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
 
     // Stub renders both sections (3.1); full assertions in 3.3.
-    expect(screen.getByText(/File d'acquisition — merged panel/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Recherches/),
+    ).toBeInTheDocument();
   });
 
   it("shows pagination controls with page info", () => {
     // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
     expect(
-      screen.getByText(/File d'acquisition — merged panel/),
+      screen.getByText(/Recherches/),
     ).toBeInTheDocument();
   });
 
@@ -782,11 +780,9 @@ describe("AcquisitionPage", () => {
     // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
     expect(
-      screen.getByText(/File d'acquisition — merged panel/),
+      screen.getByText(/Recherches/),
     ).toBeInTheDocument();
   });
 
@@ -794,11 +790,9 @@ describe("AcquisitionPage", () => {
     // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
     expect(
-      await screen.findByText(/File d'acquisition — merged panel/),
+      await screen.findByText(/Recherches/),
     ).toBeInTheDocument();
   });
 
@@ -876,7 +870,7 @@ describe("AcquisitionPage", () => {
         watcher_enabled: true,
         last_successful_run_at: null,
         recent_runs: [],
-      deferred: [],
+        deferred: [],
       },
       error: null,
     });
@@ -901,7 +895,7 @@ describe("AcquisitionPage", () => {
         watcher_enabled: false,
         last_successful_run_at: null,
         recent_runs: [],
-      deferred: [],
+        deferred: [],
       },
       error: null,
     });
@@ -964,11 +958,9 @@ describe("AcquisitionPage", () => {
     // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
     mockAllEmpty();
     renderPage();
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
     expect(
-      screen.getByText(/File d'acquisition — merged panel/),
+      screen.getByText(/Recherches/),
     ).toBeInTheDocument();
   });
 
@@ -992,11 +984,9 @@ describe("AcquisitionPage", () => {
       error: new Error("Timeout"),
     });
     renderPage();
-    fireEvent.click(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
     expect(
-      screen.getByText(/File d'acquisition — merged panel/),
+      screen.getByText(/Recherches/),
     ).toBeInTheDocument();
   });
 
@@ -1230,12 +1220,14 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     mockAllEmpty();
     renderPage("/acquisition?tab=obligations");
 
-    expect(
-      screen.getByRole("tab", { name: /Obligations/ }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(
-      screen.getByRole("tab", { name: /Suivis/ }),
-    ).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: /Obligations/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
   });
 
   it("retombe sur « Suivis » sans paramètre (ou paramètre inconnu)", () => {
@@ -1252,9 +1244,7 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(
-      screen.getByRole("tab", { name: /File d'acquisition/ }),
-    );
+    fireEvent.click(screen.getByRole("tab", { name: /File d'acquisition/ }));
 
     expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
     expect(
