@@ -872,14 +872,11 @@ def match_tvshow_single(
       "narrow subject-only query" path for French documentary
       localisations).
 
-    Unknown provider names fall through to ``None`` rather than raising,
-    so a chain that mixes future providers does not break the matching
-    loop. The caller (``TvServiceMixin._match_tvshow_candidates``) is
-    responsible for the chain iteration, fallback events, and the
-    cross-provider rule that TVDB takes precedence over TMDB — that
-    invariant is now expressed via the provider chain order in
-    ``config.metadata.priorities`` rather than hardcoded inside this
-    helper.
+    Unknown provider names fall through to ``None`` rather than raising, so a
+    chain that mixes future providers does not break the matching loop. The
+    live TV scrape uses the candidate-returning
+    :func:`match_tvshow_single_detailed` (iterated via ``run_chain``); this
+    match-only helper survives for the public façade + snapshot tests.
 
     Args:
         provider: A chain-eligible TV provider (currently TVDB or TMDB)
@@ -982,10 +979,31 @@ def match_tvshow_detailed(
         # a TVDB match for TV shows, regardless of confidence delta.
         return tvdb_match, tvdb_candidates
 
-    # TVDB is silent → consult TMDB as the documented fallback. Some
-    # French documentary releases are localised as "Les secrets de
-    # <subject>" while TMDB indexes the original title under the subject
-    # name, so try a narrow subject-only query as well.
+    # TVDB is silent → consult TMDB as the documented fallback.
+    return _match_tvshow_tmdb_detailed(tmdb_client, title, year)
+
+
+def _match_tvshow_tmdb_detailed(
+    tmdb_client: object,
+    title: str,
+    year: int | None,
+) -> tuple[MatchResult | None, list[DecisionCandidate]]:
+    """Match a TV show against TMDB, returning scored candidates.
+
+    Shared TMDB-for-TV path: :func:`match_tvshow_detailed` uses it as the
+    TVDB-silent fallback; :func:`match_tvshow_single_detailed` uses it for the
+    TMDB chain step. Also tries a narrow subject-only query (via
+    :func:`_tv_tmdb_candidates`) for French documentary localisations.
+
+    Args:
+        tmdb_client: TMDBClient instance.
+        title: Show title from the local folder.
+        year: First air date year (None if not detected).
+
+    Returns:
+        Tuple of (best :class:`MatchResult` with source="tmdb" or None,
+        top-5 :class:`DecisionCandidate` list).
+    """
     tmdb_results = _tv_tmdb_candidates(tmdb_client.search_tv, title, year)  # type: ignore[attr-defined]
     tmdb_match: MatchResult | None = None
     tmdb_candidates: list[DecisionCandidate] = []

@@ -364,23 +364,6 @@ class TvServiceMixin:
             drift_rescrape_episode_nfo=drift_rescrape_episode_nfo,
         )
 
-    def _match_tvshow_candidates(
-        self,
-        title: str,
-        year: int | None,
-        local_seasons: set[int],
-        result: ScrapeResult,
-    ) -> Any | None:
-        """Search the configured TV chain for candidates matching title + year.
-
-        Thin delegate to
-        :func:`personalscraper.scraper.tv_service_episodes.match_tvshow_candidates`
-        — see that function for the full chain-iteration / fallback contract.
-        """
-        from personalscraper.scraper.tv_service_episodes import match_tvshow_candidates  # noqa: PLC0415
-
-        return match_tvshow_candidates(self._registry, title, year, local_seasons, result)
-
     def _lookup_series(
         self,
         title: str,
@@ -390,22 +373,25 @@ class TvServiceMixin:
     ) -> tuple[Any, dict[str, Any], int | None, str] | None:
         """Match a TV show against the TV chain and fetch full series details.
 
-        Two-step lookup:
+        Two-step lookup, both driven by
+        :func:`personalscraper.scraper._match.run_chain` over
+        ``registry.chain(TvDetailsProvider)`` (SCRAPER-02):
 
-        1. ``_match_tvshow_candidates`` iterates
-           ``registry.chain(TvDetailsProvider)`` to find the best
-           :class:`MatchResult` (TVDB first then TMDB by default
-           configuration, with full chain fallback semantics).
-        2. Once a match is accepted (confidence ≥ ``LOW_CONFIDENCE``),
-           the details fetch iterates the same chain again but filters
-           to ``provider_name == match.source`` to honour the
+        1. **Match** — iterate the chain, matching each provider via
+           :func:`~personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed`
+           for the best :class:`MatchResult` + scored candidate list. TVDB is
+           tried before TMDB by default configuration and run_chain's
+           first-usable-result-wins semantics guarantee TVDB is never overridden
+           by TMDB (the strict TV rule). A TVDB failure (circuit/network/other)
+           or an empty TVDB result emits :class:`ProviderFallbackTriggered`
+           before TMDB is consulted — the same fallback observability movies
+           have; full exhaustion emits :class:`ProviderExhaustedEvent` and
+           surfaces a fail-soft ``result.error`` (ACC-13).
+        2. **Details** — once a match is accepted (confidence ≥
+           ``LOW_CONFIDENCE``) the details fetch iterates the same chain again
+           but filters to ``provider_name == match.source`` to honour the
            source-of-match invariant — cross-provider id translation
-           (TVDB ↔ TMDB) is owned by ``registry.cross_ref`` and lives
-           in sub-phase 7.4.
-
-        Per-provider failures during the details step emit
-        :class:`ProviderFallbackTriggered`; full exhaustion emits
-        :class:`ProviderExhaustedEvent` and populates ``result.error``.
+           (TVDB ↔ TMDB) is owned by ``registry.cross_ref``.
 
         Returns ``(match, show_data, tmdb_id, resolved_title)`` on
         success, ``None`` on failure (sets ``result.error`` /
@@ -420,39 +406,43 @@ class TvServiceMixin:
         Returns:
             Success tuple or ``None``.
         """
-        # Scrape-arbiter DESIGN §4: call the detailed variant to get both the
-        # best match and the scored candidate list for the three-tier trigger
-        # logic. TVDB is the primary provider; TMDB is a fallback only when
-        # TVDB returns no candidates. match_tvshow_detailed catches TVDB
-        # exceptions internally and falls through to TMDB; a TMDB exception
-        # propagates and is surfaced as a fail-soft ``result.error``.
+        # Scrape-arbiter DESIGN §4: call the detailed per-provider matcher to
+        # get both the best match and the scored candidate list for the
+        # three-tier trigger logic. run_chain owns the TVDB-first order (via
+        # the registry chain), the fallback event emission, and the
+        # ProviderExhausted raise on full failure (surfaced as a fail-soft
+        # ``result.error`` — ACC-13).
+        from personalscraper.scraper.tv_service_episodes import match_tvshow_single_detailed  # noqa: PLC0415
 
-        from personalscraper.scraper.confidence import match_tvshow_detailed  # noqa: PLC0415
+        item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "tvshow"}
 
-        # Resolve TVDB and TMDB clients from the registry (fail-soft — a
-        # missing provider yields None, and match_tvshow_detailed handles
-        # both None branches gracefully).
-        try:
-            tvdb_client = self._registry.get("tvdb")
-        except Exception:
-            tvdb_client = None
-        try:
-            tmdb_client = self._registry.get("tmdb")
-        except Exception:
-            tmdb_client = None
+        def _attempt_match(provider: Any) -> tuple[Any, list[Any]] | None:
+            """Match one TV provider; ``None`` signals an empty result."""
+            best, cands = match_tvshow_single_detailed(provider, title, year, local_seasons=local_seasons)
+            if best is None:
+                return None
+            return best, cands
 
         try:
-            match, candidates = match_tvshow_detailed(
-                tvdb_client,
-                tmdb_client,
-                title,
-                year,
-                local_seasons=local_seasons,
-            )
-        except Exception as exc:
-            result.error = f"Match failed: {exc}"
+            matched = run_chain(self._registry, TvDetailsProvider, _attempt_match, item_context=item_context)
+        except ProviderExhausted as exc:
+            # Every eligible provider errored — run_chain already emitted
+            # ProviderExhaustedEvent. Preserve the legacy fail-soft shape: the
+            # last underlying exception detail carries into ``result.error``.
+            detail = exc.last_exception if exc.last_exception is not None else exc
+            result.error = f"Match failed: {detail}"
             result.action = "error"
             return None
+
+        match: Any
+        candidates: list[Any]
+        if matched is None:
+            # Empty chain / every provider returned an empty result → legacy
+            # "no confident match" path. ``classify_decision_trigger`` maps the
+            # (None, []) pair to ``below_threshold``.
+            match, candidates = None, []
+        else:
+            match, candidates = matched
 
         # Three-tier trigger logic delegates to the shared decision_triage
         # module (scrape-arbiter DESIGN §4). Only the log event names are
@@ -530,7 +520,7 @@ class TvServiceMixin:
             # Honour the source-of-match invariant: only consult the provider
             # that produced the MatchResult. Cross-provider translation is owned
             # by ``registry.cross_ref``.
-            return getattr(provider, "provider_name", "?") == match.source
+            return bool(getattr(provider, "provider_name", "?") == match.source)
 
         try:
             fetched = run_chain(

@@ -233,20 +233,19 @@ class TestLegacyFallbackSnapshot:
     # Test 6 — DESIGN §8.4 scenario 6
     # ------------------------------------------------------------------
 
-    def test_tvshows_tvdb_empty_search_no_fallback_currently(self, scraper, tvshows_dir):
-        """TVDB returns empty search results → "skipped_low_confidence" today.
+    def test_tvshows_all_providers_empty_search_skips(self, scraper, tvshows_dir):
+        """Every chain provider returns an empty match → "skipped_low_confidence".
 
-        When ``match_tvshow`` returns None (no confident match from TVDB,
-        e.g. empty search results), ``_lookup_series`` in
-        ``tv_service.py`` sets ``result.action = "skipped_low_confidence"``.
-        There is no cross-provider fallback at this level — the registry
-        chain rewrite (Phase 2) will add chain fallback to try TMDB when
-        TVDB comes back empty.
-
-        NOTE: This is a characterization of CURRENT behavior, not a
-        design target. The Phase 2 chain rewrite will change this outcome.
+        Post-P4.3, ``_lookup_series`` iterates ``registry.chain(TvDetailsProvider)``
+        via ``run_chain`` and consults TMDB when TVDB is empty (SCRAPER-02). When
+        *every* provider returns an empty match, ``run_chain`` returns ``None`` and
+        the below-threshold path sets ``result.action = "skipped_low_confidence"``
+        — the legacy fail-soft outcome for a show no provider can identify.
         """
-        with patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=None):
+        with patch(
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
+            return_value=(None, []),
+        ):
             results = scraper.process_tvshows(tvshows_dir)
 
         assert len(results) == 1
