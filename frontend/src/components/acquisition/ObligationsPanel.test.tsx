@@ -135,7 +135,7 @@ describe("ObligationsPanel — title-led rows (Phase 02)", () => {
     // The hash cell should have font-mono — check its parent.
     const firstHashEl = hashEls[0];
     expect(firstHashEl).toBeDefined();
-    const hashCell = firstHashEl!.closest("td");
+    const hashCell = firstHashEl?.closest("td");
     expect(hashCell?.className).toContain("font-mono");
   });
 });

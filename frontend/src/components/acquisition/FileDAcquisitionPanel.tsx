@@ -59,15 +59,18 @@ interface SeasonGroup {
 function groupByTitleSeason(items: WantedItem[]): SeriesGroup[] {
   const byTitle = new Map<string, Map<number | null, WantedItem[]>>();
   for (const item of items) {
-    if (!byTitle.has(item.title)) {
-      byTitle.set(item.title, new Map());
+    let bySeason = byTitle.get(item.title);
+    if (bySeason === undefined) {
+      bySeason = new Map();
+      byTitle.set(item.title, bySeason);
     }
-    const bySeason = byTitle.get(item.title)!;
     const key = item.season ?? null;
-    if (!bySeason.has(key)) {
-      bySeason.set(key, []);
+    let episodes = bySeason.get(key);
+    if (episodes === undefined) {
+      episodes = [];
+      bySeason.set(key, episodes);
     }
-    bySeason.get(key)!.push(item);
+    episodes.push(item);
   }
 
   const result: SeriesGroup[] = [];
