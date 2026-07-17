@@ -21,12 +21,12 @@ import { createBrowserRouter, type RouteObject } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LegacyRedirect } from "@/components/LegacyRedirect";
+import { MaintenanceRunRedirect } from "@/components/pipeline/MaintenanceRunRedirect";
 import { RouterBridge } from "@/components/RouterBridge";
 import AcquisitionPage from "@/pages/AcquisitionPage";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Medias from "@/pages/Medias";
-import Maintenance from "@/pages/Maintenance";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
@@ -51,7 +51,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "maintenance",
-                element: <Maintenance />,
+                element: <MaintenanceRunRedirect />,
               },
               {
                 path: "config",

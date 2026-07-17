@@ -32,6 +32,16 @@ export interface StageStationProps {
   readonly split?: readonly StageSplit[];
   /** When given, the station becomes a button opening the stage drawer. */
   readonly onClick?: () => void;
+  /**
+   * When true, quiet states (idle, ok) render icon + count + state dot only.
+   * Anomalous states (attention, blocked) and active always stay expanded.
+   */
+  readonly compact?: boolean;
+  /**
+   * Size variant: "sm" for mobile — trims padding to py-2,
+   * shrinks the count to text-lg, and hides split sub-counts.
+   */
+  readonly size?: "sm";
 }
 
 /** state → container classes: attention/blocked get a lavis wash + full border
@@ -85,11 +95,21 @@ const STATE_HINT: Record<StageState, string> = {
  * item count, a state ring, and optional sub-counts. Clicking opens that
  * stage's drawer.
  *
+ * When ``compact`` is true, quiet stages (idle, ok) collapse to icon + count +
+ * state dot only so the horizontal rail never overflows. Anomalous stages
+ * (attention, blocked) and the active stage stay expanded regardless — the red
+ * signal is always visible (DOIT-2, §8).
+ *
+ * ``size="sm"`` produces a compact vertical variant for mobile: shorter
+ * padding, smaller count, no split sub-counts.
+ *
  * Args:
  *   label, count, state: The stage's identity + live figures.
  *   icon: Optional stage icon.
  *   split: Optional sub-counts.
  *   onClick: Optional open handler (makes the station a button).
+ *   compact: When true, quiet states render icon + count + state dot only.
+ *   size: "sm" for mobile compact variant.
  *
  * Returns:
  *   The station element.
@@ -103,39 +123,63 @@ export function StageStation({
   icon: Icon,
   split,
   onClick,
+  compact,
+  size,
 }: StageStationProps): ReactElement {
   const isActive = state === "active";
+  // In compact mode, idle and ok stations collapse to icon + count only.
+  // Anomalous (attention, blocked) and active always stay expanded.
+  const isCompactQuiet =
+    compact === true && (state === "idle" || state === "ok");
+  const isSm = size === "sm";
+
   const body = (
     <>
       {/* Running stage: an ambre progress shimmer swept along the top edge. */}
-      {isActive && (
+      {isActive && !isCompactQuiet && (
         <span
           className="ps-shimmer pointer-events-none absolute inset-x-0 top-0 h-0.5"
           aria-hidden="true"
         />
       )}
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {Icon !== undefined && (
-            <Icon className="size-3.5" aria-hidden="true" />
-          )}
-          {label}
-        </span>
-        <span
-          className={cn(
-            "size-2 shrink-0 rounded-full",
-            STATE_DOT[state],
-            isActive && "ps-pulse",
-          )}
-          aria-hidden="true"
-        />
-      </div>
-      <div className="flex items-baseline gap-2">
+
+      {/* Label row — hidden in compact quiet mode (icon moves to count row). */}
+      {!isCompactQuiet && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {Icon !== undefined && (
+              <Icon className="size-3.5" aria-hidden="true" />
+            )}
+            {label}
+          </span>
+          <span
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              STATE_DOT[state],
+              isActive && "ps-pulse",
+            )}
+            aria-hidden="true"
+          />
+        </div>
+      )}
+
+      {/* Count + blocked chip + (in compact quiet) icon + state dot. */}
+      <div
+        className={cn(
+          "flex items-baseline gap-2",
+          isCompactQuiet && "items-center gap-1.5",
+        )}
+      >
+        {/* Icon in compact quiet moves before the count. */}
+        {isCompactQuiet && Icon !== undefined && (
+          <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+        )}
         {/* key={count} replays the pop keyframe whenever the value changes. */}
         <span
           key={count}
           className={cn(
-            "ps-count-pop origin-left font-mono text-2xl font-semibold tabular-nums",
+            "ps-count-pop origin-left font-mono font-semibold tabular-nums",
+            isCompactQuiet ? "text-sm" : isSm ? "text-lg" : "text-2xl",
             STATE_COUNT[state],
           )}
         >
@@ -146,13 +190,22 @@ export function StageStation({
             {blocked} bloqué{blocked > 1 ? "s" : ""}
           </span>
         )}
+        {/* State dot in compact quiet (moved here from the hidden label row). */}
+        {isCompactQuiet && (
+          <span
+            className={cn("size-2 shrink-0 rounded-full", STATE_DOT[state])}
+            aria-hidden="true"
+          />
+        )}
       </div>
-      {timeframe !== undefined && (
+
+      {timeframe !== undefined && !isCompactQuiet && !isSm && (
         <span className="text-[length:var(--text-2xs)] uppercase tracking-wide text-muted-foreground/80">
           {timeframe}
         </span>
       )}
-      {split !== undefined && split.length > 0 && (
+
+      {split !== undefined && split.length > 0 && !isCompactQuiet && !isSm && (
         <div className="flex flex-col gap-0.5">
           {split.map((s) => (
             <span
@@ -169,15 +222,23 @@ export function StageStation({
           ))}
         </div>
       )}
+
       <span className="sr-only">{STATE_HINT[state]}</span>
     </>
   );
 
   // Full-width on mobile (stations stack vertically in the Flow Board); a fixed
-  // min-width on sm+ where the board is a horizontal scroll row. `relative
-  // overflow-hidden` clips the active shimmer to the rounded card.
+  // min-width on sm+ where the board is a horizontal row. Compact quiet stations
+  // drop the min-width so they pack tightly. `relative overflow-hidden` clips
+  // the active shimmer to the rounded card.
   const cls = cn(
-    "relative flex w-full flex-col gap-1.5 overflow-hidden rounded-lg border bg-card p-3 transition-colors sm:w-auto sm:min-w-36",
+    "relative flex overflow-hidden rounded-lg border bg-card transition-colors",
+    isCompactQuiet
+      ? "flex-row items-center gap-1.5 px-2 py-1.5 w-full sm:w-auto"
+      : cn(
+          "flex-col gap-1.5 w-full sm:w-auto sm:min-w-36",
+          isSm ? "py-2 px-3" : "p-3",
+        ),
     STATE_CONTAINER[state],
   );
 

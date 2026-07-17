@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RunDetail } from "@/components/pipeline/RunDetail";
 
 import type { RunDetail as RunDetailType } from "@/api/client";
+import { ApiError } from "@/api/client";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -61,14 +63,26 @@ async function mockGetDetail() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Render RunDetail wrapped in a fresh QueryClientProvider. */
-function renderDetail(runUid: string, onClose: () => void = vi.fn()): void {
+/** Render RunDetail wrapped in a fresh QueryClientProvider + MemoryRouter. */
+function renderDetail(
+  runUid: string,
+  onClose: () => void = vi.fn(),
+  opts: { showMaintenanceLink?: boolean } = {},
+): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <RunDetail runUid={runUid} onClose={onClose} />
+      <MemoryRouter>
+        <RunDetail
+          runUid={runUid}
+          onClose={onClose}
+          {...(opts.showMaintenanceLink !== undefined
+            ? { showMaintenanceLink: opts.showMaintenanceLink }
+            : {})}
+        />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   render(tree);
@@ -281,6 +295,59 @@ describe("RunDetail", () => {
     expect(screen.queryByText("Scraping")).not.toBeInTheDocument();
     expect(screen.queryByText("Dispatch")).not.toBeInTheDocument();
   });
+
+  it("affiche un lien croisé vers /maintenance quand showMaintenanceLink=true et le run est maintenance", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "maintenance",
+        command: "library-clean",
+        options_json: '{"only":"empty"}',
+        steps: [],
+      }),
+    );
+    renderDetail("abc123-run-uid", vi.fn(), { showMaintenanceLink: true });
+
+    await screen.findByText("abc123-r…");
+
+    // Cross-link from Pipeline page to Maintenance (pipeline-panel Phase 02).
+    const link = screen.getByText("→ Voir les exécutions de maintenance");
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/maintenance");
+  });
+
+  it("n'affiche PAS le lien croisé quand showMaintenanceLink est absent (défaut false)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({
+        kind: "maintenance",
+        command: "library-clean",
+        steps: [],
+      }),
+    );
+    renderDetail("abc123-run-uid", vi.fn()); // no opts → showMaintenanceLink defaults to false
+
+    await screen.findByText("abc123-r…");
+
+    // Cross-link must NOT render when showMaintenanceLink isn't passed.
+    expect(
+      screen.queryByText("→ Voir les exécutions de maintenance"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("n'affiche PAS le lien croisé pour un run pipeline même avec showMaintenanceLink=true", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(makeDetail({ kind: "pipeline" }));
+    renderDetail("abc123-run-uid", vi.fn(), { showMaintenanceLink: true });
+
+    await screen.findByText("abc123-r…");
+
+    // The cross-link is gated on kind === "maintenance" — pipeline runs
+    // never show it even when showMaintenanceLink is true.
+    expect(
+      screen.queryByText("→ Voir les exécutions de maintenance"),
+    ).not.toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -334,5 +401,62 @@ describe("RunDetail — journal durable (output_tail)", () => {
     expect(screen.getByText("Corrigés")).toBeInTheDocument();
     // Zero counters stay hidden — the result reads, it does not drown.
     expect(screen.queryByText("Ignorés")).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// B3 — error-path coverage (pipeline-panel review cycle 1)
+// ---------------------------------------------------------------------------
+
+describe("RunDetail — error paths (B3)", () => {
+  it("affiche le message 404 et le bouton Retour quand le run est introuvable", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockRejectedValue(new ApiError(404, "not found"));
+    renderDetail("missing-run");
+
+    // 404 → French message.
+    expect(
+      await screen.findByText("Ce run n'existe pas (ou plus)."),
+    ).toBeInTheDocument();
+    // "Retour" button is present even in error state.
+    expect(screen.getByText("Retour")).toBeInTheDocument();
+    // No retry button for 404 (cannot fix a missing run).
+    expect(
+      screen.queryByRole("button", { name: "Réessayer" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche le message serveur et un bouton retry pour les erreurs 500", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockRejectedValue(new ApiError(500, "server error"));
+    renderDetail("broken-run");
+
+    // 500 → server error message.
+    expect(
+      await screen.findByText("Erreur serveur — réessayez."),
+    ).toBeInTheDocument();
+    // "Retour" button is present.
+    expect(screen.getByText("Retour")).toBeInTheDocument();
+    // Retry button is present for non-404 errors.
+    expect(
+      screen.getByRole("button", { name: "Réessayer" }),
+    ).toBeInTheDocument();
+  });
+
+  it("affiche le message serveur et un bouton retry pour les erreurs génériques (non ApiError)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockRejectedValue(new Error("network down"));
+    renderDetail("net-err-run");
+
+    // Generic error → server error message (not a 404).
+    expect(
+      await screen.findByText("Erreur serveur — réessayez."),
+    ).toBeInTheDocument();
+    // "Retour" button is present.
+    expect(screen.getByText("Retour")).toBeInTheDocument();
+    // Retry button is present.
+    expect(
+      screen.getByRole("button", { name: "Réessayer" }),
+    ).toBeInTheDocument();
   });
 });

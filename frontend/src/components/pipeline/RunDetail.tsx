@@ -6,17 +6,21 @@
  * renders a header row with key metadata, the {@link PipelineStepper} in
  * READ-ONLY mode, and an error section when the run terminated abnormally.
  *
- * Displayed inline on the ``/maintenance`` page below the run-history tables
- * when a row in {@link RunHistoryTable} is clicked; the selection is
- * URL-addressable (``?run=<uid>``, DOIT-10). A "Retour" button calls
- * ``onClose`` (which clears the query param).
+ * Displayed inline on the ``/pipeline`` page when a row in the single
+ * {@link RunHistoryTable} is clicked. Maintenance-page users are redirected
+ * here via ``?run=<uid>`` (DOIT-10) — the ``/maintenance`` route itself has no
+ * detail view (pipeline-panel Phase 02 repatriation). A "Retour" button calls
+ * ``onClose`` (which clears the query param). When ``showMaintenanceLink`` is
+ * set, a cross-link back to ``/maintenance`` appears for maintenance runs.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, type ReactElement } from "react";
+import { Link } from "react-router-dom";
 
 import {
   getPipelineRunDetail,
+  ApiError,
   type RunDetail as RunDetailData,
 } from "@/api/client";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
@@ -24,6 +28,7 @@ import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorState } from "@/components/ds/ErrorState";
 
 // ---------------------------------------------------------------------------
 // Outcome → Badge tone mapping
@@ -115,6 +120,14 @@ export interface RunDetailProps {
   readonly runUid: string;
   /** Called when the user clicks the "Retour" button. */
   readonly onClose: () => void;
+  /**
+   * When ``true`` and the loaded run is a maintenance run, render a cross-link
+   * ``→ Voir les exécutions de maintenance`` pointing to ``/maintenance``.
+   *
+   * Defaults to ``false`` so Maintenance.tsx renders the detail without a
+   * circular self-link (pipeline-panel Phase 02).
+   */
+  readonly showMaintenanceLink?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -262,8 +275,12 @@ function queueWaitInfo(
   return `A patienté en file d'attente ${formatDuration(waited)} avant de démarrer (verrou pipeline occupé).`;
 }
 
-export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
-  const { data, isLoading, isError } = useQuery({
+export function RunDetail({
+  runUid,
+  onClose,
+  showMaintenanceLink = false,
+}: RunDetailProps): ReactElement {
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["pipeline", "history", runUid] as const,
     queryFn: () => getPipelineRunDetail(runUid),
   });
@@ -271,6 +288,16 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
   if (isLoading) {
     return (
       <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-base">Exécution</CardTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Retour
+          </button>
+        </CardHeader>
         <CardContent className="py-4 text-center text-xs text-muted-foreground">
           Chargement…
         </CardContent>
@@ -279,10 +306,31 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
   }
 
   if (isError || data === undefined) {
+    const is404 = error instanceof ApiError && error.status === 404;
     return (
       <Card>
-        <CardContent className="py-4 text-center text-xs text-muted-foreground">
-          Erreur lors du chargement du détail.
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-base">Exécution</CardTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Retour
+          </button>
+        </CardHeader>
+        <CardContent className="py-4">
+          {is404 ? (
+            <ErrorState title="Ce run n'existe pas (ou plus)." />
+          ) : (
+            <ErrorState
+              title="Erreur serveur — réessayez."
+              {...(error instanceof Error && { message: error.message })}
+              onRetry={() => {
+                void refetch();
+              }}
+            />
+          )}
         </CardContent>
       </Card>
     );
@@ -353,6 +401,18 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
             </p>
           </div>
         </div>
+
+        {/* Cross-link to /maintenance when viewing a maintenance run from
+            the Pipeline page (pipeline-panel Phase 02). Not rendered on the
+            Maintenance page itself (showMaintenanceLink defaults to false). */}
+        {showMaintenanceLink && data.kind === "maintenance" && (
+          <Link
+            to="/maintenance"
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+          >
+            → Voir les exécutions de maintenance
+          </Link>
+        )}
 
         {/* Maintenance section or Pipeline Stepper */}
         {data.kind === "maintenance" ? (
