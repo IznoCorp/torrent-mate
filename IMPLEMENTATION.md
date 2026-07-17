@@ -7,7 +7,7 @@
 **Version bump**: 0.49.15 → 0.53.0 (minor; re-bumped thrice as main advanced: #310, #311/#312, #313/#314)
 **Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
 **PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
-**PR**: _(created after last phase)_
+**PR**: #316 → main (https://github.com/IznoCorp/torrent-mate/pull/316) — OPEN, operator squash-merges manually
 **Design**: docs/features/solidify/DESIGN.md
 **Evidence**: docs/analysis/2026-07-16-architecture-audit.md (untracked by convention — lives in the main checkout)
 **Master plan**: docs/features/solidify/plan/INDEX.md
