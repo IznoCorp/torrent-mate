@@ -631,7 +631,7 @@ vs `--apply` absence = dry-run).
 
 ### Frontend
 
-`/maintenance` is now a redirect to `/systeme` (systeme-hub feature). The
+`/maintenance` is now a redirect to `/systeme?tab=journal` (systeme-hub feature). The
 four panels that previously rendered on the page are redistributed across tabs
 on `/systeme`:
 

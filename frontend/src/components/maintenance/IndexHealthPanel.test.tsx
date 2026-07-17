@@ -89,6 +89,16 @@ describe("IndexHealthPanel", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("affiche l'état d'erreur de requête avec role=alert", async () => {
+    const fn = await mockGetIndexHealth();
+    fn.mockRejectedValue(new Error("boom"));
+    renderPanel();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveClass("text-danger");
+  });
+
   it("affiche un bandeau dégradé quand la lecture de l'index a échoué", async () => {
     const fn = await mockGetIndexHealth();
     // A degraded response: the DB file exists but a query failed → zeroed counts

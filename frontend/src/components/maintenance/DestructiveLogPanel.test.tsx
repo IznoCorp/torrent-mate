@@ -90,12 +90,15 @@ describe("DestructiveLogPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("dégrade en douceur en cas d'erreur", async () => {
+  it("affiche une erreur lisible avec role=alert quand la requête échoue", async () => {
     (await mockGetLog()).mockRejectedValue(new Error("boom"));
     renderPanel();
 
-    expect(
-      await screen.findByText("Journal momentanément indisponible."),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Impossible de lire le journal des suppressions.",
+    );
+    expect(alert).toHaveTextContent("boom");
+    expect(alert).toHaveClass("text-danger");
   });
 });

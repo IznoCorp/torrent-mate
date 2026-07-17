@@ -8,11 +8,10 @@
  * history, preserving DOIT-10.
  *
  * When ``?run=`` is absent or empty, the request redirects (replace) to
- * ``/systeme`` — the bare canonical route for the unified system hub
- * (systeme-hub feature).  The default État tab renders there; maintenance
- * panels (actions, history, journal) live under sibling tabs.  This clean
- * redirect replaces the old ``/maintenance`` bookmark with a single canonical
- * entry point.
+ * ``/systeme?tab=journal``.  The old ``/maintenance`` page carried the
+ * destructive-operations journal inline (now ``DestructiveLogPanel`` on the
+ * Journal tab); the operator's bookmark must land where the journal is
+ * (arbitrated sub-phase 5.4, 2026-07-17).
  *
  * Only the ``run`` parameter is forwarded to the pipeline route.  Any other
  * search params on ``/maintenance`` (e.g. a future ``?tab=``) are intentionally
@@ -29,5 +28,5 @@ export function MaintenanceRunRedirect(): ReactElement {
       <Navigate to={`/pipeline?run=${encodeURIComponent(runUid)}`} replace />
     );
   }
-  return <Navigate to="/systeme" replace />;
+  return <Navigate to="/systeme?tab=journal" replace />;
 }

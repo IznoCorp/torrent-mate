@@ -202,7 +202,7 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("redirige /maintenance (sans ?run=) vers /systeme (canonical, systeme-hub)", async () => {
+  it("redirige /maintenance (sans ?run=) vers /systeme?tab=journal (canonical, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -222,7 +222,9 @@ describe("router", () => {
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/systeme");
-      expect(router.state.location.search).toBe("");
+      expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
+        "journal",
+      );
     });
   });
 
@@ -250,7 +252,7 @@ describe("router", () => {
     });
   });
 
-  it("redirige /maintenance (sans ?run=) vers /systeme (canonical, remplace le rendu direct de Maintenance)", async () => {
+  it("redirige /maintenance (sans ?run=) vers /systeme?tab=journal (canonical, remplace le rendu direct de Maintenance)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -273,6 +275,9 @@ describe("router", () => {
       await screen.findByRole("heading", { name: "Système" }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/systeme");
+    expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
+      "journal",
+    );
   });
 
   // --- D1: uid with reserved chars survives verbatim (encoded) ---
@@ -304,7 +309,7 @@ describe("router", () => {
 
   // --- B2: empty ?run= stays on Maintenance (no redirect) ---
 
-  it("redirige /maintenance?run= (paramètre vide) vers /systeme (no-run branch, systeme-hub)", async () => {
+  it("redirige /maintenance?run= (paramètre vide) vers /systeme?tab=journal (no-run branch, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -322,10 +327,12 @@ describe("router", () => {
       </QueryClientProvider>,
     );
 
-    // Empty ?run= → no-run branch → redirect to /systeme (canonical).
+    // Empty ?run= → no-run branch → redirect to /systeme?tab=journal.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/systeme");
-      expect(router.state.location.search).toBe("");
+      expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
+        "journal",
+      );
     });
   });
 
