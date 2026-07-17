@@ -4,7 +4,7 @@
 
 **Feature**: Architecture consolidation — SOLID/DRY refactor (backend + frontend)
 **Type**: refactor
-**Version bump**: 0.49.15 → 0.50.0 (minor)
+**Version bump**: 0.49.15 → 0.51.0 (minor; re-bumped after main took 0.50.0 via PR #310)
 **Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
 **PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
 **PR**: _(created after last phase)_
@@ -24,7 +24,7 @@
 | 5 | Completeness read-model (T4) | phase-05-completeness-readmodel.md | [x] |
 | 6 | Trailers ownership + single truth (T5) | phase-06-trailers.md | [x] |
 | 7 | Scanner walk skeleton (T8) | phase-07-scanner-walker.md | [x] |
-| 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [ ] |
+| 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [x] |
 | 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [ ] |
 | 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [ ] |
 | 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [ ] |
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0-7 done. Next: phase 8 (API honesty + tracker symmetry + dry-run F4). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+Phases 0-8 done — ALL 8 constitution conformity fixes (F1-F8) landed test-first. Next: phase 9 (web runner engine + acquire hygiene, T6). Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
