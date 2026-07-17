@@ -13,31 +13,18 @@
  *   {@link PipelineStepper}, and {@link RunLogFeed}.
  */
 
-import { useEffect } from "react";
-import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
+import { PIPELINE_LIFECYCLE_EVENT_TYPES } from "@/api/events";
 import { getPipelineStatus, pipelineKeys } from "@/api/pipeline";
 import type { components } from "@/api/schema";
-import { useEventStreamContext } from "@/hooks/useEventStreamContext";
+import { useWsInvalidation } from "@/hooks/useWsInvalidation";
 
 /** The status shape from ``GET /api/pipeline/status`` (OpenAPI-generated). */
 type StatusResponse = components["schemas"]["StatusResponse"];
 
 /** Pipeline-status query poll interval, in ms. */
 const STATUS_REFETCH_MS = 5_000;
-
-/**
- * Event ``type`` values that signal a pipeline state change and should trigger an
- * immediate cache invalidation.
- */
-const INVALIDATE_EVENT_TYPES = new Set([
-  "PipelineStarted",
-  "PipelineEnded",
-  "PipelinePaused",
-  "PipelineResumed",
-  "StepStarted",
-  "StepCompleted",
-]);
 
 /**
  * The flattened status shape consumed by the pipeline page components.
@@ -77,9 +64,6 @@ const DEFAULT_SNAPSHOT: PipelineStatusSnapshot = {
 export function usePipelineStatus(): UseQueryResult<StatusResponse> & {
   readonly snapshot: PipelineStatusSnapshot;
 } {
-  const queryClient = useQueryClient();
-  const { events } = useEventStreamContext();
-
   const query = useQuery({
     queryKey: pipelineKeys.status,
     queryFn: getPipelineStatus,
@@ -87,18 +71,10 @@ export function usePipelineStatus(): UseQueryResult<StatusResponse> & {
   });
 
   // Invalidate on every state-changing pipeline event so the UI reacts before
-  // the next poll tick. We only look at the *newest* event on each render —
-  // React's batched updates mean a replay burst triggers a single invalidation
-  // rather than one per replayed event.
-  useEffect(() => {
-    if (events.length === 0) {
-      return;
-    }
-    const newest = events[events.length - 1];
-    if (newest !== undefined && INVALIDATE_EVENT_TYPES.has(newest.type)) {
-      void queryClient.invalidateQueries({ queryKey: pipelineKeys.status });
-    }
-  }, [events, queryClient]);
+  // the next poll tick (the shared WS-event → invalidation map).
+  useWsInvalidation([
+    { types: PIPELINE_LIFECYCLE_EVENT_TYPES, keys: [pipelineKeys.status] },
+  ]);
 
   const data = query.data;
   const snapshot: PipelineStatusSnapshot =

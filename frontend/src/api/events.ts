@@ -20,6 +20,38 @@ export const HELLO_TYPE = "ws.hello";
 export const PING_TYPE = "ws.ping";
 
 /**
+ * Pipeline run-lifecycle + step-boundary event class names.
+ *
+ * These are the events that shift the pipeline status, the Flow Board and the
+ * staging tree — a run starting/ending/pausing/resuming, or a step boundary.
+ * The ONE definition of this set: it used to be pasted verbatim as an
+ * ``INVALIDATE_EVENT_TYPES`` const in three hooks (FRONTEND-DATA-03). The
+ * WS-event → cache-invalidation map ({@link useWsInvalidation}) imports it here.
+ */
+export const PIPELINE_LIFECYCLE_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "PipelineStarted",
+  "PipelineEnded",
+  "PipelinePaused",
+  "PipelineResumed",
+  "StepStarted",
+  "StepCompleted",
+]);
+
+/**
+ * Events that change the shell nav badges and their cross-page caches.
+ *
+ * An item advancing (``ItemProgressed``) or a run starting/ending flips the
+ * staging awaiting-action count, may have queued/cleared decision rows, and
+ * reserves/updates a pipeline_run row — so the shell refreshes the staging
+ * counts, the decisions queue and the pipeline history on these.
+ */
+export const SHELL_BADGE_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "ItemProgressed",
+  "PipelineEnded",
+  "PipelineStarted",
+]);
+
+/**
  * A live or replayed domain event, carrying the Redis-stream cursor ``id``.
  *
  * ``type`` is the emitting event class name (e.g. ``"PipelineStepStarted"``);

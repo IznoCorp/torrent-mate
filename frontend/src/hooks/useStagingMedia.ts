@@ -11,36 +11,22 @@
  * - {@link useStagingMedia} — the hook wired into the staging library grid.
  */
 
-import { useEffect } from "react";
 import {
   useQuery,
-  useQueryClient,
   type UseQueryOptions,
   type UseQueryResult,
 } from "@tanstack/react-query";
 
+import { PIPELINE_LIFECYCLE_EVENT_TYPES } from "@/api/events";
 import {
   getStagingMedia,
   type StagingMediaParams,
   type StagingMediaResponse,
 } from "@/api/staging";
-import { useEventStreamContext } from "@/hooks/useEventStreamContext";
+import { useWsInvalidation } from "@/hooks/useWsInvalidation";
 
 /** Staging read-model poll interval, in ms. */
 const STAGING_REFETCH_MS = 8_000;
-
-/**
- * Event ``type`` values that mutate the staging tree (run lifecycle + step
- * boundaries) and should trigger an immediate cache invalidation.
- */
-const INVALIDATE_EVENT_TYPES = new Set([
-  "PipelineStarted",
-  "PipelineEnded",
-  "PipelinePaused",
-  "PipelineResumed",
-  "StepStarted",
-  "StepCompleted",
-]);
 
 /** Stable React-Query keys for the staging read-model domain. */
 export const stagingMediaKeys = {
@@ -70,9 +56,6 @@ export function useStagingMedia(
     Pick<UseQueryOptions<StagingMediaResponse>, "refetchInterval" | "staleTime">
   >,
 ): UseQueryResult<StagingMediaResponse> {
-  const queryClient = useQueryClient();
-  const { events } = useEventStreamContext();
-
   const query = useQuery({
     queryKey: stagingMediaKeys.list(params),
     queryFn: () => getStagingMedia(params),
@@ -80,17 +63,12 @@ export function useStagingMedia(
     ...queryOptions,
   });
 
-  // Invalidate every staging-media query (all filter variants) on the newest
-  // tree-mutating event, so the grid reflects a fresh scan before the next poll.
-  useEffect(() => {
-    if (events.length === 0) {
-      return;
-    }
-    const newest = events[events.length - 1];
-    if (newest !== undefined && INVALIDATE_EVENT_TYPES.has(newest.type)) {
-      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
-    }
-  }, [events, queryClient]);
+  // Invalidate every staging-media query (all filter variants) on any
+  // tree-mutating event, so the grid reflects a fresh scan before the next poll
+  // (the shared WS-event → invalidation map).
+  useWsInvalidation([
+    { types: PIPELINE_LIFECYCLE_EVENT_TYPES, keys: [stagingMediaKeys.all] },
+  ]);
 
   return query;
 }
