@@ -22,10 +22,12 @@ write media files -- download is owned by
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
+from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 
 logger = get_logger(__name__)
@@ -161,15 +163,14 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
     discovered YouTube URL gives Plex a remote-trailer fallback and gives
     Kodi/downstream tools a cross-referenceable source URL.
 
-    Writes are atomic: the updated XML is written to a ``{nfo_path}.tmp-{pid}``
-    sibling first, then ``os.replace`` swaps it onto the real path. This
-    mirrors the ``state.py``/``json_ttl_cache`` pattern so a SIGINT mid-write
-    can never truncate the original NFO.
-
-    The ``finally`` block guarantees that the ``.tmp-{pid}`` sibling is removed
-    on every error path — including ``xml.etree.ElementTree.ParseError``,
-    ``UnicodeEncodeError``, ``TypeError``, and ``OSError`` — so no orphan temp
-    file is ever left on disk.
+    The updated XML is serialized into memory first, then written through the
+    shared :func:`personalscraper.io_utils.atomic_write_text` helper (tmp +
+    fsync + atomic rename + parent-dir fsync — the durable project-standard
+    atomic write, replacing the former bespoke per-PID temp-then-rename
+    pattern). Serializing before touching disk means a failure in
+    ``ElementTree.write`` (``ParseError``, ``UnicodeEncodeError``, ``TypeError``,
+    ``OSError``, ...) leaves the original NFO byte-for-byte intact and never
+    leaves an orphan temp file behind.
 
     Failure modes are soft: a missing NFO or a parse error logs a WARNING
     and returns ``False`` — this function never raises.
@@ -182,8 +183,6 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
         ``True`` if the NFO was updated successfully, ``False`` on any failure
         (missing file, parse error, write error).
     """
-    import os
-
     if not nfo_path.is_file():
         logger.warning("trailer_nfo_missing", nfo_path=str(nfo_path))
         return False
@@ -200,10 +199,13 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
         trailer_elem = ET.SubElement(root, "trailer")
     trailer_elem.text = youtube_url
 
-    tmp_path = nfo_path.with_name(f"{nfo_path.name}.tmp-{os.getpid()}")
     try:
-        tree.write(str(tmp_path), encoding="utf-8", xml_declaration=True)
-        os.replace(str(tmp_path), str(nfo_path))
+        # Serialize into memory first: a failure here (ParseError, UnicodeError,
+        # OSError, ...) leaves the on-disk NFO untouched — no partial write has
+        # started. The io_utils helper then performs the durable tmp+rename swap.
+        buffer = io.BytesIO()
+        tree.write(buffer, encoding="utf-8", xml_declaration=True)
+        atomic_write_text(nfo_path, buffer.getvalue().decode("utf-8"))
         return True
     except Exception as exc:
         # The trailer file downloaded successfully; failing to record the URL
@@ -215,14 +217,3 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
             exc_info=True,
         )
         return False
-    finally:
-        # Unconditional cleanup: remove the temp sibling on every error path
-        # (OSError, UnicodeEncodeError, ParseError, etc.) so no orphan is left.
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError as cleanup_exc:
-            logger.debug(
-                "placement.tmp_cleanup_failed",
-                path=str(tmp_path),
-                error=str(cleanup_exc),
-            )
