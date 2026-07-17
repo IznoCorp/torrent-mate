@@ -202,7 +202,10 @@ def _make_disk_row(
 # ---------------------------------------------------------------------------
 
 
-@settings(max_examples=20)
+# deadline=None: each example writes real tempfiles and stats them, so per-example
+# latency tracks disk load and coverage instrumentation — the 200 ms default
+# deadline flaked under `make check` (DeadlineExceeded on 2026-07-17).
+@settings(max_examples=20, deadline=None)
 @given(layout=valid_disk_layout())
 def test_idempotence_same_fs_same_db_state(layout: object) -> None:
     """Two consecutive scans of an unchanged FS produce identical DB state.
@@ -282,7 +285,10 @@ def test_idempotence_same_fs_same_db_state(layout: object) -> None:
         shutil.rmtree(mount_dir, ignore_errors=True)
 
 
-@settings(max_examples=15)
+# deadline=None: same real-tempfile-I/O exposure as the idempotence property —
+# coverage instrumentation pushes per-example latency past the 200 ms default
+# deadline under `make check` (DeadlineExceeded on 2026-07-17).
+@settings(max_examples=15, deadline=None)
 @given(layouts=st.lists(valid_disk_layout(), min_size=2, max_size=4))
 def test_generation_monotonicity(layouts: object) -> None:
     """``scan_generation`` strictly increases across consecutive scans.
@@ -356,7 +362,10 @@ def test_generation_monotonicity(layouts: object) -> None:
         shutil.rmtree(mount_dir, ignore_errors=True)
 
 
-@settings(max_examples=20)
+# deadline=None: sibling of the I/O property tests above — many in-memory sqlite
+# ops per example under coverage instrumentation can exceed the 200 ms default
+# deadline under `make check`; pinned for consistency with its siblings (2026-07-17).
+@settings(max_examples=20, deadline=None)
 @given(layout=valid_disk_layout(), n_scans=st.integers(min_value=1, max_value=5))
 def test_soft_delete_correctness(layout: object, n_scans: int) -> None:
     """``mark_missed_files`` increments ``miss_strikes`` once per missed scan.
