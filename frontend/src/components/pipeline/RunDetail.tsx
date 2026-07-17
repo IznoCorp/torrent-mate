@@ -112,10 +112,11 @@ export interface RunDetailProps {
   readonly onClose: () => void;
   /**
    * When ``true`` and the loaded run is a maintenance run, render a cross-link
-   * ``→ Voir les exécutions de maintenance`` pointing to ``/maintenance``.
+   * ``→ Voir les exécutions de maintenance`` pointing to
+   * ``/systeme?tab=maintenance``.
    *
-   * Defaults to ``false`` so Maintenance.tsx renders the detail without a
-   * circular self-link (pipeline-panel Phase 02).
+   * Defaults to ``false`` so the SystemePage maintenance tab renders the
+   * detail without a circular self-link (systeme-hub Phase 02).
    */
   readonly showMaintenanceLink?: boolean;
 }

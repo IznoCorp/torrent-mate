@@ -101,6 +101,10 @@ export function FileList({
               onSelect(file.name);
             }}
             onKeyDown={(e) => {
+              // Only react to keys pressed on the row itself — a keyboard
+              // activation of the nested restart-hint button must toggle the
+              // microcopy, not select the file (cycle-2 keyboard finding).
+              if (e.target !== e.currentTarget) return;
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 onSelect(file.name);
