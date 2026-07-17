@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -45,6 +44,7 @@ if TYPE_CHECKING:
 # the TMDB-hardwired path — so those two cast sites now live there.
 
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
+from personalscraper.nfo_utils import extract_nfo_metadata
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.episode_manager import (
@@ -72,6 +72,31 @@ from personalscraper.text_utils import sanitize_filename
 log = get_logger("scraper")
 
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
+
+
+def _coerce_numeric_nfo_id(raw: str | None, nfo_path: Path, family: str) -> int | None:
+    """Coerce an NFO id string (from ``extract_nfo_metadata``) to ``int``.
+
+    Shared by the TMDB/TVDB repair-id readers so the NFO is parsed through the
+    single canonical parser (:func:`personalscraper.nfo_utils.extract_nfo_metadata`,
+    SCRAPER-09) rather than a third bespoke ``ElementTree`` walk.
+
+    Args:
+        raw: Provider id text read from the NFO, or ``None`` when absent.
+        nfo_path: Source NFO path (for the non-numeric warning log).
+        family: Provider family label (``"tmdb"`` / ``"tvdb"``) for the log.
+
+    Returns:
+        The id as ``int``, or ``None`` when absent or non-numeric.
+    """
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        log.warning("nfo_id_non_numeric", family=family, value=raw, path=str(nfo_path))
+        return None
+
 
 # Re-exports for backward compatibility (Phase 10 extraction).
 __all__ = [
@@ -457,60 +482,39 @@ class ExistingValidatorMixin:
 
     @staticmethod
     def _extract_tmdb_id_from_nfo(nfo_path: Path) -> int | None:
-        """Extract TMDB ID from a valid NFO file.
+        """Extract the TMDB id from a valid NFO file.
 
-        Parses the NFO XML and finds the first <uniqueid type="tmdb">
-        element with a numeric value.
+        Reads the ``<uniqueid type="tmdb">`` value through the single canonical
+        NFO parser (:func:`personalscraper.nfo_utils.extract_nfo_metadata`) and
+        coerces it to ``int`` — no third bespoke parser (SCRAPER-09).
 
         Args:
-            nfo_path: Path to the NFO file (must exist and be valid XML).
+            nfo_path: Path to the NFO file.
 
         Returns:
-            TMDB ID as int, or None if not found or not numeric.
+            TMDB id as ``int``, or ``None`` if absent or non-numeric.
         """
-        try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
-        except (ET.ParseError, OSError) as exc:
-            log.warning("nfo_parse_failed", filename=nfo_path.name, error=str(exc))
-            return None
-        for uid in root.findall("uniqueid"):
-            if uid.get("type") == "tmdb" and uid.text:
-                try:
-                    return int(uid.text)
-                except ValueError:
-                    log.warning("nfo_tmdb_id_non_numeric", tmdb_id=uid.text, path=str(nfo_path))
-                    return None
-        log.debug("nfo_no_tmdb_id", path=str(nfo_path))
-        return None
+        raw = extract_nfo_metadata(nfo_path).get("tmdb_id")
+        return _coerce_numeric_nfo_id(raw, nfo_path, "tmdb")
 
     @staticmethod
     def _extract_tvdb_id_from_nfo(nfo_path: Path) -> int | None:
-        """Extract TVDB ID from a valid NFO file.
+        """Extract the TVDB id from a valid NFO file.
 
         TVDB is the primary scraper for TV shows (per ``metadata.json5``
-        ``series_scraping`` priority), so the repair pass must read the TVDB
-        ``<uniqueid>`` first and only fall back to TMDB when absent.
+        ``series_scraping`` priority), so the repair pass reads the TVDB
+        ``<uniqueid>`` first and only falls back to TMDB when absent. Reads
+        through the single canonical NFO parser
+        (:func:`personalscraper.nfo_utils.extract_nfo_metadata`, SCRAPER-09).
 
         Args:
-            nfo_path: Path to the NFO file (must exist and be valid XML).
+            nfo_path: Path to the NFO file.
 
         Returns:
-            TVDB ID as int, or None if not found or not numeric.
+            TVDB id as ``int``, or ``None`` if absent or non-numeric.
         """
-        try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
-        except (ET.ParseError, OSError) as exc:
-            log.warning("nfo_parse_failed", filename=nfo_path.name, error=str(exc))
-            return None
-        for uid in root.findall("uniqueid"):
-            if uid.get("type") == "tvdb" and uid.text:
-                try:
-                    return int(uid.text)
-                except ValueError:
-                    log.warning("nfo_tvdb_id_non_numeric", tvdb_id=uid.text, path=str(nfo_path))
-                    return None
-        log.debug("nfo_no_tvdb_id", path=str(nfo_path))
-        return None
+        raw = extract_nfo_metadata(nfo_path).get("tvdb_id")
+        return _coerce_numeric_nfo_id(raw, nfo_path, "tvdb")
 
     def _recover_movie_artwork(
         self,
