@@ -25,6 +25,7 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name, staging_path
 from personalscraper.config import get_settings
+from personalscraper.core.artwork_naming import artwork_status
 from personalscraper.core.media_types import (
     VIDEO_EXTENSIONS,
     is_sample_path,
@@ -72,12 +73,6 @@ _FILE_TYPE_TO_KIND: dict[str, StagingMediaKind] = {
 #: Media kinds enriched with NFO + poster + trailer + seasons (and that flow
 #: through match/scrape/trailer/verify). Other kinds skip those stages.
 _SCRAPABLE_KINDS: frozenset[str] = frozenset({"movie", "tvshow"})
-
-#: Poster file matcher — accepts the personalscraper name (``poster.jpg``), the
-#: Kodi ``folder.jpg``, AND the MediaElch movie-prefixed form
-#: (``{Movie Name}-poster.jpg``) so a media scraped via the MediaElch fallback
-#: is not reported poster-less.
-_POSTER_RE = re.compile(r"(?:^|.+-)(?:poster|folder)\.(?:jpe?g|png)$", re.IGNORECASE)
 
 #: ``Saison NN`` season-folder pattern (French library convention).
 _SEASON_RE = re.compile(r"^Saison\s+(\d+)$", re.IGNORECASE)
@@ -162,27 +157,22 @@ def _year_from_folder(folder: str) -> int | None:
 
 
 def _find_poster(media_dir: Path) -> Path | None:
-    """Return the first local poster file in a media folder, or ``None``.
+    """Return the local poster file in a media folder, or ``None``.
 
-    Matches ``poster.jpg`` / ``folder.jpg`` (personalscraper / Kodi) as well as
-    the MediaElch ``{name}-poster.jpg`` form (see :data:`_POSTER_RE`). The
-    canonical ``poster.*`` is preferred when several match.
+    Detection is delegated to the canonical owner
+    (:func:`personalscraper.core.artwork_naming.artwork_status`), which matches
+    the bare / Kodi ``folder`` / scraper-prefixed / MediaElch spellings and
+    excludes per-season posters. :attr:`ArtworkStatus.poster_name` carries the
+    concrete matched filename to serve on the poster route.
 
     Args:
         media_dir: The media folder in staging.
 
     Returns:
-        The poster ``Path``, or ``None`` when none match.
+        The poster ``Path``, or ``None`` when none is present.
     """
-    try:
-        matches = [c for c in media_dir.iterdir() if c.is_file() and _POSTER_RE.match(c.name)]
-    except OSError:
-        return None
-    if not matches:
-        return None
-    # Prefer the exact ``poster.*`` over a prefixed ``{name}-poster.*``.
-    matches.sort(key=lambda p: (not p.name.lower().startswith("poster."), p.name))
-    return matches[0]
+    poster_name = artwork_status(media_dir).poster_name
+    return media_dir / poster_name if poster_name is not None else None
 
 
 def find_nfo(media_dir: Path, media_kind: str) -> Path | None:

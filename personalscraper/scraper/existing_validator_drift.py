@@ -7,6 +7,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from personalscraper.core.artwork_naming import artwork_status
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
@@ -160,7 +161,10 @@ def verify_tvshow_scrape_drift(
        ``SxxExx.ext`` indicates a legacy title-less fallback that must be
        upgraded to the synthetic-title form.
     4. Every episode video has a sibling ``.nfo`` with the same stem.
-    5. ``poster.jpg`` and ``landscape.jpg`` are present.
+    5. A show-level poster and landscape are present, in any canonical
+       spelling (bare / Kodi ``folder`` / scraper-prefixed / MediaElch;
+       per-season posters excluded) — see
+       :func:`personalscraper.core.artwork_naming.artwork_status`.
 
     Args:
         show_dir: Path to the TV show directory.
@@ -222,10 +226,15 @@ def verify_tvshow_scrape_drift(
     if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
         return False, f"folder_name_drift:{show_dir.name}!={canonical}"
 
-    # 5. Show-level artwork.
-    if not (show_dir / patterns.tvshow_poster).exists():
+    # 5. Show-level artwork — canonical presence detection (F5 / INDEXER-03):
+    # the drift gate agrees with verify and the rescraper on what counts as a
+    # poster/landscape. Accepts the bare / Kodi ``folder`` / scraper-prefixed /
+    # MediaElch spellings and excludes per-season posters, instead of the old
+    # strict bare-filename check.
+    artwork = artwork_status(show_dir, "tvshow")
+    if not artwork.poster:
         return False, "poster_missing"
-    if not (show_dir / patterns.tvshow_landscape).exists():
+    if not artwork.landscape:
         return False, "landscape_missing"
 
     # 3 + 4. Episode naming + sibling NFO.
