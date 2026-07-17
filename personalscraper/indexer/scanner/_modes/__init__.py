@@ -23,7 +23,7 @@ from .enrich import (
     os,
 )
 from .full import _scan_disk_full
-from .incremental import _scan_disk_incremental, _walk_dir_incremental
+from .incremental import _scan_disk_incremental
 from .quick import _run_paranoia_branch, _scan_disk_quick
 from .verify import _scan_disk_verify
 
@@ -46,5 +46,4 @@ __all__ = [
     "_scan_disk_incremental",
     "_scan_disk_quick",
     "_scan_disk_verify",
-    "_walk_dir_incremental",
 ]

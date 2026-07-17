@@ -36,6 +36,7 @@ from personalscraper.indexer import fingerprint
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.fingerprint import round_mtime_ns
 from personalscraper.indexer.merkle import FileFingerprint
+from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner._checkpoint import _maybe_checkpoint
 from personalscraper.indexer.scanner._db_writes import (
     _INSERT_BATCH_SIZE,
@@ -560,6 +561,62 @@ class SkeletonVisitor(ScanVisitor):
             ctime_ns=ctime_ns,
             generation=self.generation,
         )
+
+
+class DirMtimeSkipVisitor(SkeletonVisitor):
+    """Adds the dir-mtime subtree short-circuit shared by quick + incremental.
+
+    An unchanged directory — the stored ``path.dir_mtime_ns`` equals the live
+    value, both floored to the disk capability's granularity bucket — is skipped
+    entirely (zero file reads in that subtree). This is the ONE implementation of
+    the dir-mtime skip that ``_walk_dir_quick`` and ``_walk_dir_incremental``
+    used to carry as byte-identical copies. Quick mode uses this visitor directly
+    (inheriting the Stage-A :meth:`SkeletonVisitor.visit_file`); incremental mode
+    subclasses it and overrides :meth:`visit_file` with its drift/rename logic.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` being walked.
+        generation: Scan generation stamped on every ``media_file`` row.
+        files_visited: Single-element mutable counter for files.
+        dirs_visited: Single-element mutable counter for directories.
+        dir_mtime_reliable: When ``False`` the skip is disabled and every subtree
+            is walked (fallback to per-file fingerprinting).
+        capability: Per-disk :class:`FilesystemCapability` governing the mtime
+            granularity bucketing of the stored-vs-live comparison.
+    """
+
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        disk: DiskRow,
+        generation: int,
+        files_visited: list[int],
+        dirs_visited: list[int],
+        dir_mtime_reliable: bool,
+        capability: FilesystemCapability = NTFS_MACFUSE,
+    ) -> None:
+        """Bind the per-disk state plus the dir-mtime skip configuration."""
+        super().__init__(conn, disk, generation, files_visited, dirs_visited)
+        self.dir_mtime_reliable = dir_mtime_reliable
+        self.capability = capability
+
+    def enter_dir(self, entry: os.DirEntry[str], st: os.stat_result, rel: str) -> bool:
+        """Skip an unchanged subtree (dir-mtime match) or recurse into it."""
+        if self.dir_mtime_reliable:
+            # Both the stored and live dir mtimes are bucketed via the disk
+            # capability so sub-bucket jitter on a coarse FS does not force a
+            # spurious re-walk (NTFS granularity 1 → identity → exact compare).
+            existing_path = disk_repo.get_path_by_disk_and_relpath(self.conn, self.disk.id, rel)
+            if (
+                existing_path is not None
+                and existing_path.dir_mtime_ns is not None
+                and round_mtime_ns(existing_path.dir_mtime_ns, self.capability)
+                == round_mtime_ns(st.st_mtime_ns, self.capability)
+            ):
+                log.debug("indexer.scan.dir_unchanged", path=entry.path, dir_mtime_ns=st.st_mtime_ns)
+                return False
+        return True
 
 
 def _walk_dir(

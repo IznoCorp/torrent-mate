@@ -7,7 +7,7 @@ import sqlite3
 
 from personalscraper.indexer import drift as _drift
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
-from personalscraper.indexer.fingerprint import normalize_tier1, round_mtime_ns
+from personalscraper.indexer.fingerprint import normalize_tier1
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     compute_merkle_delta,
@@ -20,10 +20,14 @@ from personalscraper.indexer.scanner._db_writes import (
     _upsert_file_row,
     _upsert_path_row,
 )
-from personalscraper.indexer.scanner._exclusions import _relpath, _should_exclude
+from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
 from personalscraper.indexer.scanner._walker import (
+    DirMtimeSkipVisitor,
+    WalkBudget,
+    WalkCheckpoint,
     _build_disk_fingerprints,
     _sample_fresh_fingerprints,
+    walk,
 )
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
@@ -31,8 +35,8 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.scan")
 
 __all__ = [
+    "IncrementalVisitor",
     "_scan_disk_incremental",
-    "_walk_dir_incremental",
 ]
 
 
@@ -159,22 +163,30 @@ def _scan_disk_incremental(
             raise DiskBulkChangeDetected(delta=delta, disk_uuid=disk.uuid)
 
     # --- Incremental walk ---
-    _walk_dir_incremental(
+    visitor = IncrementalVisitor(
         conn,
         disk,
-        mount,
+        generation,
         files_visited,
         dirs_visited,
-        generation,
         dir_mtime_reliable,
-        resume_from,
-        files_since_checkpoint,
-        budget_exhausted,
-        started_at_monotonic,
-        budget_seconds,
-        scan_run_id,
-        checkpoint_every,
         capability,
+    )
+    walk(
+        mount,
+        visitor,
+        budget=WalkBudget(
+            budget_seconds=budget_seconds,
+            started_at_monotonic=started_at_monotonic,
+            budget_exhausted=budget_exhausted if budget_exhausted is not None else [False],
+        ),
+        shutdown=is_shutdown_requested,
+        checkpoint=WalkCheckpoint(
+            scan_run_id=scan_run_id,
+            checkpoint_every=checkpoint_every,
+            files_since_checkpoint=files_since_checkpoint if files_since_checkpoint is not None else [0],
+            resume_from=resume_from if resume_from is not None else [None],
+        ),
     )
 
     # Skip post-walk bookkeeping if the budget was exhausted — partial state is
@@ -198,266 +210,69 @@ def _scan_disk_incremental(
     log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)
 
 
-def _walk_dir_incremental(
-    conn: sqlite3.Connection,
-    disk: DiskRow,
-    dir_abs: str,
-    files_visited: list[int],
-    dirs_visited: list[int],
-    generation: int,
-    dir_mtime_reliable: bool,
-    resume_from: list[str | None] | None = None,
-    files_since_checkpoint: list[int] | None = None,
-    budget_exhausted: list[bool] | None = None,
-    started_at_monotonic: float = 0.0,
-    budget_seconds: float | None = None,
-    scan_run_id: int = 0,
-    checkpoint_every: int = 100,
-    capability: FilesystemCapability = NTFS_MACFUSE,
-) -> None:
-    """Recursively walk *dir_abs* in incremental mode.
+class IncrementalVisitor(DirMtimeSkipVisitor):
+    """Incremental-mode visitor over :func:`~personalscraper.indexer.scanner._walker.walk`.
 
-    Incremental mode extends quick-mode dir-mtime subtree skipping with an
-    OSHash recompute step for files whose tier-1 fingerprint has changed.  The
-    OSHash comparison enables accurate rename detection and distinguishes
-    cosmetic mtime drift from real content changes.
-
-    Per-file logic for files with a tier-1 mismatch against the stored row:
-
-    1. Recompute OSHash for video files (non-video/symlinks skip this step).
-    2. Compare the recomputed hash to the stored ``oshash`` column:
-
-       a. **Match** — content is unchanged (mtime/size drift only): update tier-1
-          fields in place, no repair enqueue.
-       b. **Mismatch and oshash is not empty** — call
-          :func:`~personalscraper.indexer.drift.detect_rename`:
-
-          - ``rename_applied`` → drift module already updated the row.
-          - ``oshash_collision`` → drift module already enqueued repair.
-          - ``no_match`` → real content drift; call
-            :func:`~personalscraper.indexer.drift.enqueue_repair` with
-            ``reason='content_drift'``.
-
-       c. **Mismatch and no oshash** (non-video file) — treat as content drift
-          and enqueue repair directly.
-
-    Args:
-        conn: Open SQLite connection.
-        disk: :class:`~personalscraper.indexer.schema.DiskRow` owning this subtree.
-        dir_abs: Absolute path of the current directory.
-        files_visited: Single-element mutable counter for files.
-        dirs_visited: Single-element mutable counter for directories.
-        generation: Scan generation stamped on every ``media_file`` row.
-        dir_mtime_reliable: When ``False``, dir-mtime skip is disabled.
-        resume_from: Single-element list holding the opaque path string of the
-            last checkpoint (or ``None``).
-        files_since_checkpoint: Single-element mutable counter.
-        budget_exhausted: Single-element flag; set to ``True`` when budget exceeded.
-        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start.
-        budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
-        scan_run_id: PK of the active ``scan_run`` row.
-        checkpoint_every: How many files to process between checkpoint writes.
-        capability: Per-disk :class:`FilesystemCapability` used to normalise the
-            tier-1 fingerprints before comparison.  Defaults to ``NTFS_MACFUSE``
-            (legacy behaviour: ctime kept, mtime unrounded).
+    Inherits the dir-mtime subtree short-circuit from
+    :class:`~personalscraper.indexer.scanner._walker.DirMtimeSkipVisitor` and adds
+    the OSHash recompute + rename/content-drift logic in :meth:`visit_file`. For a
+    file whose tier-1 fingerprint (size, mtime_ns, ctime_ns — normalised via the
+    disk capability) has changed, the OSHash is recomputed to distinguish cosmetic
+    mtime drift (update tier-1 only), a rename (delegated to
+    :func:`~personalscraper.indexer.drift.detect_rename`), an OSHash collision
+    (drift module enqueues repair) and real content drift
+    (:func:`~personalscraper.indexer.drift.enqueue_repair` with
+    ``reason='content_drift'``). Byte-identical to the legacy
+    ``_walk_dir_incremental`` per-file body.
     """
-    from personalscraper.indexer.scanner._checkpoint import _maybe_checkpoint  # noqa: PLC0415
 
-    assert disk.mount_path is not None  # guard: mount_path checked before entering walk
+    def visit_file(self, entry: os.DirEntry[str], st: os.stat_result, parent_rel: str) -> None:
+        """Apply the incremental per-file fingerprint / rename / drift logic."""
+        conn = self.conn
+        disk = self.disk
+        generation = self.generation
+        capability = self.capability
 
-    if budget_exhausted is not None and budget_exhausted[0]:
-        return
+        path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
+        ctime_ns_val: int | None = st.st_ctime_ns if hasattr(st, "st_ctime_ns") else None
+        mtime_ns_val = _safe_mtime_ns(st.st_mtime_ns)
+        is_symlink = entry.is_symlink()
 
-    try:
-        with os.scandir(dir_abs) as it:
-            entries = list(it)
-    except PermissionError:
-        log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
-        return
+        existing = file_repo.find_by_path_and_filename(conn, path_id, entry.name)
 
-    for entry in entries:
-        if _should_exclude(entry.name):
-            continue
+        if existing is None:
+            # New file — compute oshash.  For video files attempt rename
+            # detection before inserting a fresh row.  A rename appears as
+            # a new path whose oshash matches an existing DB row at a
+            # different location (the old location is now gone from disk).
+            oshash_value = _compute_oshash(entry.path, entry.name, is_symlink)
 
-        try:
-            st = entry.stat(follow_symlinks=False)
-        except OSError:
-            log.warning("indexer.scan.stat_failed", path=entry.path)
-            continue
+            if oshash_value is not None:
+                # Check whether a candidate with this oshash already exists
+                # on the disk at a different path.  If so, try rename
+                # detection first so we don't hit the UNIQUE constraint
+                # (path_id, filename) when the old row is updated in place.
+                conn.row_factory = sqlite3.Row
+                candidate = conn.execute(
+                    """
+                    SELECT mf.id
+                      FROM media_file mf
+                      JOIN path p ON p.id = mf.path_id
+                     WHERE mf.oshash = ?
+                       AND p.disk_id = ?
+                       AND NOT (mf.path_id = ? AND mf.filename = ?)
+                       AND mf.deleted_at IS NULL
+                     LIMIT 1
+                    """,
+                    (oshash_value, disk.id, path_id, entry.name),
+                ).fetchone()
+                conn.row_factory = None
 
-        if entry.is_dir(follow_symlinks=False):
-            dirs_visited[0] += 1
-            rel = _relpath(disk.mount_path, entry.path)
-            current_mtime_ns: int = st.st_mtime_ns
-
-            if dir_mtime_reliable:
-                # Check stored dir_mtime_ns — skip unchanged subtrees.  Both the
-                # stored and live values are bucketed via the disk capability so
-                # sub-bucket jitter on a coarse FS does not force a spurious
-                # re-walk (NTFS granularity 1 → identity → legacy exact compare).
-                existing_path = disk_repo.get_path_by_disk_and_relpath(conn, disk.id, rel)
-                if (
-                    existing_path is not None
-                    and existing_path.dir_mtime_ns is not None
-                    and round_mtime_ns(existing_path.dir_mtime_ns, capability)
-                    == round_mtime_ns(current_mtime_ns, capability)
-                ):
-                    log.debug(
-                        "indexer.scan.dir_unchanged",
-                        path=entry.path,
-                        dir_mtime_ns=current_mtime_ns,
-                    )
-                    continue
-
-            # Recurse into changed (or all, when dir-mtime is unreliable) subtrees.
-            _walk_dir_incremental(
-                conn,
-                disk,
-                entry.path,
-                files_visited,
-                dirs_visited,
-                generation,
-                dir_mtime_reliable,
-                resume_from,
-                files_since_checkpoint,
-                budget_exhausted,
-                started_at_monotonic,
-                budget_seconds,
-                scan_run_id,
-                checkpoint_every,
-                capability,
-            )
-
-            if budget_exhausted is not None and budget_exhausted[0]:
-                return
-
-            # Update dir_mtime_ns so next scan can short-circuit.
-            _upsert_path_row(conn, disk.id, rel, current_mtime_ns)
-
-        else:
-            # File (or symlink) — incremental fingerprint logic.
-
-            # --- crash-resume skip ---
-            if resume_from is not None and resume_from[0] is not None:
-                parent_rel_r = _relpath(disk.mount_path, dir_abs)
-                current_path_str_r = f"{disk.label}/{parent_rel_r}/{entry.name}"
-                if current_path_str_r <= resume_from[0]:
-                    continue
-                resume_from[0] = None
-
-            files_visited[0] += 1
-            parent_rel = _relpath(disk.mount_path, dir_abs)
-            path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
-            ctime_ns_val: int | None = st.st_ctime_ns if hasattr(st, "st_ctime_ns") else None
-            mtime_ns_val = _safe_mtime_ns(st.st_mtime_ns)
-            is_symlink = entry.is_symlink()
-
-            existing = file_repo.find_by_path_and_filename(conn, path_id, entry.name)
-
-            if existing is None:
-                # New file — compute oshash.  For video files attempt rename
-                # detection before inserting a fresh row.  A rename appears as
-                # a new path whose oshash matches an existing DB row at a
-                # different location (the old location is now gone from disk).
-                oshash_value = _compute_oshash(entry.path, entry.name, is_symlink)
-
-                if oshash_value is not None:
-                    # Check whether a candidate with this oshash already exists
-                    # on the disk at a different path.  If so, try rename
-                    # detection first so we don't hit the UNIQUE constraint
-                    # (path_id, filename) when the old row is updated in place.
-                    conn.row_factory = sqlite3.Row
-                    candidate = conn.execute(
-                        """
-                        SELECT mf.id
-                          FROM media_file mf
-                          JOIN path p ON p.id = mf.path_id
-                         WHERE mf.oshash = ?
-                           AND p.disk_id = ?
-                           AND NOT (mf.path_id = ? AND mf.filename = ?)
-                           AND mf.deleted_at IS NULL
-                         LIMIT 1
-                        """,
-                        (oshash_value, disk.id, path_id, entry.name),
-                    ).fetchone()
-                    conn.row_factory = None
-
-                    if candidate is not None:
-                        # There is at least one existing row with this oshash —
-                        # insert a temporary stub row so detect_rename can use
-                        # the current (path_id, filename, size) for its size guard
-                        # and old-path-existence check.
-                        _upsert_file_row(
-                            conn,
-                            path_id=path_id,
-                            filename=entry.name,
-                            size_bytes=st.st_size,
-                            mtime_ns=mtime_ns_val,
-                            ctime_ns=ctime_ns_val,
-                            generation=generation,
-                            oshash_value=oshash_value,
-                        )
-                        # Now detect_rename can query (path_id, filename) to get
-                        # current size. If it applies a rename, it UPDATES the old
-                        # row to (path_id, filename) — but that would collide with
-                        # the stub row we just inserted.  To avoid the UNIQUE
-                        # constraint, delete the stub first then let detect_rename
-                        # update the old row.
-                        conn.execute(
-                            "DELETE FROM media_file WHERE path_id = ? AND filename = ? AND oshash = ?",
-                            (path_id, entry.name, oshash_value),
-                        )
-                        outcome = _drift.detect_rename(
-                            conn,
-                            disk.id,
-                            path_id,
-                            entry.name,
-                            oshash_value,
-                        )
-                        if outcome == "rename_applied":
-                            # The old row was updated in-place to (path_id, entry.name).
-                            # Update its tier-1 fields to reflect the current stat.
-                            conn.execute(
-                                """
-                                UPDATE media_file
-                                   SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                                       scan_generation = ?
-                                 WHERE path_id = ? AND filename = ?
-                                """,
-                                (st.st_size, mtime_ns_val, ctime_ns_val, generation, path_id, entry.name),
-                            )
-                            log.info(
-                                "indexer.scan.incremental.rename_applied",
-                                new_path_id=path_id,
-                                new_filename=entry.name,
-                            )
-                        else:
-                            # no_match or oshash_collision — insert as a new file.
-                            _upsert_file_row(
-                                conn,
-                                path_id=path_id,
-                                filename=entry.name,
-                                size_bytes=st.st_size,
-                                mtime_ns=mtime_ns_val,
-                                ctime_ns=ctime_ns_val,
-                                generation=generation,
-                                oshash_value=oshash_value,
-                            )
-                    else:
-                        # No candidate with this oshash on this disk — genuinely
-                        # new file, plain insert.
-                        _upsert_file_row(
-                            conn,
-                            path_id=path_id,
-                            filename=entry.name,
-                            size_bytes=st.st_size,
-                            mtime_ns=mtime_ns_val,
-                            ctime_ns=ctime_ns_val,
-                            generation=generation,
-                            oshash_value=oshash_value,
-                        )
-                else:
-                    # Non-video file (no oshash) — plain insert, no rename detection.
+                if candidate is not None:
+                    # There is at least one existing row with this oshash —
+                    # insert a temporary stub row so detect_rename can use
+                    # the current (path_id, filename, size) for its size guard
+                    # and old-path-existence check.
                     _upsert_file_row(
                         conn,
                         path_id=path_id,
@@ -466,111 +281,163 @@ def _walk_dir_incremental(
                         mtime_ns=mtime_ns_val,
                         ctime_ns=ctime_ns_val,
                         generation=generation,
-                        oshash_value=None,
+                        oshash_value=oshash_value,
+                    )
+                    # Now detect_rename can query (path_id, filename) to get
+                    # current size. If it applies a rename, it UPDATES the old
+                    # row to (path_id, filename) — but that would collide with
+                    # the stub row we just inserted.  To avoid the UNIQUE
+                    # constraint, delete the stub first then let detect_rename
+                    # update the old row.
+                    conn.execute(
+                        "DELETE FROM media_file WHERE path_id = ? AND filename = ? AND oshash = ?",
+                        (path_id, entry.name, oshash_value),
+                    )
+                    outcome = _drift.detect_rename(
+                        conn,
+                        disk.id,
+                        path_id,
+                        entry.name,
+                        oshash_value,
+                    )
+                    if outcome == "rename_applied":
+                        # The old row was updated in-place to (path_id, entry.name).
+                        # Update its tier-1 fields to reflect the current stat.
+                        conn.execute(
+                            """
+                            UPDATE media_file
+                               SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
+                                   scan_generation = ?
+                             WHERE path_id = ? AND filename = ?
+                            """,
+                            (st.st_size, mtime_ns_val, ctime_ns_val, generation, path_id, entry.name),
+                        )
+                        log.info(
+                            "indexer.scan.incremental.rename_applied",
+                            new_path_id=path_id,
+                            new_filename=entry.name,
+                        )
+                    else:
+                        # no_match or oshash_collision — insert as a new file.
+                        _upsert_file_row(
+                            conn,
+                            path_id=path_id,
+                            filename=entry.name,
+                            size_bytes=st.st_size,
+                            mtime_ns=mtime_ns_val,
+                            ctime_ns=ctime_ns_val,
+                            generation=generation,
+                            oshash_value=oshash_value,
+                        )
+                else:
+                    # No candidate with this oshash on this disk — genuinely
+                    # new file, plain insert.
+                    _upsert_file_row(
+                        conn,
+                        path_id=path_id,
+                        filename=entry.name,
+                        size_bytes=st.st_size,
+                        mtime_ns=mtime_ns_val,
+                        ctime_ns=ctime_ns_val,
+                        generation=generation,
+                        oshash_value=oshash_value,
                     )
             else:
-                # Existing file — compare tier-1 fingerprint (FS-aware).  The
-                # capability decides whether ctime participates and whether the
-                # mtime is bucketed; for NTFS this is byte-identical to the
-                # legacy ``(size, mtime_ns, ctime_ns)`` tuples.  Storage of the
-                # tier-1 fields below stays raw — only the comparison normalises.
-                t1_stored = normalize_tier1(existing.size_bytes, existing.mtime_ns, existing.ctime_ns or 0, capability)
-                t1_current = normalize_tier1(st.st_size, mtime_ns_val, ctime_ns_val or 0, capability)
+                # Non-video file (no oshash) — plain insert, no rename detection.
+                _upsert_file_row(
+                    conn,
+                    path_id=path_id,
+                    filename=entry.name,
+                    size_bytes=st.st_size,
+                    mtime_ns=mtime_ns_val,
+                    ctime_ns=ctime_ns_val,
+                    generation=generation,
+                    oshash_value=None,
+                )
+        else:
+            # Existing file — compare tier-1 fingerprint (FS-aware).  The
+            # capability decides whether ctime participates and whether the
+            # mtime is bucketed; for NTFS this is byte-identical to the
+            # legacy ``(size, mtime_ns, ctime_ns)`` tuples.  Storage of the
+            # tier-1 fields below stays raw — only the comparison normalises.
+            t1_stored = normalize_tier1(existing.size_bytes, existing.mtime_ns, existing.ctime_ns or 0, capability)
+            t1_current = normalize_tier1(st.st_size, mtime_ns_val, ctime_ns_val or 0, capability)
 
-                if t1_current == t1_stored:
-                    # Tier-1 unchanged — bump generation only (cheap skip).
+            if t1_current == t1_stored:
+                # Tier-1 unchanged — bump generation only (cheap skip).
+                conn.execute(
+                    "UPDATE media_file SET scan_generation = ? WHERE id = ?",
+                    (generation, existing.id),
+                )
+            else:
+                # Tier-1 mismatch — recompute OSHash for video files to determine
+                # whether the content actually changed or just the metadata.
+                new_oshash = _compute_oshash(entry.path, entry.name, is_symlink)
+
+                if new_oshash is not None and new_oshash == existing.oshash:
+                    # OSHash matches stored value: content unchanged (mtime drift
+                    # only).  Update tier-1 fields; no repair enqueue needed.
                     conn.execute(
-                        "UPDATE media_file SET scan_generation = ? WHERE id = ?",
-                        (generation, existing.id),
+                        """
+                        UPDATE media_file
+                           SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
+                               scan_generation = ?
+                         WHERE id = ?
+                        """,
+                        (st.st_size, mtime_ns_val, ctime_ns_val, generation, existing.id),
                     )
-                else:
-                    # Tier-1 mismatch — recompute OSHash for video files to determine
-                    # whether the content actually changed or just the metadata.
-                    new_oshash = _compute_oshash(entry.path, entry.name, is_symlink)
-
-                    if new_oshash is not None and new_oshash == existing.oshash:
-                        # OSHash matches stored value: content unchanged (mtime drift
-                        # only).  Update tier-1 fields; no repair enqueue needed.
-                        conn.execute(
-                            """
-                            UPDATE media_file
-                               SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                                   scan_generation = ?
-                             WHERE id = ?
-                            """,
-                            (st.st_size, mtime_ns_val, ctime_ns_val, generation, existing.id),
-                        )
-                        log.debug(
-                            "indexer.scan.incremental.tier1_drift_only",
-                            file_id=existing.id,
-                            filename=entry.name,
-                        )
-                    elif new_oshash is not None:
-                        # OSHash changed — attempt rename detection via drift module.
-                        # First persist updated tier-1 and the new oshash so
-                        # detect_rename can find the current row by path.
-                        conn.execute(
-                            """
-                            UPDATE media_file
-                               SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                                   oshash = ?, scan_generation = ?
-                             WHERE id = ?
-                            """,
-                            (st.st_size, mtime_ns_val, ctime_ns_val, new_oshash, generation, existing.id),
-                        )
-                        outcome = _drift.detect_rename(
-                            conn,
-                            disk.id,
-                            path_id,
-                            entry.name,
-                            new_oshash,
-                        )
-                        if outcome == "no_match":
-                            # No rename candidate found — this is real content drift.
-                            _drift.enqueue_repair(conn, existing.id, "content_drift")
-                            log.info(
-                                "indexer.scan.incremental.content_drift",
-                                file_id=existing.id,
-                                filename=entry.name,
-                            )
-                        # rename_applied and oshash_collision are handled by drift module.
-                    else:
-                        # Non-video file (no oshash available) with tier-1 mismatch —
-                        # treat as content drift; update tier-1 and enqueue repair.
-                        conn.execute(
-                            """
-                            UPDATE media_file
-                               SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                                   scan_generation = ?
-                             WHERE id = ?
-                            """,
-                            (st.st_size, mtime_ns_val, ctime_ns_val, generation, existing.id),
-                        )
+                    log.debug(
+                        "indexer.scan.incremental.tier1_drift_only",
+                        file_id=existing.id,
+                        filename=entry.name,
+                    )
+                elif new_oshash is not None:
+                    # OSHash changed — attempt rename detection via drift module.
+                    # First persist updated tier-1 and the new oshash so
+                    # detect_rename can find the current row by path.
+                    conn.execute(
+                        """
+                        UPDATE media_file
+                           SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
+                               oshash = ?, scan_generation = ?
+                         WHERE id = ?
+                        """,
+                        (st.st_size, mtime_ns_val, ctime_ns_val, new_oshash, generation, existing.id),
+                    )
+                    outcome = _drift.detect_rename(
+                        conn,
+                        disk.id,
+                        path_id,
+                        entry.name,
+                        new_oshash,
+                    )
+                    if outcome == "no_match":
+                        # No rename candidate found — this is real content drift.
                         _drift.enqueue_repair(conn, existing.id, "content_drift")
                         log.info(
-                            "indexer.scan.incremental.content_drift_no_oshash",
+                            "indexer.scan.incremental.content_drift",
                             file_id=existing.id,
                             filename=entry.name,
                         )
-
-            # --- checkpoint / budget check ---
-            if files_since_checkpoint is not None and budget_exhausted is not None:
-                files_since_checkpoint[0] += 1
-                parent_rel_c = _relpath(disk.mount_path, dir_abs)
-                current_path_str_c = f"{disk.label}/{parent_rel_c}/{entry.name}"
-                new_counter, exhausted = _maybe_checkpoint(
-                    conn,
-                    scan_run_id,
-                    current_path_str_c,
-                    files_since_checkpoint[0],
-                    checkpoint_every,
-                    started_at_monotonic,
-                    budget_seconds,
-                )
-                files_since_checkpoint[0] = new_counter
-                if exhausted:
-                    budget_exhausted[0] = True
-                    return
+                    # rename_applied and oshash_collision are handled by drift module.
+                else:
+                    # Non-video file (no oshash available) with tier-1 mismatch —
+                    # treat as content drift; update tier-1 and enqueue repair.
+                    conn.execute(
+                        """
+                        UPDATE media_file
+                           SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
+                               scan_generation = ?
+                         WHERE id = ?
+                        """,
+                        (st.st_size, mtime_ns_val, ctime_ns_val, generation, existing.id),
+                    )
+                    _drift.enqueue_repair(conn, existing.id, "content_drift")
+                    log.info(
+                        "indexer.scan.incremental.content_drift_no_oshash",
+                        file_id=existing.id,
+                        filename=entry.name,
+                    )
 
 
 # Artwork filename detection is owned by ``core.artwork_naming`` (INDEXER-03);
