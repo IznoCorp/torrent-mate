@@ -8,14 +8,14 @@ Two flavors of assertion are used:
 
 - **isinstance** — for capabilities the class genuinely composes. Proves
   the runtime ``@runtime_checkable`` Protocol check returns ``True``.
-- **MRO inspection** — for capabilities the class deliberately omits.
-  Cannot use ``isinstance`` here because :class:`MetadataClient` ships
-  ``NotImplementedError``-raising stubs for several optional methods
-  (``get_artwork_urls``, ``get_keywords``, ``get_videos``,
-  ``get_recommendations``), so any subclass *structurally* satisfies
-  those Protocols even when the capability is missing in spirit. The
-  source of truth is the explicit inheritance list, captured by
-  ``__mro__``.
+- **MRO inspection** — for capabilities the class deliberately omits. The
+  source of truth is the explicit composition list captured by ``__mro__``:
+  a client declares a capability by inheriting its Protocol. Since
+  API-TRANSPORT-01 removed the base-class ``NotImplementedError`` stubs,
+  ``isinstance`` is now honest too (a bare subclass no longer structurally
+  satisfies an unimplemented capability), but MRO inspection remains the
+  tighter check — it pins the *declared* composition rather than incidental
+  structural overlap between capabilities that share a method name.
 """
 
 from __future__ import annotations
