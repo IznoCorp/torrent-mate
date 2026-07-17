@@ -22,7 +22,8 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
-import Config, { restartPollConfig } from "@/pages/Config";
+import Config from "@/pages/Config";
+import { restartPollConfig } from "@/hooks/useConfigEditor";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
