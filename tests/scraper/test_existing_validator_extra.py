@@ -697,8 +697,7 @@ class TestRecoverArtwork:
         assert result.warnings == []
         # Forensic anchor present (static event name + family kwarg).
         assert any(
-            "artwork_recovery_skipped_no_provider" in rec.message and "tmdb" in rec.message
-            for rec in caplog.records
+            "artwork_recovery_skipped_no_provider" in rec.message and "tmdb" in rec.message for rec in caplog.records
         )
 
 
