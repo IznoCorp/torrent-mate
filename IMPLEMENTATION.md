@@ -6,7 +6,7 @@
 **Type**: feat
 **Branch**: feat/acquisition-queue (off main @ 3a7200e9 — bug wave 0.52.1)
 **Ticket**: #308 (epic #304) — claimed; board moves broken (kanban-mate#187), card stays put
-**PR**: _(none yet)_
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/315
 **Merge**: squash (**auto** — operator directive 2026-07-17)
 **Design**: `docs/features/acquisition-queue/DESIGN.md` ← shared spec §3.1 + §5.1 + §7.2
 **Version bump**: 0.52.1 → 0.53.0 (minor)
