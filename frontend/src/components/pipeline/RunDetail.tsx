@@ -6,10 +6,12 @@
  * renders a header row with key metadata, the {@link PipelineStepper} in
  * READ-ONLY mode, and an error section when the run terminated abnormally.
  *
- * Displayed inline on the ``/maintenance`` page below the run-history tables
- * when a row in {@link RunHistoryTable} is clicked; the selection is
- * URL-addressable (``?run=<uid>``, DOIT-10). A "Retour" button calls
- * ``onClose`` (which clears the query param).
+ * Displayed inline on the ``/pipeline`` page when a row in the single
+ * {@link RunHistoryTable} is clicked. Maintenance-page users are redirected
+ * here via ``?run=<uid>`` (DOIT-10) — the ``/maintenance`` route itself has no
+ * detail view (pipeline-panel Phase 02 repatriation). A "Retour" button calls
+ * ``onClose`` (which clears the query param). When ``showMaintenanceLink`` is
+ * set, a cross-link back to ``/maintenance`` appears for maintenance runs.
  */
 
 import { useQuery } from "@tanstack/react-query";

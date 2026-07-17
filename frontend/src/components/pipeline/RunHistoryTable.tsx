@@ -208,6 +208,8 @@ export interface RunHistoryTableProps {
  * Args:
  *   onSelect: Callback invoked with the selected run UID.
  *   kind: Optional run-kind filter (``"maintenance"`` or ``"pipeline"``).
+ *   legend: Optional element rendered next to the heading (e.g. a
+ *     {@link TriggerLegend} popover on the Pipeline page).
  *
  * Returns:
  *   The history table element.

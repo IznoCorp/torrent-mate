@@ -2,7 +2,7 @@
  * Pipeline supervision page (TorrentMateUI S2 — pipe-control; pipeline-panel).
  *
  * Polls ``GET /api/pipeline/status`` every 5 seconds via {@link usePipelineStatus}
- * and feeds the live status to {@link PipelineControls}. The nine-stage
+ * and feeds the live status to {@link PipelineControls}. The eight-stage
  * {@link FlowBoard} is the single canonical pipeline view (OBJ1).
  *
  * pipeline-panel Phase 02 repatriates the pipeline run-history table + RunDetail
@@ -92,7 +92,7 @@ export default function Pipeline(): ReactElement {
       {/* Human-action banner — impossible to miss when decisions await (C5). */}
       <PipelineActionBanner />
 
-      {/* OBJ1 living pipeline — the Flow Board of the nine stages. */}
+      {/* OBJ1 living pipeline — the Flow Board of the eight stages. */}
       <FlowBoard />
 
       <PipelineControls status={liveStatus} />

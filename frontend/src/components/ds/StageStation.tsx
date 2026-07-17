@@ -33,12 +33,12 @@ export interface StageStationProps {
   /** When given, the station becomes a button opening the stage drawer. */
   readonly onClick?: () => void;
   /**
-   * When true, quiet states (idle, ok) render icon + count only.
+   * When true, quiet states (idle, ok) render icon + count + state dot only.
    * Anomalous states (attention, blocked) and active always stay expanded.
    */
   readonly compact?: boolean;
   /**
-   * Size variant: "sm" for mobile ~40px rows — trims padding to py-2,
+   * Size variant: "sm" for mobile — trims padding to py-2,
    * shrinks the count to text-lg, and hides split sub-counts.
    */
   readonly size?: "sm";
@@ -95,12 +95,12 @@ const STATE_HINT: Record<StageState, string> = {
  * item count, a state ring, and optional sub-counts. Clicking opens that
  * stage's drawer.
  *
- * When ``compact`` is true, quiet stages (idle, ok) collapse to icon + count
- * only so the horizontal rail never overflows. Anomalous stages (attention,
- * blocked) and the active stage stay expanded regardless — the red signal is
- * always visible (DOIT-2, §8).
+ * When ``compact`` is true, quiet stages (idle, ok) collapse to icon + count +
+ * state dot only so the horizontal rail never overflows. Anomalous stages
+ * (attention, blocked) and the active stage stay expanded regardless — the red
+ * signal is always visible (DOIT-2, §8).
  *
- * ``size="sm"`` produces a compact vertical row (~40 px) for mobile: shorter
+ * ``size="sm"`` produces a compact vertical variant for mobile: shorter
  * padding, smaller count, no split sub-counts.
  *
  * Args:
@@ -108,8 +108,8 @@ const STATE_HINT: Record<StageState, string> = {
  *   icon: Optional stage icon.
  *   split: Optional sub-counts.
  *   onClick: Optional open handler (makes the station a button).
- *   compact: When true, quiet states render icon + count only.
- *   size: "sm" for mobile compact rows.
+ *   compact: When true, quiet states render icon + count + state dot only.
+ *   size: "sm" for mobile compact variant.
  *
  * Returns:
  *   The station element.

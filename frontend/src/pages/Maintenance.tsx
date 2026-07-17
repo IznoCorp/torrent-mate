@@ -2,9 +2,11 @@
  * Maintenance dashboard page (TorrentMateUI S3 — maint-dash).
  *
  * Replaces the former {@link ComingSoon} stub at ``/maintenance``. The page
- * renders a responsive grid of monitoring panels: disks, locks, index health,
- * and run history, plus the {@link ActionCatalog} of maintenance commands with
- * generated run forms.
+ * renders a responsive three-panel monitoring grid (disks, locks, index
+ * health), the append-only {@link DestructiveLogPanel} journal, a live
+ * {@link EventFeed} with its {@link RecentEventsTable}, a
+ * maintenance-filtered {@link RunHistoryTable}, and the {@link ActionCatalog}
+ * of maintenance commands with generated run forms.
  *
  * The pipeline-run detail view lives exclusively on ``/pipeline`` (Phase 02
  * repatriation).  Clicking a row in the maintenance history table sets

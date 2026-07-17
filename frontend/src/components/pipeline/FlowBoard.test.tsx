@@ -181,7 +181,7 @@ describe("FlowBoard", () => {
     expect(screen.getByText("Vérification")).toBeInTheDocument();
   });
 
-  it("on mobile (matchMedia narrow), stations show visible labels in a vertical list", () => {
+  it("on mobile (matchMedia narrow), labels become visible and stations stack vertically (CSS-driven)", () => {
     // G3/A2: Record the listener so we can fire a change event. Start in
     // desktop mode (compact on, quiet labels hidden), then fire {matches:false}
     // and verify labels become visible. On unmount, removeEventListener must
