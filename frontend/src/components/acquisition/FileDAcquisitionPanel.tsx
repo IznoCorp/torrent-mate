@@ -28,6 +28,7 @@ import { useDownloads, useWanted } from "@/hooks/useAcquisition";
 
 import { DownloadRow } from "./DownloadsPanel";
 import {
+  FOLLOW_KIND_LABEL,
   STATUS_LABEL,
   STATUS_TONE,
   WANTED_STATUS_OPTIONS,
@@ -214,7 +215,9 @@ export function FileDAcquisitionPanel(): ReactElement {
                     <AccordionItem key={series.title} className="border-border">
                       <AccordionTrigger>
                         <span className="flex items-center gap-2">
-                          <span className="font-medium">{series.title}</span>
+                          <span className="font-medium">
+                            {series.title || "(série retirée)"}
+                          </span>
                           <span className="text-xs text-muted-foreground">
                             ({String(seasonCount)} saison
                             {seasonCount > 1 ? "s" : ""}, {String(episodeCount)}{" "}
@@ -225,48 +228,51 @@ export function FileDAcquisitionPanel(): ReactElement {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-3 px-1">
-                          {series.seasons.map((sg) => (
-                            <div
-                              key={`${series.title}-S${String(sg.season ?? "?")}`}
-                            >
-                              <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
-                                Saison{" "}
-                                {sg.season != null
-                                  ? String(sg.season).padStart(2, "0")
-                                  : "?"}{" "}
-                                ({String(sg.episodes.length)} épisode
-                                {sg.episodes.length > 1 ? "s" : ""})
-                              </h4>
-                              <div className="space-y-1">
-                                {sg.episodes.map((ep) => (
-                                  <div
-                                    key={`ep-${String(ep.id)}`}
-                                    className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
-                                  >
-                                    <span className="min-w-0 truncate">
-                                      {ep.episode != null
-                                        ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
-                                        : ep.kind}
-                                    </span>
-                                    <span className="flex shrink-0 items-center gap-2">
-                                      <span className="text-xs text-muted-foreground">
-                                        {ep.attempts > 0
-                                          ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
-                                          : ""}
+                          {series.seasons.map((sg) => {
+                            const isMovieGroup =
+                              sg.episodes.length > 0 &&
+                              sg.episodes.every((ep) => ep.kind === "movie");
+                            return (
+                              <div
+                                key={`${series.title}-S${String(sg.season ?? "?")}`}
+                              >
+                                <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
+                                  {isMovieGroup
+                                    ? `Film (${String(sg.episodes.length)})`
+                                    : `Saison ${sg.season != null ? String(sg.season).padStart(2, "0") : "?"} (${String(sg.episodes.length)} épisode${sg.episodes.length > 1 ? "s" : ""})`}
+                                </h4>
+                                <div className="space-y-1">
+                                  {sg.episodes.map((ep) => (
+                                    <div
+                                      key={`ep-${String(ep.id)}`}
+                                      className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
+                                    >
+                                      <span className="min-w-0 truncate">
+                                        {ep.episode != null
+                                          ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
+                                          : (FOLLOW_KIND_LABEL[ep.kind] ??
+                                            ep.kind)}
                                       </span>
-                                      <Badge
-                                        tone={
-                                          STATUS_TONE[ep.status] ?? "neutral"
-                                        }
-                                      >
-                                        {STATUS_LABEL[ep.status] ?? ep.status}
-                                      </Badge>
-                                    </span>
-                                  </div>
-                                ))}
+                                      <span className="flex shrink-0 items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">
+                                          {ep.attempts > 0
+                                            ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
+                                            : ""}
+                                        </span>
+                                        <Badge
+                                          tone={
+                                            STATUS_TONE[ep.status] ?? "neutral"
+                                          }
+                                        >
+                                          {STATUS_LABEL[ep.status] ?? ep.status}
+                                        </Badge>
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -318,30 +324,45 @@ export function FileDAcquisitionPanel(): ReactElement {
           </div>
         )}
 
-        {!downloadsQuery.isLoading && downloads.length === 0 && (
-          <div className="py-8 text-center">
-            <p className="text-muted-foreground">
-              Aucun téléchargement en cours. Les torrents récupérés
-              s&apos;affichent ici jusqu&apos;à leur rangement en médiathèque.
-            </p>
-          </div>
+        {/* ---- Downloads error ----------------------------------------- */}
+        {downloadsQuery.isError && (
+          <p className="py-4 text-muted-foreground">
+            Erreur de chargement :{" "}
+            {downloadsQuery.error instanceof Error
+              ? downloadsQuery.error.message
+              : "Inconnue"}
+          </p>
         )}
 
-        {!downloadsQuery.isLoading && downloads.length > 0 && (
+        {/* ---- Downloads content --------------------------------------- */}
+        {!downloadsQuery.isLoading && !downloadsQuery.isError && (
           <>
-            {/* Fail-soft notice — never a calm empty lie
-                (NE-DOIT-PAS-1/5) */}
+            {/* Fail-soft notice — hoisted out of length>0 so it shows even
+                when the download list is empty (NE-DOIT-PAS-1/5, F3). */}
             {!clientAvailable && (
               <p className="mb-3 text-xs text-[var(--warning)]">
                 Client torrent injoignable — progression indisponible, les
                 éléments récupérés restent listés.
               </p>
             )}
-            <div className="flex flex-col gap-4">
-              {downloads.map((d) => (
-                <DownloadRow key={d.info_hash || d.name} d={d} />
-              ))}
-            </div>
+
+            {downloads.length === 0 && (
+              <div className="py-8 text-center">
+                <p className="text-muted-foreground">
+                  Aucun téléchargement en cours. Les torrents récupérés
+                  s&apos;affichent ici jusqu&apos;à leur rangement en
+                  médiathèque.
+                </p>
+              </div>
+            )}
+
+            {downloads.length > 0 && (
+              <div className="flex flex-col gap-4">
+                {downloads.map((d) => (
+                  <DownloadRow key={d.info_hash || d.name} d={d} />
+                ))}
+              </div>
+            )}
           </>
         )}
       </section>

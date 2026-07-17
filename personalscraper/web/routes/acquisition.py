@@ -495,7 +495,7 @@ def _resolve_obligation_titles(items: list[ObligationItem], conn: sqlite3.Connec
 
     Resolution order (ground-truth corrected 2026-07-17):
 
-    1. **acquire.db join** (primary): ``wanted.grabbed_hash`` =
+    1. **acquire.db join** (primary, case-insensitive): ``wanted.grabbed_hash`` =
        ``seed_obligation.info_hash`` → ``followed_series.title``, composed
        with the wanted row's scope:
          - episode (season + episode non-NULL) → ``"{title} S{ss:02d}E{ee:02d}"``
@@ -508,8 +508,8 @@ def _resolve_obligation_titles(items: list[ObligationItem], conn: sqlite3.Connec
 
     3. **None**: the frontend falls back to truncated ``info_hash``.
 
-    Every resolution path is wrapped in ``try/except`` — a single broken
-    row must never break the whole listing.
+    Every row is individually guarded in both the composition loop and the
+    apply pass — a single malformed row can never blank the whole listing.
 
     Args:
         items: The obligation items to enrich (mutated in-place).
@@ -539,21 +539,35 @@ def _resolve_obligation_titles(items: list[ObligationItem], conn: sqlite3.Connec
         rows = []
 
     for row in rows:
-        info_hash = row["info_hash"]
-        title = row["title"]
-        season = row["season"]
-        episode = row["episode"]
-        if season is not None and episode is not None:
-            composed = f"{title} S{season:02d}E{episode:02d}"
-        elif season is not None:
-            composed = f"{title} S{season:02d}"
-        else:
-            composed = title
-        # First match wins (DISTINCT + deterministic ordering not
-        # guaranteed; on multiple wanted rows for the same hash the
-        # first result is as good as any).
-        if info_hash not in title_map:
-            title_map[info_hash] = composed
+        try:
+            info_hash = row["info_hash"]
+            title = row["title"]
+            season = row["season"]
+            episode = row["episode"]
+            if season is not None and episode is not None:
+                composed = f"{title} S{season:02d}E{episode:02d}"
+            elif season is not None:
+                composed = f"{title} S{season:02d}"
+            else:
+                composed = title
+            # First match wins (DISTINCT + deterministic ordering not
+            # guaranteed; on multiple wanted rows for the same hash the
+            # first result is as good as any).
+            if info_hash not in title_map:
+                title_map[info_hash] = composed
+        except Exception:
+            # Safe extraction for logging — if the row is malformed we
+            # may not even have a hash to report.
+            hash_snippet = "?"
+            try:
+                hash_snippet = row["info_hash"][:12]
+            except Exception:
+                pass
+            logger.warning(
+                "obligation_title_composition_failed",
+                info_hash=hash_snippet,
+                exc_info=True,
+            )
 
     # ── Step 2 & 3: apply to each item ───────────────────────────────
     for item in items:

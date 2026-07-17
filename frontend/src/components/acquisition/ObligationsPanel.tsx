@@ -11,6 +11,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState, type ReactElement } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,12 +72,17 @@ export function ObligationsPanel(): ReactElement {
    * contexts (the app is served over HTTPS).
    */
   const handleCopyHash = useCallback((hash: string): void => {
-    void navigator.clipboard.writeText(hash).then(() => {
-      setCopiedHash(hash);
-      setTimeout(() => {
-        setCopiedHash((prev) => (prev === hash ? null : prev));
-      }, 1500);
-    });
+    void navigator.clipboard
+      .writeText(hash)
+      .then(() => {
+        setCopiedHash(hash);
+        setTimeout(() => {
+          setCopiedHash((prev) => (prev === hash ? null : prev));
+        }, 1500);
+      })
+      .catch(() => {
+        toast.error("Copie du hash impossible");
+      });
   }, []);
 
   // ── Loading ────────────────────────────────────────────────────────────
