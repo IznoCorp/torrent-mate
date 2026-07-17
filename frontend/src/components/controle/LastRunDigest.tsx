@@ -12,33 +12,8 @@ import type { ReactElement } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { triggerLabel, triggerTone } from "@/components/pipeline/triggers";
+import { relativeTime } from "@/lib/format";
 import type { LastPipelineRun } from "@/hooks/useLastPipelineRun";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Format an ISO 8601 UTC timestamp as a relative-time string in French.
- *
- * Args:
- *   iso: The ISO 8601 string, or ``null``.
- *
- * Returns:
- *   A human-readable relative age (e.g. ``"il y a 3 min"``), or ``"—"`` when
- *   the timestamp is absent.
- */
-function relativeTime(iso: string | null): string {
-  if (iso == null) return "—";
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return "à l'instant";
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `il y a ${String(mins)} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${String(hours)} h`;
-  const days = Math.floor(hours / 24);
-  return `il y a ${String(days)} j`;
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -101,7 +76,12 @@ export function LastRunDigest({ lastRun }: LastRunDigestProps): ReactElement {
   const trigger = lastRun.trigger ?? "";
   const label = triggerLabel(trigger);
   const tone = triggerTone(trigger);
-  const age = relativeTime(lastRun.startedAt);
+  // The shared formatter takes Unix-epoch seconds; ``startedAt`` is an ISO 8601
+  // UTC string, so convert here. Output strings are unchanged (identical
+  // thresholds + wording to the removed local copy).
+  const startedEpoch =
+    lastRun.startedAt != null ? new Date(lastRun.startedAt).getTime() / 1000 : null;
+  const age = relativeTime(startedEpoch);
 
   // Build the counts fragment (e.g. "3 traités · 78 ignorés").
   const countParts: string[] = [];

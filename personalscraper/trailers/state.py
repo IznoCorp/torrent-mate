@@ -41,9 +41,16 @@ from personalscraper.logger import get_logger
 from personalscraper.trailers._state_model import (  # noqa: F401 — re-export
     TrailerState,
     TrailerStatus,
-    _validate_season_number,
     compute_next_retry_at,
     make_state_key,
+)
+
+# `_validate_season_number` is a private helper re-exported for
+# `personalscraper.trailers.scanner`. Under mypy `strict` (no_implicit_reexport)
+# a private name is only re-exported through a redundant alias (it does not
+# belong in the public `__all__`), so the `as` form is load-bearing, not noise.
+from personalscraper.trailers._state_model import (
+    _validate_season_number as _validate_season_number,  # noqa: F401 — explicit re-export
 )
 
 log = get_logger(__name__)
