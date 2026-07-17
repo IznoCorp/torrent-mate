@@ -26,7 +26,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from personalscraper.conf.models.config import Config
-from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
+from personalscraper.indexer.destructive_journal import OP_DELETE, list_recent, record_destruction
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.pipeline import PipelineState
@@ -594,9 +594,12 @@ def discard_staging_media(
 
     Only items with ``media_kind == "other"`` (unsorted / AUTRES) qualify — they
     are moved into the ``_quarantine`` directory under the staging root and
-    recorded in the append-only destructive-journal. A scrapable item (movie/
-    tvshow) matched instead returns 422 with a directive to use the resolve or
-    pipeline-restart flow.
+    recorded in the append-only destructive-journal. The journal write is
+    verified with a read-back before ``journaled`` is set to ``True``
+    (``record_destruction`` is fail-soft — the quarantine move always succeeds,
+    but the audit trail is the point). A scrapable item (movie/tvshow) matched
+    instead returns 422 with a directive to use the resolve or pipeline-restart
+    flow.
 
     Args:
         media_id: The stable media id from a list item.
@@ -604,7 +607,8 @@ def discard_staging_media(
 
     Returns:
         A :class:`DiscardResponse` with ``ok=True`` and the quarantine
-        destination when the artifact was discarded.
+        destination when the artifact was discarded. ``journaled`` is ``True``
+        only when the destructive-op row was verified with a read-back.
 
     Raises:
         404: No item matches the id.
@@ -660,11 +664,23 @@ def discard_staging_media(
         run_uid=None,
     )
 
-    detail = "Artefact mis en quarantaine — trace écrite au journal des suppressions."
+    # Verify the journal row actually landed. record_destruction is fail-soft
+    # and can silently drop the write (swallows + logs failures). The journal IS
+    # the point — Star City lesson: without the trail the reconstruction is
+    # from scratch.
+    recent = list_recent(db_path, limit=20)
+    journaled = any(
+        r.get("op") == OP_DELETE and r.get("path") == str(media_dir) and r.get("actor") == "web" for r in recent
+    )
+
+    if journaled:
+        detail = "Artefact mis en quarantaine — trace écrite au journal des suppressions."
+    else:
+        detail = "Artefact mis en quarantaine — ATTENTION : l'écriture au journal des suppressions a échoué."
     return DiscardResponse(
         ok=True,
         media_id=media_id,
-        journaled=True,
+        journaled=journaled,
         quarantine_path=str(quarantine_path),
         detail=detail,
     )
