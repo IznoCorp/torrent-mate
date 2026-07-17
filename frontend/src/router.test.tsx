@@ -262,6 +262,60 @@ describe("router", () => {
     expect(router.state.location.pathname).toBe("/maintenance");
   });
 
+  // --- D1: uid with reserved chars survives verbatim (encoded) ---
+
+  it("encode un uid avec slash vers /pipeline (D1 — raw slash)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/maintenance?run=abc/def"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/pipeline");
+      // `/` must be encoded as `%2F` — no raw slash spawning extra path segments.
+      expect(router.state.location.search).toBe("?run=abc%2Fdef");
+    });
+  });
+
+  // --- B2: empty ?run= stays on Maintenance (no redirect) ---
+
+  it("ne redirige PAS /maintenance?run= (paramètre vide) — rend Maintenance (B2)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/maintenance?run="],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    // Empty ?run= → no redirect, page renders normally.
+    expect(
+      await screen.findByRole("heading", { name: "Maintenance" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/maintenance");
+  });
+
   it("monte la page Médias sur « /medias »", async () => {
     renderAt("/medias");
 

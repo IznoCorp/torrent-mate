@@ -10,9 +10,15 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
@@ -238,5 +244,127 @@ describe("Pipeline page", () => {
     expect(screen.queryByText(/Exécution/)).not.toBeInTheDocument();
     // "Retour" button (exclusive to RunDetail) is not rendered.
     expect(screen.queryByText("Retour")).not.toBeInTheDocument();
+  });
+
+  // -----------------------------------------------------------------------
+  // G4 — maintenance cross-link
+  // -----------------------------------------------------------------------
+
+  it("renders the maintenance cross-link when viewing a maintenance run from Pipeline (G4)", async () => {
+    mocks.getPipelineRunDetail.mockResolvedValue({
+      run_uid: "maint-run-uid",
+      kind: "maintenance",
+      command: "library-clean",
+      trigger: "web",
+      dry_run: false,
+      started_at: "2026-07-06T10:00:00Z",
+      ended_at: "2026-07-06T10:01:00Z",
+      outcome: "success",
+      duration_s: 60,
+      error: null,
+      steps: [],
+    });
+    renderPage([], ["/pipeline?run=maint-run-uid"]);
+
+    await screen.findByText("maint-ru…");
+
+    // G4: Pipeline page passes showMaintenanceLink → cross-link renders.
+    expect(
+      screen.getByText("→ Voir les exécutions de maintenance"),
+    ).toBeInTheDocument();
+  });
+
+  // -----------------------------------------------------------------------
+  // G6 — row click → ?run= set; Retour removes ?run= preserving ?stage=
+  // -----------------------------------------------------------------------
+
+  it("row click sets ?run= and Retour removes it while preserving ?stage= (G6)", async () => {
+    mocks.getPipelineHistory.mockResolvedValue({
+      runs: [
+        {
+          run_uid: "row-click-run",
+          started_at: "2026-07-06T10:00:00Z",
+          trigger: "web",
+          outcome: "success",
+          duration_s: 120,
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mocks.getPipelineRunDetail.mockResolvedValue({
+      run_uid: "row-click-run",
+      kind: "pipeline",
+      trigger: "web",
+      dry_run: false,
+      started_at: "2026-07-06T10:00:00Z",
+      ended_at: "2026-07-06T10:02:00Z",
+      outcome: "success",
+      duration_s: 120,
+      error: null,
+      steps: [],
+    });
+
+    /** Renders the live location so tests can verify URL search params. */
+    function LocationProbe(): React.ReactElement {
+      const location = useLocation();
+      return (
+        <span data-testid="loc">{location.pathname + location.search}</span>
+      );
+    }
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={["/pipeline?stage=verify"]}>
+          <EventStreamContext.Provider value={streamState([])}>
+            <Pipeline />
+          </EventStreamContext.Provider>
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Wait for the history table to load — trigger label "Interface web" maps
+    // from "web". run_uid is NOT a rendered column; find the row by trigger text.
+    await screen.findByText("Interface web");
+
+    // Click the history row (the <tr> ancestor of the trigger cell).
+    const row = screen.getByText("Interface web").closest("tr");
+    if (row === null) throw new Error("expected table row");
+    fireEvent.click(row);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loc").textContent).toContain(
+        "?stage=verify&run=row-click-run",
+      );
+    });
+
+    // The RunDetail drawer must open — the UID (possibly truncated) is visible.
+    expect(await screen.findByText(/row-cli/)).toBeInTheDocument();
+
+    // Click "Retour" → closeRun removes ?run= but preserves ?stage=.
+    fireEvent.click(screen.getByText("Retour"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loc").textContent).toContain("?stage=verify");
+      expect(screen.getByTestId("loc").textContent).not.toContain("run=");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // B2 — empty ?run= shows no drawer
+  // -----------------------------------------------------------------------
+
+  it("shows no RunDetail drawer when ?run= is empty (B2)", () => {
+    renderPage([], ["/pipeline?run="]);
+
+    // "Retour" button (exclusive to RunDetail) must NOT be rendered.
+    expect(screen.queryByText("Retour")).not.toBeInTheDocument();
+    // No run detail text.
+    expect(screen.queryByText(/Exécution/)).not.toBeInTheDocument();
   });
 });

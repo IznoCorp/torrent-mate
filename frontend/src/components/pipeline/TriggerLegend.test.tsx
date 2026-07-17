@@ -97,4 +97,22 @@ describe("TriggerLegend", () => {
       expect(screen.getByText("Déclencheurs")).toBeInTheDocument();
     });
   });
+
+  it("opens on keyboard Enter press (C1 — accessible disclosure)", async () => {
+    render(<TriggerLegend />);
+
+    const trigger = screen.getByRole("button", {
+      name: "Légende des déclencheurs",
+    });
+
+    // Closed by default.
+    expect(screen.queryByText("Déclencheurs")).not.toBeInTheDocument();
+
+    // Press Enter → the onKeyDown handler fires toggle().
+    fireEvent.keyDown(trigger, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Déclencheurs")).toBeInTheDocument();
+    });
+  });
 });
