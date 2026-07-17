@@ -7,7 +7,7 @@ make lint && make test && make check
 
 # Residual-import greps for the moved modules (zero matches — ACC-14 representative)
 test "$(rg -c 'from personalscraper.scraper.(youtube_search|trailer_finder|ytdlp_downloader)' -t py personalscraper/ tests/ | wc -l)" = "0" && echo ACC-14-OK
-rg -n "from personalscraper.scraper.(trailers_cache|json_ttl_cache|keywords_cache)" -g '*.py' personalscraper/ tests/  # 0
+rg -n "from personalscraper.scraper.(trailers_cache|json_ttl_cache)" -g '*.py' personalscraper/ tests/  # 0 — P6.2 correction: keywords_cache legitimately STAYS in scraper/ (TMDB domain; it now REUSES core/json_ttl_cache)
 rg -n "patch\(.*scraper\.(youtube_search|trailer_finder|ytdlp_downloader)" -g '*.py' tests/  # 0 — mock targets moved
 
 python -c "import personalscraper" && echo IMPORT-OK
