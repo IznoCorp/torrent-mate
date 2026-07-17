@@ -1,27 +1,19 @@
-"""Grab runner — subprocess wrapper for the per-series manual trigger (OBJ3).
+"""Grab runner — thin config over the shared runner engine (OBJ3 / §5).
 
 Executable as ``python -m personalscraper.web.acquisition.runner``. Reads its
 configuration from environment variables (set by the POST handler in
-``personalscraper.web.routes.acquisition``) and is responsible for:
-
-1. Reserving/claiming a ``pipeline_run`` row (``kind='maintenance'``,
-   ``command='grab'``) — the POST handler inserts it first (``if_absent=True``).
-2. Spawning ``personalscraper grab --followed-id <id>`` as a detached
-   subprocess (``start_new_session=True``).
-3. Streaming each output line to a 64 KiB ring buffer + Redis (fail-soft).
-4. Finalizing the ``pipeline_run`` row on every exit path (never left
-   ``'running'``).
-
-The ``grab`` CLI does NOT acquire the global ``pipeline.lock`` (it runs
-independently of a full pipeline run, like the scheduled grab cron), and each
-wanted item is claimed atomically (``claim_for_search``) so two grabs for the
-same series are idempotent — this runner therefore touches no lock.
+``personalscraper.web.routes.acquisition_triggers``) and delegates the whole
+run-row / spawn / stream / finalize lifecycle to
+:func:`personalscraper.web._runner_engine.run_spawn_stream`. The grab CLI does
+not touch ``pipeline.lock`` (each wanted item is claimed atomically via
+``claim_for_search``), so this runner uses no lock, no visible-queue wait, and no
+exit-3 re-queue — the simplest engine configuration.
 
 Environment contract (canonical — match the spawner):
 
 * ``PERSONALSCRAPER_RUN_UID`` — mandatory, the ``run_uid`` hex string.
-* ``PERSONALSCRAPER_ACQ_COMMAND`` — optional: ``"grab"`` (default) or
-  ``"detect"`` (§5 manual aired-episode discovery — spawns ``follow detect``).
+* ``PERSONALSCRAPER_ACQ_COMMAND`` — optional: ``"grab"`` (default) or ``"detect"``
+  (§5 manual aired-episode discovery — spawns ``follow detect``).
 * ``PERSONALSCRAPER_GRAB_FOLLOWED_ID`` — mandatory for ``grab``; unused for
   ``detect``.
 
@@ -45,19 +37,26 @@ from types import FrameType
 from personalscraper.conf.loader import load_config
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web.maintenance.runner import (
-    _get_redis,
-    _kill_child_group,
-    _redis_publish_line,
-    _RingBuffer,
+from personalscraper.web._runner_engine import (
+    OUTCOME_KILLED,
+    SIGTERM_EXIT_CODE,
+    RunnerSpec,
+    run_spawn_stream,
+)
+from personalscraper.web._runner_engine import (
+    RingBuffer as _RingBuffer,
+)
+from personalscraper.web._runner_engine import (
+    get_redis as _get_redis,
+)
+from personalscraper.web._runner_engine import (
+    kill_child_group as _kill_child_group,
+)
+from personalscraper.web._runner_engine import (
+    redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
 )
 
 log = get_logger(__name__)
-
-OUTCOME_SUCCESS = "success"
-OUTCOME_ERROR = "error"
-OUTCOME_KILLED = "killed"
-_SIGTERM_EXIT_CODE = 143
 
 
 def _read_mandatory_env() -> tuple[str, str, int | None]:
@@ -112,12 +111,13 @@ def _build_argv(command: str, followed_id: int | None) -> list[str]:
 
 
 def main() -> None:
-    """Run the per-series grab subprocess (see module docstring).
+    """Run the per-series grab / detect subprocess (see module docstring).
 
-    Reserves/claims the ``pipeline_run`` row, spawns ``grab --followed-id N``,
-    streams its output, and finalizes the row on every exit path — so a manual
-    trigger is tracked exactly like a maintenance run and never leaves a stuck
-    ``'running'`` row.
+    Reserves/claims the ``pipeline_run`` row, spawns the acquisition CLI, streams
+    its output, and finalizes the row on every exit path — so a manual trigger is
+    tracked exactly like a maintenance run and never leaves a stuck ``'running'``
+    row. The whole lifecycle is owned by the shared engine; this module only
+    supplies the env parsing, argv, and the process-global SIGTERM handler.
     """
     run_uid, command, followed_id = _read_mandatory_env()
 
@@ -138,20 +138,7 @@ def main() -> None:
     options_json = json.dumps(options, sort_keys=True, separators=(",", ":"))
     argv = _build_argv(command, followed_id)
 
-    # Ensure the pipeline_run row exists (idempotent) and claim its pid.
     writer = PipelineRunWriter(db_path)
-    writer.insert(
-        run_uid,
-        trigger="web",
-        dry_run=False,
-        pid=os.getpid(),
-        kind="maintenance",
-        command=row_command,
-        options_json=options_json,
-        if_absent=True,
-    )
-    writer.update_pid(run_uid, os.getpid())
-
     ring = _RingBuffer()
     child: dict[str, subprocess.Popen[str]] = {}
 
@@ -162,62 +149,28 @@ def main() -> None:
             _kill_child_group(proc_ref)
         writer.finalize(run_uid, OUTCOME_KILLED, output_tail=ring.to_str())
         log.warning("grab_runner_killed", run_uid=run_uid, followed_id=followed_id)
-        os._exit(_SIGTERM_EXIT_CODE)
+        os._exit(SIGTERM_EXIT_CODE)
 
     signal.signal(signal.SIGTERM, _on_sigterm)
 
-    log.info("grab_runner_starting", run_uid=run_uid, followed_id=followed_id, argv=argv)
-
-    try:
-        proc = subprocess.Popen(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            errors="replace",
-            bufsize=1,
-            start_new_session=True,
+    run_spawn_stream(
+        RunnerSpec(
+            writer=writer,
+            run_uid=run_uid,
+            kind="maintenance",
+            command=row_command,
+            options_json=options_json,
+            dry_run=False,
+            argv=argv,
+            child=child,
+            ring=ring,
+            redis=_get_redis(web_config),
+            stream_key=web_config.stream_key,
+            stream_maxlen=web_config.stream_maxlen,
+            event_prefix="grab_runner",
+            log_context={"followed_id": followed_id},
         )
-    except (OSError, ValueError) as exc:
-        log.error("grab_runner_spawn_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
-        writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
-        sys.exit(2)
-
-    child["proc"] = proc
-
-    redis = _get_redis(web_config)
-    stream_key = web_config.stream_key
-    stream_maxlen = web_config.stream_maxlen
-    seq = 0
-
-    try:
-        assert proc.stdout is not None  # noqa: S101 — Popen with stdout=PIPE
-        for line in proc.stdout:
-            ring.append(line)
-            _redis_publish_line(redis, line, run_uid, seq, stream_key, stream_maxlen)
-            seq += 1
-        rc = proc.wait()
-    except Exception as exc:  # noqa: BLE001 — any stream failure must finalize the row
-        _kill_child_group(proc)
-        writer.finalize(
-            run_uid,
-            OUTCOME_ERROR,
-            error=str(exc) or type(exc).__name__,
-            output_tail=ring.to_str(),
-        )
-        log.error("grab_runner_stream_failed", run_uid=run_uid, followed_id=followed_id, exc_info=True)
-        sys.exit(1)
-
-    output_tail = ring.to_str()
-    if rc == 0:
-        writer.finalize(run_uid, OUTCOME_SUCCESS, output_tail=output_tail)
-        log.info("grab_runner_completed", run_uid=run_uid, followed_id=followed_id, rc=rc, lines=seq)
-    else:
-        error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
-        writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
-        log.error("grab_runner_failed", run_uid=run_uid, followed_id=followed_id, rc=rc, lines=seq)
-
-    sys.exit(rc)
+    )
 
 
 if __name__ == "__main__":
