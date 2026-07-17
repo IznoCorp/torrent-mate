@@ -114,6 +114,7 @@ import personalscraper.commands.library  # noqa: E402,F401 — re-exports from l
 import personalscraper.commands.pipeline  # noqa: E402,F401
 import personalscraper.commands.scrape_resolve  # noqa: E402,F401
 import personalscraper.commands.seed  # noqa: E402,F401
+import personalscraper.commands.torrents  # noqa: E402,F401
 import personalscraper.commands.watch  # noqa: E402,F401
 
 # Web is a Typer sub-app (bare ``web`` boots the daemon via its callback;

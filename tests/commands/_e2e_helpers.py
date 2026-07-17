@@ -400,7 +400,7 @@ def mock_boundary_torrent_client(monkeypatch: Any, client: Any) -> Any:
     ``_build_app_context`` and read by ``torrents-list`` via
     ``per_step_boundary``.  CLI E2E tests therefore patch the boundary rather
     than the client constructors: this replaces ``per_step_boundary`` (as
-    imported into ``commands.pipeline``) with a context manager that yields a
+    imported into ``commands.torrents``) with a context manager that yields a
     real :class:`AppContext` whose ``torrent_client`` is *client*.
 
     Args:
@@ -430,7 +430,7 @@ def mock_boundary_torrent_client(monkeypatch: Any, client: Any) -> Any:
             torrent_client=client,
         )
 
-    monkeypatch.setattr("personalscraper.commands.pipeline.per_step_boundary", _fake_boundary)
+    monkeypatch.setattr("personalscraper.commands.torrents.per_step_boundary", _fake_boundary)
     return client
 
 
