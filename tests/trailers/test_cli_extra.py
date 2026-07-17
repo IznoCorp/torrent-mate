@@ -191,7 +191,7 @@ class TestAuditDeepStdoutValueError:
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=bad_proc),
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit", "--deep"])
         # ValueError → duration_val=0.0 → unplayable issue → exit 2.
@@ -233,7 +233,7 @@ class TestAuditSeasonTrailerPath:
             patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for_season") as mock_tps,
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tps.return_value = missing_seasonal
             result = runner.invoke(app, ["trailers", "audit"])
 

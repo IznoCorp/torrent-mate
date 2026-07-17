@@ -203,7 +203,7 @@ class TestTrailersAuditCommand:
             patch(_PATCH_SCANNER) as MockScanner,
             patch(_PATCH_OPEN_DB),
         ):
-            MockScanner.return_value.scan_library.return_value = []
+            MockScanner.return_value.scan_library_all.return_value = []
             result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 0
 
@@ -226,7 +226,7 @@ class TestTrailersAuditCommand:
             patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             missing_p = tmp_path / "ShowA (2020)" / "ShowA-trailer.mp4"
             mock_tp.return_value = missing_p  # does not exist
             result = runner.invoke(app, ["trailers", "audit"])
@@ -249,7 +249,7 @@ class TestTrailersAuditCommand:
             patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 2, result.output
@@ -271,7 +271,7 @@ class TestTrailersAuditCommand:
             patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 2, result.output
@@ -298,7 +298,7 @@ class TestTrailersAuditCommand:
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=fake_proc),
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit", "--deep"])
         assert result.exit_code == 0, result.output
@@ -337,7 +337,7 @@ class TestTrailersAuditCommand:
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=corrupt_proc),
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit", "--deep"])
         # Non-zero returncode → appends "unplayable" issue → exit 2
@@ -377,7 +377,7 @@ class TestTrailersAuditCommand:
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=zero_dur_proc),
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit", "--deep"])
         assert result.exit_code == 2, result.output
@@ -408,7 +408,7 @@ class TestTrailersAuditCommand:
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", side_effect=FileNotFoundError("ffprobe not found")),
         ):
-            MockScanner.return_value.scan_library.return_value = [item]
+            MockScanner.return_value.scan_library_all.return_value = [item]
             mock_tp.return_value = trailer_file
             result = runner.invoke(app, ["trailers", "audit", "--deep"])
         # FileNotFoundError is caught → ffprobe_error=True → exit 4
@@ -846,7 +846,7 @@ class TestTrailersAuditHelp:
             patch(_PATCH_SCANNER) as MockScanner,
             patch(_PATCH_OPEN_DB),
         ):
-            MockScanner.return_value.scan_library.return_value = []
+            MockScanner.return_value.scan_library_all.return_value = []
             result = runner.invoke(app, ["trailers", "audit"])
         assert result.exit_code == 0, result.output
 

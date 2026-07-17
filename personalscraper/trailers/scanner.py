@@ -212,6 +212,90 @@ class Scanner:
 
         # Query the indexer for every item that has not yet received a trailer.
         candidate_items = indexer_query.find_items_without_trailer(conn)
+        items = self._build_library_items(
+            conn,
+            candidate_items,
+            disk_filter=disk_filter,
+            category_filter=category_filter,
+            skip_existing_trailer=True,
+        )
+        log.debug("scanner_library_scan_complete", items_found=len(items))
+        return items
+
+    def scan_library_all(
+        self,
+        conn: sqlite3.Connection,
+        disk_filter: str | None = None,
+        category_filter: str | None = None,
+    ) -> list[ScanItem]:
+        """Enumerate ALL dispatched library items — the FS-probe audit universe.
+
+        Unlike :meth:`scan_library`, this applies no trailer predicate: neither
+        the DB ``trailer_found`` attribute (via ``find_items_without_trailer``)
+        nor the on-disk existing-trailer skip. The filesystem is the single truth
+        for trailer existence (constitution P26), so the audit enumerates every
+        library item and probes the disk itself, reporting existing trailers as
+        well as missing ones (F6). Items whose ``dispatch_path`` attribute is
+        absent or whose path is not on disk are skipped, exactly as in
+        :meth:`scan_library`.
+
+        Args:
+            conn: Open, readable SQLite connection to the indexer database.
+            disk_filter: When provided, restrict to items on this disk ID
+                (matches the ``dispatch_disk`` attribute). None = all disks.
+            category_filter: When provided, restrict to items with this
+                ``category_id``. None = all categories.
+
+        Returns:
+            List of ScanItem objects for every dispatched library entry (each
+            carrying its show/movie-level item and, when seasons are enabled,
+            all season-level entries — existing and missing alike).
+        """
+        log.info("scanner_library_all_scan_start", disk_filter=disk_filter, category_filter=category_filter)
+        candidate_items = indexer_query.find_all_items(conn)
+        items = self._build_library_items(
+            conn,
+            candidate_items,
+            disk_filter=disk_filter,
+            category_filter=category_filter,
+            skip_existing_trailer=False,
+        )
+        log.debug("scanner_library_all_scan_complete", items_found=len(items))
+        return items
+
+    def _build_library_items(
+        self,
+        conn: sqlite3.Connection,
+        candidate_items: list[Any],
+        *,
+        disk_filter: str | None,
+        category_filter: str | None,
+        skip_existing_trailer: bool,
+    ) -> list[ScanItem]:
+        """Build ScanItems for library ``candidate_items`` (shared by both scans).
+
+        Recovers each item's on-disk directory from the ``dispatch_path``
+        attribute, applies the optional disk/category filters, narrows the DB
+        ``kind`` to the scanner Literal, and constructs the show/movie-level
+        ScanItem plus any season-level entries.
+
+        Args:
+            conn: Open indexer connection (used for ``dispatch_path`` /
+                ``dispatch_disk`` attribute lookups).
+            candidate_items: Pre-selected ``MediaItemRow`` list — the
+                without-trailer set (``scan_library``) or the full set
+                (``scan_library_all``).
+            disk_filter: Optional disk-ID filter (matches ``dispatch_disk``).
+            category_filter: Optional ``category_id`` filter.
+            skip_existing_trailer: When True (``scan_library``), items whose
+                trailer file already exists on disk are dropped — the caller
+                only wants download candidates. When False (``scan_library_all``),
+                every item is kept so the audit can report existing trailers.
+
+        Returns:
+            The composed ScanItem list (show/movie-level + season-level entries).
+        """
+        import json as _json  # noqa: PLC0415
 
         items: list[ScanItem] = []
         for db_item in candidate_items:
@@ -262,8 +346,9 @@ class Scanner:
             nfo_path: Path | None = self._nfo_path_for(media_dir, db_item.title, media_type)
             media_name = media_dir.name
             expected = trailer_path_for(media_dir, media_name, media_type=media_type)
-            if trailer_exists(expected, self._min_size):
-                # Trailer file already present (DB not yet updated); skip.
+            if skip_existing_trailer and trailer_exists(expected, self._min_size):
+                # Trailer file already present (DB not yet updated); the caller
+                # only wants missing-trailer candidates, so drop it.
                 continue
 
             # Migration 005 stores IDs in ``external_ids_json`` ; pull
@@ -271,8 +356,6 @@ class Scanner:
             # now-removed flat columns. ``ScanItem`` keeps the
             # ``tmdb_id`` / ``imdb_id`` string fields for the
             # downstream lookup helpers.
-            import json as _json  # noqa: PLC0415
-
             try:
                 external_ids = _json.loads(db_item.external_ids_json or "{}")
             except _json.JSONDecodeError:
@@ -293,9 +376,8 @@ class Scanner:
             items.append(scan_item)
 
             if self._seasons_enabled and media_type == "tvshow":
-                items.extend(self._scan_seasons(media_dir, scan_item))
+                items.extend(self._scan_seasons(media_dir, scan_item, skip_existing_trailer=skip_existing_trailer))
 
-        log.debug("scanner_library_scan_complete", items_found=len(items))
         return items
 
     def _scan_media_dir(self, media_dir: Path, forced_type: MediaTypeLiteral | None = None) -> list[ScanItem]:
@@ -337,15 +419,26 @@ class Scanner:
         if not trailer_exists(expected, self._min_size):
             items.append(show_item)
         if self._seasons_enabled and is_tvshow:
-            items.extend(self._scan_seasons(media_dir, show_item))
+            items.extend(self._scan_seasons(media_dir, show_item, skip_existing_trailer=True))
         return items
 
-    def _scan_seasons(self, show_dir: Path, show_item: ScanItem) -> list[ScanItem]:
-        """Enumerate Saison NN/ subfolders and return missing-trailer ScanItems.
+    def _scan_seasons(
+        self,
+        show_dir: Path,
+        show_item: ScanItem,
+        *,
+        skip_existing_trailer: bool = True,
+    ) -> list[ScanItem]:
+        """Enumerate Saison NN/ subfolders and return season-level ScanItems.
 
         Args:
             show_dir: TV-show root directory containing Saison XX subfolders.
             show_item: Show-level ScanItem whose IDs/title are inherited.
+            skip_existing_trailer: When True (default), seasons whose trailer
+                file already exists are dropped — the download/scan paths only
+                want missing candidates. When False (``scan_library_all`` /
+                audit), every season is kept so existing season trailers are
+                reported too.
 
         Returns:
             List of season-level ScanItems whose ``path`` is the show directory
@@ -364,7 +457,7 @@ class Scanner:
             if season_number is None or season_number == 0:
                 continue
             expected_season = trailer_path_for_season(show_dir, season_number, "mp4")
-            if trailer_exists(expected_season, self._min_size):
+            if skip_existing_trailer and trailer_exists(expected_season, self._min_size):
                 continue
             season_items.append(
                 ScanItem(

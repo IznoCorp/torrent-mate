@@ -10,6 +10,7 @@ Public API
 - :class:`QueryError` — raised for unknown fields, invalid operators, syntax errors.
 - :func:`execute` — tokenise → compile → execute SQL → return rows.
 - :func:`find_items_without_trailer` — named query: items with no ``trailer_found`` attribute.
+- :func:`find_all_items` — named query: every media item (the FS-probe audit universe).
 
 Token syntax
 ------------
@@ -653,3 +654,22 @@ def find_items_without_trailer(conn: sqlite3.Connection) -> list[MediaItemRow]:
         is ordered by ``media_item.title_sort`` for deterministic output.
     """
     return execute(conn, "-trailer_found", limit=10_000)
+
+
+def find_all_items(conn: sqlite3.Connection) -> list[MediaItemRow]:
+    """Return every media item (unfiltered) — the FS-probe audit universe.
+
+    Unlike :func:`find_items_without_trailer`, this applies no ``trailer_found``
+    predicate: the filesystem is the single truth for trailer existence
+    (constitution P26), so the audit enumerates ALL library items and probes the
+    disk itself rather than trusting the derived index. Compiles to an empty
+    ``WHERE`` clause (``SELECT ... FROM media_item ORDER BY title_sort``).
+
+    Args:
+        conn: Open, read-capable SQLite connection to the indexer database.
+
+    Returns:
+        List of :class:`~personalscraper.indexer.schema.MediaItemRow` instances
+        for every media item, ordered by ``title_sort`` for deterministic output.
+    """
+    return execute(conn, "", limit=100_000)

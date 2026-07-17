@@ -558,7 +558,11 @@ def _audit_impl(
     import sqlite3  # noqa: PLC0415 — deferred to avoid top-level import cost
 
     from personalscraper.indexer.db import open_db  # noqa: PLC0415
-    from personalscraper.trailers.placement import trailer_path_for, trailer_path_for_season  # noqa: PLC0415
+    from personalscraper.trailers.placement import (  # noqa: PLC0415
+        find_existing_trailer,
+        trailer_path_for,
+        trailer_path_for_season,
+    )
 
     config = ctx.obj.config
     console = Console()
@@ -573,13 +577,15 @@ def _audit_impl(
 
         scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
 
-        # verify operates on the permanent library (scan_library); open the indexer DB
-        # so the scanner can query items without trailer_found attribute.
+        # Audit is a filesystem probe over the WHOLE library (constitution P26:
+        # the filesystem is the single truth for trailer existence). We enumerate
+        # ALL dispatched items (scan_library_all — no trailer_found predicate) and
+        # probe the disk ourselves so the audit can SHOW what exists, not only
+        # what is missing (F6 / §8).
         db_path = config.indexer.db_path
         conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
         try:
-            # verify operates on the permanent library (scan_library)
-            items = scanner.scan_library(
+            items = scanner.scan_library_all(
                 conn=conn,
                 disk_filter=disk,
                 category_filter=category,
@@ -590,28 +596,37 @@ def _audit_impl(
         items = _filter_since(items, since_dt)
         items = _apply_level_filter(items, resolved_level, resolved_season)
 
+        existing: list[tuple[str, str]] = []  # (title, trailer_path_str)
         issues: list[tuple[str, str, str]] = []  # (title, trailer_path_str, issue_category)
         ffprobe_error = False
 
         for item in items:
             media_name = item.path.name
+            # Locate the trailer on disk (the FS truth). Show/movie-level items
+            # scan every known extension; season-level items probe the single
+            # seasonal placement slot.
             if item.season_number is not None:
-                trailer_p = trailer_path_for_season(item.path, item.season_number, "mp4")
+                seasonal_p = trailer_path_for_season(item.path, item.season_number, "mp4")
+                found: Path | None = seasonal_p if seasonal_p.exists() else None
+                trailer_p = seasonal_p
             else:
-                trailer_p = trailer_path_for(item.path, media_name, media_type=item.media_type)
+                found = find_existing_trailer(item.path, media_name, media_type=item.media_type)
+                trailer_p = (
+                    found if found is not None else trailer_path_for(item.path, media_name, media_type=item.media_type)
+                )
 
-            if not trailer_p.exists():
+            if found is None:
                 issues.append((item.title, str(trailer_p), "missing"))
                 continue
 
-            actual_size = trailer_p.stat().st_size
+            actual_size = found.stat().st_size
             if actual_size < min_size:
-                issues.append((item.title, str(trailer_p), "undersized"))
+                issues.append((item.title, str(found), "undersized"))
                 continue
 
-            ext = trailer_p.suffix.lstrip(".").lower()
+            ext = found.suffix.lstrip(".").lower()
             if ext not in allowed_exts:
-                issues.append((item.title, str(trailer_p), "wrong_extension"))
+                issues.append((item.title, str(found), "wrong_extension"))
                 continue
 
             if deep:
@@ -620,7 +635,7 @@ def _audit_impl(
                 # the full ffprobe JSON output and is intentionally out of scope.
                 log.debug(
                     "trailers_verify_deep_probe",
-                    trailer_path=str(trailer_p),
+                    trailer_path=str(found),
                 )
                 try:
                     result = subprocess.run(
@@ -632,7 +647,7 @@ def _audit_impl(
                             "format=duration",
                             "-of",
                             "default=noprint_wrappers=1:nokey=1",
-                            str(trailer_p),
+                            str(found),
                         ],
                         capture_output=True,
                         text=True,
@@ -646,14 +661,30 @@ def _audit_impl(
                     except ValueError:
                         duration_val = 0.0
                     if result.returncode != 0 or duration_val <= 0.0:
-                        issues.append((item.title, str(trailer_p), "unplayable"))
+                        issues.append((item.title, str(found), "unplayable"))
+                        continue
                 except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
-                    log.error("trailers_verify_ffprobe_error", trailer_path=str(trailer_p), error=str(exc))
+                    log.error("trailers_verify_ffprobe_error", trailer_path=str(found), error=str(exc))
                     ffprobe_error = True
+                    continue
+
+            # Passed every applicable check — a healthy, present trailer (F6).
+            existing.append((item.title, str(found)))
 
         if ffprobe_error:
             console.print("[red]ffprobe error: one or more probes failed (exit 4).[/red]")
             raise typer.Exit(code=4)
+
+        # F6 / §8: always SHOW what exists on disk, not only what is missing.
+        if existing:
+            existing_table = Table(title=f"Existing trailers ({len(existing)})", show_header=True)
+            existing_table.add_column("Title")
+            existing_table.add_column("Path")
+            for title, path in existing:
+                existing_table.add_row(title, path)
+            console.print(existing_table)
+        else:
+            console.print("[dim]No existing trailers found.[/dim]")
 
         if issues:
             table = Table(title=f"Trailer issues ({len(issues)} found)", show_header=True)
@@ -665,7 +696,7 @@ def _audit_impl(
             console.print(table)
             raise typer.Exit(code=2)
 
-        console.print(f"[green]All {len(items)} trailers verified OK.[/green]")
+        console.print(f"[green]All {len(existing)} trailers verified OK.[/green]")
 
 
 @app.command("audit")
