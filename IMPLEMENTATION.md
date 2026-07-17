@@ -26,9 +26,9 @@ badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot
 | 2   | Attention badges (data sources + WS refresh)     | phase-02-attention-badges.md        | [x]    |
 | 3   | Content width                                    | phase-03-content-width.md           | [x]    |
 | 4   | Test update (helpers + count-based badges)       | phase-04-test-update-gate.md        | [x]    |
-| 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [ ]    |
+| 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [x]    |
 
-**Next action**: phase 5 — pipeline dot + final gate (phase-05-pipeline-dot-final-gate.md)
+**Next action**: All phases complete — /implement:feature-pr (gate + push + PR + CI)
 
 ## Scope guardrails (from spec §6 sequencing invariant)
 
