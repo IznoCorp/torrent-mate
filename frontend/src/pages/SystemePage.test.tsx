@@ -404,4 +404,75 @@ describe("SystemePage", () => {
     expect(screen.getByText("Authentification")).toBeInTheDocument();
     expect(screen.getByText("Sous-circuits")).toBeInTheDocument();
   });
+
+  // ── Event feed + recent events in état tab ─────────────────────────────
+
+  it("affiche le flux d'événements et la table récente dans l'onglet état", () => {
+    renderSystemePage();
+
+    expect(screen.getByText("Flux d’événements")).toBeInTheDocument();
+    expect(screen.getByText("Événements récents")).toBeInTheDocument();
+  });
+
+  // ── Maintenance tab fetch contract ─────────────────────────────────────
+
+  it("ne charge QUE l'historique maintenance, pas celui du pipeline (onglet maintenance)", async () => {
+    renderSystemePage(["/systeme?tab=maintenance"]);
+
+    await screen.findByText("Historique des exécutions");
+
+    const historyCalls = fetchMock.mock.calls
+      .map(([input]) => urlOf(input))
+      .filter((u) => u.startsWith("/api/pipeline/history?"));
+    expect(historyCalls.some((u) => u.includes("kind=maintenance"))).toBe(true);
+    expect(historyCalls.some((u) => u.includes("kind=pipeline"))).toBe(false);
+  });
+
+  // ── Provider loading state (ex-RegistryPage) ───────────────────────────
+
+  it("affiche des squelettes pendant le chargement des fournisseurs", () => {
+    useRegistryStatusMock.mockReturnValue({
+      isLoading: true,
+      isError: false,
+      data: undefined,
+      error: null,
+    });
+
+    renderSystemePage();
+
+    const skeletons = document.querySelectorAll(".animate-pulse");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  // ── Provider empty state (ex-RegistryPage) ─────────────────────────────
+
+  it("affiche un message quand aucun fournisseur n'est configuré", () => {
+    useRegistryStatusMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { providers: [] },
+      error: null,
+    });
+
+    renderSystemePage();
+
+    expect(
+      screen.getByText("Aucun fournisseur configuré."),
+    ).toBeInTheDocument();
+  });
+
+  // ── Provider error state (ex-RegistryPage) ─────────────────────────────
+
+  it("affiche un message d'erreur en cas d'échec de chargement des fournisseurs", () => {
+    useRegistryStatusMock.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: undefined,
+      error: new Error("Network error"),
+    });
+
+    renderSystemePage();
+
+    expect(screen.getByText(/Impossible de charger/)).toBeInTheDocument();
+  });
 });
