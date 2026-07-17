@@ -6,7 +6,7 @@
 **Type**: feat
 **Branch**: feat/overhaul-shell (off main @ 5a62a4ba)
 **Ticket**: #305 (epic #304) — claimed via /kanban-work, card in Brainstorming
-**PR**: _(none yet — created by /implement:feature-pr after last phase)_
+**PR**: #310 → main (https://github.com/IznoCorp/torrent-mate/pull/310) — OPEN, CI en cours
 **Merge**: squash (manual — operator merges)
 **Design**: `docs/features/overhaul-shell/DESIGN.md` (wave design) ← binding shared spec
 `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
