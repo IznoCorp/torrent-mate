@@ -6,7 +6,7 @@
 **Type**: feat
 **Branch**: feat/systeme-hub (off main @ 33472fc7 — V4 0.53.0)
 **Ticket**: #309 (epic #304, dernière vague) — claimed; board moves broken (kanban-mate#187)
-**PR**: _(none yet)_
+**PR**: https://github.com/IznoCorp/torrent-mate/pull/317
 **Merge**: squash (**auto** — operator directive 2026-07-17)
 **Design**: `docs/features/systeme-hub/DESIGN.md` ← shared spec §3.2 + §3.3 + §4 + §1.1
 **Version bump**: 0.53.0 → 0.54.0 (minor)
