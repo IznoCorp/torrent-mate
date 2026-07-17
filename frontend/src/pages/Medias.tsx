@@ -35,7 +35,7 @@ import { ResolutionDeck } from "@/components/decisions/ResolutionDeck";
 import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
-import type { MatchFilter } from "@/components/staging/StagingLibrary";
+import type { PositionFilter } from "@/components/staging/StagingLibrary";
 import {
   STATUS_SHORT_LABEL,
   STATUS_TOOLTIP,
@@ -75,32 +75,37 @@ const LIBRARY_SEGMENTS: readonly {
 ];
 
 /**
- * Map a library segment to the ``match`` filter passed to {@link StagingLibrary}.
+ * Map a library segment to the ``position`` filter passed to
+ * {@link StagingLibrary}.
  *
- * Plan-drift note: the API has no ``awaiting_action`` or ``position_state``
- * query parameter, and the ``stage`` parameter is single-value (cannot express
- * "all active stages except dispatch"). The mapping uses the closest available
- * filter:
+ * The position filter is applied client-side on the fetched page of 24 items
+ * (staging volumes are small; a server-side parameter is a recorded follow-up).
+ *
+ * This replaces the previous ``match``-based proxy (§8 fix): a
+ * matched-but-verify-blocked item is counted by the nav badge (awaiting_action)
+ * but was invisible under the old ``match="ambiguous"`` filter. The new
+ * mapping uses ``position_state`` directly so every blocked item — ambiguous,
+ * absent, verify-blocked, or otherwise — appears under the correct segment.
  *
  * - ``Tous`` → no filter (everything).
- * - ``À traiter`` → ``match="ambiguous"`` — items whose identity is uncertain
- *   and need the operator to decide. This is the nearest proxy for "needs action":
- *   every ambiguous item blocks the pipeline until resolved.
- * - ``En cours`` → no filter (same grid as Tous) — there is no server-side
- *   filter for "items with an active pipeline stage". The segment label signals
- *   intent; the actual filter will be tightened when the API grows a
- *   ``position_state`` parameter.
- * - ``Prêts`` → ``match="matched"`` — identified items ready for continuation
- *   or dispatch.
+ * - ``À traiter`` → ``position="blocked"`` — every item whose
+ *   ``position_state`` is ``"blocked"``.
+ * - ``En cours`` → ``position="active"`` — items with an active pipeline
+ *   stage.
+ * - ``Prêts`` → ``position="ready"`` — matched items that are not blocked
+ *   (verified and ready for continuation or dispatch).
  */
-function segmentToMatch(segment: LibrarySegment): MatchFilter | undefined {
+function segmentToPosition(
+  segment: LibrarySegment,
+): PositionFilter | undefined {
   switch (segment) {
-    case "ready":
-      return "matched";
     case "awaiting":
-      return "ambiguous";
-    case "all":
+      return "blocked";
     case "active":
+      return "active";
+    case "ready":
+      return "ready";
+    case "all":
     default:
       return undefined;
   }
@@ -373,10 +378,7 @@ export default function Medias(): ReactElement {
           </div>
 
           <StagingLibrary
-            {...((segMatch) =>
-              segMatch != null ? { match: segMatch } : {})(
-              segmentToMatch(segment),
-            )}
+            position={segmentToPosition(segment)}
             onOpenResolution={(decisionId) => {
               setDeckDecisionId(decisionId ?? null);
               setTab("resolve");

@@ -40,6 +40,20 @@ const PAGE_SIZE = 24;
 /** Match filter option: a value + French label + which count feeds its chip. */
 export type MatchFilter = "all" | StagingMediaItem["match"];
 
+/**
+ * Position filter applied client-side on the fetched page items.
+ *
+ * - ``"blocked"`` → ``position_state === "blocked"`` (ambiguous, absent,
+ *   verify-blocked, and any other blocked case).
+ * - ``"active"`` → ``position_state === "active"``.
+ * - ``"ready"`` → ``match === "matched" && position_state !== "blocked"``
+ *   (verified items ready for continuation or dispatch).
+ *
+ * Pagination caveat: this filter applies to the current page of 24 items.
+ * Staging volumes are small — a server-side parameter is a recorded follow-up.
+ */
+export type PositionFilter = "blocked" | "active" | "ready";
+
 const MATCH_FILTERS: readonly { value: MatchFilter; label: string }[] = [
   { value: "all", label: "Tous" },
   { value: "matched", label: "Identifiés" },
@@ -66,6 +80,17 @@ export interface StagingLibraryProps {
    * segment bar). When ``undefined``, the component manages its own match state.
    */
   readonly match?: MatchFilter;
+  /**
+   * Optional client-side position filter applied on the fetched page items.
+   *
+   * - ``"blocked"`` → ``position_state === "blocked"`` (all awaiting cases).
+   * - ``"active"`` → ``position_state === "active"``.
+   * - ``"ready"`` → ``match === "matched" && position_state !== "blocked"``.
+   *
+   * Pagination caveat: this filter applies to the current page of 24 items.
+   * Staging volumes are small — a server-side parameter is a recorded follow-up.
+   */
+  readonly position?: PositionFilter | undefined;
   /**
    * Invoked when the operator sends a media to the resolution deck. Receives the
    * ``scrape_decision.id`` to open on (C18) — the ambiguous card's own
@@ -99,6 +124,7 @@ function GridSkeleton(): ReactElement {
  */
 export function StagingLibrary({
   match: matchControlled,
+  position,
   onOpenResolution,
 }: StagingLibraryProps): ReactElement {
   const [matchInternal, setMatchInternal] = useState<MatchFilter>("all");
@@ -168,10 +194,31 @@ export function StagingLibrary({
 
   const query = useStagingMedia(params);
   const data = query.data;
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
   const counts = data?.counts;
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  /**
+   * Client-side position filter applied on the current page of items. This is a
+   * lightweight overlay — the server-side pagination is unchanged, so the total
+   * page count may overstate the actual reachable items when a position filter is
+   * active. Staging volumes are small enough that this is acceptable for now; a
+   * server-side ``position`` query parameter is a recorded follow-up.
+   */
+  const filteredItems = useMemo(() => {
+    if (position === undefined) return items;
+    return items.filter((item) => {
+      switch (position) {
+        case "blocked":
+          return item.position_state === "blocked";
+        case "active":
+          return item.position_state === "active";
+        case "ready":
+          return item.match === "matched" && item.position_state !== "blocked";
+      }
+    });
+  }, [items, position]);
 
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
@@ -326,7 +373,7 @@ export function StagingLibrary({
             void query.refetch();
           }}
         />
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <EmptyState
           icon={Film}
           title="Aucun média en attente"
@@ -339,7 +386,7 @@ export function StagingLibrary({
       ) : (
         <>
           <div className={gridClass}>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const badge = matchBadge(item.match);
               const kind = posterKind(item.media_kind);
               const seasonCount = item.seasons?.length ?? 0;

@@ -25,6 +25,7 @@ import type {
   DecisionListItem,
   DecisionDetail as DecisionDetailType,
 } from "@/api/decisions";
+import type { StagingMediaItem } from "@/api/client";
 import type { DecisionStatus } from "@/components/decisions/triggers";
 
 // ---------------------------------------------------------------------------
@@ -106,18 +107,16 @@ vi.mock("sonner", () => ({
 // The library view (?media deep-link test) mounts StagingLibrary, whose data
 // hook needs the WebSocket EventStreamProvider; stub the hook only —
 // stagingMediaKeys stays real (the deck/detail invalidations import it).
+const useStagingMediaMock = vi.fn();
+
 vi.mock("@/hooks/useStagingMedia", async () => {
   const actual = await vi.importActual<
     typeof import("@/hooks/useStagingMedia")
   >("@/hooks/useStagingMedia");
   return {
     ...actual,
-    useStagingMedia: () => ({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-      error: null,
-    }),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    useStagingMedia: (...args: unknown[]) => useStagingMediaMock(...args),
   };
 });
 
@@ -187,6 +186,15 @@ function setupDecisionsList(
     isError: false,
     error: null,
     refetch: vi.fn(),
+  });
+
+  // Default: StagingLibrary is loading (no data yet). Tests that need specific
+  // staging data override this mock before rendering.
+  useStagingMediaMock.mockReturnValue({
+    data: undefined,
+    isLoading: true,
+    isError: false,
+    error: null,
   });
 }
 
@@ -724,5 +732,126 @@ describe("Medias", () => {
     expect(within(group).getByText("(?)")).toBeInTheDocument();
     // The successful resolved chip still shows its real count.
     expect(within(group).getByText("(7)")).toBeInTheDocument();
+  });
+
+  // ---- Position-based segment filtering (§8 fix) -----------------------------
+
+  /** Minimal staging-media item for the position-filter tests. */
+  function makeStagingItem(
+    overrides: Partial<StagingMediaItem> = {},
+  ): StagingMediaItem {
+    return {
+      id: "abc123",
+      category: "001-MOVIES",
+      folder: "Test Movie (2024)",
+      relative_path: "001-MOVIES/Test Movie (2024)",
+      media_kind: "movie",
+      title: "Test Movie",
+      year: 2024,
+      overview: null,
+      provider_ids: {},
+      match: "matched",
+      decision_id: null,
+      decision_trigger: null,
+      has_nfo: false,
+      has_poster: false,
+      has_trailer: false,
+      poster_url: null,
+      seasons: null,
+      episode_count: null,
+      video_count: 1,
+      size_bytes: 0,
+      modified_at: null,
+      position_stage: "verify",
+      position_state: "pending",
+      stages: [],
+      dispatch_target: null,
+      ...overrides,
+    };
+  }
+
+  it("affiche un item blocked-at-verify sous « À traiter » et pas sous « Prêts »", () => {
+    // Regression (§8): a matched-but-verify-blocked item (position_state="blocked",
+    // match="matched") is counted by the nav badge (awaiting_action) but was
+    // INVISIBLE under the old match="ambiguous" proxy. The position filter
+    // (client-side on position_state) fixes this: blocked items appear under
+    // "À traiter", ready items under "Prêts", and the two never cross.
+    setupDecisionsList();
+
+    const blockedItem = makeStagingItem({
+      id: "blocked-1",
+      title: "Blocked Verified Movie",
+      match: "matched",
+      position_state: "blocked",
+      position_stage: "verify",
+      blocked_reason: "awaiting_verify",
+    });
+
+    const readyItem = makeStagingItem({
+      id: "ready-1",
+      title: "Ready Movie",
+      match: "matched",
+      position_state: "pending",
+      position_stage: "dispatch",
+    });
+
+    useStagingMediaMock.mockReturnValue({
+      data: {
+        items: [blockedItem, readyItem],
+        counts: {
+          total: 2,
+          matched: 2,
+          ambiguous: 0,
+          absent: 0,
+          scraped: 0,
+          with_trailer: 0,
+          awaiting_action: 1,
+        },
+        total: 2,
+        page: 1,
+        page_size: 24,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    renderPage();
+
+    // ---- Default "Tous" segment: both items visible ----
+    expect(screen.getByText("Blocked Verified Movie")).toBeInTheDocument();
+    expect(screen.getByText("Ready Movie")).toBeInTheDocument();
+
+    // ---- "À traiter" segment (position=blocked) ----
+    const group = screen.getByRole("group", {
+      name: /Filtrer par étape du pipeline/,
+    });
+    fireEvent.click(within(group).getByText("À traiter"));
+
+    // The blocked item appears — this is the fix: under the old match="ambiguous"
+    // proxy, a match="matched" item would NEVER appear here.
+    expect(screen.getByText("Blocked Verified Movie")).toBeInTheDocument();
+    // The ready item does NOT appear — it's not blocked.
+    expect(screen.queryByText("Ready Movie")).not.toBeInTheDocument();
+
+    // ---- "Prêts" segment (position=ready) ----
+    fireEvent.click(within(group).getByText("Prêts"));
+
+    // The blocked item does NOT appear — it fails the ready filter
+    // (match === "matched" && position_state !== "blocked").
+    expect(
+      screen.queryByText("Blocked Verified Movie"),
+    ).not.toBeInTheDocument();
+    // The ready item appears — matched and not blocked.
+    expect(screen.getByText("Ready Movie")).toBeInTheDocument();
+
+    // ---- "En cours" segment (position=active) ----
+    fireEvent.click(within(group).getByText("En cours"));
+
+    // Neither item is position_state="active", so both are filtered out.
+    expect(
+      screen.queryByText("Blocked Verified Movie"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready Movie")).not.toBeInTheDocument();
   });
 });
