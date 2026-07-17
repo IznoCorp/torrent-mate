@@ -17,6 +17,7 @@ but the behavioral assertions are identical (ACC-13 equivalence proof).
 """
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -85,7 +86,23 @@ class TestLegacyFallbackSnapshot:
         per-capability emptiness when simulating circuit-open scenarios.
         """
         reg = MagicMock(spec=ProviderRegistry)
-        reg.get.side_effect = lambda name: {"tmdb": mock_tmdb, "tvdb": mock_tvdb}[name]
+
+        # Conform to the real ProviderRegistry.get contract: an unwired provider
+        # raises UnknownProviderError (not KeyError). The confirmed-write
+        # external-ids pass resolves the optional imdb / rotten_tomatoes façades
+        # through get() and relies on this to degrade fail-soft when they are
+        # absent (Scraper._optional_provider swallows UnknownProviderError).
+        def _reg_get(name: str) -> Any:
+            from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
+                UnknownProviderError,
+            )
+
+            try:
+                return {"tmdb": mock_tmdb, "tvdb": mock_tvdb}[name]
+            except KeyError as exc:
+                raise UnknownProviderError(name) from exc
+
+        reg.get.side_effect = _reg_get
 
         # Default chain behaviour: both providers eligible for any capability.
         # Tests that need an empty chain (== legacy "circuit OPEN") override

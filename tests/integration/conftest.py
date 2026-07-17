@@ -826,7 +826,24 @@ def mock_registry(fake_tmdb: "FakeTMDB", fake_tvdb: "FakeTVDB") -> MagicMock:
     from personalscraper.api.metadata.registry import ProviderRegistry  # noqa: PLC0415
 
     reg = MagicMock(spec=ProviderRegistry)
-    reg.get.side_effect = lambda name: {"tmdb": fake_tmdb, "tvdb": fake_tvdb}[name]
+
+    # Mirror the real ProviderRegistry.get contract: an unwired provider raises
+    # UnknownProviderError (NOT a bare KeyError). Only tmdb/tvdb are wired here;
+    # the confirmed-write external-ids pass resolves the optional imdb /
+    # rotten_tomatoes façades through get() and relies on this exception to
+    # degrade to "no façade" fail-soft (Scraper._optional_provider catches it).
+    def _reg_get(name: str) -> Any:
+        from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
+            UnknownProviderError,
+        )
+
+        wired = {"tmdb": fake_tmdb, "tvdb": fake_tvdb}
+        try:
+            return wired[name]
+        except KeyError as exc:
+            raise UnknownProviderError(name) from exc
+
+    reg.get.side_effect = _reg_get
 
     def _chain(capability: type) -> list[Any]:
         if capability is MovieDetailsProvider:
