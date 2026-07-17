@@ -23,7 +23,7 @@
 | 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [x]    |
 | 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [x]    |
 | 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [x]    |
-| 5   | PR fixes cycle 1                         | [phase-05-pr-fixes-cycle-1.md](docs/features/systeme-hub/plan/phase-05-pr-fixes-cycle-1.md) | [ ]    |
+| 5   | PR fixes cycle 1                         | [phase-05-pr-fixes-cycle-1.md](docs/features/systeme-hub/plan/phase-05-pr-fixes-cycle-1.md) | [x]    |
 
 ## Review cycles
 
