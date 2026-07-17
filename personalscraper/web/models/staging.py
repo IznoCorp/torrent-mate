@@ -155,6 +155,11 @@ class StagingMediaItem(BaseModel):
             identification block (pending decision / needs enqueue /
             AUTRES kind to qualify). ``None`` when not blocked.
         dispatch_target: Dispatch preview, or ``None`` unless requested.
+        continuation_requested_at: Epoch timestamp from the
+            ``.continuation-requested`` marker file written when a continue was
+            deferred (pipeline lock held). ``None`` when no deferral is recorded
+            or the marker was consumed by a subsequent run. Drives the
+            « Reprise demandée » chip in the UI (§8 durable trace).
     """
 
     id: str
@@ -183,6 +188,7 @@ class StagingMediaItem(BaseModel):
     stages: list[StagingStageStep] = []
     blocked_reason: str | None = None
     dispatch_target: StagingDispatchTarget | None = None
+    continuation_requested_at: float | None = None
 
 
 class StagingCounts(BaseModel):
@@ -271,10 +277,9 @@ class EnqueueDecisionResponse(BaseModel):
 class ContinueResponse(BaseModel):
     """Response body for ``POST /api/staging/media/{id}/continue`` (§5.2).
 
-    Mirrors the resolve 202 pattern: the run is either spawned now (run_uid
-    present) or deferred because another run holds the lock (run_uid is None —
-    « En file »). The ``timeline_resumes`` flag lets the UI know to start
-    polling for progress.
+    Mirrors the resolve 202 pattern: the run is either spawned now (``run_uid``
+    present) or deferred because another run holds the lock (``run_uid`` is
+    ``None`` — « En file »).
 
     Attributes:
         ok: ``True`` when the continuation was accepted.
@@ -297,15 +302,19 @@ class DiscardResponse(BaseModel):
     """Response body for ``POST /api/staging/media/{id}/discard`` (§7).
 
     The ``journaled`` flag confirms the append-only destructive-op row was
-    written. ``quarantine_path`` is the destination (None when the folder was
-    just emptied in-place).
+    written and verified with a read-back. ``quarantine_path`` is always set on
+    success (the item is moved, never emptied in-place); the field is kept
+    optional (``str | None``) for schema stability — a future error path could
+    return ``None`` while still carrying ``ok=False``.
 
     Attributes:
         ok: ``True`` when the discard was accepted.
         media_id: The staging media id.
-        journaled: ``True`` when the destructive-op journal row was written.
-        quarantine_path: Absolute path to the quarantine destination, or
-            ``None`` when the folder was emptied in-place.
+        journaled: ``True`` when the destructive-op journal row was written and
+            verified with a read-back.
+        quarantine_path: Absolute path to the quarantine destination (always set
+            on success; optional for schema stability so a future error response
+            can carry ``None`` without a breaking model change).
         detail: Human-readable French status detail.
     """
 

@@ -1618,7 +1618,10 @@ export interface paths {
          *     The media must already have a provider-identified NFO (``match ==
          *     "matched"`` in the read model). An item without an NFO or with a
          *     non-identified NFO returns 422 — the operator must resolve the matching
-         *     first (via the decision deck), then continue.
+         *     first (via the decision deck), then continue. An item with an NFO file
+         *     that exists and has content but yields no provider IDs after parsing
+         *     returns 422 with a distinct « NFO illisible » detail (A3 — the file is
+         *     there but its content is malformed or truncated).
          *
          *     Args:
          *         media_id: The stable media id from a list item.
@@ -1627,11 +1630,15 @@ export interface paths {
          *     Returns:
          *         A :class:`ContinueResponse` with ``ok=True`` and either a fresh
          *         ``run_uid`` (spawned) or ``deferred=True``, ``run_uid=None`` (lock
-         *         held). Status code is always 202.
+         *         held). Status code is always 202.  When deferred, a durable
+         *         ``.continuation-requested`` marker file is written in the media
+         *         folder so the read-model can surface the « Reprise demandée » state
+         *         across sessions (§8 — durable deferral trace).
          *
          *     Raises:
          *         404: No scrapable staged media matches the id.
-         *         422: The media is not yet identified (no NFO or no provider IDs).
+         *         422: The media is not yet identified (no NFO, no provider IDs, or
+         *             NFO present but unreadable).
          */
         post: operations["continue_staging_media_api_staging_media__media_id__continue_post"];
         delete?: never;
@@ -1653,14 +1660,15 @@ export interface paths {
          * Discard Staging Media
          * @description Discard a non-media artifact from the staging area (§7).
          *
-         *     Only items with ``media_kind == "other"`` (unsorted / AUTRES) qualify — they
-         *     are moved into the ``_quarantine`` directory under the staging root and
-         *     recorded in the append-only destructive-journal. The journal write is
-         *     verified with a read-back before ``journaled`` is set to ``True``
-         *     (``record_destruction`` is fail-soft — the quarantine move always succeeds,
-         *     but the audit trail is the point). A scrapable item (movie/tvshow) matched
-         *     instead returns 422 with a directive to use the resolve or pipeline-restart
-         *     flow.
+         *     Only items with ``media_kind == "other"`` (the AUTRES category — items the
+         *     sort could not type into a known file_type) qualify. They are moved into the
+         *     ``_quarantine`` directory under the staging root and recorded in the
+         *     append-only destructive-journal. The journal write is verified with a
+         *     read-back before ``journaled`` is set to ``True`` (``record_destruction`` is
+         *     fail-soft — but the audit trail is the point). A scrapable item
+         *     (movie/tvshow) instead returns 422 with a directive to use the resolve or
+         *     pipeline-restart flow; an item whose kind is neither ``other`` nor scrapable
+         *     returns 404.
          *
          *     Args:
          *         media_id: The stable media id from a list item.
@@ -1669,13 +1677,17 @@ export interface paths {
          *     Returns:
          *         A :class:`DiscardResponse` with ``ok=True`` and the quarantine
          *         destination when the artifact was discarded. ``journaled`` is ``True``
-         *         only when the destructive-op row was verified with a read-back.
+         *         only when the destructive-op row was written and verified with a
+         *         read-back.
          *
          *     Raises:
-         *         404: No item matches the id.
+         *         404: No item matches the id, or the item is in an eligible category
+         *             (e.g. ``unsorted``) whose kind is not ``other``.
          *         422: The item is a scrapable media (movie/tvshow) — use the resolve
          *             or continue endpoint instead.
-         *         503: No indexer database configured.
+         *         500: The quarantine move failed (I/O error on the underlying filesystem).
+         *         503: No indexer database configured, or the destructive-op journal is
+         *             unreachable (B4 — refuse-before-destroy).
          */
         post: operations["discard_staging_media_api_staging_media__media_id__discard_post"];
         delete?: never;
@@ -2125,10 +2137,9 @@ export interface components {
          * ContinueResponse
          * @description Response body for ``POST /api/staging/media/{id}/continue`` (§5.2).
          *
-         *     Mirrors the resolve 202 pattern: the run is either spawned now (run_uid
-         *     present) or deferred because another run holds the lock (run_uid is None —
-         *     « En file »). The ``timeline_resumes`` flag lets the UI know to start
-         *     polling for progress.
+         *     Mirrors the resolve 202 pattern: the run is either spawned now (``run_uid``
+         *     present) or deferred because another run holds the lock (``run_uid`` is
+         *     ``None`` — « En file »).
          *
          *     Attributes:
          *         ok: ``True`` when the continuation was accepted.
@@ -2438,15 +2449,19 @@ export interface components {
          * @description Response body for ``POST /api/staging/media/{id}/discard`` (§7).
          *
          *     The ``journaled`` flag confirms the append-only destructive-op row was
-         *     written. ``quarantine_path`` is the destination (None when the folder was
-         *     just emptied in-place).
+         *     written and verified with a read-back. ``quarantine_path`` is always set on
+         *     success (the item is moved, never emptied in-place); the field is kept
+         *     optional (``str | None``) for schema stability — a future error path could
+         *     return ``None`` while still carrying ``ok=False``.
          *
          *     Attributes:
          *         ok: ``True`` when the discard was accepted.
          *         media_id: The staging media id.
-         *         journaled: ``True`` when the destructive-op journal row was written.
-         *         quarantine_path: Absolute path to the quarantine destination, or
-         *             ``None`` when the folder was emptied in-place.
+         *         journaled: ``True`` when the destructive-op journal row was written and
+         *             verified with a read-back.
+         *         quarantine_path: Absolute path to the quarantine destination (always set
+         *             on success; optional for schema stability so a future error response
+         *             can carry ``None`` without a breaking model change).
          *         detail: Human-readable French status detail.
          */
         DiscardResponse: {
@@ -3896,12 +3911,19 @@ export interface components {
          *             identification block (pending decision / needs enqueue /
          *             AUTRES kind to qualify). ``None`` when not blocked.
          *         dispatch_target: Dispatch preview, or ``None`` unless requested.
+         *         continuation_requested_at: Epoch timestamp from the
+         *             ``.continuation-requested`` marker file written when a continue was
+         *             deferred (pipeline lock held). ``None`` when no deferral is recorded
+         *             or the marker was consumed by a subsequent run. Drives the
+         *             « Reprise demandée » chip in the UI (§8 durable trace).
          */
         StagingMediaItem: {
             /** Blocked Reason */
             blocked_reason?: string | null;
             /** Category */
             category: string;
+            /** Continuation Requested At */
+            continuation_requested_at?: number | null;
             /** Decision Id */
             decision_id?: number | null;
             /** Decision Trigger */

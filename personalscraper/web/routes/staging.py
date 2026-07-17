@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
+import time
 from pathlib import Path
 from typing import Literal, cast
 
@@ -26,6 +28,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from personalscraper.conf.models.config import Config
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.destructive_journal import OP_DELETE, list_recent, record_destruction
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
@@ -91,6 +94,33 @@ def _config(request: Request) -> Config:
         The ``Config`` on ``request.app.state.config``.
     """
     return cast(Config, request.app.state.config)
+
+
+def _is_journal_writable(db_path: Path) -> bool:
+    """Probe whether the destructive-op journal is reachable and writable.
+
+    Connects to the indexer DB and runs a lightweight ``SELECT 1`` on the
+    ``destructive_op`` table. A failure here means the journal cannot record
+    the discard — the operator must know BEFORE the irreversible move.
+
+    Args:
+        db_path: Absolute path to ``library.db``.
+
+    Returns:
+        ``True`` when the journal table is queryable; ``False`` on any error
+        (missing DB file, corrupt schema, permission denied, …).
+    """
+    try:
+        conn = sqlite3.connect(str(db_path))
+        try:
+            apply_pragmas(conn)
+            conn.execute("SELECT 1 FROM destructive_op LIMIT 1")
+            return True
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("staging_journal_probe_failed", db_path=str(db_path), error=str(exc))
+        return False
 
 
 def _live_step(request: Request, db_path: Path) -> str | None:
@@ -527,7 +557,10 @@ def continue_staging_media(
     The media must already have a provider-identified NFO (``match ==
     "matched"`` in the read model). An item without an NFO or with a
     non-identified NFO returns 422 — the operator must resolve the matching
-    first (via the decision deck), then continue.
+    first (via the decision deck), then continue. An item with an NFO file
+    that exists and has content but yields no provider IDs after parsing
+    returns 422 with a distinct « NFO illisible » detail (A3 — the file is
+    there but its content is malformed or truncated).
 
     Args:
         media_id: The stable media id from a list item.
@@ -536,11 +569,15 @@ def continue_staging_media(
     Returns:
         A :class:`ContinueResponse` with ``ok=True`` and either a fresh
         ``run_uid`` (spawned) or ``deferred=True``, ``run_uid=None`` (lock
-        held). Status code is always 202.
+        held). Status code is always 202.  When deferred, a durable
+        ``.continuation-requested`` marker file is written in the media
+        folder so the read-model can surface the « Reprise demandée » state
+        across sessions (§8 — durable deferral trace).
 
     Raises:
         404: No scrapable staged media matches the id.
-        422: The media is not yet identified (no NFO or no provider IDs).
+        422: The media is not yet identified (no NFO, no provider IDs, or
+            NFO present but unreadable).
     """
     config = _config(request)
     resolved = resolve_scrapable_item(config, media_id)
@@ -556,6 +593,24 @@ def continue_staging_media(
         )
     meta = read_nfo_metadata(nfo_path)
     if not meta.provider_ids:
+        # A3 — distinguish an unreadable NFO (file exists with content but
+        # parsed empty) from a genuinely absent one.  A malformed/truncated
+        # NFO is not the same as "no NFO at all" — the operator needs to
+        # know which file to inspect.
+        try:
+            nfo_has_content = nfo_path.exists() and nfo_path.stat().st_size > 0
+        except OSError:
+            nfo_has_content = False
+        if nfo_has_content:
+            logger.warning(
+                "staging.continue_nfo_unreadable",
+                media_id=media_id,
+                nfo_path=str(nfo_path),
+            )
+            raise HTTPException(
+                status_code=422,
+                detail=(f"NFO illisible pour ce média — vérifiez le fichier {nfo_path.name}."),
+            )
         raise HTTPException(
             status_code=422,
             detail="Ce média n'est pas encore identifié — résolvez le matching d'abord.",
@@ -566,6 +621,32 @@ def continue_staging_media(
         trigger_reason=RESOLVE_CONTINUATION_TRIGGER,
     )
     deferred = run_uid is None
+
+    # A1 (§8, CRITICAL) — durable deferral trace: when the run cannot start
+    # because the lock is held, write a marker file so the read-model can
+    # surface the « Reprise demandée » state even after a server restart.
+    # The marker is consumed (unlinked) on the NEXT successful continue call
+    # for the same item, and also by the read-model when position_state is
+    # no longer 'blocked' (the item has moved on).
+    if deferred:
+        marker = media_dir / ".continuation-requested"
+        try:
+            marker.write_text(str(time.time()), encoding="utf-8")
+        except OSError as exc:
+            logger.warning(
+                "staging.continue_marker_write_failed",
+                media_id=media_id,
+                marker=str(marker),
+                error=str(exc),
+            )
+    else:
+        # The run was spawned — consume any stale marker from a prior deferral.
+        marker = media_dir / ".continuation-requested"
+        try:
+            marker.unlink(missing_ok=True)
+        except OSError:
+            pass
+
     detail = (
         "Reprise lancée — le média termine son pipeline (vérification → dispatch)."
         if not deferred
@@ -592,14 +673,15 @@ def discard_staging_media(
 ) -> DiscardResponse:
     """Discard a non-media artifact from the staging area (§7).
 
-    Only items with ``media_kind == "other"`` (unsorted / AUTRES) qualify — they
-    are moved into the ``_quarantine`` directory under the staging root and
-    recorded in the append-only destructive-journal. The journal write is
-    verified with a read-back before ``journaled`` is set to ``True``
-    (``record_destruction`` is fail-soft — the quarantine move always succeeds,
-    but the audit trail is the point). A scrapable item (movie/tvshow) matched
-    instead returns 422 with a directive to use the resolve or pipeline-restart
-    flow.
+    Only items with ``media_kind == "other"`` (the AUTRES category — items the
+    sort could not type into a known file_type) qualify. They are moved into the
+    ``_quarantine`` directory under the staging root and recorded in the
+    append-only destructive-journal. The journal write is verified with a
+    read-back before ``journaled`` is set to ``True`` (``record_destruction`` is
+    fail-soft — but the audit trail is the point). A scrapable item
+    (movie/tvshow) instead returns 422 with a directive to use the resolve or
+    pipeline-restart flow; an item whose kind is neither ``other`` nor scrapable
+    returns 404.
 
     Args:
         media_id: The stable media id from a list item.
@@ -608,13 +690,17 @@ def discard_staging_media(
     Returns:
         A :class:`DiscardResponse` with ``ok=True`` and the quarantine
         destination when the artifact was discarded. ``journaled`` is ``True``
-        only when the destructive-op row was verified with a read-back.
+        only when the destructive-op row was written and verified with a
+        read-back.
 
     Raises:
-        404: No item matches the id.
+        404: No item matches the id, or the item is in an eligible category
+            (e.g. ``unsorted``) whose kind is not ``other``.
         422: The item is a scrapable media (movie/tvshow) — use the resolve
             or continue endpoint instead.
-        503: No indexer database configured.
+        500: The quarantine move failed (I/O error on the underlying filesystem).
+        503: No indexer database configured, or the destructive-op journal is
+            unreachable (B4 — refuse-before-destroy).
     """
     config = _config(request)
     db_path = config.indexer.db_path
@@ -638,6 +724,16 @@ def discard_staging_media(
             )
         raise HTTPException(status_code=404, detail="No media matches this id")
 
+    # B4 (§6) — refuse-before-destroy: probe the journal is actually writable
+    # BEFORE moving the folder.  A move is irreversible; the journal is the
+    # audit trail.  If the journal is down the operator must know now, not after
+    # the folder is already gone.
+    if not _is_journal_writable(db_path):
+        raise HTTPException(
+            status_code=503,
+            detail="Journal des suppressions indisponible — suppression refusée.",
+        )
+
     staging_dir = Path(config.paths.staging_dir)
     quarantine_base = staging_dir / "_quarantine"
     quarantine_path = quarantine_base / media_id
@@ -649,28 +745,57 @@ def discard_staging_media(
             suffix += 1
         quarantine_path = quarantine_base / f"{media_id}_{suffix}"
 
+    # B1 — wrap the move: on failure best-effort-remove a partial destination,
+    # then raise HTTPException 500 with a French detail naming the path and
+    # error class.  The journal write stays strictly AFTER a successful move
+    # (a failed move wrote nothing → nothing to journal).
     quarantine_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(media_dir), str(quarantine_path))
+    try:
+        shutil.move(str(media_dir), str(quarantine_path))
+    except OSError as exc:
+        # Best-effort cleanup of a potentially half-written destination.
+        try:
+            if quarantine_path.exists():
+                if quarantine_path.is_dir():
+                    shutil.rmtree(quarantine_path)
+                else:
+                    quarantine_path.unlink()
+        except OSError:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Échec de la mise en quarantaine de {media_dir.name} : {exc.__class__.__name__}. Aucun journal écrit."
+            ),
+        ) from exc
 
     # §7 — Journal the destruction via the append-only audit trail.
     # record_destruction is fail-soft by contract (never raises) — the
     # journal write is best-effort and must never crash the discard.
+    journal_detail = f"Discard non-media artifact: {media_dir.name} -> {quarantine_path}"
     record_destruction(
         db_path,
         op=OP_DELETE,
         path=str(media_dir),
         actor="web",
-        detail=f"Discard non-media artifact: {media_dir.name}",
+        detail=journal_detail,
         run_uid=None,
     )
 
-    # Verify the journal row actually landed. record_destruction is fail-soft
-    # and can silently drop the write (swallows + logs failures). The journal IS
-    # the point — Star City lesson: without the trail the reconstruction is
+    # B2+B3 (§7) — verify the journal row actually landed by matching on the
+    # EXACT detail string (the destination is recorded and unique per request,
+    # so a stale old row with the same source path but a different destination
+    # is never mistaken for the fresh row).  record_destruction is fail-soft
+    # and can silently drop the write (swallows + logs failures).  The journal
+    # IS the point — Star City lesson: without the trail the reconstruction is
     # from scratch.
     recent = list_recent(db_path, limit=20)
     journaled = any(
-        r.get("op") == OP_DELETE and r.get("path") == str(media_dir) and r.get("actor") == "web" for r in recent
+        r.get("op") == OP_DELETE
+        and r.get("path") == str(media_dir)
+        and r.get("actor") == "web"
+        and r.get("detail") == journal_detail
+        for r in recent
     )
 
     if journaled:

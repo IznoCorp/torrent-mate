@@ -508,6 +508,24 @@ def _build_item(
         position_state=position_state,
     )
 
+    # A1 (§8) — durable deferral trace: read the .continuation-requested marker
+    # written by the continue endpoint when the pipeline lock was held.  Expose
+    # the timestamp so the UI can show a « Reprise demandée » chip.  The marker
+    # is display-only — the read-model never unlinks it; only the continue
+    # endpoint consummates it when a run is successfully spawned.  A stale
+    # marker (the item was picked up by a normal pipeline run, not a continue)
+    # is harmless: the chip disappears on the NEXT continue call for that item,
+    # or the operator can delete the marker file manually.
+    continuation_requested_at: float | None = None
+    marker = media_dir / ".continuation-requested"
+    try:
+        if marker.exists():
+            raw = marker.read_text(encoding="utf-8").strip()
+            if raw:
+                continuation_requested_at = float(raw)
+    except (OSError, ValueError):
+        pass
+
     return StagingMediaItem(
         id=media_id,
         category=category,
@@ -534,6 +552,7 @@ def _build_item(
         position_state=position_state,
         stages=stages,
         blocked_reason=blocked_reason,
+        continuation_requested_at=continuation_requested_at,
     )
 
 

@@ -1271,13 +1271,13 @@ def test_discard_requires_x_requested_with(test_config, tmp_path: Path) -> None:
     assert client.post(f"/api/staging/media/{media_id}/discard").status_code == 400
 
 
-def test_discard_journal_write_failure_sets_journaled_false(test_config, tmp_path: Path) -> None:
-    """When the journal write fails, the response has ``journaled=False`` + ATTENTION.
+def test_discard_journal_unwritable_returns_503(test_config, tmp_path: Path) -> None:
+    """B4 — when the destructive-op journal is unreachable, the discard is REFUSED (503).
 
-    §7 honesty regression: ``record_destruction`` is fail-soft — the quarantine
-    move always succeeds, but a journal failure must be surfaced to the operator.
-    A db_path pointing into a non-existent directory triggers the fail-soft path
-    (sqlite3.connect raises OperationalError → swallowed → logged).
+    The probe runs BEFORE the irreversible move so the operator knows immediately,
+    not after the folder is already gone.  A db_path pointing into a non-existent
+    directory triggers the fail-soft path (sqlite3.connect raises OperationalError
+    → probe returns False → 503).
     """
     from personalscraper.web.staging.read_model import media_id_for
 
@@ -1285,7 +1285,7 @@ def test_discard_journal_write_failure_sets_journaled_false(test_config, tmp_pat
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (staging / "097-TEMP").mkdir(parents=True)
-    item = staging / "098-AUTRES" / "journal.fail-GRP"
+    item = staging / "098-AUTRES" / "journal.unwritable-GRP"
     item.mkdir(parents=True)
     _write_video(item / "data.bin", size=64)
 
@@ -1295,22 +1295,55 @@ def test_discard_journal_write_failure_sets_journaled_false(test_config, tmp_pat
     db_path = _fresh_db(tmp_path)
     client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
 
-    # Reach into the app state and point db_path at a non-existent directory.
     bogus_db = tmp_path / "nonexistent" / "library.db"
-
-    # FastAPI's TestClient wraps Starlette's — the app is accessible via the
-    # transport attribute on newer Starlette or directly on the client.
     app = client.app if hasattr(client, "app") else None
     if app is None:
-        # Fallback: access via the underlying Starlette TestClient.
         app = client._app  # type: ignore[attr-defined]
     app.state.config.indexer.db_path = bogus_db
 
-    media_id = media_id_for("098-AUTRES/journal.fail-GRP")
+    media_id = media_id_for("098-AUTRES/journal.unwritable-GRP")
     resp = client.post(
         f"/api/staging/media/{media_id}/discard",
         headers={"X-Requested-With": "TorrentMate"},
     )
+
+    assert resp.status_code == 503, resp.text
+    body = resp.json()
+    assert body["detail"] == "Journal des suppressions indisponible — suppression refusée."
+    # B4 — the folder is still there (refused before the move).
+    assert item.exists()
+
+
+def test_discard_journal_record_silent_failure_journaled_false(test_config, tmp_path: Path) -> None:
+    """When ``record_destruction`` silently fails, the response has ``journaled=False`` + ATTENTION.
+
+    §7 honesty regression: ``record_destruction`` is fail-soft — the quarantine
+    move always succeeds, but a journal failure must be surfaced to the operator.
+    Monkeypatches ``record_destruction`` to no-op (simulating a swallowed write
+    failure) while keeping the journal table itself writable.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "journal.silent.fail-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "data.bin", size=64)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/journal.silent.fail-GRP")
+    with patch("personalscraper.web.routes.staging.record_destruction") as mock_record:
+        # record_destruction is a no-op (silent failure — the journal IS writable
+        # but the write itself is dropped).
+        resp = client.post(
+            f"/api/staging/media/{media_id}/discard",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -1320,6 +1353,330 @@ def test_discard_journal_write_failure_sets_journaled_false(test_config, tmp_pat
     assert body["detail"] == (
         "Artefact mis en quarantaine — ATTENTION : l'écriture au journal des suppressions a échoué."
     )
+    mock_record.assert_called_once()
     # The quarantine move still happened — journal failure never breaks the destroy.
     assert not item.exists()
     assert Path(body["quarantine_path"]).exists()
+
+
+# ── Sub-phase 7.1 new tests ────────────────────────────────────────────────────
+
+
+def test_continue_and_discard_403_when_staging_role(test_config, tmp_path: Path, monkeypatch) -> None:
+    """T#2 — staging role returns 403 on both continue AND discard, folder untouched.
+
+    ``PERSONALSCRAPER_WEB_ROLE=staging`` makes every write endpoint refuse with
+    403 ``"read-only"`` detail.  Both endpoints must refuse, and the folder must
+    not be touched.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    # Also seed an "other" item for the discard test.
+    (staging / "098-AUTRES").mkdir(parents=True, exist_ok=True)
+    junk = staging / "098-AUTRES" / "staging-role-test-GRP"
+    junk.mkdir(parents=True)
+    _write_video(junk / "data.bin", size=32)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+
+    # Continue → 403, folder untouched.
+    fight_id = media_id_for("001-MOVIES/Fight Club (1999)")
+    resp_continue = client.post(
+        f"/api/staging/media/{fight_id}/continue",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp_continue.status_code == 403
+    assert resp_continue.json()["detail"] == "read-only"
+    assert (staging / "001-MOVIES" / "Fight Club (1999)").exists()
+
+    # Discard → 403, folder untouched.
+    junk_id = media_id_for("098-AUTRES/staging-role-test-GRP")
+    resp_discard = client.post(
+        f"/api/staging/media/{junk_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp_discard.status_code == 403
+    assert resp_discard.json()["detail"] == "read-only"
+    assert junk.exists()
+
+
+def test_discard_quarantine_collision_suffixes(test_config, tmp_path: Path) -> None:
+    """T#1 — a second item with the same name gets ``_1`` suffix (and ``_2`` on third).
+
+    The collision handling suffixes the quarantine destination when a folder with
+    the same media_id already sits in ``_quarantine/``.  Each suffix increments.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    (staging / "098-AUTRES").mkdir(parents=True)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/collision.test-GRP")
+
+    # First discard: lands directly at _quarantine/<media_id>
+    item1 = staging / "098-AUTRES" / "collision.test-GRP"
+    item1.mkdir(parents=True)
+    _write_video(item1 / "a.bin", size=16)
+    resp1 = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp1.status_code == 200
+    assert resp1.json()["quarantine_path"].endswith(f"_quarantine/{media_id}")
+    assert not item1.exists()
+
+    # Second discard (same name): lands at _quarantine/<media_id>_1
+    item2 = staging / "098-AUTRES" / "collision.test-GRP"
+    item2.mkdir(parents=True)
+    _write_video(item2 / "b.bin", size=16)
+    resp2 = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["quarantine_path"].endswith(f"_quarantine/{media_id}_1")
+    assert not item2.exists()
+
+    # Third discard: lands at _quarantine/<media_id>_2
+    item3 = staging / "098-AUTRES" / "collision.test-GRP"
+    item3.mkdir(parents=True)
+    _write_video(item3 / "c.bin", size=16)
+    resp3 = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp3.status_code == 200
+    assert resp3.json()["quarantine_path"].endswith(f"_quarantine/{media_id}_2")
+    assert not item3.exists()
+
+
+def test_continue_nfo_without_provider_ids_returns_422(test_config, tmp_path: Path) -> None:
+    """T#5 — an NFO present but with no provider ids returns 422.
+
+    An NFO that parsed ok but carries zero ``<uniqueid>`` elements is not a
+    "matched" item — the operator must resolve it first.  This is the distinct
+    "NFO present but empty" case, not the "no NFO at all" case.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    movie = staging / "001-MOVIES" / "Empty NFO Film (2020)"
+    movie.mkdir(parents=True)
+    # NFO with title + year but NO uniqueid elements.
+    _EMPTY_IDS_NFO = """<?xml version="1.0" encoding="UTF-8"?>
+<movie>
+    <title>Empty NFO Film</title>
+    <year>2020</year>
+    <plot>Has an NFO but no provider ids.</plot>
+</movie>
+"""
+    (movie / "movie.nfo").write_text(_EMPTY_IDS_NFO, encoding="utf-8")
+    _write_video(movie / "Empty NFO Film (2020).mkv", size=1024)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Empty NFO Film (2020)")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/continue",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert "NFO illisible" in detail
+    assert "movie.nfo" in detail
+
+
+def test_discard_move_failure_returns_500_and_no_journal(test_config, tmp_path: Path) -> None:
+    """B1 — when ``shutil.move`` raises, returns 500 with FR detail, no journal row.
+
+    Monkeypatches ``shutil.move`` to raise ``OSError``; the response must carry
+    the folder name and error class, and the ``destructive_op`` table must stay
+    empty (journal write is strictly AFTER a successful move).
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "move.fail-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "data.bin", size=64)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("098-AUTRES/move.fail-GRP")
+    with patch("personalscraper.web.routes.staging.shutil.move", side_effect=OSError("Disk full")):
+        resp = client.post(
+            f"/api/staging/media/{media_id}/discard",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 500, resp.text
+    detail = resp.json()["detail"]
+    assert "Échec de la mise en quarantaine" in detail
+    assert "move.fail-GRP" in detail
+    assert "OSError" in detail
+    assert "Aucun journal écrit" in detail
+
+    # The folder was NOT moved (move raised before completing).
+    assert item.exists()
+
+    # No journal row was written.
+    conn = sqlite3.connect(str(db_path))
+    rows = conn.execute("SELECT COUNT(*) FROM destructive_op WHERE actor = 'web'").fetchone()
+    conn.close()
+    assert rows[0] == 0
+
+
+def test_discard_readback_exact_detail_match(test_config, tmp_path: Path) -> None:
+    """B2 — read-back matches the fresh row only (exact detail), ignoring stale rows.
+
+    Seeds an OLD journal row with the SAME source path but a DIFFERENT destination
+    in ``detail``.  After a fresh discard, ``journaled`` must still be ``True``
+    — the exact-detail match ignores the stale row.
+    """
+    import sqlite3
+    import time as _time
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "097-TEMP").mkdir(parents=True)
+    item = staging / "098-AUTRES" / "stale.row-GRP"
+    item.mkdir(parents=True)
+    _write_video(item / "data.bin", size=64)
+    db_path = _fresh_db(tmp_path)
+
+    # Seed an old row with the same source path but a different detail (a past
+    # discard of an identically-named but different item).
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO destructive_op (ts, op, path, actor, detail, run_uid) VALUES (?, 'delete', ?, 'web', ?, NULL)",
+        (
+            _time.time() - 3600,
+            str(item),
+            "Discard non-media artifact: stale.row-GRP -> /tmp/old/quarantine/deadbeefdeadbeef",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+    media_id = media_id_for("098-AUTRES/stale.row-GRP")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/discard",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # The fresh row MUST be found (exact detail match) despite the stale row
+    # with the same source path.
+    assert body["journaled"] is True
+    assert body["detail"] == ("Artefact mis en quarantaine — trace écrite au journal des suppressions.")
+
+
+def test_continue_deferred_writes_marker_and_read_model_exposes_it(
+    test_config,
+    tmp_path: Path,
+) -> None:
+    """A1 — a deferred continue writes ``.continuation-requested``; read-model exposes it.
+
+    When the pipeline lock is held, the continue endpoint writes a marker file
+    in the media folder.  The read-model then exposes ``continuation_requested_at``
+    on the staging item.  When position_state is no longer ``blocked``, the marker
+    is consumed (unlinked).
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    db_path = _fresh_db(tmp_path)
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Fight Club (1999)")
+    fight_dir = staging / "001-MOVIES" / "Fight Club (1999)"
+
+    # 1. Deferred continue writes the marker.
+    with patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True):
+        with patch("personalscraper.web.pipeline_trigger.subprocess.Popen"):
+            resp = client.post(
+                f"/api/staging/media/{media_id}/continue",
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+    assert resp.status_code == 202, resp.text
+    assert resp.json()["deferred"] is True
+    marker = fight_dir / ".continuation-requested"
+    assert marker.exists()
+    marker_ts = float(marker.read_text(encoding="utf-8").strip())
+    assert marker_ts > 0
+
+    # 2. Read-model exposes continuation_requested_at from the marker file.
+    items = _by_folder(client.get("/api/staging/media").json())
+    fight = items["Fight Club (1999)"]
+    assert fight["continuation_requested_at"] == marker_ts
+
+    # 3. A SECOND continue (successful this time) unsets the marker.
+    with patch("personalscraper.web.pipeline_trigger.subprocess.Popen"):
+        resp2 = client.post(
+            f"/api/staging/media/{media_id}/continue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+    assert resp2.status_code == 202, resp.text
+    assert resp2.json()["deferred"] is False
+    # The marker was consumed by the successful continue call.
+    assert not marker.exists()
+
+
+def test_continue_stale_marker_surfaced_by_read_model(test_config, tmp_path: Path) -> None:
+    """A1 — a stale marker from a prior session IS surfaced by the read-model.
+
+    The read-model never auto-unlinks the marker — it is display-only.  Only a
+    subsequent successful continue call consummates it.  A stale marker (from a
+    prior deferral, even on a now-verified item) stays visible so the operator
+    knows a continue was requested.
+    """
+    import time as _time
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    db_path = _fresh_db(tmp_path)
+
+    # Write a stale marker on a verified (not blocked) item.
+    fight_dir = staging / "001-MOVIES" / "Fight Club (1999)"
+    marker = fight_dir / ".continuation-requested"
+    stale_ts = _time.time() - 7200
+    marker.write_text(str(stale_ts), encoding="utf-8")
+    assert marker.exists()
+
+    client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
+    items = _by_folder(client.get("/api/staging/media").json())
+    fight = items["Fight Club (1999)"]
+
+    # The marker is surfaced for display — the « Reprise demandée » chip.
+    assert fight["continuation_requested_at"] == stale_ts
+    # The marker file survives (read-model never unlinks it).
+    assert marker.exists()
