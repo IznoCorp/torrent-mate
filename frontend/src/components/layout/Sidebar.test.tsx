@@ -21,7 +21,9 @@ describe("Sidebar", () => {
   it("rend les trois micro-libellés de section", () => {
     renderSidebar();
 
-    const nav = screen.getByRole("navigation", { name: /navigation latérale/i });
+    const nav = screen.getByRole("navigation", {
+      name: /navigation latérale/i,
+    });
     expect(within(nav).getByText("Supervision")).toBeInTheDocument();
     expect(within(nav).getByText("Système")).toBeInTheDocument();
     expect(within(nav).getByText("Configuration")).toBeInTheDocument();
@@ -30,21 +32,30 @@ describe("Sidebar", () => {
   it("rend les destinations actives comme des liens", () => {
     renderSidebar();
 
-    expect(
-      screen.getByRole("link", { name: "Tableau de bord" }),
-    ).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Contrôle" })).toHaveAttribute(
+      "href",
+      "/",
+    );
     expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Maintenance" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Maintenance" }),
+    ).toBeInTheDocument();
   });
 
   it("rend Config et Registre comme des liens actifs", () => {
     renderSidebar();
 
     // Config is an active link.
-    expect(screen.getByRole("link", { name: "Config" })).toHaveAttribute("href", "/config");
+    expect(screen.getByRole("link", { name: "Config" })).toHaveAttribute(
+      "href",
+      "/config",
+    );
 
     // Registre is now an active link (S6 shipped).
-    expect(screen.getByRole("link", { name: "Registre" })).toHaveAttribute("href", "/registry");
+    expect(screen.getByRole("link", { name: "Registre" })).toHaveAttribute(
+      "href",
+      "/registry",
+    );
   });
 
   it("marque la destination courante en actif (text-primary)", () => {

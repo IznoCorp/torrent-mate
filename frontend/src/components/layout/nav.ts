@@ -51,8 +51,8 @@ export interface NavSection {
 /**
  * The grouped navigation model, in display order.
  *
- * - **Supervision** — the live-supervision surfaces (dashboard + the pipeline,
- *   scraping and acquisition views).
+ * - **Supervision** — the live-supervision surfaces (control station + the pipeline,
+ *   medias and acquisition views).
  * - **Système** — operational maintenance.
  * - **Configuration** — the provider/tracker registry and the config editor
  *   (both live).
@@ -63,9 +63,9 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     title: "Supervision",
     items: [
-      { to: "/", label: "Tableau de bord", icon: Home },
+      { to: "/", label: "Contrôle", icon: Home },
       { to: "/pipeline", label: "Pipeline", icon: Activity },
-      { to: "/scraping", label: "Scraping", icon: ScanSearch },
+      { to: "/medias", label: "Médias", icon: ScanSearch },
       { to: "/acquisition", label: "Acquisition", icon: Radar },
     ],
   },
@@ -89,7 +89,7 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_SECTIONS.flatMap(
 
 /**
  * Paths shown in the mobile bottom tab bar — a four-item subset of
- * {@link NAV_ITEMS}: Tableau de bord · Pipeline · Scraping · Acquisition.
+ * {@link NAV_ITEMS}: Contrôle · Pipeline · Médias · Acquisition.
  *
  * Operator directive (2026-07-15 mobile review): the dashboard — now the
  * control station (A3) — leads the bar; Maintenance moves to the nav Sheet
@@ -98,7 +98,7 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_SECTIONS.flatMap(
 export const BOTTOM_TAB_PATHS: readonly string[] = [
   "/",
   "/pipeline",
-  "/scraping",
+  "/medias",
   "/acquisition",
 ];
 
@@ -106,8 +106,8 @@ export const BOTTOM_TAB_PATHS: readonly string[] = [
  * The subset of {@link NAV_ITEMS} rendered by the bottom tab bar.
  *
  * Filtering `NAV_ITEMS` (rather than mapping `BOTTOM_TAB_PATHS`) preserves the
- * nav's display order, which already yields Tableau de bord · Pipeline ·
- * Scraping · Acquisition.
+ * nav's display order, which already yields Contrôle · Pipeline ·
+ * Médias · Acquisition.
  */
 export const BOTTOM_TAB_ITEMS: readonly NavItem[] = NAV_ITEMS.filter((item) =>
   BOTTOM_TAB_PATHS.includes(item.to),
