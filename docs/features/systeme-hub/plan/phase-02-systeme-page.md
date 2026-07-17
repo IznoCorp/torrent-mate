@@ -15,7 +15,7 @@ Zero panel rewrites — only the page shell, routing, and redirects are new code
 | `frontend/src/pages/SystemePage.test.tsx`                     | **NEW** — migrated Maintenance.test.tsx + RegistryPage suite                   |
 | `frontend/src/router.tsx`                                     | Add `/systeme` route; remove `/maintenance` + `/registry`                      |
 | `frontend/src/components/layout/nav.ts`                       | Replace Maintenance + Registre entries with one "Système"                      |
-| `frontend/src/components/pipeline/MaintenanceRunRedirect.tsx` | Remove — its logic folds into SystemePage (tab "maintenance" runs on /systeme) |
+| `frontend/src/components/pipeline/MaintenanceRunRedirect.tsx` | KEEP + adapt (orchestrator correction): no-run branch now redirects to /systeme?tab=etat |
 
 ## Sub-phases
 
@@ -123,10 +123,14 @@ import SystemePage from "@/pages/SystemePage";
 // ADD entry (in the AppShell children, after /acquisition):
 { path: "systeme", element: <SystemePage /> },
 
-// CHANGE /maintenance entry to LegacyRedirect (keeps ?run= teleport):
+// CHANGE /maintenance entry — CONDITIONAL redirect (ORCHESTRATOR CORRECTION 2026-07-17):
+//   with ?run=<uid>  → /pipeline?run=<uid>   (V3 teleport contract — run detail lives on /pipeline)
+//   without ?run=    → /systeme?tab=etat     (ticket #309 §1.1 — NOT /pipeline)
+// Keep/adapt the existing MaintenanceRunRedirect wrapper: its no-run branch stops rendering
+// Maintenance and redirects (replace) to /systeme?tab=etat instead.
 {
   path: "maintenance",
-  element: <LegacyRedirect to="/pipeline" />,
+  element: <MaintenanceRunRedirect />,
 },
 
 // CHANGE /registry entry to LegacyRedirect:
@@ -136,11 +140,11 @@ import SystemePage from "@/pages/SystemePage";
 },
 ```
 
-**CRITICAL**: The V3 contract — `/maintenance?run=<uid>` MUST still land on `/pipeline?run=<uid>`.
-With the `LegacyRedirect` pattern, `/maintenance?run=abc` forwards `?run=abc` to `/pipeline?run=abc`.
-This preserves the existing `MaintenanceRunRedirect` behavior exactly — just via the shared
-LegacyRedirect component instead of a dedicated wrapper. The `Navigateto` with `replace` handles
-the history correctly.
+**CRITICAL (corrected)**: two DISTINCT destinations — `/maintenance?run=<uid>` → `/pipeline?run=<uid>`
+(V3 contract) AND plain `/maintenance` → `/systeme?tab=etat` (ticket §1.1). A single unconditional
+LegacyRedirect cannot express both; the conditional MaintenanceRunRedirect wrapper stays, with its
+no-run branch redirecting (replace) to /systeme?tab=etat. Tests must cover BOTH directions plus
+`/registry` → `/systeme?tab=etat`.
 
 **Sidebar changes** (`frontend/src/components/layout/nav.ts`):
 
