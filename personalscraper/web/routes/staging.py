@@ -18,6 +18,7 @@ write, so the read-only staging web instance serves them unchanged.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Literal, cast
 
@@ -25,11 +26,13 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from personalscraper.conf.models.config import Config
+from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.pipeline import PipelineState
 from personalscraper.web.models.staging import (
     ContinueResponse,
+    DiscardResponse,
     EnqueueDecisionRequest,
     EnqueueDecisionResponse,
     StagingCounts,
@@ -573,5 +576,95 @@ def continue_staging_media(
         media_id=media_id,
         run_uid=run_uid,
         deferred=deferred,
+        detail=detail,
+    )
+
+
+@router.post(
+    "/media/{media_id}/discard",
+    response_model=DiscardResponse,
+    status_code=200,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def discard_staging_media(
+    media_id: str,
+    request: Request,
+) -> DiscardResponse:
+    """Discard a non-media artifact from the staging area (§7).
+
+    Only items with ``media_kind == "other"`` (unsorted / AUTRES) qualify — they
+    are moved into the ``_quarantine`` directory under the staging root and
+    recorded in the append-only destructive-journal. A scrapable item (movie/
+    tvshow) matched instead returns 422 with a directive to use the resolve or
+    pipeline-restart flow.
+
+    Args:
+        media_id: The stable media id from a list item.
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`DiscardResponse` with ``ok=True`` and the quarantine
+        destination when the artifact was discarded.
+
+    Raises:
+        404: No item matches the id.
+        422: The item is a scrapable media (movie/tvshow) — use the resolve
+            or continue endpoint instead.
+        503: No indexer database configured.
+    """
+    config = _config(request)
+    db_path = config.indexer.db_path
+    if db_path is None:
+        raise HTTPException(status_code=503, detail="No indexer database configured")
+
+    other = resolve_other_item(config, media_id)
+    if other is not None:
+        media_dir, _title, _year = other
+    else:
+        # Not an "other" item — check whether it's a scrapable item (movie/tvshow)
+        # that the operator is mistakenly trying to discard.
+        scrapable = resolve_scrapable_item(config, media_id)
+        if scrapable is not None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Cet élément est un média identifiable — utilisez "
+                    "'Rechercher / résoudre' ou 'Relancer le pipeline', pas 'Ignorer'."
+                ),
+            )
+        raise HTTPException(status_code=404, detail="No media matches this id")
+
+    staging_dir = Path(config.paths.staging_dir)
+    quarantine_base = staging_dir / "_quarantine"
+    quarantine_path = quarantine_base / media_id
+
+    # Handle same-name collision: suffix the destination when it already exists.
+    if quarantine_path.exists():
+        suffix = 1
+        while (quarantine_base / f"{media_id}_{suffix}").exists():
+            suffix += 1
+        quarantine_path = quarantine_base / f"{media_id}_{suffix}"
+
+    quarantine_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(media_dir), str(quarantine_path))
+
+    # §7 — Journal the destruction via the append-only audit trail.
+    # record_destruction is fail-soft by contract (never raises) — the
+    # journal write is best-effort and must never crash the discard.
+    record_destruction(
+        db_path,
+        op=OP_DELETE,
+        path=str(media_dir),
+        actor="web",
+        detail=f"Discard non-media artifact: {media_dir.name}",
+        run_uid=None,
+    )
+
+    detail = "Artefact mis en quarantaine — trace écrite au journal des suppressions."
+    return DiscardResponse(
+        ok=True,
+        media_id=media_id,
+        journaled=True,
+        quarantine_path=str(quarantine_path),
         detail=detail,
     )
