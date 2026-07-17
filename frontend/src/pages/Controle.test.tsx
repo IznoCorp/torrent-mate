@@ -226,24 +226,92 @@ function renderDashboard(): void {
 }
 
 describe("Contrôle", () => {
-  it("affiche le titre Contrôle et le panneau planificateurs", async () => {
+  it("affiche le titre Contrôle et les panneaux dans l'ordre prescrit (DESIGN §2.1)", async () => {
     renderDashboard();
 
+    // Page title.
     expect(
       screen.getByRole("heading", { name: "Contrôle" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Acquisitions & planificateurs"),
-    ).toBeInTheDocument();
 
-    // The event feed + recent-events table moved to Maintenance (Phase 5.1) —
-    // they must NOT render on the Dashboard anymore.
+    // Wait for async content to settle before querying positions.
+    await screen.findByText("Rien à traiter");
+    await screen.findByText("Démarrer");
+
+    // ----- VersionCard NOT on the page (moved to sidebar footer in 5.4) -----
+    // VersionCard renders "<p>commit abcdef1</p>" (first 7 chars of
+    // build_commit).  If it were still imported on this page the text would
+    // resolve from the mocked /api/version payload.
+    expect(screen.queryByText(/commit [a-f0-9]{7}/)).not.toBeInTheDocument();
+
+    // Event feed + recent events moved to Maintenance (Phase 5.1).
     expect(screen.queryByText("Flux d'événements")).not.toBeInTheDocument();
     expect(screen.queryByText("Événements récents")).not.toBeInTheDocument();
 
-    // CompactHealth renders health rows (Redis, index, disks, providers).
+    // ----- Panel ORDER (DESIGN §2.1) -----
+    // The section labels must appear in this sequence:
+    //   1. À traiter     (ATraiterList)
+    //   2. Dernier run   (LastRunDigest)
+    //   3. Acquisitions & planificateurs  (merged section)
+    //   4. Santé         (CompactHealth)
+    //   5. Démarrer      (PipelineControls — single state-dependent button)
+    //
+    // We verify by checking text-node positions inside the Contrôle wrapper
+    // <section>, obtained by walking up from the <h1> heading.
+    const main = screen
+      .getByRole("heading", { name: "Contrôle" })
+      .closest("section");
+    if (main === null) {
+      throw new Error("outer Contrôle <section> should exist");
+    }
+    const text = main.textContent;
+
+    const posATraiter = text.indexOf("À traiter");
+    const posDernierRun = text.indexOf("Dernier run");
+    const posAcquisitions = text.indexOf("Acquisitions & planificateurs");
+    const posSante = text.indexOf("Santé");
+    const posDemarrer = text.indexOf("Démarrer");
+
+    // All four headings + the pipeline button must be present.
+    expect(
+      posATraiter,
+      "« À traiter » heading should be in the DOM",
+    ).toBeGreaterThan(-1);
+    expect(
+      posDernierRun,
+      "« Dernier run » heading should be in the DOM",
+    ).toBeGreaterThan(-1);
+    expect(
+      posAcquisitions,
+      "« Acquisitions & planificateurs » heading should be in the DOM",
+    ).toBeGreaterThan(-1);
+    expect(posSante, "« Santé » heading should be in the DOM").toBeGreaterThan(
+      -1,
+    );
+    expect(
+      posDemarrer,
+      "« Démarrer » button should be in the DOM",
+    ).toBeGreaterThan(-1);
+
+    // Each must appear before the next one in the text stream.
+    expect(posATraiter, "À traiter must come before Dernier run").toBeLessThan(
+      posDernierRun,
+    );
+    expect(
+      posDernierRun,
+      "Dernier run must come before Acquisitions",
+    ).toBeLessThan(posAcquisitions);
+    expect(posAcquisitions, "Acquisitions must come before Santé").toBeLessThan(
+      posSante,
+    );
+    expect(posSante, "Santé must come before Démarrer").toBeLessThan(
+      posDemarrer,
+    );
+
+    // CompactHealth renders health rows (Redis, disks, index, providers).
     expect(await screen.findByText("Redis en ligne")).toBeInTheDocument();
-    expect(screen.getByText("Santé")).toBeInTheDocument();
+    expect(screen.getByText("Disk 1")).toBeInTheDocument();
+    expect(screen.getByText("1200 items indexés")).toBeInTheDocument();
 
     // LastRunDigest shows the empty state (no history yet).
     expect(
@@ -280,7 +348,7 @@ describe("Contrôle", () => {
   it("affiche la liste À traiter (vide par défaut)", async () => {
     renderDashboard();
 
-    // Even when empty, ATraiterList renders a calm row.
+    // Even when empty, ATraiterList renders a calm row « Rien à traiter ».
     expect(await screen.findByText("Rien à traiter")).toBeInTheDocument();
   });
 });
