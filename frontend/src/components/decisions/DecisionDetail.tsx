@@ -10,12 +10,16 @@
  * 409 (lock-held retry hint) and 410 (superseded — refetch list).
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
 import { getPipelineRunDetail } from "@/api/pipeline";
+import {
+  isTerminalRunOutcome,
+  useRunToCompletion,
+} from "@/hooks/useRunToCompletion";
 import type {
   DecisionCandidate,
   DecisionDetail as DecisionDetailType,
@@ -65,9 +69,6 @@ const TRIGGER_EXPLANATION: Record<string, string> = {
     "Sélectionnez le bon candidat parmi les propositions, ou utilisez la " +
     "recherche pour trouver une correspondance plus précise.",
 };
-
-/** Terminal pipeline_run outcomes — the scrape-resolve run is done. */
-const TERMINAL_OUTCOMES = new Set(["success", "error", "killed"]);
 
 /**
  * Non-``pending`` decision status → its read-only result presentation.
@@ -175,7 +176,6 @@ export function DecisionDetail({
 
   /** True once the launched resolve run has reached a terminal outcome. */
   const [runDone, setRunDone] = useState(false);
-  const invalidatedOnDone = useRef(false);
 
   /**
    * The terminal outcome of the launched run (``success`` / ``error`` /
@@ -260,7 +260,6 @@ export function DecisionDetail({
       setErrorDetail(null);
       setRunUid(data.run_uid);
       setRunDone(false);
-      invalidatedOnDone.current = false;
       toast.success("Résolu — le média poursuit son pipeline jusqu'au dispatch.");
       // Optimistic invalidation at 202. The row is still 'pending' until the
       // detached runner marks it resolved — the completion poll below fires a
@@ -323,65 +322,45 @@ export function DecisionDetail({
   });
 
   // ---- resolve-run completion poll (F19/F49) --------------------------------
-  // Poll the launched run's history row; when it reaches a terminal outcome,
-  // re-invalidate the decisions list (the row is now really resolved) and flip
-  // the in-progress badge. Stops polling once terminal — and also stops if the
-  // GET persistently errors, so a 404 (row never written) does not poll forever
-  // (SF1 stuck-poll guard).
-  const runQuery = useQuery({
+  // Poll the launched run's history row (the shared launch-202 → poll → terminal
+  // machine); when it reaches a terminal outcome, re-invalidate the decisions
+  // list (the row is now really resolved) and flip the in-progress badge. Stops
+  // polling once terminal — and, via ``stopOnError``, also once the GET
+  // persistently errors so a 404 (row never written) does not poll forever (SF1
+  // stuck-poll guard). ``onTerminal`` / ``onError`` share one fire-once latch.
+  useRunToCompletion({
     queryKey: ["pipeline", "history", runUid],
     queryFn: () => getPipelineRunDetail(runUid ?? ""),
     enabled: runUid != null && !runDone,
-    // Do not retry a failing run-detail GET forever — surface it via isError
-    // instead so refetchInterval can stop the 2s poll.
+    // Do not retry a failing run-detail GET forever — surface it via the
+    // stopOnError guard so the 2s poll halts instead of hammering a dead row.
     retry: 2,
-    refetchInterval: (query) => {
-      const outcome = query.state.data?.outcome;
-      if (outcome != null && TERMINAL_OUTCOMES.has(outcome)) return false;
-      // Stop polling once the query has settled into an error state (e.g. a
-      // persistent 404 for a run row that was never written) — otherwise the
-      // 2s interval would hammer a dead endpoint indefinitely (SF1).
-      if (query.state.status === "error") return false;
-      return 2000;
-    },
-  });
-
-  useEffect(() => {
-    const outcome = runQuery.data?.outcome;
-    if (
-      runUid != null &&
-      outcome != null &&
-      TERMINAL_OUTCOMES.has(outcome) &&
-      !invalidatedOnDone.current
-    ) {
-      invalidatedOnDone.current = true;
+    stopOnError: true,
+    intervalMs: 2000,
+    isTerminal: (data) => isTerminalRunOutcome(data?.outcome),
+    onTerminal: (data) => {
       setRunDone(true);
-      setRunOutcome(outcome);
+      setRunOutcome(data.outcome ?? null);
       // SF1: a terminal FAILURE (error/killed) must not look like success —
       // fire a single error toast alongside the danger badge below.
-      if (outcome !== "success") {
+      if (data.outcome !== "success") {
         toast.error(
           "Le re-scraping a échoué. Consultez le journal ci-dessous.",
         );
       }
       void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-    }
-  }, [runQuery.data?.outcome, runUid, queryClient]);
-
-  // ---- stuck-poll guard (SF1) -----------------------------------------------
-  // If the run-detail GET persistently errors (e.g. the run row was never
-  // written → 404), stop the poll and surface a failure instead of spinning the
-  // "en cours" badge forever.  Fires once (invalidatedOnDone latch).
-  useEffect(() => {
-    if (runUid != null && runQuery.isError && !invalidatedOnDone.current) {
-      invalidatedOnDone.current = true;
+    },
+    onError: () => {
+      // If the run-detail GET persistently errors (e.g. the run row was never
+      // written → 404), surface a failure instead of spinning the "en cours"
+      // badge forever.
       setRunDone(true);
       setRunOutcome("error");
       toast.error(
         "Impossible de suivre le re-scraping (statut indisponible). Réessayez.",
       );
-    }
-  }, [runQuery.isError, runUid]);
+    },
+  });
 
   // ---- event handlers --------------------------------------------------------
 

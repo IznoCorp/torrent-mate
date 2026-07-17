@@ -20,7 +20,7 @@
  * outcome — the durable ``output_tail`` captured by the backend.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactElement } from "react";
 
 import { ApiError } from "@/api/client";
@@ -29,6 +29,10 @@ import {
   runMaintenanceAction,
   type MaintenanceAction,
 } from "@/api/maintenance";
+import {
+  isTerminalRunOutcome,
+  useRunToCompletion,
+} from "@/hooks/useRunToCompletion";
 import { LogLine } from "@/components/ds/LogLine";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";
@@ -92,19 +96,6 @@ function initialValue(option: ActionOption): FieldValue {
     return option.default === true;
   }
   return option.default != null ? String(option.default) : "";
-}
-
-/**
- * Is the given outcome terminal (the run has finished and will not change)?
- *
- * Args:
- *   outcome: The run outcome string, or null/undefined while still running.
- *
- * Returns:
- *   ``true`` for ``success``/``error``/``killed`` — the poll should stop.
- */
-function isTerminalOutcome(outcome: string | null | undefined): boolean {
-  return outcome === "success" || outcome === "error" || outcome === "killed";
 }
 
 // ---------------------------------------------------------------------------
@@ -184,17 +175,18 @@ function RunOutput({
   queued,
   onDismiss,
 }: RunOutputProps): ReactElement {
-  // Poll the durable run detail; stop once the run reaches a terminal outcome.
-  const { data } = useQuery({
+  // Poll the durable run detail; stop once the run reaches a terminal outcome
+  // (the shared launch-202 → poll → terminal machine).
+  const { data } = useRunToCompletion({
     queryKey: ["pipeline", "history", runUid] as const,
     queryFn: () => getPipelineRunDetail(runUid),
-    refetchInterval: (query) =>
-      isTerminalOutcome(query.state.data?.outcome) ? false : RUN_DETAIL_POLL_MS,
+    isTerminal: (d) => isTerminalRunOutcome(d?.outcome),
+    intervalMs: RUN_DETAIL_POLL_MS,
   });
 
   const outputTail = data?.output_tail;
   const showTail =
-    isTerminalOutcome(data?.outcome) &&
+    isTerminalRunOutcome(data?.outcome) &&
     typeof outputTail === "string" &&
     outputTail !== "";
 
@@ -206,7 +198,7 @@ function RunOutput({
   // therefore hold « En file » until the run POSITIVELY leaves the queue: a
   // ``queue``/``done`` step, or a terminal outcome.
   const queueStep = lastQueueStep(data?.steps);
-  const waitingInQueue = isTerminalOutcome(data?.outcome)
+  const waitingInQueue = isTerminalRunOutcome(data?.outcome)
     ? false
     : queueStep?.status === "done"
       ? false
@@ -346,12 +338,12 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
   // queryKey as RunOutput, so React Query dedupes to a single fetch while both
   // observe the same run; the poll stops once the run reaches a terminal outcome.
   const trackedUid = dryRunTracking?.runUid ?? null;
-  const { data: trackedDetail } = useQuery({
+  const { data: trackedDetail } = useRunToCompletion({
     queryKey: ["pipeline", "history", trackedUid] as const,
     queryFn: () => getPipelineRunDetail(trackedUid ?? ""),
     enabled: trackedUid !== null,
-    refetchInterval: (query) =>
-      isTerminalOutcome(query.state.data?.outcome) ? false : RUN_DETAIL_POLL_MS,
+    isTerminal: (d) => isTerminalRunOutcome(d?.outcome),
+    intervalMs: RUN_DETAIL_POLL_MS,
   });
 
   // Drive the destructive gate off the POLLED dry-run outcome (not the 202):
