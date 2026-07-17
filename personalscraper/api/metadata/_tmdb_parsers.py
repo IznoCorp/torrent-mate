@@ -283,8 +283,8 @@ def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
     ``external_ids`` sub-object exposes (typically ``imdb_id``,
     ``tvdb_id``) when the caller fetched a per-episode endpoint with
     ``append_to_response=external_ids``. Season-level fetches do not
-    return the cross-references — :class:`IDCrossRef` (DESIGN §4) and
-    the phase-5 xref enrichment fill them in later.
+    return the cross-references — the external-ids flow (``scraper._xref``)
+    fills them in later.
 
     Args:
         raw: A single item from ``episodes[]`` in a season response.

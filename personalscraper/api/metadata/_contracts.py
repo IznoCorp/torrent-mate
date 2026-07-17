@@ -9,17 +9,18 @@ composes only the capabilities it actually implements (DESIGN §4
 The protocols are deliberately structural: a class satisfies a capability
 by exposing the right method name and signature, without inheriting.
 This unlocks ``isinstance(provider, RatingProvider)`` checks in helpers
-(``gather_ratings``, ``gather_cross_refs``) that operate on heterogeneous
-provider collections.
+(``gather_ratings``) that operate on heterogeneous provider collections.
 
-Two capabilities are **new** — they do not derive from a method on the
-legacy ``MetadataProvider`` — and exist to support the multi-provider IDs
+One capability is **new** — it does not derive from a method on the
+legacy ``MetadataProvider`` — and exists to support the multi-provider IDs
 work (DESIGN §3 "Hiérarchie scrape canonique") :
 
 - :class:`IDValidator` — re-validate a provider-side ID against an
   expected title / year tuple (Q5=B revalidation rule).
-- :class:`IDCrossRef` — fetch cross-provider IDs (TVDB ↔ TMDB ↔ IMDb)
-  starting from a single canonical ID.
+
+Cross-provider ID resolution (TVDB ↔ TMDB ↔ IMDb) is owned by the
+external-ids flow (``scraper._xref`` + the indexer backfill), not by a
+capability Protocol.
 
 The remaining 9 capabilities derive from the 8 public methods of the
 existing ``MetadataProvider`` Protocol (``get_details()`` splits into
@@ -143,20 +144,6 @@ class IDValidator(Protocol):
 
 
 @runtime_checkable
-class IDCrossRef(Protocol):
-    """Capability — cross-provider ID lookup from a canonical ID.
-
-    Returns a mapping from provider name (``"tmdb"``, ``"imdb"``, …) to
-    the corresponding provider-side ID. The lookup is unidirectional:
-    callers pass a single canonical ID (typically the TVDB ID for TV
-    shows or the TMDB ID for movies) and receive the IDs of the other
-    families when known. Unknown IDs are simply absent from the result.
-    """
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]: ...
-
-
-@runtime_checkable
 class ArtworkProvider(Protocol):
     """Capability — fetch artwork URLs (poster, landscape, season poster, backdrop)."""
 
@@ -208,7 +195,6 @@ __all__ = [
     "EpisodeFetcher",
     "RatingProvider",
     "IDValidator",
-    "IDCrossRef",
     "ArtworkProvider",
     "KeywordProvider",
     "VideoProvider",

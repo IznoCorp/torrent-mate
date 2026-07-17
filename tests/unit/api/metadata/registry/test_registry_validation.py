@@ -21,12 +21,10 @@ from personalscraper.api.metadata.registry._validation import (
 from personalscraper.conf.models.providers import ProvidersConfig
 
 from .conftest import (
-    FakeIDCrossRef,
     FakeMultiCapability,
     FakeSearchable,
-    config_with_all_six_families,
+    config_with_all_five_families,
     config_with_empty_chain_section,
-    config_with_idcrossref_cycle,
     config_with_locked_orphan,
     config_with_unknown_provider,
 )
@@ -122,9 +120,9 @@ def test_empty_chain_section_issue() -> None:
 
 
 def test_locked_capability_orphan_issue() -> None:
-    """A chain provider absent from a locked section and from IDCrossRef triggers the orphan code."""
+    """A chain provider absent from a non-empty locked section triggers the orphan code."""
     config = config_with_locked_orphan()
-    # tvdb is in chain but not in artwork nor idcrossref.
+    # tvdb is in chain but not in the artwork locked section.
     providers = {
         "tvdb": FakeSearchable(provider_name="tvdb"),
         "tmdb": FakeSearchable(provider_name="tmdb"),
@@ -132,49 +130,6 @@ def test_locked_capability_orphan_issue() -> None:
     issues = validate_config(config, providers, _settings_with_keys())
     codes = {i.code for i in issues}
     assert "locked_capability_orphan" in codes
-
-
-# ---------------------------------------------------------------------------
-# 6 — idcrossref_cycle
-# ---------------------------------------------------------------------------
-
-
-def test_no_cycle_with_3_idcrossref_providers() -> None:
-    """A fully-connected IDCrossRef section with ≥ 3 nodes must NOT be reported as a cycle.
-
-    The DFS short-circuits when len(nodes) >= 3 because the inherent cycle is
-    not a config error (C2 fix). The validator must terminate (no infinite
-    loop) and emit NO idcrossref_cycle issue.
-    """
-    config = config_with_idcrossref_cycle()
-    providers = {
-        "tmdb": FakeIDCrossRef(provider_name="tmdb"),
-        "tvdb": FakeIDCrossRef(provider_name="tvdb"),
-        "imdb": FakeIDCrossRef(provider_name="imdb"),
-    }
-    issues = validate_config(config, providers, _settings_with_keys())
-    codes = {i.code for i in issues}
-    assert "idcrossref_cycle" not in codes, f"3+ IDCrossRef providers must not produce a cycle issue, got: {codes}"
-
-
-def test_idcrossref_two_providers_no_false_cycle() -> None:
-    """IDCrossRef with exactly 2 providers (bidirectional implicit edges) is NOT a cycle.
-
-    DFS must track parent and skip the immediate-parent edge so that
-    ``A → B → A`` is recognized as bidirectional, not cyclical.
-    """
-    cfg = ProvidersConfig(
-        Searchable={"tmdb": 1},
-        MovieDetailsProvider={"tmdb": 1},
-        IDCrossRef={"tmdb": 1, "tvdb": 2},
-    )
-    providers = {
-        "tmdb": FakeIDCrossRef(provider_name="tmdb"),
-        "tvdb": FakeIDCrossRef(provider_name="tvdb"),
-    }
-    issues = validate_config(cfg, providers, _settings_with_keys())
-    cycle_issues = [i for i in issues if i.code == "idcrossref_cycle"]
-    assert cycle_issues == [], f"Expected no cycle for 2-provider config, got: {cycle_issues}"
 
 
 # ---------------------------------------------------------------------------
@@ -186,22 +141,17 @@ def test_all_five_issue_families_in_one_error() -> None:
     """Validation must aggregate ALL issues — never raise on the first one.
 
     The user must learn every problem in one shot (DESIGN §7.2 / C11).
-    A fail-fast implementation will fail this test.
-
-    After C2 fix, idcrossref_cycle no longer fires for 3+ IDCrossRef providers
-    (the inherent cycle is not a config error). This test now verifies the
-    remaining 5 families aggregate correctly.
+    A fail-fast implementation will fail this test. There are five
+    ``ConfigIssue`` families since the cross-ref cycle check was removed
+    with the cross-ref machinery (API-TRANSPORT-03).
     """
-    config = config_with_all_six_families()
-    # FakeMultiCapability implements many capabilities but NOT EpisodeFetcher
-    # (no ``get_episodes`` returning the correct shape via Protocol structural
-    # check — but it actually does define it). To force a protocol_mismatch,
-    # we instead route "tmdb" through a FakeSearchable that has no
-    # MovieDetailsProvider/EpisodeFetcher methods.
+    config = config_with_all_five_families()
+    # "tmdb" is routed through a FakeSearchable that has no
+    # MovieDetailsProvider/EpisodeFetcher/ArtworkProvider methods, forcing a
+    # protocol_mismatch. "tvdb" (FakeMultiCapability) satisfies its sections.
     providers = {
         "tmdb": FakeSearchable(provider_name="tmdb"),  # lacks get_episodes → protocol_mismatch under EpisodeFetcher
         "tvdb": FakeMultiCapability(provider_name="tvdb"),
-        "imdb": FakeIDCrossRef(provider_name="imdb"),
     }
     # Strip credentials for tmdb to trigger missing_credentials too.
     settings = SimpleNamespace(tmdb_api_key="", tvdb_api_key="y")
@@ -222,7 +172,6 @@ def test_all_five_issue_families_in_one_error() -> None:
         }
         missing = expected - codes
         assert not missing, f"missing issue codes: {missing}; got {codes}"
-        assert "idcrossref_cycle" not in codes, f"idcrossref_cycle must not fire for 3+ providers, got: {codes}"
     assert raised, "expected RegistryConfigError once issues collected"
 
 
@@ -231,8 +180,8 @@ def test_all_five_issue_families_in_one_error() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_bad_providers_fixture_loads_and_triggers_all_six_families() -> None:
-    """ACC-05b: ``tests/fixtures/bad_providers.json5`` must trigger all 6 families.
+def test_bad_providers_fixture_loads_and_triggers_all_five_families() -> None:
+    """ACC-05b: ``tests/fixtures/bad_providers.json5`` must trigger all 5 families.
 
     Phase 25.2 — the fixture file is checked into git for ACC-05b but the
     earlier test suite never loaded it through the real ``validate_config``.
@@ -247,13 +196,12 @@ def test_bad_providers_fixture_loads_and_triggers_all_six_families() -> None:
        the deliberately-unknown ``nobody``, and minus ``imdb`` whose
        credential is intentionally missing).
     3. Asserting that the aggregated ``RegistryConfigError`` carries
-       every one of the 6 :class:`ConfigIssue` family codes documented
+       every one of the 5 :class:`ConfigIssue` family codes documented
        in the fixture's header comment.
 
     Catches: drift between the fixture file and the validator's
-    accepted schema. A change to the JSON5 keys (e.g. dropping the
-    ``IDCrossRef`` cycle) would silently shrink the issue set; this
-    assertion fires before the next ACC-05b re-exercise.
+    accepted schema. A change to the JSON5 keys would silently shrink the
+    issue set; this assertion fires before the next ACC-05b re-exercise.
     """
     from pathlib import Path  # noqa: PLC0415
 
@@ -303,17 +251,8 @@ def test_bad_providers_fixture_loads_and_triggers_all_six_families() -> None:
         "protocol_mismatch",  # Family 3: tmdb under IDValidator
         "missing_credentials",  # Family 4: imdb (no OMDB_API_KEY)
         "locked_capability_orphan",  # Family 5: tvdb under KeywordProvider
-        "idcrossref_cycle",  # Family 6: tmdb ↔ tvdb cycle? Actually 2 nodes
     }
-    # Note: the fixture currently has IDCrossRef = {tmdb: 1, tvdb: 2} which is
-    # only 2 nodes — and ``test_idcrossref_two_providers_no_false_cycle``
-    # explicitly asserts that 2-node IDCrossRef is NOT a cycle. So
-    # ``idcrossref_cycle`` is NOT expected here. The fixture header comment
-    # claims a 3-node cycle but the file content does not match.  We assert
-    # only the 5 families the fixture actually triggers — and pin the
-    # discrepancy so a fix to the fixture file is visible in the diff.
-    expected_actual = expected - {"idcrossref_cycle"}
-    missing = expected_actual - codes
+    missing = expected - codes
     assert not missing, f"fixture failed to trigger families: {missing}; got {codes}"
 
 
@@ -350,18 +289,3 @@ def test_boot_cleanup_on_validation_failure(build_registry: object) -> None:
     with pytest.raises(RegistryConfigError):
         build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     assert fake_a.closed is True, "fake_a should have been closed during boot cleanup"
-
-
-def test_no_cycle_false_positive_with_3_idcrossref_providers() -> None:
-    """Regression for C2: 3+ IDCrossRef providers must NOT trigger a cycle issue.
-
-    Before the fix, _check_idcrossref_cycles walked a fully-connected graph and
-    flagged the inherent cycle as a config error, breaking valid configs with
-    tmdb + tvdb + imdb.
-    """
-    from personalscraper.api.metadata.registry._validation import _check_idcrossref_cycles
-
-    cfg = ProvidersConfig(IDCrossRef={"tmdb": 1, "tvdb": 2, "imdb": 3})
-    providers: dict[str, object] = {"tmdb": object(), "tvdb": object(), "imdb": object()}
-    issues = _check_idcrossref_cycles(cfg, providers)
-    assert issues == [], f"3 IDCrossRef providers must not produce a cycle issue: {issues}"

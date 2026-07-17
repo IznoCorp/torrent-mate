@@ -79,11 +79,10 @@ class TMDBClient(
     :class:`MovieDetailsProvider`, :class:`TvDetailsProvider`,
     :class:`EpisodeFetcher`, :class:`ArtworkProvider`,
     :class:`KeywordProvider`, :class:`VideoProvider`. Does *not* compose
-    :class:`IDValidator` / :class:`IDCrossRef` (cross-provider ID
-    validation flows through :mod:`personalscraper.scraper._xref`, not
-    through Protocol methods on the TMDB façade) nor
-    :class:`RecommendationProvider` (no TMDB recommendations endpoint
-    wired in the client yet).
+    :class:`IDValidator` (cross-provider ID validation flows through
+    :mod:`personalscraper.scraper._xref`, not through Protocol methods on
+    the TMDB façade) nor :class:`RecommendationProvider` (no TMDB
+    recommendations endpoint wired in the client yet).
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TMDB_API_KEY"]

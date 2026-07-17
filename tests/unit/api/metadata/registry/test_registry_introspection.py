@@ -7,7 +7,6 @@ with ``@pytest.mark.xfail`` until sub-phase 0.5a lands their method bodies.
 from __future__ import annotations
 
 from personalscraper.api.metadata._contracts import (
-    IDCrossRef,
     IDValidator,
     Searchable,
 )
@@ -22,7 +21,7 @@ from .conftest import FakeMultiCapability
 
 
 def test_operations_returns_expected_shape(build_registry: object) -> None:
-    """``operations()`` returns ``dict[type[Protocol], Mode]`` with all 11 capabilities mapped.
+    """``operations()`` returns ``dict[type[Protocol], Mode]`` with all 10 capabilities mapped.
 
     Design: docs/reference/architecture.md#introspection
     Contract: introspection operations() returns the expected shape documenting all capability-to-mode mappings.
@@ -39,28 +38,25 @@ def test_operations_returns_expected_shape(build_registry: object) -> None:
         VideoProvider={"tmdb": 1},
         RecommendationProvider={"tmdb": 1},
         IDValidator={"tmdb": 1},
-        IDCrossRef={"tmdb": 1},
     )
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     ops = registry.operations()
-    # All 11 capabilities must be keys
-    assert len(ops) == 11
+    # All 10 capabilities must be keys
+    assert len(ops) == 10
     # Every value must be a Mode enum member
     assert all(isinstance(v, Mode) for v in ops.values())
 
 
 def test_operations_includes_mode_direct_entries(build_registry: object) -> None:
-    """``IDValidator`` and ``IDCrossRef`` both map to ``Mode.DIRECT``."""
+    """``IDValidator`` maps to ``Mode.DIRECT``."""
     fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
     config = ProvidersConfig(
         Searchable={"tmdb": 1},
         IDValidator={"tmdb": 1},
-        IDCrossRef={"tmdb": 1},
     )
     registry = build_registry(fakes=fakes, providers_config=config)  # type: ignore[operator]
     ops = registry.operations()
     assert ops[IDValidator] == Mode.DIRECT
-    assert ops[IDCrossRef] == Mode.DIRECT
 
 
 # ---------------------------------------------------------------------------

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
 
-# DIRECT-mode capabilities (IDValidator, IDCrossRef) use ``registry.get("name")``
+# DIRECT-mode capabilities (IDValidator) use ``registry.get("name")``
 # (DESIGN §5.2) — this is the public API for ``Mode.DIRECT``. The return type is
 # ``Named`` Protocol, so ``cast(...)`` unwraps either to a capability Protocol
 # (preferred) or to the concrete client when the caller needs provider-specific

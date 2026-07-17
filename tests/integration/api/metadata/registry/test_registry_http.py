@@ -2,8 +2,8 @@
 
 Uses ``responses`` to intercept HTTP calls at the transport layer. Real providers
 (TMDBClient, TVDBClient) are instantiated with real HttpTransport and CircuitBreaker;
-only the HTTP wire is mocked. Tests requiring capabilities not on TMDB/TVDB (IDCrossRef,
-RatingProvider) use monkeypatched fake providers.
+only the HTTP wire is mocked. Tests requiring capabilities not on TMDB/TVDB
+(RatingProvider) use monkeypatched fake providers.
 """
 
 from __future__ import annotations
@@ -16,22 +16,19 @@ import requests
 import responses
 
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.metadata._base import ArtworkItem, Notations
+from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import (
-    ArtworkProvider,
     RatingProvider,
     Searchable,
 )
 from personalscraper.api.metadata.registry import (
     AttemptOutcome,
     FanOutResult,
-    ProviderMatch,
     ProviderRegistry,
     RegistryProviderName,
 )
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.api.metadata.registry._events import (
-    LockedCapabilityUnresolved,
     RegistryBootValidated,
     RegistryFanOutCompleted,
 )
@@ -179,37 +176,6 @@ class FakeRatingForTest:
             raise ApiError(provider=self.provider_name, http_status=503, provider_code=0, message="fake 503")
         source: Any = self.provider_name
         return [Notations(provider=str(source), source="imdb", score=7.5)]
-
-    def close(self) -> None:
-        self.closed = True
-
-
-class FakeArtworkForTest:
-    """Implements ArtworkProvider."""
-
-    def __init__(self, *, provider_name: str, circuit_state: str = "CLOSED"):
-        self.provider_name = provider_name
-        self.circuit = _fake_circuit(circuit_state)
-        self.closed = False
-
-    def get_artwork_urls(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> list[ArtworkItem]:
-        return [ArtworkItem(url=f"https://art.example.com/{media_id}.jpg", type="poster")]
-
-    def close(self) -> None:
-        self.closed = True
-
-
-class FakeIDCrossRefProviderForTest:
-    """Implements IDCrossRef only (no ArtworkProvider) for locked cross_ref tests."""
-
-    def __init__(self, *, provider_name: str, xref_table: dict[str, dict[str, str]] | None = None):
-        self.provider_name = provider_name
-        self.circuit = _fake_circuit("CLOSED")
-        self._xref = xref_table or {}
-        self.closed = False
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        return dict(self._xref.get(provider_id, {}))
 
     def close(self) -> None:
         self.closed = True
@@ -641,67 +607,6 @@ class TestNetworkErrorAttemptOutcome:
         assert len(exc.value.attempted) == 2
         for outcome in exc.value.attempted:
             assert outcome.reason == "network"
-
-
-# ---------------------------------------------------------------------------
-# Locked cross_ref (tests 10-11)
-# ---------------------------------------------------------------------------
-
-
-class TestLockedCrossRef:
-    """Verify locked() IDCrossRef translation path."""
-
-    def test_locked_cross_ref_via_idcrossref_succeeds(self, build_registry_fakes: Any) -> None:
-        """Match has tmdb id, locked(ArtworkProvider); TVDB has artwork via xref translation."""
-        fakes = {
-            "tmdb": FakeIDCrossRefProviderForTest(
-                provider_name="tmdb",
-                xref_table={"tmdb-123": {"tvdb": "tvdb-456"}},
-            ),
-            "tvdb": FakeArtworkForTest(provider_name="tvdb"),
-        }
-        config = ProvidersConfig(
-            Searchable={"tmdb": 1, "tvdb": 2},
-            ArtworkProvider={"tvdb": 1},
-            IDCrossRef={"tmdb": 1},
-        )
-        bus = MockEventBusForTest()
-        registry = build_registry_fakes(fakes=fakes, providers_config=config, event_bus=bus)
-
-        match = ProviderMatch(
-            provider=RegistryProviderName("tmdb"),
-            id="tmdb-123",
-            media_type=MediaType.MOVIE,
-        )
-        locked = registry.locked(ArtworkProvider, match)
-
-        assert locked is not None
-        assert locked.bound_id == "tvdb-456"
-        assert locked.translated_via == "tmdb"
-
-    def test_locked_cross_ref_returns_none_when_xref_empty(self, build_registry_fakes: Any) -> None:
-        """IDCrossRef returns empty dict; locked() returns None; LockedCapabilityUnresolved emitted."""
-        fakes = {
-            "tmdb": FakeIDCrossRefProviderForTest(provider_name="tmdb", xref_table={}),
-            "tvdb": FakeArtworkForTest(provider_name="tvdb"),
-        }
-        config = ProvidersConfig(
-            Searchable={"tmdb": 1},
-            ArtworkProvider={"tvdb": 1},
-            IDCrossRef={"tmdb": 1},
-        )
-        bus = MockEventBusForTest()
-        registry = build_registry_fakes(fakes=fakes, providers_config=config, event_bus=bus)
-
-        match = ProviderMatch(
-            provider=RegistryProviderName("tmdb"),
-            id="tmdb-unknown",
-            media_type=MediaType.MOVIE,
-        )
-        locked = registry.locked(ArtworkProvider, match)
-
-        assert locked is None
-        assert any(isinstance(e, LockedCapabilityUnresolved) for e in bus.emitted)
 
 
 # ---------------------------------------------------------------------------

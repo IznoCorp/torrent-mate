@@ -1,6 +1,6 @@
 """Boot validation for the provider registry (DESIGN §7.2).
 
-Implements the six ``ConfigIssue.code`` families as independent check
+Implements the five ``ConfigIssue.code`` families as independent check
 functions, collected into a single list by ``validate_config()``. No
 check raises individually — the user must see ALL problems at once.
 """
@@ -209,16 +209,15 @@ def _check_locked_capability_orphans(
 ) -> list[ConfigIssue]:
     """Check that every chain-capability provider can reach every non-empty locked section.
 
-    Rule (relaxed, per sub-phase 0.3 spec): a chain provider P is an
-    orphan for locked section L if **all** of these hold:
+    Rule: a chain provider P is an orphan for locked section L when both:
 
     - L is non-empty (no orphan issue on intentionally-empty sections)
     - P is not in L itself
-    - P is not in the IDCrossRef section (so no translation path exists)
 
-    The conservative rule is sufficient for the current flat IDCrossRef
-    model. A full implementation would require explicit edge declarations
-    between IDCrossRef providers.
+    The old cross-provider ID translation escape was removed
+    (API-TRANSPORT-03): a locked capability can only be served by a
+    provider that owns the match's id, so a chain provider absent from L
+    has no path to that capability.
     """
     issues: list[ConfigIssue] = []
     # Collect the set of chain providers (from any chain-capability section)
@@ -227,8 +226,6 @@ def _check_locked_capability_orphans(
         protocol = CAPABILITY_KEYS.get(section_name)
         if protocol is not None and protocol in CHAIN_CAPABILITIES:
             chain_providers.update(section.keys())
-
-    idcrossref_providers: set[str] = set(providers_config.model_dump().get("IDCrossRef", {}).keys())
 
     for section_name, section in providers_config.model_dump().items():
         protocol = CAPABILITY_KEYS.get(section_name)
@@ -240,8 +237,6 @@ def _check_locked_capability_orphans(
         for p_name in chain_providers:
             if p_name in locked_providers:
                 continue
-            if p_name in idcrossref_providers:
-                continue
             issues.append(
                 ConfigIssue(
                     code="locked_capability_orphan",
@@ -249,94 +244,11 @@ def _check_locked_capability_orphans(
                     provider=RegistryProviderName(p_name),
                     message=(
                         f"Provider {p_name!r} appears in a chain section but is "
-                        f"neither in locked section {section_name!r} nor in "
-                        f"IDCrossRef — no translation path to a locked provider"
+                        f"not in locked section {section_name!r} — no provider "
+                        f"can serve this locked capability for its matches"
                     ),
                 )
             )
-    return issues
-
-
-# ---------------------------------------------------------------------------
-# 6 — idcrossref_cycle
-# ---------------------------------------------------------------------------
-
-
-def _check_idcrossref_cycles(
-    providers_config: ProvidersConfig,
-    providers: dict[str, object],
-) -> list[ConfigIssue]:
-    """DFS cycle detection on the IDCrossRef graph.
-
-    The IDCrossRef section is a flat list of providers that can translate
-    between each other's ID spaces. Implicit bidirectional edges exist
-    between every pair of IDCrossRef providers (every provider can be
-    translated to every other in the section).
-
-    In the current minimal model:
-    - 0 or 1 IDCrossRef providers → no possible cycle
-    - 2 providers → one bidirectional edge, no cycle (no self-loop)
-    - ≥ 3 providers → fully connected graph; cycles exist but are inherent
-
-    This implementation is **conservative**: it will rarely fire. A real
-    cycle-detection implementation would require explicit per-provider
-    edge declarations in the config model.
-    """
-    issues: list[ConfigIssue] = []
-    section = providers_config.model_dump().get("IDCrossRef", {})
-    xref_names = list(section.keys())
-    if len(xref_names) < 2:
-        return issues  # no possible cycle with 0 or 1 nodes
-
-    # Build adjacency: fully connected bidirectional graph among IDCrossRef
-    # providers that are actually instantiated.
-    nodes = [n for n in xref_names if n in providers]
-    if len(nodes) >= 3:
-        return issues  # inherent cycle in fully-connected graph, not a config error
-    adj: dict[str, set[str]] = {}
-    for n in nodes:
-        adj[n] = set(nodes) - {n}
-
-    visited_all: set[str] = set()
-
-    def _dfs(current: str, parent: str | None, path: list[str]) -> list[str] | None:
-        """Return the cycle path if one is found, else None.
-
-        ``parent`` is tracked so the immediate-parent edge (bidirectional
-        implicit edge between two providers) is not flagged as a cycle.
-        """
-        if current in path:
-            idx = path.index(current)
-            return path[idx:] + [current]
-        if current in visited_all:
-            return None
-        visited_all.add(current)
-        path.append(current)
-        for neighbor in sorted(adj.get(current, set())):
-            if neighbor == parent:
-                continue
-            result = _dfs(neighbor, current, path)
-            if result is not None:
-                return result
-        path.pop()
-        return None
-
-    for start in sorted(nodes):
-        if start in visited_all:
-            continue
-        cycle = _dfs(start, None, [])
-        if cycle is not None:
-            cycle_str = " → ".join(cycle)
-            issues.append(
-                ConfigIssue(
-                    code="idcrossref_cycle",
-                    section="IDCrossRef",
-                    provider=RegistryProviderName(start),
-                    message=f"IDCrossRef cycle detected: {cycle_str}",
-                )
-            )
-            break  # one cycle is enough to diagnose
-
     return issues
 
 
@@ -350,7 +262,7 @@ def validate_config(
     providers: dict[str, object],
     settings: Settings,
 ) -> list[ConfigIssue]:
-    """Aggregate all six ``ConfigIssue`` families into a single list.
+    """Aggregate all five ``ConfigIssue`` families into a single list.
 
     **Never raises directly** — the caller (registry ``__init__``) wraps
     with ``try/finally`` + cleanup and raises ``RegistryConfigError``
@@ -370,5 +282,4 @@ def validate_config(
     issues.extend(_check_unknown_providers(providers_config, providers))
     issues.extend(_check_empty_chain_sections(providers_config))
     issues.extend(_check_locked_capability_orphans(providers_config, providers))
-    issues.extend(_check_idcrossref_cycles(providers_config, providers))
     return issues

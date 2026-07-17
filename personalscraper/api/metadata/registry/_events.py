@@ -62,12 +62,17 @@ class ProviderExhaustedEvent(Event):
 
 @dataclass(frozen=True, kw_only=True)
 class LockedCapabilityUnresolved(Event):
-    """Emitted when ``locked()`` cannot bind a provider via IDCrossRef.
+    """Emitted when ``locked()`` cannot bind a provider for a match.
+
+    Raised when the match's own provider does not implement the locked
+    capability (or is circuit-ineligible) and no other provider can serve
+    it — cross-provider ID translation no longer exists (API-TRANSPORT-03).
 
     Attributes:
         capability: The locked capability being resolved (Protocol name).
         match: The ``ProviderMatch`` that could not be resolved.
-        chain_tried: Tuple of providers tried for IDCrossRef translation.
+        chain_tried: Tuple of providers configured for the capability that
+            could not be reached (no cross-provider translation path).
     """
 
     capability: str

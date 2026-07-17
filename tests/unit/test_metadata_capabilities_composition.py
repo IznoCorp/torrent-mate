@@ -28,7 +28,6 @@ import pytest
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
-    IDCrossRef,
     IDValidator,
     KeywordProvider,
     MovieDetailsProvider,
@@ -73,8 +72,7 @@ def _declares(cls: type, protocol: type[Protocol]) -> bool:
 # ---------------------------------------------------------------------------
 # TMDBClient — composes Searchable, MovieDetailsProvider, TvDetailsProvider,
 # EpisodeFetcher, ArtworkProvider, KeywordProvider, VideoProvider.
-# Deliberately omits IDValidator, IDCrossRef, RecommendationProvider,
-# RatingProvider.
+# Deliberately omits IDValidator, RecommendationProvider, RatingProvider.
 # ---------------------------------------------------------------------------
 
 
@@ -100,11 +98,6 @@ def test_tmdb_client_does_not_declare_id_validator() -> None:
     assert not _declares(TMDBClient, IDValidator)
 
 
-def test_tmdb_client_does_not_declare_id_cross_ref() -> None:
-    """``TMDBClient`` does not inherit :class:`IDCrossRef` (no ``get_cross_refs``)."""
-    assert not _declares(TMDBClient, IDCrossRef)
-
-
 def test_tmdb_client_does_not_declare_recommendation_provider() -> None:
     """``TMDBClient`` does not inherit :class:`RecommendationProvider` (no real impl)."""
     assert not _declares(TMDBClient, RecommendationProvider)
@@ -119,7 +112,7 @@ def test_tmdb_client_does_not_declare_rating_provider() -> None:
 # TVDBClient — composes Searchable, MovieDetailsProvider, TvDetailsProvider,
 # EpisodeFetcher, ArtworkProvider, VideoProvider. Deliberately omits
 # KeywordProvider (TVDB raises NotImplementedError on get_keywords),
-# IDValidator, IDCrossRef, RatingProvider, RecommendationProvider.
+# IDValidator, RatingProvider, RecommendationProvider.
 # ---------------------------------------------------------------------------
 
 
@@ -139,7 +132,7 @@ def test_tvdb_client_declares_expected_capabilities() -> None:
 
 def test_tvdb_client_omits_unsupported_protocols() -> None:
     """``TVDBClient`` MRO does NOT inherit Protocols whose methods raise NotImplementedError or are absent."""
-    for protocol in (KeywordProvider, IDValidator, IDCrossRef, RatingProvider, RecommendationProvider):
+    for protocol in (KeywordProvider, IDValidator, RatingProvider, RecommendationProvider):
         assert not _declares(TVDBClient, protocol), f"TVDBClient must not declare {protocol.__name__}"
 
 
@@ -148,7 +141,7 @@ def test_tvdb_client_omits_unsupported_protocols() -> None:
 # TvDetailsProvider, RecommendationProvider. Deliberately omits
 # EpisodeFetcher, ArtworkProvider, KeywordProvider, VideoProvider,
 # RatingProvider (method name differs — ``get_notations`` not
-# ``get_rating``), IDValidator, IDCrossRef.
+# ``get_rating``), IDValidator.
 # ---------------------------------------------------------------------------
 
 
@@ -193,7 +186,7 @@ def test_trakt_client_does_not_declare_id_validator() -> None:
 
 
 # ---------------------------------------------------------------------------
-# IMDb façade — composes IDValidator, RatingProvider, IDCrossRef.
+# IMDb façade — composes IDValidator, RatingProvider.
 # Deliberately omits Searchable, Movie/TvDetailsProvider, etc.
 # (façade only exposes canonical-ID and rating capabilities — bulk
 # search happens via TMDB/TVDB).
@@ -210,11 +203,6 @@ def test_imdb_client_is_rating_provider() -> None:
     assert isinstance(_imdb(), RatingProvider)
 
 
-def test_imdb_client_is_id_cross_ref() -> None:
-    """``IMDbClient`` satisfies :class:`IDCrossRef`."""
-    assert isinstance(_imdb(), IDCrossRef)
-
-
 def test_imdb_client_does_not_declare_searchable() -> None:
     """``IMDbClient`` does not inherit :class:`Searchable`."""
     assert not _declares(IMDbClient, Searchable)
@@ -227,8 +215,7 @@ def test_imdb_client_does_not_declare_movie_details_provider() -> None:
 
 # ---------------------------------------------------------------------------
 # Rotten Tomatoes façade — composes RatingProvider only. OMDb does not
-# expose a separate RT ID so :class:`IDValidator` / :class:`IDCrossRef`
-# are deliberately absent.
+# expose a separate RT ID so :class:`IDValidator` is deliberately absent.
 # ---------------------------------------------------------------------------
 
 
@@ -240,11 +227,6 @@ def test_rt_client_is_rating_provider() -> None:
 def test_rt_client_does_not_declare_id_validator() -> None:
     """``RottenTomatoesClient`` does not inherit :class:`IDValidator`."""
     assert not _declares(RottenTomatoesClient, IDValidator)
-
-
-def test_rt_client_does_not_declare_id_cross_ref() -> None:
-    """``RottenTomatoesClient`` does not inherit :class:`IDCrossRef`."""
-    assert not _declares(RottenTomatoesClient, IDCrossRef)
 
 
 def test_rt_client_does_not_declare_searchable() -> None:

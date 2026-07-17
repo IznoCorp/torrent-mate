@@ -88,9 +88,8 @@ class TVDBClient(
     :class:`EpisodeFetcher`, :class:`ArtworkProvider`,
     :class:`VideoProvider`. Does *not* compose :class:`KeywordProvider`
     (TVDB has no equivalent endpoint — :meth:`get_keywords` raises
-    NotImplementedError), :class:`IDValidator` or :class:`IDCrossRef`
-    (cross-provider ID validation flows through
-    :mod:`personalscraper.scraper._xref`).
+    NotImplementedError) nor :class:`IDValidator` (cross-provider ID
+    validation flows through :mod:`personalscraper.scraper._xref`).
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TVDB_API_KEY"]
