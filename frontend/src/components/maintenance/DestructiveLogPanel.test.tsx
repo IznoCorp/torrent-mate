@@ -76,12 +76,17 @@ describe("DestructiveLogPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("affiche un état vide quand rien n'a été supprimé", async () => {
+  it("affiche un état vide avec EmptyState quand rien n'a été supprimé", async () => {
     (await mockGetLog()).mockResolvedValue({ entries: [] });
     renderPanel();
 
     expect(
-      await screen.findByText("Aucune suppression enregistrée."),
+      await screen.findByText("Aucune opération destructive"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Le journal des suppressions et remplacements apparaîtra ici.",
+      ),
     ).toBeInTheDocument();
   });
 

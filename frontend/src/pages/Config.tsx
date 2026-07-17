@@ -30,6 +30,7 @@ import {
 import { FileList } from "@/components/config/FileList";
 import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
 import { SecretsTab } from "@/components/config/SecretsTab";
+import { EmptyState } from "@/components/ds/EmptyState";
 import { StagingBanner } from "@/components/StagingBanner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -663,9 +664,10 @@ export default function Config(): ReactElement {
           {/* Right panel: form or placeholder */}
           <div className="rounded-md border border-border p-4">
             {selectedFile === null ? (
-              <p className="text-sm text-muted-foreground">
-                Sélectionnez un fichier dans la liste pour l&apos;éditer.
-              </p>
+              <EmptyState
+                title="Aucun fichier disponible"
+                description="La configuration ne contient aucun fichier éditable."
+              />
             ) : fileQ.isLoading ? (
               <p className="text-sm text-muted-foreground">
                 Chargement du fichier…

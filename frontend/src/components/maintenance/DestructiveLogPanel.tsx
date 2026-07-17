@@ -9,11 +9,13 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { ScrollText } from "lucide-react";
 import { type ReactElement } from "react";
 
 import { getDestructiveLog } from "@/api/client";
 import type { components } from "@/api/schema";
 import { formatDatetime } from "@/components/acquisition/meta";
+import { EmptyState } from "@/components/ds/EmptyState";
 import {
   Card,
   CardContent,
@@ -95,9 +97,11 @@ export function DestructiveLogPanel(): ReactElement {
             Journal momentanément indisponible.
           </p>
         ) : entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Aucune suppression enregistrée.
-          </p>
+          <EmptyState
+            icon={ScrollText}
+            title="Aucune opération destructive"
+            description="Le journal des suppressions et remplacements apparaîtra ici."
+          />
         ) : (
           <ul className="flex flex-col">
             {entries.map((op, i) => (

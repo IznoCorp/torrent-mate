@@ -378,60 +378,55 @@ export default function SystemePage(): ReactElement {
         ))}
       </div>
 
-      {/* Active panel — wrapped in Card+CardContent following AcquisitionPage
-          pattern. Each panel is responsible for its own internal layout so the
-          page shell stays thin. */}
-      <Card>
-        <CardContent className="pt-4">
-          {/* État — system health at a glance: disks, locks, index, providers,
-              and the live event stream. */}
-          {activeTab === "etat" && (
-            <div className="flex flex-col gap-6">
-              {/* Monitoring panels: 1 col mobile → 2 tablet → 3 desktop. */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <DisksPanel />
-                <LocksPanel />
-                <IndexHealthPanel />
-              </div>
+      {/* Active panel — each tab renders its own Cards directly (H1: max 3
+          surface levels — page → Card panel → row). No outer Card wrapper. */}
+      {/* État — system health at a glance: disks, locks, index, providers,
+          and the live event stream. */}
+      {activeTab === "etat" && (
+        <div className="flex flex-col gap-6">
+          {/* Monitoring panels: 1 col mobile → 2 tablet → 3 desktop. */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <DisksPanel />
+            <LocksPanel />
+            <IndexHealthPanel />
+          </div>
 
-              {/* Provider health cards — ex-RegistryPage. */}
-              <ProvidersPanel />
+          {/* Provider health cards — ex-RegistryPage. */}
+          <ProvidersPanel />
 
-              {/* Live event feed + recent-events table (relocated from the
-                  Dashboard, formerly on Maintenance). */}
-              <EventFeed events={events} />
-              <RecentEventsTable events={events} />
-            </div>
+          {/* Live event feed + recent-events table (relocated from the
+              Dashboard, formerly on Maintenance). */}
+          <EventFeed events={events} />
+          <RecentEventsTable events={events} />
+        </div>
+      )}
+
+      {/* Actions — maintenance command catalog with generated run forms
+          (ActionCatalog is rendered as-is, zero changes). */}
+      {activeTab === "actions" && <ActionCatalog />}
+
+      {/* Exécutions de maintenance (F1 — the second history table,
+          renamed). The trigger legend is carried here so labels stay
+          decodable (C2). Clicking a row sets ?run=<uid>; when set, the
+          RunDetail drawer renders inline below the table. */}
+      {activeTab === "maintenance" && (
+        <div className="flex flex-col gap-4">
+          <RunHistoryTable
+            kind="maintenance"
+            onSelect={openRun}
+            legend={<TriggerLegend />}
+          />
+
+          {selectedRun !== null && (
+            <RunDetail runUid={selectedRun} onClose={closeRun} />
           )}
+        </div>
+      )}
 
-          {/* Actions — maintenance command catalog with generated run forms
-              (ActionCatalog is rendered as-is, zero changes). */}
-          {activeTab === "actions" && <ActionCatalog />}
-
-          {/* Exécutions de maintenance (F1 — the second history table,
-              renamed). The trigger legend is carried here so labels stay
-              decodable (C2). Clicking a row sets ?run=<uid>; when set, the
-              RunDetail drawer renders inline below the table. */}
-          {activeTab === "maintenance" && (
-            <div className="flex flex-col gap-4">
-              <RunHistoryTable
-                kind="maintenance"
-                onSelect={openRun}
-                legend={<TriggerLegend />}
-              />
-
-              {selectedRun !== null && (
-                <RunDetail runUid={selectedRun} onClose={closeRun} />
-              )}
-            </div>
-          )}
-
-          {/* Journal — the append-only destructive-operations trail (§7).
-              Gets its addressable home here, linked directly via
-              /systeme?tab=journal. */}
-          {activeTab === "journal" && <DestructiveLogPanel />}
-        </CardContent>
-      </Card>
+      {/* Journal — the append-only destructive-operations trail (§7).
+          Gets its addressable home here, linked directly via
+          /systeme?tab=journal. */}
+      {activeTab === "journal" && <DestructiveLogPanel />}
     </section>
   );
 }

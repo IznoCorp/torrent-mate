@@ -156,7 +156,13 @@ export function DisksPanel(): ReactElement {
                 </div>
 
                 <StatPanel
-                  value={disk.mounted ? formatGb(disk.free_gb) : "—"}
+                  value={
+                    disk.mounted ? (
+                      formatGb(disk.free_gb)
+                    ) : (
+                      <span title="pas encore de données">&mdash;</span>
+                    )
+                  }
                   secondary={
                     disk.mounted
                       ? `libre / ${formatGb(disk.total_gb)}`
