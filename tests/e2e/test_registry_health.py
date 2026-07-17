@@ -19,12 +19,12 @@ from fastapi.testclient import TestClient
 from personalscraper.config import Settings
 from personalscraper.web.registry_projection import RegistryHealthProjection
 
-# Reuse the guard-mount helper + test creds from the web pipeline tests.
+# Shared guard-mount helper + test creds (creds still live in the web pipeline tests).
+from tests.web._web_harness import mount_guarded
 from tests.web.test_pipeline_routes import (  # noqa: E402
     TEST_HASH,
     TEST_PASSWORD,
     TEST_USERNAME,
-    _mount_guarded,
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ def _build_registry_app(config, username: str | None = None) -> FastAPI:
 
     from personalscraper.web.routes.registry import router as registry_router
 
-    _mount_guarded(app, registry_router)
+    mount_guarded(app, registry_router)
 
     return app
 

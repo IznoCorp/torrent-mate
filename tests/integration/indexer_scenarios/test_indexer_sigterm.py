@@ -41,7 +41,7 @@ from personalscraper.indexer.scanner._shutdown import (
 )
 from personalscraper.indexer.schema import DiskRow
 
-_MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+_MIGRATIONS_DIR = Path(__file__).parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 # Pin a module-level reference to ``patch`` so ruff's F401 auto-fix does
 # not strip the import between incremental edits — every call site below

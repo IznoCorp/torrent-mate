@@ -25,7 +25,7 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.drift import clamp_mtime_ns, reconcile_file
 from personalscraper.indexer.fingerprint import xxh3_partial
 
-_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 _RACY_WINDOW_NS: int = 2_000_000_000  # 2 seconds
 

@@ -44,7 +44,7 @@ from personalscraper.indexer.schema import DiskRow
 if TYPE_CHECKING:
     from pyfakefs.fake_filesystem import FakeFilesystem
 
-MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+MIGRATIONS_DIR = Path(__file__).parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 

@@ -40,7 +40,7 @@ from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner import ScanMode, scan
 from personalscraper.indexer.schema import DiskRow
 
-_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 

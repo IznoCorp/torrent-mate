@@ -22,7 +22,7 @@ from pathlib import Path
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.drift import detect_rename
 
-_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+_MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 _CRAFTED_OSHASH = "aabbccddeeff0011"
 
