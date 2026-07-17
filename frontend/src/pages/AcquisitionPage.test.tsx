@@ -124,22 +124,6 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
   return { status, ...merged };
 }
 
-/** A single wanted item matching WantedItemResponse shape. */
-function makeWanted(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 10,
-    title: "Top Chef",
-    kind: "episode",
-    season: 16,
-    episode: 5,
-    status: "pending",
-    attempts: 0,
-    enqueued_at: 1_719_792_000,
-    last_search_at: null,
-    ...overrides,
-  };
-}
-
 /** A single obligation item matching ObligationItem shape. */
 function makeObligation(overrides: Record<string, unknown> = {}) {
   return {
@@ -1245,5 +1229,47 @@ describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
     // Default tab carries no param → clean /acquisition URL.
     expect(screen.getByTestId("loc-search")).toHaveTextContent("");
     expect(screen.getByTestId("loc-search").textContent).not.toContain("tab");
+  });
+});
+
+describe("AcquisitionPage — redirect legacy tabs (3.3)", () => {
+  it("redirects ?tab=wanted to ?tab=file (replace, no history entry)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=wanted");
+
+    // After the useEffect fires, the URL search becomes ?tab=file.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    // The wanted text must NOT appear in the URL.
+    expect(screen.getByTestId("loc-search").textContent).not.toContain(
+      "wanted",
+    );
+  });
+
+  it("redirects ?tab=downloads to ?tab=file", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=downloads");
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+    expect(
+      screen.getByRole("tab", { name: /File d'acquisition/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("loc-search").textContent).not.toContain(
+      "downloads",
+    );
+  });
+});
+
+describe("AcquisitionPage — tablist scroll classes (3.3 E5)", () => {
+  it("has flex-nowrap and overflow-x-auto, NOT flex-wrap", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist.className).toMatch(/\bflex-nowrap\b/);
+    expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
+    expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
   });
 });
