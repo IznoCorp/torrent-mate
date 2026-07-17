@@ -404,47 +404,10 @@ class IncrementalVisitor(DirMtimeSkipVisitor):
                     )
 
 
-# Artwork filename detection is owned by ``core.artwork_naming`` (INDEXER-03);
-# this scan mode does not inventory artwork itself — the enrich pass does, via
-# the shared canonical union. The old ``_ARTWORK_FILENAMES`` / ``_ARTWORK_SUFFIXES``
-# copies here were dead duplicates and have been removed.
-
-
-# Subfolders whose contents must NEVER drive the parent item's NFO/artwork
-# state. ``.actors`` (Kodi actor thumbnails) and Plex extras folders contain
-# only sidecars; scanning them returns "missing" / empty-inventory and would
-# silently overwrite the correct values written by the actual release dir.
-_ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
-    {
-        # Kodi / Plex sentinel sub-folders (English convention).
-        ".actors",
-        "extras",
-        "behind the scenes",
-        "deleted scenes",
-        "featurettes",
-        "interviews",
-        "scenes",
-        "shorts",
-        "trailers",
-        "other",
-        # French equivalents commonly used in this project's library.
-        # ``Bonus`` / ``Boni`` / ``Inédits`` hold show extras and must
-        # not drive the item's NFO/artwork state — the show-level NFO
-        # lives at the show root, not inside the bonus folder.
-        # ``Films`` is used to nest a movie sub-collection under a
-        # show root (e.g. Lucky Luke spin-off films inside the series
-        # directory) — same skip rationale.
-        "bonus",
-        "boni",
-        "inédits",
-        "inedits",
-        "films",
-    }
-)
-
-# Categories that do not follow the Kodi NFO convention. For these,
-# ``nfo_status='missing'`` is a structural false-positive — there is no
-# ``movie.nfo`` / ``tvshow.nfo`` to find because the format does not
-# specify one. Setting nfo_status to NULL ("not applicable") is more
-# faithful than reporting them as broken in library-report.
-_NFO_NA_CATEGORIES: frozenset[str] = frozenset({"audiobooks"})
+# This scan mode owns none of the item-classification tables. Artwork filename
+# detection lives in ``core.artwork_naming`` (INDEXER-03); the extras-folder skip
+# set (``_ITEM_ROOT_SKIP_DIRS``) and the no-NFO category set
+# (``_NFO_NA_CATEGORIES``) are owned by the enrich pass (``enrich.py``, the only
+# place they are read). The copies that used to sit here — along with the old
+# ``_ARTWORK_FILENAMES`` / ``_ARTWORK_SUFFIXES`` tables — were dead duplicates
+# and have been removed.
