@@ -129,20 +129,24 @@ def backup_corrupt_json(path: Path, *, logger: Any, event_prefix: str, reason: s
         event_prefix: Event-name prefix (e.g. ``"json_ttl_cache"``).
         reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
     """
+    # Compute event names outside the log calls (static-safe form for the
+    # logging convention: literal-or-variable event name, kwargs for data).
+    backed_up_event = event_prefix + "_corrupt_backup"
+    failed_event = event_prefix + "_corrupt_backup_failed"
     try:
         # Include the original suffix so the forensic copy is recognisable.
         ts = int(time.time())
         backup = path.with_name(f"{path.stem}.corrupt-{ts}{path.suffix}")
         shutil.copy(path, backup)
         logger.warning(
-            f"{event_prefix}_corrupt_backup",
+            backed_up_event,
             original=str(path),
             backup=str(backup),
             reason=reason,
         )
     except OSError as exc:
         logger.error(
-            f"{event_prefix}_corrupt_backup_failed",
+            failed_event,
             path=str(path),
             error=str(exc),
             reason=reason,
@@ -182,8 +186,9 @@ def load_json_dict(path: Path, *, logger: Any, event_prefix: str) -> dict[str, A
     except (json.JSONDecodeError, ValueError) as exc:
         # Corrupt JSON — back up the file before the next write overwrites it.
         backup_corrupt_json(path, logger=logger, event_prefix=event_prefix, reason=f"parse_error:{type(exc).__name__}")
+        load_failed_event = event_prefix + "_load_failed"
         logger.error(
-            f"{event_prefix}_load_failed",
+            load_failed_event,
             path=str(path),
             error=str(exc),
             hint="starting with empty cache",
@@ -193,8 +198,9 @@ def load_json_dict(path: Path, *, logger: Any, event_prefix: str) -> dict[str, A
     except OSError as exc:
         # Transient I/O error (broken mount, EBUSY, stale NFS handle).
         # Do NOT backup — the file is likely healthy but temporarily unreachable.
+        read_failed_event = event_prefix + "_read_failed"
         logger.warning(
-            f"{event_prefix}_read_failed",
+            read_failed_event,
             path=str(path),
             errno=exc.errno,
             error=str(exc),
