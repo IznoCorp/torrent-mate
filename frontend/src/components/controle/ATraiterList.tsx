@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 
 import type { StagingMediaItem, StagingMediaResponse } from "@/api/client";
 import { ErrorState } from "@/components/ds/ErrorState";
+import { MediaPoster } from "@/components/ds/MediaPoster";
 import { matchBadge } from "@/components/staging/meta";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStagingMedia } from "@/hooks/useStagingMedia";
@@ -152,29 +153,16 @@ export function ATraiterList(): ReactElement {
               className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50"
             >
               {/* 32 px mini poster */}
-              <div className="w-8 shrink-0 overflow-hidden rounded-sm">
-                <img
-                  src={item.poster_url ?? undefined}
-                  alt={item.title}
-                  loading="lazy"
-                  className="aspect-[2/3] w-full object-cover"
-                  // When poster_url is missing the onError won't fire — show
-                  // initials fallback via a plain background with one letter.
-                  {...(item.poster_url == null
-                    ? {
-                        style: { display: "none" },
-                      }
+              <MediaPoster
+                title={item.title}
+                src={item.poster_url ?? null}
+                {...(item.media_kind === "movie"
+                  ? ({ kind: "movie" } as const)
+                  : item.media_kind === "tvshow"
+                    ? ({ kind: "tv" } as const)
                     : {})}
-                />
-                {item.poster_url == null && (
-                  <div
-                    className="flex aspect-[2/3] w-full items-center justify-center rounded-sm bg-gradient-to-br from-accent/50 to-muted text-[10px] font-semibold text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    {item.title.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
+                className="w-8 shrink-0 rounded-sm"
+              />
 
               {/* Title + reason */}
               <div className="min-w-0 flex-1">
