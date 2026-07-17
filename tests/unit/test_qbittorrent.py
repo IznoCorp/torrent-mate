@@ -9,8 +9,12 @@ import qbittorrentapi
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentItem
-from personalscraper.api.torrent.qbittorrent import (
+from personalscraper.api.torrent._errors import (
     QBitAuthLockoutError,
+    TorrentAuthError,
+    TorrentUnreachableError,
+)
+from personalscraper.api.torrent.qbittorrent import (
     QBitClient,
     _torrent_item,
     build_client,
@@ -398,3 +402,67 @@ class TestQBitClient:
             client.login()
         assert exc_info.value.http_status == 403
         assert exc_info.value.provider == "qbittorrent"
+
+
+class TestQBitNeutralErrorTranslation:
+    """The ingest-boundary read methods translate qbittorrentapi exceptions.
+
+    ``get_completed`` / ``get_all_hashes`` / ``is_seeding`` / ``get_content_path``
+    map the provider library's transport/auth exceptions onto the family-neutral
+    :mod:`personalscraper.api.torrent._errors` hierarchy so the ingest step never
+    imports ``qbittorrentapi`` (PIPELINE-CORE-06 / TORRENT-TRACKERS-08). The
+    neutral errors subclass :class:`ApiError`, so ``http_status`` still carries
+    the auth/connection distinction.
+    """
+
+    def _client(self) -> QBitClient:
+        c = QBitClient("localhost", 8081, "admin", "pass")
+        c._client = MagicMock()
+        return c
+
+    def test_get_completed_login_failed_maps_to_auth_error_401(self) -> None:
+        """LoginFailed on the listing call → TorrentAuthError(401)."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.LoginFailed("bad creds")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentAuthError, match="login failed") as exc_info:
+            client.get_completed()
+        assert exc_info.value.http_status == 401
+
+    def test_get_completed_forbidden_maps_to_auth_error_403(self) -> None:
+        """Forbidden403Error on the listing call → TorrentAuthError(403), IP-ban wording."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.Forbidden403Error("ip banned")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentAuthError, match="banned") as exc_info:
+            client.get_completed()
+        assert exc_info.value.http_status == 403
+
+    def test_get_completed_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on the listing call → TorrentUnreachableError(0)."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError, match="unreachable") as exc_info:
+            client.get_completed()
+        assert exc_info.value.http_status == 0
+
+    def test_get_all_hashes_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_all_hashes → TorrentUnreachableError."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError):
+            client.get_all_hashes()
+
+    def test_get_content_path_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_content_path → TorrentUnreachableError."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        torrent = TorrentItem(hash="abc", name="t", size_bytes=1, progress=1.0, state="uploading")
+        with pytest.raises(TorrentUnreachableError):
+            client.get_content_path(torrent)
+
+    def test_is_seeding_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on is_seeding → TorrentUnreachableError."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        torrent = TorrentItem(hash="abc", name="t", size_bytes=1, progress=1.0, state="uploading")
+        with pytest.raises(TorrentUnreachableError):
+            client.is_seeding(torrent)

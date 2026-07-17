@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.torrent._errors import TorrentAuthError, TorrentUnreachableError
 from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import (
     _check_disk_space,
@@ -844,14 +845,24 @@ class TestRunIngest:
         self,
         tmp_path: Path,
     ) -> None:
-        """Forbidden403Error should produce IP-banned message, not generic unreachable."""
-        import qbittorrentapi
+        """TorrentAuthError(403) should produce an IP-banned message, not generic unreachable.
 
+        The client layer translates ``qbittorrentapi.Forbidden403Error`` into the
+        family-neutral :class:`TorrentAuthError` (403) at the protocol boundary
+        (``QBitClient.get_completed``); ingest sees only the neutral error.
+        """
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.get_completed.side_effect = qbittorrentapi.Forbidden403Error()
+        mock_client.get_completed.side_effect = TorrentAuthError(
+            provider="qbittorrent",
+            http_status=403,
+            message=(
+                "qBittorrent get_completed auth blocked (IP banned): forbidden. "
+                "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, or wait for the ban to expire."
+            ),
+        )
 
         report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
@@ -865,14 +876,20 @@ class TestRunIngest:
         self,
         tmp_path: Path,
     ) -> None:
-        """LoginFailed should produce an actionable message mentioning auth or login."""
-        import qbittorrentapi
+        """TorrentAuthError(401) should produce a message mentioning auth or login.
 
+        The client layer translates ``qbittorrentapi.LoginFailed`` into the
+        neutral :class:`TorrentAuthError` (401) at the protocol boundary.
+        """
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.get_completed.side_effect = qbittorrentapi.LoginFailed()
+        mock_client.get_completed.side_effect = TorrentAuthError(
+            provider="qbittorrent",
+            http_status=401,
+            message="qBittorrent get_completed login failed: bad creds. Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env",
+        )
 
         report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 
@@ -884,14 +901,23 @@ class TestRunIngest:
         self,
         tmp_path: Path,
     ) -> None:
-        """APIConnectionError should produce an actionable message mentioning unreachable or running."""
-        import qbittorrentapi
+        """TorrentUnreachableError should produce a message mentioning unreachable or running.
 
+        The client layer translates ``qbittorrentapi.APIConnectionError`` into the
+        neutral :class:`TorrentUnreachableError` at the protocol boundary.
+        """
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.get_completed.side_effect = qbittorrentapi.APIConnectionError("Connection refused")
+        mock_client.get_completed.side_effect = TorrentUnreachableError(
+            provider="qbittorrent",
+            http_status=0,
+            message=(
+                "qBittorrent get_completed unreachable: Connection refused. "
+                "Fix: verify qBit is running and Web UI is enabled."
+            ),
+        )
 
         report = run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)
 

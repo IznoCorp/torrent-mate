@@ -316,7 +316,7 @@ def test_torrents_list_unreachable_exits_2(monkeypatch):
     boot-wired into ``AppContext``; the command reports a friendly listing
     failure when ``get_completed()`` raises a transient torrent error.
     """
-    from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError  # noqa: PLC0415
+    from personalscraper.api.torrent._errors import QBitAuthLockoutError  # noqa: PLC0415
     from tests.commands._e2e_helpers import mock_boundary_torrent_client  # noqa: PLC0415
 
     client = MagicMock()

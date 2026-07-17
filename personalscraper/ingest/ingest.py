@@ -13,10 +13,11 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import qbittorrentapi
-import requests
-
-from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
+from personalscraper.api.torrent._errors import (
+    TorrentAuthError,
+    TorrentLockoutError,
+    TorrentUnreachableError,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
@@ -655,27 +656,27 @@ def run_ingest(
                 except Exception:
                     pass
 
-    except QBitAuthLockoutError as e:
+    except TorrentLockoutError as e:
+        # Family-neutral: the torrent client's anti-ban lockout is active. The
+        # client layer translated its provider-specific lockout exception here.
         log.exception("ingest_qbit_auth_lockout", error=str(e))
         report.error_count += 1
-        report.details.append(f"qBittorrent auth lockout active: {e}")
-    except qbittorrentapi.LoginFailed as e:
-        log.exception("ingest_qbit_login_failed", error=str(e))
+        report.details.append(f"qBittorrent auth lockout active: {e.message}")
+    except TorrentAuthError as e:
+        # Family-neutral auth rejection. http_status distinguishes the operator
+        # remedy: 403 = IP-banned by the client's Web-UI ban list, 401 = wrong
+        # credentials. The client layer already baked the actionable guidance
+        # into ``e.message`` (with the offending op); surface it verbatim.
+        if e.http_status == 403:
+            log.exception("ingest_qbit_forbidden", error=str(e))
+        else:
+            log.exception("ingest_qbit_login_failed", error=str(e))
         report.error_count += 1
-        report.details.append(f"qBittorrent login failed: {e}. Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env")
-    except qbittorrentapi.Forbidden403Error as e:
-        # Must come before APIConnectionError (Forbidden403Error is a subclass)
-        log.exception("ingest_qbit_forbidden", error=str(e))
-        report.error_count += 1
-        report.details.append(
-            f"qBittorrent auth blocked (IP banned): {e}. "
-            "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
-            "or wait for the ban to expire."
-        )
-    except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
+        report.details.append(e.message)
+    except TorrentUnreachableError as e:
         log.exception("ingest_qbit_unreachable", error=str(e))
         report.error_count += 1
-        report.details.append(f"qBittorrent unreachable: {e}. Fix: verify qBit is running and Web UI is enabled.")
+        report.details.append(e.message)
     except Exception as e:  # noqa: BLE001 — safety catch-all for tracker I/O and unexpected qbittorrentapi changes; preserves pipeline continuation on unknown failures
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
         log.exception("ingest_unexpected_error", error=str(e), error_type=type(e).__name__)

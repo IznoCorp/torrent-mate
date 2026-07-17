@@ -18,7 +18,7 @@ import time
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, NoReturn
 
 import qbittorrentapi
 import requests
@@ -36,6 +36,11 @@ from personalscraper.api.torrent._contracts import (
     TorrentStateInspector,
     TorrentTagger,
 )
+from personalscraper.api.torrent._errors import (
+    QBitAuthLockoutError,
+    TorrentAuthError,
+    TorrentUnreachableError,
+)
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
 
@@ -44,9 +49,9 @@ log = get_logger("api.torrent.qbittorrent")
 _LOCKOUT_FILE = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
 _LOCKOUT_DURATION_SECONDS = 3600
 
-
-class QBitAuthLockoutError(Exception):
-    """Raised when auth is blocked by a lockout file from a prior failure."""
+# ``QBitAuthLockoutError`` is defined in ``_errors.py`` (its canonical home, to
+# break the ``qbittorrent.py`` ↔ ``_errors.py`` import cycle) and imported above
+# because ``_check_lockout`` raises it. Import it from ``_errors`` in new code.
 
 
 class QBitClient(
@@ -101,16 +106,32 @@ class QBitClient(
 
         Returns:
             TorrentItem list for torrents with progress == 1.0.
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
         """
-        return [_torrent_item(t) for t in self._client.torrents_info(status_filter="completed")]
+        try:
+            raw = self._client.torrents_info(status_filter="completed")
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_completed", exc)
+        return [_torrent_item(t) for t in raw]
 
     def get_all_hashes(self) -> set[str]:
         """Return the set of all torrent info hashes in qBittorrent.
 
         Returns:
             Set of torrent hash strings (any state).
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
         """
-        return {t.hash for t in self._client.torrents_info()}
+        try:
+            raw = self._client.torrents_info()
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_all_hashes", exc)
+        return {t.hash for t in raw}
 
     def get_by_hashes(self, hashes: set[str]) -> list[TorrentItem]:
         """Return the :class:`TorrentItem` records for a specific hash set.
@@ -141,8 +162,15 @@ class QBitClient(
 
         Returns:
             True if the torrent is seeding.
+
+        Raises:
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
         """
-        raw = self._client.torrents_info(hashes=torrent.hash)
+        try:
+            raw = self._client.torrents_info(hashes=torrent.hash)
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("is_seeding", exc)
         if not raw:
             return False
         return raw[0].state_enum.is_uploading
@@ -158,8 +186,13 @@ class QBitClient(
 
         Raises:
             ApiError: Torrent hash not found in qBittorrent.
+            TorrentAuthError: qBittorrent rejected the session (401/403).
+            TorrentUnreachableError: qBittorrent could not be reached.
         """
-        raw = self._client.torrents_info(hashes=torrent.hash)
+        try:
+            raw = self._client.torrents_info(hashes=torrent.hash)
+        except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as exc:
+            _raise_neutral_torrent_error("get_content_path", exc)
         if not raw:
             raise ApiError(
                 provider=ProviderName.QBITTORRENT,
@@ -741,6 +774,50 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
 
 
 # -- Internal helpers --------------------------------------------------------
+
+
+def _raise_neutral_torrent_error(op: str, exc: BaseException) -> NoReturn:
+    """Translate a qBittorrent transport/auth exception into the neutral hierarchy.
+
+    Maps the ``qbittorrentapi`` (and bare ``requests``) exceptions raised by the
+    listing/inspection calls onto the family-neutral
+    :mod:`personalscraper.api.torrent._errors` hierarchy so the ingest step
+    catches ``TorrentAuthError`` / ``TorrentUnreachableError`` without importing
+    ``qbittorrentapi``. Dispatch is by concrete type: ``LoginFailed`` /
+    ``Unauthorized401Error`` → 401, ``Forbidden403Error`` → 403 (IP-ban), every
+    other connection/HTTP failure → :class:`TorrentUnreachableError`. The
+    keyword-bearing messages preserve the operator guidance the ingest step
+    previously built inline (the arm now lives at the client boundary).
+
+    Args:
+        op: The client operation name embedded in the resulting error message.
+        exc: The caught provider-library exception.
+
+    Raises:
+        TorrentAuthError: Credential rejection (401) or IP-ban (403).
+        TorrentUnreachableError: Any other connection/HTTP failure.
+    """
+    provider = ProviderName.QBITTORRENT.value
+    if isinstance(exc, (qbittorrentapi.LoginFailed, qbittorrentapi.Unauthorized401Error)):
+        raise TorrentAuthError(
+            provider=provider,
+            http_status=401,
+            message=f"qBittorrent {op} login failed: {exc}. Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env",
+        ) from exc
+    if isinstance(exc, qbittorrentapi.Forbidden403Error):
+        raise TorrentAuthError(
+            provider=provider,
+            http_status=403,
+            message=(
+                f"qBittorrent {op} auth blocked (IP banned): {exc}. "
+                "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, or wait for the ban to expire."
+            ),
+        ) from exc
+    raise TorrentUnreachableError(
+        provider=provider,
+        http_status=0,
+        message=f"qBittorrent {op} unreachable: {exc}. Fix: verify qBit is running and Web UI is enabled.",
+    ) from exc
 
 
 #: qBittorrent error state strings (lower-cased) → French reason. These states
