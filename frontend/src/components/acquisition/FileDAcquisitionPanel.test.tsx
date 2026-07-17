@@ -24,15 +24,25 @@ beforeAll(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Mock hooks
+// Mock hooks + API
 // ---------------------------------------------------------------------------
 
-const useWantedMock = vi.fn();
+const getWantedMock = vi.fn();
 const useDownloadsMock = vi.fn();
 
+vi.mock("@/api/acquisition", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/api/acquisition")>(
+      "@/api/acquisition",
+    );
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    getWanted: (...args: unknown[]) => getWantedMock(...args),
+  };
+});
+
 vi.mock("@/hooks/useAcquisition", () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useWanted: (...args: unknown[]) => useWantedMock(...args),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useDownloads: () => useDownloadsMock(),
   useFollowed: () => ({
@@ -128,20 +138,41 @@ function renderPanel(): void {
   render(tree);
 }
 
+/** Build a WantedResponse-shaped page. */
+function wantedPage(
+  items: ReturnType<typeof makeWanted>[],
+  total?: number,
+): {
+  items: ReturnType<typeof makeWanted>[];
+  total: number;
+  page: number;
+  page_size: number;
+} {
+  return {
+    items,
+    total: total ?? items.length,
+    page: 1,
+    page_size: 200,
+  };
+}
+
 /** Default mock return values: empty wanted + no downloads. */
 function mockEmpty(): void {
-  useWantedMock.mockReturnValue({
-    isLoading: false,
-    isError: false,
-    data: { items: [], total: 0, page: 1, page_size: 50 },
-    error: null,
-  });
+  getWantedMock.mockResolvedValue(wantedPage([], 0));
   useDownloadsMock.mockReturnValue({
     isLoading: false,
     isError: false,
     data: { downloads: [], client_available: true },
     error: null,
   });
+}
+
+/** Mock getWanted to return a single page of wanted items. */
+function mockWantedItems(
+  items: ReturnType<typeof makeWanted>[],
+  total?: number,
+): void {
+  getWantedMock.mockResolvedValue(wantedPage(items, total));
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +207,7 @@ describe("FileDAcquisitionPanel", () => {
     expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 
-  it("calls useWanted with new status when filter changes", async () => {
+  it("calls getWanted with new status when filter changes", async () => {
     mockEmpty();
     renderPanel();
 
@@ -190,13 +221,13 @@ describe("FileDAcquisitionPanel", () => {
     });
     fireEvent.click(abandonedOption);
 
-    // useWanted should have been called with the new status.
+    // getWanted should have been called with the new status filter.
     await waitFor(() => {
-      expect(useWantedMock).toHaveBeenCalledWith(
+      expect(getWantedMock).toHaveBeenCalledWith(
         expect.objectContaining({
           status: "abandoned",
           page: 1,
-          page_size: 50,
+          page_size: 200,
         }),
       );
     });
@@ -204,52 +235,45 @@ describe("FileDAcquisitionPanel", () => {
 
   // ── Recherches section — grouped accordion ──────────────────────────────
 
-  it("groups wanted items by title → season in expandable accordion", () => {
+  it("groups wanted items by title → season in expandable accordion", async () => {
     mockEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({
-            id: 1,
-            title: "Top Chef",
-            season: 16,
-            episode: 1,
-            status: "pending",
-          }),
-          makeWanted({
-            id: 2,
-            title: "Top Chef",
-            season: 16,
-            episode: 2,
-            status: "pending",
-          }),
-          makeWanted({
-            id: 3,
-            title: "Top Chef",
-            season: 15,
-            episode: 10,
-            status: "grabbed",
-          }),
-          makeWanted({
-            id: 4,
-            title: "Koh-Lanta",
-            season: 30,
-            episode: 1,
-            status: "pending",
-          }),
-        ],
-        total: 4,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 1,
+          title: "Top Chef",
+          season: 16,
+          episode: 1,
+          status: "pending",
+        }),
+        makeWanted({
+          id: 2,
+          title: "Top Chef",
+          season: 16,
+          episode: 2,
+          status: "pending",
+        }),
+        makeWanted({
+          id: 3,
+          title: "Top Chef",
+          season: 15,
+          episode: 10,
+          status: "grabbed",
+        }),
+        makeWanted({
+          id: 4,
+          title: "Koh-Lanta",
+          season: 30,
+          episode: 1,
+          status: "pending",
+        }),
+      ],
+      4,
+    );
     renderPanel();
 
-    // Series titles appear as accordion triggers.
-    expect(screen.getByText("Top Chef")).toBeInTheDocument();
+    // Series titles appear as accordion triggers (async fetch-all).
+    expect(await screen.findByText("Top Chef")).toBeInTheDocument();
     expect(screen.getByText("Koh-Lanta")).toBeInTheDocument();
 
     // Season + episode counts in the trigger caption.
@@ -257,38 +281,31 @@ describe("FileDAcquisitionPanel", () => {
     expect(screen.getByText(/1 saison, 1 épisode/)).toBeInTheDocument();
   });
 
-  it("expands a series accordion to reveal season sub-groups", () => {
+  it("expands a series accordion to reveal season sub-groups", async () => {
     mockEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({
-            id: 1,
-            title: "Top Chef",
-            season: 16,
-            episode: 1,
-            status: "pending",
-          }),
-          makeWanted({
-            id: 2,
-            title: "Top Chef",
-            season: 15,
-            episode: 10,
-            status: "grabbed",
-          }),
-        ],
-        total: 2,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 1,
+          title: "Top Chef",
+          season: 16,
+          episode: 1,
+          status: "pending",
+        }),
+        makeWanted({
+          id: 2,
+          title: "Top Chef",
+          season: 15,
+          episode: 10,
+          status: "grabbed",
+        }),
+      ],
+      2,
+    );
     renderPanel();
 
-    // Click the accordion trigger to expand.
-    const trigger = screen.getByRole("button", { name: /Top Chef/ });
+    // Click the accordion trigger to expand (await the async fetch-all).
+    const trigger = await screen.findByRole("button", { name: /Top Chef/ });
     fireEvent.click(trigger);
 
     // Season sub-headings should now be visible.
@@ -302,32 +319,25 @@ describe("FileDAcquisitionPanel", () => {
 
   // ── Episode row: abandoned badge + FR label ─────────────────────────────
 
-  it("renders an abandoned episode row with danger badge + FR label « Abandonné »", () => {
+  it("renders an abandoned episode row with danger badge + FR label « Abandonné »", async () => {
     mockEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({
-            id: 99,
-            title: "Top Chef",
-            season: 16,
-            episode: 5,
-            status: "abandoned",
-            attempts: 0,
-          }),
-        ],
-        total: 1,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 99,
+          title: "Top Chef",
+          season: 16,
+          episode: 5,
+          status: "abandoned",
+          attempts: 0,
+        }),
+      ],
+      1,
+    );
     renderPanel();
 
-    // Expand the accordion to see the episodes.
-    const trigger = screen.getByRole("button", { name: /Top Chef/ });
+    // Expand the accordion to see the episodes (await the async fetch-all).
+    const trigger = await screen.findByRole("button", { name: /Top Chef/ });
     fireEvent.click(trigger);
 
     // The "Abandonné" badge must be visible.
@@ -339,11 +349,11 @@ describe("FileDAcquisitionPanel", () => {
 
   // ── Recherches section — empty states ───────────────────────────────────
 
-  it('shows empty text when no wanted items exist (status "all")', () => {
+  it('shows empty text when no wanted items exist (status "all")', async () => {
     mockEmpty();
     renderPanel();
 
-    expect(screen.getByText(/Aucune recherche en file/)).toBeInTheDocument();
+    expect(await screen.findByText(/Aucune recherche en file/)).toBeInTheDocument();
   });
 
   it("shows filter-specific empty text when a non-all status is selected", async () => {
@@ -374,13 +384,8 @@ describe("FileDAcquisitionPanel", () => {
 
   // ── Recherches section — error states ───────────────────────────────────
 
-  it("shows error message when wanted fetch fails", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: true,
-      data: undefined,
-      error: new Error("Timeout"),
-    });
+  it("shows error message when wanted fetch fails", async () => {
+    getWantedMock.mockRejectedValue(new Error("Timeout"));
     useDownloadsMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -389,19 +394,15 @@ describe("FileDAcquisitionPanel", () => {
     });
     renderPanel();
 
-    expect(screen.getByText(/Erreur de chargement/)).toBeInTheDocument();
+    expect(await screen.findByText(/Erreur de chargement/)).toBeInTheDocument();
     expect(screen.getByText(/Timeout/)).toBeInTheDocument();
   });
 
   // ── Recherches section — loading state ──────────────────────────────────
 
   it("shows loading skeletons while wanted data loads", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: true,
-      isError: false,
-      data: undefined,
-      error: null,
-    });
+    // Never-resolving promise keeps useQuery in loading state.
+    getWantedMock.mockImplementation(() => new Promise(() => undefined));
     useDownloadsMock.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -518,12 +519,7 @@ describe("FileDAcquisitionPanel", () => {
   // ── Téléchargements — loading state ─────────────────────────────────────
 
   it("shows loading skeletons while downloads load", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [], total: 0, page: 1, page_size: 50 },
-      error: null,
-    });
+    getWantedMock.mockResolvedValue(wantedPage([], 0));
     useDownloadsMock.mockReturnValue({
       isLoading: true,
       isError: false,
@@ -539,55 +535,111 @@ describe("FileDAcquisitionPanel", () => {
     expect(busy.length).toBeGreaterThan(0);
   });
 
-  // ── Pagination ──────────────────────────────────────────────────────────
+  // ── Full-set grouping (pages loop) ──────────────────────────────────────
 
-  it("disables the « Précédent » button on page 1", () => {
-    mockEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeWanted({ id: 1 })],
-        total: 1,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
+  it("groups items across multiple pages (fetch-all loop)", async () => {
+    // Page 1 returns 200 items of "Top Chef", total=250.
+    const page1Items = Array.from({ length: 200 }, (_, i) =>
+      makeWanted({
+        id: i + 1,
+        title: "Top Chef",
+        season: 16,
+        episode: i + 1,
+        status: "pending",
+      }),
+    );
+    getWantedMock
+      .mockResolvedValueOnce(wantedPage(page1Items, 250))
+      // Page 2 returns 50 items of "Koh-Lanta".
+      .mockResolvedValueOnce(
+        wantedPage(
+          Array.from({ length: 50 }, (_, i) =>
+            makeWanted({
+              id: 200 + i + 1,
+              title: "Koh-Lanta",
+              season: 30,
+              episode: i + 1,
+              status: "pending",
+            }),
+          ),
+          250,
+        ),
+      );
+
     renderPanel();
 
-    const prevButton = screen.getByRole("button", { name: /Précédent/ });
-    expect(prevButton).toBeDisabled();
+    // Both series should appear (from different pages).
+    expect(await screen.findByText("Top Chef")).toBeInTheDocument();
+    expect(screen.getByText("Koh-Lanta")).toBeInTheDocument();
+
+    // Two pages were fetched.
+    expect(getWantedMock).toHaveBeenCalledTimes(2);
+    expect(getWantedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, page_size: 200 }),
+    );
+    expect(getWantedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 2, page_size: 200 }),
+    );
+
+    // Pagination controls are absent (the grouped view has none).
+    expect(
+      screen.queryByRole("button", { name: /Précédent/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Suivant/ }),
+    ).not.toBeInTheDocument();
   });
 
-  it("enables the « Suivant » button when more pages exist", () => {
-    mockEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeWanted({ id: 1 })],
-        total: 100,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
+  // ── Cap notice ───────────────────────────────────────────────────────────
+
+  it("shows cap notice when total exceeds HARD_CAP (1000)", async () => {
+    // total=1500, page 1 returns 200 items.
+    getWantedMock.mockResolvedValueOnce(
+      wantedPage(
+        [
+          makeWanted({ id: 1, title: "Top Chef", season: 16, episode: 1 }),
+          makeWanted({ id: 2, title: "Koh-Lanta", season: 30, episode: 1 }),
+        ],
+        1500,
+      ),
+    );
+
     renderPanel();
 
-    const nextButton = screen.getByRole("button", { name: /Suivant/ });
-    expect(nextButton).not.toBeDisabled();
+    expect(
+      await screen.findByText(/Affichage limité aux 1000 premières recherches/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1500 au total/)).toBeInTheDocument();
+  });
+
+  it("does NOT show cap notice when total is ≤ 1000", async () => {
+    mockWantedItems([makeWanted({ id: 1 })], 500);
+    renderPanel();
+
+    await screen.findByText("Top Chef");
+    expect(screen.queryByText(/Affichage limité/)).not.toBeInTheDocument();
+  });
+
+  // ── Pagination controls absent ───────────────────────────────────────────
+
+  it("does not render any pagination controls in the grouped view", async () => {
+    mockWantedItems([makeWanted({ id: 1 })], 1);
+    renderPanel();
+
+    await screen.findByText("Top Chef");
+    // No Précédent / Suivant buttons.
+    expect(
+      screen.queryByRole("button", { name: /Précédent/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Suivant/ }),
+    ).not.toBeInTheDocument();
   });
 
   // ── Mutation-proof invariants (sub-phase 5.2) ─────────────────────────────
 
   it("shows error message for downloads when useDownloads isError, hides calm empty state", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [], total: 0, page: 1, page_size: 50 },
-      error: null,
-    });
+    mockEmpty();
     useDownloadsMock.mockReturnValue({
       isLoading: false,
       isError: true,
@@ -606,12 +658,7 @@ describe("FileDAcquisitionPanel", () => {
   });
 
   it("shows « client torrent injoignable » notice when downloads empty and client is down (post-hoist)", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [], total: 0, page: 1, page_size: 50 },
-      error: null,
-    });
+    mockEmpty();
     // downloads=[], client_available=false — notice must still render because
     // it was hoisted above the length>0 guard (F3).
     useDownloadsMock.mockReturnValue({
@@ -630,37 +677,25 @@ describe("FileDAcquisitionPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an abandoned badge with danger tone (not just the FR label)", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({
-            id: 99,
-            title: "Top Chef",
-            season: 16,
-            episode: 5,
-            status: "abandoned",
-            attempts: 0,
-          }),
-        ],
-        total: 1,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
-    useDownloadsMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { downloads: [], client_available: true },
-      error: null,
-    });
+  it("renders an abandoned badge with danger tone (not just the FR label)", async () => {
+    mockEmpty();
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 99,
+          title: "Top Chef",
+          season: 16,
+          episode: 5,
+          status: "abandoned",
+          attempts: 0,
+        }),
+      ],
+      1,
+    );
     renderPanel();
 
     // Expand the accordion.
-    fireEvent.click(screen.getByRole("button", { name: /Top Chef/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Top Chef/ }));
 
     const badgeEl = screen.getByText("Abandonné");
     expect(badgeEl).toBeInTheDocument();
@@ -670,37 +705,25 @@ describe("FileDAcquisitionPanel", () => {
     expect(badgeWrapper?.className).toContain("var(--danger)");
   });
 
-  it("renders « Film » label for kind:movie wanted rows, no « Saison ?? »", () => {
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeWanted({
-            id: 50,
-            title: "Le Robot sauvage",
-            kind: "movie",
-            season: null,
-            episode: null,
-            status: "pending",
-          }),
-        ],
-        total: 1,
-        page: 1,
-        page_size: 50,
-      },
-      error: null,
-    });
-    useDownloadsMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { downloads: [], client_available: true },
-      error: null,
-    });
+  it("renders « Film » label for kind:movie wanted rows, no « Saison ?? »", async () => {
+    mockEmpty();
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 50,
+          title: "Le Robot sauvage",
+          kind: "movie",
+          season: null,
+          episode: null,
+          status: "pending",
+        }),
+      ],
+      1,
+    );
     renderPanel();
 
     // Expand the accordion.
-    fireEvent.click(screen.getByRole("button", { name: /Le Robot sauvage/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Le Robot sauvage/ }));
 
     // Group heading reads « Film (1) » (not « Saison ?? »).
     expect(screen.getByText(/Film \(1\)/)).toBeInTheDocument();

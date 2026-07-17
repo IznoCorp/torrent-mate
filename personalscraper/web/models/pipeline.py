@@ -244,10 +244,14 @@ class HistoryResponse(BaseModel):
     Attributes:
         runs: List of run summaries for the current page.
         total: Total number of runs in the database (for pagination).
+        degraded: ``True`` when the history DB read failed — the list may be
+            incomplete or empty for a bad reason.  ``False`` when the read
+            completed normally (even if there are zero runs).
     """
 
     runs: list[RunSummary]
     total: int
+    degraded: bool = False
 
 
 #: The five ring-states a Flow Board station can be in (mirrors the frontend

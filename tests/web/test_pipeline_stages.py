@@ -357,3 +357,53 @@ def test_stages_missing_db_is_all_idle(test_config, tmp_path: Path, missing: str
     payload = resp.json()
     assert payload["run_state"] == "idle"
     assert all(s["state"] == "idle" for s in payload["stages"])
+
+
+def test_blocked_outranks_active_during_live_run(test_config, tmp_path: Path) -> None:
+    """P2 regression (2026-07-18): a blocked stage stays red DURING a live run.
+
+    Pre-fix, ``pipeline_stages`` tested the live/running condition BEFORE the
+    blocked count, so a stage that was both the run's current step AND held
+    blocked items rendered info-blue ``active`` — the blockage only turned red
+    after the run left the stage. Blocked must win (§8: the operator needs to
+    see the blockage before the activity ring).
+    """
+    db_path = _fresh_db(tmp_path)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    staging = tmp_path / "staging"
+    # A matched movie whose video is NOT canonically renamed → the real verify
+    # gate refuses it → blocked at « verify » (the only blockable stage that a
+    # run step also maps to: STEP_TO_STAGE["verify"] == "verify").
+    movies = staging / "001-MOVIES"
+    (staging / "002-TVSHOWS").mkdir(parents=True)
+    (staging / "097-TEMP").mkdir(parents=True)
+    stuck = movies / "Stuck Film (2021)"
+    stuck.mkdir(parents=True)
+    (stuck / "Stuck Film.nfo").write_text(_MOVIE_NFO, encoding="utf-8")
+    (stuck / "Stuck Film-poster.jpg").write_bytes(b"\xff\xd8\xff\x00poster")
+    _write_video(stuck / "Stuck.Film.2021.1080p.RELEASE.mkv", size=1024)
+
+    # Live run whose CURRENT step is « verify » — same stage as the blockage.
+    (data_dir / "pipeline.lock").write_text(str(os.getpid()))
+    _insert_run(
+        db_path,
+        run_uid="run-live-blocked",
+        started_at=_T0 + 9000.0,
+        ended_at=None,
+        outcome="running",
+        steps=[
+            {"name": "ingest", "status": "done", "success_count": 1},
+            {"name": "verify", "status": "running", "success_count": 0},
+        ],
+        pid=os.getpid(),
+    )
+
+    client = _make_client(test_config, db_path, data_dir, staging_dir=staging)
+    payload = client.get("/api/pipeline/stages").json()
+    stages = _stages_by_key(payload)
+
+    assert payload["run_state"] == "running"
+    # « verify » holds a blocked item AND is the live stage — blocked wins.
+    assert stages["verify"]["blocked"] == 1
+    assert stages["verify"]["state"] == "blocked"

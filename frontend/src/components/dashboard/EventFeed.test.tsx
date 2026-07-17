@@ -2,7 +2,23 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
+import type { ConnectionState } from "@/hooks/useEventStream";
 import { EventFeed } from "@/components/dashboard/EventFeed";
+
+// ---------------------------------------------------------------------------
+// Mock the event-stream context hook
+// ---------------------------------------------------------------------------
+
+let mockConnectionState: ConnectionState = "connected";
+
+vi.mock("@/hooks/useEventStreamContext", () => ({
+  useEventStreamContext: () => ({
+    connectionState: mockConnectionState,
+    events: [],
+    buildCommit: null,
+    lastEventId: null,
+  }),
+}));
 
 /** Build an ``EventMessage`` with a stream-id timestamp prefix. */
 function makeEvent(ms: number, type: string): EventMessage {
@@ -20,7 +36,10 @@ const originalOffsetWidth = Object.getOwnPropertyDescriptor(
 );
 
 /** Force a non-zero layout size (TanStack Virtual measures via ``offsetHeight``). */
-function defineOffset(name: "offsetHeight" | "offsetWidth", value: number): void {
+function defineOffset(
+  name: "offsetHeight" | "offsetWidth",
+  value: number,
+): void {
   Object.defineProperty(HTMLElement.prototype, name, {
     configurable: true,
     get: () => value,
@@ -43,10 +62,18 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   if (originalOffsetHeight) {
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", originalOffsetHeight);
+    Object.defineProperty(
+      HTMLElement.prototype,
+      "offsetHeight",
+      originalOffsetHeight,
+    );
   }
   if (originalOffsetWidth) {
-    Object.defineProperty(HTMLElement.prototype, "offsetWidth", originalOffsetWidth);
+    Object.defineProperty(
+      HTMLElement.prototype,
+      "offsetWidth",
+      originalOffsetWidth,
+    );
   }
 });
 
@@ -64,9 +91,51 @@ describe("EventFeed", () => {
     expect(screen.getByText("PipelineStepErrored")).toBeInTheDocument();
   });
 
-  it("montre l’état vide en l’absence d’événements", () => {
+  it("montre l’état vide calme quand la connexion est active", () => {
+    mockConnectionState = "connected";
     render(<EventFeed events={[]} />);
-    expect(screen.getByText("En attente d’événements…")).toBeInTheDocument();
+    expect(screen.getByText("En attente d'événements…")).toBeInTheDocument();
+  });
+
+  it("montre l’alerte déconnectée quand le WS est mort et aucun événement", () => {
+    mockConnectionState = "disconnected";
+    render(<EventFeed events={[]} />);
+    expect(
+      screen.getByText("Flux d'événements déconnecté."),
+    ).toBeInTheDocument();
+    // The calm empty message must NOT appear.
+    expect(
+      screen.queryByText("En attente d'événements…"),
+    ).not.toBeInTheDocument();
+    // The alert role must be present.
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("reste calme pendant une reconnexion (état in-flight, pas une panne)", () => {
+    mockConnectionState = "reconnecting";
+    render(<EventFeed events={[]} />);
+    expect(
+      screen.queryByText("Flux d'événements déconnecté."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("En attente d'événements…")).toBeInTheDocument();
+  });
+
+  it("reste calme pendant la connexion initiale (pas de flash rouge au mount)", () => {
+    mockConnectionState = "connecting";
+    render(<EventFeed events={[]} />);
+    expect(
+      screen.queryByText("Flux d'événements déconnecté."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("En attente d'événements…")).toBeInTheDocument();
+  });
+
+  it("NE montre PAS l’alerte quand le WS est connecté même sans événements", () => {
+    mockConnectionState = "connected";
+    render(<EventFeed events={[]} />);
+    expect(
+      screen.queryByText("Flux d'événements déconnecté."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("En attente d'événements…")).toBeInTheDocument();
   });
 
   it("met le suivi en pause quand on remonte, puis le reprend au clic", () => {

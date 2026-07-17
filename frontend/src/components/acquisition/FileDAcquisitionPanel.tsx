@@ -13,8 +13,8 @@
 import { useMemo, useState, type ReactElement } from "react";
 
 import type { WantedItem } from "@/api/acquisition";
+import { getWanted } from "@/api/acquisition";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDownloads, useWanted } from "@/hooks/useAcquisition";
+import { useDownloads } from "@/hooks/useAcquisition";
 
 import { DownloadRow } from "./DownloadsPanel";
 import {
@@ -40,6 +40,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useQuery } from "@tanstack/react-query";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -106,18 +107,44 @@ function groupByTitleSeason(items: WantedItem[]): SeriesGroup[] {
 export function FileDAcquisitionPanel(): ReactElement {
   // ---- Wanted (Recherches) section state -----------------------------------
   const [status, setStatus] = useState<WantedFilter>("all");
-  const [page, setPage] = useState(1);
-  const pageSize = 50;
 
-  const wantedQuery = useWanted({
-    ...(status !== "all" ? { status } : {}),
-    page,
-    page_size: pageSize,
+  /** Maximum page size the backend accepts (see acquisition.py _MAX_PAGE_SIZE). */
+  const ALL_PAGE_SIZE = 200;
+  /** Hard cap on locally accumulated items for the grouped view. */
+  const HARD_CAP = 1000;
+
+  // Fetch ALL wanted items for grouping (loop pages up to HARD_CAP). The status
+  // filter drives the query key → a filter change re-fetches all pages.
+  const wantedQuery = useQuery({
+    queryKey: ["acquisition", "wanted", "all", status] as const,
+    queryFn: async () => {
+      const statusParam = status !== "all" ? status : undefined;
+      const first = await getWanted({
+        ...(statusParam !== undefined ? { status: statusParam } : {}),
+        page: 1,
+        page_size: ALL_PAGE_SIZE,
+      });
+      const total = first.total;
+      const items = [...first.items];
+
+      const capped = Math.min(total, HARD_CAP);
+      const pages = Math.ceil(capped / ALL_PAGE_SIZE);
+      for (let p = 2; p <= pages; p++) {
+        const page = await getWanted({
+          ...(statusParam !== undefined ? { status: statusParam } : {}),
+          page: p,
+          page_size: ALL_PAGE_SIZE,
+        });
+        items.push(...page.items);
+      }
+
+      return { items: items.slice(0, HARD_CAP), total };
+    },
   });
 
   const wantedItems = wantedQuery.data?.items ?? [];
   const totalItems = wantedQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const capped = totalItems > HARD_CAP;
   const grouped = useMemo(
     () => groupByTitleSeason(wantedQuery.data?.items ?? []),
     [wantedQuery.data?.items],
@@ -137,7 +164,7 @@ export function FileDAcquisitionPanel(): ReactElement {
       <section>
         <h3 className="mb-3 text-sm font-semibold">Recherches</h3>
 
-        {/* Status filter + pagination header */}
+        {/* Status filter header */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Label className="text-xs">Statut :</Label>
@@ -145,7 +172,6 @@ export function FileDAcquisitionPanel(): ReactElement {
               value={status}
               onValueChange={(v) => {
                 setStatus(v as WantedFilter);
-                setPage(1);
               }}
             >
               <SelectTrigger className="w-36">
@@ -161,10 +187,20 @@ export function FileDAcquisitionPanel(): ReactElement {
             </Select>
           </div>
           <span className="text-xs text-muted-foreground">
-            Page {String(page)} / {String(totalPages)} ({String(totalItems)}{" "}
-            résultats)
+            {String(totalItems)} résultat{totalItems !== 1 ? "s" : ""}
           </span>
         </div>
+
+        {/* Cap notice: truthful when the result set is truncated. */}
+        {capped && (
+          <p
+            role="status"
+            className="mb-3 rounded bg-[var(--warning)]/10 px-2 py-1 text-xs text-[var(--warning)]"
+          >
+            Affichage limité aux {String(HARD_CAP)} premières recherches (
+            {String(totalItems)} au total).
+          </p>
+        )}
 
         {/* ---- Wanted loading ------------------------------------------ */}
         {wantedQuery.isLoading && (
@@ -202,111 +238,82 @@ export function FileDAcquisitionPanel(): ReactElement {
         {!wantedQuery.isLoading &&
           !wantedQuery.isError &&
           wantedItems.length > 0 && (
-            <>
-              <Accordion className="rounded-md border">
-                {grouped.map((series) => {
-                  const episodeCount = series.seasons.reduce(
-                    (s, sg) => s + sg.episodes.length,
-                    0,
-                  );
-                  const seasonCount = series.seasons.length;
+            <Accordion className="rounded-md border">
+              {grouped.map((series) => {
+                const episodeCount = series.seasons.reduce(
+                  (s, sg) => s + sg.episodes.length,
+                  0,
+                );
+                const seasonCount = series.seasons.length;
 
-                  return (
-                    <AccordionItem key={series.title} className="border-border">
-                      <AccordionTrigger>
-                        <span className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {series.title || "(série retirée)"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            ({String(seasonCount)} saison
-                            {seasonCount > 1 ? "s" : ""}, {String(episodeCount)}{" "}
-                            épisode
-                            {episodeCount > 1 ? "s" : ""})
-                          </span>
+                return (
+                  <AccordionItem key={series.title} className="border-border">
+                    <AccordionTrigger>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {series.title || "(série retirée)"}
                         </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-3 px-1">
-                          {series.seasons.map((sg) => {
-                            const isMovieGroup =
-                              sg.episodes.length > 0 &&
-                              sg.episodes.every((ep) => ep.kind === "movie");
-                            return (
-                              <div
-                                key={`${series.title}-S${String(sg.season ?? "?")}`}
-                              >
-                                <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
-                                  {isMovieGroup
-                                    ? `Film (${String(sg.episodes.length)})`
-                                    : `Saison ${sg.season != null ? String(sg.season).padStart(2, "0") : "?"} (${String(sg.episodes.length)} épisode${sg.episodes.length > 1 ? "s" : ""})`}
-                                </h4>
-                                <div className="space-y-1">
-                                  {sg.episodes.map((ep) => (
-                                    <div
-                                      key={`ep-${String(ep.id)}`}
-                                      className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
-                                    >
-                                      <span className="min-w-0 truncate">
-                                        {ep.episode != null
-                                          ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
-                                          : (FOLLOW_KIND_LABEL[ep.kind] ??
-                                            ep.kind)}
+                        <span className="text-xs text-muted-foreground">
+                          ({String(seasonCount)} saison
+                          {seasonCount > 1 ? "s" : ""}, {String(episodeCount)}{" "}
+                          épisode
+                          {episodeCount > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 px-1">
+                        {series.seasons.map((sg) => {
+                          const isMovieGroup =
+                            sg.episodes.length > 0 &&
+                            sg.episodes.every((ep) => ep.kind === "movie");
+                          return (
+                            <div
+                              key={`${series.title}-S${String(sg.season ?? "?")}`}
+                            >
+                              <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
+                                {isMovieGroup
+                                  ? `Film (${String(sg.episodes.length)})`
+                                  : `Saison ${sg.season != null ? String(sg.season).padStart(2, "0") : "?"} (${String(sg.episodes.length)} épisode${sg.episodes.length > 1 ? "s" : ""})`}
+                              </h4>
+                              <div className="space-y-1">
+                                {sg.episodes.map((ep) => (
+                                  <div
+                                    key={`ep-${String(ep.id)}`}
+                                    className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
+                                  >
+                                    <span className="min-w-0 truncate">
+                                      {ep.episode != null
+                                        ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
+                                        : (FOLLOW_KIND_LABEL[ep.kind] ??
+                                          ep.kind)}
+                                    </span>
+                                    <span className="flex shrink-0 items-center gap-2">
+                                      <span className="text-xs text-muted-foreground">
+                                        {ep.attempts > 0
+                                          ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
+                                          : ""}
                                       </span>
-                                      <span className="flex shrink-0 items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">
-                                          {ep.attempts > 0
-                                            ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
-                                            : ""}
-                                        </span>
-                                        <Badge
-                                          tone={
-                                            STATUS_TONE[ep.status] ?? "neutral"
-                                          }
-                                        >
-                                          {STATUS_LABEL[ep.status] ?? ep.status}
-                                        </Badge>
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
+                                      <Badge
+                                        tone={
+                                          STATUS_TONE[ep.status] ?? "neutral"
+                                        }
+                                      >
+                                        {STATUS_LABEL[ep.status] ?? ep.status}
+                                      </Badge>
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-
-              {/* Pagination */}
-              <div className="mt-3 flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => {
-                    setPage((p) => Math.max(1, p - 1));
-                  }}
-                >
-                  ← Précédent
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {String(page)} / {String(totalPages)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => {
-                    setPage((p) => p + 1);
-                  }}
-                >
-                  Suivant →
-                </Button>
-              </div>
-            </>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
           )}
       </section>
 

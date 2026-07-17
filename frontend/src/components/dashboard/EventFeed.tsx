@@ -20,6 +20,7 @@ import {
 
 import type { EventMessage } from "@/api/events";
 import { EventRow } from "@/components/dashboard/EventRow";
+import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { cn } from "@/lib/utils";
 
 /** Fixed row height, in px — a constant estimate keeps virtualization cheap. */
@@ -49,6 +50,12 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoFollow, setAutoFollow] = useState(true);
 
+  const { connectionState } = useEventStreamContext();
+  // Only a settled "disconnected" is dead — "connecting"/"reconnecting" are
+  // normal in-flight states (TopBar palette: warning, not danger); flagging
+  // them here would flash the red alert on every dashboard mount.
+  const wsDead = connectionState === "disconnected";
+
   const rowVirtualizer = useVirtualizer({
     count: events.length,
     getScrollElement: () => scrollRef.current,
@@ -67,8 +74,7 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
   // pause. Reading layout metrics off the event target keeps this allocation-free.
   const handleScroll = useCallback((event: UIEvent<HTMLDivElement>): void => {
     const el = event.currentTarget;
-    const distanceFromBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     setAutoFollow(distanceFromBottom <= FOLLOW_THRESHOLD);
   }, []);
 
@@ -112,9 +118,18 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
         className="h-80 overflow-y-auto rounded-lg border border-border bg-card md:h-[28rem]"
       >
         {events.length === 0 ? (
-          <p className="p-4 text-center text-xs text-muted-foreground">
-            En attente d’événements…
-          </p>
+          wsDead ? (
+            <p
+              role="alert"
+              className="rounded bg-[var(--danger)]/15 px-3 py-2 text-center text-xs font-medium text-[var(--danger)]"
+            >
+              Flux d&apos;événements déconnecté.
+            </p>
+          ) : (
+            <p className="p-4 text-center text-xs text-muted-foreground">
+              En attente d&apos;événements…
+            </p>
+          )
         ) : (
           <div
             className="relative w-full"
