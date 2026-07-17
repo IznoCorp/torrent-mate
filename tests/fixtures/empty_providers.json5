@@ -19,5 +19,4 @@
   VideoProvider: {},
   RecommendationProvider: {},
   IDValidator: {},
-  IDCrossRef: {},
 }
