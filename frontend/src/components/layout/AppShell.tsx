@@ -124,7 +124,7 @@ function AppShellInner(): ReactElement {
             setNavOpen(true);
           }}
         />
-        <main className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6">
+        <main className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6 max-w-7xl mx-auto w-full">
           <Outlet />
         </main>
       </div>
