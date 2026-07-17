@@ -56,6 +56,13 @@ ALLOWLIST: frozenset[str] = frozenset(
         # read-only connection raises, and the whole point is a lock-free
         # reader (same rationale as ``indexer/ownership.py`` above).
         str(PACKAGE_ROOT / "cli_helpers" / "boundary.py"),
+        # scraper._db_restore's DB-restore lookup (_open_readonly_conn): opens a
+        # genuine ``file:...?mode=ro`` URI connection for a read-only library.db
+        # SELECT (NFO/artwork recovery). It MUST bypass the canonical writer
+        # PRAGMA set — applying WAL ``journal_mode`` to a read-only connection
+        # raises, and the lookup takes no writer lock (same rationale as
+        # ``cli_helpers/boundary.py`` above).
+        str(PACKAGE_ROOT / "scraper" / "_db_restore.py"),
     }
 )
 

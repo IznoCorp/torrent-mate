@@ -125,7 +125,7 @@ def recover_artwork(
     try:
         provider = registry.get(family)
     except UnknownProviderError:
-        log.debug(f"artwork_recovery_skipped_no_{family}", directory=media_dir.name)
+        log.debug("artwork_recovery_skipped_no_provider", family=family, directory=media_dir.name)
         return
 
     # Broad catch: the provider fetch (ApiError / CircuitOpenError / requests)
