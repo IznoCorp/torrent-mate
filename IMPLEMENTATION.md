@@ -27,8 +27,25 @@ badge poll 60s per DESIGN, green-gate-per-commit test retarget in 2.1, StatusDot
 | 3   | Content width                                    | phase-03-content-width.md           | [x]    |
 | 4   | Test update (helpers + count-based badges)       | phase-04-test-update-gate.md        | [x]    |
 | 5   | Pipeline dot test + WS refresh test + final gate | phase-05-pipeline-dot-final-gate.md | [x]    |
+| 6   | PR fixes cycle 1 (review findings)               | phase-06-pr-fixes-cycle-1.md        | [ ]    |
 
-**Next action**: All phases complete — /implement:feature-pr (gate + push + PR + CI)
+**Next action**: phase 6 — PR fixes cycle 1, then push + re-poll CI
+
+## Review cycles
+
+### Cycle 1
+
+- 4 agents (code / tests / comments / silent-failures) on PR #310 @ 086155eb.
+- Retained: **1 major** — SF-1 regression (decisions WS bridge dropped: Decisions live-refresh +
+  ScrapeActivityPanel reviver orphaned); **8 medium** — SF-2 badge error rendered as all-clear,
+  SF-3 acquisition badge without refresh + false comment, paused dot labelled « en cours d'exécution »,
+  TC-1/TC-3/TC-4 test gaps, docstring/docblock inaccuracies (queryOptions undocumented, WS list
+  incomplete), SF-6/SF-7 hardening (optional chain, key constant).
+- Ignored (with reason): none out-of-scope dismissed silently — 4 items surfaced for operator
+  arbitration in phase-06 §« Explicitly NOT fixed » (SF-4 ring deafness parity, SF-5 parse drops
+  pre-existing, ItemProgressed load observation, eslint message cosmetics).
+- Design contradictions: none.
+- Fix phase: phase-06-pr-fixes-cycle-1.md (2 sub-phases).
 
 ## Scope guardrails (from spec §6 sequencing invariant)
 
