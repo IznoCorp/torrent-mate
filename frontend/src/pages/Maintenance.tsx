@@ -19,7 +19,6 @@ import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
 import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
-import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
 /**
@@ -86,17 +85,9 @@ export default function Maintenance(): ReactElement {
       <EventFeed events={events} />
       <RecentEventsTable events={events} />
 
-      {/* Pipeline run-history — relocated here from the Pipeline page
-          (webui-ux Phase 2.4 de-dup: the Pipeline page now shows only the
-          interpreted last-run summary, so pipeline history lives here). */}
-      <RunHistoryTable kind="pipeline" onSelect={openRun} />
-
-      {/* Run-history panel filtered to maintenance runs (kind param → backend) */}
+      {/* Run-history panel filtered to maintenance runs (kind param → backend).
+          Pipeline runs moved to /pipeline (pipeline-panel Phase 02). */}
       <RunHistoryTable kind="maintenance" onSelect={openRun} />
-
-      {/* One shared trigger-label legend for both history tables above (it used
-          to render inside each RunHistoryTable → duplicated on this page). */}
-      <TriggerLegend />
 
       {/* Inline detail view when a history row is selected (URL: ?run=<uid>) */}
       {selectedRun !== null && (

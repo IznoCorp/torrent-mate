@@ -122,9 +122,14 @@ export default function Pipeline(): ReactElement {
       <RunHistoryTable kind="pipeline" onSelect={openRun} />
 
       {/* Inline detail view when a history row is selected (URL: ?run=<uid>).
-          showMaintenanceLink added in sub-phase 2.2 once the prop exists. */}
+          showMaintenanceLink adds a cross-link to /maintenance when the
+          selected run is a maintenance run (pipeline-panel Phase 02). */}
       {selectedRun !== null && (
-        <RunDetail runUid={selectedRun} onClose={closeRun} />
+        <RunDetail
+          runUid={selectedRun}
+          onClose={closeRun}
+          showMaintenanceLink
+        />
       )}
     </section>
   );

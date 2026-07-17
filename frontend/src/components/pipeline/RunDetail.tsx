@@ -14,6 +14,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, type ReactElement } from "react";
+import { Link } from "react-router-dom";
 
 import {
   getPipelineRunDetail,
@@ -115,6 +116,14 @@ export interface RunDetailProps {
   readonly runUid: string;
   /** Called when the user clicks the "Retour" button. */
   readonly onClose: () => void;
+  /**
+   * When ``true`` and the loaded run is a maintenance run, render a cross-link
+   * ``→ Voir les exécutions de maintenance`` pointing to ``/maintenance``.
+   *
+   * Defaults to ``false`` so Maintenance.tsx renders the detail without a
+   * circular self-link (pipeline-panel Phase 02).
+   */
+  readonly showMaintenanceLink?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -262,7 +271,11 @@ function queueWaitInfo(
   return `A patienté en file d'attente ${formatDuration(waited)} avant de démarrer (verrou pipeline occupé).`;
 }
 
-export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
+export function RunDetail({
+  runUid,
+  onClose,
+  showMaintenanceLink = false,
+}: RunDetailProps): ReactElement {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["pipeline", "history", runUid] as const,
     queryFn: () => getPipelineRunDetail(runUid),
@@ -353,6 +366,18 @@ export function RunDetail({ runUid, onClose }: RunDetailProps): ReactElement {
             </p>
           </div>
         </div>
+
+        {/* Cross-link to /maintenance when viewing a maintenance run from
+            the Pipeline page (pipeline-panel Phase 02). Not rendered on the
+            Maintenance page itself (showMaintenanceLink defaults to false). */}
+        {showMaintenanceLink && data.kind === "maintenance" && (
+          <Link
+            to="/maintenance"
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+          >
+            → Voir les exécutions de maintenance
+          </Link>
+        )}
 
         {/* Maintenance section or Pipeline Stepper */}
         {data.kind === "maintenance" ? (
