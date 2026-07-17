@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
-from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.api.metadata._contracts import MovieDetailsProvider
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
@@ -57,6 +57,8 @@ class MovieServiceMixin:
     dry_run: bool
     _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
+    _imdb: Any
+    _rotten_tomatoes: Any
     config: "Config | None"
     _nfo: "NFOGenerator"
     _classify_item: "Callable[..., str | None]"
@@ -528,6 +530,13 @@ class MovieServiceMixin:
         # consumers migrate to MediaDetails, this conversion can be deleted.
         movie_data_dict = _coerce_to_movie_data(movie_data)
 
+        # Q5=B external-ids pass (provider-ids DESIGN §5 steps 2-4): re-validate
+        # the non-canonical IMDb id against the confirmed identity and fold the
+        # IMDb / Rotten-Tomatoes ratings into the NFO. Runs here, on the write
+        # shared by the automatic scrape and the operator-forced resolve, so
+        # both paths produce an identical NFO (the forced==auto invariant).
+        self._apply_external_ids(movie_data_dict, match, year)
+
         # Generate and write NFO
         try:
             xml = self._nfo.generate_movie_nfo(movie_data_dict, stream_info, category_id=category_id)
@@ -556,6 +565,70 @@ class MovieServiceMixin:
 
         result.action = "scraped"
         return result
+
+    def _apply_external_ids(
+        self,
+        movie_data_dict: dict[str, Any],
+        match: "MatchResult",
+        year: int | None,
+    ) -> None:
+        """Fold the Q5=B external-ids pass result into ``movie_data_dict`` in place.
+
+        Movies are TMDB-canonical, so ``tmdb`` is never re-validated or dropped;
+        the only non-canonical family is the IMDb id carried in TMDb's
+        ``external_ids``. On an active façade rejection the IMDb id is cleared so
+        the NFO no longer emits a stale ``<uniqueid type="imdb">``; when OMDb is
+        not provisioned the id is kept unvalidated. Any resolved IMDb / RT
+        ratings are merged with the canonical TMDb rating into ``notations`` so
+        the NFO renders a multi-source ``<ratings>`` block (DESIGN §5).
+
+        Args:
+            movie_data_dict: Legacy movie payload consumed by the NFO generator
+                (mutated: ``external_ids.imdb_id`` + optional ``notations`` /
+                ``canonical_source``).
+            match: The confirmed movie match (canonical title / year).
+            year: Parsed folder year, used when the match omits one.
+        """
+        from personalscraper.scraper._xref import run_external_ids_pass  # noqa: PLC0415
+
+        external = dict(movie_data_dict.get("external_ids") or {})
+        ids: dict[str, str] = {}
+        tmdb_id = str(movie_data_dict.get("id") or "")
+        if tmdb_id:
+            ids["tmdb"] = tmdb_id
+        imdb_id = str(external.get("imdb_id") or "")
+        if imdb_id:
+            ids["imdb"] = imdb_id
+
+        vote_average = movie_data_dict.get("vote_average") or 0
+        base_notation = (
+            Notations(
+                provider="tmdb",
+                source="tmdb",
+                score=float(vote_average),
+                votes_count=int(movie_data_dict.get("vote_count") or 0),
+            )
+            if vote_average
+            else None
+        )
+
+        effective_ids, notations = run_external_ids_pass(
+            canonical_provider="tmdb",
+            ids=ids,
+            expected_title=match.api_title,
+            expected_year=match.api_year or year,
+            registry=self._registry,
+            imdb_client=self._imdb,
+            rt_client=self._rotten_tomatoes,
+            base_notation=base_notation,
+        )
+
+        if "imdb" in ids:
+            external["imdb_id"] = effective_ids.get("imdb", "")
+        movie_data_dict["external_ids"] = external
+        if notations:
+            movie_data_dict["notations"] = notations
+            movie_data_dict["canonical_source"] = "themoviedb"
 
     def scrape_movie_forced(self, movie_dir: Path, provider_id: int) -> ScrapeResult:
         """Scrape a movie against an operator-chosen TMDB id, bypassing matching.

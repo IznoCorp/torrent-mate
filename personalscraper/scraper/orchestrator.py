@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
@@ -102,6 +102,15 @@ class Scraper(
         # TVDBClient is constructed here anymore — the orchestrator only
         # consumes providers via ``self._registry`` (chain / get / locked).
 
+        # IMDb / Rotten-Tomatoes façades for the Q5=B external-ids pass
+        # (provider-ids DESIGN §5). Both are OMDb façades gated on a single
+        # ``OMDB_API_KEY`` and disabled by default, so they may not be
+        # registered — resolve them fail-soft to ``None``. When ``None`` the
+        # confirmed-write pass skips id re-validation + rating fetch silently
+        # (DESIGN error table: "OMDb API key absent → IMDb + RT skip silencieux").
+        self._imdb = self._optional_provider("imdb")
+        self._rotten_tomatoes = self._optional_provider("rotten_tomatoes")
+
         # Initialize helpers.  Pass db_path so write-through outbox publishes
         # land in the user-configured DB (DESIGN §9.4).  When config is None
         # (legacy/test mode) db_path is None and outbox publishing is skipped.
@@ -123,6 +132,28 @@ class Scraper(
         else:
             self._keywords_cache = None
             self._needs_keywords = False
+
+    def _optional_provider(self, name: str) -> Any | None:
+        """Return the registry provider ``name``, or ``None`` when it is not wired.
+
+        The IMDb / Rotten-Tomatoes rating façades are optional (gated on
+        ``OMDB_API_KEY`` and off by default), so the registry raises
+        :class:`UnknownProviderError` for them when OMDb is not provisioned.
+        Swallow that into ``None`` — the caller (the confirmed-write external-ids
+        pass) treats a missing façade as "skip validation + ratings silently".
+
+        Args:
+            name: Provider name to resolve (``"imdb"`` / ``"rotten_tomatoes"``).
+
+        Returns:
+            The wired provider instance, or ``None`` when it is not registered.
+        """
+        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
+
+        try:
+            return self._registry.get(name)
+        except UnknownProviderError:
+            return None
 
     def process_movies(self, movies_dir: Path) -> list[ScrapeResult]:
         """Scrape all movies in a directory using the registry chain.

@@ -53,6 +53,10 @@ def _make_mixin(
     mixin._registry = _registry  # type: ignore[assignment]
     mixin._tvdb = _tvdb_client  # type: ignore[assignment]
     mixin._tmdb = _tmdb_client  # type: ignore[assignment]
+    # OMDb rating façades unwired (default): the confirmed-write external-ids
+    # pass then skips id re-validation + rating fetch silently (fail-soft).
+    mixin._imdb = None  # type: ignore[assignment]
+    mixin._rotten_tomatoes = None  # type: ignore[assignment]
     mixin._nfo = MagicMock()  # type: ignore[assignment]
     mixin._artwork = MagicMock()  # type: ignore[assignment]
     mixin.config = None  # type: ignore[assignment]
