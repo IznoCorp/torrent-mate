@@ -40,7 +40,7 @@ function makePage(
   runs: ReturnType<typeof makeRun>[],
   total?: number,
 ): HistoryResponse {
-  return { runs, total: total ?? runs.length };
+  return { runs, total: total ?? runs.length, degraded: false };
 }
 
 // ---------------------------------------------------------------------------

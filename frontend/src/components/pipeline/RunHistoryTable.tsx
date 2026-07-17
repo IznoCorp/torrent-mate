@@ -244,6 +244,7 @@ export function RunHistoryTable({
 
   const runs = data?.runs ?? [];
   const total = data?.total ?? 0;
+  const degraded = data?.degraded ?? false;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
@@ -335,14 +336,31 @@ export function RunHistoryTable({
                 </TableCell>
               </TableRow>
             ) : runs.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={COLUMNS.length}
-                  className="text-center text-xs text-muted-foreground"
-                >
-                  Aucune exécution enregistrée.
-                </TableCell>
-              </TableRow>
+              degraded ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={COLUMNS.length}
+                    className="text-center text-xs"
+                  >
+                    <span
+                      role="alert"
+                      className="rounded bg-[var(--danger)]/15 px-1.5 py-0.5 font-medium text-[var(--danger)]"
+                    >
+                      Historique indisponible — la base n&apos;a pas pu être
+                      lue.
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={COLUMNS.length}
+                    className="text-center text-xs text-muted-foreground"
+                  >
+                    Aucune exécution enregistrée.
+                  </TableCell>
+                </TableRow>
+              )
             ) : (
               table.getRowModel().rows.map((row) => (
                 <TableRow
