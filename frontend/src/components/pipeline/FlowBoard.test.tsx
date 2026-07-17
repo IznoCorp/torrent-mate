@@ -113,6 +113,9 @@ afterEach(() => {
 describe("FlowBoard", () => {
   it("renders the eight stations with their stock counts — no Staging step", () => {
     renderBoard();
+    // In compact (desktop) mode, quiet station labels (idle/ok) are hidden
+    // from visible text. All stations keep an accessible name via aria-label
+    // so screen readers and getByRole queries can find them (DOIT-9/a11y).
     for (const label of [
       "Arrivée",
       "Tri",
@@ -123,11 +126,65 @@ describe("FlowBoard", () => {
       "Vérification",
       "Dispatch",
     ]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: new RegExp(label) }),
+      ).toBeInTheDocument();
     }
     expect(screen.queryByText("Staging")).not.toBeInTheDocument();
     // Identification stock is shown.
     expect(screen.getByText("4")).toBeInTheDocument();
+  });
+
+  it("quiet stations (idle/ok) hide their label text in compact mode but keep an accessible name", () => {
+    renderBoard();
+    // Tri (state=idle, count=0) — the button exists via accessible name,
+    // but "Tri" is not visible text (hidden in compact quiet layout).
+    expect(
+      screen.getByRole("button", { name: /Tri/ }),
+    ).toBeInTheDocument();
+    // The compact quiet layout uses flex-row (icon+count+dot in one row)
+    // rather than the expanded flex-col with a visible label row.
+    const triBtn = screen.getByRole("button", { name: /Tri/ });
+    expect(triBtn.className).toMatch(/\bflex-row\b/);
+  });
+
+  it("anomalous stations (blocked) render expanded with a danger ring", () => {
+    renderBoard();
+    // Identification (blocked=4) and Vérification (blocked=1) are anomalous
+    // — they stay expanded even in compact mode with a red lavis + ring.
+    const idBtn = screen.getByRole("button", { name: /Identification/ });
+    const verifyBtn = screen.getByRole("button", { name: /Vérification/ });
+    expect(idBtn.className).toMatch(/\bborder-danger\b/);
+    expect(verifyBtn.className).toMatch(/\bborder-danger\b/);
+    // Blocked count chips are shown inside the expanded station.
+    expect(screen.getByText("4 bloqués")).toBeInTheDocument();
+    expect(screen.getByText("1 bloqué")).toBeInTheDocument();
+  });
+
+  it("on mobile (matchMedia narrow), stations show visible labels in a vertical list", () => {
+    // Simulate a narrow viewport: matchMedia returns matches=false,
+    // so isDesktop=false → compact is off, size="sm", stations stack vertically.
+    const matchMediaSpy = vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    vi.stubGlobal("matchMedia", matchMediaSpy);
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/pipeline"]}>
+        <FlowBoard />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    // On mobile, compact is off — all labels are visible text.
+    expect(screen.getByText("Arrivée")).toBeInTheDocument();
+    expect(screen.getByText("Tri")).toBeInTheDocument();
+    expect(screen.getByText("Dispatch")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+    unmount();
   });
 
   it("carries the last run's throughput in the header, not on stations", () => {
