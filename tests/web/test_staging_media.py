@@ -979,3 +979,145 @@ def test_enqueue_reopens_a_previously_resolved_item(test_config, tmp_path: Path)
     assert row["status"] == "pending"
     assert "7" in row["candidates_json"]
     assert row["resolution_json"] is None
+
+
+# ── Continue endpoint tests ────────────────────────────────────────────────────
+
+
+def test_continue_matched_spawns_run(test_config, tmp_path: Path) -> None:
+    """A matched movie with provider-identified NFO spawns a pipeline run.
+
+    POST /api/staging/media/{id}/continue → 202, ok=True, run_uid present
+    (hex UUID), deferred=False. The subprocess.Popen call MUST carry
+    ``--trigger-reason=scrape-resolve`` in its argv.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Fight Club (1999)")
+    with patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as mock_popen:
+        resp = client.post(
+            f"/api/staging/media/{media_id}/continue",
+            headers={"X-Requested-With": "TorrentMate"},
+        )
+
+    assert resp.status_code == 202, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["media_id"] == media_id
+    assert body["deferred"] is False
+    assert body["detail"] == "Reprise lancée — le média termine son pipeline (vérification → dispatch)."
+
+    # run_uid is uuid4().hex (32 lowercase hex chars).
+    run_uid = body["run_uid"]
+    assert isinstance(run_uid, str)
+    assert len(run_uid) == 32
+    assert all(c in "0123456789abcdef" for c in run_uid)
+
+    # Popen was called with --trigger-reason=scrape-resolve in the argv.
+    mock_popen.assert_called_once()
+    call_args = mock_popen.call_args[0][0]
+    assert any("--trigger-reason=scrape-resolve" in arg for arg in call_args)
+
+
+def test_continue_not_matched_returns_422(test_config, tmp_path: Path) -> None:
+    """An item without a provider-identified NFO returns 422 with the FR detail.
+
+    The route requires ``match == "matched"`` (NFO present WITH provider IDs).
+    An absent item has no NFO at all → 422, not 404.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Unknown Film (2020)")
+    resp = client.post(
+        f"/api/staging/media/{media_id}/continue",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"] == "Ce média n'est pas encore identifié — résolvez le matching d'abord."
+
+
+def test_continue_unknown_media_returns_404(test_config, tmp_path: Path) -> None:
+    """A bogus media id returns 404 with the English detail."""
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (staging / "001-MOVIES").mkdir(parents=True)
+    (staging / "097-TEMP").mkdir(parents=True)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    resp = client.post(
+        "/api/staging/media/deadbeefdeadbeef/continue",
+        headers={"X-Requested-With": "TorrentMate"},
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"] == "Media not found"
+
+
+def test_continue_requires_x_requested_with(test_config, tmp_path: Path) -> None:
+    """The continue POST is CSRF-guarded — 400 without X-Requested-With.
+
+    Mirrors ``test_enqueue_requires_x_requested_with``: the dependency runs
+    before the route handler, so a valid media_id is needed to reach the guard,
+    but the item itself does not need to be matched.
+    """
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    movies = staging / "001-MOVIES"
+    (staging / "097-TEMP").mkdir(parents=True)
+    (movies / "NoHeader (2021)").mkdir(parents=True)
+    _write_video(movies / "NoHeader (2021)" / "NoHeader (2021).mkv", size=512)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+    media_id = media_id_for("001-MOVIES/NoHeader (2021)")
+    assert client.post(f"/api/staging/media/{media_id}/continue").status_code == 400
+
+
+def test_continue_deferred_when_lock_held(test_config, tmp_path: Path) -> None:
+    """When the pipeline lock is held, returns 202 with deferred=True, run_uid=None.
+
+    Patches ``is_lock_held`` (imported by pipeline_trigger) to True so
+    ``spawn_pipeline_run`` returns None without spawning.  The detail MUST
+    contain "En file" and Popen MUST NOT be called.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.web.staging.read_model import media_id_for
+
+    staging = tmp_path / "staging"
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _seed_tree(staging)
+    client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
+
+    media_id = media_id_for("001-MOVIES/Fight Club (1999)")
+    with patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True):
+        with patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as mock_popen:
+            resp = client.post(
+                f"/api/staging/media/{media_id}/continue",
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+
+    assert resp.status_code == 202, resp.text
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["media_id"] == media_id
+    assert body["run_uid"] is None
+    assert body["deferred"] is True
+    assert "En file" in body["detail"]
+    mock_popen.assert_not_called()
