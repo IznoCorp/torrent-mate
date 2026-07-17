@@ -895,7 +895,7 @@ def test_breaker_records_failure_on_eio(tmp_path: Path) -> None:
 
     with (
         patch(_GUARD_PATCH, return_value=None),
-        patch("personalscraper.indexer.scanner.os.scandir", side_effect=eio_error),
+        patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=eio_error),
     ):
         result = scan(
             [disk],

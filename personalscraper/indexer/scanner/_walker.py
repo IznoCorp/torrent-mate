@@ -130,7 +130,7 @@ def _build_disk_fingerprints(
     files. This helper is the SINGLE SOURCE OF TRUTH for the fingerprint set:
     every Merkle-root consumer routes through it so a stored bucketed root is
     never compared against a raw recomputation. The consumers are
-    :func:`personalscraper.indexer.scanner._finalize_disk_after_walk` (the
+    :func:`personalscraper.indexer.scanner._scan_orchestrator._finalize_disk_after_walk` (the
     bootstrap path that writes the first-ever merkle),
     :func:`personalscraper.indexer.reconcile.detect_merkle_drift` (the
     ``library-doctor`` consistency probe), and

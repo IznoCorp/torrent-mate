@@ -5,7 +5,7 @@ re-stamp it afterwards. Those three steps used to be byte-identical copies in
 ``_scan_disk_quick`` and ``_scan_disk_incremental``; this module is the ONE
 implementation both drivers call (DESIGN §5 / P7.5, MECHANICAL-DUP). Full mode
 does not short-circuit — it always walks and lets
-:func:`personalscraper.indexer.scanner._finalize_disk_after_walk` write the
+:func:`personalscraper.indexer.scanner._scan_orchestrator._finalize_disk_after_walk` write the
 first-ever root via the same :func:`_build_disk_fingerprints` builder — so it is
 already single-source and does not route through here.
 

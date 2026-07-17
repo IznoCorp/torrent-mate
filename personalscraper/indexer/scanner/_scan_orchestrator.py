@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import errno
 import json
-import os
+import platform
 import sqlite3
 import time
 from collections.abc import Callable
@@ -32,7 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.indexer._fs_capability import FilesystemCapability, resolve_capability
+from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability, resolve_capability
+from personalscraper.indexer._fs_probe import _build_mount_table, _run_mount
 from personalscraper.indexer.breaker import (
     DiskCircuitBreaker,
     bind_global_disk_breaker_to_bus,
@@ -44,22 +45,235 @@ from personalscraper.indexer.merkle import (
     DiskMismatchError,
     DiskMountStatus,
     DiskUnmountedError,
+    compute_merkle_root,
 )
 from personalscraper.indexer.release_linker import recompute_season_episode_counts
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._concurrency import (
     DiskWorkerFactory,
 )
-from personalscraper.indexer.scanner._db_writes import _upsert_path_row
+from personalscraper.indexer.scanner._mode_dispatch import (
+    _MODE_DISPATCH,
+    _DiskDispatch,
+    _dispatch_skeleton,
+)
 from personalscraper.indexer.scanner._spotlight import SpotlightChangeDetector
 from personalscraper.indexer.scanner._types import ScanMode, ScanRunResult
-from personalscraper.indexer.schema import DiskRow, ScanRunRow
+from personalscraper.indexer.schema import DiskRow, ScanEventRow, ScanRunRow
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("indexer.scan")
+
+
+# Flags that should be present on every macFUSE-mounted NTFS disk for optimal
+# I/O behaviour.  These are macOS-specific — nodiratime is Linux-only and
+# intentionally excluded from this set.
+_RECOMMENDED_MOUNT_FLAGS: frozenset[str] = frozenset(
+    {
+        "noatime",
+        "noappledouble",
+        "noapplexattr",
+        "defer_permissions",
+        "allow_other",
+    }
+)
+
+
+# ----------------------------------------------------------------------------
+# Pre-walk probes + post-walk finalization
+# ----------------------------------------------------------------------------
+
+
+def _check_mount_flags(disks: list[DiskRow]) -> None:
+    """Parse ``mount`` output and warn about missing recommended flags.
+
+    Runs ``mount`` once and inspects the flags reported for each disk's
+    :attr:`~personalscraper.indexer.schema.DiskRow.mount_path`.  For every
+    flag in :data:`_RECOMMENDED_MOUNT_FLAGS` that is absent, a single
+    ``indexer.disk.mount_flags_missing`` warning is emitted at ``WARNING``
+    level via structlog.
+
+    The check is:
+
+    * **macOS-only** — skipped (no-op) on any platform where
+      ``platform.system() != "Darwin"``.
+    * **Non-fatal** — any subprocess failure or unexpected output format
+      is caught and logged at ``DEBUG`` level; the scan continues regardless.
+    * **Per disk** — each disk with a ``mount_path`` is checked independently.
+
+    Args:
+        disks: List of :class:`~personalscraper.indexer.schema.DiskRow` objects
+            whose ``mount_path`` fields should be inspected.  Disks whose
+            ``mount_path`` is ``None`` are silently skipped.
+    """
+    # Only applicable on macOS (macFUSE is Darwin-only in this stack).
+    if platform.system() != "Darwin":
+        return
+
+    # Delegate the mount shell-out + line parsing to the shared FsProbe module
+    # (single cached ``mount`` call).  The recommendation logic (which flags to
+    # check) stays here.
+    mount_output = _run_mount()
+    if not mount_output:
+        return
+
+    mount_table = _build_mount_table(mount_output)
+    # MountInfo.flags holds the option tokens after the fs-type token, which is
+    # exactly the set the recommended-flag check needs (noatime, allow_other, …).
+    mount_flags: dict[str, frozenset[str]] = {mp: info.flags for mp, info in mount_table.items()}
+
+    # Warn once per disk for each missing recommended flag.
+    for disk in disks:
+        if disk.mount_path is None:
+            continue
+        # Normalise: strip trailing slash for comparison (mount output varies).
+        mount_point = disk.mount_path.rstrip("/")
+        disk_flags: frozenset[str] | None = mount_flags.get(mount_point)
+        if disk_flags is None:
+            # mount point not found in output — cannot determine flags.
+            log.debug(
+                "indexer.disk.mount_flags_unknown",
+                disk_label=disk.label,
+                mount_path=disk.mount_path,
+            )
+            continue
+        missing = _RECOMMENDED_MOUNT_FLAGS - disk_flags
+        if missing:
+            log.warning(
+                "indexer.disk.mount_flags_missing",
+                disk_label=disk.label,
+                mount_path=disk.mount_path,
+                missing_flags=sorted(missing),
+                present_flags=sorted(disk_flags),
+            )
+
+
+def _finalize_disk_after_walk(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    scan_run_id: int,
+    files_visited: int,
+    dirs_visited: int,
+    capability: FilesystemCapability = NTFS_MACFUSE,
+) -> None:
+    """Persist post-walk per-disk state: ``merkle_root``, ``last_seen_at``, scan_event.
+
+    Called once per disk after a successful walk (read_success on the circuit
+    breaker has already fired).  The function is best-effort: any failure is
+    logged at ``warning`` level but does not fail the scan, since the file rows
+    have already been committed by the walker.
+
+    Steps:
+
+    1. ``last_seen_at`` is always updated to ``now()`` — the disk was
+       observably reachable.
+    2. ``merkle_root`` is recomputed only when the on-disk row currently has
+       it set to ``NULL`` (i.e. the disk has never been fingerprinted, or a
+       previous run cleared it).  Quick/incremental modes already maintain
+       merkle_root in their own happy paths via
+       :mod:`personalscraper.indexer.scanner._modes`; full scans, which do
+       not, fall through to this branch and get their first-ever fingerprint
+       written here.  Files with ``oshash IS NULL`` (Stage A only — OSHash
+       deferred to ``--mode enrich``) are skipped so a partial Stage A walk
+       does not overwrite a real merkle with the empty-set hash.  The
+       fingerprints are bucketed by *capability* (via
+       :func:`_build_disk_fingerprints`) so the full-scan root is FS-aware and
+       byte-equal to what the FIRST incremental/quick scan recomputes — without
+       this, the first incremental after a full scan on a coarse FS would see a
+       one-version root mismatch.  For NTFS (granularity 1) the bucketing is the
+       identity transform, so the stored root is byte-identical to the legacy
+       value.
+    3. One ``indexer.scan.disk_done`` row is inserted into ``scan_event``
+       with the per-disk counters as JSON payload, giving the audit trail a
+       durable per-disk endpoint that survives log rotation.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: The :class:`DiskRow` that was just walked.
+        scan_run_id: PK of the active ``scan_run`` row (used as FK on the
+            ``scan_event`` insert).
+        files_visited: Number of files visited by this walk on this disk.
+        dirs_visited: Number of directories visited.
+        capability: Per-disk :class:`FilesystemCapability` governing mtime
+            bucketing of the recomputed merkle root.  Defaults to
+            ``NTFS_MACFUSE`` (granularity 1 → identity), so an un-threaded
+            caller stores a byte-identical root.
+    """
+    # Deferred import so this module's top-level import graph never depends on
+    # _walker (avoids any package-init ordering surprise); the walker owns the
+    # fingerprint builder.
+    from personalscraper.indexer.scanner._walker import _build_disk_fingerprints  # noqa: PLC0415
+
+    now = int(time.time())
+    merkle_root: str | None = None
+
+    # Step 1: always touch last_seen_at — the disk responded to the walk.
+    disk_repo.update_last_seen_at(conn, disk.id, now)
+
+    # Step 2: recompute merkle_root only when it is currently NULL on the
+    # disk row.  Quick/incremental modes already write the right value
+    # earlier in their pipeline and we must not clobber it.
+    try:
+        conn.row_factory = sqlite3.Row
+        existing_root_row = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk.id,)).fetchone()
+        existing_root: str | None = existing_root_row["merkle_root"] if existing_root_row is not None else None
+
+        if existing_root is None:
+            # Reuse the shared fingerprint builder so the full-scan root is
+            # bucketed by the disk capability exactly like the quick/incremental
+            # short-circuit gates (consistent FS-aware root across all modes).
+            fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
+            # Only persist a freshly-computed root when at least one file is
+            # fully fingerprinted; otherwise leave NULL so the next enrich
+            # pass can compute a meaningful value.
+            if fingerprints:
+                merkle_root = compute_merkle_root(fingerprints)
+                disk_repo.update_merkle_root(conn, disk.id, merkle_root)
+        else:
+            merkle_root = existing_root
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.scan.merkle_root_failed",
+            disk_id=disk.id,
+            label=disk.label,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+
+    # Step 4: emit a structured scan_event row so the audit trail of "which
+    # disk got scanned in which run" survives in the DB beyond log files.
+    try:
+        log_repo.insert_scan_event(
+            conn,
+            ScanEventRow(
+                id=0,
+                scan_id=scan_run_id,
+                ts=now,
+                item_id=None,
+                file_id=None,
+                event="indexer.scan.disk_done",
+                payload_json=json.dumps(
+                    {
+                        "disk_id": disk.id,
+                        "label": disk.label,
+                        "files_visited": files_visited,
+                        "dirs_visited": dirs_visited,
+                        "merkle_root": merkle_root,
+                    }
+                ),
+            ),
+        )
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.scan.event_insert_failed",
+            disk_id=disk.id,
+            scan_event="indexer.scan.disk_done",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
 
 
 # ----------------------------------------------------------------------------
@@ -364,144 +578,29 @@ def _scan_one_disk(
     else:
         effective_dir_mtime_reliable = ctx.dir_mtime_reliable
 
+    # Mode dispatch via the registry table: one entry per :class:`ScanMode`
+    # (see :data:`_MODE_DISPATCH`). The driver is resolved through the scanner
+    # package namespace inside each handler so ``unittest.mock`` patches on
+    # ``scanner._scan_disk_*`` / ``scanner._walk_dir`` still intercept. Modes
+    # not in the table fall through to the bare-walk skeleton driver.
+    dispatch = _DiskDispatch(
+        scanner_pkg=_scanner_pkg,
+        worker_conn=worker_conn,
+        disk=disk,
+        mount=mount,
+        capability=disk_capability,
+        dir_mtime_reliable=effective_dir_mtime_reliable,
+        ctx=ctx,
+        local_files=local_files,
+        local_dirs=local_dirs,
+        local_skipped=local_skipped,
+        local_resume_from=local_resume_from,
+        local_files_since_ckpt=local_files_since_ckpt,
+        local_exhausted=local_exhausted,
+    )
+
     try:
-        if ctx.mode == ScanMode.full:
-            _scanner_pkg._scan_disk_full(
-                worker_conn,
-                disk,
-                mount,
-                local_files,
-                local_dirs,
-                ctx.generation,
-                ctx.drop_indexes,
-                local_resume_from,
-                local_files_since_ckpt,
-                local_exhausted,
-                ctx.started_at_monotonic,
-                ctx.budget_seconds,
-                ctx.scan_run_id,
-                ctx.checkpoint_every_n_files,
-            )
-            if not local_exhausted[0]:
-                try:
-                    root_st = os.stat(mount, follow_symlinks=False)
-                    _upsert_path_row(worker_conn, disk.id, ".", root_st.st_mtime_ns)
-                    local_dirs[0] += 1
-                except OSError as exc:
-                    log.warning(
-                        "indexer.scan.root_stat_failed",
-                        mount_path=mount,
-                        errno=exc.errno,
-                        error=exc.strerror or str(exc),
-                        exc_info=True,
-                    )
-        elif ctx.mode == ScanMode.quick:
-            _scanner_pkg._scan_disk_quick(
-                worker_conn,
-                disk,
-                mount,
-                local_files,
-                local_dirs,
-                ctx.generation,
-                local_skipped,
-                effective_dir_mtime_reliable,
-                local_resume_from,
-                local_files_since_ckpt,
-                local_exhausted,
-                ctx.started_at_monotonic,
-                ctx.budget_seconds,
-                ctx.scan_run_id,
-                ctx.checkpoint_every_n_files,
-                confirm_bulk_change=ctx.confirm_bulk_change,
-                merkle_delta_freeze_threshold=ctx.merkle_delta_freeze_threshold,
-                paranoia_window_seconds=ctx.paranoia_window_seconds,
-                capability=disk_capability,
-            )
-        elif ctx.mode == ScanMode.incremental:
-            _scanner_pkg._scan_disk_incremental(
-                worker_conn,
-                disk,
-                mount,
-                local_files,
-                local_dirs,
-                ctx.generation,
-                local_skipped,
-                effective_dir_mtime_reliable,
-                local_resume_from,
-                local_files_since_ckpt,
-                local_exhausted,
-                ctx.started_at_monotonic,
-                ctx.budget_seconds,
-                ctx.scan_run_id,
-                ctx.checkpoint_every_n_files,
-                confirm_bulk_change=ctx.confirm_bulk_change,
-                merkle_delta_freeze_threshold=ctx.merkle_delta_freeze_threshold,
-                capability=disk_capability,
-            )
-        elif ctx.mode == ScanMode.enrich:
-            if ctx.backfill_streams:
-                _scanner_pkg._scan_disk_enrich_backfill(
-                    worker_conn,
-                    disk,
-                    ctx.budget_seconds,
-                    ctx.started_at_monotonic,
-                    local_exhausted,
-                    ctx.scan_run_id,
-                    quick_enrich=ctx.quick_enrich,
-                )
-            else:
-                _scanner_pkg._scan_disk_enrich(
-                    worker_conn,
-                    disk,
-                    ctx.budget_seconds,
-                    ctx.started_at_monotonic,
-                    local_exhausted,
-                    ctx.scan_run_id,
-                    quick_enrich=ctx.quick_enrich,
-                )
-        elif ctx.mode == ScanMode.verify:
-            _scanner_pkg._scan_disk_verify(
-                worker_conn,
-                disk,
-                local_files,
-                ctx.generation,
-                ctx.budget_seconds,
-                ctx.started_at_monotonic,
-                local_exhausted,
-                ctx.scan_run_id,
-                no_enqueue=ctx.no_enqueue,
-                capability=disk_capability,
-            )
-        else:
-            # Skeleton walk for any future modes not yet implemented.
-            _scanner_pkg._walk_dir(
-                worker_conn,
-                disk,
-                mount,
-                local_files,
-                local_dirs,
-                ctx.generation,
-                local_resume_from,
-                local_files_since_ckpt,
-                local_exhausted,
-                ctx.started_at_monotonic,
-                ctx.budget_seconds,
-                ctx.scan_run_id,
-                ctx.checkpoint_every_n_files,
-            )
-            if not local_exhausted[0]:
-                try:
-                    root_st = os.stat(mount, follow_symlinks=False)
-                    _upsert_path_row(worker_conn, disk.id, ".", root_st.st_mtime_ns)
-                    local_dirs[0] += 1
-                except OSError as exc:
-                    log.warning(
-                        "indexer.scan.root_stat_failed",
-                        mount_path=mount,
-                        errno=exc.errno,
-                        error=exc.strerror or str(exc),
-                        exc_info=True,
-                    )
+        _MODE_DISPATCH.get(ctx.mode, _dispatch_skeleton)(dispatch)
 
     except DiskBulkChangeDetected:
         # Merkle delta exceeded the freeze threshold — re-raise so the caller
