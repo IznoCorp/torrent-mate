@@ -656,7 +656,7 @@ class TestActionRun:
         """
         from personalscraper.web.routes.maintenance import _spawn_runner
 
-        with patch("personalscraper.web.routes.maintenance.subprocess.Popen") as mock_popen:
+        with patch("personalscraper.web.maintenance.service.subprocess.Popen") as mock_popen:
             _spawn_runner("abc123def456abc123def456ab", WRITE_ACTION_ID, CANONICAL_BUDGET, dry_run=False)
 
         call_kwargs = mock_popen.call_args[1]
@@ -667,7 +667,7 @@ class TestActionRun:
         assert env["PERSONALSCRAPER_RUN_UID"] == "abc123def456abc123def456ab"
 
         # Also verify the dry_run=True path.
-        with patch("personalscraper.web.routes.maintenance.subprocess.Popen") as mock_popen:
+        with patch("personalscraper.web.maintenance.service.subprocess.Popen") as mock_popen:
             _spawn_runner("xyz9876543210xyz9876543210", DESTRUCTIVE_ACTION_ID, CANONICAL_CLEAN_EMPTY, dry_run=True)
 
         call_kwargs = mock_popen.call_args[1]
