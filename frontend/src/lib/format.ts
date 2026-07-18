@@ -2,14 +2,20 @@
  * Shared French-locale display formatters (ACC-10 — one owner).
  *
  * Every date / size / duration / relative-time helper the UI shows lives here
- * once, plus the pipeline run-outcome → Badge tone+label map. Component-local
- * copies previously drifted (e.g. a typographic vs straight apostrophe in
- * ``à l'instant``); this module is the single source of truth.
+ * once. Component-local copies previously drifted (e.g. a typographic vs
+ * straight apostrophe in ``à l'instant``); this module is the single source of
+ * truth. The run-outcome badge lookup delegates its vocabulary to
+ * ``@/lib/outcome-labels`` (systeme-hub unified state labels).
  *
  * French-locale unit conventions: ``Go`` (gigaoctet) and ``To`` (téraoctet).
  */
 
 import type { BadgeProps } from "@/components/ui/badge";
+import {
+  DEFAULT_OUTCOME,
+  OUTCOME_LABEL,
+  OUTCOME_TONE,
+} from "@/lib/outcome-labels";
 
 // ---------------------------------------------------------------------------
 // Sizes
@@ -140,26 +146,12 @@ export function relativeTime(epoch: number | null | undefined): string {
 // Pipeline run outcome → Badge tone + French label
 // ---------------------------------------------------------------------------
 
-/** Maps a pipeline run outcome to a DS Badge tone + French label. */
-export const RUN_OUTCOME_BADGE: Record<
-  string,
-  { readonly tone: BadgeProps["tone"]; readonly label: string }
-> = {
-  success: { tone: "success", label: "Succès" },
-  error: { tone: "danger", label: "Erreur" },
-  killed: { tone: "warning", label: "Arrêté" },
-  running: { tone: "info", label: "En cours" },
-  paused: { tone: "info", label: "En pause" },
-};
-
-/** Default outcome info for null/unknown outcomes. */
-export const DEFAULT_RUN_OUTCOME = {
-  tone: "neutral" as BadgeProps["tone"],
-  label: "—",
-};
-
 /**
  * Look up the tone + label for a given pipeline run outcome string.
+ *
+ * Delegates to {@link OUTCOME_TONE} / {@link OUTCOME_LABEL} so the unified
+ * state vocabulary (systeme-hub) has a single owner; unknown outcomes render
+ * the raw outcome string on a neutral badge rather than a placeholder.
  *
  * Args:
  *   outcome: The pipeline outcome, or null.
@@ -171,6 +163,8 @@ export function runOutcomeInfo(outcome: string | null | undefined): {
   readonly tone: BadgeProps["tone"];
   readonly label: string;
 } {
-  if (outcome == null) return DEFAULT_RUN_OUTCOME;
-  return RUN_OUTCOME_BADGE[outcome] ?? DEFAULT_RUN_OUTCOME;
+  if (outcome == null) return DEFAULT_OUTCOME;
+  const tone = OUTCOME_TONE[outcome] ?? "neutral";
+  const label = OUTCOME_LABEL[outcome] ?? outcome;
+  return { tone, label };
 }

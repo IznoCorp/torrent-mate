@@ -9,7 +9,7 @@
  * - A dirty dot when the parent page has unsaved edits for this file.
  */
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,9 @@ export function FileList({
   const schema = useConfigSchema();
   const status = useConfigStatus();
 
+  // Track which file's restart badge is expanded for tap-accessible microcopy.
+  const [expandedRestart, setExpandedRestart] = useState<string | null>(null);
+
   // Loading / error states.
   if (files.isLoading || schema.isLoading || status.isLoading) {
     return (
@@ -83,17 +86,29 @@ export function FileList({
         );
 
         return (
-          <button
+          <div
             key={file.name}
-            type="button"
+            role="button"
+            tabIndex={0}
             className={cn(
               "flex flex-col gap-1 rounded-md px-3 py-2 text-left w-full",
               "hover:bg-accent hover:text-accent-foreground transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               isSelected && "bg-accent text-accent-foreground font-medium",
             )}
             aria-current={isSelected ? "page" : undefined}
             onClick={() => {
               onSelect(file.name);
+            }}
+            onKeyDown={(e) => {
+              // Only react to keys pressed on the row itself — a keyboard
+              // activation of the nested restart-hint button must toggle the
+              // microcopy, not select the file (cycle-2 keyboard finding).
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(file.name);
+              }
             }}
           >
             <div className="flex items-center gap-2">
@@ -109,9 +124,22 @@ export function FileList({
 
               {/* Badges */}
               {hasRestart && (
-                <Badge tone="warning" mono>
-                  restart
-                </Badge>
+                <button
+                  type="button"
+                  className="cursor-pointer"
+                  aria-label="Redémarrage requis après modification"
+                  aria-expanded={expandedRestart === file.name}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedRestart((prev) =>
+                      prev === file.name ? null : file.name,
+                    );
+                  }}
+                >
+                  <Badge tone="warning" mono>
+                    restart
+                  </Badge>
+                </button>
               )}
               {isStale && (
                 <Badge tone="info" mono>
@@ -125,6 +153,14 @@ export function FileList({
               )}
             </div>
 
+            {/* Tap-accessible restart microcopy — visible when the restart
+                badge is tapped (NOT hover-only, DOIT-9). */}
+            {hasRestart && expandedRestart === file.name && (
+              <p className="text-xs text-muted-foreground pl-0">
+                Redémarrage requis après modification
+              </p>
+            )}
+
             {/* Owned keys as muted chips */}
             {file.owned_keys.length > 0 && (
               <div className="flex flex-wrap gap-1 pl-4">
@@ -135,7 +171,7 @@ export function FileList({
                 ))}
               </div>
             )}
-          </button>
+          </div>
         );
       })}
 

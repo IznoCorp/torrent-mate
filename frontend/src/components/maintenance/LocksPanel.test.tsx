@@ -107,19 +107,17 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderPanel();
-    expect(
-      screen.getByText("Chargement des verrous…"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Chargement des verrous…")).toBeInTheDocument();
   });
 
-  it("affiche l'état d'erreur", async () => {
+  it("affiche l'état d'erreur avec role=alert", async () => {
     const fn = await mockGetLocks();
     fn.mockRejectedValue(new Error("boom"));
     renderPanel();
 
-    expect(
-      await screen.findByText("Erreur lors du chargement."),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveClass("text-danger");
   });
 
   it("affiche 'Libre' quand le verrou n'est pas tenu", async () => {
@@ -135,7 +133,11 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockResolvedValue(
       makeLocksResponse({
-        pipeline_lock: makeLockState({ held: true, pid: 12345, pid_alive: true }),
+        pipeline_lock: makeLockState({
+          held: true,
+          pid: 12345,
+          pid_alive: true,
+        }),
       }),
     );
     renderPanel();
@@ -147,7 +149,12 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockResolvedValue(
       makeLocksResponse({
-        pipeline_lock: makeLockState({ held: true, pid: 99999, pid_alive: false, stale: true }),
+        pipeline_lock: makeLockState({
+          held: true,
+          pid: 99999,
+          pid_alive: false,
+          stale: true,
+        }),
       }),
     );
     renderPanel();
@@ -159,7 +166,12 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockResolvedValue(
       makeLocksResponse({
-        sentinels: makeSentinels({ pause: true, pause_age_s: 3600, watcher_paused: true, watcher_paused_age_s: 120 }),
+        sentinels: makeSentinels({
+          pause: true,
+          pause_age_s: 3600,
+          watcher_paused: true,
+          watcher_paused_age_s: 120,
+        }),
       }),
     );
     renderPanel();

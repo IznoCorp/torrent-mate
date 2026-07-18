@@ -30,7 +30,7 @@ import Medias from "@/pages/Medias";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
-import RegistryPage from "@/pages/RegistryPage";
+import SystemePage from "@/pages/SystemePage";
 
 /** The full route table (shared by the browser router and memory-router tests). */
 export const routes: RouteObject[] = [
@@ -66,8 +66,12 @@ export const routes: RouteObject[] = [
                 element: <LegacyRedirect to="/medias" />,
               },
               {
+                path: "systeme",
+                element: <SystemePage />,
+              },
+              {
                 path: "registry",
-                element: <RegistryPage />,
+                element: <LegacyRedirect to="/systeme" />,
               },
               {
                 path: "acquisition",

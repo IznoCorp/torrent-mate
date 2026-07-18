@@ -4,7 +4,7 @@
 
 **Feature**: Architecture consolidation — SOLID/DRY refactor (backend + frontend)
 **Type**: refactor
-**Version bump**: 0.49.15 → 0.54.0 (minor; re-bumped ×4 as main advanced: #310, #311/#312, #313/#314, #315)
+**Version bump**: 0.49.15 → 0.55.0 (minor; re-bumped ×5 as main advanced: #310, #311/#312, #313/#314, #315, #317/#318)
 **Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
 **PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
 **PR**: #316 → main (https://github.com/IznoCorp/torrent-mate/pull/316) — OPEN, operator squash-merges manually

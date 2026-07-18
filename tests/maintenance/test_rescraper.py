@@ -1059,7 +1059,7 @@ class TestCollectRescrapeCandidates:
         candidates = _collect_rescrape_candidates(config, None, None, None)
         names = sorted(p.name for p, *_ in candidates)
         assert names == ["Movie A (2024)", "Movie B (2023)"]
-        for _path, media_type, disk_id, cat_id in candidates:
+        for _path, media_type, disk_id, cat_id, _eids in candidates:
             assert media_type == "movie"
             assert disk_id == "disk1"
             assert cat_id == "movies"
@@ -1149,7 +1149,7 @@ class TestCollectRescrapeCandidates:
             result = _collect_rescrape_candidates(cfg, MagicMock(), None, None)
 
         assert len(result) == 1
-        path, media_type, disk_id, cat_id = result[0]
+        path, media_type, disk_id, cat_id, _eids = result[0]
         assert path == media_dir
         assert media_type == "tvshow"
         assert disk_id == "disk1"
@@ -1220,8 +1220,8 @@ class TestRescrapeLibraryOrchestrator:
         movie2.mkdir()
 
         cands = [
-            (movie1, "movie", "disk1", "movies"),
-            (movie2, "movie", "disk1", "movies"),
+            (movie1, "movie", "disk1", "movies", None),
+            (movie2, "movie", "disk1", "movies", None),
         ]
 
         with (
@@ -1250,7 +1250,7 @@ class TestRescrapeLibraryOrchestrator:
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
-        cands = [(movie, "movie", "disk1", "movies")]
+        cands = [(movie, "movie", "disk1", "movies", None)]
         action = RescrapeAction(
             path=str(movie),
             title="Movie",
@@ -1291,7 +1291,7 @@ class TestRescrapeLibraryOrchestrator:
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
-        cands = [(movie, "movie", "disk1", "movies")]
+        cands = [(movie, "movie", "disk1", "movies", None)]
         action = RescrapeAction(
             path=str(movie),
             title="Movie",
@@ -1331,7 +1331,7 @@ class TestRescrapeLibraryOrchestrator:
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
-        cands = [(movie, "movie", "disk1", "movies")]
+        cands = [(movie, "movie", "disk1", "movies", None)]
         action = RescrapeAction(
             path=str(movie),
             title="Movie",
@@ -1374,7 +1374,7 @@ class TestRescrapeLibraryOrchestrator:
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
-        cands = [(movie, "movie", "disk1", "movies")]
+        cands = [(movie, "movie", "disk1", "movies", None)]
 
         with (
             patch(
@@ -1405,7 +1405,7 @@ class TestRescrapeLibraryOrchestrator:
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
-        cands = [(movie, "movie", "disk1", "movies")]
+        cands = [(movie, "movie", "disk1", "movies", None)]
 
         with (
             patch(
@@ -1705,7 +1705,7 @@ class TestCollectRescrapeCandidatesItemId:
             result = _collect_rescrape_candidates(config, MagicMock(), None, None, item_id=42)
 
         assert len(result) == 1
-        path, media_type, disk_id, cat_id = result[0]
+        path, media_type, disk_id, cat_id, _eids = result[0]
         assert path == media_dir
         assert media_type == "movie"
         assert disk_id == "disk1"
@@ -1862,3 +1862,126 @@ class TestArtworkTruthfulness:
         assert result is not None
         assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
         assert result.errors == []
+
+
+# ---------------------------------------------------------------------------
+# Regression — indexer id families honoured when the NFO is absent
+# (live incident 2026-07-17: item 3279 « Gone Girls » regenerated its
+# tvshow.nfo WITHOUT the tvdb uniqueid because _resolve_tmdb_id fell back
+# to an API title-match while the DB row carried the full id family.)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveFromDbExternalIds:
+    """_resolve_tmdb_id consults media_item.external_ids_json before the API."""
+
+    _EIDS = (
+        '{"tvdb": {"series_id": "459609", "episode_id": null},'
+        ' "tmdb": {"series_id": "285084", "episode_id": null},'
+        ' "imdb": {"series_id": "tt35629774", "episode_id": null}}'
+    )
+
+    def test_tvshow_prefers_db_tvdb_id_when_nfo_absent(self, tmp_path: Path) -> None:
+        """No NFO on disk + DB ids → tvdb id with the ``db`` source, no API call."""
+        from personalscraper.maintenance.rescraper import _resolve_tmdb_id
+
+        registry = MagicMock()
+        provider_id, id_source, confidence, source = _resolve_tmdb_id(
+            tmp_path,
+            "tvshow",
+            "Gone Girls The Long Island Serial Killer",
+            2025,
+            registry,
+            False,
+            external_ids_json=self._EIDS,
+        )
+        assert (provider_id, id_source, source) == ("459609", "db", "tvdb")
+        assert confidence is None
+        registry.get.return_value.search.assert_not_called()
+
+    def test_movie_uses_db_tmdb_id_when_nfo_absent(self, tmp_path: Path) -> None:
+        """Movies read the tmdb family from the DB ids."""
+        from personalscraper.maintenance.rescraper import _resolve_tmdb_id
+
+        registry = MagicMock()
+        provider_id, id_source, _confidence, source = _resolve_tmdb_id(
+            tmp_path,
+            "movie",
+            "Some Movie",
+            2024,
+            registry,
+            False,
+            external_ids_json=self._EIDS,
+        )
+        assert (provider_id, id_source, source) == ("285084", "db", "tmdb")
+
+    def test_malformed_json_falls_through_to_api(self, tmp_path: Path) -> None:
+        """A corrupt external_ids_json never crashes — API title-match runs."""
+        from personalscraper.maintenance.rescraper import _resolve_tmdb_id
+
+        registry = MagicMock()
+        registry.get.return_value = MagicMock()
+        with patch(
+            "personalscraper.maintenance.rescraper.match_movie",
+            return_value=None,
+        ):
+            provider_id, _source, _conf, _prov = _resolve_tmdb_id(
+                tmp_path,
+                "movie",
+                "Broken",
+                2024,
+                registry,
+                False,
+                external_ids_json="{not json",
+            )
+        assert provider_id is None
+
+
+class TestInjectDbExternalIds:
+    """_inject_db_external_ids merges DB families into the NFO data dict."""
+
+    _EIDS = TestResolveFromDbExternalIds._EIDS
+
+    def test_injects_missing_tvdb_and_imdb(self) -> None:
+        """API data without tvdb/imdb gains both; existing keys are kept."""
+        from personalscraper.maintenance.rescraper import _inject_db_external_ids
+
+        data: dict = {"id": 285084, "external_ids": {}}
+        _inject_db_external_ids(data, self._EIDS)
+        assert data["external_ids"]["tvdb_id"] == "459609"
+        assert data["external_ids"]["imdb_id"] == "tt35629774"
+
+    def test_api_families_win_over_db(self) -> None:
+        """A family already present in the API data is never overwritten."""
+        from personalscraper.maintenance.rescraper import _inject_db_external_ids
+
+        data: dict = {"external_ids": {"tvdb_id": "111"}}
+        _inject_db_external_ids(data, self._EIDS)
+        assert data["external_ids"]["tvdb_id"] == "111"
+
+    def test_malformed_json_is_a_noop(self) -> None:
+        """Corrupt JSON leaves the dict untouched (fail-soft)."""
+        from personalscraper.maintenance.rescraper import _inject_db_external_ids
+
+        data: dict = {"external_ids": {}}
+        _inject_db_external_ids(data, "{broken")
+        assert data["external_ids"] == {}
+
+    def test_regenerated_tvshow_nfo_carries_all_families(self) -> None:
+        """End-to-end: injected dict → generate_tvshow_nfo → tvdb default + all ids."""
+        from personalscraper.maintenance.rescraper import _inject_db_external_ids
+        from personalscraper.scraper.nfo_generator import NFOGenerator
+
+        show: dict = {
+            "id": 285084,
+            "name": "Disparues : Le tueur de Long Island",
+            "overview": "",
+            "external_ids": {},
+        }
+        _inject_db_external_ids(show, self._EIDS)
+        xml = NFOGenerator().generate_tvshow_nfo(show)
+        # Attribute order follows the shared _write_uniqueids writer
+        # (SCRAPER-05): type first, then the default flag.
+        assert '<uniqueid type="tvdb" default="true">459609</uniqueid>' in xml
+        assert 'type="tmdb">285084</uniqueid>' in xml
+        assert 'type="imdb">tt35629774</uniqueid>' in xml

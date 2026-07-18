@@ -48,7 +48,7 @@ SKIP_NO_MATCH = "no_match"
 SKIP_ALREADY_OK = "already_conforming"
 
 _VALID_ONLY_FILTERS = {"nfo", "artwork", "episodes"}
-_VALID_ID_SOURCES = {"nfo", "api_match"}
+_VALID_ID_SOURCES = {"nfo", "db", "api_match"}
 
 
 @dataclass
@@ -197,12 +197,14 @@ def _resolve_tmdb_id(
     year: int | None,
     registry: ProviderRegistry,
     interactive: bool,
+    external_ids_json: str | None = None,
 ) -> tuple[str | None, str | None, float | None, str | None]:
     """Resolve the metadata-provider ID + matched provider for a media item.
 
     Strategy:
     1. Extract from existing NFO (even partially valid)
-    2. Re-match via TMDB/TVDB API if no ID found
+    2. Extract from indexer DB external_ids (when NFO absent)
+    3. Re-match via TMDB/TVDB API if no ID found
 
     Args:
         media_dir: Path to media directory.
@@ -211,10 +213,13 @@ def _resolve_tmdb_id(
         year: Parsed year.
         registry: ProviderRegistry for resolving metadata clients.
         interactive: If True, prompt for low-confidence matches.
+        external_ids_json: Raw JSON from ``media_item.external_ids_json``,
+            consulted when the NFO is absent.  ``None`` for filesystem-walk
+            callers that never loaded an indexer row.
 
     Returns:
-        Tuple of (tmdb_id_str, id_source, confidence).
-        tmdb_id_str is None if no match found.
+        Tuple of (provider_id_str, id_source, confidence, provider_source).
+        provider_id_str is None if no match found.
     """
     tmdb_client = cast("TMDBClient", registry.get("tmdb"))
     tvdb_client = cast("TVDBClient", registry.get("tvdb"))
@@ -234,7 +239,30 @@ def _resolve_tmdb_id(
         if nfo_tmdb and str(nfo_tmdb).isdigit():
             return str(nfo_tmdb), "nfo", None, "tmdb"
 
-    # 2. Re-match via API
+    # 2. Try the indexer DB external_ids when the NFO is absent (or its
+    # uniqueid is incomplete).  This is the NFO-regeneration safety net:
+    # the item was already identified once — don't lose that knowledge.
+    if external_ids_json:
+        try:
+            from personalscraper.indexer.external_ids import ExternalIds
+
+            eids = ExternalIds.model_validate_json(external_ids_json)
+        except Exception:
+            pass  # Malformed JSON → skip to API title-match.
+        else:
+            if media_type == "tvshow":
+                tvdb_sid = eids.tvdb.series_id
+                if tvdb_sid:
+                    return str(tvdb_sid), "db", None, "tvdb"
+                tmdb_sid = eids.tmdb.series_id
+                if tmdb_sid:
+                    return str(tmdb_sid), "db", None, "tmdb"
+            else:
+                tmdb_sid = eids.tmdb.series_id
+                if tmdb_sid:
+                    return str(tmdb_sid), "db", None, "tmdb"
+
+    # 3. Re-match via API
     try:
         if media_type == "movie":
             match = match_movie(tmdb_client, title, year)
@@ -291,6 +319,52 @@ def _find_largest_video(media_dir: Path) -> Path | None:
     return largest
 
 
+def _inject_db_external_ids(
+    data_dict: dict[str, Any],
+    external_ids_json: str | None,
+) -> None:
+    """Merge indexer DB external_ids into a data dict before NFO/artwork generation.
+
+    The DB may carry provider families that the current API fetch did not
+    resolve (e.g. a TVDB-canonical show fetched via TMDB fallback won't
+    surface ``tvdb_id`` in its API response).  Merging ensures the
+    regenerated NFO carries ALL known id families, not just what the
+    current API call returned.
+
+    Only injects families that are NOT already present in the API data
+    (API data wins when both exist — it is fresher).  A malformed JSON
+    string is silently ignored (fail-soft: one broken column never breaks
+    the NFO regen).
+
+    Args:
+        data_dict: Movie or show data dict, **mutated in-place**.
+        external_ids_json: Raw JSON string from
+            ``media_item.external_ids_json``.  ``None`` is a no-op.
+    """
+    if not external_ids_json:
+        return
+    try:
+        from personalscraper.indexer.external_ids import ExternalIds
+
+        eids = ExternalIds.model_validate_json(external_ids_json)
+    except Exception:
+        return  # Malformed JSON — skip, let the API ids stand.
+
+    ext = data_dict.setdefault("external_ids", {})
+
+    # Inject TVDB series_id (when present and not already in the API data).
+    if eids.tvdb.series_id and "tvdb_id" not in ext:
+        ext["tvdb_id"] = eids.tvdb.series_id
+
+    # Inject IMDb series_id (when present and not already in the API data).
+    if eids.imdb.series_id and "imdb_id" not in ext:
+        ext["imdb_id"] = eids.imdb.series_id
+
+    # TMDB id is NOT injected — the API fetch (which is what we're using
+    # right now) already set data_dict["id"] to the correct TMDB id, and
+    # the NFO generator reads it from there.
+
+
 def _rescrape_item(
     media_dir: Path,
     media_type: str,
@@ -307,6 +381,7 @@ def _rescrape_item(
     interactive: bool,
     dry_run: bool,
     episode_default_name: str = "Episode",
+    external_ids_json: str | None = None,
 ) -> RescrapeAction | None:
     """Rescrape a single media item.
 
@@ -326,6 +401,9 @@ def _rescrape_item(
         dry_run: Preview without changes.
         episode_default_name: Prefix used when an episode title is missing
             from the configured scraper-language response.
+        external_ids_json: Raw ``media_item.external_ids_json`` for this item,
+            consulted when the NFO is absent and merged into the regenerated
+            NFO's id families. ``None`` on the filesystem-walk path.
 
     Returns:
         RescrapeAction or None if item is already OK.
@@ -343,6 +421,7 @@ def _rescrape_item(
         year,
         registry,
         interactive,
+        external_ids_json=external_ids_json,
     )
 
     if provider_id is None:
@@ -420,10 +499,14 @@ def _rescrape_item(
 
                 video_file = _find_largest_video(media_dir)
                 stream_info = extract_stream_info(video_file) if video_file else None
-                xml = nfo_gen.generate_movie_nfo(_coerce_to_movie_data(api_data), stream_info)
+                movie_dict = _coerce_to_movie_data(api_data)
+                _inject_db_external_ids(movie_dict, external_ids_json)
+                xml = nfo_gen.generate_movie_nfo(movie_dict, stream_info)
             else:
                 nfo_path = media_dir / "tvshow.nfo"
-                xml = nfo_gen.generate_tvshow_nfo(_coerce_to_show_data(api_data))
+                show_dict = _coerce_to_show_data(api_data)
+                _inject_db_external_ids(show_dict, external_ids_json)
+                xml = nfo_gen.generate_tvshow_nfo(show_dict)
             if not dry_run:
                 nfo_gen.write_nfo(xml, nfo_path)
             actions.append(ACTION_NFO_REGENERATED)
@@ -588,7 +671,7 @@ def _collect_rescrape_candidates(
     disk_filter: str | None,
     category_filter: str | None,
     item_id: int | None = None,
-) -> list[tuple[Path, str, str, str]]:
+) -> list[tuple[Path, str, str, str, str | None]]:
     """Build a list of (media_dir, media_type, disk_id, category_id) candidates.
 
     When *item_id* is provided, the function enters an **item-id fast-path**:
@@ -616,7 +699,8 @@ def _collect_rescrape_candidates(
             Mutually exclusive with *disk_filter* and *category_filter*.
 
     Returns:
-        List of ``(media_dir, media_type, disk_id, category_id)`` tuples.
+        List of ``(media_dir, media_type, disk_id, category_id, external_ids_json)``
+        tuples (``external_ids_json`` is ``None`` on the filesystem-walk path).
 
     Raises:
         ValueError: If *item_id* is set together with *disk_filter* or
@@ -624,7 +708,7 @@ def _collect_rescrape_candidates(
     """
     from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
 
-    candidates: list[tuple[Path, str, str, str]] = []
+    candidates: list[tuple[Path, str, str, str, str | None]] = []
 
     # --- item_id fast-path: resolve a single item, bypassing the predicate ---
     if item_id is not None:
@@ -680,7 +764,7 @@ def _collect_rescrape_candidates(
         disk_id: str = (disk_attr.value or "") if disk_attr else ""
 
         media_type = "tvshow" if item.kind == "show" else "movie"
-        return [(media_dir, media_type, disk_id, item.category_id)]
+        return [(media_dir, media_type, disk_id, item.category_id, item.external_ids_json)]
 
     if conn is not None:
         # DB-query path: find items needing rescrape by NFO / refresh status.
@@ -708,7 +792,7 @@ def _collect_rescrape_candidates(
                 continue
 
             media_type = "tvshow" if item_row.kind == "show" else "movie"
-            candidates.append((media_dir, media_type, disk_id, item_row.category_id))
+            candidates.append((media_dir, media_type, disk_id, item_row.category_id, item_row.external_ids_json))
     else:
         # Filesystem-walk fallback: iterate config.disks → category dirs → media dirs.
         for disk in config.disks:
@@ -738,7 +822,7 @@ def _collect_rescrape_candidates(
                 for media_dir in sorted(category_dir.iterdir()):
                     if not media_dir.is_dir() or media_dir.name.startswith("."):
                         continue
-                    candidates.append((media_dir, media_type, disk.id, category_id))
+                    candidates.append((media_dir, media_type, disk.id, category_id, None))
 
     return candidates
 
@@ -816,7 +900,7 @@ def rescrape_library(
 
     candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter, item_id=item_id)
 
-    for media_dir, media_type, disk_id, category_id in candidates:
+    for media_dir, media_type, disk_id, category_id, external_ids_json in candidates:
         if max_items and items_processed >= max_items:
             break
 
@@ -838,6 +922,7 @@ def rescrape_library(
                 interactive=interactive,
                 dry_run=dry_run,
                 episode_default_name=scraper_config.episode_default_name,
+                external_ids_json=external_ids_json,
             )
         except Exception as exc:
             log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))

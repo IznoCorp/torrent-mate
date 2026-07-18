@@ -14,7 +14,6 @@
 import {
   Activity,
   Home,
-  Plug,
   Radar,
   ScanSearch,
   Settings,
@@ -53,9 +52,9 @@ export interface NavSection {
  *
  * - **Supervision** — the live-supervision surfaces (control station + the pipeline,
  *   medias and acquisition views).
- * - **Système** — operational maintenance.
- * - **Configuration** — the provider/tracker registry and the config editor
- *   (both live).
+ * - **Système** — the unified system hub (état, actions, maintenance
+ *   history, journal, and inlined provider health).
+ * - **Configuration** — the visual config editor.
  *
  * Every path here has a matching route in the router table (DESIGN §5.2).
  */
@@ -71,14 +70,11 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     title: "Système",
-    items: [{ to: "/maintenance", label: "Maintenance", icon: Wrench }],
+    items: [{ to: "/systeme", label: "Système", icon: Wrench }],
   },
   {
     title: "Configuration",
-    items: [
-      { to: "/registry", label: "Registre", icon: Plug },
-      { to: "/config", label: "Config", icon: Settings },
-    ],
+    items: [{ to: "/config", label: "Config", icon: Settings }],
   },
 ];
 

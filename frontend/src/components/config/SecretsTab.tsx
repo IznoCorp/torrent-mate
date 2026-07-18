@@ -18,6 +18,48 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConfigSecrets, usePutConfigSecrets } from "@/hooks/useConfig";
 
+// ---------------------------------------------------------------------------
+// FR description override map — keyed by secret name.  The backend catalog
+// parses the English comments from ``.env.example``; this map supplies the
+// French translation.  When a secret key is absent from this map, the raw
+// ``entry.description`` from the API is used as a fallback.
+// ---------------------------------------------------------------------------
+
+/** French description overrides keyed by secret env-var name. */
+const FR_DESCRIPTIONS: Record<string, string> = {
+  QBIT_USERNAME: "Nom d'utilisateur qBittorrent",
+  QBIT_PASSWORD: "Mot de passe qBittorrent",
+  TMDB_API_KEY: "Clé API TMDB",
+  TVDB_API_KEY: "Clé API TVDB",
+  TRAKT_CLIENT_ID: "Identifiant client Trakt (auth app-only)",
+  TELEGRAM_BOT_TOKEN: "Jeton du bot Telegram",
+  TELEGRAM_CHAT_ID: "Identifiant de discussion Telegram",
+  HEALTHCHECK_URL: "URL du service Healthchecks.io",
+  YOUTUBE_API_KEY: "Clé API YouTube Data v3",
+  YOUTUBE_COOKIES_FILE: "Fichier cookies.txt YouTube (Netscape)",
+  YOUTUBE_COOKIES_FROM_BROWSER: "Navigateur source pour cookies YouTube",
+  OMDB_API_KEY: "Clé API OMDb",
+  WEB_PASSWORD_HASH: "Hash du mot de passe web (scrypt)",
+  WEB_JWT_SECRET: "Clé secrète pour les jetons JWT (HS256)",
+  LACALE_PASSKEY: "Passkey LaCale",
+  C411_PASSKEY: "Passkey C411",
+};
+
+/**
+ * Resolve a French description for a secret key.
+ *
+ * Args:
+ *   key: The env-var name (e.g. ``"TMDB_API_KEY"``).
+ *   fallback: The raw description from the API catalog (English comments).
+ *
+ * Returns:
+ *   The French description from {@link FR_DESCRIPTIONS}, or the fallback
+ *   when the key is not mapped.
+ */
+function frDescription(key: string, fallback: string): string {
+  return FR_DESCRIPTIONS[key] ?? fallback;
+}
+
 /** Props for {@link SecretsTab}. */
 export interface SecretsTabProps {
   /** When ``true`` all inputs and the save button are disabled (staging mode). */
@@ -139,7 +181,7 @@ export function SecretsTab({
 
             {entry.description && (
               <p className="text-xs break-words text-muted-foreground">
-                {entry.description}
+                {frDescription(entry.key, entry.description)}
               </p>
             )}
 

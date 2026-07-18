@@ -40,7 +40,7 @@ function makePage(
   runs: ReturnType<typeof makeRun>[],
   total?: number,
 ): HistoryResponse {
-  return { runs, total: total ?? runs.length };
+  return { runs, total: total ?? runs.length, degraded: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -145,8 +145,8 @@ describe("RunHistoryTable", () => {
     renderTable();
 
     await screen.findByText("Succès");
-    expect(screen.getByText("Erreur")).toBeInTheDocument();
-    expect(screen.getByText("Arrêté")).toBeInTheDocument();
+    expect(screen.getByText("Échec")).toBeInTheDocument();
+    expect(screen.getByText("Interrompu")).toBeInTheDocument();
     // "running" → "En cours", "paused" → "En pause" (distinct labels).
     expect(screen.getByText("En cours")).toBeInTheDocument();
     expect(screen.getByText("En pause")).toBeInTheDocument();
@@ -180,6 +180,20 @@ describe("RunHistoryTable", () => {
     expect(
       await screen.findByText("Aucune exécution enregistrée."),
     ).toBeInTheDocument();
+  });
+
+  it("affiche l'alerte dégradée quand la lecture DB a échoué (B4)", async () => {
+    const getHistory = await mockGetHistory();
+    getHistory.mockResolvedValue({ runs: [], total: 0, degraded: true });
+    renderTable();
+
+    // The loud alert replaces the calm empty state — a broken library.db
+    // must never read as « aucune exécution » (§8/DOIT-2).
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Historique indisponible");
+    expect(
+      screen.queryByText("Aucune exécution enregistrée."),
+    ).not.toBeInTheDocument();
   });
 
   it("affiche la pagination", async () => {

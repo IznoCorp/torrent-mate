@@ -84,26 +84,30 @@ describe("DisksPanel", () => {
     // Never resolve — the hook should show loading.
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderPanel();
-    expect(
-      screen.getByText("Chargement des disques…"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Chargement des disques…")).toBeInTheDocument();
   });
 
-  it("affiche l'état d'erreur", async () => {
+  it("affiche l'état d'erreur avec role=alert", async () => {
     const fn = await mockGetDisks();
     fn.mockRejectedValue(new Error("boom"));
     renderPanel();
 
-    expect(
-      await screen.findByText("Erreur lors du chargement."),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveClass("text-danger");
   });
 
   it("affiche les données d'un disque monté avec espace suffisant", async () => {
     const fn = await mockGetDisks();
     fn.mockResolvedValue(
       makeDisksResponse([
-        makeDisk({ id: "d1", label: "SSD Principal", free_gb: 800, total_gb: 1000, used_pct: 20 }),
+        makeDisk({
+          id: "d1",
+          label: "SSD Principal",
+          free_gb: 800,
+          total_gb: 1000,
+          used_pct: 20,
+        }),
       ]),
     );
     renderPanel();
@@ -119,7 +123,13 @@ describe("DisksPanel", () => {
     const fn = await mockGetDisks();
     fn.mockResolvedValue(
       makeDisksResponse([
-        makeDisk({ id: "d1", label: "Disque plein", free_gb: 50, total_gb: 1000, used_pct: 95 }),
+        makeDisk({
+          id: "d1",
+          label: "Disque plein",
+          free_gb: 50,
+          total_gb: 1000,
+          used_pct: 95,
+        }),
       ]),
     );
     renderPanel();
@@ -131,7 +141,14 @@ describe("DisksPanel", () => {
     const fn = await mockGetDisks();
     fn.mockResolvedValue(
       makeDisksResponse([
-        makeDisk({ id: "d1", label: "Disque débranché", mounted: false, free_gb: 0, total_gb: 0, used_pct: 100 }),
+        makeDisk({
+          id: "d1",
+          label: "Disque débranché",
+          mounted: false,
+          free_gb: 0,
+          total_gb: 0,
+          used_pct: 100,
+        }),
       ]),
     );
     renderPanel();

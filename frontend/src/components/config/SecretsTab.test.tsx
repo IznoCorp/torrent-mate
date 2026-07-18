@@ -115,7 +115,19 @@ describe("SecretsTab", () => {
     expect(screen.getByText("non défini")).toBeInTheDocument();
   });
 
-  // ---- 2. Empty catalog ---------------------------------------------------
+  // ---- 2. FR description override (sub-phase 5.2) --------------------------
+
+  it("affiche la description FR « Clé API TMDB » au lieu de l'EN brute (sub-phase 5.2)", () => {
+    renderSecretsTab();
+
+    // The backend returns description "TMDB API key" for TMDB_API_KEY.
+    // The FR_DESCRIPTIONS map must override it to "Clé API TMDB".
+    expect(screen.getByText("Clé API TMDB")).toBeInTheDocument();
+    // The raw EN description must NOT be rendered.
+    expect(screen.queryByText("TMDB API key")).not.toBeInTheDocument();
+  });
+
+  // ---- 3. Empty catalog ---------------------------------------------------
   it("affiche un message quand aucun secret n'est déclaré", () => {
     mocks.useConfigSecrets.mockReturnValue(success({ secrets: [] }));
     renderSecretsTab();

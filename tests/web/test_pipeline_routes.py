@@ -1266,7 +1266,65 @@ class TestHistoryRoutes:
         resp = client.get("/api/pipeline/history")
         assert resp.status_code == 200
         data = resp.json()
-        assert data == {"runs": [], "total": 0}
+        assert data == {"runs": [], "total": 0, "degraded": False}
+
+    def test_history_corrupt_db_returns_degraded(
+        self,
+        test_config,
+        pipeline_data_dir: Path,
+        tmp_path: Path,
+        caplog,
+    ) -> None:
+        """A missing or corrupt DB → 200 with ``degraded=True`` and an ERROR log."""
+        missing_db = tmp_path / "nonexistent" / "library.db"
+
+        cfg = test_config.model_copy(
+            update={
+                "paths": test_config.paths.model_copy(update={"data_dir": pipeline_data_dir}),
+                "indexer": test_config.indexer.model_copy(update={"db_path": missing_db}),
+            },
+        )
+        web_cfg = cfg.web.model_copy(update={"username": TEST_USERNAME})
+        cfg = cfg.model_copy(update={"web": web_cfg})
+
+        settings = Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            web_password_hash=TEST_HASH,
+            web_jwt_secret=TEST_SECRET,
+        )
+
+        from personalscraper.web.routes.pipeline import router as pipeline_router
+
+        client = guarded_client(
+            config=cfg,
+            settings=settings,
+            routers=pipeline_router,
+            login=(TEST_USERNAME, TEST_PASSWORD),
+        )
+
+        resp = client.get("/api/pipeline/history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["runs"] == []
+        assert data["total"] == 0
+        assert data["degraded"] is True
+
+        # The error must have been logged (structlog event bridged to stdlib).
+        found = any(
+            isinstance(getattr(r, "msg", None), dict) and r.msg.get("event") == "pipeline_history_read_failed"
+            for r in caplog.records
+        )
+        assert found, (
+            "Expected a pipeline_history_read_failed structlog event in caplog; "
+            f"got {[getattr(r, 'msg', r.getMessage()) for r in caplog.records]}"
+        )
+
+    def test_history_healthy_db_returns_degraded_false(self, history_client: TestClient) -> None:
+        """A healthy (populated) DB → ``degraded: False``."""
+        resp = history_client.get("/api/pipeline/history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["degraded"] is False
 
     # ── /history/{run_uid} detail ────────────────────────────────────────
 

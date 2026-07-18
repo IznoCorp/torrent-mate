@@ -202,14 +202,30 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("monte la page Maintenance (vague S3) sur « /maintenance »", async () => {
-    renderAt("/maintenance");
+  it("redirige /maintenance (sans ?run=) vers /systeme?tab=journal (canonical, systeme-hub)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/maintenance"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
 
-    // S3 replaced the ComingSoon placeholder with the real dashboard: assert
-    // the page heading (the h1, not the bottom-nav link) mounts.
-    expect(
-      await screen.findByRole("heading", { name: "Maintenance" }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/systeme");
+      expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
+        "journal",
+      );
+    });
   });
 
   it("redirige /maintenance?run=<uid> vers /pipeline?run=<uid> (DOIT-10)", async () => {
@@ -236,7 +252,7 @@ describe("router", () => {
     });
   });
 
-  it("ne redirige PAS /maintenance (sans ?run=) — rend la page Maintenance", async () => {
+  it("redirige /maintenance (sans ?run=) vers /systeme?tab=journal (canonical, remplace le rendu direct de Maintenance)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -254,12 +270,14 @@ describe("router", () => {
       </QueryClientProvider>,
     );
 
-    // The heading "Maintenance" renders — no Navigate redirect.
+    // The redirect lands on /systeme — the "Système" heading renders.
     expect(
-      await screen.findByRole("heading", { name: "Maintenance" }),
+      await screen.findByRole("heading", { name: "Système" }),
     ).toBeInTheDocument();
-    // The location stays on /maintenance.
-    expect(router.state.location.pathname).toBe("/maintenance");
+    expect(router.state.location.pathname).toBe("/systeme");
+    expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
+      "journal",
+    );
   });
 
   // --- D1: uid with reserved chars survives verbatim (encoded) ---
@@ -291,7 +309,7 @@ describe("router", () => {
 
   // --- B2: empty ?run= stays on Maintenance (no redirect) ---
 
-  it("ne redirige PAS /maintenance?run= (paramètre vide) — rend Maintenance (B2)", async () => {
+  it("redirige /maintenance?run= (paramètre vide) vers /systeme?tab=journal (no-run branch, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -309,11 +327,84 @@ describe("router", () => {
       </QueryClientProvider>,
     );
 
-    // Empty ?run= → no redirect, page renders normally.
+    // Empty ?run= → no-run branch → redirect to /systeme?tab=journal.
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/systeme");
+      expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
+        "journal",
+      );
+    });
+  });
+
+  // --- /systeme route (systeme-hub Phase 02) ---
+
+  it("affiche la page Système sur « /systeme »", async () => {
+    renderAt("/systeme");
+
     expect(
-      await screen.findByRole("heading", { name: "Maintenance" }),
+      await screen.findByRole("heading", { name: "Système" }),
     ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/maintenance");
+    // The 4 tabs are present.
+    expect(screen.getByRole("tab", { name: "État" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Actions" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Exécutions de maintenance" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Journal" })).toBeInTheDocument();
+  });
+
+  // --- /registry redirect (systeme-hub Phase 02) ---
+
+  it("redirige /registry vers /systeme (canonical, systeme-hub)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/registry"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/systeme");
+      expect(router.state.location.search).toBe("");
+    });
+  });
+
+  it("transmet les paramètres additionnels de /registry vers /systeme", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ["/registry?extra=keepme"],
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/systeme");
+      // LegacyRedirect appends source params to the clean target path.
+      // Assert PARSED params — not toContain on the raw string (which would
+      // certify a double-? broken URL from the old ?tab=etat-in-to approach).
+      const params = new URLSearchParams(router.state.location.search);
+      expect(params.get("extra")).toBe("keepme");
+    });
   });
 
   it("monte la page Médias sur « /medias »", async () => {

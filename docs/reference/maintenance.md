@@ -344,7 +344,8 @@ The runner lifecycle:
    the WebSocket stream ends).
 
 The unified `pipeline_run` table means the frontend's `RunHistoryTable`
-(reused from S2 on the `/maintenance` page) filters by `?kind=maintenance`.
+(reused from S2, now on the `/systeme?tab=maintenance` tab) filters by
+`?kind=maintenance`.
 `GET /api/pipeline/history?kind=pipeline|maintenance|all` and
 `GET /api/pipeline/history/{run_uid}` (now returning `kind`, `command`,
 `options_json`, `output_tail` in the detail view) serve both pipeline and

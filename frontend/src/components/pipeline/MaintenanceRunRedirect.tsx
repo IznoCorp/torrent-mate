@@ -3,14 +3,15 @@
  *
  * When the URL carries a ``?run=<uid>`` query parameter, this component replaces
  * the current history entry with ``/pipeline?run=<uid>`` so the pipeline-run
- * detail opens at its canonical address.  The ``replace`` navigation prevents the
- * redirecting URL from appearing in the back-button history, preserving the
- * contract of
- * {@link https://github.com/IznoCorp/torrent-mate/blob/main/docs/reference/product-intent.md | DOIT-10}
- * (« Retrouvable. Chaque détail a son URL ; Retour ferme ce qu'il doit fermer. »).
+ * detail opens at its canonical address (V3 contract).  The ``replace``
+ * navigation prevents the redirecting URL from appearing in the back-button
+ * history, preserving DOIT-10.
  *
- * When ``?run=`` is absent, the standard ``<Maintenance />`` page renders
- * unchanged (this wrapper adds zero extra DOM nodes in that case).
+ * When ``?run=`` is absent or empty, the request redirects (replace) to
+ * ``/systeme?tab=journal``.  The old ``/maintenance`` page carried the
+ * destructive-operations journal inline (now ``DestructiveLogPanel`` on the
+ * Journal tab); the operator's bookmark must land where the journal is
+ * (arbitrated sub-phase 5.4, 2026-07-17).
  *
  * Only the ``run`` parameter is forwarded to the pipeline route.  Any other
  * search params on ``/maintenance`` (e.g. a future ``?tab=``) are intentionally
@@ -18,7 +19,6 @@
  */
 import { Navigate, useSearchParams } from "react-router-dom";
 import type { ReactElement } from "react";
-import Maintenance from "@/pages/Maintenance";
 
 export function MaintenanceRunRedirect(): ReactElement {
   const [searchParams] = useSearchParams();
@@ -28,5 +28,5 @@ export function MaintenanceRunRedirect(): ReactElement {
       <Navigate to={`/pipeline?run=${encodeURIComponent(runUid)}`} replace />
     );
   }
-  return <Maintenance />;
+  return <Navigate to="/systeme?tab=journal" replace />;
 }

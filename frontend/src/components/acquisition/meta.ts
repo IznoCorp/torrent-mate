@@ -9,6 +9,13 @@
  */
 
 import { type ObligationItem } from "@/api/acquisition";
+import type { BadgeTone } from "@/components/ui/badge";
+import {
+  OUTCOME_LABEL,
+  OUTCOME_TONE,
+  STATE_LABEL,
+  STATE_TONE,
+} from "@/lib/outcome-labels";
 
 /** Tab ids for the four panels. */
 export type TabId = "followed" | "file" | "obligations" | "watcher";
@@ -97,37 +104,14 @@ export const OBLIGATION_STATUS_OPTIONS = [
 ];
 
 /** Status → badge tone mapping. */
-export const STATUS_TONE: Record<
-  string,
-  "success" | "danger" | "warning" | "info" | "neutral"
-> = {
-  active: "success",
-  inactive: "neutral",
-  pending: "warning",
-  searching: "info",
-  grabbed: "info",
-  done: "success",
-  abandoned: "danger",
-  satisfied: "success",
-  breached: "danger",
-  completed: "success",
-  failed: "danger",
+export const STATUS_TONE: Record<string, BadgeTone> = {
+  ...STATE_TONE,
   killed: "warning",
 };
 
 /** Status → French label mapping. */
 export const STATUS_LABEL: Record<string, string> = {
-  active: "Actif",
-  inactive: "Inactif",
-  pending: "En attente",
-  searching: "En recherche",
-  grabbed: "Récupéré",
-  done: "Terminé",
-  abandoned: "Abandonné",
-  satisfied: "Respectée",
-  breached: "Non respectée",
-  completed: "Succès",
-  failed: "Échec",
+  ...STATE_LABEL,
   killed: "Arrêté",
 };
 
@@ -192,20 +176,17 @@ export const FOLLOW_KIND_LABEL: Record<string, string> = {
 };
 
 /** Run outcome → badge tone (acquisition recent runs). */
-export const RUN_OUTCOME_TONE: Record<
-  string,
-  "success" | "danger" | "warning" | "neutral"
-> = {
-  success: "success",
-  error: "danger",
-  killed: "warning",
+export const RUN_OUTCOME_TONE: Record<string, BadgeTone> = {
+  success: OUTCOME_TONE.success ?? "success",
+  error: OUTCOME_TONE.error ?? "danger",
+  killed: OUTCOME_TONE.killed ?? "warning",
 };
 
 /** Run outcome → French label (acquisition recent runs). */
 export const RUN_OUTCOME_LABEL: Record<string, string> = {
-  success: "Succès",
-  error: "Erreur",
-  killed: "Interrompu",
+  success: OUTCOME_LABEL.success ?? "Succès",
+  error: OUTCOME_LABEL.error ?? "Échec",
+  killed: OUTCOME_LABEL.killed ?? "Interrompu",
 };
 
 /** French labels for the §5 numeric-result keys persisted by the CLIs. */

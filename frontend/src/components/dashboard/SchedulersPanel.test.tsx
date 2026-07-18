@@ -101,7 +101,7 @@ describe("SchedulersPanel", () => {
     expect(screen.getByText("Cron")).toBeInTheDocument();
 
     // Outcome tones: cron succeeded, watcher never carries an outcome.
-    expect(screen.getByText("Réussi")).toBeInTheDocument();
+    expect(screen.getByText("Succès")).toBeInTheDocument();
     expect(screen.getByText("Jamais exécuté")).toBeInTheDocument();
 
     // Cron schedule string surfaces.

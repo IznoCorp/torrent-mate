@@ -227,12 +227,14 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("Config", () => {
-  // ---- 1. Renders file list and file selection ---------------------------
-  it("affiche la liste des fichiers et permet la sélection", async () => {
+  // ---- 1. Renders file list and auto-selects first file (G2) ------------
+  it("affiche la liste des fichiers et auto-sélectionne le premier (G2)", async () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    // File list entries are rendered.
-    expect(screen.getByText("master.json5")).toBeInTheDocument();
+    // File list entries are rendered. master.json5 may appear twice once
+    // auto-selected (list button + editor header) — assert presence, not unicity.
+    expect(screen.getAllByText("master.json5").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("secrets.json5")).toBeInTheDocument();
     expect(screen.getByText("local.json5")).toBeInTheDocument();
 
@@ -240,19 +242,13 @@ describe("Config", () => {
     expect(screen.getByText("max_retries")).toBeInTheDocument();
     expect(screen.getByText("api_key")).toBeInTheDocument();
 
-    // Placeholder message in the right panel.
-    expect(
-      screen.getByText("Sélectionnez un fichier dans la liste pour l'éditer."),
-    ).toBeInTheDocument();
-
-    // Click a file.
-    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
-    fireEvent.click(screen.getByText("master.json5"));
-
-    // Wait for the form to appear with the file's value.
+    // First file is auto-selected (G2) — form renders, no placeholder.
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
     });
+    expect(
+      screen.queryByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+    ).not.toBeInTheDocument();
   });
 
   // ---- 2. Read-only status -------------------------------------------------
@@ -262,9 +258,11 @@ describe("Config", () => {
 
     expect(screen.getByText(/lecture seule/i)).toBeInTheDocument();
 
-    // Select a file.
+    // Select a file via the FileList button (accessible name includes file name).
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(
+      screen.getByRole("button", { name: /master\.json5/ }),
+    );
 
     await waitFor(() => {
       // The input should be disabled.
@@ -299,7 +297,7 @@ describe("Config", () => {
     renderConfig();
 
     // Select the file to load it.
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     // Wait for the form to render.
     await waitFor(() => {
@@ -359,7 +357,7 @@ describe("Config", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
@@ -397,7 +395,7 @@ describe("Config", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
@@ -492,7 +490,7 @@ describe("Config", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
@@ -647,7 +645,7 @@ describe("Config", () => {
     renderConfig();
 
     // Select secrets.json5.
-    fireEvent.click(screen.getByText("secrets.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /secrets\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("old")).toBeInTheDocument();
@@ -688,7 +686,7 @@ describe("Config", () => {
     renderConfig();
 
     // Select secrets.json5.
-    fireEvent.click(screen.getByText("secrets.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /secrets\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("abc")).toBeInTheDocument();
@@ -714,7 +712,7 @@ describe("Config", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
@@ -754,7 +752,7 @@ describe("Config", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
@@ -789,7 +787,7 @@ describe("Config", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
@@ -811,23 +809,17 @@ describe("Config", () => {
   });
 
   // ---- 19. Mobile file selector renders + reflects selection (3.3) ---------
-  it("affiche le sélecteur de fichier mobile et reflète la sélection", async () => {
+  it("affiche le sélecteur mobile avec l'option Secrets", async () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    // The mobile-only file dropdown renders as a labelled combobox with a
-    // placeholder while nothing is selected.
-    const mobileSelect = screen.getByRole("combobox", { name: "Fichier" });
+    // The mobile selector is labelled with its current mode (Fichier by default).
+    const mobileSelect = screen.getByRole("combobox", { name: "Section" });
     expect(mobileSelect).toBeInTheDocument();
-    expect(mobileSelect).toHaveTextContent("Sélectionner un fichier…");
 
-    // Selecting a file (via the sidebar) updates the mobile selector's value.
-    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
-    fireEvent.click(screen.getByText("master.json5"));
-
+    // First file is auto-selected — mobile selector reflects it.
     await waitFor(() => {
-      expect(
-        screen.getByRole("combobox", { name: "Fichier" }),
-      ).toHaveTextContent("master.json5");
+      expect(mobileSelect).toHaveTextContent("master.json5");
     });
   });
 });
@@ -846,22 +838,122 @@ describe("Config — fichier adressable par URL (D3 / DOIT-10)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("affiche le placeholder sans paramètre ?file=", () => {
+  it("auto-sélectionne le premier fichier quand aucun ?file= n'est présent (G2)", async () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
-
+    // Auto-select kicks in → editor opens, no placeholder.
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+    });
     expect(
-      screen.getByText("Sélectionnez un fichier dans la liste pour l'éditer."),
-    ).toBeInTheDocument();
+      screen.queryByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("n'écrase PAS un deep-link ?file= (G2 — auto-select guard)", async () => {
+    // Load a DIFFERENT file via deep-link (secrets.json5 not master.json5).
+    mocks.useConfigFile.mockReturnValue(
+      success({
+        name: "secrets.json5",
+        values: { api_key: "deep-linked" },
+        sha256: "def456",
+        shadowed_keys: ["api_key"],
+      }),
+    );
+    renderConfig("/config?file=secrets.json5");
+
+    // The deep-linked file opens, NOT master.json5 (which is first in the list).
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("deep-linked")).toBeInTheDocument();
+    });
+    // The first file should NOT have been auto-selected.
+    expect(screen.queryByDisplayValue("3")).not.toBeInTheDocument();
   });
 
   it("écrit ?file=<nom> dans l'URL en sélectionnant un fichier (partageable)", () => {
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
     renderConfig();
 
-    fireEvent.click(screen.getByText("master.json5"));
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     expect(screen.getByTestId("loc-search")).toHaveTextContent(
       "?file=master.json5",
     );
+  });
+});
+
+describe("Config — Secrets tab sibling (3.1)", () => {
+  it("affiche l'onglet Secrets et permet de basculer", async () => {
+    mocks.useConfigFile.mockReturnValue(
+      success({
+        name: "secrets.json5",
+        values: { api_key: "abc" },
+        sha256: "def456",
+        shadowed_keys: ["api_key"],
+      }),
+    );
+    renderConfig();
+
+    // Switch to Secrets tab.
+    const secretsTab = screen.getByRole("tab", { name: "Secrets" });
+    expect(secretsTab).toBeInTheDocument();
+    fireEvent.click(secretsTab);
+
+    // SecretsTab content replaces FileList — empty catalog shows the empty
+    // message (the default mock returns no secrets).
+    await waitFor(() => {
+      expect(
+        screen.getByText("Aucun secret déclaré dans le catalogue."),
+      ).toBeInTheDocument();
+    });
+
+    // FileList content should not be visible.
+    expect(screen.queryByText("local.json5")).not.toBeInTheDocument();
+  });
+
+  it("affiche les secrets avec leur statut défini/non défini", async () => {
+    mocks.useConfigSecrets.mockReturnValue(
+      success({
+        secrets: [
+          { key: "TMDB_API_KEY", description: "Clé API TMDB", is_set: true },
+          {
+            key: "TVDB_API_KEY",
+            description: "Clé API TVDB",
+            is_set: false,
+          },
+        ],
+      }),
+    );
+    renderConfig();
+
+    // Switch to Secrets tab.
+    fireEvent.click(screen.getByRole("tab", { name: "Secrets" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("TMDB_API_KEY")).toBeInTheDocument();
+      expect(screen.getByText("TVDB_API_KEY")).toBeInTheDocument();
+      expect(screen.getByText("défini")).toBeInTheDocument();
+      expect(screen.getByText("non défini")).toBeInTheDocument();
+    });
+  });
+
+  it("le bouton de sauvegarde des secrets est désactivé sans modification", async () => {
+    mocks.useConfigSecrets.mockReturnValue(
+      success({
+        secrets: [
+          { key: "TMDB_API_KEY", description: "Clé API TMDB", is_set: false },
+        ],
+      }),
+    );
+    renderConfig();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Secrets" }));
+
+    await waitFor(() => {
+      const saveBtn = screen.getByRole("button", {
+        name: "Enregistrer les secrets",
+      });
+      expect(saveBtn).toBeDisabled();
+    });
   });
 });

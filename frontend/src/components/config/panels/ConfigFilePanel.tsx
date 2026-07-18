@@ -6,6 +6,7 @@
 import { type ReactElement } from "react";
 
 import { SchemaForm } from "@/components/config/SchemaForm";
+import { EmptyState } from "@/components/ds/EmptyState";
 import { Button } from "@/components/ui/button";
 
 /** Props for {@link ConfigFilePanel}. */
@@ -72,9 +73,10 @@ export function ConfigFilePanel({
   return (
     <div className="rounded-md border border-border p-4">
       {selectedFile === null ? (
-        <p className="text-sm text-muted-foreground">
-          Sélectionnez un fichier dans la liste pour l&apos;éditer.
-        </p>
+        <EmptyState
+          title="Aucun fichier disponible"
+          description="La configuration ne contient aucun fichier éditable."
+        />
       ) : fileLoading ? (
         <p className="text-sm text-muted-foreground">Chargement du fichier…</p>
       ) : fileError ? (

@@ -189,9 +189,9 @@ describe("AppShell mobile nav Sheet", () => {
     expect(within(sheetNav).getByText("Supervision")).toBeInTheDocument();
     expect(within(sheetNav).getByText("Configuration")).toBeInTheDocument();
 
-    // Registre is now an active link (S6 shipped).
-    const registre = within(sheetNav).getByRole("link", { name: "Registre" });
-    expect(registre).toHaveAttribute("href", "/registry");
+    // Système (ex-Maintenance + Registre fusionnés, systeme-hub Phase 02).
+    const systeme = within(sheetNav).getByRole("link", { name: "Système" });
+    expect(systeme).toHaveAttribute("href", "/systeme");
   });
 
   it("ferme le tiroir lorsqu'une destination est choisie", async () => {

@@ -115,3 +115,38 @@ describe("WatcherPanel — §5 detect trigger", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Recent-run badge assertions (sub-phase 5.2)
+// ---------------------------------------------------------------------------
+
+describe("WatcherPanel — recent-run outcome badges (sub-phase 5.2)", () => {
+  it("affiche « Échec » pour un run récent en erreur", () => {
+    vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
+      data: {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [
+          {
+            run_uid: "err-run-1",
+            command: "follow-detect",
+            started_at: 1_720_000_000,
+            ended_at: 1_720_000_010,
+            outcome: "error",
+            result: null,
+          },
+        ],
+        deferred: [],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof hooks.useAcquisitionStatus>);
+    vi.spyOn(hooks, "useTrackedAcquisitionRun").mockReturnValue(undefined);
+
+    renderPanel();
+
+    // The unified OUTCOME_LABEL maps error → "Échec" (NOT "Erreur").
+    expect(screen.getByText("Échec")).toBeInTheDocument();
+  });
+});

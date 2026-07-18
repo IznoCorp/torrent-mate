@@ -191,7 +191,7 @@ describe("RunDetail", () => {
 
     await screen.findByText("abc123-r…");
 
-    // Both the outcome badge AND the error section heading say "Erreur".
+    // Both the outcome badge ("Échec") AND the error section heading ("Erreur").
     const erreurElements = screen.getAllByText("Erreur");
     expect(erreurElements.length).toBeGreaterThanOrEqual(1);
     // Error body text (partial).
@@ -205,8 +205,8 @@ describe("RunDetail", () => {
 
     await screen.findByText("abc123-r…");
 
-    // "Erreur" should only appear once if it's the outcome label, not a
-    // section. Our success outcome label is "Succès", not "Erreur".
+    // "Erreur" should only appear once from the section heading, not the
+    // outcome badge. The outcome label for success is "Succès", nor "Erreur".
     expect(screen.queryByText("Erreur")).not.toBeInTheDocument();
   });
 
@@ -254,11 +254,36 @@ describe("RunDetail", () => {
 
     await screen.findByText("abc123-r…");
 
-    // Both the outcome badge AND the error section heading say "Erreur".
+    // Both the outcome badge ("Échec") AND the error section heading ("Erreur").
     const erreurElements = screen.getAllByText("Erreur");
     expect(erreurElements.length).toBeGreaterThanOrEqual(1);
     // The error body should also be visible.
     expect(screen.getByText("something broke")).toBeInTheDocument();
+  });
+
+  it("affiche le badge « Échec » (exact) pour un run en erreur (sub-phase 5.2)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({ outcome: "error", error: "traceback" }),
+    );
+    renderDetail("err-run");
+
+    await screen.findByText("Échec");
+    // "Échec" is the unified OUTCOME_LABEL badge — not "Erreur", not "Arrêté".
+    expect(screen.getByText("Échec")).toBeInTheDocument();
+  });
+
+  it("affiche le badge « Interrompu » pour un run killed (sub-phase 5.2 — tue le mutant Échec→Erreur)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(
+      makeDetail({ outcome: "killed", error: "SIGTERM" }),
+    );
+    renderDetail("kill-run");
+
+    await screen.findByText("Interrompu");
+    // The unified vocabulary says OUTCOME_LABEL.killed === "Interrompu",
+    // NOT "Arrêté" (which is the acquisition STATUS_LABEL, not a run outcome).
+    expect(screen.getByText("Interrompu")).toBeInTheDocument();
   });
 
   it("affiche la commande, les options et la sortie pour un run de maintenance sans le stepper", async () => {
@@ -313,7 +338,7 @@ describe("RunDetail", () => {
     // Cross-link from Pipeline page to Maintenance (pipeline-panel Phase 02).
     const link = screen.getByText("→ Voir les exécutions de maintenance");
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/maintenance");
+    expect(link).toHaveAttribute("href", "/systeme?tab=maintenance");
   });
 
   it("n'affiche PAS le lien croisé quand showMaintenanceLink est absent (défaut false)", async () => {

@@ -69,7 +69,9 @@ describe("Sidebar", () => {
       name: /navigation latérale/i,
     });
     expect(within(nav).getByText("Supervision")).toBeInTheDocument();
-    expect(within(nav).getByText("Système")).toBeInTheDocument();
+    // « Système » is now BOTH the section micro-label and the collapsed nav
+    // entry (V5) — assert at least the section label exists.
+    expect(within(nav).getAllByText("Système").length).toBeGreaterThanOrEqual(1);
     expect(within(nav).getByText("Configuration")).toBeInTheDocument();
   });
 
@@ -82,11 +84,11 @@ describe("Sidebar", () => {
     );
     expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Maintenance" }),
+      screen.getByRole("link", { name: "Système" }),
     ).toBeInTheDocument();
   });
 
-  it("rend Config et Registre comme des liens actifs", () => {
+  it("rend Config comme lien actif (Registre fusionné dans /systeme)", () => {
     renderSidebar();
 
     // Config is an active link.
@@ -95,11 +97,10 @@ describe("Sidebar", () => {
       "/config",
     );
 
-    // Registre is now an active link (S6 shipped).
-    expect(screen.getByRole("link", { name: "Registre" })).toHaveAttribute(
-      "href",
-      "/registry",
-    );
+    // Registre is gone — merged into /systeme (systeme-hub Phase 02).
+    expect(
+      screen.queryByRole("link", { name: "Registre" }),
+    ).not.toBeInTheDocument();
   });
 
   it("marque la destination courante en actif (text-primary)", () => {

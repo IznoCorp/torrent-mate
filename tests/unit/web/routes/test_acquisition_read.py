@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.web.acquisition import obligation_titles as _obligation_titles
 from personalscraper.web.auth.tokens import create_session_token
 from tests.web._web_harness import web_client
 
@@ -578,11 +579,9 @@ class TestObligationsEndpoint:
         conn.commit()
         conn.close()
 
-        import personalscraper.web.routes.acquisition as acq_routes
-
         # Patch Path in the routes module so Path() raises for the corrupt
         # dispatched_path — exercises the per-item except clause.
-        orig_path = acq_routes.Path
+        orig_path = _obligation_titles.Path
 
         class _BombPath:
             def __init__(self, *args: object) -> None:
@@ -593,7 +592,7 @@ class TestObligationsEndpoint:
             def __getattr__(self, name: str) -> object:
                 return getattr(self._inner, name)
 
-        monkeypatch.setattr(acq_routes, "Path", _BombPath)
+        monkeypatch.setattr(_obligation_titles, "Path", _BombPath)
 
         resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
         assert resp.status_code == 200, resp.text
@@ -666,9 +665,7 @@ class TestObligationsEndpoint:
         conn.commit()
         conn.close()
 
-        import personalscraper.web.routes.acquisition as acq_routes
-
-        orig_path = acq_routes.Path
+        orig_path = _obligation_titles.Path
 
         class _BombPath:
             def __init__(self, *args: object) -> None:
@@ -679,7 +676,7 @@ class TestObligationsEndpoint:
             def __getattr__(self, name: str) -> object:
                 return getattr(self._inner, name)
 
-        monkeypatch.setattr(acq_routes, "Path", _BombPath)
+        monkeypatch.setattr(_obligation_titles, "Path", _BombPath)
 
         resp = client.get("/api/acquisition/obligations", cookies=_make_auth_cookie())
         assert resp.status_code == 200, resp.text

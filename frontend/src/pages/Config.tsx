@@ -3,9 +3,11 @@
  *
  * A thin page shell: {@link useConfigEditor} owns the load / dirty / save /
  * validate / restart machine, and this component wires that state to the
- * presentation panels — the {@link FileList} sidebar, the mobile file selector,
- * the {@link ConfigFilePanel} editor, the restart / staging banners, the
- * {@link SecretsTab} section, and the conflict / restart dialogs.
+ * presentation panels behind a Fichiers / Secrets tab bar — the
+ * {@link FileList} sidebar, the mobile section selector, the
+ * {@link ConfigFilePanel} editor, the restart / staging banners, the
+ * {@link SecretsTab} sibling panel (no more scroll-to-find, G2/E3), and the
+ * conflict / restart dialogs.
  */
 
 import { type ReactElement } from "react";
@@ -20,6 +22,7 @@ import { FileList } from "@/components/config/FileList";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { StagingBanner } from "@/components/StagingBanner";
 import { useConfigEditor } from "@/hooks/useConfigEditor";
+import { cn } from "@/lib/utils";
 
 /**
  * Config — the authenticated config editor route (``/config``).
@@ -82,54 +85,100 @@ export default function Config(): ReactElement {
         />
       )}
 
-      {/* Mobile-only file selector — the 240px sidebar is hidden < md, so a
-          top dropdown keeps the editor usable at 375px. */}
+      {/* Mobile-only section selector — the 240px sidebar is hidden < md, so a
+          top dropdown keeps the editor and Secrets usable at 375px. */}
       <MobileFileSelect
         files={editor.files}
         selectedFile={editor.selectedFile}
         dirtyFileNames={editor.dirtyFileNames}
+        leftTab={editor.leftTab}
         onSelect={editor.handleSelectFile}
+        onSelectSecrets={editor.handleSelectSecrets}
       />
 
-      {/* Two-panel layout: FileList (sidebar) + SchemaForm editor */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-        {/* Left panel: file list (hidden < md — replaced by the mobile Select) */}
-        <div className="hidden rounded-md border border-border p-2 md:block">
-          <FileList
-            dirtyFiles={editor.dirtyFileNames}
-            selected={editor.selectedFile}
-            onSelect={editor.handleSelectFile}
+      {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above. */}
+      <div
+        className="hidden md:flex gap-0.5 rounded-lg bg-muted p-1 w-fit"
+        role="tablist"
+        aria-label="Section"
+      >
+        <button
+          role="tab"
+          aria-selected={editor.leftTab === "files"}
+          type="button"
+          onClick={() => {
+            editor.setLeftTab("files");
+          }}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            editor.leftTab === "files"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Fichiers
+        </button>
+        <button
+          role="tab"
+          aria-selected={editor.leftTab === "secrets"}
+          type="button"
+          onClick={() => {
+            editor.setLeftTab("secrets");
+          }}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            editor.leftTab === "secrets"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Secrets
+        </button>
+      </div>
+
+      {/* Files tab: two-panel layout (FileList sidebar + SchemaForm editor). */}
+      {editor.leftTab === "files" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+          {/* Left panel: file list (hidden < md — replaced by the mobile Select) */}
+          <div className="hidden rounded-md border border-border p-2 md:block">
+            <FileList
+              dirtyFiles={editor.dirtyFileNames}
+              selected={editor.selectedFile}
+              onSelect={editor.handleSelectFile}
+            />
+          </div>
+
+          {/* Right panel: form or placeholder */}
+          <ConfigFilePanel
+            selectedFile={editor.selectedFile}
+            fileLoading={editor.fileLoading}
+            fileError={editor.fileError}
+            readOnly={editor.readOnly}
+            validatePending={editor.validatePending}
+            savePending={editor.savePending}
+            isDirty={editor.isDirty}
+            onValidate={() => {
+              void editor.handleValidate();
+            }}
+            onSave={() => {
+              void editor.handleSave();
+            }}
+            schema={editor.fileSchema}
+            rootSchema={editor.rootSchema}
+            values={editor.currentValues}
+            errors={editor.formErrors}
+            shadowedKeys={editor.shadowedKeys}
+            onChange={editor.onFormChange}
           />
         </div>
+      )}
 
-        {/* Right panel: form or placeholder */}
-        <ConfigFilePanel
-          selectedFile={editor.selectedFile}
-          fileLoading={editor.fileLoading}
-          fileError={editor.fileError}
-          readOnly={editor.readOnly}
-          validatePending={editor.validatePending}
-          savePending={editor.savePending}
-          isDirty={editor.isDirty}
-          onValidate={() => {
-            void editor.handleValidate();
-          }}
-          onSave={() => {
-            void editor.handleSave();
-          }}
-          schema={editor.fileSchema}
-          rootSchema={editor.rootSchema}
-          values={editor.currentValues}
-          errors={editor.formErrors}
-          shadowedKeys={editor.shadowedKeys}
-          onChange={editor.onFormChange}
-        />
-      </div>
-
-      {/* Secrets section */}
-      <div className="rounded-md border border-border p-4">
-        <SecretsTab readOnly={editor.readOnly} />
-      </div>
+      {/* Secrets tab (sibling of the file list — no more scroll-to-find, G2/E3) */}
+      {editor.leftTab === "secrets" && (
+        <div className="rounded-md border border-border p-4">
+          <SecretsTab readOnly={editor.readOnly} />
+        </div>
+      )}
 
       {/* Conflict dialog */}
       <ConflictDialog

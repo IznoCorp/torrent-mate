@@ -15,7 +15,7 @@
  */
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -77,6 +77,14 @@ export interface ConfigEditorState {
   readonly selectedFile: string | null;
   /** Select a file, pushing ``?file=<name>`` into the URL. */
   readonly handleSelectFile: (name: string) => void;
+
+  // ---- Section tabs (Fichiers / Secrets) ----
+  /** Active section — Fichiers or Secrets (local UI state, not URL-driven). */
+  readonly leftTab: "files" | "secrets";
+  /** Switch the active section (desktop tab bar — keeps ``?file=`` intact). */
+  readonly setLeftTab: (tab: "files" | "secrets") => void;
+  /** Switch to Secrets AND durably clear ``?file=`` (mobile selector path). */
+  readonly handleSelectSecrets: () => void;
   /** Names of files with unsaved edits (bullet markers + FileList badges). */
   readonly dirtyFileNames: Set<string>;
 
@@ -180,6 +188,8 @@ export function useConfigEditor(): ConfigEditorState {
   const [showConflict, setShowConflict] = useState(false);
   // Restart confirmation dialog visibility.
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  // Active section — Fichiers or Secrets (local UI state, not URL-driven).
+  const [leftTab, setLeftTab] = useState<"files" | "secrets">("files");
 
   const queryClient = useQueryClient();
 
@@ -212,9 +222,56 @@ export function useConfigEditor(): ConfigEditorState {
         { replace: false },
       );
       setFormErrors({});
+      // Selecting a file always lands on the Files section (the mobile
+      // dropdown can pick a file while the Secrets section is showing).
+      setLeftTab("files");
     },
     [setSearchParams],
   );
+
+  // ---- Switch to Secrets (mobile selector path) ----------------------------
+  // Removes ?file= with replace:true so Back does not resurrect it. The clear
+  // is durable: the G2 auto-select below is gated on leftTab === "files".
+  const handleSelectSecrets = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("file");
+        return next;
+      },
+      { replace: true },
+    );
+    setLeftTab("secrets");
+  }, [setSearchParams]);
+
+  // ---- Auto-select first file on initial load (G2) --------------------------
+  // When no file is addressed in the URL, select the first available file so
+  // the user never sees the empty "Sélectionnez un fichier" dead start.  Deep-
+  // links (?file=...) are NOT overridden — the guard `leftTab === "files" &&
+  // selectedFile === null` preserves the URL-addressable file selection from
+  // D3/DOIT-10.  If the user clears the param (Back), auto-select fires again.
+  // Gating on `leftTab` keeps the Secrets-path ?file= clear durable (see
+  // handleSelectSecrets).
+  useEffect(() => {
+    if (
+      leftTab === "files" &&
+      selectedFile === null &&
+      filesQ.data &&
+      filesQ.data.files.length > 0
+    ) {
+      const first = filesQ.data.files[0];
+      if (first) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("file", first.name);
+            return next;
+          },
+          { replace: true },
+        );
+      }
+    }
+  }, [leftTab, selectedFile, filesQ.data, setSearchParams]);
 
   // ---- Get current values for the selected file ----------------------------
   const currentValues = useMemo<Record<string, unknown>>(
@@ -442,6 +499,9 @@ export function useConfigEditor(): ConfigEditorState {
     isStaging,
     selectedFile,
     handleSelectFile,
+    leftTab,
+    setLeftTab,
+    handleSelectSecrets,
     dirtyFileNames,
     fileLoading: fileQ.isLoading,
     fileError: fileQ.isError,

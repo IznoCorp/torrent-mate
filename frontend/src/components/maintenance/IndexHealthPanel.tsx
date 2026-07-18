@@ -226,7 +226,7 @@ export function IndexHealthPanel(): ReactElement {
           </p>
         )}
         {isError && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-danger" role="alert">
             Erreur lors du chargement.
           </p>
         )}
