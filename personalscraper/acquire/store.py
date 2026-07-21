@@ -55,13 +55,12 @@ event names ``acquire.store.*``.  Imports: ``core/``, ``conf/`` + stdlib only.
 from __future__ import annotations
 
 import sqlite3
-import time
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import date
 from pathlib import Path
 
 from personalscraper.acquire._aired_store import _AiredSubStore  # noqa: PLC0415
+from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore  # noqa: PLC0415
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_followed,
@@ -373,6 +372,35 @@ class _FollowSubStore:
                 (cadence_json, followed_id),
             )
 
+    def set_metadata(
+        self,
+        followed_id: int,
+        *,
+        poster_url: str | None,
+        overview: str | None,
+        year: int | None,
+    ) -> None:
+        """Overwrite the OBJ3 card metadata columns for a followed series.
+
+        Persists the ``poster_url`` / ``overview`` / ``year`` captured from an
+        add-by-search candidate. All three columns are written together (a
+        ``None`` clears its column), matching the web layer's former raw
+        ``UPDATE``. Runs inside a single ``_write_tx`` BEGIN IMMEDIATE so the web
+        route no longer opens its own connection — single-writer discipline
+        (ACQUIRE-09).
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            poster_url: Poster URL, or ``None`` to clear it.
+            overview: Overview/synopsis text, or ``None`` to clear it.
+            year: Release/first-air year, or ``None`` to clear it.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
+                (poster_url, overview, year, followed_id),
+            )
+
 
 class _SeedSubStore:
     """Writer + reader for the ``seed_obligation`` table (deletion authority)."""
@@ -658,108 +686,6 @@ class _RatioSubStore:
             )
 
 
-class _CrossSeedSubStore:
-    """Writer + reader for the ``cross_seed_history`` and ``cross_seed_quota`` tables.
-
-    Records every cross-seed search attempt (upsert by source_hash+tracker)
-    and enforces a daily quota to prevent runaway searches during back-catalog
-    sweeps.  Reads are lock-free (WAL); writes use ``BEGIN IMMEDIATE``.
-    """
-
-    def __init__(self, conn: sqlite3.Connection) -> None:
-        """Initialise with the shared connection.
-
-        Args:
-            conn: Shared :class:`sqlite3.Connection` to ``acquire.db``.
-        """
-        self._conn = conn
-
-    def record_search(self, source_hash: str, tracker: str) -> None:
-        """Record a cross-seed search attempt (upsert).
-
-        A re-search for the same source_hash+tracker pair updates
-        ``searched_at`` in-place so that the most recent attempt is
-        always the one checked by :meth:`was_searched_recently`.
-
-        Args:
-            source_hash: Torrent info-hash of the source (hex string).
-            tracker: Tracker identifier string (e.g. ``"lacale"``).
-        """
-        now = time.time()
-        with _write_tx(self._conn):
-            self._conn.execute(
-                """
-                INSERT INTO cross_seed_history (source_hash, tracker, searched_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(source_hash, tracker) DO UPDATE SET
-                    searched_at = excluded.searched_at
-                """,
-                (source_hash, tracker, now),
-            )
-
-    def was_searched_recently(self, source_hash: str, tracker: str, days: int) -> bool:
-        """Return ``True`` if the pair was searched within *days*.
-
-        Args:
-            source_hash: Torrent info-hash of the source (hex string).
-            tracker: Tracker identifier string.
-            days: Look-back window in calendar days (86400 seconds each).
-
-        Returns:
-            ``True`` if a row exists with ``searched_at >= cutoff``.
-        """
-        cutoff = time.time() - (days * 86400)
-        self._conn.row_factory = sqlite3.Row
-        row = self._conn.execute(
-            """
-            SELECT 1 FROM cross_seed_history
-            WHERE source_hash = ? AND tracker = ? AND searched_at >= ?
-            LIMIT 1
-            """,
-            (source_hash, tracker, cutoff),
-        ).fetchone()
-        return row is not None
-
-    def daily_searches_remaining(self, max_per_day: int) -> int:
-        """Return the remaining quota for today.
-
-        Reads the ``cross_seed_quota`` row for the current local date
-        (``YYYY-MM-DD``).  Returns ``max_per_day - used``, clamped to
-        ``>= 0``.
-
-        Args:
-            max_per_day: Maximum number of searches allowed per calendar day.
-
-        Returns:
-            Remaining quota, never negative.
-        """
-        today = date.today().isoformat()
-        self._conn.row_factory = sqlite3.Row
-        row = self._conn.execute(
-            "SELECT count FROM cross_seed_quota WHERE date = ?",
-            (today,),
-        ).fetchone()
-        used = row["count"] if row is not None else 0
-        return max(0, max_per_day - used)
-
-    def increment_daily_count(self) -> None:
-        """Increment today's search count (UPSERT).
-
-        If today's row does not exist yet, inserts it with ``count=1``.
-        Otherwise increments ``count`` by 1.  Self-contained — opens its
-        own transaction via ``_write_tx``; call bare (no wrapping needed).
-        """
-        today = date.today().isoformat()
-        with _write_tx(self._conn):
-            self._conn.execute(
-                """
-                INSERT INTO cross_seed_quota (date, count) VALUES (?, 1)
-                ON CONFLICT(date) DO UPDATE SET count = count + 1
-                """,
-                (today,),
-            )
-
-
 # ---------------------------------------------------------------------------
 # Concrete store
 # ---------------------------------------------------------------------------
@@ -890,7 +816,7 @@ class ConcreteAcquireStore:
         """``cross_seed_history`` + ``cross_seed_quota`` sub-store (ensures open)."""
         conn = self._ensure_open()
         if self._cross_seed is None:
-            self._cross_seed = _CrossSeedSubStore(conn)
+            self._cross_seed = _CrossSeedSubStore(conn, _write_tx)
         return self._cross_seed
 
     @property

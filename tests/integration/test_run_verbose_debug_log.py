@@ -92,10 +92,9 @@ def _invoke_run(*, verbose: bool, monkeypatch: Any) -> tuple[Any, list[Any]]:
         patch("personalscraper.conf.loader.load_config", return_value=config),
         patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
         patch("personalscraper.pipeline.Pipeline", _StubPipeline),
-        patch("personalscraper.commands.pipeline.cli_compat.acquire_pipeline_lock", return_value=True),
-        patch("personalscraper.commands.pipeline.cli_compat.release_lock"),
-        patch("personalscraper.commands.pipeline._bootstrap_staging"),
-        patch("personalscraper.commands.pipeline.cli_compat.get_settings", return_value=MagicMock()),
+        patch("personalscraper.commands.pipeline.cli_helpers.acquire_pipeline_lock", return_value=True),
+        patch("personalscraper.commands.pipeline.cli_helpers.release_lock"),
+        patch("personalscraper.commands.pipeline.cli_helpers.get_settings", return_value=MagicMock()),
         patch("personalscraper.commands.pipeline._build_app_context") as _build,
     ):
         # Build a real AppContext so its EventBus is a real bus (the subscriber
@@ -179,10 +178,9 @@ def test_cli_run_verbose_debug_log_subscriber_closed_on_exception(monkeypatch: A
         patch("personalscraper.conf.loader.load_config", return_value=config),
         patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
         patch("personalscraper.pipeline.Pipeline", _RaisingPipeline),
-        patch("personalscraper.commands.pipeline.cli_compat.acquire_pipeline_lock", return_value=True),
-        patch("personalscraper.commands.pipeline.cli_compat.release_lock"),
-        patch("personalscraper.commands.pipeline._bootstrap_staging"),
-        patch("personalscraper.commands.pipeline.cli_compat.get_settings", return_value=MagicMock()),
+        patch("personalscraper.commands.pipeline.cli_helpers.acquire_pipeline_lock", return_value=True),
+        patch("personalscraper.commands.pipeline.cli_helpers.release_lock"),
+        patch("personalscraper.commands.pipeline.cli_helpers.get_settings", return_value=MagicMock()),
         patch("personalscraper.commands.pipeline._build_app_context") as _build,
     ):
         from personalscraper.api.metadata.registry import ProviderRegistry

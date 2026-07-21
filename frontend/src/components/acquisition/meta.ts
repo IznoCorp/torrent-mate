@@ -281,31 +281,9 @@ export const DOWNLOAD_STATE_LABEL: Record<string, string> = {
   errored: "En erreur",
 };
 
-/** Format a Unix-epoch float as a relative-time string in French. */
-export function relativeTime(epoch: number | null | undefined): string {
-  if (epoch == null) return "—";
-  const diff = Date.now() - epoch * 1000;
-  if (diff < 60_000) return "à l'instant";
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `il y a ${String(mins)} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${String(hours)} h`;
-  const days = Math.floor(hours / 24);
-  return `il y a ${String(days)} j`;
-}
-
-/** Format a Unix-epoch float as a human-readable datetime in French. */
-export function formatDatetime(epoch: number | null | undefined): string {
-  if (epoch == null) return "—";
-  const d = new Date(epoch * 1000);
-  return d.toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+// Relative-time + datetime formatters — re-exported from the single
+// `lib/format` owner (ACC-10).
+export { relativeTime, formatDatetime } from "@/lib/format";
 
 /**
  * Derive the obligation status from timestamps.

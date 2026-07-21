@@ -303,23 +303,23 @@ class TestSearchMovieTvdb:
         assert sent == "Astérix"
 
 
-# ── get_details dispatcher ────────────────────────────────────────────
+# ── get_tv / get_movie (string-id Protocol path) ──────────────────────
 
 
-class TestGetDetailsDispatchTvdb:
-    """get_details delegates to get_series / get_movie based on media_type."""
+class TestGetTvAndGetMovieTvdb:
+    """The typed detail capabilities accept the string-id Protocol path."""
 
-    def test_tv_details(self, client: TVDBClient, transport: MagicMock) -> None:
-        """media_type='tv' calls /series/{id}/extended."""
+    def test_get_tv_string_id(self, client: TVDBClient, transport: MagicMock) -> None:
+        """get_tv(str) calls /series/{id}/extended."""
         transport.get.return_value = _load("series_extended.json")
-        md = client.get_details("81189", media_type="tv")
+        md = client.get_tv("81189")
         assert isinstance(md, MediaDetails)
         assert transport.get.call_args_list[0].args[0] == "/series/81189/extended"
 
-    def test_movie_details(self, client: TVDBClient, transport: MagicMock) -> None:
-        """media_type='movie' calls /movies/{id}/extended."""
+    def test_get_movie_string_id(self, client: TVDBClient, transport: MagicMock) -> None:
+        """get_movie(str) calls /movies/{id}/extended."""
         transport.get.return_value = _load("movie_extended.json")
-        md = client.get_details("12345", media_type="movie")
+        md = client.get_movie("12345")
         assert isinstance(md, MediaDetails)
         assert transport.get.call_args_list[0].args[0] == "/movies/12345/extended"
 
@@ -412,7 +412,7 @@ class TestGetArtworkUrlsTvdb:
         assert isinstance(items[0], ArtworkItem)
 
 
-# ── get_season / get_series_episodes (pagination) ─────────────────────
+# ── get_series_episodes (pagination) ──────────────────────────────────
 
 
 class TestGetSeriesEpisodes:
@@ -450,11 +450,11 @@ class TestGetSeriesEpisodes:
         assert len(sd.episodes) == 2
         assert transport.get.call_count == 2
 
-    def test_get_season_delegates_to_episodes(self, client: TVDBClient, transport: MagicMock) -> None:
-        """The Protocol-level get_season calls get_series_episodes via int coercion."""
+    def test_get_episodes_string_id(self, client: TVDBClient, transport: MagicMock) -> None:
+        """The ``get_episodes`` capability accepts a string series_id via int coercion."""
         transport.get.return_value = _load("episodes_default.json")
-        sd = client.get_season("81189", 1)
-        assert sd.tv_id == "81189"
+        episodes = client.get_episodes("81189", 1)
+        assert isinstance(episodes, list)
 
     def test_no_links_terminates(self, client: TVDBClient, transport: MagicMock) -> None:
         """Missing/empty links.next ends pagination after first page."""

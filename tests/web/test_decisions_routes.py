@@ -21,19 +21,17 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
-from fastapi import APIRouter, Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
-from personalscraper.web.deps import require_session
+from tests.web._web_harness import guarded_client, mount_guarded
 
 from .test_maintenance_panels import (
     TEST_HASH,
+    TEST_PASSWORD,
     TEST_SECRET,
     TEST_USERNAME,
     _build_app,
-    _login,
-    _mount_guarded,
 )
 
 NOW = int(time.time())
@@ -73,27 +71,16 @@ def _build_authenticated_client_with_decisions(
         web_jwt_secret=TEST_SECRET,
     )
 
-    app = FastAPI()
-    app.state.config = cfg
-    app.state.settings = settings
-
-    # Auth router (needed for login).
-    from personalscraper.web.auth.routes import router as auth_router
-
-    app.include_router(auth_router)
-
-    # Guarded API with both maintenance + decisions routers.
-    guarded_api = APIRouter(dependencies=[Depends(require_session)])
+    # Guarded API with both maintenance + decisions routers under one perimeter.
     from personalscraper.web.routes.decisions import router as decisions_router
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
-    guarded_api.include_router(maintenance_router)
-    guarded_api.include_router(decisions_router)
-    app.include_router(guarded_api)
-
-    client = TestClient(app, base_url="https://testserver")
-    _login(client)
-    return client
+    return guarded_client(
+        config=cfg,
+        settings=settings,
+        routers=[maintenance_router, decisions_router],
+        login=(TEST_USERNAME, TEST_PASSWORD),
+    )
 
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
@@ -1230,15 +1217,16 @@ class TestAuth:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = FastAPI()
-        app.state.config = cfg
-        app.state.settings = settings
 
         from personalscraper.web.routes.decisions import router as decisions_router
 
-        _mount_guarded(app, decisions_router)
-
-        return TestClient(app)
+        return guarded_client(
+            config=cfg,
+            settings=settings,
+            routers=decisions_router,
+            with_auth=False,
+            https=False,
+        )
 
     def test_list_unauthenticated_returns_401(self, test_config, tmp_path: Path) -> None:
         """401 — GET / without session cookie."""
@@ -1402,7 +1390,7 @@ class TestDecisionsRouterMount:
         from personalscraper.web.routes.decisions import router as decisions_router
 
         app, _settings = _build_app(test_config, tmp_path, with_auth=True)
-        _mount_guarded(app, decisions_router)
+        mount_guarded(app, decisions_router)
         client = TestClient(app)
 
         # Without auth, the guarded_api's require_session fires 401.

@@ -5,14 +5,14 @@ Provides:
 - Fake provider classes implementing capability Protocols (Searchable,
   MovieDetailsProvider, TvDetailsProvider, EpisodeFetcher, RatingProvider,
   ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider,
-  IDValidator, IDCrossRef).
+  IDValidator).
 - MockEventBus that records emitted events without performing real emission.
 - build_registry() fixture factory that constructs a ``ProviderRegistry``
   with fake providers, bypassing real-provider instantiation and credential
   validation. The factory monkeypatches ``build_providers`` + the credential
   check so that tests can focus on registry semantics rather than provider
   wiring.
-- Sample ``ProvidersConfig`` builders for the six ``ConfigIssue`` families.
+- Sample ``ProvidersConfig`` builders for the five ``ConfigIssue`` families.
 
 The fixtures are intentionally minimal — only enough to drive the ~40
 tests enumerated in plan Appendix A. They do not attempt to stand in for
@@ -39,49 +39,13 @@ from personalscraper.api.metadata._base import (
 from personalscraper.conf.models.providers import ProvidersConfig
 from personalscraper.core.circuit import CircuitState
 
-# ---------------------------------------------------------------------------
-# Mock EventBus
-# ---------------------------------------------------------------------------
+# The two EventBus doubles are behaviourally identical across every tier, so
+# they live in the shared doubles module (tests-arch consolidation).  Re-exported
+# here so the registry conftest fixtures and its sibling tests keep importing
+# them from ``.conftest`` unchanged.
+from tests._doubles.registry import FailingEventBus, MockEventBus
 
-
-class MockEventBus:
-    """In-memory EventBus that records emitted events.
-
-    Attributes:
-        emitted: List of every event passed to ``emit()``.
-    """
-
-    def __init__(self) -> None:
-        """Initialize an empty emitted-events list."""
-        self.emitted: list[object] = []
-
-    def emit(self, event: object) -> None:
-        """Append ``event`` to ``self.emitted`` without further dispatch.
-
-        Args:
-            event: The event payload to record.
-        """
-        self.emitted.append(event)
-
-
-class FailingEventBus:
-    """EventBus that raises on every ``emit()`` call.
-
-    Used to verify the registry's ``_event_bus_safe_emit`` swallows
-    failures without propagating.
-    """
-
-    def emit(self, event: object) -> None:
-        """Raise to simulate a bus implementation that has failed.
-
-        Args:
-            event: Ignored — this bus never accepts events.
-
-        Raises:
-            RuntimeError: Always.
-        """
-        raise RuntimeError("event bus is broken")
-
+__all__ = ["FailingEventBus", "MockEventBus"]
 
 # ---------------------------------------------------------------------------
 # Fake provider classes (implement capability Protocols structurally)
@@ -314,37 +278,6 @@ class FakeKeyword:
         self.closed = True
 
 
-class FakeIDCrossRef:
-    """Fake provider implementing IDCrossRef.
-
-    Cross-reference table is fully configurable per instance.
-    """
-
-    provider_name: ClassVar[str] = "fake_idcrossref"
-
-    def __init__(
-        self,
-        *,
-        provider_name: str | None = None,
-        circuit_state: CircuitState = CircuitState.CLOSED,
-        xref_table: dict[str, dict[str, str]] | None = None,
-    ) -> None:
-        """Build the fake with optional xref table {source_id: {target_provider: target_id}}."""
-        if provider_name is not None:
-            self.provider_name = provider_name
-        self.circuit = _make_circuit(circuit_state)
-        self._table = xref_table or {}
-        self.closed = False
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        """Return the xref dict for ``provider_id``, possibly empty."""
-        return dict(self._table.get(provider_id, {}))
-
-    def close(self) -> None:
-        """Mark this fake as closed for cleanup-test assertions."""
-        self.closed = True
-
-
 class FakeMultiCapability:
     """Fake provider implementing many capabilities at once.
 
@@ -359,13 +292,11 @@ class FakeMultiCapability:
         *,
         provider_name: str | None = None,
         circuit_state: CircuitState = CircuitState.CLOSED,
-        xref_table: dict[str, dict[str, str]] | None = None,
     ) -> None:
         """Build the fake — all method bodies are stubs that return empty data."""
         if provider_name is not None:
             self.provider_name = provider_name
         self.circuit = _make_circuit(circuit_state)
-        self._xref = xref_table or {}
         self.closed = False
 
     def search(
@@ -418,10 +349,6 @@ class FakeMultiCapability:
         """Return an empty recommendation list."""
         return []
 
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        """Return the xref dict for ``provider_id``, possibly empty."""
-        return dict(self._xref.get(provider_id, {}))
-
     def get_rating(self, provider_id: str) -> list[Notations] | None:
         """Return None — no rating configured by default."""
         return None
@@ -464,30 +391,22 @@ def config_with_empty_chain_section() -> ProvidersConfig:
 
 
 def config_with_locked_orphan() -> ProvidersConfig:
-    """Build a config where TVDB is in chain but not in artwork nor IDCrossRef."""
+    """Build a config where TVDB is in chain but not in the artwork locked section."""
     return ProvidersConfig(
         Searchable={"tvdb": 1},
         ArtworkProvider={"tmdb": 1},
-        # No IDCrossRef so tvdb is truly orphaned for ArtworkProvider
+        # tvdb is a chain provider absent from ArtworkProvider — orphaned, since
+        # there is no cross-provider translation path (API-TRANSPORT-03).
     )
 
 
-def config_with_idcrossref_cycle() -> ProvidersConfig:
-    """Build a config where the IDCrossRef section is fully connected (≥ 3 nodes)."""
-    return ProvidersConfig(
-        Searchable={"tmdb": 1},
-        IDCrossRef={"tmdb": 1, "tvdb": 2, "imdb": 3},
-    )
-
-
-def config_with_all_six_families() -> ProvidersConfig:
-    """Build a config that triggers all six ConfigIssue families at once.
+def config_with_all_five_families() -> ProvidersConfig:
+    """Build a config that triggers all five ConfigIssue families at once.
 
     - ``unknown_provider``: section references ``"nobody"`` (no class).
     - ``empty_chain_section``: MovieDetailsProvider is empty.
     - ``protocol_mismatch``: assumes TMDBClient lacks the EpisodeFetcher Protocol.
-    - ``locked_capability_orphan``: tvdb is in chain but absent from artwork and from IDCrossRef.
-    - ``idcrossref_cycle``: ≥ 3 nodes in IDCrossRef form a fully-connected graph.
+    - ``locked_capability_orphan``: tvdb is in chain but absent from artwork.
     - ``missing_credentials``: handled via env-stripping in the test, not via config.
     """
     return ProvidersConfig(
@@ -496,7 +415,6 @@ def config_with_all_six_families() -> ProvidersConfig:
         EpisodeFetcher={"tmdb": 1},
         TvDetailsProvider={"tvdb": 1},
         ArtworkProvider={"tmdb": 1},
-        IDCrossRef={"tmdb": 1, "tvdb": 2, "imdb": 3},
     )
 
 

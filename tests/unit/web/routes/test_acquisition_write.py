@@ -23,8 +23,8 @@ from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.web.app import create_app
 from personalscraper.web.auth.tokens import create_session_token
+from tests.web._web_harness import web_client
 
 # ---------------------------------------------------------------------------
 # DDL (matching real schemas for acquire.db)
@@ -156,8 +156,7 @@ def client(test_config: Any, tmp_path: Path) -> TestClient:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
-    app = create_app(config, settings)
-    return TestClient(app)
+    return web_client(config, settings)
 
 
 def _auth_cookies() -> dict[str, str]:

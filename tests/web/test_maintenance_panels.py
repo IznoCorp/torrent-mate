@@ -17,26 +17,13 @@ import time
 from pathlib import Path
 
 import pytest
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.web.auth.passwords import hash_password
-from personalscraper.web.deps import require_session
-
-
-def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
-    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14).
-
-    Handlers no longer carry a per-route ``Depends(require_session)`` — the
-    guard lives on the parent router only (web-ui.md §6), so test apps must
-    reproduce the same perimeter to exercise auth.
-    """
-    guarded_api = APIRouter(dependencies=[Depends(require_session)])
-    guarded_api.include_router(router)
-    app.include_router(guarded_api)
-
+from tests.web._web_harness import build_guarded_app
 
 TEST_USERNAME = "testuser"
 TEST_PASSWORD = "test-password"
@@ -104,18 +91,9 @@ def _build_app(
         web_jwt_secret=TEST_SECRET,
     )
 
-    app = FastAPI()
-    app.state.config = cfg
-    app.state.settings = settings
-
-    if with_auth:
-        from personalscraper.web.auth.routes import router as auth_router
-
-        app.include_router(auth_router)
-
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
-    _mount_guarded(app, maintenance_router)
+    app = build_guarded_app(config=cfg, settings=settings, routers=maintenance_router, with_auth=with_auth)
 
     return app, settings
 
@@ -309,6 +287,33 @@ class TestLocksRoute:
             assert created_path in reported_paths
         for prefix in reported_prefixes:
             assert prefix == "_tmp_dispatch_"
+
+    def test_locks_detects_ingest_tmp_orphans(self, test_config, tmp_path: Path) -> None:
+        """A real ingest copy-stage orphan (``.ingest_tmp_*``) is surfaced.
+
+        Regression: the sweep used to match the literal ``_tmp_ingest_`` which
+        never occurs — the real ingest tmp prefix is ``.ingest_tmp_`` (the
+        crash-recovery ``INGEST_TMP_PREFIX``). The screen could therefore NEVER
+        report an ingest orphan. The prefix now comes from the artifact table.
+        """
+        from personalscraper.dispatch.crash_recovery import INGEST_TMP_PREFIX
+
+        staging = test_config.paths.staging_dir
+        staging.mkdir(parents=True, exist_ok=True)
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+
+        orphan = staging / f"{INGEST_TMP_PREFIX}Robot_sauvage"
+        orphan.mkdir()
+
+        client = _build_authenticated_client(test_config, tmp_path)
+
+        data = self._wait_for_sweep(client)
+        orphans = data["sweep"]["orphans"]
+
+        reported_paths = [e["path"] for e in orphans]
+        assert str(orphan) in reported_paths
+        entry = next(e for e in orphans if e["path"] == str(orphan))
+        assert entry["prefix"] == INGEST_TMP_PREFIX == ".ingest_tmp_"
 
     def test_locks_orphan_sweep_is_cached(self, test_config, tmp_path: Path) -> None:
         """The disk walk runs once per TTL — reads within it hit the cache (C25)."""

@@ -9,31 +9,9 @@
  * ``XRW_HEADERS`` from client.ts).  Reads are header-free.
  */
 
+import type { QueryParamsOf, SuccessBody } from "./_schema-helpers";
 import type { paths } from "./schema";
 import { XRW_HEADERS, apiFetch } from "./client";
-
-// ---------------------------------------------------------------------------
-// Inline type helpers (mirror decisions.ts / registry.ts)
-// ---------------------------------------------------------------------------
-
-/**
- * Extract the ``application/json`` response body from an openapi-typescript
- * response map (200).
- */
-type SuccessBody<T> = T extends {
-  200: { content: { "application/json": infer B } };
-}
-  ? B
-  : T extends {
-        202: { content: { "application/json": infer B } };
-      }
-    ? B
-    : never;
-
-/** The optional query parameters declared by an operation. */
-type QueryParamsOf<Op> = Op extends { parameters: { query?: infer Q } }
-  ? NonNullable<Q>
-  : never;
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -154,6 +132,13 @@ export const acqKeys = {
 
   /** Acquisition status query key: ``['acquisition', 'status']``. */
   status: () => [...acqKeys.all, "status"] as const,
+
+  /**
+   * Tracked-run key: ``['acquisition', 'status', 'tracked', runUid]`` — the
+   * status list scoped to one launched run's terminal poll (A4 / §5).
+   */
+  trackedRun: (runUid: string | null) =>
+    [...acqKeys.status(), "tracked", runUid] as const,
 
   /** Media search query key: ``['acquisition', 'search', {q, kind}]``. */
   search: (params: MediaSearchParams) =>

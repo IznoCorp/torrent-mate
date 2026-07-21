@@ -25,7 +25,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
+from personalscraper.api.torrent._errors import TorrentLockoutError
 from personalscraper.core.circuit import CircuitBreaker
 from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import run_ingest
@@ -223,10 +223,11 @@ class TestIngestQbitAuthLockoutEvent:
     """Real-path regression pin for ingest_qbit_auth_lockout.
 
     ``ingest_qbit_auth_lockout`` is emitted via ``log.exception(...)`` inside
-    the ``except QBitAuthLockoutError`` handler in
-    :func:`personalscraper.ingest.ingest.run_ingest`.  Mocks ``QBitClient``
-    to raise ``QBitAuthLockoutError`` on ``__enter__``, mirroring the
-    pattern used in ``tests/ingest/test_ingest.py`` for the other auth-error arms.
+    the ``except TorrentLockoutError`` handler in
+    :func:`personalscraper.ingest.ingest.run_ingest`.  Mocks the torrent client
+    to raise ``TorrentLockoutError`` on ``get_completed()`` — the family-neutral
+    error the client layer translates a qBittorrent lockout into at the protocol
+    boundary — mirroring the other auth-error arms in ``tests/ingest/test_ingest.py``.
     """
 
     def test_ingest_qbit_auth_lockout_event_name(
@@ -236,7 +237,7 @@ class TestIngestQbitAuthLockoutEvent:
     ) -> None:
         """ingest_qbit_auth_lockout event name is pinned via a real run_ingest call.
 
-        Injects ``QBitAuthLockoutError`` on ``get_completed()`` so the
+        Injects ``TorrentLockoutError`` on ``get_completed()`` so the
         handler in ``run_ingest`` is exercised, not a synthetic logger emit.
         The torrent client is boot-wired (DESIGN D3) and passed explicitly.
 
@@ -248,7 +249,9 @@ class TestIngestQbitAuthLockoutEvent:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.get_completed.side_effect = QBitAuthLockoutError("lockout detected")
+        mock_client.get_completed.side_effect = TorrentLockoutError(
+            provider="qbittorrent", http_status=0, message="lockout detected"
+        )
 
         with caplog.at_level(logging.ERROR, logger="ingest"):
             run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus(), torrent_client=mock_client)

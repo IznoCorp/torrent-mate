@@ -16,7 +16,7 @@
 // All three share a single rate-limit / circuit-breaker budget (DESIGN §4).
 //
 // This template boots cleanly with only TMDB_API_KEY + TVDB_API_KEY set.
-// Enabling OMDB_API_KEY adds ratings (IMDb / RT) and cross-provider ID validation.
+// Enabling OMDB_API_KEY adds ratings (IMDb / RT) and IMDb-ID validation.
 // Enabling TRAKT_CLIENT_ID adds recommendations and an additional search/details source.
 {
   providers: {
@@ -31,16 +31,15 @@
     // Enable OMDB_API_KEY and add imdb / rotten_tomatoes here to collect ratings.
     RatingProvider: {},
 
-    // ── Locked capabilities (identity-bound, IDCrossRef escape hatch) ──────
+    // ── Locked capabilities (identity-bound to the match's own provider) ──
     ArtworkProvider:       { tmdb: 1, tvdb: 2 },
 
     // KeywordProvider intentionally empty in this template: tvdb appears in
-    // chain sections but does not implement KeywordProvider, so a non-empty
-    // locked entry without an IDCrossRef bridge triggers
-    // ``locked_capability_orphan``. To enable keyword fetch, also configure
-    // IDCrossRef (requires OMDB_API_KEY + imdb) so the registry can translate
-    // tvdb→tmdb at the locked boundary. Out-of-the-box, leaving KeywordProvider
-    // empty keeps the template booting cleanly with only TMDB + TVDB creds.
+    // chain sections but does not implement KeywordProvider, and a locked
+    // capability is only served by a provider that owns the match's id (no
+    // cross-provider translation exists). A non-empty entry listing tvdb
+    // would therefore trigger ``locked_capability_orphan``. Leaving it empty
+    // keeps the template booting cleanly with only TMDB + TVDB creds.
     KeywordProvider: {},
 
     VideoProvider:         { tmdb: 1, tvdb: 2 },
@@ -50,9 +49,8 @@
     RecommendationProvider: {},
 
     // ── Direct capabilities (no semantic, dispatched by provider name) ─────
-    // Only IMDbClient implements IDValidator and IDCrossRef.
-    // Enable OMDB_API_KEY and add imdb here to validate/cross-ref IMDb IDs.
+    // Only IMDbClient implements IDValidator.
+    // Enable OMDB_API_KEY and add imdb here to validate IMDb IDs.
     IDValidator: {},
-    IDCrossRef: {},
   }
 }

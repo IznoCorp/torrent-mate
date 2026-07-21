@@ -12,8 +12,8 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import type { ReactElement } from "react";
 
-import { getDisks, getIndexHealth } from "@/api/client";
-import type { DisksResponse, IndexHealthResponse } from "@/api/client";
+import { getDisks, getIndexHealth } from "@/api/maintenance";
+import type { DisksResponse, IndexHealthResponse } from "@/api/maintenance";
 import { StatusDot } from "@/components/ds/StatusDot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";

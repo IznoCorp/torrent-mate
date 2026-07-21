@@ -12,8 +12,10 @@ from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.text_utils import sanitize_filename
 
 log = get_logger("enforce.sanitizer")
@@ -48,16 +50,24 @@ def sanitize_files(
     settings: Settings,
     config: Config,
     dry_run: bool = False,
+    *,
+    bus: EventBus,
 ) -> list[SanitizeResult]:
     """Sanitize all filenames in staging categories.
 
     Processes {movies_dir}/ and {tvshows_dir}/ recursively.
     Renames NTFS-illegal characters, removes .DS_Store and ._ files.
 
+    F8 real lifecycle: an ``ItemProgressed(status="started")`` is emitted on
+    *bus* for each file/dir BEFORE its sanitize mutation (delete/rename) runs.
+    The terminal ``ItemProgressed`` + report counters are recorded by
+    ``run_enforce`` from the returned results.
+
     Args:
         settings: Pipeline configuration (reserved for future use).
         config: Application config used to resolve staging_dir and category folder names.
         dry_run: If True, log actions without modifying filesystem.
+        bus: Required in-process EventBus for the per-item ``started`` events.
 
     Returns:
         List of SanitizeResult for each action taken.
@@ -72,12 +82,12 @@ def sanitize_files(
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue
-        results.extend(_sanitize_directory(cat_dir, dry_run))
+        results.extend(_sanitize_directory(cat_dir, dry_run, bus))
 
     return results
 
 
-def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
+def _sanitize_directory(root: Path, dry_run: bool, bus: EventBus) -> list[SanitizeResult]:
     """Sanitize all files and dirs under root, bottom-up.
 
     Files are processed first (deleting .DS_Store, ._*, renaming illegal
@@ -87,6 +97,8 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
     Args:
         root: Directory to scan.
         dry_run: Preview mode — report but do not modify filesystem.
+        bus: Required in-process EventBus. A ``started`` event is emitted for
+            each acted-on file/dir before its mutation (F8).
 
     Returns:
         List of SanitizeResult for each action taken or planned.
@@ -107,6 +119,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
     # 1. Process files
     for f in all_files:
         if f.name == ".DS_Store":
+            bus.emit(ItemProgressed(step="enforce", item=f.name, status="started"))
             if not dry_run:
                 try:
                     f.unlink()
@@ -118,6 +131,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             continue
 
         if is_apple_double(f.name):
+            bus.emit(ItemProgressed(step="enforce", item=f.name, status="started"))
             if not dry_run:
                 try:
                     f.unlink()
@@ -129,6 +143,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             continue
 
         if _has_illegal_chars(f.name):
+            bus.emit(ItemProgressed(step="enforce", item=f.name, status="started"))
             sanitized = sanitize_filename(f.name)
             target = f.parent / sanitized
             if target.exists():
@@ -195,6 +210,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             if target.exists():
                 log.warning("enforce_sanitize_dir_target_exists", name=d.name, sanitized=sanitized)
             else:
+                bus.emit(ItemProgressed(step="enforce", item=d.name, status="started"))
                 if not dry_run:
                     try:
                         d.rename(target)

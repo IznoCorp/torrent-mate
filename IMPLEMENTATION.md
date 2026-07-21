@@ -1,49 +1,65 @@
-# Implementation Progress — systeme-hub
+# Implementation Progress — solidify
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Design overhaul V5 — Système + Config + passe visuelle transversale
-**Type**: feat
-**Branch**: feat/systeme-hub (off main @ 33472fc7 — V4 0.53.0)
-**Ticket**: #309 (epic #304, dernière vague) — claimed; board moves broken (kanban-mate#187)
-**PR**: https://github.com/IznoCorp/torrent-mate/pull/317
-**Merge**: squash (**auto** — operator directive 2026-07-17)
-**Design**: `docs/features/systeme-hub/DESIGN.md` ← shared spec §3.2 + §3.3 + §4 + §1.1
-**Version bump**: 0.53.0 → 0.54.0 (minor)
-
-## Status: ALL PHASES DONE — feature-pr (push + PR + CI + review + AUTO merge)
-
-**Master plan**: `docs/features/systeme-hub/plan/INDEX.md`
+**Feature**: Architecture consolidation — SOLID/DRY refactor (backend + frontend)
+**Type**: refactor
+**Version bump**: 0.49.15 → 0.55.1 (minor; re-bumped ×5 as main advanced: #310, #311/#312, #313/#314, #315, #317/#318; +patch 0.55.1 for PR-review cycle 1 fixes)
+**Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
+**PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
+**PR**: #316 → main (https://github.com/IznoCorp/torrent-mate/pull/316) — OPEN, operator squash-merges manually
+**Design**: docs/features/solidify/DESIGN.md
+**Evidence**: docs/analysis/2026-07-16-architecture-audit.md (untracked by convention — lives in the main checkout)
+**Master plan**: docs/features/solidify/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                    | File                                                                                    | Status |
-| --- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------ |
-| 1   | Outcome-labels foundation                | [phase-01-outcome-labels.md](docs/features/systeme-hub/plan/phase-01-outcome-labels.md) | [x]    |
-| 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [x]    |
-| 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [x]    |
-| 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [x]    |
-| 5   | PR fixes cycle 1                         | [phase-05-pr-fixes-cycle-1.md](docs/features/systeme-hub/plan/phase-05-pr-fixes-cycle-1.md) | [x]    |
+| # | Phase | File | Status |
+|---|-------|------|--------|
+| 0 | Worktree safety net + gate parity | phase-00-safety-net.md | [x] |
+| 1 | Pipeline step-spec + shared reporter (T2) | phase-01-step-spec.md | [x] |
+| 2 | Dispatch item template + journal parity (T3) | phase-02-dispatch-template.md | [x] |
+| 3 | CLI boundary + composition root (T7) | phase-03-cli-boundary.md | [x] |
+| 4 | Scraper flow unification (T1) | phase-04-scraper-unification.md | [x] |
+| 5 | Completeness read-model (T4) | phase-05-completeness-readmodel.md | [x] |
+| 6 | Trailers ownership + single truth (T5) | phase-06-trailers.md | [x] |
+| 7 | Scanner walk skeleton (T8) | phase-07-scanner-walker.md | [x] |
+| 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [x] |
+| 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [x] |
+| 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [x] |
+| 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [x] |
+| 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [x] |
+| 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [x] |
+| 14 | PR review fixes, cycle 1 (Finding A data-loss + B .env perms) | phase-14-pr-fixes-cycle-1.md | [x] |
 
 ## Review cycles
 
-### Cycle 1
+### Cycle 1 (2026-07-21) — `/implement:pr-review` (track `full`, cycle 1/5)
 
-- 4 agents on PR #317 @ 77003a6c. Code: 2 findings >=80 (button-in-button FileList; RunDetail
-  cross-link lands on État instead of ?tab=maintenance, test locks the stale target). Silent-failures:
-  F1 HIGH « Jamais exécuté » for an executed-but-unmapped outcome canonized in the shared module;
-  F2 « — » erases unknown tokens; F3 /registry LegacyRedirect builds a double-? URL and the test
-  certifies the broken param forwarding; F5 auto-select re-adds ?file= behind Secrets. Tests (live
-  mutation probes): redirects + deep-link guard proven RED; RunDetail divergent-label revert is a
-  PROVEN SURVIVING MUTANT; circuit-badge labels lost in suite migration; restart hint + FR secrets
-  shipped with zero tests. Comments: Config/nav/RunDetail/CompactHealth stale docblocks + 6 active
-  claims in web-ui.md/maintenance.md now false. Backend extraction verified byte-identical, clean.
-- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases). Open items recorded there (F6/F7
-  pre-existing quiet-error styling, stale &run= sanctioned pattern).
+Multi-agent fan-out review of the full PR diff (509 files): 13 subsystem chunks ×
+{correctness, silent-failure, over-deletion, design-conformity vs DESIGN.md +
+phase plans}, each finding adversarially verified against live code, then
+re-verified by the guarantor. 17 agents, 0 errors. **4 raw findings → 2 confirmed,
+2 refuted.** No DESIGN.md contradiction → no escalation-halt. Both confirmed
+retained and fixed in Phase 14.
 
-## Scope guardrails (epic close-out)
+- **A — MAJOR** (`trailers/cli.py` purge FS-truth walk + `trailers/scanner.py:302`):
+  deletes legitimate trailers of present-but-non-dispatched media. Fix: combined
+  FS+index orphan rule + index self-heal (operator decision). Phase 14.1–14.2.
+- **B — minor** (`conf/envfile.py:89` + `io_utils.py:35`): `.env` secrets
+  world-readable window vs pre-refactor `mkstemp(0o600)`. Phase 14.3.
+- Refuted: dispatch-t3 (clean chunk, self-declared placeholder) + 1 other.
+- Also verified: PR-body "22 Co-Authored-By trailers" note is **moot** — 0
+  attribution trailers in the 168-commit range; squash erases per-commit messages
+  regardless.
 
-- /systeme (4 tabs) + /config (G2/Secrets/FR) + lib/outcome-labels.ts migration (5 maps) + redirects
-  /registry + /maintenance → /systeme?tab=etat (V3 ?run= teleport preserved).
-- ZERO backend change. Every V1–V4 acquis un-regressed.
-- Maintenance invariants intact (runner lock lifetime, staging guards, journal §7/§8).
+Merge stays operator-manual (single-PR refactor). Phase 14 lands the fixes in
+#316 for the operator to review before squash-merge.
+
+## Next action
+
+Phases 0–13 DONE, ACC 15/15. `/implement:pr-review` cycle 1 opened Phase 14 (2
+confirmed fixes: A data-loss in `trailers purge`, B `.env` perms) — implementing
+test-first in this worktree. On green + operator review, operator squash-merges
+#316 manually, then runbook-post-merge (incl. the deferred 390px staging audit).
+Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.

@@ -53,6 +53,7 @@ from personalscraper.web.models.decisions import (
     SearchRequest,
     SearchResponse,
 )
+from personalscraper.web.models.pipeline import parse_steps_json
 
 router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 logger = get_logger(__name__)
@@ -348,12 +349,8 @@ def decision_activity(request: Request) -> DecisionActivityResponse:
             # step is open in steps_json with status 'waiting_pipeline_lock').
             # The #249 post-mortem forbids an invisible queue — surface it.
             queued = False
-            try:
-                steps = json.loads(run["steps_json"]) if run["steps_json"] else []
-            except (json.JSONDecodeError, TypeError):
-                steps = []
-            for step in reversed(steps):
-                if isinstance(step, dict) and step.get("name") == "queue":
+            for step in reversed(parse_steps_json(run["steps_json"])):
+                if step.get("name") == "queue":
                     queued = step.get("status") == "waiting_pipeline_lock"
                     break
             in_progress.append(

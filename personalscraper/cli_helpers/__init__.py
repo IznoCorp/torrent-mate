@@ -13,8 +13,16 @@ from pydantic import ValidationError
 
 from personalscraper.cli_state import AppCtx, state
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
+from personalscraper.config import get_settings
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
+from personalscraper.ingest.ingest import run_ingest
+from personalscraper.lock import (
+    acquire_lock,
+    acquire_pipeline_lock,
+    release_lock,
+    scrape_locks_dir_for,
+)
 from personalscraper.logger import get_logger
 from personalscraper.subscribers.redis_stream import build_redis_publisher
 
@@ -325,12 +333,35 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
     return resolved
 
 
+# Re-export the generalised boundary() decorator + its bundle. Imported LAST so
+# the helpers it depends on (``_build_app_context``, ``per_step_boundary``,
+# ``_bootstrap_staging``) are already bound in this module's namespace when
+# ``boundary`` imports them back from the package (no circular-import gap).
+from personalscraper.cli_helpers.boundary import CommandContext, boundary  # noqa: E402
+
+# ``get_settings`` / ``run_ingest`` / the four ``lock`` helpers above are
+# re-exported here as the single shared seam for the Typer command modules
+# (COMMANDS-CLI-03). Commands access them as ``cli_helpers.<helper>`` module
+# attributes rather than importing ``personalscraper.cli`` — that dissolves the
+# cli⇄commands facade import cycle (cli.py imports the command modules; the
+# command modules must not import cli.py back). Keeping them as module
+# attributes (not per-command ``from`` imports) preserves the single-target test
+# seam: patching ``personalscraper.cli_helpers.<helper>`` intercepts every
+# command at once (the ``importlib`` gotcha documented in boundary.py).
 __all__ = [
+    "CommandContext",
     "_bootstrap_staging",
     "_build_app_context",
     "_build_ownership_checker",
     "_format_validation",
     "_resolve_category",
+    "acquire_lock",
+    "acquire_pipeline_lock",
+    "boundary",
+    "get_settings",
     "handle_cli_errors",
     "per_step_boundary",
+    "release_lock",
+    "run_ingest",
+    "scrape_locks_dir_for",
 ]

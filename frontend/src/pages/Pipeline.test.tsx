@@ -48,8 +48,8 @@ vi.mock("@/hooks/useLastPipelineRun", () => ({
   useLastPipelineRun: mocks.useLastPipelineRun,
 }));
 
-vi.mock("@/api/client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/api/client")>()),
+vi.mock("@/api/pipeline", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/pipeline")>()),
   getPipelineHistory: mocks.getPipelineHistory,
   getPipelineRunDetail: mocks.getPipelineRunDetail,
 }));

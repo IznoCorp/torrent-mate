@@ -22,7 +22,8 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
-import Config, { restartPollConfig } from "@/pages/Config";
+import Config from "@/pages/Config";
+import { restartPollConfig } from "@/hooks/useConfigEditor";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
@@ -137,10 +138,10 @@ vi.mock("@/hooks/useConfig", () => ({
   useValidateConfig: () => mocks.useValidateConfig(),
 }));
 
-// Partial mock: keep ApiError (a real class used with `instanceof`) but stub the
-// restart-outcome poll's status fetch.
-vi.mock("@/api/client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/api/client")>()),
+// Stub the restart-outcome poll's status fetch (getConfigStatus). ApiError stays
+// the real class from @/api/client (unmocked), so `instanceof` checks still hold.
+vi.mock("@/api/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/config")>()),
   getConfigStatus: () => mocks.getConfigStatus(),
 }));
 

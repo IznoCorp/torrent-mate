@@ -1,0 +1,29 @@
+{
+  "folder": "Fallout (2024)",
+  "nfo": {
+    "title": "Fallout",
+    "uniqueids": {
+      "imdb": {
+        "default": null,
+        "id": "tt12637874"
+      },
+      "tmdb": {
+        "default": null,
+        "id": "66732"
+      },
+      "tvdb": {
+        "default": "true",
+        "id": "420001"
+      }
+    },
+    "year": "2024"
+  },
+  "tree": [
+    "Saison 01/S01E01 - The End.mkv",
+    "Saison 01/S01E01 - The End.nfo",
+    "landscape.jpg",
+    "poster.jpg",
+    "season01-poster.jpg",
+    "tvshow.nfo"
+  ]
+}

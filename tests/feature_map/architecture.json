@@ -68,7 +68,7 @@
       "tests": [
         "tests/unit/api/metadata/registry/test_registry_chain.py::test_chain_wrong_semantic_raises",
         "tests/unit/api/metadata/registry/test_registry_fan_out.py::test_fan_out_wrong_semantic_raises",
-        "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path_no_xref"
+        "tests/unit/api/metadata/registry/test_registry_locked.py::test_locked_match_provider_path"
       ]
     },
     "torrent-client-boot-wiring-torrent-write-v0210": {
@@ -165,6 +165,84 @@
       "category": "documentation_only",
       "reason": "RP3 acquire-store — summary section pointing to docs/features/acquire-store/lock-order.md. The lock-model contract (lazy-open, SQLite-native single-writer via BEGIN IMMEDIATE + busy_timeout, lock-free reads, brief migration-only db_lock, total order pipeline.lock > indexer_lock > acquire.db.lock) is covered by tests/acquire/test_store.py and tests/acquire/test_crash_window.py, not by an architecture-level single-function contract.",
       "expires": "2028-06-10"
+    },
+    {
+      "anchor": "web-subsystem",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — chapter head for the web/ lobe (role, boundaries, seams; facts sourced from web-ui.md). The behavior is covered by the tests/web/ suite (auth, routes, relay, staging read-model); the chapter itself is a structural module-map reference, not a single-function contract.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "one-server-sync-engine",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — design principle (sync engine, single web daemon, AppContext composition root). Enforced by tests/architecture/test_layering.py and tests/architecture/test_app_context_boundary.py plus code review, not a standalone automated contract.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "guarded_api--the-single-auth-perimeter",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — describes the single guarded_api APIRouter perimeter (web-ui.md §6 is the authority). The auth behavior (login/logout/me, 401 on unauthenticated /api/*, health public) is covered by tests/web/test_auth.py; the perimeter convention is enforced in code review.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "staging-read-only-role",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — describes the PERSONALSCRAPER_WEB_ROLE=staging 403-on-writes role. Covered by the staging read-only cases in tests/web/test_pipeline_routes.py (and sibling route suites asserting 403 read-only on mutating POST/PUT routes), not an architecture-level contract.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "_runner_engine--long-running-action-supervisor",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — describes the shared spawn-and-stream runner substrate. The engine behavior (RingBuffer, reserve_run_row, run_spawn_stream, child-group teardown) is covered by tests/unit/web/test_runner_engine.py and the per-lobe runner suites under tests/web/; the doc section is a module-map reference.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "ws-relay--redis-event-stream",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — describes the Redis Stream producer → WS relay flow (web-ui.md is the authority). Covered by tests/web/test_relay.py (tail/fan-out/replay) and tests/web/test_redis_publisher.py (producer fail-soft), not an architecture-level contract.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "stage-catalog--single-source-of-truth",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — describes web/staging/stages.py as the stage-taxonomy SoT and the single-position axiom. Covered by tests/web/test_staging_stages.py (compute_position single-verdict) and tests/web/test_pipeline_stages.py (STEP_TO_STAGE agreement with pipeline_steps), not an architecture-level contract.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "package-layout",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — web/ package tree listing (structural map mirroring web-ui.md). No behavior to pin; drift is caught by the docs sweep and code review.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "acquire-subsystem",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — chapter head for the acquire/ lobe (role, boundaries, store, events; condensed from grab-core.md). The behavior is covered by the tests/acquire/ suite; the chapter itself is a structural module-map reference, not a single-function contract.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "role--boundaries",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — acquire import-direction, ownership (RP6) and delete-authority boundaries. The import boundary is enforced by the AST guard in tests/architecture/test_layering.py; ownership/delete-permit seams by tests/acquire/ and tests/unit/ delete-permit suites.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "store--acquiredb",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — summary of ConcreteAcquireStore (6 sub-stores, WAL + BEGIN IMMEDIATE, lazy open, brief migration-only lock). The store contract is covered by tests/acquire/test_store.py and tests/acquire/test_crash_window.py (same coverage the sibling 'lock-order' entry cites); the doc section is a condensed reference.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "events-15",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — enumerates the 15 acquire Event subclasses. Registration + envelope round-trip are covered by tests/event_bus/test_pipeline_events.py and tests/event_bus/test_serialization_envelope.py; emission sites by tests/acquire/test_acquire_events.py. The doc list is a catalog reference.",
+      "expires": "2028-07-17"
+    },
+    {
+      "anchor": "grab-flow--cli",
+      "category": "documentation_only",
+      "reason": "solidify P13.1 — condensed grab-chain + CLI summary (grab-core.md is the authority). Covered by tests/acquire/test_orchestrator.py + tests/acquire/test_service.py (failure taxonomy, atomic claim) and tests/commands/test_grab.py + tests/commands/test_grab_dry_run_rank.py (CLI), not an architecture-level contract.",
+      "expires": "2028-07-17"
     }
   ]
 }

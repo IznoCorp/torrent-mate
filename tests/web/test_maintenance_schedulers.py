@@ -17,13 +17,13 @@ import sqlite3
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.web.auth.passwords import hash_password
-from personalscraper.web.deps import require_session
 from personalscraper.web.schedulers.registry import CRON_JOBS
+from tests.web._web_harness import build_guarded_app
 
 TEST_USERNAME = "testuser"
 TEST_PASSWORD = "test-password"
@@ -50,13 +50,6 @@ CREATE TABLE pipeline_run (
     output_tail  TEXT    NULL
 );
 """
-
-
-def _mount_guarded(app: FastAPI, router: APIRouter) -> None:
-    """Mount *router* behind the session-guard perimeter, mirroring app.py (R14)."""
-    guarded_api = APIRouter(dependencies=[Depends(require_session)])
-    guarded_api.include_router(router)
-    app.include_router(guarded_api)
 
 
 def _login(client: TestClient) -> None:
@@ -90,19 +83,9 @@ def _build_app(
         web_jwt_secret=TEST_SECRET,
     )
 
-    app = FastAPI()
-    app.state.config = cfg
-    app.state.settings = settings
-
-    if with_auth:
-        from personalscraper.web.auth.routes import router as auth_router
-
-        app.include_router(auth_router)
-
     from personalscraper.web.routes.maintenance import router as maintenance_router
 
-    _mount_guarded(app, maintenance_router)
-    return app
+    return build_guarded_app(config=cfg, settings=settings, routers=maintenance_router, with_auth=with_auth)
 
 
 def _authenticated_client(test_config, tmp_path: Path, **config_overrides) -> TestClient:

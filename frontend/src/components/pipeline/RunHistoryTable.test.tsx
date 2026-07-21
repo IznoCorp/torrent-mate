@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 
-import type { HistoryResponse } from "@/api/client";
+import type { HistoryResponse } from "@/api/pipeline";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -47,9 +47,9 @@ function makePage(
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/pipeline", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/pipeline")>("@/api/pipeline");
   return {
     ...actual,
     getPipelineHistory: vi.fn(),
@@ -62,7 +62,7 @@ vi.mock("@/api/client", async () => {
 
 /** Cached import ref for the mocked getPipelineHistory. */
 async function mockGetHistory() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/pipeline");
   return mod.getPipelineHistory as ReturnType<typeof vi.fn>;
 }
 

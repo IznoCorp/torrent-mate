@@ -21,21 +21,37 @@ Key design decisions:
 from __future__ import annotations
 
 import errno as _errno_mod
-import hashlib
 import json
 import shutil
 import subprocess
 import time
-import unicodedata
 import warnings
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from personalscraper.io_utils import atomic_write_json
 from personalscraper.logger import get_logger
+
+# Attempt-ledger value model (status enum, TrailerState record, key + retry
+# helpers) lives in the pure `_state_model` module (solidify — module-size
+# relief). Re-exported here so existing `from …trailers.state import X` sites and
+# the `__all__` contract are unchanged; TrailerStateStore below consumes them.
+from personalscraper.trailers._state_model import (  # noqa: F401 — re-export
+    TrailerState,
+    TrailerStatus,
+    compute_next_retry_at,
+    make_state_key,
+)
+
+# `_validate_season_number` is a private helper re-exported for
+# `personalscraper.trailers.scanner`. Under mypy `strict` (no_implicit_reexport)
+# a private name is only re-exported through a redundant alias (it does not
+# belong in the public `__all__`), so the `as` form is load-bearing, not noise.
+from personalscraper.trailers._state_model import (
+    _validate_season_number as _validate_season_number,  # noqa: F401 — explicit re-export
+)
 
 log = get_logger(__name__)
 
@@ -129,259 +145,6 @@ def _resolve_lock_holder_pid(lock_path: Path) -> int | None:
         return int(first_line) if first_line.isdigit() else None
     except Exception:  # noqa: BLE001 — degrade gracefully (lsof absent, timeout, parse error)
         return None
-
-
-def _validate_season_number(value: int | None, owner: str) -> None:
-    """Raise ValueError when a season_number is non-None and negative.
-
-    Shared by ``TrailerState.__post_init__`` and ``ScanItem.__post_init__``
-    so both types accept the same domain (None for movies/show-level, ``0``
-    for TMDB specials, ``>=1`` for regular seasons).
-
-    Args:
-        value: The season number to validate.
-        owner: Class name used in the error message ("TrailerState" or
-            "ScanItem").
-
-    Raises:
-        ValueError: If ``value`` is not None and is negative.
-    """
-    if value is not None and value < 0:
-        raise ValueError(f"{owner}.season_number must be >= 0 (got {value})")
-
-
-# ---------------------------------------------------------------------------
-# Enum
-# ---------------------------------------------------------------------------
-
-
-class TrailerStatus(Enum):
-    """Lifecycle status of a trailer download attempt.
-
-    Values are persisted as strings in the JSON state file. Do NOT rename
-    members without a migration step.
-    """
-
-    DOWNLOADED = "downloaded"
-    NO_TRAILER_AVAILABLE = "no_trailer_available"
-    BOT_DETECTED = "bot_detected"
-    HTTP_ERROR = "http_error"
-    YTDLP_ERROR = "ytdlp_error"
-    SKIPPED_BY_FILTER = "skipped_by_filter"
-    ORPHAN = "orphan"
-    # NEW (DESIGN §8 extension — library-aware SOT recheck):
-    # the trailer was found on one of the storage disks before any network
-    # call. Distinct from the staging-only "already_present" runtime counter.
-    ALREADY_PRESENT_ON_DISK = "already_present_on_disk"
-
-
-# ---------------------------------------------------------------------------
-# Dataclass
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class TrailerState:
-    """Persisted state for a single media item's trailer download lifecycle.
-
-    Frozen and slotted: state mutations create a new instance via
-    ``dataclasses.replace`` rather than in-place modification, which prevents
-    accidental drift when references are passed around.
-
-    Timestamps accept either UTC ISO 8601 strings (legacy callers) or
-    tz-aware ``datetime`` objects. Naive datetimes are rejected at
-    construction so DST/timezone bugs surface immediately rather than at
-    serialisation time. ``media_path`` and ``trailer_path`` are absolute
-    filesystem paths.
-
-    Attributes:
-        last_attempt: UTC ISO 8601 string of the most recent download attempt.
-            A tz-aware ``datetime`` is converted to ISO 8601 at construction.
-        attempts: Total number of download attempts (incremented on each try).
-        status: Current lifecycle status (see ``TrailerStatus``).
-        media_path: Absolute path to the media directory on disk. Used by GC to
-            detect orphaned entries when the media has been deleted or moved.
-        next_retry_at: UTC ISO 8601 string after which a retry is allowed.
-            ``None`` means retry immediately (e.g. status ``DOWNLOADED``).
-        trailer_path: Absolute path to the downloaded trailer file, or ``None``
-            if the trailer has not been successfully downloaded yet.
-        source: Originating source of the trailer URL — ``"tmdb"`` or
-            ``"youtube"`` — or ``None`` when not applicable.
-        youtube_url: Full YouTube watch URL used for the download, or ``None``.
-        notes: Free-form human-readable note (e.g. error message summary).
-        bot_detected_consecutive_attempts: Counter for consecutive
-            ``BOT_DETECTED`` outcomes. Incremented before writing a
-            ``BOT_DETECTED`` state; reset to ``0`` before writing any other
-            status (DESIGN §5 counter semantics).
-        season_number: ``None`` for movies and show-level TV trailers;
-            positive 1-indexed integer for season-level entries (DESIGN §4).
-    """
-
-    last_attempt: str | datetime
-    attempts: int
-    status: TrailerStatus
-    media_path: str
-    next_retry_at: str | datetime | None = None
-    trailer_path: str | None = None
-    source: str | None = None
-    youtube_url: str | None = None
-    notes: str | None = None
-    bot_detected_consecutive_attempts: int = 0
-    season_number: int | None = None
-
-    def __post_init__(self) -> None:
-        """Validate timestamps and coerce datetime inputs to ISO 8601.
-
-        Naive datetimes are silently corrupted across DST transitions, so we
-        reject them at construction. tz-aware datetimes are coerced to ISO
-        strings (frozen dataclass — coercion via ``object.__setattr__``).
-
-        Raises:
-            ValueError: If a timestamp string is naive, malformed, or a
-                datetime is naive.
-            TypeError: If a timestamp is neither str nor datetime.
-        """
-        for attr in ("last_attempt", "next_retry_at"):
-            raw = getattr(self, attr)
-            if raw is None:
-                continue
-            if isinstance(raw, datetime):
-                if raw.tzinfo is None:
-                    raise ValueError(f"TrailerState.{attr} datetime must be tz-aware (got naive: {raw!r})")
-                # Coerce to ISO string in-place (frozen dataclass — use object.__setattr__).
-                object.__setattr__(self, attr, raw.isoformat())
-                continue
-            if not isinstance(raw, str):
-                raise TypeError(f"TrailerState.{attr} must be str or datetime, got {type(raw).__name__}")
-            try:
-                parsed = datetime.fromisoformat(raw)
-            except ValueError as exc:
-                raise ValueError(f"TrailerState.{attr} is not valid ISO 8601: {raw!r}") from exc
-            if parsed.tzinfo is None:
-                raise ValueError(f"TrailerState.{attr} ISO string must include timezone offset (got naive: {raw!r})")
-        _validate_season_number(self.season_number, "TrailerState")
-
-
-# ---------------------------------------------------------------------------
-# Key helpers
-# ---------------------------------------------------------------------------
-
-
-def _normalize_title(title: str) -> str:
-    """Apply NFC normalization, casefold, and whitespace collapse to a title.
-
-    This stable normalization ensures that ``"Fight Club"`` and
-    ``"fight  club"`` (extra space + case) produce the same manual key.
-
-    Args:
-        title: Raw title string from any source.
-
-    Returns:
-        NFC-normalized, casefolded, and whitespace-collapsed title.
-    """
-    nfc = unicodedata.normalize("NFC", title)
-    return " ".join(nfc.casefold().split())
-
-
-def make_state_key(
-    media_type: str,
-    ids: dict[str, int | str | None],
-    title: str | None = None,
-    year: int | None = None,
-    season_number: int | None = None,
-) -> str:
-    """Build a composite state key for a media item.
-
-    Precedence:
-        1. ``ids["tmdb"]``  → ``"{media_type}:tmdb:{id}"``
-        2. ``ids["tvdb"]``  → ``"{media_type}:tvdb:{id}"``
-        3. Fallback         → ``"manual:{sha256(NFC+casefold(title)|year|media_type)}"``
-
-    When ``season_number`` is provided **and** a TMDB/TVDB id is present, the
-    season suffix is appended::
-
-        "tv:tmdb:{id}:season:{N}"
-        "tv:tvdb:{id}:season:{N}"
-
-    Manual keys do NOT receive a season suffix — season-level trailers without
-    external IDs are out of scope in this initial trailer feature release.
-
-    The manual key hashes the NORMALIZED title (NFC + casefold + collapsed
-    whitespace) concatenated with year and media_type, separated by ``|``.
-    This makes the key stable across re-scrape runs that correct the folder
-    name capitalisation.
-
-    Args:
-        media_type: ``"movie"`` or ``"tv"``.
-        ids: Dict with optional ``"tmdb"`` and/or ``"tvdb"`` integer IDs.
-            Values that are ``None`` or ``0`` are treated as absent.
-        title: Human-readable title used only for the manual fallback.
-        year: Release year (integer) used only for the manual fallback.
-        season_number: When not ``None``, appends a ``:season:{N}`` suffix
-            to TMDB/TVDB keys (1-indexed, per TMDB convention).
-
-    Returns:
-        A stable string key such as ``"movie:tmdb:550"``,
-        ``"tv:tmdb:1399:season:3"``, or ``"manual:{hex-digest}"``.
-
-    Raises:
-        ValueError: If no external ID is present and ``title`` is ``None``.
-    """
-    # Primary: TMDB id
-    tmdb_id = ids.get("tmdb")
-    if tmdb_id is not None and tmdb_id != 0:
-        base = f"{media_type}:tmdb:{tmdb_id}"
-        if season_number is not None:
-            return f"{base}:season:{season_number}"
-        return base
-
-    # Secondary: TVDB id
-    tvdb_id = ids.get("tvdb")
-    if tvdb_id is not None and tvdb_id != 0:
-        base = f"{media_type}:tvdb:{tvdb_id}"
-        if season_number is not None:
-            return f"{base}:season:{season_number}"
-        return base
-
-    # Fallback: manual hash of normalized title + year + media_type
-    if title is None:
-        raise ValueError("Cannot build manual state key: title is required when no external ID is present.")
-    normalized = _normalize_title(title)
-    payload = f"{normalized}|{year}|{media_type}"
-    digest = hashlib.sha256(payload.encode(), usedforsecurity=False).hexdigest()
-    return f"manual:{digest}"
-
-
-# ---------------------------------------------------------------------------
-# Retry helper
-# ---------------------------------------------------------------------------
-
-
-def compute_next_retry_at(
-    attempts: int,
-    policy: list[int],
-    *,
-    last_attempt: datetime,
-) -> datetime:
-    """Return the next retry datetime using the configured policy.
-
-    Clock reference is always ``last_attempt`` (DESIGN §7) — NOT the time of
-    the first failure. This means a stuck entry keeps pushing the retry window
-    forward; a recovered entry resets ``attempts = 1`` on its next successful
-    result.
-
-    Args:
-        attempts: Number of attempts made so far (1-indexed).
-        policy: List of retry intervals in days
-            (e.g. ``[1, 7, 30]``). The last element repeats for all
-            subsequent attempts.
-        last_attempt: UTC-aware datetime of the most recent attempt.
-
-    Returns:
-        A UTC-aware datetime representing the earliest acceptable next retry.
-    """
-    days = policy[min(attempts - 1, len(policy) - 1)]
-    return last_attempt + timedelta(days=days)
 
 
 # ---------------------------------------------------------------------------
@@ -533,15 +296,71 @@ class TrailerStateStore:
             self._save(entries)
             self._maybe_log_recovery(len(entries))
 
+    def clear(self, key: str) -> bool:
+        """Remove the ledger entry for ``key`` if present (P6.4 single-truth).
+
+        The state JSON is a download-attempt ledger of FAILURES and cooldowns,
+        never a presence claim. A successful download — or an already-present
+        detection — has nothing to defer, so its prior ledger entry (if any) is
+        cleared rather than overwritten with a "downloaded" presence status:
+        presence is the filesystem's truth (constitution P26), surfaced through
+        the derived ``trailer_found`` index. Clearing also drops any stale
+        failure cooldown so a later disk deletion re-attempts cleanly.
+
+        The read-modify-write cycle is protected by ``fcntl.flock`` on Unix.
+
+        Args:
+            key: Composite state key.
+
+        Returns:
+            ``True`` when an entry was removed, ``False`` when ``key`` was absent.
+
+        Raises:
+            TrailerStateLocked: If the advisory lock cannot be acquired within
+                the retry budget (Unix only).
+        """
+        if _FCNTL_AVAILABLE and _fcntl is not None:
+            self._lock_file.parent.mkdir(parents=True, exist_ok=True)
+            with self._lock_file.open("a") as lock_fh:
+                self._acquire_lock(lock_fh)
+                try:
+                    return self._do_clear(key)
+                finally:
+                    _fcntl.flock(lock_fh, _fcntl.LOCK_UN)
+        else:
+            return self._do_clear(key)
+
+    def _do_clear(self, key: str) -> bool:
+        """Inner clear logic — called under lock (or directly on non-Unix).
+
+        Args:
+            key: Composite state key to remove.
+
+        Returns:
+            ``True`` when an entry was removed, ``False`` when absent.
+        """
+        entries = self._load()
+        if key not in entries:
+            return False
+        del entries[key]
+        self._save(entries)
+        return True
+
     def should_skip(self, key: str) -> bool:
         """Return ``True`` if the entry for ``key`` should be skipped.
 
-        Skip logic (DESIGN §7):
+        Skip logic (DESIGN §7, P6.4 single-truth): the ledger only defers a
+        RETRY — it never asserts presence. Presence is the filesystem's job
+        (the orchestrator's own ``trailer_exists`` short-circuit), so this method
+        no longer skips on the legacy ``DOWNLOADED`` / ``ALREADY_PRESENT_ON_DISK``
+        presence claims (those are no longer written; a stray legacy row simply
+        falls through to the ``next_retry_at is None → do NOT skip`` branch and is
+        re-examined against the disk).
+
         - Missing key → do NOT skip (first run).
         - ``BOT_DETECTED`` → never skip (always retry on next run).
-        - ``DOWNLOADED`` / ``ALREADY_PRESENT_ON_DISK`` → skip (no retry needed).
-        - Any other status with ``next_retry_at`` in the future → skip.
-        - Any other status with ``next_retry_at`` in the past or absent → do NOT skip.
+        - Any status with ``next_retry_at`` in the future → skip (cooldown active).
+        - Any status with ``next_retry_at`` in the past or absent → do NOT skip.
 
         Args:
             key: Composite state key.
@@ -555,8 +374,6 @@ class TrailerStateStore:
             return False
         if state.status == TrailerStatus.BOT_DETECTED:
             return False
-        if state.status in (TrailerStatus.DOWNLOADED, TrailerStatus.ALREADY_PRESENT_ON_DISK):
-            return True
         if state.next_retry_at is None:
             return False
         # Type is `str | datetime` for ergonomic construction; __post_init__

@@ -631,6 +631,26 @@ class ArtworkInventory(BaseModel):
     discart: bool = False
     characterart: bool = False
 
+    @classmethod
+    def from_presence(cls, inventory: dict[str, str | None]) -> ArtworkInventory:
+        """Build an inventory from the canonical presence mapping.
+
+        The ONE conversion both scan modes use so ``artwork_json`` is written
+        identically regardless of scan path (INDEXER-03). *inventory* is the
+        mapping returned by
+        :func:`personalscraper.core.artwork_naming.artwork_inventory` /
+        :func:`~personalscraper.core.artwork_naming.artwork_inventory_from_names`
+        (``kind -> matched filename or None``); a kind is present iff its value
+        is not ``None``. Kinds absent from *inventory* default to ``False``.
+
+        Args:
+            inventory: Canonical ``kind -> filename|None`` presence mapping.
+
+        Returns:
+            The populated :class:`ArtworkInventory`.
+        """
+        return cls(**{field: inventory.get(field) is not None for field in cls.model_fields})
+
 
 class OutboxPayload(BaseModel):
     """Documents the shape of ``index_outbox.payload_json`` / ``pending_op.payload_json``.

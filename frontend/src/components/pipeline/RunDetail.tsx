@@ -19,86 +19,19 @@ import { useQuery } from "@tanstack/react-query";
 import { Fragment, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
+import { ApiError } from "@/api/client";
 import {
   getPipelineRunDetail,
-  ApiError,
+  pipelineKeys,
   type RunDetail as RunDetailData,
-} from "@/api/client";
+} from "@/api/pipeline";
 import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { triggerLabel } from "@/components/pipeline/triggers";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 import { ErrorState } from "@/components/ds/ErrorState";
-import {
-  DEFAULT_OUTCOME,
-  OUTCOME_LABEL,
-  OUTCOME_TONE,
-} from "@/lib/outcome-labels";
-
-// ---------------------------------------------------------------------------
-// Outcome → Badge tone mapping
-// ---------------------------------------------------------------------------
-
-/**
- * Look up the tone + label for a given outcome string.
- *
- * Args:
- *   outcome: The pipeline outcome, or null.
- *
- * Returns:
- *   A ``{tone, label}`` pair for the Badge.
- */
-function outcomeInfo(outcome: string | null | undefined): {
-  readonly tone: BadgeProps["tone"];
-  readonly label: string;
-} {
-  if (outcome == null) return DEFAULT_OUTCOME;
-  const tone = OUTCOME_TONE[outcome] ?? "neutral";
-  const label = OUTCOME_LABEL[outcome] ?? outcome;
-  return { tone, label };
-}
-
-// ---------------------------------------------------------------------------
-// Formatting helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Format an ISO 8601 UTC timestamp into a French-localised date string.
- *
- * Args:
- *   iso: The ISO 8601 UTC timestamp.
- *
- * Returns:
- *   A short date+time string formatted for the ``fr`` locale.
- */
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
-
-/**
- * Format a duration in seconds to a compact ``Xm Ys`` or ``Ys`` string.
- *
- * Args:
- *   seconds: Duration in seconds, or null/undefined.
- *
- * Returns:
- *   A human-readable duration string, or ``"—"`` if null.
- */
-function formatDuration(seconds: number | null | undefined): string {
-  if (seconds == null) return "—";
-  const s = Math.round(seconds);
-  if (s < 60) return `${String(s)}s`;
-  const mins = Math.floor(s / 60);
-  const secs = s % 60;
-  return `${String(mins)}m ${String(secs).padStart(2, "0")}s`;
-}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -272,7 +205,7 @@ export function RunDetail({
   showMaintenanceLink = false,
 }: RunDetailProps): ReactElement {
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["pipeline", "history", runUid] as const,
+    queryKey: pipelineKeys.historyDetail(runUid),
     queryFn: () => getPipelineRunDetail(runUid),
   });
 
@@ -341,7 +274,7 @@ export function RunDetail({
     .filter((s) => s.name !== "queue" && (s.reasons?.length ?? 0) > 0)
     .map((s) => ({ step: s.name, reasons: s.reasons ?? [] }));
 
-  const { tone, label } = outcomeInfo(data.outcome);
+  const { tone, label } = runOutcomeInfo(data.outcome);
 
   return (
     <Card className="gap-4">

@@ -45,12 +45,21 @@ class ReconcileSummary:
             vanished from the client and the work is not owned.
         still_in_flight: Rows left ``grabbed`` (torrent still known to the
             client, work not owned yet — download/seed in progress).
+        closed_movie_followed_ids: ``followed_id`` of every ``kind == "movie"``
+            row this pass ACTUALLY transitioned to ``done`` (mark_done returned
+            ``True``). The D2-A retirement rule — a followed film leaves the
+            follow list once its media lands — reads this to retire the follow
+            and emit ``FilmAcquired``. Populated only for movie rows carrying a
+            ``followed_id``; empty for episode rows (a series continues). Kept as
+            a plain tuple so ``reconcile_wanted`` stays pure over the ports (no
+            bus, no follow mutation): the caller owns the retirement + emission.
     """
 
     checked: int = 0
     closed_owned: int = 0
     requeued_missing: int = 0
     still_in_flight: int = 0
+    closed_movie_followed_ids: tuple[int, ...] = ()
 
 
 def reconcile_wanted(
@@ -78,6 +87,7 @@ def reconcile_wanted(
         The :class:`ReconcileSummary` counts.
     """
     checked = closed = requeued = in_flight = 0
+    closed_movie_followed_ids: list[int] = []
     for row in [*store.wanted.list_grabbed(), *store.wanted.list_pending()]:
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
@@ -96,6 +106,12 @@ def reconcile_wanted(
         if owned:
             if store.wanted.mark_done(row.id):
                 closed += 1
+                # D2-A — a followed FILM whose media just landed is retired by
+                # the caller (subscriber / detect CLI). Surface only rows this
+                # pass ACTUALLY transitioned (mark_done returned True) so a
+                # second, idempotent pass never re-emits FilmAcquired.
+                if row.kind == "movie" and row.followed_id is not None:
+                    closed_movie_followed_ids.append(row.followed_id)
                 log.info(
                     "acquire.reconcile.closed_owned",
                     wanted_id=row.id,
@@ -128,6 +144,7 @@ def reconcile_wanted(
         closed_owned=closed,
         requeued_missing=requeued,
         still_in_flight=in_flight,
+        closed_movie_followed_ids=tuple(closed_movie_followed_ids),
     )
     log.info(
         "acquire.reconcile.complete",

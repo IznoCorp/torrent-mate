@@ -8,70 +8,63 @@ staging_dir is passed explicitly from Config.paths; Settings no longer
 carries disk paths.
 """
 
-import shutil
+from dataclasses import asdict
 from pathlib import Path
 
 from personalscraper.conf.models.config import Config
-from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
 from personalscraper.core.event_bus import EventBus
-from personalscraper.core.media_types import FileType
 from personalscraper.dispatch._types import DispatchResult
+from personalscraper.dispatch.crash_recovery import DryRunPolicy, RootKind, SweepRoot, sweep_orphans
+from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.pipeline_protocol import record
+from personalscraper.reports.dispatch import DispatchDetails
 from personalscraper.verify.verifier import VerifyResult
 
 log = get_logger("dispatch_run")
 
 
-def _cleanup_staging_orphans(settings: Settings, config: Config, staging_dir: Path) -> int:
-    """Remove orphaned dispatch temp dirs from staging categories.
+def _sweep_dispatch_orphans(
+    config: Config,
+    staging_dir: Path,
+    *,
+    dry_run: bool,
+    recover_orphans: bool,
+) -> int:
+    """Sweep dispatch orphans via the single-owner crash-recovery sweep.
 
-    Cleans up _tmp_dispatch_* directories and .merge_backup/
-    subdirectories that were left behind by interrupted dispatches.
+    Standalone ``personalscraper dispatch`` (``recover_orphans=True``) is the
+    dispatch step's own crash-recovery entry point, so it sweeps both the
+    staging categories (``.merge_backup/`` + ``_tmp_dispatch_*``) and the
+    storage disks. In a full pipeline run the boot-time
+    :meth:`Pipeline._recover_from_previous_run` already owns that sweep, so the
+    :class:`~personalscraper.pipeline_steps.DispatchStep` passes
+    ``recover_orphans=False`` and this returns 0 (no double-execution).
+
+    Staging roots carry ``SKIP`` (invisible in dry-run, matching the historical
+    ``_cleanup_staging_orphans`` gate); storage roots carry ``REPORT`` so
+    ``dispatch --dry-run`` stays side-effect-free yet lists what it would clean.
 
     Args:
-        settings: Pipeline configuration (provides dir name attributes).
-        config: Application config for category-based dir name resolution.
-        staging_dir: Absolute path to the staging area (from Config.paths).
+        config: Application config providing the storage disks.
+        staging_dir: Absolute path to the staging area (from ``Config.paths``).
+        dry_run: Whether the dispatch step is a preview.
+        recover_orphans: When False, boot already swept — do nothing.
 
     Returns:
-        Number of orphan directories removed.
+        Number of orphan directories removed (or counted in dry-run REPORT).
     """
-    cleaned = 0
-    staging = staging_dir
-    for dir_name in (
-        folder_name(find_by_file_type(config, FileType.MOVIE)),
-        folder_name(find_by_file_type(config, FileType.TVSHOW)),
-    ):
-        cat_dir = staging / dir_name
-        if not cat_dir.exists():
-            continue
-        for item in cat_dir.iterdir():
-            if not item.is_dir():
-                continue
-            # Clean _tmp_dispatch_* orphans
-            if item.name.startswith("_tmp_dispatch_"):
-                try:
-                    shutil.rmtree(item)
-                    log.warning("staging_orphan_cleaned", name=item.name)
-                    cleaned += 1
-                except OSError as exc:
-                    log.warning("staging_orphan_cleanup_failed", name=item.name, error=str(exc))
-            # Clean .merge_backup/ inside media dirs
-            backup = item / ".merge_backup"
-            if backup.exists() and backup.is_dir():
-                try:
-                    shutil.rmtree(backup)
-                    log.warning("staging_backup_cleaned", media=item.name, backup=backup.name)
-                    cleaned += 1
-                except OSError as exc:
-                    log.warning("staging_backup_cleanup_failed", path=str(backup), error=str(exc))
-    return cleaned
+    if not recover_orphans:
+        return 0
+    roots = [SweepRoot(staging_dir, RootKind.MEDIA_TREE, DryRunPolicy.SKIP)]
+    roots.extend(SweepRoot(disk.path, RootKind.MEDIA_TREE, DryRunPolicy.REPORT) for disk in get_disk_configs(config))
+    return sweep_orphans(roots, dry_run=dry_run)
 
 
 def run_dispatch(
@@ -83,6 +76,7 @@ def run_dispatch(
     event_bus: EventBus,
     permit: DeletePermit = AllowAllPermit(),
     recorder: SeedObligationRecorder = AllowAllPermit(),
+    recover_orphans: bool = True,
 ) -> tuple[StepReport, list[DispatchResult]]:
     """Run the dispatch pipeline step.
 
@@ -100,6 +94,10 @@ def run_dispatch(
             :class:`Dispatcher` (default: ``AllowAllPermit`` — always permit).
         recorder: Injected :class:`SeedObligationRecorder` forwarded to
             :class:`Dispatcher` (default: ``AllowAllPermit`` — no-op).
+        recover_orphans: When True (standalone dispatch), run the crash-recovery
+            orphan sweep before dispatching. The full-run
+            :class:`~personalscraper.pipeline_steps.DispatchStep` passes False
+            because boot already swept once per run (PIPELINE-CORE-07).
 
     Returns:
         ``(StepReport, list[DispatchResult])`` — the step report with
@@ -113,10 +111,12 @@ def run_dispatch(
     index_path = config.indexer.db_path
     assert index_path is not None, "indexer.db_path must be resolved"
 
-    # Clean orphaned temp dirs from staging area
-    cleaned = 0
-    if not dry_run:
-        cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
+    # Crash-recovery orphan sweep (single owner). Standalone dispatch owns its
+    # own sweep; inside a full pipeline run boot already swept
+    # (``recover_orphans=False`` ⇒ no double-execution).
+    cleaned = _sweep_dispatch_orphans(config, staging_dir, dry_run=dry_run, recover_orphans=recover_orphans)
+
+    report = StepReport(name="dispatch")
 
     with MediaIndex(index_path, config=config, auto_rebuild=not dry_run, event_bus=event_bus) as index:
         preview_index = False
@@ -136,8 +136,6 @@ def run_dispatch(
             # Dry-run rebuilds are wrapped in a savepoint and rolled back so
             # preview commands never persist cache mutations.
             if index.count == 0:
-                from personalscraper.dispatch.disk_scanner import get_disk_configs
-
                 disk_configs = get_disk_configs(config)
                 count = index.rebuild(disk_configs, categories=config.categories)
                 event = "index_rebuilt_on_empty_preview" if dry_run else "index_rebuilt_on_empty"
@@ -161,39 +159,19 @@ def run_dispatch(
 
             results = dispatcher.process(verified=verified)
 
+            # Terminal per-item progress + report counters. ``started`` is
+            # emitted from INSIDE ``Dispatcher.process`` (F8 real lifecycle);
+            # here we record only the terminal transition, which drives both the
+            # ``ItemProgressed`` payload and the report counters through the
+            # shared ``record`` reporter (replaces the old report-conversion helper).
             for r in results:
-                event_bus.emit(ItemProgressed(step="dispatch", item=r.source.name, status="started"))
-                if r.action in ("replaced", "merged", "moved"):
-                    event_bus.emit(
-                        ItemProgressed(
-                            step="dispatch",
-                            item=r.source.name,
-                            status=r.action,
-                            details={
-                                "dest": str(r.destination) if r.destination else "",
-                                "disk": r.disk or "",
-                            },
-                        )
-                    )
-                elif r.action == "skipped":
-                    event_bus.emit(
-                        ItemProgressed(
-                            step="dispatch",
-                            item=r.source.name,
-                            status="skipped",
-                            details={"reason": r.reason or ""},
-                        )
-                    )
-                else:
-                    # error or unknown action
-                    event_bus.emit(
-                        ItemProgressed(
-                            step="dispatch",
-                            item=r.source.name,
-                            status="error",
-                            details={"action": r.action, "reason": r.reason or ""},
-                        )
-                    )
+                _record_dispatch_terminal(report, event_bus, r)
+
+            # Typed details payload (STEP_REPORT_CONTRACT: DispatchDetails).
+            # Flattened to a JSON-safe dict here so the report is self-consistent
+            # on the standalone CLI path too (the pipeline re-validates it in
+            # ``Pipeline._with_details_payload``).
+            report.details_payload = asdict(_build_dispatch_details(results))
 
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately
@@ -205,10 +183,114 @@ def run_dispatch(
             if preview_index:
                 index.rollback_preview()
 
-    report = _to_step_report(results)
     if cleaned:
-        report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
+        # Honest, French label (§2/§8 — libellé clair, rien en silence). The
+        # sweep covers BOTH the staging categories AND the storage disks, so the
+        # former "staging orphan(s)" wording mislabelled disk orphans. In dry-run
+        # only the storage roots REPORT (staging is SKIP) and nothing is deleted,
+        # so the preview says "à nettoyer", not "nettoyé(s)".
+        if dry_run:
+            report.details.insert(0, f"{cleaned} orphelin(s) de dispatch à nettoyer (aperçu — disques de stockage)")
+        else:
+            report.details.insert(0, f"{cleaned} orphelin(s) de dispatch nettoyé(s) (staging + disques)")
     return report, results
+
+
+def _build_dispatch_details(results: list[DispatchResult]) -> DispatchDetails:
+    """Build the typed :class:`DispatchDetails` payload from dispatch results.
+
+    Partitions by action: ``moved`` items are grouped under their destination
+    disk (``moved_to_disk[disk] -> [name, ...]``); ``merged``/``replaced`` land
+    in their own lists; ``error`` items become ``(name, reason)`` pairs. Unknown
+    actions are not represented (they touch no counter — see
+    ``_record_dispatch_terminal``).
+
+    Args:
+        results: Per-item dispatch results from ``Dispatcher.process``.
+
+    Returns:
+        A :class:`DispatchDetails` grouping items by dispatch outcome.
+    """
+    details = DispatchDetails()
+    for r in results:
+        name = r.source.name
+        if r.action == "moved":
+            details.moved_to_disk.setdefault(r.disk or "", []).append(name)
+        elif r.action == "merged":
+            details.merged.append(name)
+        elif r.action == "replaced":
+            details.replaced.append(name)
+        elif r.action == "error":
+            details.failed.append((name, r.reason or ""))
+    return details
+
+
+def _record_dispatch_terminal(report: StepReport, bus: EventBus, r: DispatchResult) -> None:
+    """Record one dispatch result's terminal ``ItemProgressed`` + report counter.
+
+    Preserves the exact counter/details/warning semantics of the former
+    the former report-conversion helper + post-hoc event loop:
+
+    * ``replaced`` / ``merged`` / ``moved`` → ``success_count``; detail
+      ``action=<pad8> <name> → <disk>``; event payload ``{dest, disk}``.
+    * ``skipped`` → ``skip_count``; detail ``action=skipped  <name>: <reason>``;
+      warning appended only when a reason is present; event payload ``{reason}``.
+    * ``error`` → ``error_count``; detail ``action=error    <name>: <reason>``;
+      warning always appended; event payload ``{action, reason}``.
+    * any other (unknown) action → emits an ``error`` event WITHOUT touching any
+      counter (matches the former report-conversion helper.s fall-through).
+
+    Args:
+        report: Dispatch step report mutated in place.
+        bus: Required in-process EventBus.
+        r: One dispatch result.
+    """
+    name = r.source.name
+    # Action tags use a leading "action=" prefix (not "[action]") because
+    # Rich console.print() would silently swallow bracketed tokens as markup.
+    if r.action in ("replaced", "merged", "moved"):
+        record(
+            report,
+            bus,
+            step="dispatch",
+            item=name,
+            status=r.action,
+            detail=f"action={r.action:<8} {name} → {r.disk}",
+            event_details={"dest": str(r.destination) if r.destination else "", "disk": r.disk or ""},
+        )
+    elif r.action == "skipped":
+        record(
+            report,
+            bus,
+            step="dispatch",
+            item=name,
+            status="skipped",
+            detail=f"action=skipped  {name}: {r.reason}",
+            warning=f"{name}: {r.reason}" if r.reason else None,
+            event_details={"reason": r.reason or ""},
+        )
+    elif r.action == "error":
+        record(
+            report,
+            bus,
+            step="dispatch",
+            item=name,
+            status="error",
+            detail=f"action=error    {name}: {r.reason}",
+            warning=f"{name}: {r.reason or 'unknown error'}",
+            event_details={"action": r.action, "reason": r.reason or ""},
+        )
+    else:
+        # Unknown action: surface an error event but leave every counter
+        # untouched (the former report-conversion helper had no branch for it).
+        bus.emit(
+            ItemProgressed(
+                step="dispatch",
+                item=name,
+                status="error",
+                details={"action": r.action, "reason": r.reason or ""},
+            )
+        )
 
 
 def _drain_dispatch_outbox(config: Config) -> None:
@@ -272,8 +354,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
 
     from personalscraper.indexer.db import _apply_pragmas
     from personalscraper.indexer.repos import disk_repo
-    from personalscraper.indexer.scanner import ScanMode
-    from personalscraper.indexer.scanner import scan as _indexer_scan
+    from personalscraper.indexer.scanner import ScanMode, ScanRequest, scan_with
     from personalscraper.indexer.schema import DiskRow
 
     affected_ids: set[str] = {r.disk for r in results if r.disk and r.action in ("replaced", "merged", "moved")}
@@ -301,12 +382,14 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
             disks=[d.label for d in disk_rows],
             affected_item_count=len(affected_ids),
         )
-        result = _indexer_scan(
-            disks=disk_rows,
-            mode=ScanMode.enrich,
-            generation=next_generation,
-            conn=conn,
-            event_bus=event_bus,
+        result = scan_with(
+            ScanRequest(
+                disks=disk_rows,
+                mode=ScanMode.enrich,
+                generation=next_generation,
+                conn=conn,
+                event_bus=event_bus,
+            )
         )
         log.info(
             "dispatch_post_enrich_done",
@@ -315,45 +398,3 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, eve
         )
     finally:
         conn.close()
-
-
-def _to_step_report(results: list[DispatchResult]) -> StepReport:
-    """Convert DispatchResult list to StepReport.
-
-    Args:
-        results: List of dispatch results.
-
-    Returns:
-        StepReport with aggregated counts.
-    """
-    success = 0
-    skipped = 0
-    errors = 0
-    warnings: list[str] = []
-    details: list[str] = []
-
-    # Action tags use a leading "action=" prefix (not "[action]") because
-    # Rich console.print() would silently swallow bracketed tokens as markup.
-    for r in results:
-        name = r.source.name
-        if r.action in ("replaced", "merged", "moved"):
-            success += 1
-            details.append(f"action={r.action:<8} {name} → {r.disk}")
-        elif r.action == "skipped":
-            skipped += 1
-            details.append(f"action=skipped  {name}: {r.reason}")
-            if r.reason:
-                warnings.append(f"{name}: {r.reason}")
-        elif r.action == "error":
-            errors += 1
-            details.append(f"action=error    {name}: {r.reason}")
-            warnings.append(f"{name}: {r.reason or 'unknown error'}")
-
-    return StepReport(
-        name="dispatch",
-        success_count=success,
-        skip_count=skipped,
-        error_count=errors,
-        warnings=warnings,
-        details=details,
-    )

@@ -11,7 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EventStreamContext } from "@/hooks/useEventStreamContext";
 import type { EventStreamState } from "@/hooks/useEventStream";
-import { pipelineKeys, usePipelineStatus } from "@/hooks/usePipelineStatus";
+import { pipelineKeys } from "@/api/pipeline";
+import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 
 // ---------------------------------------------------------------------------
 // Helpers

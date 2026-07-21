@@ -8,6 +8,11 @@
  * breaks at compile time, not at runtime.
  */
 
+import type {
+  QueryParamsOf,
+  RequestBodyOf,
+  SuccessBody,
+} from "./_schema-helpers";
 import type { components, paths } from "./schema";
 import { XRW_HEADERS, apiFetch } from "./client";
 
@@ -24,36 +29,6 @@ export type DecisionDetail = components["schemas"]["DecisionDetail"];
 
 /** Summary row for the decisions list endpoint. */
 export type DecisionListItem = components["schemas"]["DecisionListItem"];
-
-// ---------------------------------------------------------------------------
-// Inline type helpers (mirror client.ts — not exported from there)
-// ---------------------------------------------------------------------------
-
-/**
- * Extract the ``application/json`` response body from an
- * openapi-typescript response map (200 or 202).
- */
-type SuccessBody<T> = T extends {
-  200: { content: { "application/json": infer B } };
-}
-  ? B
-  : T extends {
-        202: { content: { "application/json": infer B } };
-      }
-    ? B
-    : never;
-
-/** The optional query parameters declared by an operation. */
-type QueryParamsOf<Op> = Op extends { parameters: { query?: infer Q } }
-  ? NonNullable<Q>
-  : never;
-
-/** The ``application/json`` request body declared by an operation, or ``never``. */
-type RequestBodyOf<Op> = Op extends {
-  requestBody: { content: { "application/json": infer B } };
-}
-  ? B
-  : never;
 
 // ---------------------------------------------------------------------------
 // Response types

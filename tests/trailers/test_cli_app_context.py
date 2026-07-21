@@ -87,6 +87,7 @@ def _capturing_factory() -> tuple:
                     {
                         "scan_staging": lambda self, *_a, **_kw: empty_items,
                         "scan_library": lambda self, *_a, **_kw: empty_items,
+                        "scan_library_all": lambda self, *_a, **_kw: empty_items,
                     },
                 )(),
             ),
@@ -168,6 +169,7 @@ def test_trailers_command_binds_correlation_id(cmd: str) -> None:
                 {
                     "scan_staging": _scan_spy,
                     "scan_library": _scan_spy,
+                    "scan_library_all": _scan_spy,
                 },
             )(),
         ),

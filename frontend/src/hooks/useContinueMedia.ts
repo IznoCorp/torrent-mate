@@ -8,7 +8,7 @@
 
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 
-import { continueMedia, type ContinueResponse } from "@/api/client";
+import { continueMedia, type ContinueResponse } from "@/api/staging";
 import { decisionsKeys } from "@/api/decisions";
 import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";

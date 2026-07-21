@@ -12,7 +12,6 @@ convention; R14/R24).
 
 from __future__ import annotations
 
-import json
 import os
 import signal
 import sqlite3
@@ -49,6 +48,7 @@ from personalscraper.web.models.pipeline import (
     StepTiming,
     WatcherRequest,
     WatcherResponse,
+    parse_steps_json,
 )
 from personalscraper.web.pipeline_queue import reserve_queued_pipeline_run
 from personalscraper.web.pipeline_trigger import spawn_pipeline_run
@@ -113,15 +113,12 @@ def _build_status(data_dir: Path, db_path: Path) -> StatusResponse:
                 ).fetchone()
             if row is not None:
                 run_uid = row["run_uid"]
-                steps_raw = row["steps_json"]
-                if steps_raw:
-                    try:
-                        steps = json.loads(steps_raw)
-                        # The current step is the last one in the array.
-                        if isinstance(steps, list) and steps:
-                            step = steps[-1].get("name")
-                    except (json.JSONDecodeError, TypeError, KeyError):
-                        pass
+                steps = parse_steps_json(row["steps_json"])
+                if steps:
+                    # The current step is the last one in the array.
+                    name = steps[-1].get("name")
+                    if isinstance(name, str):
+                        step = name
         except sqlite3.Error:
             logger.warning("pipeline_status_db_read_failed", exc_info=True)
 
@@ -620,46 +617,43 @@ def pipeline_history_detail(
     summary = _row_to_run_summary(row)
 
     steps: list[StepTiming] = []
-    if row["steps_json"]:
-        try:
-            raw_steps = json.loads(row["steps_json"])
-            if isinstance(raw_steps, list):
-                for s in raw_steps:
-                    s_start = s.get("started_at")
-                    s_end = s.get("ended_at")
+    try:
+        for s in parse_steps_json(row["steps_json"]):
+            s_start = s.get("started_at")
+            s_end = s.get("ended_at")
 
-                    step_started_at: str | None = None
-                    step_ended_at: str | None = None
-                    step_elapsed: float | None = None
+            step_started_at: str | None = None
+            step_ended_at: str | None = None
+            step_elapsed: float | None = None
 
-                    if s_start is not None:
-                        step_started_at = datetime.fromtimestamp(float(s_start), tz=timezone.utc).isoformat()
-                    if s_end is not None:
-                        step_ended_at = datetime.fromtimestamp(float(s_end), tz=timezone.utc).isoformat()
-                    if s_start is not None and s_end is not None:
-                        step_elapsed = float(s_end) - float(s_start)
+            if s_start is not None:
+                step_started_at = datetime.fromtimestamp(float(s_start), tz=timezone.utc).isoformat()  # type: ignore[arg-type]
+            if s_end is not None:
+                step_ended_at = datetime.fromtimestamp(float(s_end), tz=timezone.utc).isoformat()  # type: ignore[arg-type]
+            if s_start is not None and s_end is not None:
+                step_elapsed = float(s_end) - float(s_start)  # type: ignore[arg-type]
 
-                    # webui-ux Phase 2.2: the StepReport summary counts are
-                    # optional in steps_json — a legacy entry (pre-Phase-2.2)
-                    # simply lacks them, so ``_opt_int`` / ``_opt_counts``
-                    # yield ``None`` and the model defaults hold (fail-soft).
-                    steps.append(
-                        StepTiming(
-                            name=str(s.get("name", "")),
-                            status=str(s.get("status", "")),
-                            started_at=step_started_at,
-                            ended_at=step_ended_at,
-                            elapsed_s=step_elapsed,
-                            success_count=_opt_int(s.get("success_count")),
-                            skip_count=_opt_int(s.get("skip_count")),
-                            error_count=_opt_int(s.get("error_count")),
-                            unmatched_count=_opt_int(s.get("unmatched_count")),
-                            counts=_opt_counts(s.get("counts")),
-                            reasons=_opt_reasons(s.get("reasons")),
-                        )
-                    )
-        except (json.JSONDecodeError, TypeError, ValueError):
-            pass
+            # webui-ux Phase 2.2: the StepReport summary counts are optional in
+            # steps_json — a legacy entry (pre-Phase-2.2) simply lacks them, so
+            # ``_opt_int`` / ``_opt_counts`` yield ``None`` and the model
+            # defaults hold (fail-soft).
+            steps.append(
+                StepTiming(
+                    name=str(s.get("name", "")),
+                    status=str(s.get("status", "")),
+                    started_at=step_started_at,
+                    ended_at=step_ended_at,
+                    elapsed_s=step_elapsed,
+                    success_count=_opt_int(s.get("success_count")),
+                    skip_count=_opt_int(s.get("skip_count")),
+                    error_count=_opt_int(s.get("error_count")),
+                    unmatched_count=_opt_int(s.get("unmatched_count")),
+                    counts=_opt_counts(s.get("counts")),
+                    reasons=_opt_reasons(s.get("reasons")),
+                )
+            )
+    except (TypeError, ValueError):
+        pass
 
     return RunDetail(
         run_uid=summary.run_uid,
@@ -700,19 +694,11 @@ def _parse_steps(steps_raw: str | None) -> tuple[dict[str, dict[str, object]], s
     """
     by_name: dict[str, dict[str, object]] = {}
     current: str | None = None
-    if not steps_raw:
-        return by_name, current
-    try:
-        steps = json.loads(steps_raw)
-    except (json.JSONDecodeError, TypeError):
-        return by_name, current
-    if isinstance(steps, list):
-        for s in steps:
-            if isinstance(s, dict):
-                name = s.get("name")
-                if isinstance(name, str):
-                    by_name[name] = s
-                    current = name  # last entry wins → the live/most-recent step
+    for s in parse_steps_json(steps_raw):
+        name = s.get("name")
+        if isinstance(name, str):
+            by_name[name] = s
+            current = name  # last entry wins → the live/most-recent step
     return by_name, current
 
 

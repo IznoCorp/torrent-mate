@@ -3,21 +3,17 @@
  * per-series manual grab, cadence editing, unfollow, and active toggle.
  *
  * Extracted from `AcquisitionPage.tsx` (C12). Phase 02: compact rows replace the
- * MediaCard grid — 72 px poster thumb, mono completeness, one ⋯ DropdownMenu.
+ * MediaCard grid — 72 px poster thumb, mono completeness, one ⋯ DropdownMenu.
+ * All data logic — the follow/unfollow/update/grab mutations, the live cadence
+ * caption and the fire-and-track manual grab — lives in {@link useFollowedPanel};
+ * this component is pure presentation over that machine and its ``data`` prop.
  */
 
 import { Clock, MoreHorizontal, Power, Search, Trash2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactElement } from "react";
-import { toast } from "sonner";
+import { type ReactElement } from "react";
 
-import {
-  acqKeys,
-  triggerFollowedSearch,
-  type CreateFollowRequest,
-  type FollowedSeriesItem,
-} from "@/api/acquisition";
-import { ApiError } from "@/api/client";
+import { type FollowedSeriesItem } from "@/api/acquisition";
+import { MediaPoster } from "@/components/ds/MediaPoster";
 import {
   Accordion,
   AccordionContent,
@@ -25,7 +21,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { MediaPoster } from "@/components/ds/MediaPoster";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,23 +40,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  useFollow,
-  useTrackedAcquisitionRun,
-  useUnfollow,
-  useUpdateFollow,
-} from "@/hooks/useAcquisition";
-import { useSchedulers } from "@/hooks/useSchedulers";
+import { useFollowedPanel } from "@/hooks/useFollowedPanel";
 
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
-  cadenceInterval,
   FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
-  formatRunResult,
-  GRAB_JOB_NAME,
   untilLabel,
 } from "./meta";
 
@@ -91,109 +77,27 @@ export function FollowedPanel({
   isError,
   error,
 }: FollowedPanelProps): ReactElement {
-  const queryClient = useQueryClient();
-  const followMutation = useFollow();
-  const unfollowMutation = useUnfollow();
-  const updateMutation = useUpdateFollow();
-
-  // C15: the automatic-search cadence caption is read from the live grab
-  // scheduler, never hardcoded — and omitted entirely when the job is absent.
-  const { data: schedulers } = useSchedulers();
-  const grabSchedule =
-    schedulers?.schedulers.find((s) => s.name === GRAB_JOB_NAME)?.schedule ??
-    null;
-
-  // Per-series manual grab trigger (OBJ3). Fire-and-track: the 202 launches a
-  // grab run; feedback is a toast (409 = already running, 404 = gone). On
-  // success we also refresh the acquisition views (C16) so the row's pending
-  // count / status reflect the freshly enqueued search without a manual reload.
-  // §5: never a success toast on the 202 — track the launched grab to its
-  // NUMERIC result and toast only once the run actually ends.
-  const [trackedRun, setTrackedRun] = useState<string | null>(null);
-  const finishedRun = useTrackedAcquisitionRun(trackedRun);
-  if (finishedRun?.ended_at != null && trackedRun != null) {
-    if (finishedRun.outcome === "success") {
-      const summary = formatRunResult(finishedRun.result);
-      toast.success(`Recherche terminée${summary ? ` — ${summary}` : ""}.`);
-    } else {
-      toast.error("La recherche a échoué — voir les exécutions récentes.");
-    }
-    setTrackedRun(null);
-    void queryClient.invalidateQueries({ queryKey: acqKeys.all });
-  }
-
-  const triggerMutation = useMutation({
-    mutationFn: (id: number) => triggerFollowedSearch(id),
-    onSuccess: (res) => {
-      toast.info("Recherche lancée…");
-      setTrackedRun(res.run_uid);
-    },
-    onError: (err: unknown) => {
-      if (err instanceof ApiError) {
-        if (err.status === 409) {
-          toast.error("Une recherche est déjà en cours pour cette série.");
-        } else if (err.status === 404) {
-          toast.error("Série introuvable.");
-        } else {
-          toast.error(err.detail);
-        }
-      } else {
-        toast.error("Erreur lors du lancement de la recherche.");
-      }
-    },
-  });
-
-  // Add-form state
-  const [tvdbId, setTvdbId] = useState("");
-  const [title, setTitle] = useState("");
-
-  // Edit-cadence dialog state
-  const [editTarget, setEditTarget] = useState<FollowedSeriesItem | null>(null);
-  const [editInterval, setEditInterval] = useState("");
-
-  const handleAdd = (): void => {
-    const tvdb = tvdbId.trim() ? Number(tvdbId.trim()) : null;
-    if (tvdb === null || !Number.isFinite(tvdb)) return;
-    // The manual add-by-TVDB-id form is series-only (a TVDB id is a series id);
-    // films are followed from the search cards, which carry kind='movie'.
-    const body: CreateFollowRequest = { tvdb_id: tvdb, kind: "show" };
-    if (title.trim()) body.title = title.trim();
-    followMutation.mutate(body, {
-      onSuccess: () => {
-        setTvdbId("");
-        setTitle("");
-      },
-    });
-  };
-
-  const handleUnfollow = (id: number): void => {
-    unfollowMutation.mutate(id);
-  };
-
-  // Toggle active/paused in place (C16) — the update hook invalidates the
-  // acquisition views, so the status badge follows without leaving the row.
-  const handleToggleActive = (id: number, active: boolean): void => {
-    updateMutation.mutate({ id, body: { active } });
-  };
-
-  const openEditCadence = (item: FollowedSeriesItem): void => {
-    setEditTarget(item);
-    setEditInterval(String(cadenceInterval(item.cadence)));
-  };
-
-  const handleSaveCadence = (): void => {
-    if (editTarget === null) return;
-    const interval = Number(editInterval);
-    if (!Number.isFinite(interval) || interval < 0) return;
-    updateMutation.mutate(
-      { id: editTarget.id, body: { cadence: { interval_minutes: interval } } },
-      {
-        onSuccess: () => {
-          setEditTarget(null);
-        },
-      },
-    );
-  };
+  const {
+    grabSchedule,
+    tvdbId,
+    setTvdbId,
+    title,
+    setTitle,
+    handleAdd,
+    followPending,
+    triggerSearch,
+    triggerPendingId,
+    handleUnfollow,
+    unfollowPending,
+    handleToggleActive,
+    updatePending,
+    editTarget,
+    setEditTarget,
+    editInterval,
+    setEditInterval,
+    openEditCadence,
+    handleSaveCadence,
+  } = useFollowedPanel();
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -255,10 +159,10 @@ export function FollowedPanel({
             </div>
             <Button
               className="w-full sm:w-auto sm:shrink-0"
-              disabled={!tvdbId.trim() || followMutation.isPending}
+              disabled={!tvdbId.trim() || followPending}
               onClick={handleAdd}
             >
-              {followMutation.isPending ? "Ajout…" : "Suivre"}
+              {followPending ? "Ajout…" : "Suivre"}
             </Button>
           </div>
         </AccordionContent>
@@ -310,14 +214,16 @@ export function FollowedPanel({
             (isMovie ? FOLLOW_STATUS_LABEL_MOVIE[item.status] : undefined) ??
             FOLLOW_STATUS_LABEL[item.status] ??
             item.status;
-          const isSearching =
-            triggerMutation.isPending && triggerMutation.variables === item.id;
+          // triggerPendingId is the id of the in-flight grab (or null) — the
+          // hook's typed narrowing of the former `isPending && variables === id`
+          // guard.
+          const isSearching = triggerPendingId === item.id;
 
           return (
             <div key={`f-${String(item.id)}`} className="flex flex-col">
               {/* Compact row */}
               <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
-                {/* Poster thumb (~72 px height, 2:3 ratio) — DS MediaPoster
+                {/* Poster thumb (~72 px height, 2:3 ratio) — DS MediaPoster
                     handles the image + graceful initials fallback. */}
                 <div className="shrink-0">
                   <MediaPoster
@@ -382,7 +288,7 @@ export function FollowedPanel({
                     <DropdownMenuItem
                       disabled={!item.active || isSearching}
                       onSelect={() => {
-                        triggerMutation.mutate(item.id);
+                        triggerSearch(item.id);
                       }}
                     >
                       <Search className="size-4" aria-hidden="true" />
@@ -407,7 +313,7 @@ export function FollowedPanel({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
-                      disabled={unfollowMutation.isPending}
+                      disabled={unfollowPending}
                       onSelect={() => {
                         handleUnfollow(item.id);
                       }}
@@ -460,7 +366,7 @@ export function FollowedPanel({
                   onClick={() => {
                     handleToggleActive(item.id, true);
                   }}
-                  disabled={updateMutation.isPending}
+                  disabled={updatePending}
                 >
                   Réactiver
                 </Button>
@@ -508,11 +414,8 @@ export function FollowedPanel({
             >
               Annuler
             </Button>
-            <Button
-              onClick={handleSaveCadence}
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+            <Button onClick={handleSaveCadence} disabled={updatePending}>
+              {updatePending ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>

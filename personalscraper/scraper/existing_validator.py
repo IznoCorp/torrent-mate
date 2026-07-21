@@ -3,20 +3,21 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
 
-# DIRECT-mode capabilities (IDValidator, IDCrossRef) use ``registry.get("name")``
+# DIRECT-mode capabilities (IDValidator) use ``registry.get("name")``
 # (DESIGN §5.2) — this is the public API for ``Mode.DIRECT``. The return type is
 # ``Named`` Protocol, so ``cast(...)`` unwraps either to a capability Protocol
 # (preferred) or to the concrete client when the caller needs provider-specific
@@ -24,34 +25,30 @@ if TYPE_CHECKING:
 #
 # Sub-phase 7.4 audit + sub-phase 17.3 migration (registry feature): every
 # ``cast(...)`` site in this module is intentionally direct-dispatch — see the
-# per-site rationale comments. All six sites fall into a single family:
+# per-site rationale comments. All remaining sites fall into a single family:
 # ID-bound canonical-provider refetch where the ID was minted by a specific
 # provider (recorded in the NFO at scrape time) and any chain fallback would
 # silently switch the canonical data source.
 #
-# Two sub-families exist:
-#
-# * Multi-method provider-specific sequences (``_repair_episode_files``,
-#   ``_repair_artwork``): combine ``get_series`` / ``get_tv`` with
-#   ``get_tv_season`` / ``get_series_episodes`` and helpers that consume the
-#   concrete client (``_fetch_season_episodes_tvdb``,
-#   ``_tvdb_series_to_show_data``). The Protocols in ``_contracts.py`` do not
-#   cover these methods → 4 sites keep ``cast("TMDBClient"|"TVDBClient", ...)``
-#   (lines 237, 258, 349, 371).
-# * Single-call artwork refetch (``_recover_movie_artwork``,
-#   ``_recover_tvshow_artwork``): the Protocol signatures
-#   (``MovieDetailsProvider.get_movie`` / ``TvDetailsProvider.get_tv``) now
-#   accept ``int | str`` (sub-phase 17.2 widening), so the cast targets the
-#   capability Protocol → 2 sites use ``cast("MovieDetailsProvider"|
-#   "TvDetailsProvider", ...)`` (lines 544, 590).
-#
-# Net outcome: 4 of 6 sites keep concrete-client cast (episode-fetching methods
-# outside any Protocol); 2 of 6 migrated to Protocol-typed cast. The remaining
-# 4 are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
+# The remaining sites are the Multi-method provider-specific sequences
+# (``_repair_episode_files``, ``_repair_artwork``): they combine ``get_series``
+# / ``get_tv`` with ``get_tv_season`` / ``get_series_episodes`` and helpers that
+# consume the concrete client (``_fetch_season_episodes_tvdb``,
+# ``_tvdb_series_to_show_data``). The Protocols in ``_contracts.py`` do not
+# cover these methods → 4 sites keep ``cast("TMDBClient"|"TVDBClient", ...)``.
+# These are the expected residual per DESIGN §5.2 (``Mode.DIRECT`` for methods
 # without a capability Protocol).
+#
+# The single-call artwork refetch (formerly the ``_recover_movie_artwork`` /
+# ``_recover_tvshow_artwork`` mixin delegates) was folded (P4.4, SCRAPER-09)
+# into the ONE canonical-family helper ``_writeback.recover_artwork`` —
+# resolving the provider from the item's canonical family (TVDB-primary for TV)
+# rather than the TMDB-hardwired path. The thin delegates were removed (P4.6,
+# SCRAPER-11) so the movie/TV scrape entry points call ``recover_artwork``
+# directly, dropping two ``Callable`` cross-mixin contracts.
 
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
-from personalscraper.scraper._shared import ScrapeResult
+from personalscraper.nfo_utils import extract_nfo_metadata
 from personalscraper.scraper.episode_manager import (
     _extract_season_episode,
     create_season_dirs,
@@ -78,6 +75,31 @@ log = get_logger("scraper")
 
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 
+
+def _coerce_numeric_nfo_id(raw: str | None, nfo_path: Path, family: str) -> int | None:
+    """Coerce an NFO id string (from ``extract_nfo_metadata``) to ``int``.
+
+    Shared by the TMDB/TVDB repair-id readers so the NFO is parsed through the
+    single canonical parser (:func:`personalscraper.nfo_utils.extract_nfo_metadata`,
+    SCRAPER-09) rather than a third bespoke ``ElementTree`` walk.
+
+    Args:
+        raw: Provider id text read from the NFO, or ``None`` when absent.
+        nfo_path: Source NFO path (for the non-numeric warning log).
+        family: Provider family label (``"tmdb"`` / ``"tvdb"``) for the log.
+
+    Returns:
+        The id as ``int``, or ``None`` when absent or non-numeric.
+    """
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        log.warning("nfo_id_non_numeric", family=family, value=raw, path=str(nfo_path))
+        return None
+
+
 # Re-exports for backward compatibility (Phase 10 extraction).
 __all__ = [
     "ExistingValidatorMixin",
@@ -100,7 +122,7 @@ class ExistingValidatorMixin:
     dry_run: bool
     _registry: "ProviderRegistry"
     _artwork: "ArtworkDownloader"
-    _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
+    _generate_episode_nfos: "Callable[..., list[str]]"  # from TvServiceNfoMixin (Phase 27.2 S3 extraction)
 
     def _repair_season_dir(self, show_dir: Path) -> tuple[set[tuple[int, int]], bool]:
         """Collect organised episodes and replace them when a new root duplicate exists.
@@ -462,176 +484,39 @@ class ExistingValidatorMixin:
 
     @staticmethod
     def _extract_tmdb_id_from_nfo(nfo_path: Path) -> int | None:
-        """Extract TMDB ID from a valid NFO file.
+        """Extract the TMDB id from a valid NFO file.
 
-        Parses the NFO XML and finds the first <uniqueid type="tmdb">
-        element with a numeric value.
+        Reads the ``<uniqueid type="tmdb">`` value through the single canonical
+        NFO parser (:func:`personalscraper.nfo_utils.extract_nfo_metadata`) and
+        coerces it to ``int`` — no third bespoke parser (SCRAPER-09).
 
         Args:
-            nfo_path: Path to the NFO file (must exist and be valid XML).
+            nfo_path: Path to the NFO file.
 
         Returns:
-            TMDB ID as int, or None if not found or not numeric.
+            TMDB id as ``int``, or ``None`` if absent or non-numeric.
         """
-        try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
-        except (ET.ParseError, OSError) as exc:
-            log.warning("nfo_parse_failed", filename=nfo_path.name, error=str(exc))
-            return None
-        for uid in root.findall("uniqueid"):
-            if uid.get("type") == "tmdb" and uid.text:
-                try:
-                    return int(uid.text)
-                except ValueError:
-                    log.warning("nfo_tmdb_id_non_numeric", tmdb_id=uid.text, path=str(nfo_path))
-                    return None
-        log.debug("nfo_no_tmdb_id", path=str(nfo_path))
-        return None
+        raw = extract_nfo_metadata(nfo_path).get("tmdb_id")
+        return _coerce_numeric_nfo_id(raw, nfo_path, "tmdb")
 
     @staticmethod
     def _extract_tvdb_id_from_nfo(nfo_path: Path) -> int | None:
-        """Extract TVDB ID from a valid NFO file.
+        """Extract the TVDB id from a valid NFO file.
 
         TVDB is the primary scraper for TV shows (per ``metadata.json5``
-        ``series_scraping`` priority), so the repair pass must read the TVDB
-        ``<uniqueid>`` first and only fall back to TMDB when absent.
+        ``series_scraping`` priority), so the repair pass reads the TVDB
+        ``<uniqueid>`` first and only falls back to TMDB when absent. Reads
+        through the single canonical NFO parser
+        (:func:`personalscraper.nfo_utils.extract_nfo_metadata`, SCRAPER-09).
 
         Args:
-            nfo_path: Path to the NFO file (must exist and be valid XML).
+            nfo_path: Path to the NFO file.
 
         Returns:
-            TVDB ID as int, or None if not found or not numeric.
+            TVDB id as ``int``, or ``None`` if absent or non-numeric.
         """
-        try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
-        except (ET.ParseError, OSError) as exc:
-            log.warning("nfo_parse_failed", filename=nfo_path.name, error=str(exc))
-            return None
-        for uid in root.findall("uniqueid"):
-            if uid.get("type") == "tvdb" and uid.text:
-                try:
-                    return int(uid.text)
-                except ValueError:
-                    log.warning("nfo_tvdb_id_non_numeric", tvdb_id=uid.text, path=str(nfo_path))
-                    return None
-        log.debug("nfo_no_tvdb_id", path=str(nfo_path))
-        return None
-
-    def _recover_movie_artwork(
-        self,
-        nfo_path: Path,
-        movie_dir: Path,
-        result: ScrapeResult,
-    ) -> None:
-        """Re-download missing artwork using TMDB ID from existing NFO.
-
-        Extracts the TMDB ID, fetches movie data, and downloads artwork
-        (existing files are automatically skipped by the downloader).
-
-        Args:
-            nfo_path: Path to the valid NFO file.
-            movie_dir: Path to the movie directory.
-            result: ScrapeResult to update with recovery info.
-        """
-        tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
-        if not tmdb_id:
-            return
-        # Broad catch: get_movie() can raise ApiError, CircuitOpenError, or requests
-        # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
-        # a lazy import — narrowing this mixed path is not worthwhile here.
-        # Pre-check (I4, PR review cycle 4): ``registry.get("tmdb")`` raises
-        # ``UnknownProviderError`` when tmdb is not configured, which the
-        # broad ``except Exception`` below would swallow silently. Detect
-        # the missing-provider case explicitly so the operator sees a
-        # debug-level forensic anchor instead of a generic
-        # "Artwork recovery failed: Unknown provider 'tmdb'" warning.
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
-
-        try:
-            from personalscraper.api.metadata._contracts import MovieDetailsProvider  # noqa: PLC0415
-            from personalscraper.scraper._movie_convert import _coerce_to_movie_data
-
-            # Protocol-typed direct-dispatch (sub-phase 17.3): the TMDB id
-            # was minted by TMDB when the NFO was written, and artwork must
-            # be re-pulled from the same canonical source. Chain fallback
-            # would silently switch the provider mid-refetch — forbidden
-            # for ID-bound canonical refetch. Now that the Protocol accepts
-            # ``int | str`` (sub-phase 17.2), the cast can target the
-            # capability Protocol instead of the concrete ``TMDBClient``.
-            try:
-                provider = cast("MovieDetailsProvider", self._registry.get("tmdb"))
-            except UnknownProviderError:
-                log.debug("artwork_recovery_skipped_no_tmdb", directory=movie_dir.name)
-                return
-            movie_data = provider.get_movie(tmdb_id)
-            downloaded = self._artwork.download_movie_artwork(
-                _coerce_to_movie_data(movie_data),
-                movie_dir,
-                self.patterns,
-            )
-            if downloaded:
-                result.action = "artwork_recovered"
-                result.artwork_downloaded = [p.name for p in downloaded]
-                log.info("artwork_recovered", count=len(downloaded), directory=movie_dir.name)
-        except Exception as e:  # noqa: BLE001 — see block comment above
-            log.warning("artwork_recovery_failed", directory=movie_dir.name, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork recovery failed: {e}")
-
-    def _recover_tvshow_artwork(
-        self,
-        nfo_path: Path,
-        show_dir: Path,
-        result: ScrapeResult,
-    ) -> None:
-        """Re-download missing artwork for a TV show using NFO TMDB ID.
-
-        Extracts the TMDB ID, fetches show data, and downloads artwork
-        (existing files are automatically skipped by the downloader).
-
-        Args:
-            nfo_path: Path to the valid tvshow.nfo file.
-            show_dir: Path to the TV show directory.
-            result: ScrapeResult to update with recovery info.
-        """
-        tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
-        if not tmdb_id:
-            return
-        # Broad catch: get_tv() can raise ApiError, CircuitOpenError, or requests
-        # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
-        # a lazy import — narrowing this mixed path is not worthwhile here.
-        # Pre-check (I4, PR review cycle 4): symmetric to
-        # ``_recover_movie_artwork`` — guard against tmdb not being
-        # configured so the missing-provider case surfaces as a debug log
-        # rather than getting swallowed by the broad ``except Exception``.
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
-
-        try:
-            from personalscraper.api.metadata._contracts import TvDetailsProvider  # noqa: PLC0415
-            from personalscraper.scraper._movie_convert import _coerce_to_show_data
-
-            # Protocol-typed direct-dispatch (sub-phase 17.3): mirror of
-            # ``_recover_movie_artwork`` — TMDB-minted id, canonical refetch
-            # for artwork, chain fallback forbidden. The Protocol now accepts
-            # ``int | str`` (sub-phase 17.2), so the cast targets the
-            # capability instead of the concrete ``TMDBClient``.
-            try:
-                provider = cast("TvDetailsProvider", self._registry.get("tmdb"))
-            except UnknownProviderError:
-                log.debug("artwork_recovery_skipped_no_tmdb", directory=show_dir.name)
-                return
-            show_data = provider.get_tv(tmdb_id)
-            downloaded = self._artwork.download_tvshow_artwork(
-                _coerce_to_show_data(show_data),
-                show_dir,
-                self.patterns,
-            )
-            if downloaded:
-                result.action = "artwork_recovered"
-                result.artwork_downloaded = [p.name for p in downloaded]
-                log.info("artwork_recovered", count=len(downloaded), directory=show_dir.name)
-        except Exception as e:  # noqa: BLE001 — mixed API+IO path; see comment above
-            log.warning("artwork_recovery_failed", directory=show_dir.name, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork recovery failed: {e}")
+        raw = extract_nfo_metadata(nfo_path).get("tvdb_id")
+        return _coerce_numeric_nfo_id(raw, nfo_path, "tvdb")
 
     def _repair_movie_dir(self, movie_dir: Path, title: str) -> bool:
         """Repair a movie directory with valid NFO.

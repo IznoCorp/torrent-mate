@@ -67,7 +67,7 @@ _SCAN_ITEM = ScanItem(
 
 def test_trailers_emit_trailer_downloaded_on_success(tmp_path: Path) -> None:
     """A SUCCESS download emits exactly one ``TrailerDownloaded`` with the locked URL."""
-    from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+    from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
@@ -102,7 +102,7 @@ def test_trailers_emit_trailer_downloaded_on_success(tmp_path: Path) -> None:
 @pytest.mark.parametrize("failure_status", ["BOT_DETECTED", "HTTP_ERROR", "YTDLP_ERROR"])
 def test_trailers_do_not_emit_on_failure(tmp_path: Path, failure_status: str) -> None:
     """Failed downloads never emit ``TrailerDownloaded`` — the catalog records completions only."""
-    from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+    from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
@@ -153,7 +153,7 @@ def test_trailers_emit_works_from_pipeline_step_path(tmp_path: Path) -> None:
     ``current_correlation_id`` for the duration of a pipeline run; the
     synchronous orchestrator dispatch runs inside that bound region.
     """
-    from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+    from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)
@@ -194,7 +194,7 @@ def test_trailers_emit_works_from_standalone_command_path(tmp_path: Path) -> Non
     (Phase 2.5) that binds ``current_correlation_id`` to a per-invocation
     run id distinct from any pipeline run.
     """
-    from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+    from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
     bus = EventBus()
     collector: CollectingSubscriber[TrailerDownloaded] = CollectingSubscriber(bus, TrailerDownloaded)

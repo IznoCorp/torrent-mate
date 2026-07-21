@@ -7,19 +7,19 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
-    _bootstrap_staging,
+    CommandContext,
     _build_app_context,
+    boundary,
     handle_cli_errors,
-    per_step_boundary,
 )
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.run_journal import LogTailHandler, cli_step_journal
+from personalscraper.run_journal import LogTailHandler
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
@@ -79,97 +79,82 @@ def _run_help() -> str:
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True, build_torrent_client=True)
 def ingest(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Ingest completed torrents from qBittorrent."""
     config = ctx.obj.config
     assert config is not None  # guaranteed non-None by callback
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-    try:
-        with cli_step_journal(config, command="ingest", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            staging_dir = config.paths.staging_dir
-            ingest_dir = staging_path(config, find_ingest_dir(config))
-            with per_step_boundary(config, settings, build_torrent_client=True, stream_events=True) as app_context:
-                # Fail-safe copy-vs-move (§7 HnR): inject the seed-obligation
-                # checker from the acquire context via the core port.
-                _acquire = getattr(app_context, "acquire", None)
-                _seed_checker = getattr(_acquire, "delete_authority", None)
-                report = cli_compat.run_ingest(
-                    settings,
-                    dry_run=dry_run,
-                    ingest_dir=ingest_dir,
-                    staging_dir=staging_dir,
-                    config=config,
-                    event_bus=app_context.event_bus,
-                    torrent_client=app_context.torrent_client,
-                    seed_checker=_seed_checker,
-                )
-            console.print(
-                f"[bold]Ingest:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    app_context = bundle.app_context
+    assert app_context is not None
+    staging_dir = config.paths.staging_dir
+    ingest_dir = staging_path(config, find_ingest_dir(config))
+    # Fail-safe copy-vs-move (§7 HnR): inject the seed-obligation
+    # checker from the acquire context via the core port.
+    _acquire = getattr(app_context, "acquire", None)
+    _seed_checker = getattr(_acquire, "delete_authority", None)
+    report = cli_helpers.run_ingest(
+        bundle.settings,
+        dry_run=dry_run,
+        ingest_dir=ingest_dir,
+        staging_dir=staging_dir,
+        config=config,
+        event_bus=app_context.event_bus,
+        torrent_client=app_context.torrent_client,
+        seed_checker=_seed_checker,
+    )
+    console.print(
+        f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def sort(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Sort and clean media files."""
     from personalscraper.sorter.run import run_sort
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-    try:
-        with cli_step_journal(config, command="sort", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                report = run_sort(
-                    settings,
-                    staging_dir=config.paths.staging_dir,
-                    dry_run=dry_run,
-                    config=config,
-                    event_bus=app_context.event_bus,
-                )
-            console.print(
-                f"[bold]Sort:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    app_context = bundle.app_context
+    assert app_context is not None
+    report = run_sort(
+        bundle.settings,
+        staging_dir=config.paths.staging_dir,
+        dry_run=dry_run,
+        config=config,
+        event_bus=app_context.event_bus,
+    )
+    console.print(
+        f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def scrape(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Scrape metadata and artwork from TMDB/TVDB."""
     from personalscraper.scraper.run import run_scrape
@@ -177,36 +162,24 @@ def scrape(
     config = ctx.obj.config  # Guaranteed non-None by callback.
     assert config is not None
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
-    try:
-        with cli_step_journal(config, command="scrape", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                report = run_scrape(
-                    settings,
-                    config=config,
-                    dry_run=dry_run,
-                    interactive=interactive,
-                    movies_only=movies_only,
-                    tvshows_only=tvshows_only,
-                    event_bus=app_context.event_bus,
-                    registry=app_context.provider_registry,
-                )
-            console.print(
-                f"[bold]Scrape:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    app_context = bundle.app_context
+    assert app_context is not None
+    report = run_scrape(
+        bundle.settings,
+        config=config,
+        dry_run=dry_run,
+        interactive=interactive,
+        movies_only=movies_only,
+        tvshows_only=tvshows_only,
+        event_bus=app_context.event_bus,
+        registry=app_context.provider_registry,
+    )
+    console.print(
+        f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
@@ -219,10 +192,15 @@ def verify(
     check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
     list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
 ) -> None:
-    """Verify and qualify scraped media before dispatch."""
-    from personalscraper.verify.run import run_verify
+    """Verify and qualify scraped media before dispatch.
 
-    config = ctx.obj.config  # Guaranteed non-None by callback.
+    The ``--list-checks`` listing and the unknown-``--check`` validation run
+    **before** any lock/journal scaffold — a pure listing or an argument error
+    must not take ``pipeline.lock`` nor write a ``pipeline_run`` row. Only once
+    the arguments are accepted does the real work run inside the shared
+    :func:`~personalscraper.cli_helpers.boundary` scaffold via
+    :func:`_verify_run`.
+    """
     console = state["console"]
     if list_checks:
         from personalscraper.verify.checks.base import CheckStage
@@ -248,36 +226,56 @@ def verify(
             raise typer.BadParameter(
                 f"Unknown check(s): {sorted(_unknown)}. Available dispatch checks: {sorted(_available)}"
             )
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    _verify_run(ctx, dry_run=dry_run, movies_only=movies_only, tvshows_only=tvshows_only, only=only)
+
+
+@boundary(stream_events=True, command="verify")
+def _verify_run(
+    ctx: typer.Context,
+    *,
+    dry_run: bool,
+    movies_only: bool,
+    tvshows_only: bool,
+    only: frozenset[str] | None,
+    bundle: CommandContext,
+) -> None:
+    """Run the verify step inside the shared boundary scaffold.
+
+    Split out from :func:`verify` so the pre-lock ``--list-checks`` /
+    unknown-check early exits stay OUTSIDE the lock + journal, byte-identical to
+    the pre-boundary command. Journals under ``command="verify"``.
+
+    Args:
+        ctx: The Typer context (``ctx.obj.config`` holds the loaded config).
+        dry_run: Preview without modifying files.
+        movies_only: Restrict to movies.
+        tvshows_only: Restrict to TV shows.
+        only: The validated ``--check`` subset, or ``None`` for all checks.
+        bundle: The boundary-injected service bundle (``needs="app"``).
+    """
+    from personalscraper.verify.run import run_verify
+
+    config = ctx.obj.config
+    console = state["console"]
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="verify", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                try:
-                    report, dispatchable = run_verify(
-                        settings,
-                        config,
-                        dry_run=dry_run,
-                        movies_only=movies_only,
-                        tvshows_only=tvshows_only,
-                        only=only,
-                        event_bus=app_context.event_bus,
-                    )
-                except KeyError as exc:
-                    raise typer.BadParameter(str(exc)) from exc
-            console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
-            console.print(f"  {len(dispatchable)} ready for dispatch")
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        report, dispatchable = run_verify(
+            bundle.settings,
+            config,
+            dry_run=dry_run,
+            movies_only=movies_only,
+            tvshows_only=tvshows_only,
+            only=only,
+            event_bus=app_context.event_bus,
+        )
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.skip_count} blocked")
+    console.print(f"  {len(dispatchable)} ready for dispatch")
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
@@ -288,10 +286,13 @@ def enforce(
     check: list[str] = typer.Option(None, "--check", help="Run only the named check(s); repeatable"),
     list_checks: bool = typer.Option(False, "--list-checks", help="List available checks and exit"),
 ) -> None:
-    """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
-    from personalscraper.enforce.run import run_enforce
+    """Enforce staging conventions: sanitize filenames, validate structure, check coherence.
 
-    config = ctx.obj.config  # Guaranteed non-None by callback.
+    ``--list-checks`` and the unknown-``--check`` validation run **before** the
+    lock/journal scaffold (they must not take ``pipeline.lock`` nor journal a
+    run); the accepted-argument path runs the real work inside the shared
+    :func:`~personalscraper.cli_helpers.boundary` scaffold via :func:`_enforce_run`.
+    """
     console = state["console"]
     if list_checks:
         from personalscraper.verify.checks.base import CheckStage
@@ -317,31 +318,48 @@ def enforce(
             raise typer.BadParameter(
                 f"Unknown check(s): {sorted(_unknown)}. Available staging checks: {sorted(_available)}"
             )
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    _enforce_run(ctx, dry_run=dry_run, only=only)
+
+
+@boundary(stream_events=True, command="enforce")
+def _enforce_run(
+    ctx: typer.Context,
+    *,
+    dry_run: bool,
+    only: frozenset[str] | None,
+    bundle: CommandContext,
+) -> None:
+    """Run the enforce step inside the shared boundary scaffold.
+
+    Split out from :func:`enforce` so the pre-lock ``--list-checks`` /
+    unknown-check early exits stay OUTSIDE the lock + journal, byte-identical to
+    the pre-boundary command. Journals under ``command="enforce"``.
+
+    Args:
+        ctx: The Typer context (``ctx.obj.config`` holds the loaded config).
+        dry_run: Preview without modifying.
+        only: The validated ``--check`` subset, or ``None`` for all checks.
+        bundle: The boundary-injected service bundle (``needs="app"``).
+    """
+    from personalscraper.enforce.run import run_enforce
+
+    config = ctx.obj.config
+    console = state["console"]
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="enforce", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                try:
-                    report = run_enforce(settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
-                except KeyError as exc:
-                    raise typer.BadParameter(str(exc)) from exc
-            console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        report = run_enforce(bundle.settings, config, dry_run=dry_run, only=only, event_bus=app_context.event_bus)
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def dispatch(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
@@ -350,66 +368,71 @@ def dispatch(
         "--no-post-maintenance",
         help="Skip automatic index maintenance after dispatch (scan/relink/fix).",
     ),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
+    from personalscraper.pipeline_steps import resolve_dispatch_authority
+    from personalscraper.subscribers.dispatch_reconcile import build_post_dispatch_reconcile_subscriber
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    app_context = bundle.app_context
+    assert app_context is not None
+    # ACQUIRE-02: the post-dispatch reconcile subscriber closes owned wanted
+    # rows + retires acquired films after the dispatch step's enrich scan
+    # refreshes the library. Wired here (a dispatch composition root) so a plain
+    # library-index scan never gains a reconciliation side effect. The app
+    # bundle is destructured HERE (boundary rule) — the builder takes only the
+    # narrow services it consumes (bus + acquire lobe handle).
+    reconcile_sub = build_post_dispatch_reconcile_subscriber(
+        app_context.event_bus,
+        getattr(app_context, "acquire", None),
+    )
     try:
-        with cli_step_journal(config, command="dispatch", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            with per_step_boundary(config, settings, stream_events=True) as app_context:
-                report, results = run_dispatch(
-                    settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus
-                )
-
-            # Collect touched disks from DispatchResult objects (index-sync DESIGN).
-            from personalscraper.dispatch.post_maintenance import (
-                collect_touched_destinations,
-                collect_touched_disks,
-            )
-
-            touched_disks = collect_touched_disks(results)
-
-            # Resolve post-maintenance enablement: flag > config > default(true).
-            maintenance_enabled = not no_post_maintenance
-            if maintenance_enabled:
-                maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
-
-            if touched_disks and not dry_run:
-                from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
-
-                run_post_dispatch_maintenance(
-                    config,
-                    touched_disks,
-                    destinations=collect_touched_destinations(results),
-                    enabled=maintenance_enabled,
-                )
-
-            console.print(
-                f"[bold]Dispatch:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
+        # F2 parity: resolve the SAME permit/recorder the full-run
+        # DispatchStep injects, via the shared single owner.
+        report, results = run_dispatch(
+            bundle.settings,
+            config=config,
+            dry_run=dry_run,
+            event_bus=app_context.event_bus,
+            **resolve_dispatch_authority(app_context),
+        )
     finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        if reconcile_sub is not None:
+            reconcile_sub.close()
+
+    # Post-dispatch index maintenance runs through the single owner
+    # shared with the full-run DispatchStep (PIPELINE-CORE-01): the
+    # enablement resolution, touched-disk collection, and dry-run guard
+    # live in one place so both entry points behave identically.
+    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+    maybe_run_post_dispatch_maintenance(
+        config,
+        results,
+        dry_run=dry_run,
+        no_post_maintenance=no_post_maintenance,
+    )
+
+    console.print(
+        f"[bold]Dispatch:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def clean(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Run reclean + dedup only (process sub-step, SH-21 / AR-C).
 
@@ -423,45 +446,36 @@ def clean(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="clean", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            try:
-                with per_step_boundary(config, settings, stream_events=True) as app_context:
-                    report = run_clean(
-                        settings,
-                        config=config,
-                        dry_run=dry_run,
-                        event_bus=app_context.event_bus,
-                    )
-            except Exception as exc:
-                console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
-                get_logger("pipeline").exception("clean_command_failed", error=str(exc))
-                raise typer.Exit(1) from exc
+        report = run_clean(
+            bundle.settings,
+            config=config,
+            dry_run=dry_run,
+            event_bus=app_context.event_bus,
+        )
+    except Exception as exc:
+        console.print(f"[red]Clean failed: {type(exc).__name__}: {exc}[/red]")
+        get_logger("pipeline").exception("clean_command_failed", error=str(exc))
+        raise typer.Exit(1) from exc
 
-            console.print(
-                f"[bold]Clean:[/bold] {report.success_count} OK, "
-                f"{report.skip_count} skipped, {report.error_count} errors"
-            )
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    console.print(
+        f"[bold]Clean:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+    )
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def cleanup(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without deleting"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Run empty-directory cleanup only (process sub-step, SH-21 / AR-C).
 
@@ -477,84 +491,64 @@ def cleanup(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="cleanup", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            try:
-                with per_step_boundary(config, settings, stream_events=True) as app_context:
-                    report = run_cleanup(
-                        settings,
-                        config=config,
-                        dry_run=dry_run,
-                        event_bus=app_context.event_bus,
-                    )
-            except Exception as exc:
-                console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
-                get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
-                raise typer.Exit(1) from exc
+        report = run_cleanup(
+            bundle.settings,
+            config=config,
+            dry_run=dry_run,
+            event_bus=app_context.event_bus,
+        )
+    except Exception as exc:
+        console.print(f"[red]Cleanup failed: {type(exc).__name__}: {exc}[/red]")
+        get_logger("pipeline").exception("cleanup_command_failed", error=str(exc))
+        raise typer.Exit(1) from exc
 
-            console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
-            if state["verbose"]:
-                for detail in report.details:
-                    console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    console.print(f"[bold]Cleanup:[/bold] {report.success_count} removed")
+    if state["verbose"]:
+        for detail in report.details:
+            console.print(f"  {detail}")
 
 
 @command_with_telemetry()
 @handle_cli_errors
+@boundary(stream_events=True)
 def process(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Run process phase only (reclean + dedup + scrape + cleanup)."""
     from personalscraper.process.run import run_process
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_pipeline_lock(
-        config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
-    ):
-        console.print("[red]Another instance is running. Exiting.[/red]")
-        raise typer.Exit(1)
+    app_context = bundle.app_context
+    assert app_context is not None
     try:
-        with cli_step_journal(config, command="process", dry_run=dry_run):
-            _bootstrap_staging(ctx)
-            settings = cli_compat.get_settings()
-            try:
-                with per_step_boundary(config, settings, stream_events=True) as app_context:
-                    clean, scrape, cleanup = run_process(
-                        settings,
-                        dry_run=dry_run,
-                        interactive=interactive,
-                        config=config,
-                        event_bus=app_context.event_bus,
-                        registry=app_context.provider_registry,
-                    )
-            except Exception as exc:
-                console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
-                get_logger("pipeline").exception("process_command_failed", error=str(exc))
-                raise typer.Exit(1) from exc
+        clean, scrape, cleanup = run_process(
+            bundle.settings,
+            dry_run=dry_run,
+            interactive=interactive,
+            config=config,
+            event_bus=app_context.event_bus,
+            registry=app_context.provider_registry,
+        )
+    except Exception as exc:
+        console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
+        get_logger("pipeline").exception("process_command_failed", error=str(exc))
+        raise typer.Exit(1) from exc
 
-            for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
-                console.print(
-                    f"[bold]{label}:[/bold] {report.success_count} OK, "
-                    f"{report.skip_count} skipped, {report.error_count} errors"
-                )
-                if state["verbose"]:
-                    for detail in report.details:
-                        console.print(f"  {detail}")
-    finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+    for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
+        console.print(
+            f"[bold]{label}:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
 
 
 #: Valid ``--trigger-reason`` values. MUST include every reason any web-side caller
@@ -659,16 +653,16 @@ def run(
     verbose = state["verbose"]
     _run_log = get_logger("pipeline")
 
-    if not cli_compat.acquire_pipeline_lock(
+    if not cli_helpers.acquire_pipeline_lock(
         config.paths.data_dir / "pipeline.lock",
-        cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+        cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
     ):
         console.print("[red]Another instance is running. Exiting.[/red]")
         _journal_lock_conflict(config, dry_run=dry_run)
         raise typer.Exit(1)
 
     try:
-        settings = cli_compat.get_settings()
+        settings = cli_helpers.get_settings()
 
         # The :class:`AppContext` is built once per invocation at the CLI
         # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
@@ -846,82 +840,8 @@ def run(
                     healthcheck.ping_fail()
 
     finally:
-        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
+        cli_helpers.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
-@command_with_telemetry("torrents-list")
-@handle_cli_errors
-def torrents_list(ctx: typer.Context) -> None:
-    """List completed torrents from the active qBittorrent client.
-
-    Prints one line per completed torrent (state / progress / size /
-    seeding / name) and a summary count. Exits 2 with a friendly
-    message when the torrent client is unreachable (auth lockout, IP
-    ban, daemon down) so monitoring tools can branch on the exit
-    code. Used by the ``pipeline-monitor`` skill's GATE 0 inventory.
-
-    Output format respects the global ``--format`` flag.
-    """
-    from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS  # noqa: PLC0415
-    from personalscraper.cli_helpers.output import emit  # noqa: PLC0415
-
-    config = ctx.obj.config
-    assert config is not None
-    console = state["console"]
-    settings = cli_compat.get_settings()
-
-    # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
-    # rather than built inline. None when no torrent client is configured
-    # (DESIGN D9) — exit 2 so monitoring tools can branch on the code.
-    # No stream_events: a listing command is not a journaled pipeline step.
-    with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
-        client = app_context.torrent_client
-        if client is None:
-            console.print("[yellow]No torrent client configured (set torrent.active in torrent.json5).[/yellow]")
-            raise typer.Exit(2)
-
-        try:
-            torrents = client.get_completed()
-            active_hashes = client.get_all_hashes()
-        except TORRENT_LISTING_ERRORS as exc:
-            console.print(f"[yellow]Torrent listing failed:[/yellow] {exc}")
-            raise typer.Exit(2) from exc
-
-        payload = {
-            "torrents": [
-                {
-                    "name": t.name,
-                    "state": t.state,
-                    "progress": t.progress,
-                    "size_gb": t.size_bytes / (1024**3),
-                    "seeding": client.is_seeding(t),
-                }
-                for t in torrents
-            ],
-            "completed": len(torrents),
-            "tracked": len(active_hashes),
-        }
-        emit(payload, rich_renderer=lambda: _print_torrents_rich(payload))
-
-
-def _print_torrents_rich(payload: dict[str, object]) -> None:
-    """Render the torrent list via Rich console.
-
-    Args:
-        payload: Dict with ``torrents`` list and ``completed``/``tracked`` counts.
-    """
-    from typing import cast  # noqa: PLC0415
-
-    console = state["console"]
-    torrents = cast("list[dict[str, object]]", payload.get("torrents", []))
-    for t in torrents:
-        seeding = "seeding" if t.get("seeding") else "idle"
-        t_progress = cast(float, t.get("progress", 0))
-        t_size_gb = cast(float, t.get("size_gb", 0))
-        t_name = cast(str, t.get("name", ""))
-        t_state = cast(str, t.get("state", ""))
-        console.print(f"  {t_state:<14} {t_progress * 100:5.1f}%  {t_size_gb:7.2f} GB  {seeding:8}  {t_name}")
-    console.print(f"[bold]Total:[/bold] {payload['completed']} completed (of {payload['tracked']} tracked torrents)")
-
-
-# --- Library maintenance commands ---
+# Torrent-client listing (``torrents-list``) lives in
+# :mod:`personalscraper.commands.torrents` (solidify — module-size relief).

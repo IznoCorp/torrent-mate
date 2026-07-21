@@ -32,10 +32,15 @@ import {
   type ReactNode,
 } from "react";
 
-import { getPipelineHistory, type HistoryParams } from "@/api/client";
+import {
+  getPipelineHistory,
+  pipelineKeys,
+  type HistoryParams,
+} from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { triggerLabel } from "@/components/pipeline/triggers";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 import {
   Table,
   TableBody,
@@ -44,11 +49,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DEFAULT_OUTCOME,
-  OUTCOME_LABEL,
-  OUTCOME_TONE,
-} from "@/lib/outcome-labels";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,65 +60,9 @@ type RunSummary = components["schemas"]["RunSummary"];
 /** Page size for the history table. */
 const PAGE_SIZE = 20;
 
-/**
- * Format an ISO 8601 UTC timestamp into a French-localised date string.
- *
- * Args:
- *   iso: The ISO 8601 UTC timestamp.
- *
- * Returns:
- *   A short date+time string formatted for the ``fr`` locale.
- */
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
-
-/**
- * Format a duration in seconds to a compact ``Xm Ys`` or ``Ys`` string.
- *
- * Args:
- *   seconds: Duration in seconds, or null/undefined.
- *
- * Returns:
- *   A human-readable duration string, or ``"—"`` if null.
- */
-function formatDuration(seconds: number | null | undefined): string {
-  if (seconds == null) return "—";
-  const s = Math.round(seconds);
-  if (s < 60) return `${String(s)}s`;
-  const mins = Math.floor(s / 60);
-  const secs = s % 60;
-  return `${String(mins)}m ${String(secs).padStart(2, "0")}s`;
-}
-
 // ---------------------------------------------------------------------------
 // Column definitions
 // ---------------------------------------------------------------------------
-
-/**
- * Outcome-info lookup.
- *
- * Args:
- *   outcome: The pipeline outcome string, or null.
- *
- * Returns:
- *   A ``{tone, label}`` pair for the Badge.
- */
-function outcomeInfo(outcome: string | null | undefined): {
-  readonly tone: BadgeProps["tone"];
-  readonly label: string;
-} {
-  if (outcome == null) return DEFAULT_OUTCOME;
-  const tone = OUTCOME_TONE[outcome] ?? "neutral";
-  const label = OUTCOME_LABEL[outcome] ?? outcome;
-  return { tone, label };
-}
 
 /** Column definitions typed against {@link RunSummary}. */
 const COLUMNS: ColumnDef<RunSummary>[] = [
@@ -143,7 +87,7 @@ const COLUMNS: ColumnDef<RunSummary>[] = [
     accessorKey: "outcome",
     header: "Issue",
     cell: ({ row }) => {
-      const { tone, label } = outcomeInfo(row.original.outcome);
+      const { tone, label } = runOutcomeInfo(row.original.outcome);
       return (
         <Badge tone={tone} dot>
           {label}
@@ -238,7 +182,7 @@ export function RunHistoryTable({
   );
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["pipeline", "history", queryParams] as const,
+    queryKey: pipelineKeys.historyList(queryParams),
     queryFn: () => getPipelineHistory(queryParams),
   });
 

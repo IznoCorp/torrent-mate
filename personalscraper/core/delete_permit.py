@@ -105,10 +105,13 @@ class SeedObligationRecorder(Protocol):
             dispatched_dest: Absolute path of the destination after dispatch.
 
         Returns:
-            Bus events the caller should emit once the move succeeds — e.g. a
-            ``FilmAcquired`` for a followed film retired at dispatch. Empty when
-            there is nothing to announce. Opaque to the dispatch layer (which
-            emits them without referencing ``acquire/``).
+            Bus events the caller should emit once the move succeeds, opaque to
+            the dispatch layer (which emits them without referencing
+            ``acquire/``). Empty when there is nothing to announce — the current
+            recorder records only the seed obligation (the wanted-row closure +
+            followed-film retirement moved to the post-dispatch reconcile
+            subscriber, ACQUIRE-02), so it always returns an empty list; the
+            ``list[Event]`` shape is kept so the dispatch emit loop is unchanged.
         """
         ...
 

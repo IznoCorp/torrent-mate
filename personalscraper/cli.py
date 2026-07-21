@@ -29,9 +29,6 @@ from personalscraper.cli_app import app, config_app
 from personalscraper.cli_helpers import _bootstrap_staging, _format_validation, _resolve_category, handle_cli_errors
 from personalscraper.cli_state import AppCtx, State, state
 from personalscraper.commands.info import info_app
-from personalscraper.config import get_settings
-from personalscraper.ingest.ingest import run_ingest
-from personalscraper.lock import acquire_lock, acquire_pipeline_lock, release_lock, scrape_locks_dir_for
 from personalscraper.logger import configure_logging, get_logger
 
 # Rich tracebacks for readable error output.
@@ -117,6 +114,7 @@ import personalscraper.commands.library  # noqa: E402,F401 — re-exports from l
 import personalscraper.commands.pipeline  # noqa: E402,F401
 import personalscraper.commands.scrape_resolve  # noqa: E402,F401
 import personalscraper.commands.seed  # noqa: E402,F401
+import personalscraper.commands.torrents  # noqa: E402,F401
 import personalscraper.commands.watch  # noqa: E402,F401
 
 # Web is a Typer sub-app (bare ``web`` boots the daemon via its callback;
@@ -132,15 +130,9 @@ __all__ = [
     "_bootstrap_staging",
     "_format_validation",
     "_resolve_category",
-    "acquire_lock",
-    "acquire_pipeline_lock",
     "app",
     "config_app",
-    "get_settings",
     "handle_cli_errors",
     "main",
-    "release_lock",
-    "run_ingest",
-    "scrape_locks_dir_for",
     "state",
 ]

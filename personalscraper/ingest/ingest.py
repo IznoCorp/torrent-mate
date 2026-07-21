@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import os
 import shutil
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import qbittorrentapi
-import requests
-
-from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
+from personalscraper.api.torrent._errors import (
+    TorrentAuthError,
+    TorrentLockoutError,
+    TorrentUnreachableError,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
@@ -27,6 +29,7 @@ from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.ingest import IngestDetails
 
 if TYPE_CHECKING:
     # Imported under TYPE_CHECKING to mirror AppContext and avoid a circular
@@ -160,30 +163,28 @@ def _verify_transfer(source: Path, dest: Path) -> bool:
     return _get_dir_size(source) == _get_dir_size(dest)
 
 
-def _cleanup_orphan_temps(staging_dir: Path) -> int:
-    """Remove orphaned .ingest_tmp_* directories from interrupted runs.
+def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: bool) -> int:
+    """Sweep ``.ingest_tmp_*`` orphans via the single-owner crash-recovery sweep.
+
+    Standalone ``personalscraper ingest`` (``recover_orphans=True``) owns its
+    own crash-recovery sweep of the ingest dir. In a full pipeline run boot
+    already swept it once (the :class:`~personalscraper.pipeline_steps.IngestStep`
+    passes ``recover_orphans=False``), so this is a no-op — no double-execution.
 
     Args:
-        staging_dir: The staging directory to scan.
+        ingest_dir: The ingest directory to sweep.
+        dry_run: Whether the ingest step is a preview (sweep is SKIP-in-dry-run).
+        recover_orphans: When False, boot already swept — do nothing.
 
     Returns:
         Number of orphaned temp directories removed.
     """
-    cleaned = 0
-    try:
-        entries = list(staging_dir.iterdir())
-    except OSError as e:
-        log.warning("cannot_scan_for_orphans", path=str(staging_dir), error=str(e))
+    if not recover_orphans:
         return 0
-    for item in entries:
-        if item.name.startswith(STAGING_TMP_PREFIX) and item.is_dir():
-            try:
-                shutil.rmtree(item)
-                log.info("orphan_cleaned", path=str(item))
-                cleaned += 1
-            except OSError as e:
-                log.warning("orphan_cleanup_failed", path=str(item), error=str(e))
-    return cleaned
+    # Imported lazily to avoid a dispatch↔ingest import cycle at module load.
+    from personalscraper.dispatch.crash_recovery import RootKind, SweepRoot, sweep_orphans
+
+    return sweep_orphans([SweepRoot(ingest_dir, RootKind.INGEST_DIR)], dry_run=dry_run)
 
 
 def _check_disk_space(staging_dir: Path, required_bytes: int, min_free_gb: int) -> bool:
@@ -271,6 +272,7 @@ def run_ingest(
     event_bus: EventBus,
     torrent_client: QBitClient | TransmissionClient | None = None,
     seed_checker: SeedObligationChecker | None = None,
+    recover_orphans: bool = True,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -296,11 +298,24 @@ def run_ingest(
             port). Drives the fail-safe copy-vs-move decision (§7 HnR): a
             paused torrent that still owes a seed is copied, not moved. ``None``
             ⇒ the decision relies on the live seeding probe alone.
+        recover_orphans: When True (standalone ingest), sweep ``.ingest_tmp_*``
+            orphans before ingesting. The full-run
+            :class:`~personalscraper.pipeline_steps.IngestStep` passes False
+            because boot already swept once per run (PIPELINE-CORE-07).
 
     Returns:
         StepReport with success/skip/error counts and details.
     """
     report = StepReport(name="ingest")
+    # Typed-payload accumulators (STEP_REPORT_CONTRACT: IngestDetails). Populated
+    # alongside the report counters as each torrent is classified. Skip reasons
+    # that are NOT "already present" (ratio/seed-pure/insufficient-space) and the
+    # step-level qBittorrent errors are intentionally not represented — the
+    # dataclass has no field for them (honest under-representation, not a metric
+    # invented here).
+    _copied: list[str] = []
+    _skipped_present: list[str] = []
+    _failed: list[tuple[str, str]] = []
 
     # Resolve ingest_dir + staging_dir up-front so both the orphan-tracker
     # probe and the per-torrent transfer path use the same paths.
@@ -308,9 +323,10 @@ def run_ingest(
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
     resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
 
-    # Clean orphaned temp dirs from interrupted runs
-    if not dry_run:
-        _cleanup_orphan_temps(resolved_ingest_dir)
+    # Crash-recovery orphan sweep (single owner). Standalone ingest owns its
+    # own sweep; inside a full pipeline run boot already swept
+    # (``recover_orphans=False`` ⇒ no double-execution).
+    _sweep_ingest_orphans(resolved_ingest_dir, dry_run=dry_run, recover_orphans=recover_orphans)
 
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured
@@ -350,6 +366,7 @@ def run_ingest(
                     if tracker.is_ingested(torrent_hash):
                         log.debug("already_ingested", name=name)
                         report.skip_count += 1
+                        _skipped_present.append(name)
                         # Orphan-tracker safety net: when a prior ingest
                         # recorded a dest_path and that file/directory has
                         # since vanished without a successor on disk, the
@@ -464,6 +481,7 @@ def run_ingest(
                                 dest_path=str(staging_dest),
                             )
                             report.skip_count += 1
+                            _skipped_present.append(name)
                             event_bus.emit(
                                 ItemProgressed(
                                     step="ingest",
@@ -476,6 +494,7 @@ def run_ingest(
                             log.warning("content_missing", name=name, path=str(source))
                             content_missing_count += 1
                             report.skip_count += 1
+                            _failed.append((name, "content_missing"))
                             report.warnings.append(f"{name}: content path missing ({source})")
                             event_bus.emit(
                                 ItemProgressed(
@@ -492,6 +511,7 @@ def run_ingest(
                     if dest.exists():
                         log.info("already_exists", name=name, dest=str(dest))
                         report.skip_count += 1
+                        _skipped_present.append(name)
                         # Still mark as ingested to avoid re-checking
                         tracker.mark_ingested(torrent_hash, name, "skipped_exists", dest_path=str(dest))
                         event_bus.emit(
@@ -534,6 +554,7 @@ def run_ingest(
 
                     if success:
                         report.success_count += 1
+                        _copied.append(name)
                         report.details.append(f"{name} → {action}")
                         event_bus.emit(
                             ItemProgressed(
@@ -568,6 +589,7 @@ def run_ingest(
                                     )
                     else:
                         report.error_count += 1
+                        _failed.append((name, "transfer_failed"))
                         report.details.append(f"{name}: transfer failed")
                         event_bus.emit(
                             ItemProgressed(
@@ -589,6 +611,7 @@ def run_ingest(
                         exc_info=True,
                     )
                     report.error_count += 1
+                    _failed.append((name, f"{type(torrent_err).__name__}: {torrent_err}"))
                     report.details.append(f"{name}: {type(torrent_err).__name__}: {torrent_err}")
                     event_bus.emit(
                         ItemProgressed(
@@ -633,32 +656,38 @@ def run_ingest(
                 except Exception:
                     pass
 
-    except QBitAuthLockoutError as e:
+    except TorrentLockoutError as e:
+        # Family-neutral: the torrent client's anti-ban lockout is active. The
+        # client layer translated its provider-specific lockout exception here.
         log.exception("ingest_qbit_auth_lockout", error=str(e))
         report.error_count += 1
-        report.details.append(f"qBittorrent auth lockout active: {e}")
-    except qbittorrentapi.LoginFailed as e:
-        log.exception("ingest_qbit_login_failed", error=str(e))
+        report.details.append(f"qBittorrent auth lockout active: {e.message}")
+    except TorrentAuthError as e:
+        # Family-neutral auth rejection. http_status distinguishes the operator
+        # remedy: 403 = IP-banned by the client's Web-UI ban list, 401 = wrong
+        # credentials. The client layer already baked the actionable guidance
+        # into ``e.message`` (with the offending op); surface it verbatim.
+        if e.http_status == 403:
+            log.exception("ingest_qbit_forbidden", error=str(e))
+        else:
+            log.exception("ingest_qbit_login_failed", error=str(e))
         report.error_count += 1
-        report.details.append(f"qBittorrent login failed: {e}. Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env")
-    except qbittorrentapi.Forbidden403Error as e:
-        # Must come before APIConnectionError (Forbidden403Error is a subclass)
-        log.exception("ingest_qbit_forbidden", error=str(e))
-        report.error_count += 1
-        report.details.append(
-            f"qBittorrent auth blocked (IP banned): {e}. "
-            "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
-            "or wait for the ban to expire."
-        )
-    except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
+        report.details.append(e.message)
+    except TorrentUnreachableError as e:
         log.exception("ingest_qbit_unreachable", error=str(e))
         report.error_count += 1
-        report.details.append(f"qBittorrent unreachable: {e}. Fix: verify qBit is running and Web UI is enabled.")
+        report.details.append(e.message)
     except Exception as e:  # noqa: BLE001 — safety catch-all for tracker I/O and unexpected qbittorrentapi changes; preserves pipeline continuation on unknown failures
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
         log.exception("ingest_unexpected_error", error=str(e), error_type=type(e).__name__)
         report.error_count += 1
         report.details.append(f"Ingest failed: {type(e).__name__}: {e}")
+
+    # Typed details payload (STEP_REPORT_CONTRACT: IngestDetails), flattened to a
+    # JSON-safe dict for envelope round-trip + standalone-CLI consistency.
+    report.details_payload = asdict(
+        IngestDetails(copied=_copied, skipped_already_present=_skipped_present, failed=_failed)
+    )
 
     log.info(
         "ingest_complete",

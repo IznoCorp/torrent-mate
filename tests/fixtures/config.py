@@ -215,10 +215,11 @@ def test_config(tmp_path: Path) -> Config:
             ArtworkProvider={"tmdb": 1, "tvdb": 2},
             # KeywordProvider intentionally empty: tvdb appears in chain but does
             # not implement KeywordProvider, so a non-empty locked section would
-            # trigger ``locked_capability_orphan`` without an IDCrossRef bridge.
-            # Tests that exercise KeywordProvider should build their own Config
-            # with both a locked entry and IDCrossRef (or via OMDB_API_KEY +
-            # imdb) — see ``tests/integration/api/metadata/registry/``.
+            # trigger ``locked_capability_orphan`` (a locked capability is only
+            # served by a provider that owns the match's id — no cross-provider
+            # translation exists). Tests that exercise KeywordProvider should
+            # build their own Config with a provider that implements it — see
+            # ``tests/integration/api/metadata/registry/``.
             KeywordProvider={},
             VideoProvider={"tmdb": 1, "tvdb": 2},
         ),

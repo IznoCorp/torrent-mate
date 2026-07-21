@@ -118,7 +118,7 @@ class TestDispatchMovie:
         (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
 
         with patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -147,7 +147,7 @@ class TestDispatchMovie:
         movie_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -185,7 +185,7 @@ class TestDispatchTvshow:
         show_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch._tv.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -231,7 +231,7 @@ class TestProcess:
         ]
 
         with patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -822,7 +822,7 @@ class TestDispatchDryRun:
 
         with (
             patch(
-                "personalscraper.dispatch._movie.get_disk_status",
+                "personalscraper.dispatch._item.get_disk_status",
             ) as mock_status,
             patch.object(d, "_rsync") as mock_rsync,
         ):
@@ -845,56 +845,10 @@ class TestDispatchDryRun:
 # ---------------------------------------------------------------------------
 
 
-class TestOrphanCleanup:
-    """Tests for _cleanup_orphan_temps."""
-
-    def test_cleans_tmp_dispatch_orphans(
-        self,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Orphan _tmp_dispatch_* directories are cleaned up."""
-        # Create disk structure with orphan
-        disk = tmp_path / "drive_a" / "medias"
-        movies_dir = disk / "movies"
-        movies_dir.mkdir(parents=True)
-        orphan = movies_dir / "_tmp_dispatch_Movie (2024)"
-        orphan.mkdir()
-        (orphan / "partial.mkv").write_bytes(b"\x00" * 512)
-
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
-        d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["movies"])]
-
-        cleaned = d._cleanup_orphan_temps()
-
-        assert cleaned == 1
-        assert not orphan.exists()
-
-    def test_cleans_merge_backup_orphans(
-        self,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Orphan .merge_backup directories inside media dirs are cleaned."""
-        disk = tmp_path / "drive_a" / "medias"
-        series_dir = disk / "tv_shows"
-        show_dir = series_dir / "Show (2024)"
-        show_dir.mkdir(parents=True)
-        backup = show_dir / ".merge_backup"
-        backup.mkdir()
-        (backup / "old_file.mkv").write_bytes(b"\x00" * 100)
-
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
-        d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["tv_shows"])]
-
-        cleaned = d._cleanup_orphan_temps()
-
-        assert cleaned == 1
-        assert not backup.exists()
+# Orphan-temp cleanup moved to the single-owner sweep
+# (personalscraper/dispatch/crash_recovery.py). Coverage for _tmp_dispatch_*
+# and .merge_backup/ removal now lives in tests/dispatch/test_crash_recovery.py
+# (TestMediaTreeSweep).
 
 
 # ---------------------------------------------------------------------------
@@ -1043,7 +997,7 @@ class TestNtfsIllegalAtDispatch:
 
         # Disk must resolve (free space) so dispatch reaches the post-resolution
         # gate; the resolved (NTFS) capability then drives the skip.
-        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             mock_status.return_value = DiskStatus(
                 config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=500.0,
@@ -1076,7 +1030,7 @@ class TestNtfsIllegalAtDispatch:
         # NTFS check scans file NAMES — colon in filename triggers it.
         (show_dir / "S01E01 : bad.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             mock_status.return_value = DiskStatus(
                 config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
                 free_space_gb=500.0,
@@ -1126,7 +1080,7 @@ class TestDispatchExistingItemBranches:
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1166,7 +1120,7 @@ class TestDispatchExistingItemBranches:
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._movie.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1206,7 +1160,7 @@ class TestDispatchExistingItemBranches:
         show_dir.mkdir()
         (show_dir / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1246,7 +1200,7 @@ class TestDispatchExistingItemBranches:
         show_dir.mkdir()
         (show_dir / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
@@ -1271,7 +1225,7 @@ class TestDispatchExistingItemBranches:
         show_dir.mkdir()
         (show_dir / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._tv.get_disk_status") as mock_status:
+        with patch("personalscraper.dispatch._item.get_disk_status") as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
             # Disk has zero free space → pick_disk_for returns None.
@@ -1329,9 +1283,9 @@ class TestDispatchOutboxPublish:
         from personalscraper.dispatch.disk_scanner import DiskStatus as _DiskStatus
 
         with (
-            patch("personalscraper.dispatch._movie.get_disk_status") as mock_status,
-            patch("personalscraper.dispatch._movie.disk_id_for_path") as mock_disk_id,
-            patch("personalscraper.dispatch._movie.publish_event") as mock_publish,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.disk_id_for_path") as mock_disk_id,
+            patch("personalscraper.dispatch._item.publish_event") as mock_publish,
             patch("personalscraper.dispatch._movie.replace", return_value=True),
             patch("personalscraper.dispatch._movie._transfer.dir_stats", return_value=(1024, 1000000000)),
         ):
@@ -1376,9 +1330,9 @@ class TestDispatchOutboxPublish:
         from personalscraper.dispatch.disk_scanner import DiskStatus as _DiskStatus
 
         with (
-            patch("personalscraper.dispatch._tv.get_disk_status") as mock_status,
-            patch("personalscraper.dispatch._tv.disk_id_for_path") as mock_disk_id,
-            patch("personalscraper.dispatch._tv.publish_event") as mock_publish,
+            patch("personalscraper.dispatch._item.get_disk_status") as mock_status,
+            patch("personalscraper.dispatch._item.disk_id_for_path") as mock_disk_id,
+            patch("personalscraper.dispatch._item.publish_event") as mock_publish,
             patch("personalscraper.dispatch._tv._transfer.rsync_merge", return_value=True),
             patch("personalscraper.dispatch._tv._transfer.verify_transfer", return_value=True),
             patch("personalscraper.dispatch._tv._transfer.dir_stats", return_value=(1024, 1000000000)),
@@ -1396,23 +1350,8 @@ class TestDispatchOutboxPublish:
         mock_publish.assert_called_once()
 
 
-class TestCleanupNonDirItems:
-    """Cover branches for non-directory items in _cleanup_orphan_temps."""
-
-    def test_file_in_category_dir_skipped(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
-        """Files (not directories) inside category dirs are skipped."""
-        disk_root = tmp_path / "Disk" / "medias"
-        category = disk_root / "films"
-        category.mkdir(parents=True)
-        (category / "random_file.txt").write_text("not a dir")
-
-        disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
-        d._disk_configs = [disk]
-
-        cleaned = d._cleanup_orphan_temps()
-        assert cleaned == 0
+# Non-directory-item skip coverage moved to the single-owner sweep:
+# tests/dispatch/test_crash_recovery.py::TestMediaTreeSweep::test_non_dir_items_skipped.
 
 
 class TestPurgeEpisodeConflicts:
@@ -1667,98 +1606,9 @@ class TestResolveExistingOnFilesystem:
 
 
 # ---------------------------------------------------------------------------
-# _cleanup_orphan_temps dry-run + OSError branches
+# Orphan-temp dry-run + OSError branches moved to the single-owner sweep:
+# tests/dispatch/test_crash_recovery.py (TestMediaTreeSweep dry-run/OSError tests).
 # ---------------------------------------------------------------------------
-
-
-class TestCleanupOrphanTempsBranches:
-    """Additional branches for Dispatcher._cleanup_orphan_temps."""
-
-    def test_dry_run_reports_but_does_not_delete(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
-        """In dry_run mode, orphans are reported but not deleted."""
-        disk_root = tmp_path / "Disk" / "medias"
-        category = disk_root / "films"
-        orphan = category / "_tmp_dispatch_Test"
-        orphan.mkdir(parents=True)
-
-        disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
-        d._disk_configs = [disk]
-
-        cleaned = d._cleanup_orphan_temps()
-        assert cleaned == 1  # reported
-        assert orphan.exists()  # but not deleted
-
-    def test_backup_orphan_dry_run_reports(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
-        """In dry_run mode, .merge_backup/ orphans are reported but kept."""
-        disk_root = tmp_path / "Disk" / "medias"
-        category = disk_root / "films"
-        media = category / "Some Movie (2024)"
-        backup = media / ".merge_backup"
-        backup.mkdir(parents=True)
-
-        disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True, event_bus=EventBus())
-        d._disk_configs = [disk]
-
-        cleaned = d._cleanup_orphan_temps()
-        assert cleaned == 1
-        assert backup.exists()
-
-    def test_disk_iterdir_oserror_caught(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
-        """OSError during disk.iterdir() is caught per-category-dir."""
-        disk_root = tmp_path / "Disk" / "medias"
-        disk_root.mkdir(parents=True)
-
-        disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
-        d._disk_configs = [disk]
-
-        with patch.object(Path, "iterdir", side_effect=OSError("i/o")):
-            cleaned = d._cleanup_orphan_temps()
-        assert cleaned == 0
-
-    def test_rmtree_oserror_on_orphan_caught(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
-        """OSError during force_rmtree of _tmp_dispatch_ is caught."""
-        disk_root = tmp_path / "Disk" / "medias"
-        category = disk_root / "films"
-        orphan = category / "_tmp_dispatch_Test"
-        orphan.mkdir(parents=True)
-
-        disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
-        d._disk_configs = [disk]
-
-        with patch(
-            "personalscraper.dispatch.dispatcher._transfer.force_rmtree",
-            side_effect=OSError("busy"),
-        ):
-            cleaned = d._cleanup_orphan_temps()
-        assert cleaned == 0
-
-    def test_rmtree_oserror_on_backup_caught(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
-        """OSError during force_rmtree of .merge_backup/ is caught."""
-        disk_root = tmp_path / "Disk" / "medias"
-        category = disk_root / "films"
-        media = category / "Some Movie (2024)"
-        backup = media / ".merge_backup"
-        backup.mkdir(parents=True)
-
-        disk = DiskConfig(id="disk", path=disk_root, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
-        d = Dispatcher(test_config, mock_settings, idx, event_bus=EventBus())
-        d._disk_configs = [disk]
-
-        with patch(
-            "personalscraper.dispatch.dispatcher._transfer.force_rmtree",
-            side_effect=OSError("busy"),
-        ):
-            cleaned = d._cleanup_orphan_temps()
-        assert cleaned == 0
 
 
 # ---------------------------------------------------------------------------

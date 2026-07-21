@@ -14,6 +14,7 @@ from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.cli import app
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
@@ -90,6 +91,10 @@ def test_grab_dry_run_prints_top_candidate(tmp_path: Path, monkeypatch) -> None:
 
     mock_registry = MagicMock()
     mock_registry.search_candidates.return_value = mock_outcome
+    # F4: the dry-run now runs the real hard-filter → dedup → rank tail and reads
+    # the registry's ranking (config.ranking in prod). With a single candidate the
+    # ranked Top is that candidate, so this still asserts it is printed.
+    mock_registry.ranking = RankingConfig()
 
     # Re-open a store pointing at the same seeded DB (lazy open — reads existing data).
     test_store = build_acquire_store(cfg)
@@ -225,6 +230,8 @@ def test_grab_dry_run_respects_limit(tmp_path: Path, monkeypatch) -> None:
 
     mock_registry = MagicMock()
     mock_registry.search_candidates.return_value = mock_outcome
+    # F4: dry-run runs the real filter→dedup→rank tail and reads registry.ranking.
+    mock_registry.ranking = RankingConfig()
 
     test_store = build_acquire_store(cfg)
 

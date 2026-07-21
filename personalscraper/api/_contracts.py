@@ -77,7 +77,7 @@ class Named(Protocol):
 
     Every API client — metadata, tracker, torrent, notify — declares its
     canonical lowercase name via a class-level ``provider_name`` attribute.
-    This protocol lets helpers (``gather_ratings``, ``gather_cross_refs``,
+    This protocol lets helpers (``gather_ratings``,
     ``ProviderRegistry.get`` / ``providers_for``) filter heterogeneous
     provider collections without importing concrete client classes.
 

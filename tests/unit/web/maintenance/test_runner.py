@@ -828,18 +828,23 @@ class TestKillChildGroup:
         proc.terminate.assert_not_called()
 
     def test_terminate_quietly_logs_warning_on_failure(self) -> None:
-        """When proc.terminate() raises, a warning is logged (best-effort cleanup)."""
+        """When proc.terminate() raises, a warning is logged (best-effort cleanup).
+
+        ``_terminate_quietly`` now lives in the shared engine (re-exported here),
+        so it logs via the engine's logger with the generic ``runner_*`` event.
+        """
+        from personalscraper.web import _runner_engine as engine_mod
         from personalscraper.web.maintenance import runner as runner_mod
 
         proc = MagicMock()
         proc.terminate.side_effect = OSError("no such process")
 
-        with patch.object(runner_mod.log, "warning") as mock_warning:
+        with patch.object(engine_mod.log, "warning") as mock_warning:
             runner_mod._terminate_quietly(proc)
 
         mock_warning.assert_called_once()
         args, kwargs = mock_warning.call_args
-        assert args[0] == "maintenance_runner_terminate_failed"
+        assert args[0] == "runner_terminate_failed"
         assert kwargs["error"] == "no such process"
 
 

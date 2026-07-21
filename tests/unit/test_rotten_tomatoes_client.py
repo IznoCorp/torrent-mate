@@ -18,7 +18,6 @@ from personalscraper.api._contracts import ApiError
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import (
-    IDCrossRef,
     IDValidator,
     RatingProvider,
 )
@@ -42,14 +41,12 @@ def test_rt_client_satisfies_rating_provider_only() -> None:
     """The façade composes :class:`RatingProvider`, *nothing else*.
 
     Rotten Tomatoes data through OMDb does not include a separate
-    RT-side identifier or any cross-references, so the façade
-    deliberately does NOT compose :class:`IDValidator` or
-    :class:`IDCrossRef`. This test pins that minimality in place.
+    RT-side identifier, so the façade deliberately does NOT compose
+    :class:`IDValidator`. This test pins that minimality in place.
     """
     client = RottenTomatoesClient(backend=MagicMock())
     assert isinstance(client, RatingProvider)
     assert not isinstance(client, IDValidator)
-    assert not isinstance(client, IDCrossRef)
 
 
 # ---------------------------------------------------------------------------

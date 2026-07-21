@@ -5,7 +5,7 @@
  * single state-dependent primary button with secondary actions in a
  * ``DropdownMenu``, plus a Watcher toggle ``Switch``. Every mutation is
  * backed by TanStack Query ``useMutation`` and invalidates
- * ``["pipeline", "status"]`` on success so the status card and stepper pick
+ * ``pipelineKeys.status`` on success so the status card and stepper pick
  * up the new state.
  */
 
@@ -15,14 +15,15 @@ import type { ReactElement } from "react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import {
-  ApiError,
   killPipeline,
   pausePipeline,
+  pipelineKeys,
   resumePipeline,
   runPipeline,
   setWatcher,
-} from "@/api/client";
+} from "@/api/pipeline";
 import type { components } from "@/api/schema";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +74,7 @@ export function PipelineControls({
 }: PipelineControlsProps): ReactElement {
   const queryClient = useQueryClient();
   const invalidate = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] }),
+    () => queryClient.invalidateQueries({ queryKey: pipelineKeys.status }),
     [queryClient],
   );
 

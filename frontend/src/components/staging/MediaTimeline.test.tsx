@@ -5,7 +5,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { StagingStageStep } from "@/api/client";
+import type { StagingStageStep } from "@/api/staging";
 import { MediaTimeline } from "@/components/staging/MediaTimeline";
 
 const STAGES: StagingStageStep[] = [

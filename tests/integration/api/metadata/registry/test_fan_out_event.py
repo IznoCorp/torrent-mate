@@ -14,7 +14,8 @@ from personalscraper.api.metadata._contracts import RatingProvider
 from personalscraper.api.metadata.registry._events import RegistryFanOutCompleted
 from personalscraper.conf.models.providers import ProvidersConfig
 from personalscraper.core.circuit import CircuitState
-from tests.unit.api.metadata.registry.conftest import FakeRating, MockEventBus
+from tests._doubles.registry import MockEventBus
+from tests.unit.api.metadata.registry.conftest import FakeRating
 
 
 def _build_registry(

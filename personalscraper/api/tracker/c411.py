@@ -23,8 +23,9 @@ C411 particularities (live-confirmed):
 - ``enclosure[@url]`` embeds the apikey inline (sensitive — redact in logs).
 - Auth failure: HTTP 401 + ``<error code="100" description="..."/>``.
 
-Title parsing reuses ``LaCaleClient._parse_title`` — both trackers encode
-quality markers identically. Promotion to a shared module is deferred.
+Title parsing uses the shared ``api.tracker._quality.parse_title_quality`` —
+every tracker (lacale/c411/torr9) encodes quality markers in the title
+identically, so they all extract the same tokens through one regex table.
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ from personalscraper.api.tracker._contracts import (
     CategoryListable,
     TorrentSearchable,
 )
-from personalscraper.api.tracker.lacale import LaCaleClient
+from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
@@ -288,7 +289,7 @@ class C411Client(TorrentSearchable, CategoryListable):
         download_url = _enclosure_url(item)
         source_url = item.get("comments") or item.get("link")
 
-        title_parsed = LaCaleClient._parse_title(title)
+        title_parsed = parse_title_quality(title)
 
         return TrackerResult(
             provider=self.provider_name,

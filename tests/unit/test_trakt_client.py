@@ -77,10 +77,10 @@ class TestTraktClientSearch:
 
 
 class TestTraktClientGetDetails:
-    """TraktClient.get_details() — mocked HTTP."""
+    """TraktClient.get_movie() / get_tv() detail fetch — mocked HTTP."""
 
-    def test_get_details_returns_media_details(self) -> None:
-        """get_details() returns MediaDetails with extended=full."""
+    def test_get_movie_returns_media_details(self) -> None:
+        """get_movie() returns MediaDetails and hits /movies/{id}."""
         client = _make_client()
         client._transport.get.return_value = {  # type: ignore[attr-defined]
             "title": "Inception",
@@ -93,7 +93,7 @@ class TestTraktClientGetDetails:
             "original_title": "Inception",
             "images": {"poster": ["media.trakt.tv/poster.jpg"], "fanart": [], "banner": []},
         }
-        details = client.get_details("inception-2010")
+        details = client.get_movie("inception-2010")
         assert isinstance(details, MediaDetails)
         assert details.title == "Inception"
         assert details.year == 2010
@@ -103,12 +103,20 @@ class TestTraktClientGetDetails:
         assert details.rating == 8.62414
         assert details.original_title == "Inception"
         assert details.external_ids["imdb"] == "tt1375666"
+        assert client._transport.get.call_args.args[0] == "/movies/inception-2010"  # type: ignore[attr-defined]
 
-    def test_get_details_passes_extended_full(self) -> None:
-        """get_details() always sends extended=full."""
+    def test_get_tv_hits_shows_endpoint(self) -> None:
+        """get_tv() routes to /shows/{id} (the media_type branch)."""
         client = _make_client()
         client._transport.get.return_value = {"title": "Test", "year": 2020, "ids": {}}  # type: ignore[attr-defined]
-        client.get_details("test-slug")
+        client.get_tv("some-show")
+        assert client._transport.get.call_args.args[0] == "/shows/some-show"  # type: ignore[attr-defined]
+
+    def test_get_movie_passes_extended_full(self) -> None:
+        """The detail fetch always sends extended=full."""
+        client = _make_client()
+        client._transport.get.return_value = {"title": "Test", "year": 2020, "ids": {}}  # type: ignore[attr-defined]
+        client.get_movie("test-slug")
         call_args = client._transport.get.call_args  # type: ignore[attr-defined]
         assert call_args.kwargs["params"]["extended"] == "full"
 

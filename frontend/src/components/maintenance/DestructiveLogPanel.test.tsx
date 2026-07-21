@@ -3,12 +3,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DestructiveLogResponse } from "@/api/client";
+import type { DestructiveLogResponse } from "@/api/maintenance";
 import { DestructiveLogPanel } from "@/components/maintenance/DestructiveLogPanel";
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
   return {
     ...actual,
     getDestructiveLog: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("@/api/client", async () => {
 });
 
 async function mockGetLog() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.getDestructiveLog as ReturnType<typeof vi.fn>;
 }
 

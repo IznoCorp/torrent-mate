@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from typing import TYPE_CHECKING, Any
 
+from personalscraper.indexer import fingerprint
+from personalscraper.indexer.scanner._db_writes import (
+    _compute_oshash,
+    _upsert_file_row,
+    _upsert_path_row,
+)
 from personalscraper.indexer.scanner._index_ddl import _recreate_indexes
+from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
 from personalscraper.indexer.scanner._walker import (
-    _walk_dir_full_buffered,
+    ScanVisitor,
+    WalkBudget,
+    WalkCheckpoint,
+    walk,
 )
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
@@ -18,9 +29,63 @@ if TYPE_CHECKING:
 log = get_logger("indexer.scan")
 
 __all__ = [
+    "FullVisitor",
     "_scan_disk_full",
     "stage_items_pass1",
 ]
+
+
+class FullVisitor(ScanVisitor):
+    """Full-mode visitor over :func:`~personalscraper.indexer.scanner._walker.walk`.
+
+    Fingerprints every non-symlink file at tier-1 (size, mtime_ns, ctime_ns from
+    the already-performed ``stat`` — zero extra I/O) and computes ``oshash`` for
+    eligible video files (128 KiB read); symlinks and non-video files get
+    ``oshash=None``. New rows are appended to :attr:`insert_buffer` for the
+    batched ``executemany`` flush the driver drains after the walk (DESIGN §11.7).
+    Byte-identical to the legacy ``_walk_dir_full`` per-file body; the write-
+    through of each subtree's ``path`` row is the inherited default
+    :meth:`~personalscraper.indexer.scanner._walker.ScanVisitor.leave_dir`.
+
+    Attributes:
+        insert_buffer: Accumulation list for batched new-row inserts; the caller
+            (:func:`_scan_disk_full`) flushes it once the walk returns.
+    """
+
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        disk: DiskRow,
+        generation: int,
+        files_visited: list[int],
+        dirs_visited: list[int],
+    ) -> None:
+        """Bind the per-disk state and start with an empty insert buffer."""
+        super().__init__(conn, disk, generation, files_visited, dirs_visited)
+        self.insert_buffer: list[Any] = []
+
+    def visit_file(self, entry: os.DirEntry[str], st: os.stat_result, parent_rel: str) -> None:
+        """Fingerprint the file (tier-1 + oshash) and buffer the new ``media_file`` row."""
+        is_symlink = entry.is_symlink()
+
+        # Tier-1 fingerprint — zero extra I/O (uses the stat already performed).
+        size_bytes, mtime_ns, ctime_ns = fingerprint.fingerprint_tier1(st)
+
+        # OSHash — 128 KiB read for eligible video files; None for all others.
+        oshash_value = _compute_oshash(entry.path, entry.name, is_symlink)
+
+        path_id = _upsert_path_row(self.conn, self.disk.id, parent_rel, 0)
+        _upsert_file_row(
+            self.conn,
+            path_id=path_id,
+            filename=entry.name,
+            size_bytes=size_bytes,
+            mtime_ns=mtime_ns,
+            ctime_ns=ctime_ns,
+            generation=self.generation,
+            oshash_value=oshash_value,
+            insert_buffer=self.insert_buffer,
+        )
 
 
 def _scan_disk_full(
@@ -41,14 +106,15 @@ def _scan_disk_full(
 ) -> None:
     """Run the full-mode walk for a single disk with optional index management.
 
-    Wraps the :func:`_walk_dir_full` recursive walk.  When ``drop_indexes`` is
-    ``True``, secondary indexes on ``media_file`` / ``media_stream`` are dropped
-    before the walk and always recreated in a ``try/finally`` block, regardless
-    of whether an exception occurs during the walk.
+    Drives the shared :func:`~personalscraper.indexer.scanner._walker.walk`
+    skeleton with a :class:`FullVisitor`.  When ``drop_indexes`` is ``True``,
+    secondary indexes on ``media_file`` / ``media_stream`` are dropped before the
+    walk and always recreated in a ``try/finally`` block, regardless of whether an
+    exception occurs during the walk.
 
-    New rows are accumulated in an ``insert_buffer``.  The buffer is flushed
-    every :data:`_INSERT_BATCH_SIZE` rows (checked inside
-    :func:`_walk_dir_full`) and once more at the end to drain any remainder.
+    New rows are accumulated in the visitor's ``insert_buffer`` and drained once
+    the walk returns via :func:`_flush_insert_buffer` (a single ``executemany``),
+    exactly like the legacy ``_walk_dir_full_buffered`` post-walk flush.
 
     Args:
         conn: Open SQLite connection.
@@ -59,7 +125,7 @@ def _scan_disk_full(
         generation: Scan generation counter.
         drop_indexes: Whether to drop and recreate secondary indexes.
         resume_from: Single-element list holding the opaque path string of the last
-            checkpoint (or ``None``).  Forwarded to :func:`_walk_dir_full_buffered`.
+            checkpoint (or ``None``).  Forwarded to the walk skeleton.
         files_since_checkpoint: Single-element mutable counter forwarded to the walk.
         budget_exhausted: Single-element flag; set to ``True`` when the time budget
             is exceeded inside the walk.
@@ -74,28 +140,28 @@ def _scan_disk_full(
 
         ddl_pairs = modes_api._drop_secondary_indexes(conn)
 
-    insert_buffer: list[Any] = []
+    visitor = FullVisitor(conn, disk, generation, files_visited, dirs_visited)
     try:
-        _walk_dir_full_buffered(
-            conn,
-            disk,
+        walk(
             mount,
-            files_visited,
-            dirs_visited,
-            generation,
-            insert_buffer,
-            resume_from,
-            files_since_checkpoint,
-            budget_exhausted,
-            started_at_monotonic,
-            budget_seconds,
-            scan_run_id,
-            checkpoint_every,
+            visitor,
+            budget=WalkBudget(
+                budget_seconds=budget_seconds,
+                started_at_monotonic=started_at_monotonic,
+                budget_exhausted=budget_exhausted if budget_exhausted is not None else [False],
+            ),
+            shutdown=is_shutdown_requested,
+            checkpoint=WalkCheckpoint(
+                scan_run_id=scan_run_id,
+                checkpoint_every=checkpoint_every,
+                files_since_checkpoint=files_since_checkpoint if files_since_checkpoint is not None else [0],
+                resume_from=resume_from if resume_from is not None else [None],
+            ),
         )
         # Flush any remaining rows that did not fill a full batch.
         from personalscraper.indexer.scanner import _modes as modes_api  # noqa: PLC0415
 
-        modes_api._flush_insert_buffer(conn, insert_buffer)
+        modes_api._flush_insert_buffer(conn, visitor.insert_buffer)
     finally:
         if drop_indexes and ddl_pairs:
             _recreate_indexes(conn, ddl_pairs)

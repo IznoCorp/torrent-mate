@@ -522,8 +522,9 @@ _ENGINE_PACKAGE_DIRS: list[Path] = sorted(
 
 
 def test_engine_does_not_import_web() -> None:
-    """No engine package imports ``personalscraper.web`` (one-way dependency, DESIGN §9)."""
+    """No engine package or top-level module imports ``personalscraper.web`` (one-way dependency, DESIGN §9)."""
     violations: list[str] = []
+    # Scan package directories (excluding web/, commands/, static/).
     for pkg_dir in _ENGINE_PACKAGE_DIRS:
         for py_file in sorted(pkg_dir.rglob("*.py")):
             rel = py_file.relative_to(_REPO_ROOT).as_posix()
@@ -532,8 +533,22 @@ def test_engine_does_not_import_web() -> None:
             except (OSError, UnicodeDecodeError):
                 continue
             violations.extend(_collect_violations_from_source(source, rel, _WEB_FORBIDDEN_PREFIXES))
+    # Also scan top-level .py modules under personalscraper/ (e.g. pipeline_steps.py,
+    # pipeline.py, models.py).  The package-dir scan above misses them because they
+    # are files, not directories.  Exclude dunder modules (__init__.py, __main__.py)
+    # which are the package bootstrap — they are checked separately if needed.
+    for py_file in sorted(_PACKAGE_ROOT.glob("*.py")):
+        if py_file.name.startswith("__"):
+            continue
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        try:
+            source = py_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        violations.extend(_collect_violations_from_source(source, rel, _WEB_FORBIDDEN_PREFIXES))
     assert not violations, (
-        "Engine packages must not import personalscraper.web (one-way dependency, DESIGN §9):\n" + "\n".join(violations)
+        "Engine packages/modules must not import personalscraper.web (one-way dependency, DESIGN §9):\n"
+        + "\n".join(violations)
     )
 
 

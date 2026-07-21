@@ -1,7 +1,5 @@
 import {
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactElement,
   type ReactNode,
@@ -23,13 +21,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 import { useStagingMedia } from "@/hooks/useStagingMedia";
 import { useWanted } from "@/hooks/useAcquisition";
-import { useQueryClient } from "@tanstack/react-query";
-import { isEvent } from "@/api/events";
+import { useWsInvalidation } from "@/hooks/useWsInvalidation";
+import { SHELL_BADGE_EVENT_TYPES } from "@/api/events";
 import { decisionsKeys } from "@/api/decisions";
+import { pipelineKeys } from "@/api/pipeline";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 
 /**
@@ -45,8 +43,6 @@ import { stagingMediaKeys } from "@/hooks/useStagingMedia";
  */
 function AppShellInner(): ReactElement {
   const [navOpen, setNavOpen] = useState<boolean>(false);
-  const queryClient = useQueryClient();
-  const { events } = useEventStreamContext();
 
   // ── Badge 1: /medias = awaiting_action count from staging ──────────
   // page_size=1 so we pull only the counts aggregate, not the full list.
@@ -77,33 +73,14 @@ function AppShellInner(): ReactElement {
   // idle and a new scrape tick may have queued decision rows). The pipeline-
   // status invalidation is handled by usePipelineStatus's own listener;
   // the acquisition badge has no WS dependency (wanted state changes on
-  // its own 60 s poll cycle).
-  //
-  // Scan every event appended since the last render, not just the last
-  // one: useEventStream coalesces a synchronous replay burst (reconnect,
-  // or several items in one scrape tick) into ONE re-render, so inspecting
-  // only events[length-1] would silently drop a relevant event buried in
-  // the batch.
-  const lastProcessedRef = useRef(0);
-  useEffect(() => {
-    const start = Math.min(lastProcessedRef.current, events.length);
-    const fresh = events.slice(start);
-    lastProcessedRef.current = events.length;
-    const shouldInvalidate = fresh.some(
-      (e) =>
-        isEvent(e) &&
-        (e.type === "ItemProgressed" ||
-          e.type === "PipelineEnded" ||
-          e.type === "PipelineStarted"),
-    );
-    if (shouldInvalidate) {
-      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
-      void queryClient.invalidateQueries({
-        queryKey: ["pipeline", "history"],
-      });
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-    }
-  }, [events, queryClient]);
+  // its own 60 s poll cycle). The shared map scans every event appended since
+  // the last render (fresh-slice), so a batched replay burst is never dropped.
+  useWsInvalidation([
+    {
+      types: SHELL_BADGE_EVENT_TYPES,
+      keys: [stagingMediaKeys.all, pipelineKeys.history, decisionsKeys.all],
+    },
+  ]);
 
   // ── Badge map — entries inserted only when non-zero/active, or when ─
   // the query backing the badge is in error (an indeterminate "?" marker

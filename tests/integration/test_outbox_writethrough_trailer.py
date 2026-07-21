@@ -21,7 +21,7 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
-from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.scanner import ScanItem
 

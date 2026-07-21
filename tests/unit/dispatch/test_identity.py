@@ -1,8 +1,10 @@
 """Unit tests for the §7 provider-ID identity guard (dispatch/_identity.py).
 
-A REPLACE destroys the on-disk target, so it must be verified by provider-ID:
-a same-named DIFFERENT movie must never be overwritten. These tests exercise
-:func:`replace_identity_conflict` directly with on-disk NFO fixtures.
+A destructive dispatch verifies the target by provider-ID before overwriting
+it: a same-named DIFFERENT media must never be destroyed. These tests exercise
+:func:`replace_identity_conflict` (movie REPLACE, ``<title>.nfo``) and
+:func:`merge_identity_conflict` (TV MERGE, ``tvshow.nfo``) directly with on-disk
+NFO fixtures.
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from personalscraper.dispatch._identity import replace_identity_conflict
+from personalscraper.dispatch._identity import merge_identity_conflict, replace_identity_conflict
 
 
 def _write_movie_nfo(
@@ -90,3 +92,86 @@ def test_disjoint_providers_allow(tmp_path: Path) -> None:
     _write_movie_nfo(staging, tmdb="555")
     _write_movie_nfo(target, imdb="tt0000555")
     assert replace_identity_conflict(staging, target) is None
+
+
+def _write_tvshow_nfo(
+    show_dir: Path, *, tvdb: str | None = None, tmdb: str | None = None, imdb: str | None = None
+) -> None:
+    """Write a minimal but complete ``tvshow.nfo`` with the given provider IDs.
+
+    A TV show's identity lives in the show-root ``tvshow.nfo`` (Kodi
+    convention), a ``<tvshow>`` root with one ``<uniqueid>`` per provider —
+    unlike a movie's ``<title>.nfo``.
+
+    Args:
+        show_dir: The show folder (created if absent).
+        tvdb: TVDB id, or ``None`` to omit.
+        tmdb: TMDB id, or ``None`` to omit.
+        imdb: IMDB id, or ``None`` to omit.
+    """
+    show_dir.mkdir(parents=True, exist_ok=True)
+    root = ET.Element("tvshow")
+    ET.SubElement(root, "title").text = show_dir.name
+    for provider, value in (("tvdb", tvdb), ("tmdb", tmdb), ("imdb", imdb)):
+        if value is not None:
+            uid = ET.SubElement(root, "uniqueid")
+            uid.set("type", provider)
+            uid.text = value
+    ET.ElementTree(root).write(show_dir / "tvshow.nfo", encoding="utf-8", xml_declaration=True)
+
+
+def test_merge_same_tvdb_id_allows(tmp_path: Path) -> None:
+    """Matching TVDB id on both sides → no conflict (allow)."""
+    staging = tmp_path / "staging" / "Fallout (2024)"
+    target = tmp_path / "disk" / "Fallout (2024)"
+    _write_tvshow_nfo(staging, tvdb="106011")
+    _write_tvshow_nfo(target, tvdb="106011")
+    assert merge_identity_conflict(staging, target) is None
+
+
+def test_merge_different_tvdb_id_blocks(tmp_path: Path) -> None:
+    """Different TVDB id (same-named different show) → block (§7).
+
+    The TV merge path resolved the target by NAME and overwrote its episodes
+    with zero identity check — a same-named different series would be destroyed.
+    The guard now blocks with a French reason naming the TVDB mismatch.
+    """
+    staging = tmp_path / "staging" / "The Office (2005)"
+    target = tmp_path / "disk" / "The Office (2005)"
+    _write_tvshow_nfo(staging, tvdb="73244")  # The Office (US)
+    _write_tvshow_nfo(target, tvdb="78107")  # The Office (UK) — DIFFERENT show
+    reason = merge_identity_conflict(staging, target)
+    assert reason is not None
+    assert "TVDB" in reason
+    assert "73244" in reason and "78107" in reason
+
+
+def test_merge_conflict_on_any_shared_provider(tmp_path: Path) -> None:
+    """A mismatch on TMDB blocks even when TVDB is absent on one side."""
+    staging = tmp_path / "staging" / "X (2024)"
+    target = tmp_path / "disk" / "X (2024)"
+    _write_tvshow_nfo(staging, tmdb="111111")
+    _write_tvshow_nfo(target, tmdb="222222")
+    assert merge_identity_conflict(staging, target) is not None
+
+
+def test_merge_missing_target_nfo_fails_open(tmp_path: Path) -> None:
+    """A legacy target show with no ``tvshow.nfo`` cannot be verified → allow.
+
+    Blocking here would break every legitimate merge into a legacy no-NFO show
+    folder (the documented judgment call, §8).
+    """
+    staging = tmp_path / "staging" / "Columbo (1971)"
+    target = tmp_path / "disk" / "Columbo (1971)"
+    _write_tvshow_nfo(staging, tvdb="12345")
+    target.mkdir(parents=True, exist_ok=True)  # no tvshow.nfo
+    assert merge_identity_conflict(staging, target) is None
+
+
+def test_merge_disjoint_providers_allow(tmp_path: Path) -> None:
+    """No shared provider between the two show NFOs → cannot conflict (allow)."""
+    staging = tmp_path / "staging" / "Y (2024)"
+    target = tmp_path / "disk" / "Y (2024)"
+    _write_tvshow_nfo(staging, tvdb="555")
+    _write_tvshow_nfo(target, imdb="tt0000555")
+    assert merge_identity_conflict(staging, target) is None

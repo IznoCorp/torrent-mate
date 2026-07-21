@@ -37,7 +37,6 @@ from __future__ import annotations
 
 import contextlib
 import datetime
-import hashlib
 import os
 import shlex
 import subprocess
@@ -63,7 +62,14 @@ from personalscraper.conf.loader import (
 )
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError
+from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
+from personalscraper.web.config_service import (  # noqa: F401 — re-export for callers/tests
+    _compute_ownership,
+    _compute_shadowed_keys,
+    _local_keys,
+    _sha256,
+)
 from personalscraper.web.deps import is_staging_role, require_x_requested_with
 from personalscraper.web.models.config import (
     ConfigSchemaResponse,
@@ -151,100 +157,6 @@ def _config_dir() -> Path:
         Absolute path to the config directory.
     """
     return resolve_config_path()
-
-
-def _sha256(path: Path) -> str:
-    """Return the hex-encoded SHA-256 digest of *path* contents.
-
-    Args:
-        path: Absolute path to a file.
-
-    Returns:
-        64-character lowercase hex string.
-    """
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-# ── Ownership computation (shared by /schema and /files) ───────────────────
-
-
-def _compute_ownership(config_dir: Path) -> dict[str, str]:
-    """Compute the mapping of top-level keys → owning filename.
-
-    Steps:
-
-    1. Read the master ``config.json5`` and its ``overlays`` array.
-    2. For each overlay file, json5-load it and map each top-level key
-       (excluding ``__source__``) to that filename.
-    3. Master-owned keys (everything in config.json5 except ``overlays``)
-       map to ``"config.json5"``.
-
-    Args:
-        config_dir: Absolute path to the config directory.
-
-    Returns:
-        Dict mapping top-level key names to filenames (e.g.
-        ``{"paths": "paths.json5"}``).
-    """
-    master = _load_json5_file(config_dir / _MASTER_FILENAME)
-    overlay_names: list[str] = master.get("overlays", [])
-
-    ownership: dict[str, str] = {}
-
-    # Master-owned keys (everything except "overlays").
-    for key in master:
-        if key != "overlays":
-            ownership[key] = _MASTER_FILENAME
-
-    # Overlay-owned keys.
-    for name in overlay_names:
-        overlay_path = config_dir / name
-        if overlay_path.is_file():
-            overlay = _load_json5_file(overlay_path)
-            for key in overlay:
-                if key != "__source__":
-                    ownership[key] = name
-
-    return ownership
-
-
-# ── Shadowed keys (local.json5 overrides) ──────────────────────────────────
-
-
-def _local_keys(config_dir: Path) -> set[str]:
-    """Return the set of top-level keys defined in ``local.json5``.
-
-    Fail-soft: returns an empty set if the file is missing or unreadable.
-
-    Args:
-        config_dir: Absolute path to the config directory.
-
-    Returns:
-        Set of top-level key names from local.json5, or empty set if the file
-        does not exist.
-    """
-    local_path = config_dir / _LOCAL_FILENAME
-    if not local_path.is_file():
-        return set()
-    try:
-        local = _load_json5_file(local_path)
-    except Exception:
-        logger.warning("local_json5_unreadable", path=str(local_path))
-        return set()
-    return {k for k in local if k != "__source__"}
-
-
-def _compute_shadowed_keys(owned_keys: list[str], local_keys_set: set[str]) -> list[str]:
-    """Return the subset of *owned_keys* that are overridden by local.json5.
-
-    Args:
-        owned_keys: Keys owned by a specific file.
-        local_keys_set: Keys present in local.json5.
-
-    Returns:
-        Sorted list of keys present in both sets.
-    """
-    return sorted(set(owned_keys) & local_keys_set)
 
 
 # ── Boot snapshot (eager at startup, lazy fallback for mini-app tests) ─────
@@ -692,8 +604,9 @@ def put_file(
        with Pydantic error loc paths on failure (no backup created).
     5. Backup current file to ``.backups/{name}.{utc}.json5``, prune to
        10 most recent per file name.
-    6. Atomic write via temp file + ``os.replace`` + ``fsync``,
-       serialized with a module-level ``threading.Lock``.
+    6. Atomic, crash-durable write via
+       :func:`~personalscraper.io_utils.atomic_write_text` (chmod-ed back to
+       ``0o600``), serialized with a module-level ``threading.Lock``.
     7. Return 200 with warnings and restart-required flag.
 
     Args:
@@ -784,16 +697,16 @@ def put_file(
         )
         content = header + json5.dumps(body.values, indent=2) + "\n"
 
-        fd, tmp_name = tempfile.mkstemp(dir=str(config_dir), prefix=f".{name}.", suffix=".tmp")
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(content)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_name, str(file_path))
+            atomic_write_text(file_path, content)
+            # The shared writer creates its temp at 0o644; preserve the prior
+            # mkstemp(0o600) owner-only mode on the config overlay.
+            os.chmod(file_path, 0o600)
         except BaseException:
+            # atomic_write_text leaves its "<name>.tmp" behind only if the
+            # write itself fails; drop it so no orphan temp file remains.
             with contextlib.suppress(OSError):
-                os.unlink(tmp_name)
+                os.unlink(file_path.with_suffix(file_path.suffix + ".tmp"))
             raise
 
         # Register a pre-write hash entry for files absent from the boot
@@ -907,9 +820,10 @@ def put_secrets(
     env_path = repo_root / ".env"
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
     # R10: serialize the .env read-modify-write under the same module lock as
-    # PUT /files. write_env_keys reads .env, upserts, and os.replace()s; two
-    # concurrent PUT /secrets would otherwise each read the same pre-write .env
-    # and the second replace would silently drop the first request's key.
+    # PUT /files. write_env_keys reads .env, upserts, and atomically rewrites
+    # it; two concurrent PUT /secrets would otherwise each read the same
+    # pre-write .env and the second write would silently drop the first
+    # request's key.
     with _write_lock:
         write_env_keys(body.root, env_path)
 

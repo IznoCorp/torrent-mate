@@ -112,6 +112,10 @@ def _make_mixin(
     _registry.emit_provider_fallback = MagicMock()
     _registry.emit_provider_exhausted = MagicMock()
     mixin._registry = _registry  # type: ignore[assignment]
+    # OMDb rating façades unwired (default): the confirmed-write external-ids
+    # pass then skips id re-validation + rating fetch silently (fail-soft).
+    mixin._imdb = None  # type: ignore[assignment]
+    mixin._rotten_tomatoes = None  # type: ignore[assignment]
     # Keep backward-compat attrs for test code that reads them directly.
     mixin._tvdb = _tvdb_client  # type: ignore[assignment]
     mixin._tmdb = _tmdb_client  # type: ignore[assignment]
@@ -129,7 +133,6 @@ def _make_mixin(
     mixin._strip_trailing_year = MagicMock(side_effect=lambda s: s)  # type: ignore[assignment]
     mixin._verify_existing_scrape = MagicMock(return_value=(True, ""))  # type: ignore[assignment]
     mixin._check_missing_tvshow_artwork = MagicMock(return_value=[])  # type: ignore[assignment]
-    mixin._recover_tvshow_artwork = MagicMock()  # type: ignore[assignment]
     mixin._repair_tvshow_dir = MagicMock(return_value=False)  # type: ignore[assignment]
     return mixin
 
@@ -309,7 +312,7 @@ class TestLookupSeries:
         mixin = _make_mixin()
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             side_effect=RuntimeError("boom"),
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -322,7 +325,7 @@ class TestLookupSeries:
         mixin = _make_mixin()
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             return_value=(None, []),
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -339,7 +342,7 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=1, api_title="X", api_year=2020, confidence=0.0, source="tmdb")
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             return_value=(match, []),
         ):
             out = mixin._lookup_series("X", None, set(), result)
@@ -365,7 +368,7 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.95, source="tvdb")
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             return_value=(match, []),
         ):
             out = mixin._lookup_series("Show", 2020, {1}, result)
@@ -385,7 +388,7 @@ class TestLookupSeries:
         result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
         match = MatchResult(api_id=42, api_title="Show", api_year=2020, confidence=0.95, source="tvdb")
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             return_value=(match, []),
         ):
             out = mixin._lookup_series("Show", 2020, {1}, result)
@@ -412,7 +415,7 @@ class TestLookupSeries:
             source="tmdb",
         )
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             return_value=(match, []),
         ):
             out = mixin._lookup_series("TmdbShow", 2021, {1}, result)
@@ -435,7 +438,7 @@ class TestLookupSeries:
             source="tmdb",
         )
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             return_value=(match, []),
         ):
             out = mixin._lookup_series("X", 2021, set(), result)
@@ -996,13 +999,15 @@ class TestScrapeTvshowDriftAndFastPath:
         mixin = _make_scrape_mocks()
         mixin._check_missing_tvshow_artwork = MagicMock(return_value=["poster.jpg"])  # type: ignore[assignment]
 
-        def _set_action(_nfo: Path, _show: Path, result: ScrapeResult) -> None:
+        def _set_action(_nfo: Path, _show: Path, result: ScrapeResult, **_kw: Any) -> None:
             result.action = "artwork_recovered"
 
-        mixin._recover_tvshow_artwork = MagicMock(side_effect=_set_action)  # type: ignore[assignment]
-        with patch(
-            "personalscraper.scraper.tv_service._is_nfo_complete",
-            return_value=True,
+        with (
+            patch("personalscraper.scraper.tv_service.recover_artwork", side_effect=_set_action),
+            patch(
+                "personalscraper.scraper.tv_service._is_nfo_complete",
+                return_value=True,
+            ),
         ):
             res = mixin.scrape_tvshow(show)
         assert res.action == "artwork_recovered"
@@ -1029,6 +1034,7 @@ class TestScrapeTvshowDriftAndFastPath:
             return_value=["season22-poster.jpg"]
         )
         with (
+            patch("personalscraper.scraper.tv_service.recover_artwork") as mock_recover,
             patch(
                 "personalscraper.scraper.tv_service._is_nfo_complete",
                 return_value=True,
@@ -1040,7 +1046,7 @@ class TestScrapeTvshowDriftAndFastPath:
         assert "artwork_would_recover" in caplog.text
         assert "season22-poster.jpg" in caplog.text
         # Recovery helper must not run in dry-run mode.
-        assert not mixin._recover_tvshow_artwork.called  # type: ignore[union-attr]
+        assert not mock_recover.called
 
     def test_fast_path_repaired(self, tmp_path: Path) -> None:
         """Valid NFO + repair makes changes → ``repaired`` action."""
@@ -1082,7 +1088,7 @@ class TestScrapeTvshowDriftAndFastPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(None, []),
             ),
         ):
@@ -1141,7 +1147,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(None, []),
             ),
         ):
@@ -1165,7 +1171,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1190,7 +1196,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1215,7 +1221,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1240,7 +1246,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1266,7 +1272,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1291,7 +1297,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1316,11 +1322,11 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
             patch(
-                "personalscraper.scraper.tv_service_write._rename_dir_case_safe",
+                "personalscraper.scraper.rename_service._rename_dir_case_safe",
                 side_effect=OSError("denied"),
             ),
         ):
@@ -1373,7 +1379,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
         ):
@@ -1426,7 +1432,7 @@ class TestScrapeTvshowFullPath:
                 return_value=False,
             ),
             patch(
-                "personalscraper.scraper.confidence.match_tvshow_detailed",
+                "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
                 return_value=(match, []),
             ),
             caplog.at_level("WARNING"),
@@ -1462,12 +1468,75 @@ def test_lookup_series_emits_match_attribute(tmp_path: Path, source: str) -> Non
     result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
     match = MatchResult(api_id=1, api_title="X", api_year=2020, confidence=0.9, source=source)
     with patch(
-        "personalscraper.scraper.confidence.match_tvshow_detailed",
+        "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
         return_value=(match, []),
     ):
         out = mixin._lookup_series("X", 2020, set(), result)
     assert out is not None
     assert result.match is match
+
+
+def test_lookup_series_emits_fallback_when_tvdb_primary_fails(tmp_path: Path) -> None:
+    """SCRAPER-02: the live TV match iterates ``registry.chain(TvDetailsProvider)``.
+
+    A TVDB (primary) failure now emits a ``ProviderFallbackTriggered`` on the bus
+    before TMDB is consulted — the same fallback observability the movie match
+    path has. Before P4.3 the live TV match called ``match_tvshow_detailed``
+    directly, bypassing the chain and emitting nothing.
+    """
+    from personalscraper.api.metadata.registry._events import ProviderFallbackTriggered
+
+    emitted: list[ProviderFallbackTriggered] = []
+    mixin = _make_mixin()
+
+    def _record_fallback(
+        *,
+        capability: str,
+        from_provider: str,
+        reason: str,
+        item: dict[str, Any],
+        to_provider: str | None = None,
+        exc_type: str | None = None,
+    ) -> None:
+        emitted.append(
+            ProviderFallbackTriggered(
+                capability=capability,
+                from_provider=from_provider,
+                to_provider=to_provider or "",
+                reason=reason,
+                exc_type=exc_type,
+                item=item,
+            )
+        )
+
+    mixin._registry.emit_provider_fallback.side_effect = _record_fallback
+
+    # TVDB (primary) errors; TMDB returns a below-threshold match so the lookup
+    # returns early after the match step (no details fetch needed here).
+    tmdb_match = MatchResult(api_id=99, api_title="Show", api_year=2020, confidence=0.0, source="tmdb")
+
+    def _match_single_detailed(
+        provider: Any, title: str, year: int | None, *, local_seasons: set[int] | None = None
+    ) -> tuple[MatchResult | None, list[Any]]:
+        if getattr(provider, "provider_name", "") == "tvdb":
+            raise ConnectionError("TVDB unreachable")
+        return tmdb_match, []
+
+    result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
+    with patch(
+        "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
+        side_effect=_match_single_detailed,
+    ):
+        out = mixin._lookup_series("Show", 2020, {1}, result)
+
+    assert out is None
+    assert result.action == "skipped_low_confidence"
+    # The TVDB→TMDB fallback was observable on the bus at parity with movies.
+    tvdb_fallbacks = [e for e in emitted if e.from_provider == "tvdb"]
+    assert len(tvdb_fallbacks) == 1
+    assert tvdb_fallbacks[0].reason == "network"
+    assert tvdb_fallbacks[0].exc_type == "ConnectionError"
+    assert tvdb_fallbacks[0].capability == "TvDetailsProvider"
 
 
 # ---------------------------------------------------------------------------
@@ -1501,7 +1570,7 @@ def test_tv_chain_details_continues_on_runtime_error(tmp_path: Path) -> None:
     result = ScrapeResult(media_path=tmp_path, media_type="tvshow")
     match = MatchResult(api_id=100, api_title="Show", api_year=2020, confidence=0.95, source="tmdb")
     with patch(
-        "personalscraper.scraper.confidence.match_tvshow_detailed",
+        "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
         return_value=(match, []),
     ):
         out = mixin._lookup_series("Show", 2020, set(), result)
@@ -1518,22 +1587,25 @@ def test_tv_chain_details_continues_on_runtime_error(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# I7 — _family_to_client logs forensic warning (regression for PR review cycle 4)
+# I7 — family_to_client logs forensic warning (regression for PR review cycle 4)
 # ---------------------------------------------------------------------------
 
 
 def test_family_to_client_logs_warning_on_unknown_provider(caplog: Any) -> None:
-    """Regression for I7: _family_to_client logs forensic warning.
+    """Regression for I7: family_to_client logs forensic warning.
 
-    Triggered when the registry returns UnknownProviderError.
+    Triggered when the registry returns UnknownProviderError. P4.2
+    collapsed the per-service delegate into the shared
+    ``_xref.family_to_client`` free function (ACC-03).
     """
     from personalscraper.api.metadata.registry._errors import UnknownProviderError
+    from personalscraper.scraper._xref import family_to_client
 
     mixin = _make_mixin()
     mixin._registry.get.side_effect = UnknownProviderError("tmdb")
 
     with caplog.at_level("WARNING"):
-        client = mixin._family_to_client("tmdb")
+        client = family_to_client("tmdb", registry=mixin._registry, imdb_client=getattr(mixin, "_imdb", None))
 
     assert client is None
     assert "xref_family_unwired" in caplog.text

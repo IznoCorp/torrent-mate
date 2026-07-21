@@ -10,7 +10,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
-import { getDisks, type DisksResponse } from "@/api/client";
+import { getDisks, type DisksResponse } from "@/api/maintenance";
 import type { components } from "@/api/schema";
 import { StatPanel } from "@/components/ds/StatPanel";
 import { StatusDot } from "@/components/ds/StatusDot";

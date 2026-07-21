@@ -7,7 +7,7 @@
 
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 
-import { discardMedia, type DiscardResponse } from "@/api/client";
+import { discardMedia, type DiscardResponse } from "@/api/staging";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";
 
 /**

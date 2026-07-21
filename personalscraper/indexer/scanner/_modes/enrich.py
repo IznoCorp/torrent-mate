@@ -9,9 +9,14 @@ import time
 from pathlib import Path
 from typing import Literal
 
+from personalscraper._fs_utils import is_apple_double
+from personalscraper.core.artwork_naming import artwork_inventory_from_names
+from personalscraper.core.completeness import media_completeness as _media_completeness
+from personalscraper.core.completeness import nfo_status as _core_nfo_status
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.release_linker import link_file_to_release
+from personalscraper.indexer.scanner._walker import _list_dir_entries
 from personalscraper.indexer.schema import ArtworkInventory, DiskRow, MediaStreamRow
 from personalscraper.logger import get_logger
 
@@ -24,63 +29,18 @@ __all__ = [
     "_enrich_one_file",
     "_inventory_artwork",
     "_purge_non_video_stream_rows",
+    "_refresh_trailer_found",
     "_resolve_item_root_dir",
     "_scan_disk_enrich",
 ]
 
 # ---------------------------------------------------------------------------
-# Artwork filename constants
+# Item-root resolution + NFO/NA constants
 # ---------------------------------------------------------------------------
 
-# Canonical artwork filenames checked during enrich (Kodi convention).
-# Matched lowercase against entry.name.lower() to handle case-insensitive FS.
-_ARTWORK_FILENAMES: dict[str, str] = {
-    "poster.jpg": "poster",
-    "poster.png": "poster",
-    "fanart.jpg": "fanart",
-    "fanart.png": "fanart",
-    "banner.jpg": "banner",
-    "banner.png": "banner",
-    "landscape.jpg": "landscape",
-    "landscape.png": "landscape",
-    "clearlogo.png": "clearlogo",
-    "clearlogo.jpg": "clearlogo",
-    "clearart.png": "clearart",
-    "clearart.jpg": "clearart",
-    "discart.png": "discart",
-    "discart.jpg": "discart",
-    "characterart.png": "characterart",
-    "characterart.jpg": "characterart",
-}
-
-# MediaElch / Plex local-artwork suffixes. Matched against the trailing portion
-# of the filename (e.g. "Movie Title (2020)-poster.jpg" → suffix "-poster.jpg").
-# This is the format produced by MediaElch (the project's manual scraper
-# fallback) and used by Plex local-art agents, both very common in real
-# libraries. Without these the canonical-only pattern misses the artwork even
-# though it sits next to the video file.
-_ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
-    ("-poster.jpg", "poster"),
-    ("-poster.png", "poster"),
-    ("-fanart.jpg", "fanart"),
-    ("-fanart.png", "fanart"),
-    ("-banner.jpg", "banner"),
-    ("-banner.png", "banner"),
-    ("-landscape.jpg", "landscape"),
-    ("-landscape.png", "landscape"),
-    ("-clearlogo.png", "clearlogo"),
-    ("-clearlogo.jpg", "clearlogo"),
-    ("-logo.png", "clearlogo"),  # MediaElch alternative
-    ("-logo.jpg", "clearlogo"),
-    ("-clearart.png", "clearart"),
-    ("-clearart.jpg", "clearart"),
-    ("-discart.png", "discart"),
-    ("-discart.jpg", "discart"),
-    ("-disc.png", "discart"),  # MediaElch alternative
-    ("-disc.jpg", "discart"),
-    ("-characterart.png", "characterart"),
-    ("-characterart.jpg", "characterart"),
-)
+# Artwork filename detection is owned by ``core.artwork_naming`` (the ONE union
+# of bare/Kodi/scraper/MediaElch spellings). Both scan modes classify through it
+# so ``artwork_json`` is written identically regardless of scan path (INDEXER-03).
 
 
 # Subfolders whose contents must NEVER drive the parent item's NFO/artwork
@@ -125,6 +85,11 @@ from personalscraper.naming_patterns import SEASON_DIR_RE as _TV_SEASON_DIR_RE  
 # faithful than reporting them as broken in library-report.
 _NFO_NA_CATEGORIES: frozenset[str] = frozenset({"audiobooks"})
 
+# Map the DB ``media_item.kind`` to the completeness read-model media type so the
+# trailer-presence refresh applies the right Plex placement rule. Only movies and
+# TV shows have a trailer slot; every other kind is skipped.
+_TRAILER_MEDIA_TYPES: dict[str, Literal["movie", "tvshow"]] = {"movie": "movie", "show": "tvshow"}
+
 
 def _resolve_item_root_dir(file_path: Path) -> Path | None:
     """Return the directory whose NFO + artwork describe ``file_path``'s item.
@@ -154,9 +119,17 @@ def _resolve_item_root_dir(file_path: Path) -> Path | None:
 def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     """Scan *parent_dir* for known artwork filenames and return an :class:`ArtworkInventory`.
 
-    Only the presence of a file is checked — no content validation is performed.
-    Each artwork type resolves to ``True`` as soon as *any* matching filename is
-    found in the directory.
+    Detection is delegated to the canonical owner
+    (:func:`personalscraper.core.artwork_naming.artwork_inventory_from_names`) so
+    this enrich scan mode and the full/item-stage scan mode write an identical
+    ``artwork_json`` for the same directory (INDEXER-03). Only presence is
+    checked — no content validation. Season posters (``seasonNN-*``) are excluded
+    from item-level artwork, and MediaElch's ``-logo``/``-disc`` short aliases and
+    the Kodi ``folder.jpg`` are recognized, all via the shared union.
+
+    The directory is listed here (rather than in ``core``) so a transient
+    :exc:`OSError` is caught and reported as ``None`` — the caller must skip the
+    DB column update in that case so previously-valid data is not overwritten.
 
     Args:
         parent_dir: Absolute path of the directory to scan.
@@ -164,25 +137,9 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     Returns:
         :class:`ArtworkInventory` instance reflecting what artwork files exist,
         or ``None`` when the directory is not readable (transient OS error).
-        Callers must skip the DB column update when ``None`` is returned so that
-        previously-valid data is not overwritten on a transient permission error.
     """
-    found: dict[str, bool] = {}
     try:
-        with os.scandir(parent_dir) as it:
-            for entry in it:
-                lname = entry.name.lower()
-                key = _ARTWORK_FILENAMES.get(lname)
-                if key is not None:
-                    found[key] = True
-                    continue
-                # Match MediaElch / Plex local-art suffixes (e.g.
-                # "Title (2020)-poster.jpg"). The longest suffix wins, but
-                # tuple ordering covers the alternatives explicitly.
-                for suffix, art_key in _ARTWORK_SUFFIXES:
-                    if lname.endswith(suffix) and len(lname) > len(suffix):
-                        found[art_key] = True
-                        break
+        names = [entry.name for entry in _list_dir_entries(parent_dir) if entry.is_file()]
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -193,16 +150,7 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
         )
         return None
 
-    return ArtworkInventory(
-        poster=found.get("poster", False),
-        fanart=found.get("fanart", False),
-        landscape=found.get("landscape", False),
-        banner=found.get("banner", False),
-        clearlogo=found.get("clearlogo", False),
-        clearart=found.get("clearart", False),
-        discart=found.get("discart", False),
-        characterart=found.get("characterart", False),
-    )
+    return ArtworkInventory.from_presence(artwork_inventory_from_names(names))
 
 
 def _purge_non_video_stream_rows(conn: sqlite3.Connection) -> int:
@@ -246,13 +194,21 @@ def _purge_non_video_stream_rows(conn: sqlite3.Connection) -> int:
 
 
 def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"] | None:
-    """Check whether a ``.nfo`` file exists in *parent_dir* and return a status string.
+    """Return the strict NFO-validity status for *parent_dir* (the ONE definition).
 
-    Full NFO parsing (XML validation) is deferred to the scraper integration phases.
-    This function performs only a file-existence check:
+    §9 / VERIFY-MAINTENANCE-03: the enrich scan mode's ``nfo_status`` column now
+    converges on the single strict NFO definition shared by the scraper fast-skip,
+    ``verify`` and the full-scan item stage — content validity, not mere existence.
+    Validity is delegated to :func:`personalscraper.core.completeness.nfo_status`
+    (which itself delegates ``complete`` to
+    :func:`personalscraper.nfo_utils.is_nfo_complete`: parseable XML + at least one
+    non-placeholder ``<uniqueid>``). AppleDouble sidecars (``._*.nfo`` — binary
+    xattr blobs, not real NFOs) are skipped.
 
-    - ``'valid'`` — a ``.nfo`` file is present (we cannot validate content yet).
-    - ``'missing'`` — no ``.nfo`` file found.
+    - ``'valid'`` — at least one real ``.nfo`` in *parent_dir* is content-valid.
+    - ``'invalid'`` — one or more real ``.nfo`` files are present but none is
+      content-valid (unparseable / truncated / no non-placeholder ``<uniqueid>``).
+    - ``'missing'`` — no real ``.nfo`` file found.
     - ``None`` — the directory scan raised an :exc:`OSError` (transient permission
       error or filesystem hiccup); the caller must skip the DB column update so that
       previously-valid data is not overwritten.
@@ -261,14 +217,15 @@ def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"]
         parent_dir: Absolute path of the directory to inspect.
 
     Returns:
-        ``'valid'`` if any ``.nfo`` file exists in *parent_dir*, ``'missing'`` if
-        none are found, or ``None`` when the directory is not readable.
+        ``'valid'`` / ``'invalid'`` / ``'missing'`` per the above, or ``None`` when
+        the directory is not readable.
     """
     try:
-        with os.scandir(parent_dir) as it:
-            for entry in it:
-                if entry.name.lower().endswith(".nfo"):
-                    return "valid"
+        candidates = [
+            Path(entry.path)
+            for entry in _list_dir_entries(parent_dir)
+            if entry.name.lower().endswith(".nfo") and not is_apple_double(entry.name)
+        ]
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -278,7 +235,54 @@ def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"]
             error_type=type(exc).__name__,
         )
         return None
-    return "missing"
+    if not candidates:
+        return "missing"
+    if any(_core_nfo_status(nfo).complete for nfo in candidates):
+        return "valid"
+    return "invalid"
+
+
+def _refresh_trailer_found(
+    conn: sqlite3.Connection,
+    item_id: int,
+    item_dir: Path,
+    media_type: Literal["movie", "tvshow"],
+) -> None:
+    """Reconcile the derived ``trailer_found`` attribute from the on-disk trailer (P6.4).
+
+    The filesystem is the single truth for trailer existence (constitution P26);
+    the ``trailer_found`` item attribute is a DERIVED index. This reads the P5
+    completeness read-model — the T4 seam
+    :func:`personalscraper.core.completeness.media_completeness`, the sole owner of
+    the on-disk trailer-placement rule — and reconciles the index on every enrich
+    pass:
+
+    * trailer present on disk → ensure a ``trailer_found`` row exists. An existing
+      precise path written by the download outbox is preserved (``DO NOTHING`` on
+      conflict); a fresh row records the media directory as an FS-detected marker —
+      only *presence* is load-bearing (``find_items_without_trailer`` tests the
+      attribute's existence, not its value).
+    * trailer absent on disk → DELETE any ``trailer_found`` row, so a trailer
+      deleted on disk flips the derived index on the next enrich pass.
+
+    Args:
+        conn: Open SQLite connection (caller is responsible for committing).
+        item_id: PK of the owning ``media_item``.
+        item_dir: The media directory whose trailer placement is probed (movie
+            dir, or show root for TV shows).
+        media_type: ``"movie"`` or ``"tvshow"`` — drives the Plex placement rule.
+    """
+    if _media_completeness(item_dir, media_type).has_trailer:
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'trailer_found', ?) "
+            "ON CONFLICT(item_id, key) DO NOTHING",
+            (item_id, str(item_dir)),
+        )
+    else:
+        conn.execute(
+            "DELETE FROM item_attribute WHERE item_id = ? AND key = 'trailer_found'",
+            (item_id,),
+        )
 
 
 def _enrich_one_file(
@@ -381,8 +385,13 @@ def _enrich_one_file(
     # Sidecar folders (.actors/, Extras/, etc.) are skipped: their absence of
     # NFO/artwork must not overwrite the correct state set by sibling files. ---
     if item_id is not None and parent_dir is not None:
+        # ``cache_miss`` is True whenever the NFO/artwork scan ran fresh for this
+        # directory — i.e. once per item directory per pass (or every call when no
+        # cache is supplied). The trailer-presence refresh piggybacks it so a
+        # folder with one video and ten sidecars pays the completeness probe once.
         if nfo_artwork_cache is not None and parent_dir in nfo_artwork_cache:
             nfo_status, artwork = nfo_artwork_cache[parent_dir]
+            cache_miss = False
         else:
             from personalscraper.indexer.scanner import _modes as modes_api  # noqa: PLC0415
 
@@ -390,17 +399,20 @@ def _enrich_one_file(
             artwork = modes_api._inventory_artwork(parent_dir)
             if nfo_artwork_cache is not None:
                 nfo_artwork_cache[parent_dir] = (nfo_status, artwork)
+            cache_miss = True
 
         # Categories that do not use the Kodi NFO convention (audiobooks
         # have no ``movie.nfo`` / ``tvshow.nfo`` equivalent) must not be
         # flagged as ``missing`` just because no .nfo file is present.
         # Suppress the NFO update in that case so ``nfo_status`` stays
         # NULL — interpreted as "not applicable" by readers.
-        cat_row = conn.execute(
-            "SELECT category_id FROM media_item WHERE id = ?",
+        meta_row = conn.execute(
+            "SELECT category_id, kind FROM media_item WHERE id = ?",
             (item_id,),
         ).fetchone()
-        if cat_row is not None and cat_row[0] in _NFO_NA_CATEGORIES:
+        category_id = meta_row[0] if meta_row is not None else None
+        kind = meta_row[1] if meta_row is not None else None
+        if category_id in _NFO_NA_CATEGORIES:
             nfo_status = None
 
         # Skip column updates when either scan returned None — a transient OS error
@@ -421,6 +433,17 @@ def _enrich_one_file(
                 "UPDATE media_item SET artwork_json = ? WHERE id = ?",
                 (artwork.model_dump_json(), item_id),
             )
+
+        # --- Trailer presence refresh (P6.4 single-truth / T4) ---
+        # Reconcile the derived ``trailer_found`` index from the on-disk trailer,
+        # once per item directory per pass. A trailer deleted on disk flips the
+        # index on the next enrich; a trailer that appeared gets it back.
+        if cache_miss and parent_dir is not None:
+            media_type = _TRAILER_MEDIA_TYPES.get(kind) if kind is not None else None
+            if media_type is not None:
+                from personalscraper.indexer.scanner import _modes as modes_api  # noqa: PLC0415
+
+                modes_api._refresh_trailer_found(conn, item_id, Path(parent_dir), media_type)
 
     # --- Step 4: OSHash retry (DEV #51) ---
     # Stage-A rows and rows where a previous hash attempt failed carry

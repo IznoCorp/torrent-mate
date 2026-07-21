@@ -6,18 +6,16 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import requests
-
-from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import TvDetailsProvider
 from personalscraper.api.metadata._tvdb_parsers import map_language
-from personalscraper.api.metadata.registry import AttemptOutcome, RegistryProviderName
+from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._drift_persistence import DriftIssueStore
+from personalscraper.scraper._match import run_chain
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper._tvdb_convert import (
     _tvdb_series_to_show_data as _tvdb_series_to_show_data,
@@ -25,6 +23,7 @@ from personalscraper.scraper._tvdb_convert import (
 from personalscraper.scraper._tvdb_convert import (
     fetch_show_data,
 )
+from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.episode_manager import (
     _file_season,
@@ -222,9 +221,8 @@ class TvServiceMixin:
     _strip_trailing_year: "Callable[[str], str]"
     _verify_existing_scrape: "Callable[..., tuple[bool, str]]"
     _check_missing_tvshow_artwork: "Callable[..., list[str]]"
-    _recover_tvshow_artwork: "Callable[..., None]"
     _repair_tvshow_dir: "Callable[..., bool]"
-    _generate_episode_nfos: Any  # from TvServiceNfoMixin (Phase 27.2 extraction)
+    _generate_episode_nfos: "Callable[..., list[str]]"  # from TvServiceNfoMixin (Phase 27.2 extraction)
     _write_confirmed_show: "Callable[..., ScrapeResult]"  # from TvServiceWriteMixin
 
     @staticmethod
@@ -326,7 +324,15 @@ class TvServiceMixin:
                             missing=missing_art,
                         )
                     else:
-                        self._recover_tvshow_artwork(nfo_path, show_dir, result)
+                        recover_artwork(
+                            nfo_path,
+                            show_dir,
+                            result,
+                            kind="tvshow",
+                            registry=self._registry,
+                            artwork=self._artwork,
+                            patterns=self.patterns,
+                        )
                 # Repair pass: remove residual NFOs, root MKV duplicates, etc.
                 repaired = self._repair_tvshow_dir(show_dir)
                 if repaired and result.action != "artwork_recovered":
@@ -366,23 +372,6 @@ class TvServiceMixin:
             drift_rescrape_episode_nfo=drift_rescrape_episode_nfo,
         )
 
-    def _match_tvshow_candidates(
-        self,
-        title: str,
-        year: int | None,
-        local_seasons: set[int],
-        result: ScrapeResult,
-    ) -> Any | None:
-        """Search the configured TV chain for candidates matching title + year.
-
-        Thin delegate to
-        :func:`personalscraper.scraper.tv_service_episodes.match_tvshow_candidates`
-        — see that function for the full chain-iteration / fallback contract.
-        """
-        from personalscraper.scraper.tv_service_episodes import match_tvshow_candidates  # noqa: PLC0415
-
-        return match_tvshow_candidates(self._registry, title, year, local_seasons, result)
-
     def _lookup_series(
         self,
         title: str,
@@ -392,22 +381,25 @@ class TvServiceMixin:
     ) -> tuple[Any, dict[str, Any], int | None, str] | None:
         """Match a TV show against the TV chain and fetch full series details.
 
-        Two-step lookup:
+        Two-step lookup, both driven by
+        :func:`personalscraper.scraper._match.run_chain` over
+        ``registry.chain(TvDetailsProvider)`` (SCRAPER-02):
 
-        1. ``_match_tvshow_candidates`` iterates
-           ``registry.chain(TvDetailsProvider)`` to find the best
-           :class:`MatchResult` (TVDB first then TMDB by default
-           configuration, with full chain fallback semantics).
-        2. Once a match is accepted (confidence ≥ ``LOW_CONFIDENCE``),
-           the details fetch iterates the same chain again but filters
-           to ``provider_name == match.source`` to honour the
+        1. **Match** — iterate the chain, matching each provider via
+           :func:`~personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed`
+           for the best :class:`MatchResult` + scored candidate list. TVDB is
+           tried before TMDB by default configuration and run_chain's
+           first-usable-result-wins semantics guarantee TVDB is never overridden
+           by TMDB (the strict TV rule). A TVDB failure (circuit/network/other)
+           or an empty TVDB result emits :class:`ProviderFallbackTriggered`
+           before TMDB is consulted — the same fallback observability movies
+           have; full exhaustion emits :class:`ProviderExhaustedEvent` and
+           surfaces a fail-soft ``result.error`` (ACC-13).
+        2. **Details** — once a match is accepted (confidence ≥
+           ``LOW_CONFIDENCE``) the details fetch iterates the same chain again
+           but filters to ``provider_name == match.source`` to honour the
            source-of-match invariant — cross-provider id translation
-           (TVDB ↔ TMDB) is owned by ``registry.cross_ref`` and lives
-           in sub-phase 7.4.
-
-        Per-provider failures during the details step emit
-        :class:`ProviderFallbackTriggered`; full exhaustion emits
-        :class:`ProviderExhaustedEvent` and populates ``result.error``.
+           (TVDB ↔ TMDB) is owned by ``registry.cross_ref``.
 
         Returns ``(match, show_data, tmdb_id, resolved_title)`` on
         success, ``None`` on failure (sets ``result.error`` /
@@ -422,39 +414,43 @@ class TvServiceMixin:
         Returns:
             Success tuple or ``None``.
         """
-        # Scrape-arbiter DESIGN §4: call the detailed variant to get both the
-        # best match and the scored candidate list for the three-tier trigger
-        # logic. TVDB is the primary provider; TMDB is a fallback only when
-        # TVDB returns no candidates. match_tvshow_detailed catches TVDB
-        # exceptions internally and falls through to TMDB; a TMDB exception
-        # propagates and is surfaced as a fail-soft ``result.error``.
+        # Scrape-arbiter DESIGN §4: call the detailed per-provider matcher to
+        # get both the best match and the scored candidate list for the
+        # three-tier trigger logic. run_chain owns the TVDB-first order (via
+        # the registry chain), the fallback event emission, and the
+        # ProviderExhausted raise on full failure (surfaced as a fail-soft
+        # ``result.error`` — ACC-13).
+        from personalscraper.scraper.tv_service_episodes import match_tvshow_single_detailed  # noqa: PLC0415
 
-        from personalscraper.scraper.confidence import match_tvshow_detailed  # noqa: PLC0415
+        item_context: dict[str, Any] = {"title": title, "year": year, "media_type": "tvshow"}
 
-        # Resolve TVDB and TMDB clients from the registry (fail-soft — a
-        # missing provider yields None, and match_tvshow_detailed handles
-        # both None branches gracefully).
-        try:
-            tvdb_client = self._registry.get("tvdb")
-        except Exception:
-            tvdb_client = None
-        try:
-            tmdb_client = self._registry.get("tmdb")
-        except Exception:
-            tmdb_client = None
+        def _attempt_match(provider: Any) -> tuple[Any, list[Any]] | None:
+            """Match one TV provider; ``None`` signals an empty result."""
+            best, cands = match_tvshow_single_detailed(provider, title, year, local_seasons=local_seasons)
+            if best is None:
+                return None
+            return best, cands
 
         try:
-            match, candidates = match_tvshow_detailed(
-                tvdb_client,
-                tmdb_client,
-                title,
-                year,
-                local_seasons=local_seasons,
-            )
-        except Exception as exc:
-            result.error = f"Match failed: {exc}"
+            matched = run_chain(self._registry, TvDetailsProvider, _attempt_match, item_context=item_context)
+        except ProviderExhausted as exc:
+            # Every eligible provider errored — run_chain already emitted
+            # ProviderExhaustedEvent. Preserve the legacy fail-soft shape: the
+            # last underlying exception detail carries into ``result.error``.
+            detail = exc.last_exception if exc.last_exception is not None else exc
+            result.error = f"Match failed: {detail}"
             result.action = "error"
             return None
+
+        match: Any
+        candidates: list[Any]
+        if matched is None:
+            # Empty chain / every provider returned an empty result → legacy
+            # "no confident match" path. ``classify_decision_trigger`` maps the
+            # (None, []) pair to ``below_threshold``.
+            match, candidates = None, []
+        else:
+            match, candidates = matched
 
         # Three-tier trigger logic delegates to the shared decision_triage
         # module (scrape-arbiter DESIGN §4). Only the log event names are
@@ -512,107 +508,49 @@ class TvServiceMixin:
             "media_type": "tvshow",
             "provider_id": match.api_id,
         }
-        tmdb_id: int | None = None
-        show_data: dict[str, Any] | None = None
-        details_attempted: list[AttemptOutcome] = []
-        details_providers = self._registry.chain(TvDetailsProvider)  # type: ignore[type-abstract]
-        for provider in details_providers:
-            provider_name = getattr(provider, "provider_name", "?")
-            # Honour the source-of-match invariant: only consult the
-            # provider that produced the MatchResult. Cross-provider
-            # translation lands in sub-phase 7.4.
-            if provider_name != match.source:
-                continue
-            try:
-                # Source-aware show-data fetch — the TVDB-primary / TMDB-fallback
-                # branch now lives once in fetch_show_data, shared with the
-                # maintenance rescraper so the discipline cannot diverge.
-                show_data, tmdb_id = fetch_show_data(
-                    match.source,
-                    match.api_id,
-                    provider,
-                    preferred_language=self._scraper_language,
-                    fallback_language=self._scraper_fallback_language,
-                )
-                break
-            except CircuitOpenError as exc:
-                details_attempted.append(
-                    AttemptOutcome(provider=RegistryProviderName(provider_name), reason="circuit_open")
-                )
-                self._registry.emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="circuit_open",
-                    item=details_item_context,
-                )
-                log.warning("show_details_circuit_open", provider=provider_name, error=str(exc))
-                continue
-            except (ApiError, requests.RequestException, OSError) as exc:
-                details_attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="network",
-                        detail=type(exc).__name__,
-                    )
-                )
-                self._registry.emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="network",
-                    exc_type=type(exc).__name__,
-                    item=details_item_context,
-                )
-                log.warning(
-                    "show_details_network_fail",
-                    provider=provider_name,
-                    exc_type=type(exc).__name__,
-                    error=str(exc),
-                )
-                continue
-            except Exception as e:
-                # Phase 21 + 26.2: ANY unclassified exception during details
-                # fetch is treated as a chain fallback per DESIGN §6.2.
-                # Aligns with the broader ``except Exception`` already used
-                # by movie_service.py:857.
-                details_attempted.append(
-                    AttemptOutcome(
-                        provider=RegistryProviderName(provider_name),
-                        reason="other",
-                        detail=type(e).__name__,
-                    )
-                )
-                self._registry.emit_provider_fallback(
-                    capability="TvDetailsProvider",
-                    from_provider=provider_name,
-                    reason="other",
-                    exc_type=type(e).__name__,
-                    item=details_item_context,
-                )
-                log.warning(
-                    "show_details_failed",
-                    provider=provider_name,
-                    exc_type=type(e).__name__,
-                    error=str(e),
-                )
-                continue
 
+        def _fetch_details(provider: Any) -> tuple[dict[str, Any] | None, int | None]:
+            """Fetch full show data from the source-of-match provider.
+
+            The TVDB-primary / TMDB-fallback branch lives once in
+            ``fetch_show_data``, shared with the maintenance rescraper so the
+            discipline cannot diverge.
+            """
+            return fetch_show_data(
+                match.source,
+                match.api_id,
+                provider,
+                preferred_language=self._scraper_language,
+                fallback_language=self._scraper_fallback_language,
+            )
+
+        def _is_source(provider: Any) -> bool:
+            # Honour the source-of-match invariant: only consult the provider
+            # that produced the MatchResult. Cross-provider translation is owned
+            # by ``registry.cross_ref``.
+            return bool(getattr(provider, "provider_name", "?") == match.source)
+
+        try:
+            fetched = run_chain(
+                self._registry,
+                TvDetailsProvider,
+                _fetch_details,
+                item_context=details_item_context,
+                source_filter=_is_source,
+            )
+        except ProviderExhausted:
+            # Every source-matching provider errored — run_chain already emitted
+            # ProviderExhaustedEvent + logged ``registry_chain_exhausted``.
+            result.error = f"Get details failed: all providers exhausted for {TvDetailsProvider.__name__}"
+            return None
+
+        show_data: dict[str, Any] | None = fetched[0] if fetched is not None else None
+        tmdb_id: int | None = fetched[1] if fetched is not None else None
         if show_data is None:
-            if details_attempted:
-                self._registry.emit_provider_exhausted(
-                    capability="TvDetailsProvider",
-                    attempted=details_attempted,
-                    item=details_item_context,
-                )
-                log.error(
-                    "registry_chain_exhausted",
-                    capability="TvDetailsProvider",
-                    attempted=[(a.provider, a.reason) for a in details_attempted],
-                    item=details_item_context,
-                )
-                result.error = f"Get details failed: all providers exhausted for {TvDetailsProvider.__name__}"
-            else:
-                result.error = f"Get details failed: no provider available for source={match.source!r}"
-                log.error("show_details_no_provider", api_title=match.api_title, source=match.source)
+            # No provider matched ``match.source`` (all filtered out), or the
+            # source provider returned no show data.
+            result.error = f"Get details failed: no provider available for source={match.source!r}"
+            log.error("show_details_no_provider", api_title=match.api_title, source=match.source)
             return None
 
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, show_data, "tvshow"))
@@ -773,58 +711,6 @@ class TvServiceMixin:
         from personalscraper.scraper.tv_service_episodes import xref_fetch_tvdb_season  # noqa: PLC0415
 
         return xref_fetch_tvdb_season(self._registry, tvdb_id, season)
-
-    def _resolve_external_ids(
-        self,
-        canonical_provider: str,
-        series_ids: dict[str, str],
-        expected_title: str,
-        expected_year: int | None,
-    ) -> tuple[dict[str, str], list[Notations]]:
-        """Resolve trusted cross-provider IDs + series-level ratings (Q5=B).
-
-        Thin delegate to
-        :func:`personalscraper.scraper._xref.resolve_external_ids` —
-        see that function for the full contract.
-        """
-        from personalscraper.scraper._xref import resolve_external_ids as _resolve  # noqa: PLC0415
-
-        return _resolve(
-            canonical_provider=canonical_provider,
-            ids=series_ids,
-            expected_title=expected_title,
-            expected_year=expected_year,
-            family_to_client=self._family_to_client,
-            imdb_client=getattr(self, "_imdb", None),
-            rt_client=getattr(self, "_rotten_tomatoes", None),
-        )
-
-    def _family_to_client(self, family: str) -> Any | None:
-        """Map a provider family name to the wired client / façade (or ``None``).
-
-        Transitional access via the registry (Phase 1 — DESIGN §5.2). The
-        registry raises ``UnknownProviderError`` for names it does not know;
-        we treat that as ``None`` to preserve the legacy fail-soft contract.
-        """
-        from personalscraper.api.metadata.registry._errors import UnknownProviderError  # noqa: PLC0415
-
-        if family in {"tmdb", "tvdb"}:
-            try:
-                return self._registry.get(family)
-            except UnknownProviderError as e:
-                # If boot validation passed but we reach here, this is a runtime
-                # contract violation worth a forensic anchor (the registry's
-                # config should already have caught an unwired family).
-                log.warning(
-                    "xref_family_unwired",
-                    family=family,
-                    exc_type=type(e).__name__,
-                )
-                return None
-        mapping: dict[str, Any] = {
-            "imdb": getattr(self, "_imdb", None),
-        }
-        return mapping.get(family)
 
     def _ordered_episode_providers(
         self,

@@ -10,7 +10,7 @@ import transmission_rpc
 from personalscraper.api.torrent._base import TorrentLimits, TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder, TorrentLimiter
 from personalscraper.api.torrent._errors import UnsupportedCapabilityError
-from personalscraper.api.torrent.transmission import TransmissionClient, _labels
+from personalscraper.api.torrent.transmission import TransmissionClient, _labels, _split_labels
 
 MAGNET = "magnet:?xt=urn:btih:aabbcc112233ddeeff00112233445566778899aa&dn=t"
 
@@ -145,19 +145,39 @@ class TestTransmissionAdd:
         c.add(TorrentSource.from_magnet(MAGNET))
         assert c._client.add_torrent.call_args[1]["labels"] == []
 
-    def test_category_none_with_tags_raises(self):
-        """category=None + non-empty tags raises ValueError (D5 round-trip guard, review #6).
+    def test_category_none_with_tags_uses_sentinel(self):
+        """category=None + non-empty tags adds via the "" sentinel (F-A, open item #8 FINAL).
 
-        labels=[category, *tags] cannot round-trip tags without a leading
-        category — the read side (_torrent_item) would promote the first tag to
-        category. Rather than silently mangle the labels, add() rejects the
-        unrepresentable combination.
+        The formerly-raised ``UnsupportedCapabilityError`` is gone: add() emits
+        the same ``["", *tags]`` sentinel that add_tags writes and _split_labels
+        decodes. Mutation-proof: the OLD guard raised before any RPC, so this
+        test (which asserts add_torrent WAS called with the sentinel labels)
+        fails on the pre-fix code and passes only after the guard is removed.
         """
         c = _c()
         c._client.add_torrent.return_value = _mock_torrent()
-        with pytest.raises(ValueError, match="non-None category"):
-            c.add(TorrentSource.from_magnet(MAGNET), category=None, tags=["action"])
-        c._client.add_torrent.assert_not_called()  # rejected before any RPC
+        result = c.add(TorrentSource.from_magnet(MAGNET), category=None, tags=["action"])
+        # Write side: the tag lands behind the "" sentinel (labels[0] == "").
+        assert c._client.add_torrent.call_args[1]["labels"] == ["", "action"]
+        # Return contract unchanged (D6): source info_hash.
+        assert result == TorrentSource.from_magnet(MAGNET).info_hash
+
+    def test_category_none_with_tags_round_trips_via_read_side(self):
+        """add(category=None, tags=[...]) → sentinel labels → _split_labels recovers (None, tags).
+
+        Proves the full add→read round-trip integrity the sentinel guarantees:
+        the "" category is decoded back to None (never leaks as a category) and
+        the tags stay readable as tags (seed-pure readable — the ingest skip's
+        contract).
+        """
+        c = _c()
+        c._client.add_torrent.return_value = _mock_torrent()
+        c.add(TorrentSource.from_magnet(MAGNET), category=None, tags=["seed-pure", "extra"])
+        written_labels = c._client.add_torrent.call_args[1]["labels"]
+        category, tags = _split_labels(written_labels)
+        assert category is None
+        assert tags == ["seed-pure", "extra"]
+        assert "seed-pure" in tags  # ingest SEED_PURE skip stays satisfiable
 
 
 class TestLabelsHelper:
@@ -192,20 +212,21 @@ class TestLabelsHelper:
             ("movies", ["hd", "fr"]),
             ("movies", []),
             (None, []),
+            (None, ["hd", "fr"]),  # sentinel case — F-A, now representable (open item #8)
+            (None, ["seed-pure"]),  # the exact shape the ingest skip depends on
         ],
     )
-    def test_d5_round_trip_stable_for_supported_inputs(self, category, tags):
-        """D5 round-trip is stable for the supported inputs (review #6).
+    def test_d5_round_trip_stable_for_all_inputs(self, category, tags):
+        """D5/F-A round-trip is stable for EVERY category/tags combination.
 
-        Write labels via _labels, then read them back with the exact formula
-        used by _torrent_item (category=labels[0] if labels else None;
-        tags=labels[1:]). For every input add() accepts (category present, or
-        category=None with no tags), the round-trip recovers the original
-        category/tags. The one unrepresentable case (category=None + tags) is
-        rejected by add() — see test_category_none_with_tags_raises.
+        Write labels via _labels, then read them back with the PRODUCTION read
+        formula — ``_split_labels`` (the exact function _torrent_item uses), NOT
+        the legacy naive ``labels[0]`` peek. The category-less-with-tags case
+        (the "" sentinel) now round-trips just like the others: category recovers
+        as None and the tags stay tags. This replaces the pre-fix test that
+        excluded the sentinel case because it read labels[0] raw (open item #8).
         """
         labels = _labels(category, tags)
-        read_category = labels[0] if labels else None
-        read_tags = list(labels[1:]) if len(labels) > 1 else []
+        read_category, read_tags = _split_labels(labels)
         assert read_category == category
         assert read_tags == tags

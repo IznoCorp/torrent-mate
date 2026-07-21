@@ -21,11 +21,10 @@ from typing import (
     overload,
 )
 
-from personalscraper.api._contracts import ApiError, CircuitOpenError, Named
+from personalscraper.api._contracts import Named
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
-    IDCrossRef,
     IDValidator,
     KeywordProvider,
     MovieDetailsProvider,
@@ -130,7 +129,7 @@ class Mode(StrEnum):
 ChainCapability = Searchable | MovieDetailsProvider | TvDetailsProvider | EpisodeFetcher
 FanOutCapability = RatingProvider
 LockedCapability = ArtworkProvider | KeywordProvider | VideoProvider | RecommendationProvider
-DirectCapability = IDValidator | IDCrossRef
+DirectCapability = IDValidator
 
 # ---------------------------------------------------------------------------
 # Frozen dataclasses (DESIGN §5.3)
@@ -180,7 +179,6 @@ class ConfigIssue:
         "unknown_provider",
         "empty_chain_section",
         "locked_capability_orphan",
-        "idcrossref_cycle",
     ]
     section: str
     provider: RegistryProviderName | None
@@ -475,12 +473,17 @@ class ProviderRegistry:
         match: ProviderMatch,
     ) -> LockedProvider[_R] | None: ...
     def locked(self, capability, match):  # type: ignore[no-untyped-def]
-        """Provider bound to match's id (IDCrossRef escape if needed).
+        """Provider bound to match's id — match's own provider only.
 
         Algorithm (DESIGN §6.4):
-            1. Try match's own provider.
-            2. Walk capability's index translating IDs via cross_ref.
-            3. Return None + emit LockedCapabilityUnresolved if nothing found.
+            1. Try match's own provider (must implement the capability and
+               be circuit-eligible).
+            2. Return None + emit LockedCapabilityUnresolved otherwise.
+
+        Cross-provider ID translation was removed (API-TRANSPORT-03): its
+        only implementation returned an empty mapping, so the translation
+        branch could never bind a provider. Cross-provider ID resolution
+        now lives in the external-ids flow, upstream of this call.
 
         Raises:
             WrongSemanticBug: if capability is not a locked capability.
@@ -502,32 +505,7 @@ class ProviderRegistry:
                 translated_via=None,
             )
 
-        # 2. Chain fallback with IDCrossRef
-        for candidate_name in self._index.get(capability, []):
-            if candidate_name == match.provider:
-                continue  # already tried in step 1
-            candidate = self._providers.get(candidate_name)
-            if candidate is None or not isinstance(candidate, capability):
-                continue
-            if not _eligible(candidate):
-                continue
-            xref_id = self.cross_ref(match, target=candidate_name)
-            if xref_id is None:
-                continue
-            log.debug(
-                "registry_locked_xref",
-                source_provider=match.provider,
-                target_provider=candidate_name,
-                xref_id=xref_id,
-            )
-            return _make_locked(
-                provider=candidate,
-                bound_id=xref_id,
-                source_match=match,
-                translated_via=match.provider,
-            )
-
-        # 3. Nothing found
+        # 2. Nothing found — no cross-provider translation path exists
         self._event_bus_safe_emit(
             LockedCapabilityUnresolved(
                 capability=capability.__name__,
@@ -554,53 +532,10 @@ class ProviderRegistry:
             raise UnknownProviderError(provider_name)
         return cast(Named, self._providers[provider_name])
 
-    def cross_ref(
-        self,
-        match: ProviderMatch,
-        *,
-        target: str,
-    ) -> str | None:
-        """Translate match's id to target provider's id space via IDCrossRef.
-
-        Returns target-provider id, or None if no translation path exists:
-        - target not in IDCrossRef section
-        - match.provider has no IDCrossRef implementation
-        - IDCrossRef call returns no entry for target / raises
-        """
-        if target == match.provider:
-            return match.id
-
-        source_provider = self._providers.get(match.provider)
-        if source_provider is None:
-            return None
-        if not isinstance(source_provider, IDCrossRef):
-            return None
-        try:
-            xref_dict = source_provider.get_cross_refs(match.id)
-            return xref_dict.get(target)
-        except (ApiError, CircuitOpenError) as e:
-            log.warning(
-                "registry_cross_ref_failed",
-                source_provider=match.provider,
-                target_provider=target,
-                exc_type=type(e).__name__,
-            )
-            self._event_bus_safe_emit(
-                ProviderFallbackTriggered(
-                    capability="IDCrossRef",
-                    from_provider=match.provider,
-                    to_provider="",
-                    reason="network",
-                    exc_type=type(e).__name__,
-                    item={},
-                )
-            )
-            return None
-
     # --- Introspection ---
 
     def operations(self) -> dict[type, Mode]:
-        """Capability → Mode map. Includes Mode.DIRECT for IDValidator/IDCrossRef."""
+        """Capability → Mode map. Includes Mode.DIRECT for IDValidator."""
         return {capability: mode_for(capability) for capability in CAPABILITY_KEYS.values()}
 
     def status(self) -> dict[str, ProviderStatus]:

@@ -14,8 +14,10 @@ import personalscraper.verify.checks  # trigger registration  # noqa: F401
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.naming_patterns import PATTERNS
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.verify.checks.base import CheckContext, CheckStage
 from personalscraper.verify.checks.registry import registry
 
@@ -76,12 +78,18 @@ def check_coherence(
     config: Config,
     dry_run: bool = False,
     only: frozenset[str] | None = None,
+    *,
+    bus: EventBus,
 ) -> list[CoherenceResult]:
     """Check cross-step coherence for all staging items.
 
     Iterates over every media directory in {movies_dir} and {tvshows_dir},
     verifying sort/process coherence and NFO metadata consistency.
     This function is read-only — it never modifies the filesystem.
+
+    F8 real lifecycle: an ``ItemProgressed(status="started")`` is emitted on
+    *bus* for each media directory BEFORE its coherence checks run. The terminal
+    ``ItemProgressed`` is recorded by ``run_enforce`` from the returned results.
 
     Args:
         settings: Pipeline configuration (reserved for future use).
@@ -90,6 +98,7 @@ def check_coherence(
         only: Optional allow-set of check names restricting the run to the
             named STAGING-stage checks. ``None`` (default) runs every check —
             byte-identical to the pre-filter behavior.
+        bus: Required in-process EventBus for the per-item ``started`` events.
 
     Returns:
         List of CoherenceResult, one per media directory found.
@@ -102,12 +111,14 @@ def check_coherence(
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
+                bus.emit(ItemProgressed(step="enforce", item=folder.name, status="started"))
                 results.append(_coherence_for(folder, "movie", config, only))
 
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
+                bus.emit(ItemProgressed(step="enforce", item=folder.name, status="started"))
                 results.append(_coherence_for(folder, "tvshow", config, only))
 
     return results

@@ -41,10 +41,11 @@ staging/
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
 ├── personalscraper/     # Python package
-│   ├── acquire/         # Acquisition lobe — 4-table SQLite store (RP3) + delete authority + event catalog (RP4)
+│   ├── acquire/         # Acquisition lobe — own acquire.db SQLite store (RP3) + delete authority + event catalog (RP4). See the acquire/ chapter.
 │   │   ├── domain.py           # Frozen VOs: FollowedSeries, WantedItem, SeedObligation, RatioState
-│   │   ├── events.py           # Event catalog (RP4): 10 frozen Event subclasses for Follow/Grab/Seed/Ratio
-│   │   ├── store.py            # ConcreteAcquireStore — 4 sub-stores, lazy-open, lock-free reads;
+│   │   ├── events.py           # Event catalog (RP4): 15 frozen Event subclasses for Follow/Grab/Seed/Ratio/Tracker/Watcher/CrossSeed
+│   │   ├── store.py            # ConcreteAcquireStore — 6 sub-stores, lazy-open, lock-free reads;
+│   │   │                         # (wanted/watch/aired sub-stores live in own _*_store.py modules)
 │   │   │                         # _FollowSubStore: find_by_ref/list_active/list_all/set_active (Follow D1 CRUD)
 │   │   ├── delete_authority.py # DeleteAuthority: DeletePermit + SeedObligationRecorder impl (fail-open)
 │   │   ├── _factory.py         # build_acquire_context (fills store= + delete_authority=)
@@ -96,6 +97,9 @@ staging/
 │   │   ├── media_types.py       # Shared media-type constants: VIDEO_EXTENSIONS, FileType, is_trailer_filename (canonical home — promoted from sorter/file_type.py in arch-cleanup-2)
 │   │   ├── circuit.py           # CircuitBreaker (reused by API transport + indexer disk breaker)
 │   │   ├── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
+│   │   ├── completeness.py      # media_completeness()/nfo_status() — shared "is this scraped?" verdict (solidify)
+│   │   ├── artwork_naming.py    # artwork inventory/flags/status by filename — shared naming (solidify)
+│   │   ├── json_ttl_cache.py    # generic JSON-backed TTL cache (promoted from scraper/, solidify)
 │   │   ├── identity.py          # MediaRef — neutral provider-ID value object (tvdb primary)
 │   │   ├── tags.py              # Centralized tag vocabulary (SEED_PURE) — Seed Safety O1; imported by api/torrent, ingest, sorter, commands
 │   │   ├── delete_permit.py     # DeletePermit + SeedObligationRecorder Protocols + AllowAllPermit
@@ -107,24 +111,30 @@ staging/
 │   ├── scraper/         # NFO/artwork orchestration consuming api/metadata providers
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
 │   │   ├── movie_service.py     # movie scrape flow
-│   │   ├── tv_service.py        # TV show/episode scrape flow
+│   │   ├── tv_service.py        # TV show/episode scrape flow (split: _episodes/_nfo/_write)
+│   │   ├── tv_service_episodes.py / tv_service_nfo.py / tv_service_write.py  # TV sub-flows (solidify)
+│   │   ├── _match.py            # shared match core (solidify — decomposed from confidence)
+│   │   ├── _match_movie.py / _match_tv.py / _match_score.py  # per-type matching + scoring (solidify)
+│   │   ├── _xref.py             # cross-provider ID resolution — `_resolve_external_ids` home (solidify)
+│   │   ├── _writeback.py        # NFO/DB writeback of the scrape result (solidify)
+│   │   ├── _db_restore.py       # restore scrape decisions from the indexer DB (solidify)
+│   │   ├── _movie_convert.py / _tvdb_convert.py  # provider-payload → domain converters (solidify)
+│   │   ├── decision_candidate.py / decision_triage.py / decision_writer.py  # interactive scrape-decision queue
 │   │   ├── nfo_generator.py     # NFO file writer (Kodi-compliant XML)
 │   │   ├── artwork.py           # poster + background download (TMDB/TVDB)
-│   │   ├── confidence.py        # fuzzy match confidence scoring
+│   │   ├── confidence.py        # fuzzy match confidence scoring (thinned by the _match split)
 │   │   ├── mediainfo.py         # ffprobe wrapper + ISO 639-2 codec/lang mapping
 │   │   ├── rename_service.py    # rename helpers
-│   │   ├── existing_validator.py # existing NFO/artwork validation
+│   │   ├── existing_validator.py # existing NFO/artwork validation (+_drift/_repair helpers)
 │   │   ├── classifier.py        # media item classification adapter
 │   │   ├── episode_manager.py   # episode renumber + phantom-season remap
 │   │   ├── keywords_cache.py    # TMDB keyword lookup cache
 │   │   ├── run.py               # scrape step entry point
 │   │   ├── scraper.py           # legacy scraper compositor (post-decomposition thin wrapper)
-│   │   ├── _shared.py           # internal shared helpers
-│   │   ├── json_ttl_cache.py    # JSON-backed TTL cache for YouTube search results
-│   │   ├── youtube_search.py    # YouTube Data API v3 quota-aware search
-│   │   ├── trailer_finder.py    # Two-tier TMDB/YouTube trailer URL discovery
-│   │   ├── ytdlp_downloader.py  # yt-dlp wrapper with retry and cookie support
-│   │   └── trailers_cache.py    # Per-media trailer URL TTL cache
+│   │   └── _shared.py / _drift_persistence.py  # internal shared helpers + drift persistence
+│   │   Note: trailer URL discovery moved OUT of scraper/ to `trailers/discovery/`
+│   │   (youtube_search, trailer_finder, ytdlp_downloader, trailers_cache) and the
+│   │   generic JSON TTL cache to `core/json_ttl_cache.py` (solidify).
 │   ├── process/         # reclean, dedup, cleanup (between sort and scrape)
 │   ├── enforce/         # file sanitizer, structure validator, coherence checker
 │   ├── indexer/         # SQLite-backed media index — scan, drift, repair, query, outbox
@@ -132,8 +142,11 @@ staging/
 │   │   ├── db.py                # connection, WAL PRAGMAs, lock, migrations applier
 │   │   ├── schema.py            # frozen dataclass row types + Pydantic JSON-column models
 │   │   ├── scanner/             # scan engine (os.scandir + ThreadPool, modes, checkpoint)
+│   │   │   ├── _scan_orchestrator.py # top-level scan driver — owns the mode → walk → write flow (solidify)
+│   │   │   ├── _mode_dispatch.py     # ScanMode → handler dispatch (solidify — split from scanner.py)
 │   │   │   ├── _modes/          # ScanMode enum + full/quick/incremental/enrich/verify/backfill handlers
 │   │   │   ├── _walker.py       # recursive dir walker + dir-mtime skip
+│   │   │   ├── _merkle_gate.py  # per-disk Merkle-root fast-skip gate (solidify — split from scanner.py)
 │   │   │   ├── _db_writes.py    # batch upserts into media_file + path tables
 │   │   │   ├── _checkpoint.py   # crash-resume checkpoint read/write
 │   │   │   ├── _concurrency.py  # ThreadPoolExecutor wiring
@@ -141,7 +154,7 @@ staging/
 │   │   │   ├── _spotlight.py    # macOS Spotlight availability probe
 │   │   │   ├── _index_ddl.py    # per-scan WAL index creation
 │   │   │   ├── _shutdown.py     # SIGTERM handler + budget guard
-│   │   │   └── _types.py        # internal ScanContext / FileVisit types
+│   │   │   └── _types.py        # internal ScanContext / FileVisit / ScanRequest (scan-request VO, solidify)
 │   │   ├── drift.py             # racy-mtime rule, N-strikes soft-delete, rename detection
 │   │   ├── fingerprint.py       # OSHash + xxh3_64 partial + racy detection
 │   │   ├── mediainfo.py         # pymediainfo wrapper, normalised stream extraction
@@ -159,11 +172,8 @@ staging/
 │   │   ├── release_linker.py    # release-to-item linker
 │   │   ├── _macos_io.py         # macOS-specific I/O helpers (diskutil, volume UUID)
 │   │   ├── _throttle.py         # token-bucket I/O rate limiter
-│   │   ├── migrations/          # numbered .sql files + applier
-│   │   │   ├── 001_init.sql
-│   │   │   ├── 002_nullable_release_id_oshash.sql
-│   │   │   ├── 003_repair_queue_pending_dedup.sql
-│   │   │   └── 004_extend_media_stream.sql
+│   │   ├── migrations/          # 15 numbered .sql files (001_init … 015_destructive_op) + applier
+│   │   │   ├── 001_init.sql … 015_destructive_op.sql  # shipped in the wheel via pyproject package-data
 │   │   └── repos/               # one Repository class per entity group
 │   │       ├── disk_repo.py     # disk + path tables
 │   │       ├── item_repo.py     # media_item + item_attribute (flex attrs)
@@ -175,15 +185,25 @@ staging/
 │   ├── insights/        # (new in 0.19.0) read-only analytics over the indexer DB: analytics, reporter, recommender, models
 │   ├── maintenance/     # (new in 0.19.0) operator upkeep: disk_cleaner (FS deletes), rescraper (targeted re-scrape)
 │   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks, library_checks (validator re-home, new in 0.19.0)
-│   ├── dispatch/        # disk scanner, media index, transfer helpers, movie/tv dispatch
+│   ├── dispatch/        # movie/tv dispatch — disk scanner, media index, transfer helpers
+│   │   ├── _item.py             # per-item dispatch unit (solidify — decomposed from dispatcher.py)
+│   │   ├── crash_recovery.py    # _tmp_dispatch_ orphan recovery / idempotent resume (solidify)
+│   │   ├── _movie.py / _tv.py / _transfer.py / _identity.py / _types.py  # dispatch internals
+│   │   └── dispatcher.py / run.py / disk_scanner.py / media_index.py / post_maintenance.py / events.py
+│   ├── trailers/        # trailer discovery + download (Plex-conformant placement)
+│   │   ├── discovery/           # youtube_search, trailer_finder, ytdlp_downloader, trailers_cache (moved from scraper/, solidify)
+│   │   ├── orchestrator.py / scanner.py / state.py / placement.py / step.py / cli.py / events.py
+│   ├── web/             # TorrentMate web UI backend (FastAPI daemon) — see the web/ chapter
+│   ├── subscribers/     # EventBus subscribers (redis_stream RedisEventPublisher, telegram, acquire)
+│   ├── events/          # cross-package event re-exports (pipeline_events registry surface)
 │   ├── pipeline.py      # sequential 9-step pipeline orchestrator
 │   ├── pipeline_protocol.py # PipelineStep protocol + StepContext
-│   ├── pipeline_steps.py # default step registry + legacy override shim
-│   ├── reports/         # typed StepReport.details_payload contracts
+│   ├── pipeline_steps.py # default step registry + legacy override shim (STEP_TO_STAGE agreement)
+│   ├── reports/         # typed StepReport.details_payload contracts (per-step) + _validate.py (shared validators)
 │   ├── cli.py           # Typer CLI entry point
 │   ├── cli_app.py       # Typer app instance
 │   ├── cli_state.py     # CLI state management
-│   ├── cli_helpers.py   # CLI helper utilities
+│   ├── cli_helpers/     # CLI helper package — boundary.py (per_step_boundary + _build_app_context), output.py
 │   ├── io_utils.py      # I/O helper functions
 │   ├── config.py        # pydantic-settings
 │   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
@@ -250,8 +270,10 @@ Notes:
   re-downloading trailers for shows already present in the permanent library
   (library-aware idempotence, DESIGN section 8 / §10.3). The previous TTL-cached
   filesystem walk was removed in the media-indexer feature.
-- The new scraper modules (`json_ttl_cache`, `youtube_search`, `trailer_finder`,
-  `ytdlp_downloader`, `trailers_cache`) are independent of the existing TMDB/TVDB scraper.
+- Trailer URL discovery lives in `trailers/discovery/` (`youtube_search`,
+  `trailer_finder`, `ytdlp_downloader`, `trailers_cache`) — moved out of `scraper/`
+  in solidify — and is independent of the existing TMDB/TVDB metadata scraper. The
+  generic JSON TTL cache these use was promoted to `core/json_ttl_cache.py`.
 
 ## `insights/` Package (new in 0.19.0)
 
@@ -479,7 +501,7 @@ instantiating the registry:
 
 - `chain(capability)` — ordered list of eligible providers (CLOSED or HALF_OPEN). For chain capabilities (Searchable, MovieDetailsProvider, TvDetailsProvider, EpisodeFetcher).
 - `fan_out(capability)` — all eligible providers, in config order. For aggregation capabilities (RatingProvider). Always emits `RegistryFanOutCompleted`.
-- `locked(capability, match)` — provider bound to the match's id, with `IDCrossRef` escape for cross-provider id translation. For identity-locked capabilities (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider).
+- `locked(capability, match)` — provider bound to the match's id (the match's own provider only; returns `None` if it can't serve, no cross-provider translation). For identity-locked capabilities (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider).
 
 ### Configuration
 
@@ -510,7 +532,12 @@ The five provider-registry events (`ProviderFallbackTriggered`,
 `RegistryFanOutCompleted`, `RegistryBootValidated`) are full `Event`
 subclasses as of arch-cleanup-2 (v0.17.0). They are auto-registered in
 `_EVENT_CLASS_REGISTRY`, envelope-round-trippable, and delivered to
-base-`Event` subscribers. The event catalog count is 23.
+base-`Event` subscribers. The event catalog count is **41** — the number of
+concrete `Event` subclasses auto-registered in `_EVENT_CLASS_REGISTRY`
+(`grep -c "class \w\+(Event)"` across `personalscraper/`, cross-checked against the
+runtime registry). This spans the pipeline lifecycle, circuit-breaker, provider,
+scanner/dispatch and the 15 acquisition-lobe events (see the [`acquire/`
+chapter](#acquire-subsystem)).
 
 ### See also
 
@@ -600,21 +627,187 @@ This replaces the previous lazy-per-step `build_active_torrent_client()` calls
 in `ingest/ingest.py` and `commands/pipeline.py`, which now read
 `ctx.torrent_client` directly.
 
+## `web/` Subsystem
+
+The `personalscraper/web/` package is the TorrentMate web management UI backend —
+a **single** async FastAPI daemon (`personalscraper web`) that supervises the
+otherwise-synchronous pipeline engine. It is ~14.5 K LOC in-tree and is the only
+HTTP server in the codebase. Full topology, auth, WS protocol, deploy runbook and
+REST conventions live in [`web-ui.md`](web-ui.md); the constitution it must serve
+is [`product-intent.md`](product-intent.md) (binding). This chapter states the
+lobe's role, boundaries and seams.
+
+### One server, sync engine
+
+- The engine stays **fully synchronous, one process per command**. The web daemon
+  (uvicorn) is the sole exception; there is no other embedded server.
+- **Only the WS relay is async** (`web/ws/relay.py` on `redis.asyncio`). Every REST
+  handler is a plain `def` run in FastAPI's threadpool, calling the sync domain
+  directly. The sync engine is never imported into async paths beyond the uvicorn
+  boundary.
+- **Composition root**: `_build_app_context(config, settings)` (the same
+  `cli_helpers` root every command uses) builds the context; `create_app(config,
+  settings)` (`web/app.py`) receives the already-built context and stores it on
+  `app.state`. This is the AppContext boundary rule — routes read `app.state`, they
+  never rebuild a context.
+
+### `guarded_api` — the single auth perimeter
+
+`web/app.py` mounts one `APIRouter(dependencies=[Depends(require_session)])` named
+`guarded_api` and includes every protected router under it. The auth perimeter is
+this **single dependency** — never a per-route `Depends(require_session)`. Only
+`GET /api/health` (liveness) and `POST /api/auth/login` are public; `/api/version`
+sits inside the guard. Auth is single-user: a `tm_session` JWT (HS256) cookie over
+a scrypt password hash, with a sliding-window login rate limiter (`web/auth/`).
+
+### Staging read-only role
+
+The daemon runs in one of two roles via `PERSONALSCRAPER_WEB_ROLE` (default
+`"prod"`). In `"staging"`, `require_not_staging` (`web/deps.py`) returns `403` on
+every **mutating** endpoint. Each mutating route composes both
+`Depends(require_not_staging)` and `Depends(require_x_requested_with)`; read-only
+routes (e.g. `web/routes/staging.py` read-model) compose neither. Every mutating
+route is also **typed** (Pydantic `response_model` → `frontend/openapi.json` →
+`schema.d.ts`), so any route change needs `make openapi` + committing the
+regenerated files.
+
+### `_runner_engine` — long-running action supervisor
+
+`web/_runner_engine.py` is the shared spawn-and-stream substrate for every
+long-running web action (pipeline runs, maintenance actions, decision-resolve,
+acquisition downloads). It reserves a run row (`reserve_run_row`), spawns the CLI
+in a child process group (`RunnerSpec` / `run_spawn_stream`), streams stdout lines
+into a `RingBuffer` and onto Redis (`redis_publish_line`) for the WS relay, and
+tears the group down cleanly (`kill_child_group` / `terminate_quietly`). Each
+per-lobe `runner.py` (`web/{maintenance,decisions,acquisition}/runner.py`) drives
+this engine. A write/destructive action holds `pipeline.lock` for its runner's
+whole lifetime (see [`maintenance.md`](maintenance.md)); run timestamps are
+Unix-epoch `time.time()`.
+
+### WS relay + Redis event stream
+
+Producer processes (`personalscraper run / watch / grab / …`) publish EventBus
+events through `subscribers/redis_stream.py` (`RedisEventPublisher`, fail-soft)
+as envelopes `XADD`-ed to the Redis Stream `personalscraper:events`. The web
+daemon's `web/ws/relay.py` tails that stream (`redis.asyncio`), fans out to
+connected sockets and replays from a client-supplied `?last_id=` cursor on
+reconnect. `GET /ws/events` is auth-guarded by the same `tm_session` cookie.
+
+### Stage catalog — single source of truth
+
+`web/staging/stages.py` is the **ONE** source of truth for the Flow Board stage
+taxonomy and a staged media's position. `STAGE_DEFS` is the eight ordered stations
+(Arrivée · Tri · Nettoyage · Identification · Scraping · Trailers · Vérification ·
+Dispatch) mapping the real engine steps (`product-intent.md` §2 — honest labels,
+no invented "Staging" step). The **single-position axiom** (P0-A.1): a media in the
+staging area is at exactly one position (awaiting or blocked at one stage); board
+stocks, per-stage lists and the per-item timeline all derive from one
+`compute_position` verdict, so they never disagree. Agreement between this catalog
+(`STEP_TO_STAGE`) and the engine's `pipeline_steps` registry is enforced by tests.
+
+### Package layout
+
+```
+personalscraper/web/
+  app.py              # create_app(config, settings) → FastAPI (lifespan, guarded_api, SPA mount)
+  deps.py             # require_session, require_not_staging, require_x_requested_with, is_staging
+  _runner_engine.py   # spawn-and-stream substrate (RingBuffer, RunnerSpec, run_spawn_stream)
+  auth/               # routes, tokens (JWT), passwords (scrypt), ratelimit
+  ws/                 # relay (Redis tail + fan-out), routes (/ws/events)
+  routes/             # health, version, pipeline, maintenance, config, decisions,
+                      #   registry, staging, acquisition, acquisition_triggers
+  staging/            # stages.py (SoT), read_model, dispatch_preview, nfo (Flow Board)
+  acquisition/        # runner, service, completeness, downloads, truth (acq pages)
+  decisions/          # runner, reserve, search (interactive scraping)
+  maintenance/        # runner, service, registry, models (maint dashboard)
+  schedulers/         # registry (cron/schedule projection)
+  models/             # Pydantic response models per lobe (→ OpenAPI → schema.d.ts)
+  static.py, static/  # SPA mount + BUILD_COMMIT; static/ is the (gitignored) Vite build
+personalscraper/commands/web.py                # typer: `web` daemon + `web set-password`
+personalscraper/subscribers/redis_stream.py    # RedisEventPublisher (producer side)
+```
+
+## `acquire/` Subsystem
+
+The `personalscraper/acquire/` package is the **acquisition lobe** — the closed-loop
+half of the pipeline (follow series → detect wanted → grab torrents → track seed
+obligations & ratio). It is structurally isolated from the triage engine: its own
+`acquire.db` file, its own event set, and a hard import boundary. Grab-flow internals
+are in [`grab-core.md`](grab-core.md); the lock invariant is in
+`docs/features/acquire-store/lock-order.md`. This chapter states the lobe's role,
+boundaries, store and events.
+
+### Role & boundaries
+
+- **Import direction — downward only** (`api/`, `core/`, `conf/`, `events/`). `acquire/`
+  must **never** import a triage package (`ingest`, `sort`, `sorter`, `process`,
+  `scraper`, `dispatch`, `indexer`, `enforce`, `verify`, `insights`, `maintenance`,
+  `reports`, `trailers`, `pipeline`, `commands`). Enforced by the AST layering guard
+  (`tests/architecture/test_layering.py`).
+- **Ownership boundary (RP6)**: reads ownership via `ctx.acquire.ownership`
+  (`core.ownership.OwnershipChecker`); it never imports `personalscraper.indexer`.
+  The `IndexerOwnershipChecker` adapter lives in `indexer/` and is wired at the
+  composition root — same shape as the deletion authority (`core.delete_permit`).
+- **Delete authority**: `delete_authority.py` implements `DeletePermit` +
+  `SeedObligationRecorder` (fail-open) so triage can ask "may I delete this?" without
+  importing acquire internals.
+
+### Store — `acquire.db`
+
+`ConcreteAcquireStore` (`store.py`, over `core/sqlite`) backs one `acquire.db` file
+with six sub-store method namespaces on a single connection: `store.follow.*`,
+`store.wanted.*`, `store.seed.*`, `store.ratio.*`, `store.cross_seed.*`,
+`store.watch.*` (the larger sub-stores — wanted/watch/aired — live in their own
+`_*_store.py` modules to stay under the module-size ceiling). Concurrency matches
+the indexer precedent: cross-process single-writer via **WAL + `BEGIN IMMEDIATE`**
+(`_write_tx`) + `busy_timeout`, **reads are lock-free**, the `core` `db_lock` is a
+**brief migration-only leaf** taken only around open+migrate. `build_acquire_store`
+returns an inert lazy handle — commands that never touch acquire state open nothing
+and take no lock (see [Lock order](#lock-order)).
+
+### Events (15)
+
+`acquire/events.py` defines 15 frozen `Event` subclasses across the lobe's concerns —
+Follow (`SeriesFollowed`, `SeriesUnfollowed`), Grab (`FilmAcquired`, `WantedEnqueued`,
+`WantedAbandoned`, `GrabSucceeded`, `GrabFailed`), Seed (`SeedObligationRecorded`,
+`SeedObligationBreached`, `SeedObligationSatisfied`), Ratio (`RatioMeasured`),
+Tracker (`TrackerAuthFailed`), Watcher (`WatcherRunTriggered`) and cross-seed
+(`CrossSeedInjected`, `CrossSeedRejected`). All are auto-registered in
+`_EVENT_CLASS_REGISTRY` and envelope-round-trippable (they count toward the
+[event catalog](#registry-events-on-the-event-contract) total).
+
+### Grab flow & CLI
+
+`GrabOrchestrator` (`orchestrator.py`) runs the single-item grab chain (claim →
+resolve profile → search → hard-filter → dedup → rank → fetch → add → mark) with a
+first-class failure taxonomy (RETRYABLE → row back to `pending`; TERMINAL → row to
+`abandoned`) and an atomic-claim state machine (`claim_for_search` /
+`mark_grabbed`, no get-then-set race). `AcquisitionService` (`service.py`) is the
+batch loop over pending + stale-searching rows with a `MAX_ATTEMPTS` cap. Seed
+obligations are written at **dispatch** time only (`reconcile.py` /
+`record_dispatch`), never at grab time. Surrounding modules: `airing.py` (RP9
+stateless `poll_aired`), `cadence.py` (Follow D2 re-search backoff), `detect.py`,
+`cross_seed.py`, `watcher.py`. CLI surface: `personalscraper grab` / `follow` /
+`seed` (all built with `build_torrent_client=True`). Migrations: `acquire/migrations/`
+(SQL files, applied by the same `core/sqlite` applier as the indexer).
+
 ## Anti-decisions (out of scope for 1.0)
 
 These were considered and explicitly deferred past 1.0. Re-opening any of these
 requires a new design document. Listed here so future contributors don't waste
 time proposing what was already declined.
 
-- **No microservices.** Single Python process. The pipeline runs end-to-end
-  in-tree; the BDD is local SQLite. Splitting into services trades clarity for
-  operability cost we don't yet have a reason to pay.
-- **No network server / web UI _in 1.0_.** The CLI is the only interface for
-  1.0 — no FastAPI, no Flask, no embedded server in-tree today. A Web Management
-  UI is now a planned post-1.0 feature (see `ROADMAP.md` P2 — Web Management UI),
-  with `arch-cleanup-2` landing the event-contract prerequisites first.
-- **No authentication / multi-user.** Single operator on a single machine.
-  Files inherit OS permissions; the BDD is owned by the running user.
+- **No microservices.** The pipeline engine is a single synchronous Python
+  process, one process per command; the BDD is local SQLite. The one HTTP daemon
+  (`personalscraper web`, see the [`web/` chapter](#web-subsystem)) is a thin
+  async wrapper over the same in-tree engine — not a service split. Breaking the
+  engine itself into services trades clarity for operability cost we don't yet
+  have a reason to pay.
+- **No multi-user / no RBAC.** The pipeline runs as a single operator on a
+  single machine; files inherit OS permissions and the BDD is owned by the
+  running user. The web UI adds a **single-user** auth perimeter (one
+  username + scrypt password, JWT cookie — see the [`web/` chapter](#web-subsystem)),
+  not multi-user accounts or role-based access control.
 - **No plugin loader.** Scrapers and torrent clients are configured via
   `config/*.json5`, not loaded from a plugin directory. Adding a provider =
   editing source.

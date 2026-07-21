@@ -6,39 +6,24 @@
  * candidates live, and action buttons ("Choisir" / "Ignorer").
  *
  * On resolve success, renders {@link RunLogFeed} with the returned ``run_uid``.
- * All backend errors surface via ``sonner`` toasts, with dedicated handling for
- * 409 (lock-held retry hint) and 410 (superseded — refetch list).
+ * All data logic — the local state, the three shared decision mutations with
+ * their 409/410 handling, and the launch-202 → poll → terminal completion
+ * tracker — lives in {@link useDecisionDetailPanel}; this component is pure
+ * presentation over that machine.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type ReactElement } from "react";
-import { toast } from "sonner";
+import { type ReactElement } from "react";
 
-import { ApiError, getPipelineRunDetail } from "@/api/client";
-import type {
-  DecisionCandidate,
-  DecisionDetail as DecisionDetailType,
-  ResolveResponse,
-  SearchResponse,
-} from "@/api/decisions";
-import {
-  decisionsKeys,
-  resolveDecision,
-  searchDecisionCandidates,
-  dismissDecision,
-} from "@/api/decisions";
+import type { DecisionDetail as DecisionDetailType } from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
-import {
-  frenchErrorDetail,
-  MSG_DECISION_BUSY,
-} from "@/components/decisions/errors";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDecisionDetailPanel } from "@/hooks/useDecisionDetailPanel";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -64,9 +49,6 @@ const TRIGGER_EXPLANATION: Record<string, string> = {
     "Sélectionnez le bon candidat parmi les propositions, ou utilisez la " +
     "recherche pour trouver une correspondance plus précise.",
 };
-
-/** Terminal pipeline_run outcomes — the scrape-resolve run is done. */
-const TERMINAL_OUTCOMES = new Set(["success", "error", "killed"]);
 
 /**
  * Non-``pending`` decision status → its read-only result presentation.
@@ -136,52 +118,28 @@ export function DecisionDetail({
   decision,
   onDecisionHandled,
 }: DecisionDetailProps): ReactElement {
-  const queryClient = useQueryClient();
+  const {
+    selectedCandidate,
+    setSelectedCandidate,
+    searchTitle,
+    setSearchTitle,
+    searchYear,
+    setSearchYear,
+    candidates,
+    runUid,
+    errorDetail,
+    dismissed,
+    runDone,
+    runOutcome,
+    isSearchPending,
+    isResolvePending,
+    isDismissPending,
+    handleSearch,
+    handleResolve,
+    handleDismiss,
+  } = useDecisionDetailPanel(decision, onDecisionHandled);
 
-  // ---- local state ----------------------------------------------------------
-
-  /** Currently selected candidate (for resolve). */
-  const [selectedCandidate, setSelectedCandidate] =
-    useState<DecisionCandidate | null>(null);
-
-  /** Search override form values. */
-  const [searchTitle, setSearchTitle] = useState(decision.extracted_title);
-  const [searchYear, setSearchYear] = useState(
-    decision.extracted_year != null ? String(decision.extracted_year) : "",
-  );
-
-  /**
-   * Ephemeral search results, or ``null`` when the original candidates should
-   * be displayed.
-   */
-  const [searchResults, setSearchResults] = useState<
-    DecisionCandidate[] | null
-  >(null);
-
-  /** The resolve run_uid, set on a 202 response. */
-  const [runUid, setRunUid] = useState<string | null>(null);
-
-  /** Inline error (409 / 410 / validation), cleared on next action. */
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
-
-  /** Whether the decision has been locally dismissed. */
-  const [dismissed, setDismissed] = useState(false);
-
-  // ---- derived --------------------------------------------------------------
-
-  /** Candidates to render: search results override the originals. */
-  const candidates = searchResults ?? decision.candidates;
-
-  /** True once the launched resolve run has reached a terminal outcome. */
-  const [runDone, setRunDone] = useState(false);
-  const invalidatedOnDone = useRef(false);
-
-  /**
-   * The terminal outcome of the launched run (``success`` / ``error`` /
-   * ``killed``), or ``null`` while still running / not yet launched.  Drives the
-   * badge tone + label so a failed run does not masquerade as success (SF1).
-   */
-  const [runOutcome, setRunOutcome] = useState<string | null>(null);
+  // ---- derived display -------------------------------------------------------
 
   const triggerLabel = TRIGGER_LABEL[decision.trigger] ?? decision.trigger;
   const triggerExplanation =
@@ -191,231 +149,6 @@ export function DecisionDetail({
   /** The year to display in the header (or "—" when unknown). */
   const yearLabel =
     decision.extracted_year != null ? String(decision.extracted_year) : "—";
-
-  // ---- mutations -------------------------------------------------------------
-
-  const searchMutation = useMutation<
-    SearchResponse,
-    Error,
-    { title: string; year?: number | null }
-  >({
-    mutationFn: ({ title, year: yr }) =>
-      searchDecisionCandidates(decision.id, {
-        title,
-        year: yr ?? null,
-      }),
-    onSuccess: (data) => {
-      setErrorDetail(null);
-      setSearchResults(data.candidates);
-      // Clear selection when results change.
-      setSelectedCandidate(null);
-    },
-    onError: (error) => {
-      if (error instanceof ApiError) {
-        setErrorDetail(frenchErrorDetail(error));
-        if (error.status === 410) {
-          toast.error(
-            "Cette décision a été remplacée par une version plus récente.",
-          );
-          void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-          // The detail panel is dead — deselect it like the resolve/dismiss
-          // 410 handlers do (F37), instead of leaving it open re-toasting 410.
-          onDecisionHandled();
-        } else if (error.status === 502) {
-          toast.error(
-            "Le fournisseur de métadonnées est indisponible. Réessayez plus tard.",
-          );
-        } else {
-          toast.error(error.detail);
-        }
-      } else {
-        setErrorDetail("Erreur inattendue lors de la recherche.");
-      }
-    },
-  });
-
-  const resolveMutation = useMutation<
-    ResolveResponse,
-    Error,
-    DecisionCandidate
-  >({
-    mutationFn: (candidate) =>
-      resolveDecision(decision.id, {
-        provider: candidate.provider,
-        provider_id: candidate.provider_id,
-        // A candidate present in the live-search results was found via the
-        // search-override flow; otherwise it was picked from the queue
-        // snapshot (F09 — persisted in resolution_json.via).
-        via:
-          searchResults?.some(
-            (c) =>
-              c.provider === candidate.provider &&
-              c.provider_id === candidate.provider_id,
-          ) === true
-            ? "search_override"
-            : "pick",
-      }),
-    onSuccess: (data) => {
-      setErrorDetail(null);
-      setRunUid(data.run_uid);
-      setRunDone(false);
-      invalidatedOnDone.current = false;
-      toast.success("Résolu — le média poursuit son pipeline jusqu'au dispatch.");
-      // Optimistic invalidation at 202. The row is still 'pending' until the
-      // detached runner marks it resolved — the completion poll below fires a
-      // second invalidation once the run is terminal (F19/F49).
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      void queryClient.invalidateQueries({ queryKey: ["pipeline", "history"] });
-    },
-    onError: (error) => {
-      if (error instanceof ApiError) {
-        if (error.status === 409) {
-          // Since the resolve queue (2026-07-15) a held pipeline.lock never
-          // 409s — the runner waits, visibly. The only remaining 409 is the
-          // same-decision idempotence guard.
-          toast.error(MSG_DECISION_BUSY);
-        } else if (error.status === 410) {
-          toast.error(
-            "Cette décision a été remplacée par une version plus récente.",
-          );
-          void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-          onDecisionHandled();
-        } else {
-          toast.error(error.detail);
-        }
-        setErrorDetail(frenchErrorDetail(error));
-      } else {
-        toast.error("Erreur inattendue lors du re-scraping.");
-      }
-    },
-  });
-
-  const dismissMutation = useMutation({
-    mutationFn: () => dismissDecision(decision.id),
-    onSuccess: () => {
-      toast.success("Décision ignorée.");
-      // Refresh the list + badge so the dismissed row leaves the queue
-      // immediately (F01 — the success path previously never invalidated).
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-      setDismissed(true);
-      onDecisionHandled();
-    },
-    onError: (error) => {
-      if (error instanceof ApiError) {
-        if (error.status === 410) {
-          toast.error(
-            "Cette décision a été remplacée par une version plus récente.",
-          );
-          void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-          onDecisionHandled();
-        } else if (error.status === 409) {
-          toast.error("Cette décision n'est plus en attente.");
-          void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-          onDecisionHandled();
-        } else {
-          toast.error(error.detail);
-        }
-      } else {
-        toast.error("Erreur inattendue.");
-      }
-    },
-  });
-
-  // ---- resolve-run completion poll (F19/F49) --------------------------------
-  // Poll the launched run's history row; when it reaches a terminal outcome,
-  // re-invalidate the decisions list (the row is now really resolved) and flip
-  // the in-progress badge. Stops polling once terminal — and also stops if the
-  // GET persistently errors, so a 404 (row never written) does not poll forever
-  // (SF1 stuck-poll guard).
-  const runQuery = useQuery({
-    queryKey: ["pipeline", "history", runUid],
-    queryFn: () => getPipelineRunDetail(runUid ?? ""),
-    enabled: runUid != null && !runDone,
-    // Do not retry a failing run-detail GET forever — surface it via isError
-    // instead so refetchInterval can stop the 2s poll.
-    retry: 2,
-    refetchInterval: (query) => {
-      const outcome = query.state.data?.outcome;
-      if (outcome != null && TERMINAL_OUTCOMES.has(outcome)) return false;
-      // Stop polling once the query has settled into an error state (e.g. a
-      // persistent 404 for a run row that was never written) — otherwise the
-      // 2s interval would hammer a dead endpoint indefinitely (SF1).
-      if (query.state.status === "error") return false;
-      return 2000;
-    },
-  });
-
-  useEffect(() => {
-    const outcome = runQuery.data?.outcome;
-    if (
-      runUid != null &&
-      outcome != null &&
-      TERMINAL_OUTCOMES.has(outcome) &&
-      !invalidatedOnDone.current
-    ) {
-      invalidatedOnDone.current = true;
-      setRunDone(true);
-      setRunOutcome(outcome);
-      // SF1: a terminal FAILURE (error/killed) must not look like success —
-      // fire a single error toast alongside the danger badge below.
-      if (outcome !== "success") {
-        toast.error(
-          "Le re-scraping a échoué. Consultez le journal ci-dessous.",
-        );
-      }
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-    }
-  }, [runQuery.data?.outcome, runUid, queryClient]);
-
-  // ---- stuck-poll guard (SF1) -----------------------------------------------
-  // If the run-detail GET persistently errors (e.g. the run row was never
-  // written → 404), stop the poll and surface a failure instead of spinning the
-  // "en cours" badge forever.  Fires once (invalidatedOnDone latch).
-  useEffect(() => {
-    if (runUid != null && runQuery.isError && !invalidatedOnDone.current) {
-      invalidatedOnDone.current = true;
-      setRunDone(true);
-      setRunOutcome("error");
-      toast.error(
-        "Impossible de suivre le re-scraping (statut indisponible). Réessayez.",
-      );
-    }
-  }, [runQuery.isError, runUid]);
-
-  // ---- event handlers --------------------------------------------------------
-
-  /** Trigger the search-override mutation. */
-  function handleSearch(): void {
-    const trimmed = searchTitle.trim();
-    if (trimmed === "") {
-      setErrorDetail("Le titre de recherche ne peut pas être vide.");
-      return;
-    }
-    const yearStr = searchYear.trim();
-    if (yearStr !== "") {
-      const year = Number(yearStr);
-      if (Number.isNaN(year) || year < 0) {
-        setErrorDetail("L'année doit être un nombre valide.");
-        return;
-      }
-      searchMutation.mutate({ title: trimmed, year });
-    } else {
-      searchMutation.mutate({ title: trimmed, year: null });
-    }
-  }
-
-  /** Resolve with the given candidate. */
-  function handleResolve(candidate: DecisionCandidate): void {
-    setSelectedCandidate(candidate);
-    setErrorDetail(null);
-    resolveMutation.mutate(candidate);
-  }
-
-  /** Dismiss the decision. */
-  function handleDismiss(): void {
-    setErrorDetail(null);
-    dismissMutation.mutate();
-  }
 
   // ---- render ----------------------------------------------------------------
 
@@ -540,10 +273,10 @@ export function DecisionDetail({
               <Button
                 type="button"
                 variant="outline"
-                disabled={searchMutation.isPending}
+                disabled={isSearchPending}
                 onClick={handleSearch}
               >
-                {searchMutation.isPending ? "Recherche..." : "Re-chercher"}
+                {isSearchPending ? "Recherche..." : "Re-chercher"}
               </Button>
             </div>
           </div>
@@ -613,24 +346,22 @@ export function DecisionDetail({
           <Button
             type="button"
             variant="outline"
-            disabled={dismissMutation.isPending || resolveMutation.isPending}
+            disabled={isDismissPending || isResolvePending}
             onClick={handleDismiss}
           >
-            {dismissMutation.isPending ? "En cours..." : "Ignorer"}
+            {isDismissPending ? "En cours..." : "Ignorer"}
           </Button>
 
           <Button
             type="button"
             disabled={
-              selectedCandidate === null ||
-              resolveMutation.isPending ||
-              dismissMutation.isPending
+              selectedCandidate === null || isResolvePending || isDismissPending
             }
             onClick={() => {
               if (selectedCandidate != null) handleResolve(selectedCandidate);
             }}
           >
-            {resolveMutation.isPending ? "Lancement..." : "Choisir"}
+            {isResolvePending ? "Lancement..." : "Choisir"}
           </Button>
         </div>
       </CardContent>

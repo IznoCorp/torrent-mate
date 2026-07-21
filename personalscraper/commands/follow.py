@@ -30,13 +30,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from personalscraper import cli as cli_compat
-from personalscraper.acquire.airing import poll_aired
-from personalscraper.acquire.cadence import is_past_cutoff
-from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
-from personalscraper.acquire.domain import WantedItem
-from personalscraper.acquire.events import FilmAcquired, SeriesFollowed, SeriesUnfollowed, WantedEnqueued
-from personalscraper.acquire.reconcile import reconcile_wanted
+from personalscraper import cli_helpers
+from personalscraper.acquire.detect import DetectAction, DetectOutcome, DetectService, DetectStatus
+from personalscraper.acquire.events import SeriesFollowed, SeriesUnfollowed
 from personalscraper.acquire.title_resolver import resolve_series_title
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
@@ -78,7 +74,7 @@ def follow_add(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
@@ -143,7 +139,7 @@ def follow_list(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         acquire = app_context.acquire
@@ -196,7 +192,7 @@ def follow_remove(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
@@ -266,7 +262,7 @@ def follow_detect(
     config = ctx.obj.config
     assert config is not None
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     with (
         cli_run_row(config, "follow-detect") as run_rec,
@@ -279,80 +275,28 @@ def follow_detect(
                 console.print("[red]AcquireContext/store not available.[/red]")
                 raise typer.Exit(1)
 
-            store = acquire.store
-            ownership = acquire.ownership
-            bus = app_context.event_bus
-            registry = app_context.provider_registry
-            today = date.today()
-            now = int(time.time())
+            # ACQUIRE-03: all DETECT business logic lives in the acquire service
+            # layer (grab parity). The CLI keeps only rendering + run-row counts.
+            service = DetectService(
+                store=acquire.store,
+                ownership=acquire.ownership,
+                registry=app_context.provider_registry,
+                event_bus=app_context.event_bus,
+                config=config,
+            )
+            result = service.run(
+                series=series,
+                dry_run=dry_run,
+                today=date.today(),
+                now=int(time.time()),
+            )
 
-            active = store.follow.list_active()
-            if not active:
+            if result.status is DetectStatus.NO_ACTIVE:
                 console.print("[yellow]No active followed series.[/yellow]")
                 return
-
-            # Optional filter: integer followed_id, else case-insensitive title substring.
-            if series is not None:
-                try:
-                    filter_id = int(series)
-                    active = [s for s in active if s.id == filter_id]
-                except ValueError:
-                    active = [s for s in active if series.lower() in s.title.lower()]
-                if not active:
-                    console.print("[yellow]No matching series.[/yellow]")
-                    return
-
-            # §5 films: a movie follow produces ONE WantedItem(kind='movie') —
-            # no airing poll (a film has no episode schedule; it is wanted as
-            # soon as it is followed and not yet owned). Split the set so
-            # poll_aired only sees shows (a movie follow has no tvdb series id
-            # and would only be silently skipped by the poller).
-            movie_follows = [s for s in active if s.kind == "movie"]
-            show_follows = [s for s in active if s.kind != "movie"]
-
-            # MediaRef is a frozen dataclass → hashable; map each aired episode back
-            # to its followed series by provider-ID key.
-            by_ref = {s.media_ref: s for s in show_follows}
-
-            # ONE poll over the active shows — poll_aired is fail-soft per series
-            # internally, so the broad except is purely defensive.
-            aired = []
-            if show_follows:
-                try:
-                    aired = poll_aired(show_follows, registry, today=today)
-                except Exception as exc:  # noqa: BLE001 — defensive; poll_aired already fail-soft
-                    log.warning("cli.follow.detect.poll_failed", error=str(exc))
-                    aired = []
-
-            # P0-B.1 — persist the aired catalog per followed series so the
-            # web read surfaces (completeness matrix, truth-table status) read
-            # a cache instead of polling the provider synchronously. Skipped
-            # for a series whose poll came back empty: an outage or a Top
-            # Chef-style empty catalog must never wipe a previously good cache.
-            if not dry_run:
-                aired_by_id: dict[int, list[tuple[int, int, str | None, str]]] = {}
-                for ep in aired:
-                    fs = by_ref.get(ep.media_ref)
-                    if fs is not None and fs.id is not None:
-                        aired_by_id.setdefault(fs.id, []).append(
-                            (ep.season, ep.episode, ep.title or None, ep.air_date.isoformat())
-                        )
-                for fid, episodes in aired_by_id.items():
-                    try:
-                        store.aired.replace_for_followed(fid, episodes, now=now)
-                    except Exception as exc:  # noqa: BLE001 — cache is best-effort enrichment
-                        log.warning("cli.follow.detect.aired_cache_failed", followed_id=fid, error=str(exc))
-
-            # P0-B.3 — reconcile grabbed rows against the library BEFORE the
-            # enqueue pass: a grabbed episode/movie the library now owns closes
-            # ``done`` (detect has no torrent client, so the vanished-torrent
-            # requeue is left to the grab cron, which has one).
-            closed_owned = 0
-            if not dry_run:
-                try:
-                    closed_owned = reconcile_wanted(store, ownership, None).closed_owned
-                except Exception as exc:  # noqa: BLE001 — reconciliation must never abort detect
-                    log.warning("cli.follow.detect.reconcile_failed", error=str(exc))
+            if result.status is DetectStatus.NO_MATCH:
+                console.print("[yellow]No matching series.[/yellow]")
+                return
 
             table = Table(title="Follow Detect", show_header=True)
             table.add_column("Series")
@@ -361,203 +305,76 @@ def follow_detect(
             table.add_column("AirDate")
             table.add_column("Title")
             table.add_column("Action")
-
-            enqueued = skipped_owned = skipped_dup = resurrected = 0
-
-            for mf in movie_follows:
-                if mf.id is None:
-                    continue
-                # Ownership check (fail-soft: error → treat as not-owned).
-                try:
-                    owned = ownership.owns(mf.media_ref, kind="movie")
-                except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
-                    log.warning("cli.follow.detect.ownership_error", error=str(exc))
-                    owned = False
-                if owned:
-                    # §5 closure: the film is IN the library — close its live
-                    # wanted row (done) and auto-unfollow, with a visible trace
-                    # ("Film X acquis — retiré des suivis"). Ownership by
-                    # provider ID is the robust reconciliation (the info-hash
-                    # dispatch correlation misses scraped/renamed movies whose
-                    # staging size diverges from the torrent). Fail-soft: an
-                    # error leaves the follow active for the next detect run.
-                    if not dry_run:
-                        try:
-                            live = store.wanted.find(followed_id=mf.id, kind="movie", season=None, episode=None)
-                            if live is not None and live.id is not None and live.status != "done":
-                                store.wanted.set_status(live.id, "done")
-                            store.follow.set_active(mf.id, False)
-                            bus.emit(FilmAcquired(media_ref=mf.media_ref, title=mf.title, followed_id=mf.id))
-                            log.info("cli.follow.detect.film_acquired_unfollowed", series=mf.title)
-                            table.add_row(mf.title, "—", "—", "—", "", "[green]acquis — retiré des suivis[/green]")
-                            skipped_owned += 1
-                            continue
-                        except Exception as exc:  # noqa: BLE001 — fail-soft; retried next run
-                            log.warning("cli.follow.detect.film_unfollow_failed", error=str(exc))
-                    table.add_row(mf.title, "—", "—", "—", "", "[yellow]skipped-owned[/yellow]")
-                    skipped_owned += 1
-                    continue
-                # Dedup: one live wanted row per movie follow (NULL season/episode).
-                if store.wanted.find(followed_id=mf.id, kind="movie", season=None, episode=None) is not None:
-                    table.add_row(mf.title, "—", "—", "—", "", "[dim]skipped-dup[/dim]")
-                    skipped_dup += 1
-                    continue
-                table.add_row(
-                    mf.title, "—", "—", "—", "", "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
-                )
-                enqueued += 1
-                if not dry_run:
-                    store.wanted.add(
-                        WantedItem(
-                            media_ref=mf.media_ref,
-                            kind="movie",
-                            status="pending",
-                            enqueued_at=now,
-                            followed_id=mf.id,
-                        )
-                    )
-                    bus.emit(WantedEnqueued(media_ref=mf.media_ref, kind="movie", season=None, episode=None))
-                    log.info("cli.follow.detect.enqueued", series=mf.title, kind="movie")
-
-            for ep in aired:
-                fs = by_ref.get(ep.media_ref)
-                if fs is None or fs.id is None:
-                    continue
-
-                # Ownership check (fail-soft: error → treat as not-owned).
-                try:
-                    owned = ownership.owns(
-                        ep.media_ref,
-                        kind="episode",
-                        season=ep.season,
-                        episode=ep.episode,
-                    )
-                except Exception as exc:  # noqa: BLE001 — fail-soft → treat as not-owned
-                    log.warning("cli.follow.detect.ownership_error", error=str(exc))
-                    owned = False
-
-                if owned:
-                    table.add_row(
-                        fs.title,
-                        str(ep.season),
-                        str(ep.episode),
-                        str(ep.air_date),
-                        ep.title,
-                        "[yellow]skipped-owned[/yellow]",
-                    )
-                    skipped_owned += 1
-                    continue
-
-                # Dedup against the wanted queue — with the B.4 exception: an
-                # ``abandoned`` row for an aired-but-unowned episode still
-                # within its cadence cutoff was abandoned wrongfully (the old
-                # terminal ``no_candidates``) and is resurrected to pending.
-                existing = store.wanted.find(
-                    followed_id=fs.id,
-                    kind="episode",
-                    season=ep.season,
-                    episode=ep.episode,
-                )
-                if existing is not None:
-                    resurrectable = False
-                    if existing.status == "abandoned" and existing.id is not None:
-                        cadence = effective_cadence(
-                            cadence_from_json(fs.cadence_json) if fs.cadence_json is not None else None,
-                            cadence_from_config(config.acquire.cadence),
-                        )
-                        resurrectable = not is_past_cutoff(cadence, now=now, enqueued_at=existing.enqueued_at)
-                    if resurrectable and (dry_run or store.wanted.resurrect(existing.id, now)):  # type: ignore[arg-type]
-                        table.add_row(
-                            fs.title,
-                            str(ep.season),
-                            str(ep.episode),
-                            str(ep.air_date),
-                            ep.title,
-                            "[dim]resurrect (dry-run)[/dim]" if dry_run else "[green]resurrected[/green]",
-                        )
-                        resurrected += 1
-                        log.info(
-                            "cli.follow.detect.resurrected",
-                            series=fs.title,
-                            season=ep.season,
-                            episode=ep.episode,
-                            dry_run=dry_run,
-                        )
-                        continue
-                    table.add_row(
-                        fs.title,
-                        str(ep.season),
-                        str(ep.episode),
-                        str(ep.air_date),
-                        ep.title,
-                        "[dim]skipped-dup[/dim]",
-                    )
-                    skipped_dup += 1
-                    continue
-
-                action = "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
-                table.add_row(
-                    fs.title,
-                    str(ep.season),
-                    str(ep.episode),
-                    str(ep.air_date),
-                    ep.title,
-                    action,
-                )
-                enqueued += 1
-
-                if not dry_run:
-                    # No ``criteria_json`` set: DESIGN §6's
-                    # ``criteria_json = source_criteria(...) or None`` reduces to
-                    # ``None`` at D2 since ``FollowedSeries`` has no per-series
-                    # source-criteria field yet — the mapping wasn't dropped.
-                    store.wanted.add(
-                        WantedItem(
-                            media_ref=ep.media_ref,
-                            kind="episode",
-                            status="pending",
-                            enqueued_at=now,
-                            followed_id=fs.id,
-                            season=ep.season,
-                            episode=ep.episode,
-                        )
-                    )
-                    bus.emit(
-                        WantedEnqueued(
-                            media_ref=ep.media_ref,
-                            kind="episode",
-                            season=ep.season,
-                            episode=ep.episode,
-                        )
-                    )
-                    log.info(
-                        "cli.follow.detect.enqueued",
-                        series=fs.title,
-                        season=ep.season,
-                        episode=ep.episode,
-                    )
-
+            for action in result.actions:
+                table.add_row(*_detect_row(action, dry_run=dry_run))
             console.print(table)
+
+            s = result.summary
             console.print(
-                f"{enqueued} enqueued, {skipped_owned} skipped-owned, {skipped_dup} skipped-dup, "
-                f"{resurrected} resurrected, {closed_owned} closed-owned" + (" [dim](dry-run)[/dim]" if dry_run else "")
+                f"{s.enqueued} enqueued, {s.skipped_owned} skipped-owned, {s.skipped_dup} skipped-dup, "
+                f"{s.resurrected} resurrected, {s.closed_owned} closed-owned"
+                + (" [dim](dry-run)[/dim]" if dry_run else "")
             )
             # §5 « résultat chiffré »: persist the run's numbers on its
             # pipeline_run row so the web surface shows a real result, never
             # a bare success badge.
             run_rec.record_counts(
                 {
-                    "detected": enqueued + skipped_owned + skipped_dup + resurrected,
-                    "enqueued": enqueued,
-                    "skipped_owned": skipped_owned,
-                    "skipped_dup": skipped_dup,
-                    "resurrected": resurrected,
-                    "closed_owned": closed_owned,
+                    "detected": s.detected,
+                    "enqueued": s.enqueued,
+                    "skipped_owned": s.skipped_owned,
+                    "skipped_dup": s.skipped_dup,
+                    "resurrected": s.resurrected,
+                    "closed_owned": s.closed_owned,
                 }
             )
         finally:
             if redis_publisher is not None:
                 redis_publisher.close()
+
+
+def _detect_action_cell(action: DetectAction, *, dry_run: bool) -> str:
+    """Map a detect outcome (+ dry-run) to its exact table-cell markup label.
+
+    Args:
+        action: The detect action whose outcome selects the label.
+        dry_run: Whether the run is a preview (changes the enqueue/resurrect
+            labels to the dimmed dry-run form).
+
+    Returns:
+        The rich-markup string used in the "Action" column, byte-identical to
+        the pre-extraction inline labels.
+    """
+    outcome = action.outcome
+    if outcome is DetectOutcome.FILM_ACQUIRED:
+        return "[green]acquis — retiré des suivis[/green]"
+    if outcome is DetectOutcome.SKIPPED_OWNED:
+        return "[yellow]skipped-owned[/yellow]"
+    if outcome is DetectOutcome.SKIPPED_DUP:
+        return "[dim]skipped-dup[/dim]"
+    if outcome is DetectOutcome.RESURRECTED:
+        return "[dim]resurrect (dry-run)[/dim]" if dry_run else "[green]resurrected[/green]"
+    return "[dim]dry-run[/dim]" if dry_run else "[green]enqueued[/green]"
+
+
+def _detect_row(action: DetectAction, *, dry_run: bool) -> tuple[str | None, ...]:
+    """Render one :class:`DetectAction` into its 6 table columns.
+
+    Movie rows carry em-dashes in the season/episode/air-date columns and an
+    empty title cell; episode rows carry the real values — identical to the
+    pre-extraction ``table.add_row`` calls.
+
+    Args:
+        action: The detect action to render.
+        dry_run: Whether the run is a preview (forwarded to the label mapper).
+
+    Returns:
+        A 6-tuple ``(series, season, episode, air_date, title, action_cell)``.
+    """
+    cell = _detect_action_cell(action, dry_run=dry_run)
+    if action.kind == "movie":
+        return (action.title, "—", "—", "—", "", cell)
+    return (action.title, str(action.season), str(action.episode), action.air_date or "", action.episode_title, cell)
 
 
 def _candidate_matching_id(
@@ -612,7 +429,7 @@ def follow_backfill_metadata(
     config = ctx.obj.config
     assert config is not None  # noqa: S101 — set by the CLI root callback
     console: Console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     db_path = config.acquire.db_path
     if db_path is None:
         console.print("[red]No acquire DB configured.[/red]")
