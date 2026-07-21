@@ -54,6 +54,37 @@ def test_atomic_write_text_custom_encoding(tmp_path: Path) -> None:
     assert path.read_bytes().decode("latin-1") == content
 
 
+def test_atomic_write_text_mode_makes_file_owner_only(tmp_path: Path) -> None:
+    """An explicit ``mode=0o600`` yields an owner-only file (no world-read window).
+
+    The temp fd is fchmod-ed to the requested mode BEFORE the payload is
+    written, so a secrets file routed through the shared writer is never
+    group/other-readable at any instant (PR #316 review Finding B).
+    """
+    import stat
+
+    path = tmp_path / "secret.env"
+    old_umask = os.umask(0o022)
+    try:
+        atomic_write_text(path, "SECRET=shh", mode=0o600)
+    finally:
+        os.umask(old_umask)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_atomic_write_text_default_mode_unchanged(tmp_path: Path) -> None:
+    """The default mode stays 0o644 (no behaviour change for non-secret callers)."""
+    import stat
+
+    path = tmp_path / "public.txt"
+    old_umask = os.umask(0o022)
+    try:
+        atomic_write_text(path, "hello")
+    finally:
+        os.umask(old_umask)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o644
+
+
 def test_atomic_write_json_still_works_after_refactor(tmp_path: Path) -> None:
     """Regression: atomic_write_json still produces correct JSON.
 

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, cast
 
 
-def _atomic_write_bytes(path: Path, payload: bytes) -> None:
+def _atomic_write_bytes(path: Path, payload: bytes, *, mode: int = 0o644) -> None:
     """Atomically write ``payload`` as bytes to ``path``.
 
     Writes to ``<path>.tmp``, fsyncs that file, replaces ``path``, then
@@ -28,12 +28,25 @@ def _atomic_write_bytes(path: Path, payload: bytes) -> None:
     Args:
         path: Destination file. Parent directory is created if missing.
         payload: Raw bytes to write.
+        mode: Permission bits for the created file. Applied to the temp fd via
+            ``fchmod`` BEFORE any payload byte is written — so a restrictive
+            ``mode`` (e.g. ``0o600`` for a secrets file) leaves no window where
+            the temp, or the freshly-renamed ``path``, is group/other-readable.
+            ``fchmod`` also forces the mode even if a stale temp pre-existed at
+            looser permissions. Default ``0o644`` preserves prior behaviour.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
 
-    fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     try:
+        if mode != 0o644:
+            # A non-default (e.g. secrets 0o600) mode is enforced before any byte
+            # is written: os.open honours the umask and would not tighten a
+            # pre-existing stale temp — fchmod does both, closing the window. The
+            # default 0o644 path skips this so existing callers are byte-for-byte
+            # unchanged (no extra syscall on macFUSE/NTFS targets).
+            os.fchmod(fd, mode)
         os.write(fd, payload)
         os.fsync(fd)
     finally:
@@ -68,7 +81,7 @@ def atomic_write_json(path: Path, data: Any, *, indent: int | None = 2) -> None:
     _atomic_write_bytes(path, payload.encode("utf-8"))
 
 
-def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> None:
+def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8", mode: int = 0o644) -> None:
     """Atomically write ``content`` as text to ``path``.
 
     Writes to ``<path>.tmp``, fsyncs that file, replaces ``path``, then
@@ -78,8 +91,11 @@ def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> N
         path: Destination file. Parent directory is created if missing.
         content: Text payload.
         encoding: Text encoding to use (default ``"utf-8"``).
+        mode: Permission bits for the created file (default ``0o644``). Pass
+            ``0o600`` for secrets so there is no world-readable window; see
+            :func:`_atomic_write_bytes`.
     """
-    _atomic_write_bytes(path, content.encode(encoding))
+    _atomic_write_bytes(path, content.encode(encoding), mode=mode)
 
 
 # --- Dataclass JSON serialization helpers ---

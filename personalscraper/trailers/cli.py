@@ -28,7 +28,7 @@ import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import typer
@@ -37,11 +37,21 @@ from rich.table import Table
 
 from personalscraper import cli_helpers
 from personalscraper.cli_helpers import _build_app_context
+from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
+from personalscraper.trailers.purge_fs import (
+    _heal_index_gaps,
+    _HealTarget,
+    _media_dir_has_content,
+    _staging_root,
+)
 from personalscraper.trailers.scanner import ScanItem, Scanner
 from personalscraper.trailers.state import TrailerStateLocked, TrailerStateStore
+
+if TYPE_CHECKING:
+    from personalscraper.indexer.schema import MediaItemKind
 
 
 @contextmanager
@@ -797,39 +807,6 @@ def _disk_paths_for(config: Any, disk: str | None) -> list[Path]:
     return paths
 
 
-def _orphan_walk_roots(config: Any, disk: str | None) -> list[Path]:
-    """Return the storage roots to walk for orphan trailers (FS truth).
-
-    When ``disk`` is set, only that disk's path is walked; otherwise every
-    configured disk PLUS the staging root. Non-existent roots are dropped.
-
-    Args:
-        config: Loaded pipeline Config.
-        disk: Optional ``--disk`` id restricting the walk to a single disk.
-
-    Returns:
-        Existing root directories to walk.
-    """
-    roots: list[Path] = []
-    try:
-        for d in config.disks:
-            if disk is not None and d.id != disk:
-                continue
-            p = Path(str(d.path))
-            if p.exists():
-                roots.append(p)
-    except (AttributeError, TypeError):
-        pass
-    if disk is None:
-        try:
-            staging = Path(str(config.paths.staging_dir))
-            if staging.exists():
-                roots.append(staging)
-        except (AttributeError, TypeError):
-            pass
-    return roots
-
-
 def _live_item_dirs(
     config: Any,
     app_context: Any,
@@ -926,19 +903,30 @@ def _discover_fs_orphan_trailers(
     disk: str | None,
     seasons_enabled: bool,
     min_size: int,
-) -> list[Path]:
-    """Find orphan trailers on the FILESYSTEM (P6.4 single-truth).
+) -> tuple[list[Path], list[_HealTarget]]:
+    """Classify on-disk trailers into true orphans vs index gaps (P6.4 FS-truth).
 
     Since P6.4 a successful download CLEARS its ledger entry, so the ledger can
-    no longer be the source of orphan detection. This walks the storage disks +
-    staging for trailer files whose media directory is NOT a current library
-    item (the indexer item set — built by :func:`_live_item_dirs` — is the
-    cross-reference, mirroring the audit FS probe). A trailer under an unindexed
-    media directory is an orphan: its media is gone or has moved elsewhere.
+    no longer be the source of orphan detection. This walks the storage disks
+    (scanner-parity iteration so each dir resolves to a correct
+    ``(disk_cfg, category_id, kind)``) plus the staging root, and for every
+    media directory decides:
+
+    * in the index (``live_dirs``) → the trailer is legitimate, skip;
+    * absent from the index BUT holding real media
+      (:func:`_media_dir_has_content`) → NOT an orphan; the media is present but
+      unindexed, so the dir is returned as an index gap to re-index;
+    * absent from the index AND holding no media video → its trailers are true
+      orphans (the media is genuinely gone) and returned for deletion.
+
+    Deletion is therefore driven by filesystem truth, never by index membership
+    alone — a present but non-dispatched media dir (MediaElch-managed,
+    scanned-not-yet-dispatched, or predating dispatch tracking) never loses its
+    trailer. Staging is walked for orphan deletion only (it is not a library
+    disk and cannot be re-indexed).
 
     Safety: when the index is unavailable (:func:`_live_item_dirs` returns
-    ``None``) the walk is skipped entirely rather than treating every on-disk
-    trailer as orphaned.
+    ``None``) the whole walk is skipped — neither deletion nor healing runs.
 
     Args:
         config: Loaded pipeline Config.
@@ -948,34 +936,65 @@ def _discover_fs_orphan_trailers(
         min_size: Minimum trailer size forwarded to the scanner constructor.
 
     Returns:
-        Orphan trailer file paths discovered on disk (possibly empty).
+        A ``(orphan_trailers, index_gaps)`` tuple, both possibly empty.
     """
-    roots = _orphan_walk_roots(config, disk)
-    if not roots:
-        return []
-
     live_dirs = _live_item_dirs(config, app_context, disk, seasons_enabled=seasons_enabled, min_size=min_size)
     if live_dirs is None:
-        # Index unavailable — do NOT purge on FS alone (would flag everything).
+        # Index unavailable — do NOT purge or heal on FS alone (would flag everything).
         log.warning("trailers_purge_fs_skipped_index_unavailable")
-        return []
+        return [], []
 
     orphans: list[Path] = []
-    for root in roots:
-        try:
-            categories = [c for c in root.iterdir() if c.is_dir()]
-        except OSError:
+    gaps: list[_HealTarget] = []
+
+    # 1. Storage disks — scanner-parity iteration (disk.categories → folder_name)
+    #    so each gap carries the correct (disk_cfg, category_id, kind) for healing.
+    for disk_cfg in getattr(config, "disks", []):
+        if disk is not None and getattr(disk_cfg, "id", None) != disk:
             continue
-        for category in categories:
+        disk_path = Path(str(disk_cfg.path))
+        if not disk_path.exists():
+            continue
+        for category_id in getattr(disk_cfg, "categories", []):
+            if category_id in NON_VIDEO_CATEGORY_IDS:
+                continue  # audiobooks etc. never hold movie/show trailers
+            category_dir = disk_path / config.category(category_id).folder_name
+            if not category_dir.is_dir():
+                continue
+            kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
             try:
-                media_dirs = [m for m in category.iterdir() if m.is_dir()]
+                media_dirs = [m for m in category_dir.iterdir() if m.is_dir() and not m.name.startswith(".")]
             except OSError:
                 continue
             for media_dir in media_dirs:
                 if _normalize_path(media_dir) in live_dirs:
-                    continue  # live library item — its trailers are legitimate
-                orphans.extend(_trailers_in_media_dir(media_dir))
-    return orphans
+                    continue  # indexed library item — its trailers are legitimate
+                if _media_dir_has_content(media_dir):
+                    gaps.append(_HealTarget(disk_cfg, category_id, kind, media_dir))
+                    continue  # present media, missing from index — heal, keep trailer
+                orphans.extend(_trailers_in_media_dir(media_dir))  # no media → true orphan
+
+    # 2. Staging root (disk=None only) — deletion by FS truth, no heal (not a disk).
+    if disk is None:
+        staging = _staging_root(config)
+        if staging is not None:
+            try:
+                categories = [c for c in staging.iterdir() if c.is_dir()]
+            except OSError:
+                categories = []
+            for category in categories:
+                try:
+                    media_dirs = [m for m in category.iterdir() if m.is_dir()]
+                except OSError:
+                    continue
+                for media_dir in media_dirs:
+                    if _normalize_path(media_dir) in live_dirs:
+                        continue
+                    if _media_dir_has_content(media_dir):
+                        continue  # staging media present — keep its trailer
+                    orphans.extend(_trailers_in_media_dir(media_dir))
+
+    return orphans, gaps
 
 
 # ---------------------------------------------------------------------------
@@ -1008,7 +1027,12 @@ def purge(
         help="Target a specific season number (1-indexed). Implies --level=season.",
     ),
 ) -> None:
-    """Remove orphan trailers whose media parent is absent.
+    """Remove orphan trailers whose media video is gone; heal index gaps.
+
+    A trailer is orphan only when its media directory holds no real media video
+    (FS truth) — present media, even if absent from the index, is never touched.
+    A present-but-unindexed media dir is instead re-indexed (via the scanner's
+    single-dir stage), so ``purge`` writes to ``library.db`` on a real run.
 
     When --include-state is set, after the filesystem purge completes call
     state_store.purge_orphans() and log the count in the CLI output.
@@ -1042,14 +1066,16 @@ def purge(
         # so pre-P6.4 rows aren't lost. Keyed by NFC path to dedupe FS vs ledger.
         orphan_by_path: dict[str, Path] = {}
 
-        # 1. FS truth (primary) — finds orphans regardless of ledger state.
-        for trailer_p in _discover_fs_orphan_trailers(
+        # 1. FS truth (primary) — finds orphans regardless of ledger state, and
+        #    surfaces present-but-unindexed media dirs as index gaps to re-index.
+        fs_orphans, index_gaps = _discover_fs_orphan_trailers(
             config,
             app_context,
             disk=disk,
             seasons_enabled=seasons_enabled,
             min_size=min_size,
-        ):
+        )
+        for trailer_p in fs_orphans:
             orphan_by_path[_normalize_path(trailer_p)] = trailer_p
 
         # 2. Legacy ledger hints — entries whose media_path is gone but whose
@@ -1079,6 +1105,13 @@ def purge(
             # ``soft_wrap`` keeps long paths on one line (no width-dependent crop).
             for trailer_p in orphan_trailer_paths:
                 console.print(f"  - {trailer_p}", soft_wrap=True)
+            if index_gaps:
+                console.print(
+                    f"[yellow]DRY-RUN:[/yellow] Would re-index {len(index_gaps)} present media dir(s) "
+                    "missing from the index."
+                )
+                for target in index_gaps:
+                    console.print(f"  ~ {target.media_dir}", soft_wrap=True)
             if include_state:
                 console.print("[yellow]DRY-RUN:[/yellow] Would also wipe orphan state entries (--include-state).")
             return
@@ -1093,6 +1126,11 @@ def purge(
                 log.warning("trailers_purge_delete_failed", path=str(trailer_p), error=str(exc))
 
         console.print(f"[green]Purged {deleted} orphan trailer(s).[/green]")
+
+        # Heal the index for present-but-unindexed media dirs (writes to library.db).
+        healed = _heal_index_gaps(config, app_context, index_gaps)
+        if healed:
+            console.print(f"[green]Re-indexed {healed} present media dir(s) that were missing from the index.[/green]")
 
         if include_state:
             try:

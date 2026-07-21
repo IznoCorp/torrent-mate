@@ -253,16 +253,44 @@ class TestWriteEnvKeysAtomicity:
         assert call_order.index("fsync") < call_order.index("replace")
 
     def test_env_file_is_owner_only(self, tmp_path: Path) -> None:
-        """The written .env is chmod-ed to 0o600 (secrets stay owner-only).
+        """The written .env is 0o600 (secrets stay owner-only).
 
-        The shared atomic writer creates its temp world-readable (0o644);
-        write_env_keys restores 0o600 so a secrets file is never left
-        group/other-readable.
+        write_env_keys forwards ``mode=0o600`` to the shared atomic writer, so
+        the final .env is never group/other-readable.
         """
         env_path = tmp_path / ".env"
         write_env_keys({"SECRET": "shh"}, env_path)
 
         assert stat.S_IMODE(env_path.stat().st_mode) == 0o600
+
+    def test_env_temp_is_owner_only_before_replace(self, tmp_path: Path) -> None:
+        """No world-readable window: the temp is 0o600 BEFORE the rename.
+
+        Regression (PR #316 review Finding B): the shared writer created its
+        temp at 0o644 and only chmod-ed .env to 0o600 AFTER os.replace, leaving
+        a window where the secrets temp — and the freshly-renamed .env — were
+        group/other-readable. The temp must already be owner-only when it is
+        renamed onto .env, so the secrets are never exposed at any instant.
+        """
+        env_path = tmp_path / ".env"
+
+        real_os_replace = os.replace
+        temp_modes: list[int] = []
+
+        def capturing_replace(src: str | Path, dst: str | Path) -> None:
+            temp_modes.append(stat.S_IMODE(os.stat(src).st_mode))
+            real_os_replace(src, dst)
+
+        # Pin umask so the pre-fix 0o644 temp is deterministic (independent of
+        # the runner's umask); the fix forces 0o600 via fchmod regardless.
+        old_umask = os.umask(0o022)
+        try:
+            with mock.patch("os.replace", side_effect=capturing_replace):
+                write_env_keys({"SECRET": "shh"}, env_path)
+        finally:
+            os.umask(old_umask)
+
+        assert temp_modes == [0o600], f"secrets temp was world-readable at rename: {oct(temp_modes[0])}"
 
 
 # ---------------------------------------------------------------------------

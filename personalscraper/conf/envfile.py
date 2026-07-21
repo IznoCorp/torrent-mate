@@ -42,10 +42,10 @@ def write_env_keys(keys: dict[str, str], env_path: Path) -> None:
     every other line (comments, blanks, unrelated keys) is preserved.
     Keys not already present are appended.  The write is atomic and
     crash-durable via :func:`personalscraper.io_utils.atomic_write_text`
-    (temp file + fsync + rename + parent-dir fsync), then chmod-ed back to
-    ``0o600`` because the shared writer creates its temp world-readable and
-    a ``.env`` holds secrets.  Secret values are never logged by this
-    function.
+    (temp file + fsync + rename + parent-dir fsync), written with
+    ``mode=0o600`` so the secrets file — and its temp — are owner-only from
+    creation, with no world-readable window.  Secret values are never logged
+    by this function.
 
     Args:
         keys: Mapping of KEY → value to upsert.
@@ -86,10 +86,10 @@ def write_env_keys(keys: dict[str, str], env_path: Path) -> None:
     content = "\n".join(out_lines) + "\n"
 
     try:
-        atomic_write_text(env_path, content)
-        # The shared writer creates its temp at 0o644; a .env holds secrets
-        # and must stay owner-only, matching the previous mkstemp(0o600) write.
-        os.chmod(env_path, 0o600)
+        # mode=0o600: a .env holds secrets and must be owner-only from creation
+        # (the temp is fchmod-ed before any byte is written — no world-readable
+        # window, unlike a post-hoc chmod after os.replace).
+        atomic_write_text(env_path, content, mode=0o600)
     except BaseException:
         # atomic_write_text leaves its "<name>.tmp" behind only if the write
         # itself fails; drop it so a failed write leaves no orphan temp file.

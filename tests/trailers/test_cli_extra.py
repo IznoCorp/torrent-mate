@@ -464,7 +464,9 @@ class TestPurgeFilesystemTruth:
         disk = MagicMock()
         disk.id = "Disk1"
         disk.path = str(disk_dir)
+        disk.categories = ["movies"]
         cfg.disks = [disk]
+        cfg.category.side_effect = lambda cid: SimpleNamespace(folder_name="001-MOVIES")
         # Empty staging root (no orphans there).
         staging = tmp_path / "staging"
         staging.mkdir()
@@ -488,6 +490,110 @@ class TestPurgeFilesystemTruth:
         assert "1 orphan" in result.output
         assert "Ghost Movie (1999)-trailer.mp4" in result.output
         assert "Live Movie (2020)-trailer.mp4" not in result.output
+
+    def test_purge_keeps_present_media_missing_from_index_and_reports_gap(self, tmp_path: Path) -> None:
+        """Present media with a real video, absent from the index, is not an orphan.
+
+        Regression (Finding A): a PRESENT media dir (real video + trailer) the
+        index does not know is NOT deleted — its trailer is kept and the dir is
+        reported as an index gap to re-index.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from types import SimpleNamespace
+
+        disk_dir = tmp_path / "Disk1"
+        cat = disk_dir / "001-MOVIES"
+        cat.mkdir(parents=True)
+
+        # PRESENT media: a real movie video AND its trailer, but the index knows
+        # nothing about it (e.g. MediaElch-managed / not yet dispatched).
+        movie = cat / "Real Movie (2021)"
+        movie.mkdir()
+        (movie / "Real Movie (2021).mkv").write_bytes(b"x" * 200000)  # real media video
+        trailer = movie / "Real Movie (2021)-trailer.mp4"
+        trailer.write_bytes(b"x" * 200000)
+
+        cfg = _fake_config(tmp_path)
+        cfg.indexer.db_path = tmp_path / "library.db"
+        cfg.indexer.db_path.write_bytes(b"")
+        disk = MagicMock()
+        disk.id = "Disk1"
+        disk.path = str(disk_dir)
+        disk.categories = ["movies"]
+        cfg.disks = [disk]
+        cfg.category.side_effect = lambda cid: SimpleNamespace(folder_name="001-MOVIES")
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        cfg.paths.staging_dir = staging
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
+            patch(_PATCH_STATE_STORE) as MockStore,
+        ):
+            MockScanner.return_value.scan_library_all.return_value = []  # index knows NOTHING
+            MockStore.return_value.all_entries.return_value = {}
+            result = runner.invoke(app, ["trailers", "purge", "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        # Present media with a real video is NEVER an orphan.
+        assert "0 orphan" in result.output
+        # It is surfaced as an index gap to re-index (rien en silence).
+        assert "re-index 1" in result.output
+        assert "Real Movie (2021)" in result.output
+
+    def test_purge_heals_present_media_gap_and_keeps_trailer(self, tmp_path: Path) -> None:
+        """A real purge re-indexes the present-but-unindexed dir and keeps its trailer.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from types import SimpleNamespace
+
+        disk_dir = tmp_path / "Disk1"
+        cat = disk_dir / "001-MOVIES"
+        cat.mkdir(parents=True)
+        movie = cat / "Real Movie (2021)"
+        movie.mkdir()
+        (movie / "Real Movie (2021).mkv").write_bytes(b"x" * 200000)
+        trailer = movie / "Real Movie (2021)-trailer.mp4"
+        trailer.write_bytes(b"x" * 200000)
+
+        cfg = _fake_config(tmp_path)
+        cfg.indexer.db_path = tmp_path / "library.db"
+        cfg.indexer.db_path.write_bytes(b"")
+        disk = MagicMock()
+        disk.id = "Disk1"
+        disk.path = str(disk_dir)
+        disk.categories = ["movies"]
+        cfg.disks = [disk]
+        cfg.category.side_effect = lambda cid: SimpleNamespace(folder_name="001-MOVIES")
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        cfg.paths.staging_dir = staging
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
+            patch(_PATCH_STATE_STORE) as MockStore,
+            patch("personalscraper.indexer.scanner._modes._item_stage.scan_and_stage_dir") as MockStage,
+        ):
+            MockScanner.return_value.scan_library_all.return_value = []
+            MockStore.return_value.all_entries.return_value = {}
+            result = runner.invoke(app, ["trailers", "purge"])
+
+        assert result.exit_code == 0, result.output
+        # Trailer of present media survives the purge.
+        assert trailer.exists(), "present-media trailer must be kept"
+        # The index gap was healed via the scanner's single-dir stage primitive.
+        assert MockStage.called, "scan_and_stage_dir must be called to heal the index gap"
+        healed_dirs = [str(call.args[1]) for call in MockStage.call_args_list]
+        assert any("Real Movie (2021)" in d for d in healed_dirs)
+        assert "Re-indexed 1" in result.output
 
     def test_purge_skips_fs_walk_when_index_unavailable(self, tmp_path: Path) -> None:
         """No db_path ⇒ FS walk skipped (never flags every on-disk trailer).
