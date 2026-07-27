@@ -95,6 +95,32 @@ def prime_options_json(followed_id: int) -> str:
     return json.dumps({"followed_id": followed_id})
 
 
+def parse_prime_options(options_json: str | None) -> int | None:
+    """Extract ``followed_id`` from a prime run's ``options_json``, or ``None``.
+
+    The inverse of :func:`prime_options_json` — same module, same shape, so a
+    reader can never interpret a row differently from how the writer built it.
+
+    Args:
+        options_json: The raw ``options_json`` column value (may be ``None``
+            for runs that predate the column).
+
+    Returns:
+        The ``followed_id`` integer, or ``None`` when the value is absent,
+        unparseable, or missing the key.
+    """
+    if options_json is None:
+        return None
+    try:
+        data = json.loads(options_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    fid = data.get("followed_id")
+    return fid if isinstance(fid, int) else None
+
+
 def _read_mandatory_env() -> tuple[str, str, int | None]:
     """Read the runner env vars; exit 2 on missing/invalid.
 

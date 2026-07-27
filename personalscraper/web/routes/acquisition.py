@@ -48,6 +48,7 @@ from personalscraper.web.acquisition._helpers import (
     _row_col,
 )
 from personalscraper.web.acquisition.obligation_titles import resolve_obligation_titles
+from personalscraper.web.acquisition.runner import parse_prime_options
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,
@@ -186,6 +187,28 @@ def get_followed(
                     last = None if w["last_search_at"] is None else int(w["last_search_at"])
                     timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
 
+            # Batched lookup of in-flight priming runs — one query, never N+1.
+            # An open prime run (command='prime', ended_at IS NULL — the SAME
+            # predicate _has_live_run uses) overrides the card status to
+            # ``verification_en_cours``. Parse the options_json through the
+            # single authority (prime_options_json / parse_prime_options in the
+            # runner module) so a reader can never interpret a row differently
+            # from how the writer built it.
+            priming_follow_ids: set[int] = set()
+            if indexer_db_path is not None and indexer_db_path.exists():
+                try:
+                    with closing(sqlite3.connect(str(indexer_db_path))) as idx_conn:
+                        apply_pragmas(idx_conn)
+                        idx_conn.row_factory = sqlite3.Row
+                        for pr in idx_conn.execute(
+                            "SELECT options_json FROM pipeline_run WHERE command = 'prime' AND ended_at IS NULL"
+                        ).fetchall():
+                            fid = parse_prime_options(pr["options_json"])
+                            if fid is not None:
+                                priming_follow_ids.add(fid)
+                except sqlite3.Error:
+                    logger.warning("acquisition_priming_lookup_failed", exc_info=True)
+
             items: list[FollowedSeriesItem] = []
             for row in rows:
                 # COUNT wanted pending for this series.
@@ -271,6 +294,7 @@ def get_followed(
                         en_attente_count=truth.en_attente_count,
                         non_verifie_count=truth.non_verifie_count,
                         movie_facts=movie_facts,
+                        priming_running=row["id"] in priming_follow_ids,
                     )
                 )
             return FollowedResponse(items=items)
@@ -581,7 +605,7 @@ def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
                 SELECT run_uid, started_at, ended_at, outcome, command, "trigger", steps_json
                 FROM pipeline_run
                 WHERE trigger IN ({placeholders})
-                   OR command IN ('follow-detect', 'grab')
+                   OR command IN ('follow-detect', 'grab', 'prime')
                 ORDER BY started_at DESC
                 LIMIT ?
                 """,
@@ -960,13 +984,15 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             _write_follow_metadata(config.acquire.db_path, existing.id, body)
             # Reactivating re-primes: the catalog and the queue are as stale as
             # they were the day the follow was paused (plan §6 idempotence).
-            enqueue_prime_run(config.indexer.db_path, existing.id)
+            prime_outcome = enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
             item = _item_from_followed(reactivated)
             item.poster_url = body.poster_url
             item.overview = body.overview
             item.year = body.year
+            if prime_outcome in ("spawned", "already_running"):
+                item.priming_running = True
             return item
 
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
@@ -986,11 +1012,13 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00
         # cron (the founding incident: a grab over an empty queue, rc=0).
-        enqueue_prime_run(config.indexer.db_path, new_id)
+        prime_outcome = enqueue_prime_run(config.indexer.db_path, new_id)
         item = _item_from_followed(created)
         item.poster_url = body.poster_url
         item.overview = body.overview
         item.year = body.year
+        if prime_outcome in ("spawned", "already_running"):
+            item.priming_running = True
         return item
     finally:
         store.close()

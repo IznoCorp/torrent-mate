@@ -210,7 +210,9 @@ export function WatcherPanel(): ReactElement {
                     ? "Détection"
                     : run.command === "grab"
                       ? "Récupération"
-                      : "Pipeline";
+                      : run.command === "prime"
+                        ? "Amorce d'un suivi"
+                        : "Pipeline";
                 const numeric = formatRunResult(run.result);
                 const pending = run.ended_at == null;
                 return (

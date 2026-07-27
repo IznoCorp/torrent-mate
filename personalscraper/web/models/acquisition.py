@@ -116,6 +116,11 @@ class FollowedSeriesItem(BaseModel):
     #: reads ``non_verifie``, the honest « we know nothing »).
     movie_facts: MovieFacts | None = None
 
+    #: ``True`` when a priming run (``command='prime'``) is in flight for this
+    #: follow — set by the route layer (phase 6), never by the state derivation
+    #: itself (a runtime fact, not a property of the persisted counts).
+    priming_running: bool = False
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def status(self) -> FollowStatus:
@@ -137,9 +142,16 @@ class FollowedSeriesItem(BaseModel):
         aired episodes were missing (founding incident). They survive as data
         fields for display, never as a status source.
 
+        A priming run in flight overrides the card to ``verification_en_cours``
+        BEFORE any derived status (phase 6). The flag is set by the route layer
+        from the live ``pipeline_run`` rows; it is never stored in ``acquire.db``
+        and can never disagree with the run history.
+
         Returns:
             The derived lifecycle status.
         """
+        if self.priming_running:
+            return "verification_en_cours"
         if self.kind == "movie":
             facts = self.movie_facts or MovieFacts()
             return derive_movie_status(
