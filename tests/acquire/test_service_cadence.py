@@ -16,6 +16,7 @@ from personalscraper.acquire.cadence import Cadence, CadenceTier
 from personalscraper.acquire.desired import cadence_to_json
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.events import WantedAbandoned
+from personalscraper.acquire.orchestrator import SearchVerdict
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.core.identity import MediaRef
 
@@ -224,3 +225,69 @@ def test_malformed_per_series_cadence_logs_series_and_uses_default(
     store.wanted.claim_for_search.assert_called_once()
     assert summary.grabbed == 1
     assert summary.abandoned == 0
+
+
+# ---------------------------------------------------------------------------
+# The SEARCH pass carries the SAME gates (acq-states phase 2)
+# ---------------------------------------------------------------------------
+#
+# Cadence belongs to the search pass: it is what spaces the re-verification of
+# an episode the trackers do not have yet. The grab pass takes a known-available
+# item at its next tick regardless of cadence. If run_search ever loses these
+# gates, every pass would re-query every tracker for the whole backlog
+# (NE-DOIT-PAS-8, tracker burst).
+
+
+def test_search_pass_skips_a_not_due_item_without_claiming() -> None:
+    """run_search honours the cadence gate: not-due → skipped, no claim, no search."""
+    item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 1800)
+    svc, store, orchestrator, _bus = _make_service([item])
+
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
+        summary = svc.run_search()
+
+    store.wanted.claim_for_search.assert_not_called()
+    orchestrator.search.assert_not_called()
+    # A not-due item stays pending — the skip path must never write status.
+    store.wanted.set_status.assert_not_called()
+    store.wanted.record_search_outcome.assert_not_called()
+    assert summary.skipped == 1
+    assert summary.available == 0
+
+
+def test_search_pass_ages_out_a_past_cutoff_item_without_searching() -> None:
+    """run_search applies the cutoff: past-cutoff → abandoned + emitted, never searched."""
+    item = _pending_item(enqueued_at=ENQUEUED_CUTOFF, last_search_at=None)
+    svc, store, orchestrator, bus = _make_service([item])
+
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
+        summary = svc.run_search()
+
+    store.wanted.claim_for_search.assert_not_called()
+    orchestrator.search.assert_not_called()
+    store.wanted.set_status.assert_called_once_with(10, "abandoned")
+    bus.emit.assert_called_once()
+    emitted = bus.emit.call_args[0][0]
+    assert isinstance(emitted, WantedAbandoned)
+    assert emitted.reason == "cutoff_reached"
+    assert summary.abandoned == 1
+
+
+def test_search_pass_claims_a_due_item() -> None:
+    """A due item (never searched, Hot tier) IS claimed and searched by run_search."""
+    item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=None)
+    svc, store, orchestrator, _bus = _make_service([item])
+    orchestrator.search.return_value = SearchVerdict(
+        disposition="available",
+        outcome="available",
+        found=2,
+    )
+
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
+        summary = svc.run_search()
+
+    store.wanted.claim_for_search.assert_called_once()
+    orchestrator.search.assert_called_once()
+    store.wanted.record_search_outcome.assert_called_once_with(10, "available", 2)
+    store.wanted.set_status.assert_called_once_with(10, "available")
+    assert summary.available == 1
