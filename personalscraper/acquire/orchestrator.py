@@ -131,13 +131,23 @@ class _SearchChainResult:
 
     Attributes:
         exit_path: Named outcome — one of the :data:`SEARCH_OUTCOMES` values.
-        ranked: Ranked candidates (empty on every path except ``"available"``).
-        top: Top-ranked candidate, or ``None`` when no candidate survived.
+        ranked: Ranked ``(result, score)`` pairs as returned by
+            :func:`personalscraper.api.tracker._ranking.rank` (integer scores).
+            Empty on every path except ``"available"``.
+        top: Top-ranked ``(result, score)`` pair, or ``None`` when no candidate
+            survived.
     """
 
     exit_path: str
-    ranked: list[tuple[TrackerResult, float]]
-    top: tuple[TrackerResult, float] | None
+    ranked: list[tuple[TrackerResult, int]]
+    top: tuple[TrackerResult, int] | None
+
+
+#: High-level bucket a search verdict falls into. Kept as a named alias so the
+#: exit-path mapping table in :meth:`GrabOrchestrator.search` is typed against
+#: the SAME literals as :attr:`SearchVerdict.disposition` (a typo in either
+#: place is then a type error, not a runtime surprise).
+SearchDisposition = Literal["available", "not_found", "retryable", "terminal"]
 
 
 @dataclass(frozen=True)
@@ -160,7 +170,7 @@ class SearchVerdict:
             re-searches rather than re-using a stored reference.
     """
 
-    disposition: Literal["available", "not_found", "retryable", "terminal"]
+    disposition: SearchDisposition
     outcome: str  # member of SEARCH_OUTCOMES
     found: int | None  # takeable count; None = not concluded (NEVER 0 on outage)
     chosen: TrackerResult | None = None  # top-ranked candidate, for logging only
@@ -352,12 +362,18 @@ class GrabOrchestrator:
         onto their respective outcome types.
 
         The torrent client is never touched and no events are emitted here.
-        The :exc:`ApiError` catch subsumes :exc:`TrackerAuthError` and
-        :exc:`TorrentFetchError` (both subclasses), preserving :meth:`grab`'s
-        historical mapping of search-time API errors to the retryable
-        ``search_api_error`` bucket.  :exc:`CircuitOpenError` is caught
-        separately because it is a sibling of :exc:`ApiError`
-        (``core/_contracts.py``).
+        Catch order is load-bearing: :exc:`CircuitOpenError` first (it is a
+        *sibling* of :exc:`ApiError`, ``core/_contracts.py`` — a bare
+        ``except ApiError`` would miss it), then :exc:`TrackerAuthError`
+        (a *subclass*, so it must precede its base to reach its own exit
+        path), then :exc:`ApiError` for everything else (including
+        :exc:`TorrentFetchError`).
+
+        The ``"tracker_auth"`` exit path exists for :meth:`search`, which
+        must state a TERMINAL verdict on a broken passkey.  :meth:`grab`
+        deliberately folds it back into its historical retryable
+        ``search_api_error`` bucket, so this extraction leaves grab's
+        behaviour and reason strings byte-identical.
 
         Args:
             item: The claimed ``WantedItem`` to search for.
@@ -374,11 +390,14 @@ class GrabOrchestrator:
         query = build_search_query(item, title)
         year: int | None = None
 
-        # --- Search (CircuitOpenError is NOT an ApiError → catch separately) ---
+        # --- Search (CircuitOpenError is NOT an ApiError → catch separately;
+        # TrackerAuthError IS an ApiError → must precede its base clause) ---
         try:
             outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
         except CircuitOpenError:
             return _SearchChainResult(exit_path="circuit_open", ranked=[], top=None)
+        except TrackerAuthError:
+            return _SearchChainResult(exit_path="tracker_auth", ranked=[], top=None)
         except ApiError:
             return _SearchChainResult(exit_path="search_api_error", ranked=[], top=None)
 
@@ -428,6 +447,7 @@ class GrabOrchestrator:
         Condition                      Disposition     Outcome               Found
         ============================= =============== ===================== =====
         ``CircuitOpenError``           ``retryable``   ``circuit_open``      None
+        ``TrackerAuthError``           ``terminal``    ``tracker_auth``      None
         ``ApiError``                   ``retryable``   ``search_api_error``  None
         ``all_errored``                ``retryable``   ``trackers_unavail.`` None
         No results                     ``not_found``   ``no_candidates``     0
@@ -436,6 +456,10 @@ class GrabOrchestrator:
         ``rank`` empty (min_seeders)   ``retryable``   ``no_seeders``        None
         Ranked non-empty               ``available``   ``available``         len(ranked)
         ============================= =============== ===================== =====
+
+        ``found`` is ``None`` on every path where the search did NOT conclude
+        (panne ≠ absence): zero would claim « I looked, there is nothing »,
+        which is false during an outage — the founding lie this feature removes.
 
         Args:
             item: The wanted item to search for (read-only).
@@ -447,8 +471,9 @@ class GrabOrchestrator:
         """
         result = self._search_chain(item, profile)
 
-        mapping: dict[str, tuple[str, str, int | None]] = {
+        mapping: dict[str, tuple[SearchDisposition, str, int | None]] = {
             "circuit_open": ("retryable", "circuit_open", None),
+            "tracker_auth": ("terminal", "tracker_auth", None),
             "search_api_error": ("retryable", "search_api_error", None),
             "trackers_unavailable": ("retryable", "trackers_unavailable", None),
             "no_candidates": ("not_found", "no_candidates", 0),
@@ -491,7 +516,10 @@ class GrabOrchestrator:
 
         - ``CircuitOpenError`` → RETRYABLE ``circuit_open``.
         - ``TrackerAuthError`` (401/403, passkey broken) → TERMINAL
-          ``tracker_auth``.
+          ``tracker_auth``. This applies to the resolve/add stage only: a
+          SEARCH-stage auth failure keeps its historical RETRYABLE
+          ``search_api_error`` classification (see the exit-path fold below),
+          so the chain extraction changed no grab behaviour.
         - ``TorrentFetchError`` → RETRYABLE ``fetch_failed``.
         - other ``ApiError`` (add failure / transient) → RETRYABLE
           ``add_failed``.
@@ -513,7 +541,12 @@ class GrabOrchestrator:
         # produced before the extraction (outcome.reason strings unchanged).
         if result.exit_path == "circuit_open":
             return self._retryable(media_ref, "circuit_open")
-        if result.exit_path == "search_api_error":
+        if result.exit_path in ("search_api_error", "tracker_auth"):
+            # A search-time auth failure keeps grab's HISTORICAL classification
+            # (retryable ``search_api_error``): before the chain extraction the
+            # single ``except ApiError`` swallowed TrackerAuthError here. Only
+            # ``search()`` states the TERMINAL ``tracker_auth`` verdict; grab's
+            # terminal auth path stays the post-search resolve/add one below.
             return self._retryable(media_ref, "search_api_error")
         if result.exit_path == "trackers_unavailable":
             return self._retryable(media_ref, "trackers_unavailable")
@@ -527,7 +560,11 @@ class GrabOrchestrator:
             return self._retryable(media_ref, "no_seeders")
 
         # --- Available: proceed to the grab-only stages ---
-        top, _score = result.top  # guaranteed non-None on "available"
+        # The chain only reaches "available" with a non-empty ``ranked`` list, so
+        # ``top`` is guaranteed present here; assert it so the invariant is
+        # checked rather than implied by the exit-path chain above.
+        assert result.top is not None  # noqa: S101 — "available" always carries a top
+        top, _score = result.top
 
         # --- No torrent client → cannot add (search-only / dry-run). RETRYABLE. ---
         if self._torrent_client is None:
@@ -682,6 +719,7 @@ class GrabOrchestrator:
 __all__ = [
     "GrabOrchestrator",
     "GrabOutcome",
+    "SearchDisposition",
     "SearchVerdict",
     "SEARCH_OUTCOMES",
     "INCONCLUSIVE_OUTCOMES",
