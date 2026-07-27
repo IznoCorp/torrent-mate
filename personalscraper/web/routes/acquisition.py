@@ -75,7 +75,7 @@ from personalscraper.web.models.acquisition import (
     WantedItemResponse,
     WantedResponse,
 )
-from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run
+from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run, pid_is_alive
 
 if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
@@ -227,24 +227,37 @@ def get_followed(
                     timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
 
             # Batched lookup of in-flight priming runs — one query, never N+1.
-            # An open prime run (command='prime', ended_at IS NULL — the SAME
-            # predicate _has_live_run uses) overrides the card status to
-            # ``verification_en_cours``. Parse the options_json through the
-            # single authority (prime_options_json / parse_prime_options in the
-            # runner module) so a reader can never interpret a row differently
-            # from how the writer built it.
+            # An open prime run overrides the card status to
+            # ``verification_en_cours``, so the predicate MUST be the one
+            # ``_has_live_run`` applies: un-ended AND pid-alive. ``ended_at IS
+            # NULL`` alone is not liveness — a runner that crashed never gets to
+            # write ``ended_at``, so its row stays open forever and pinned the
+            # card on « vérification en cours » for a process that died days
+            # ago, while the 409 guard reading the same row let the action
+            # through. The liveness check itself goes through the SINGLE
+            # authority (:func:`pid_is_alive`), applied in one pass over the
+            # handful of open prime rows the batched query returns.
+            #
+            # Parse the options_json through the single authority
+            # (prime_options_json / parse_prime_options in the runner module) so
+            # a reader can never interpret a row differently from how the writer
+            # built it.
             priming_follow_ids: set[int] = set()
             if indexer_db_path is not None and indexer_db_path.exists():
                 try:
                     with closing(sqlite3.connect(str(indexer_db_path))) as idx_conn:
                         apply_pragmas(idx_conn)
                         idx_conn.row_factory = sqlite3.Row
-                        for pr in idx_conn.execute(
-                            "SELECT options_json FROM pipeline_run WHERE command = 'prime' AND ended_at IS NULL"
-                        ).fetchall():
-                            fid = parse_prime_options(pr["options_json"])
-                            if fid is not None:
-                                priming_follow_ids.add(fid)
+                        open_primes = idx_conn.execute(
+                            "SELECT pid, options_json FROM pipeline_run "
+                            "WHERE command = 'prime' AND ended_at IS NULL AND pid IS NOT NULL"
+                        ).fetchall()
+                    for pr in open_primes:
+                        if not pid_is_alive(pr["pid"]):
+                            continue  # crashed runner → stale row, not a live verification
+                        fid = parse_prime_options(pr["options_json"])
+                        if fid is not None:
+                            priming_follow_ids.add(fid)
                 except sqlite3.Error:
                     logger.warning("acquisition_priming_lookup_failed", exc_info=True)
 

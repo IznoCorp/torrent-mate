@@ -33,6 +33,8 @@ import json
 import logging
 import os
 import sqlite3
+import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -457,4 +459,88 @@ class TestVerificationEnCours:
         # With no catalog yet (aired_count=None), the derived status is non_verifie.
         assert items[0]["status"] == "non_verifie", (
             f"Without a catalog, closed prime → non_verifie, got {items[0]['status']!r}"
+        )
+
+    def test_dead_pid_prime_run_does_not_pin_verification_en_cours(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Regression (PR #320 review, F-M5): a crashed prime must not pin the card.
+
+        The batched priming query filtered on ``ended_at IS NULL`` alone, which
+        is NOT liveness: a runner that crashed (or was SIGKILLed) never gets to
+        write ``ended_at``, so its row stays open forever. The card then read
+        « vérification en cours » indefinitely while the 409 guard — which DOES
+        check the pid — happily let a new run through: two answers to the same
+        question. The reader now applies the same ``pid_is_alive`` authority.
+        """
+        now = time.time()
+
+        conn = sqlite3.connect(str(tmp_path / "acquire.db"))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Crashed Prime", active=True)
+        conn.commit()
+        conn.close()
+
+        # An open prime row whose pid is dead. Reserve a pid that cannot exist:
+        # spawn a child, reap it, and reuse its (now free) pid.
+        dead_pid = subprocess.Popen([sys.executable, "-c", ""]).pid
+        os.waitpid(dead_pid, 0)
+
+        conn = sqlite3.connect(str(tmp_path / "library.db"))
+        apply_pragmas(conn)
+        conn.execute(
+            "INSERT INTO pipeline_run "
+            "(run_uid, trigger, dry_run, started_at, ended_at, pid, kind, command, options_json) "
+            "VALUES (?, 'web', 0, ?, NULL, ?, 'maintenance', 'prime', ?)",
+            ("prime-crashed-v1", now, dead_pid, json.dumps({"followed_id": fid})),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get(
+            "/api/acquisition/followed",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 200, resp.text
+        items: list[dict[str, Any]] = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["status"] != "verification_en_cours", (
+            "A dead-pid prime row is a stale row, not a live verification; "
+            f"got {items[0]['status']!r}"
+        )
+        assert items[0]["status"] == "non_verifie", (
+            f"The derived status must take over, got {items[0]['status']!r}"
+        )
+
+    def test_pid_null_prime_run_does_not_pin_verification_en_cours(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """A prime row whose runner never claimed a pid is stale, not live."""
+        conn = sqlite3.connect(str(tmp_path / "acquire.db"))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Never Claimed", active=True)
+        conn.commit()
+        conn.close()
+
+        conn = sqlite3.connect(str(tmp_path / "library.db"))
+        apply_pragmas(conn)
+        conn.execute(
+            "INSERT INTO pipeline_run "
+            "(run_uid, trigger, dry_run, started_at, ended_at, pid, kind, command, options_json) "
+            "VALUES (?, 'web', 0, ?, NULL, NULL, 'maintenance', 'prime', ?)",
+            ("prime-nopid-v1", time.time(), json.dumps({"followed_id": fid})),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get(
+            "/api/acquisition/followed",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 200, resp.text
+        items: list[dict[str, Any]] = resp.json()["items"]
+        assert items[0]["status"] == "non_verifie", (
+            f"A pid-less prime row must not override the derived status, got {items[0]['status']!r}"
         )

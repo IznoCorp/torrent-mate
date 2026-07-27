@@ -31,9 +31,14 @@ Environment contract (canonical — match the spawner):
 Exit codes:
 
 * ``0`` — every CLI step completed successfully.
-* ``1`` — a CLI step exited non-zero (error).
 * ``2`` — misconfiguration (missing env, config load failure, spawn failure).
 * ``143`` — runner killed via SIGTERM.
+* ``1`` — the engine's own failure paths (stream error, queue timeout).
+* **anything else** — the failing CLI step's OWN exit code, passed through
+  verbatim by the engine (``sys.exit(rc)``). A step exiting ``3`` therefore
+  makes this runner exit ``3``, not ``1``: the code identifies WHAT failed, and
+  flattening it to ``1`` would erase that. The chain stops at the first non-zero
+  step, so the code always belongs to the step named in the run's ``error``.
 """
 
 from __future__ import annotations
@@ -93,6 +98,30 @@ def prime_options_json(followed_id: int) -> str:
         ``'{"followed_id": N}'`` — the canonical prime scope string.
     """
     return json.dumps({"followed_id": followed_id})
+
+
+def grab_options_json(followed_id: int) -> str:
+    """Canonical ``options_json`` of a ``grab`` run row (stable string).
+
+    The ``grab`` counterpart of :func:`prime_options_json`, and for the same
+    reason: the trigger route, the idempotence guard and this runner compare
+    the scope string BY EXACT EQUALITY, so it must be built in exactly ONE
+    place. It was previously re-typed at each site — three literal
+    ``json.dumps`` calls that a single divergent separator would have turned
+    into a silent « the guard never matches » bug.
+
+    Note the byte format deliberately differs from the ``prime`` one (compact
+    separators + sorted keys, versus the default spacing): the two are distinct
+    scopes on purpose — a running grab must never refuse a prime, nor the
+    reverse — and the already-deployed rows carry these exact bytes.
+
+    Args:
+        followed_id: The followed series the grab run is scoped to.
+
+    Returns:
+        ``'{"followed_id":N}'`` — the canonical grab scope string.
+    """
+    return json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
 
 
 def parse_prime_options(options_json: str | None) -> int | None:
@@ -197,12 +226,15 @@ def _options_json(command: str, followed_id: int | None) -> str:
     Returns:
         The JSON scope string the spawner wrote for the same run, so the
         ``if_absent`` insert below can never produce a divergent duplicate.
+        Both formats come from their single construction site
+        (:func:`prime_options_json` / :func:`grab_options_json`) — never
+        re-typed here.
     """
     if followed_id is None:
         return "{}"
     if command == "prime":
         return prime_options_json(followed_id)
-    return json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
+    return grab_options_json(followed_id)
 
 
 def main() -> None:

@@ -185,7 +185,7 @@ class WantedItemResponse(BaseModel):
     kind: str  # "movie" | "episode"
     season: int | None = None
     episode: int | None = None
-    status: str  # "pending" | "searching" | "grabbed" | "done" | "abandoned"
+    status: str  # "pending" | "searching" | "available" | "grabbed" | "done" | "abandoned"
     attempts: int
     enqueued_at: float  # epoch seconds
     last_search_at: float | None = None  # epoch seconds

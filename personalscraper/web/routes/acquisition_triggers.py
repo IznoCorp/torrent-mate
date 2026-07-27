@@ -8,7 +8,6 @@ under the single ``guarded_api`` perimeter in ``app.py``.
 
 from __future__ import annotations
 
-import json
 import os
 import sqlite3
 import subprocess
@@ -25,7 +24,7 @@ from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web.acquisition.runner import prime_options_json
+from personalscraper.web.acquisition.runner import grab_options_json, prime_options_json
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import GrabTriggerResponse
 
@@ -41,17 +40,39 @@ PrimeOutcome = Literal["spawned", "already_running", "failed"]
 # ── POST /api/acquisition/followed/{id}/search — per-series manual grab (OBJ3) ──
 
 
-def _grab_options_json(followed_id: int) -> str:
-    """Canonical ``options_json`` for a per-series grab run (stable string).
+def pid_is_alive(pid: int | None) -> bool:
+    """Report whether *pid* names a live process — the ONE liveness authority.
+
+    An un-ended ``pipeline_run`` row proves nothing on its own: a runner that
+    crashed (or was SIGKILLed) never gets to write ``ended_at``, so the row
+    stays open forever. Liveness is what separates « still running » from
+    « stale row », and it must be decided in exactly ONE place: a reader that
+    skips this check pins a card on « vérification en cours » for a process
+    that died days ago, while the 409 guard on the same row lets the action
+    through — two answers to the same question.
 
     Args:
-        followed_id: The followed series id.
+        pid: The ``pipeline_run.pid`` column value. ``None`` for a row whose
+            runner never claimed a pid; the column is untyped at the SQLite
+            level, so a corrupt row can also deliver a non-integral value —
+            handled rather than crashing a read.
 
     Returns:
-        ``'{"followed_id":N}'`` — the exact form the runner writes, so the
-        concurrency guard can match it precisely.
+        ``True`` when the pid names a live process. A ``PermissionError``
+        counts as ALIVE (the process exists but is owned by another user);
+        ``None``, a dead pid and an unusable value all count as stale.
     """
-    return json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
+    if pid is None:
+        return False  # never claimed → stale row
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False  # dead pid → stale row
+    except PermissionError:
+        return True  # alive, owned by another user
+    except (TypeError, ValueError, OSError):
+        return False  # unusable pid value → treat as stale
+    return True
 
 
 def _has_live_run(db_path: Path, command: str, options_json: str) -> bool:
@@ -59,9 +80,10 @@ def _has_live_run(db_path: Path, command: str, options_json: str) -> bool:
 
     Scans ``pipeline_run`` for an un-ended row of the given *command* whose
     ``options_json`` matches (same followed series / same detect scope) and
-    whose pid is still alive. A dead/NULL pid is a stale row (crashed runner)
-    and is ignored. Single authority for « is this action already running? » —
-    both the 409 guard and the amorce idempotence read it.
+    whose pid is still alive per :func:`pid_is_alive`. A dead/NULL pid is a
+    stale row (crashed runner) and is ignored. Single authority for « is this
+    action already running? » — both the 409 guard and the amorce idempotence
+    read it.
 
     Args:
         db_path: Absolute path to ``library.db``.
@@ -87,18 +109,7 @@ def _has_live_run(db_path: Path, command: str, options_json: str) -> bool:
     except sqlite3.Error:
         logger.warning("grab_guard_query_failed", command=command, exc_info=True)
         return False
-    for row in rows:
-        pid = row["pid"]
-        if pid is None:
-            continue  # never claimed → stale row
-        try:
-            os.kill(int(pid), 0)
-        except ProcessLookupError:
-            continue  # dead pid → stale row
-        except PermissionError:
-            pass  # alive, owned by another user
-        return True
-    return False
+    return any(pid_is_alive(row["pid"]) for row in rows)
 
 
 def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "grab") -> None:
@@ -201,26 +212,45 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
 
     run_uid = uuid.uuid4().hex
     writer = PipelineRunWriter(db_path)
-    writer.insert(
-        run_uid,
-        trigger="web",
-        dry_run=False,
-        pid=os.getpid(),
-        kind="maintenance",
-        command="prime",
-        options_json=options_json,
-        if_absent=True,
-    )
+    try:
+        writer.insert(
+            run_uid,
+            trigger="web",
+            dry_run=False,
+            pid=os.getpid(),
+            kind="maintenance",
+            command="prime",
+            options_json=options_json,
+            if_absent=True,
+        )
+    except sqlite3.Error as exc:
+        # The reservation itself failed (locked / unreadable library.db). The
+        # function's whole contract is « never break the 201 »: letting this
+        # propagate would 500 a create whose follow row is already committed,
+        # and the operator would see an error for a follow that DOES exist.
+        # Report it like every other amorce failure — with the follow it
+        # concerns and the reason.
+        logger.warning("prime_reserve_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
+        return "failed"
     try:
         pid = _spawn_prime_runner(run_uid, followed_id)
     except Exception as exc:  # noqa: BLE001 — the 201 must never depend on the amorce
         # Finalize the reserved row: a failed amorce is a visible error run,
         # never a row stuck at 'running' and never a silent nothing.
-        writer.finalize(run_uid, "error", error=f"Runner spawn failed: {exc}")
+        try:
+            writer.finalize(run_uid, "error", error=f"Runner spawn failed: {exc}")
+        except sqlite3.Error:
+            logger.warning("prime_finalize_failed", run_uid=run_uid, followed_id=followed_id)
         logger.warning("prime_spawn_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
         return "failed"
 
-    writer.update_pid(run_uid, pid)
+    try:
+        writer.update_pid(run_uid, pid)
+    except sqlite3.Error:
+        # The runner IS live; only its pid bookkeeping failed. Say so — the
+        # liveness guard reads that pid, so a row stuck on the web process's
+        # pid is a fact the operator may need.
+        logger.warning("prime_update_pid_failed", run_uid=run_uid, followed_id=followed_id, pid=pid)
     return "spawned"
 
 
@@ -299,7 +329,7 @@ def trigger_detect(request: Request) -> GrabTriggerResponse:
 #: is actually honoured.
 _FOLLOWED_ACTIONS: dict[str, tuple[str, Callable[[int], str]]] = {
     "prime": ("prime", prime_options_json),
-    "grab": ("grab", _grab_options_json),
+    "grab": ("grab", grab_options_json),
 }
 
 

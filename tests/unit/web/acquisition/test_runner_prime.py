@@ -330,3 +330,54 @@ class TestPrimeChaining:
         assert len(primed_runner) == 1
         finals = [c for c in _FakeWriter.calls if c[0] == "finalize"]
         assert "---" not in finals[0][1]["output_tail"]
+
+
+class TestOptionsJsonSingleAuthority:
+    """Each ``options_json`` byte format has exactly ONE construction site (m22).
+
+    The 409 guard, the card reader and the runner all compare the scope string
+    by EXACT EQUALITY, so a second site typing the same literal is a latent
+    « the guard silently never matches » bug. Both formats now live in
+    ``web/acquisition/runner.py`` and every other module imports them.
+    """
+
+    def test_runner_options_json_delegates_to_the_shared_builders(self) -> None:
+        """``_options_json`` re-types neither format — it calls the builders."""
+        assert runner_mod._options_json("prime", 7) == runner_mod.prime_options_json(7)
+        assert runner_mod._options_json("grab", 7) == runner_mod.grab_options_json(7)
+        assert runner_mod._options_json("detect", None) == "{}"
+
+    def test_trigger_route_uses_the_shared_grab_builder(self) -> None:
+        """The per-follow action table points at the shared builder object itself."""
+        from personalscraper.web.routes import acquisition_triggers
+
+        assert acquisition_triggers._FOLLOWED_ACTIONS["grab"][1] is runner_mod.grab_options_json
+        assert acquisition_triggers._FOLLOWED_ACTIONS["prime"][1] is runner_mod.prime_options_json
+
+    def test_the_two_formats_stay_distinct_scopes(self) -> None:
+        """Prime and grab are deliberately DIFFERENT strings — distinct actions.
+
+        A running grab must never refuse a prime, nor the reverse; the guard
+        tells them apart by ``command`` AND by these bytes. Pinned because the
+        already-deployed rows carry exactly these.
+        """
+        assert runner_mod.prime_options_json(42) == '{"followed_id": 42}'
+        assert runner_mod.grab_options_json(42) == '{"followed_id":42}'
+
+    def test_only_one_construction_site_per_format(self) -> None:
+        """Grep-proof: no module re-types an ``options_json`` literal.
+
+        Scans the whole package rather than trusting review discipline — this
+        is exactly the drift that produced two hand-typed copies of the grab
+        format in the first place.
+        """
+        from pathlib import Path as _Path
+
+        runner_path = _Path(runner_mod.__file__).resolve()
+        package_root = runner_path.parents[2]
+        offenders = sorted(
+            str(py)
+            for py in package_root.rglob("*.py")
+            if py.resolve() != runner_path and 'json.dumps({"followed_id"' in py.read_text(encoding="utf-8")
+        )
+        assert offenders == [], f"options_json must be built in runner.py alone; also built in {offenders}"
