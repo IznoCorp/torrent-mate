@@ -44,7 +44,8 @@ const FOLLOWED: FollowedResponse = {
       wanted_pending: 3,
     wanted_grabbed: 0,
     kind: "show",
-      status: "pending",
+      status: "a_recuperer",
+      priming_running: false,
       media_ref: {
         tvdb_id: 123,
         tmdb_id: null,

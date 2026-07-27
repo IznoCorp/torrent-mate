@@ -14,7 +14,10 @@ Covers the two consolidated primitives:
 
 from __future__ import annotations
 
+import json
 import sqlite3
+import sys
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -446,3 +449,237 @@ class TestSerialRequeue:
         row = _row(db_path, "run-requeue-timeout")
         assert row["outcome"] == "error"
         assert "Délai dépassé (requeue)." in row["error"]
+
+
+# ---------------------------------------------------------------------------
+# PR #320 review cycle 1 — per-step timeout (F-M11), per-step steps_json and
+# failing-step attribution (F-M12), unsupported spec combination (m19).
+# ---------------------------------------------------------------------------
+
+
+class _HangingProc:
+    """A fake child that never finishes until its group is killed.
+
+    ``proc.stdout`` yields one line then blocks on an event the terminate hook
+    sets — reproducing the shape that pins a run: a child holding its pipe open
+    with nothing to say. ``kill_child_group`` falls through to
+    ``terminate_quietly`` here (a MagicMock pid is not a real int), which is the
+    hook that releases the block.
+    """
+
+    def __init__(self) -> None:
+        self._released = threading.Event()
+        self.terminated = False
+        self.pid = MagicMock()  # not a real int → kill_child_group → terminate()
+        self.stdout = self._lines()
+        self.returncode = -15
+
+    def _lines(self) -> object:
+        def _gen():  # type: ignore[no-untyped-def] # noqa: ANN202 — local generator
+            yield "démarrage\n"
+            self._released.wait(10)
+
+        return _gen()
+
+    def terminate(self) -> None:
+        """Unblock the stdout iterator, like a real SIGTERM closing the pipe."""
+        self.terminated = True
+        self._released.set()
+
+    def wait(self) -> int:
+        """Return the killed-by-signal code."""
+        return -15
+
+
+def _steps(db_path: Path, run_uid: str) -> list[dict]:
+    """Return the run row's parsed ``steps_json`` array."""
+    row = _row(db_path, run_uid)
+    return json.loads(row["steps_json"] or "[]")
+
+
+class TestStepTimeout:
+    """A step that overruns its ceiling is killed and the run finalized."""
+
+    def test_hung_step_is_killed_and_finalized_error(self, tmp_path: Path) -> None:
+        """Without a ceiling this run stays 'running' forever with a live pid.
+
+        The card is then pinned on « en cours » and the idempotence guard 409s
+        every retry — no stop surface anywhere. The ceiling kills the process
+        group, finalizes 'error', and says WHY in French.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        proc = _HangingProc()
+        spec = _spec(db_path, "run-hang", ["x"], step_timeout_s=0.2)
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            pytest.raises(SystemExit) as exc,
+        ):
+            engine.run_spawn_stream(spec)
+
+        assert exc.value.code == 1
+        assert proc.terminated, "the engine must kill the child's group on breach"
+        row = _row(db_path, "run-hang")
+        assert row["outcome"] == "error", f"a hung step must not leave the row running; got {row['outcome']!r}"
+        assert row["ended_at"] is not None
+        assert "interrompue après" in row["error"], (
+            f"the operator must be told the step was interrupted; got {row['error']!r}"
+        )
+        assert "interrompue après" in row["output_tail"], "the marker belongs in the visible tail too"
+
+    def test_no_timeout_configured_leaves_the_lifecycle_untouched(self, tmp_path: Path) -> None:
+        """``step_timeout_s=None`` (the default) arms nothing — existing runners unchanged."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        proc = _fake_popen(["ok\n"], returncode=0)
+        spec = _spec(db_path, "run-nolimit", ["x"])
+        assert spec.step_timeout_s is None
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.web._runner_engine.threading.Timer") as timer,
+            pytest.raises(SystemExit) as exc,
+        ):
+            engine.run_spawn_stream(spec)
+        assert exc.value.code == 0
+        timer.assert_not_called()
+
+    def test_a_step_finishing_in_time_is_never_killed(self, tmp_path: Path) -> None:
+        """A generous ceiling on a fast step changes nothing."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        proc = _fake_popen(["fast\n"], returncode=0)
+        spec = _spec(db_path, "run-fast", ["x"], step_timeout_s=30.0)
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            pytest.raises(SystemExit) as exc,
+        ):
+            engine.run_spawn_stream(spec)
+        assert exc.value.code == 0
+        row = _row(db_path, "run-fast")
+        assert row["outcome"] == "success"
+        assert "interrompue" not in (row["error"] or "")
+
+
+class TestPerStepBookkeeping:
+    """Each step lands in ``steps_json``; a failure names the step it came from."""
+
+    def test_chain_records_one_step_entry_per_step(self, tmp_path: Path) -> None:
+        """A three-step chain writes three ``steps_json`` entries with their rcs."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        procs = [_fake_popen([f"s{i}\n"], returncode=0) for i in range(3)]
+        spec = _spec(
+            db_path,
+            "run-chain",
+            [sys.executable, "-m", "personalscraper", "follow", "detect"],
+            extra_steps=[
+                [sys.executable, "-m", "personalscraper", "search", "--followed-id", "7"],
+                [sys.executable, "-m", "personalscraper", "grab", "--followed-id", "7"],
+            ],
+        )
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", side_effect=procs),
+            pytest.raises(SystemExit) as exc,
+        ):
+            engine.run_spawn_stream(spec)
+        assert exc.value.code == 0
+
+        steps = _steps(db_path, "run-chain")
+        assert [s["name"] for s in steps] == [
+            "follow detect",
+            "search --followed-id 7",
+            "grab --followed-id 7",
+        ], f"every step must be recorded, in order; got {steps}"
+        assert all(s["status"] == "success" for s in steps)
+        assert all(s["counts"]["rc"] == 0 for s in steps), f"each step must carry its rc; got {steps}"
+        assert all(s["ended_at"] >= s["started_at"] for s in steps)
+
+    def test_failing_chain_names_the_step_in_the_error_column(self, tmp_path: Path) -> None:
+        """The error column starts with the failing step's label + its rc.
+
+        The attribution is a PREFIX because the tail is sliced to its last 2000
+        characters — placed after, a chatty step truncates it away entirely and
+        the operator is left with « the run failed » and no idea which step.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        procs = [
+            _fake_popen(["step one ok\n"], returncode=0),
+            _fake_popen(["x" * 4000 + "\n"], returncode=4),
+        ]
+        spec = _spec(
+            db_path,
+            "run-chainfail",
+            [sys.executable, "-m", "personalscraper", "follow", "detect"],
+            extra_steps=[[sys.executable, "-m", "personalscraper", "search", "--followed-id", "9"]],
+        )
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", side_effect=procs),
+            pytest.raises(SystemExit) as exc,
+        ):
+            engine.run_spawn_stream(spec)
+        assert exc.value.code == 4
+
+        row = _row(db_path, "run-chainfail")
+        assert row["outcome"] == "error"
+        assert row["error"].startswith("step search --followed-id 9 rc=4: "), (
+            f"the failing step must be named FIRST, before the truncatable tail; got {row['error'][:120]!r}"
+        )
+        steps = _steps(db_path, "run-chainfail")
+        assert [(s["name"], s["status"]) for s in steps] == [
+            ("follow detect", "success"),
+            ("search --followed-id 9", "error"),
+        ], f"the chain must stop at the failing step and record both; got {steps}"
+        assert steps[-1]["counts"]["rc"] == 4
+
+    def test_single_step_failure_still_names_its_step(self, tmp_path: Path) -> None:
+        """The attribution is not a chain-only nicety."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        proc = _fake_popen(["nope\n"], returncode=2)
+        spec = _spec(db_path, "run-one", [sys.executable, "-m", "personalscraper", "grab", "--followed-id", "3"])
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            pytest.raises(SystemExit),
+        ):
+            engine.run_spawn_stream(spec)
+        row = _row(db_path, "run-one")
+        assert row["error"].startswith("step grab --followed-id 3 rc=2: ")
+
+    def test_step_bookkeeping_failure_never_sinks_the_run(self, tmp_path: Path) -> None:
+        """``update_step`` blowing up is logged, not fatal — the outcome is the contract."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        proc = _fake_popen(["ok\n"], returncode=0)
+        spec = _spec(db_path, "run-bookfail", ["x"])
+        with (
+            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch.object(type(spec.writer), "update_step", side_effect=RuntimeError("steps_json boom")),
+            pytest.raises(SystemExit) as exc,
+        ):
+            engine.run_spawn_stream(spec)
+        assert exc.value.code == 0
+        assert _row(db_path, "run-bookfail")["outcome"] == "success"
+
+
+class TestSpecGuards:
+    """``RunnerSpec`` refuses combinations no runner has ever exercised."""
+
+    def test_extra_steps_plus_requeue_on_exit3_is_rejected(self, tmp_path: Path) -> None:
+        """The exit-3 re-queue restarts the chain at step 1 — untested, so forbidden.
+
+        For the ``prime`` chain that would mean a second catalog poll and a
+        second tracker search per retry. Fail at construction rather than ship
+        that the first time someone combines them.
+        """
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        with pytest.raises(ValueError, match="requeue_on_exit3"):
+            _spec(db_path, "run-bad", ["a"], extra_steps=[["b"]], requeue_on_exit3=True)
+
+    def test_each_flag_alone_is_still_allowed(self, tmp_path: Path) -> None:
+        """Neither flag is forbidden on its own — only the untested pairing."""
+        db_path = tmp_path / "library.db"
+        _create_db(db_path)
+        assert _spec(db_path, "run-chain-ok", ["a"], extra_steps=[["b"]]) is not None
+        assert _spec(db_path, "run-requeue-ok", ["a"], requeue_on_exit3=True) is not None

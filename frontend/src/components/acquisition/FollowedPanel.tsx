@@ -9,7 +9,14 @@
  * this component is pure presentation over that machine and its ``data`` prop.
  */
 
-import { Clock, MoreHorizontal, Power, Search, Trash2 } from "lucide-react";
+import {
+  Clock,
+  Download,
+  MoreHorizontal,
+  Power,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { type ReactElement } from "react";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
@@ -44,10 +51,14 @@ import { useFollowedPanel } from "@/hooks/useFollowedPanel";
 
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
+  canGrabNow,
   FOLLOW_KIND_LABEL,
-  FOLLOW_STATUS_LABEL,
-  FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
+  followCountsCaption,
+  followFraction,
+  followStatusHint,
+  followStatusLabel,
+  followWaitingReason,
   untilLabel,
 } from "./meta";
 
@@ -87,6 +98,9 @@ export function FollowedPanel({
     followPending,
     triggerSearch,
     triggerPendingId,
+    grabNow,
+    grabPendingId,
+    isGrabQueued,
     handleUnfollow,
     unfollowPending,
     handleToggleActive,
@@ -210,14 +224,18 @@ export function FollowedPanel({
       <div className="flex flex-col gap-2">
         {activeItems.map((item) => {
           const isMovie = item.kind === "movie";
-          const statusLabel =
-            (isMovie ? FOLLOW_STATUS_LABEL_MOVIE[item.status] : undefined) ??
-            FOLLOW_STATUS_LABEL[item.status] ??
-            item.status;
-          // triggerPendingId is the id of the in-flight grab (or null) — the
-          // hook's typed narrowing of the former `isPending && variables === id`
-          // guard.
+          // Every readout below is a pure mapping of SERVER facts computed
+          // outside the JSX — no business derivation in the markup.
+          const statusLabel = followStatusLabel(item.status, item.kind);
+          const fraction = followFraction(item);
+          const countsCaption = followCountsCaption(item);
+          const waitingReason = followWaitingReason(item);
+          // triggerPendingId / grabPendingId are the ids of the in-flight
+          // runs (or null) — the hook's typed narrowing of the former
+          // `isPending && variables === id` guards.
           const isSearching = triggerPendingId === item.id;
+          const isGrabbing = grabPendingId === item.id;
+          const isQueued = isGrabQueued(item.id);
 
           return (
             <div key={`f-${String(item.id)}`} className="flex flex-col">
@@ -239,35 +257,55 @@ export function FollowedPanel({
                     <span className="truncate text-sm font-medium">
                       {item.title}
                     </span>
-                    <Badge
-                      tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
-                      dot
-                    >
-                      {statusLabel}
-                    </Badge>
+                    {/* Status chip: pure mapping of the SERVER state — no
+                        client-side derivation. The wrapper's title spells the
+                        state out so « En attente » and « Non vérifié », which
+                        share a neutral tone, can never be confused (DOIT-1). */}
+                    <span title={followStatusHint(item.status, item.kind)}>
+                      <Badge tone={FOLLOW_STATUS_TONE[item.status]} dot>
+                        {statusLabel}
+                      </Badge>
+                    </span>
                     {/* Kind label — kept as a subtle hint for disambiguation. */}
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                    {/* Completeness: NN/NN in font-mono tabular-nums.
-                        "—" when aired_count is null (no catalog). */}
-                    <span className="font-mono tabular-nums">
-                      {item.aired_count != null
-                        ? `${String(item.owned_count ?? 0)}/${String(item.aired_count)}`
-                        : "—"}
-                    </span>
+                    {/* Completeness: NN/NN in font-mono tabular-nums, "—" when
+                        a série has no catalog, nothing at all for a film. */}
+                    {fraction != null && (
+                      <span className="font-mono tabular-nums">{fraction}</span>
+                    )}
                     {/* Next due. */}
                     {item.next_search_at != null && (
                       <span>{untilLabel(item.next_search_at, Date.now())}</span>
                     )}
-                    {/* Wanted pending count — operator needs to know something
-                        is queued even in the compact row. */}
-                    {item.wanted_pending > 0 && (
-                      <Badge tone="warning">
-                        {String(item.wanted_pending)} en attente
-                      </Badge>
+                    {/* What is still moving / still owed, per the SAME
+                        server-side five-state counts the chip reads — never the
+                        raw wanted_pending counter (NE-DOIT-PAS-2 without the
+                        founding lie). */}
+                    {countsCaption != null && <span>{countsCaption}</span>}
+                    {/* A film has no episode matrix: the reason its single unit
+                        is not acquired belongs here, in French, mapped from the
+                        same facts the chip was derived from. */}
+                    {waitingReason != null && <span>{waitingReason}</span>}
+                    {/* « Récupérer maintenant » — offered exactly where the
+                        server says something is takeable. It sits on the
+                        wrapping metadata line so it never pushes the row past
+                        the viewport on a phone. */}
+                    {canGrabNow(item) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isGrabbing || isQueued}
+                        onClick={() => {
+                          grabNow(item.id);
+                        }}
+                      >
+                        <Download className="size-4" aria-hidden="true" />
+                        {isQueued ? "En file" : "Récupérer maintenant"}
+                      </Button>
                     )}
                   </div>
                 </div>

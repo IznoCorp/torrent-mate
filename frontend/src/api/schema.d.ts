@@ -165,11 +165,13 @@ export interface paths {
          * Get Followed Completeness
          * @description Per-season / per-episode completeness for one followed series (§5).
          *
-         *     Read-only: crosses the provider catalog (aired episodes), the library
-         *     (ownership by provider id) and the wanted queue into one honest matrix —
-         *     "ce qui est déjà sorti vs ce qui est en médiathèque". An empty provider
-         *     catalog is an explicit state (``provider_catalog_empty``), never a
-         *     misleading all-missing grid.
+         *     Read-only: crosses the detect-written aired catalog, the library (ownership
+         *     by provider id) and the wanted queue into one honest matrix — "ce qui est
+         *     déjà sorti vs ce qui est en médiathèque". No provider is polled here: the
+         *     catalog comes from the cache alone, so this panel and the followed card read
+         *     the same facts through the same derivation and can never disagree
+         *     (acq-states phase 5). A follow with no cached catalog yields empty seasons
+         *     and ``source="unknown"`` rather than a fabricated all-missing grid.
          *
          *     Args:
          *         request: The incoming FastAPI request.
@@ -179,12 +181,51 @@ export interface paths {
          *         The :class:`CompletenessResponse`.
          *
          *     Raises:
-         *         HTTPException: 404 unknown follow; 502 when the provider registry
-         *             cannot be built.
+         *         HTTPException: 404 when the follow is unknown.
          */
         get: operations["get_followed_completeness_api_acquisition_followed__followed_id__completeness_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/followed/{followed_id}/grab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Followed Grab
+         * @description Claim NOW what is already takeable for one follow (« Récupérer maintenant »).
+         *
+         *     The counterpart of :func:`trigger_followed_search`: it spawns the ``grab``
+         *     runner alone (``grab --followed-id N``), which takes the items the last
+         *     search already marked ``available`` — no catalog poll, no tracker search.
+         *     That is exactly the action an operator wants on an « À récupérer » item:
+         *     the work is known, only the claiming is pending, and waiting for the 03:20
+         *     cron is the wait §6 forbids.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *
+         *     Returns:
+         *         ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+         *
+         *     Raises:
+         *         404: The followed series does not exist.
+         *         409: A grab for this series is already running (the only permitted
+         *             refusal — a running prime does NOT block it).
+         *         500: The runner subprocess failed to spawn.
+         */
+        post: operations["trigger_followed_grab_api_acquisition_followed__followed_id__grab_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -202,11 +243,19 @@ export interface paths {
         put?: never;
         /**
          * Trigger Followed Search
-         * @description Launch a targeted grab for one followed series (OBJ3 manual trigger).
+         * @description Launch the FULL search chain for one followed series (« Rechercher »).
          *
-         *     Reserves a ``pipeline_run`` row, spawns the grab runner (which runs
-         *     ``grab --followed-id <id>`` over that series' pending wanted items), and
-         *     returns ``202`` with the ``run_uid`` so the UI can track the outcome.
+         *     Spawns the ``prime`` runner — ``follow detect --series N`` →
+         *     ``search --followed-id N`` → ``grab --followed-id N`` — and returns ``202``
+         *     with the ``run_uid`` so the UI tracks the run to its numeric result.
+         *
+         *     It used to spawn a bare ``grab``, which was the right runner while a single
+         *     pass did everything. Since the five-state split, ``grab`` only claims items
+         *     already marked takeable: pressing « Rechercher » on a follow whose episodes
+         *     read ``en_attente`` or ``non_verifie`` would have done strictly nothing and
+         *     reported success — a silent no-op (NE-DOIT-PAS-1). Priming re-polls the
+         *     catalog, re-searches the trackers and grabs what it finds, which is what the
+         *     button has always claimed to do (§5 watcher semantics, on demand).
          *
          *     Args:
          *         request: The incoming FastAPI request.
@@ -217,7 +266,8 @@ export interface paths {
          *
          *     Raises:
          *         404: The followed series does not exist.
-         *         409: A grab for this series is already running.
+         *         409: A priming run for this series is already in flight (the only
+         *             permitted refusal — a running grab does NOT block it).
          *         500: The runner subprocess failed to spawn.
          */
         post: operations["trigger_followed_search_api_acquisition_followed__followed_id__search_post"];
@@ -2047,17 +2097,27 @@ export interface components {
          *         title: The followed title (display).
          *         kind: ``"show"`` or ``"movie"`` (movies get an empty seasons list —
          *             their lifecycle lives on the card status instead).
-         *         provider_catalog_empty: ``True`` when the provider returned NO aired
-         *             episodes (the Top Chef case — the UI must say "catalogue provider
-         *             vide", never render a misleading all-missing matrix).
-         *         seasons: Season-by-season completeness, newest season first.
+         *         provider_catalog_empty: Reserved for a DETECT-confirmed empty catalog —
+         *             « the provider KNOWS the series and lists no episode » (the Top Chef
+         *             case). The web read path can no longer assert it: since acq-states
+         *             phase 5 it never polls a provider, and the ``aired_episode`` cache
+         *             has no marker distinguishing « polled, zero aired » from « never
+         *             polled » (``replace_for_followed`` is skipped entirely on an empty
+         *             poll, precisely so an outage cannot wipe a good cache). It is
+         *             therefore always ``False`` today; an absent catalog surfaces as
+         *             ``source="unknown"`` with empty ``seasons`` instead. The field
+         *             stays in the contract for the day detect persists that marker.
+         *         seasons: Season-by-season completeness, newest season first. Empty when
+         *             no catalog is known — never a fabricated all-missing matrix.
          *         source: Where the aired catalog came from: ``"cache"`` (the
-         *             detect-written ``aired_episode`` table — fast, no provider call)
-         *             or ``"live"`` (fallback synchronous provider poll for a series
-         *             not cached yet). P0-B.1.
+         *             detect-written ``aired_episode`` table — the ONLY catalog source)
+         *             or ``"unknown"`` (nothing cached for this follow yet, so the panel
+         *             asserts nothing; the card reads ``non_verifie`` from the same
+         *             absence). The former ``"live"`` value died with the synchronous
+         *             provider fallback (acq-states phase 5) — a web read never polls.
          *         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the
-         *             cached catalog, or ``None`` on the live path — the UI can caption
-         *             « catalogue du JJ/MM » honestly.
+         *             cached catalog, or ``None`` when the catalog is unknown — the UI can
+         *             caption « catalogue du JJ/MM » honestly.
          */
         CompletenessResponse: {
             /** Catalog Refreshed At */
@@ -2075,10 +2135,10 @@ export interface components {
             seasons: components["schemas"]["SeasonCompleteness"][];
             /**
              * Source
-             * @default live
+             * @default unknown
              * @enum {string}
              */
-            source: "cache" | "live";
+            source: "cache" | "unknown";
             /** Title */
             title: string;
         };
@@ -2585,21 +2645,36 @@ export interface components {
          *         episode: Episode number within the season.
          *         title: Episode title, or ``None`` when the provider omitted it.
          *         air_date: ISO ``YYYY-MM-DD`` air date.
-         *         state: ``en_mediatheque`` (a live file exists in the library),
-         *             ``en_file`` (a pending wanted row), ``en_cours`` (a wanted row is
-         *             searching/grabbed — acquisition under way), or ``manquant`` (aired,
-         *             not owned, not queued).
+         *         state: The five-state reading produced by
+         *             :func:`~personalscraper.web.acquisition.states.derive_episode_state`
+         *             — the SAME derivation the followed card aggregates, so the card and
+         *             this matrix can never disagree about one episode:
+         *             ``en_mediatheque`` (a live file exists in the library),
+         *             ``en_acquisition`` (a torrent was taken, the pipeline carries it),
+         *             ``a_recuperer`` (a takeable candidate is known), ``en_attente``
+         *             (searched, concluded, nothing takeable) or ``non_verifie`` (never
+         *             searched, or the last search did not conclude — panne ≠ absence).
+         *         last_search_outcome: The named outcome of the GOVERNING ``wanted`` row's
+         *             last search pass (``no_candidates`` / ``all_filtered`` /
+         *             ``trackers_unavailable`` / …), or ``None`` when the episode was
+         *             never searched. It is the very fact ``state`` was derived from, and
+         *             it is exposed so the UI can say WHY an episode waits in French
+         *             (« rien de conforme au profil ») rather than leaving the operator
+         *             with a bare « En attente » (NE-DOIT-PAS-4). The raw token is a
+         *             machine value: it MUST be mapped before display, never printed.
          */
         EpisodeCompleteness: {
             /** Air Date */
             air_date?: string | null;
             /** Episode */
             episode: number;
+            /** Last Search Outcome */
+            last_search_outcome?: string | null;
             /**
              * State
              * @enum {string}
              */
-            state: "en_mediatheque" | "manquant" | "en_file" | "en_cours";
+            state: "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie";
             /** Title */
             title?: string | null;
         };
@@ -2676,6 +2751,8 @@ export interface components {
          * @description A single followed series or film in the list response.
          */
         FollowedSeriesItem: {
+            /** A Recuperer Count */
+            a_recuperer_count?: number | null;
             /** Active */
             active: boolean;
             /** Added At */
@@ -2688,61 +2765,70 @@ export interface components {
             } | null;
             /** Cadence Tier */
             cadence_tier?: string | null;
+            /** En Acquisition Count */
+            en_acquisition_count?: number | null;
+            /** En Attente Count */
+            en_attente_count?: number | null;
             /** Id */
             id: number;
-            /** Inflight Count */
-            inflight_count?: number | null;
             /**
              * Kind
              * @default show
              */
             kind: string;
             media_ref: components["schemas"]["MediaRefResponse"];
-            /** Missing Count */
-            missing_count?: number | null;
+            movie_facts?: components["schemas"]["MovieFacts"] | null;
             /** Next Search At */
             next_search_at?: number | null;
+            /** Non Verifie Count */
+            non_verifie_count?: number | null;
             /** Overview */
             overview?: string | null;
             /** Owned Count */
             owned_count?: number | null;
             /** Poster Url */
             poster_url?: string | null;
+            /**
+             * Priming Running
+             * @default false
+             */
+            priming_running: boolean;
             /** Quality Profile */
             quality_profile?: {
                 [key: string]: unknown;
             } | null;
-            /** Queued Count */
-            queued_count?: number | null;
             /** Season Count */
             season_count?: number | null;
             /**
              * Status
-             * @description Lifecycle status — the §5 truth table, never a raw wanted counter.
+             * @description Lifecycle status — pure delegation to the single state derivation.
              *
-             *     Single server-side source of truth so the UI maps status → tone/label
-             *     without re-deriving business state in JSX. With a cached aired catalog
-             *     (P0-B.2), every bucket is ownership-aware — a ``grabbed`` row whose
-             *     episode already sits in the library is a phantom and cannot pin the
-             *     series at « en cours d'acquisition » (the Silo bug):
+             *     The whole business rule lives in
+             *     :mod:`personalscraper.web.acquisition.states` so the card, the
+             *     completeness matrix and the episode chips can never disagree; this
+             *     property only routes shows to
+             *     :func:`~personalscraper.web.acquisition.states.derive_follow_status`
+             *     (per-state episode counts) and films to
+             *     :func:`~personalscraper.web.acquisition.states.derive_movie_status`
+             *     (their single unit's facts).
              *
-             *     - ``disabled``: the follow is paused (not active).
-             *     - ``acquiring``: at least one aired episode is unowned AND grabbed
-             *       (torrent spotted → pipeline finishing).
-             *     - ``pending``: at least one aired episode is unowned AND queued.
-             *     - ``incomplete``: aired episodes are missing with nothing queued for
-             *       them (the honest House-of-the-Dragon state).
-             *     - ``up_to_date``: every aired episode is in the library.
+             *     The legacy fallback onto the raw ``wanted_pending`` / ``wanted_grabbed``
+             *     counters is GONE: those counters know nothing about ownership or about
+             *     the aired catalog, and it is precisely their « no rows ⇒ up_to_date »
+             *     branch that declared a freshly-followed series « À jour » while three
+             *     aired episodes were missing (founding incident). They survive as data
+             *     fields for display, never as a status source.
              *
-             *     Without a catalog (``aired_count is None`` — movies, or a series never
-             *     detected since the cache shipped), the raw counters drive the legacy
-             *     derivation.
+             *     A priming run in flight overrides the card to ``verification_en_cours``
+             *     BEFORE any derived status (phase 6). The flag is set by the route layer
+             *     from the live ``pipeline_run`` rows; it is never stored in ``acquire.db``
+             *     and can never disagree with the run history.
              *
              *     Returns:
              *         The derived lifecycle status.
              * @enum {string}
              */
-            readonly status: "disabled" | "pending" | "acquiring" | "incomplete" | "up_to_date";
+            readonly status: "disabled" | "verification_en_cours" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "a_jour";
             /** Title */
             title: string;
             /**
@@ -3107,6 +3193,40 @@ export interface components {
             title: string;
             /** Year */
             year?: number | null;
+        };
+        /**
+         * MovieFacts
+         * @description The single unit's facts a followed FILM derives its card status from.
+         *
+         *     A film has no aired catalog (``aired_count`` stays ``None`` on its card), so
+         *     instead of episode counts it carries the raw facts of its one ``wanted`` row
+         *     plus library ownership — the exact arguments
+         *     :func:`~personalscraper.web.acquisition.states.derive_episode_state` takes.
+         *     Exposing the facts rather than a pre-chewed label keeps the derivation in the
+         *     single states module and lets the UI explain WHY a film reads as it does.
+         *
+         *     Attributes:
+         *         owned: The library holds a live file for this film (disk presence by
+         *             provider id). Beats a stale ``grabbed`` row.
+         *         wanted_status: The film's ``wanted`` row status, or ``None`` when it has
+         *             no row (never enqueued, or the row could not be read).
+         *         last_search_outcome: Named outcome of its last search pass, or ``None``
+         *             when never searched.
+         *         last_search_found: Takeable candidates the last search reported, or
+         *             ``None`` when the search did not conclude.
+         */
+        MovieFacts: {
+            /** Last Search Found */
+            last_search_found?: number | null;
+            /** Last Search Outcome */
+            last_search_outcome?: string | null;
+            /**
+             * Owned
+             * @default false
+             */
+            owned: boolean;
+            /** Wanted Status */
+            wanted_status?: string | null;
         };
         /**
          * NfoStats
@@ -3645,8 +3765,16 @@ export interface components {
          *
          *     Attributes:
          *         season: Season number (1-based; specials excluded by the poller).
-         *         owned: Episodes with a live library file.
-         *         queued: Episodes currently in the wanted queue (en_file + en_cours).
+         *         owned: Episodes reading ``en_mediatheque`` (a live library file).
+         *         queued: Episodes « en mouvement » — ``a_recuperer`` + ``en_acquisition``.
+         *             The field NAME is kept from the old three-value vocabulary to bound
+         *             the phase-5 blast radius (the frontend accordion consumes
+         *             ``owned`` / ``queued`` / ``total``); what it COUNTS is now the two
+         *             five-state buckets where something is actually moving. Episodes
+         *             reading ``en_attente`` or ``non_verifie`` are deliberately NOT
+         *             counted here: nothing is in motion for them, and folding them in
+         *             would re-create the « queue volume implies progress » lie the
+         *             five states exist to kill. A rename is phase 8's call.
          *         total: Aired episodes in the season.
          *         episodes: The per-episode states, ordered by episode number.
          */
@@ -4546,6 +4674,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompletenessResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_followed_grab_api_acquisition_followed__followed_id__grab_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
                 };
             };
             /** @description Validation Error */

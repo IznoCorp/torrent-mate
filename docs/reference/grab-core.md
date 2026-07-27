@@ -4,21 +4,50 @@ RP5b (0.28.0) — gate of the acquire epic. Orchestration glue over the shipped
 substrate primitives (search, fetch, add, dedup, hard-filters) with an atomic-claim
 state machine and a first-class failure taxonomy.
 
-## The grab flow
+## Acquisition passes (search/grab split — acq-states phase 2)
+
+The single atomic operation shipped in RP5b was split into two passes so the
+operator can see what is available but not yet taken (« À récupérer » existed
+for milliseconds inside a function call before the split).
+
+### Search pass (`AcquisitionService.run_search`)
 
 ```
 WantedItem (with id) ← store.wanted.list_pending() / list_stale_searching()
+→ apply cadence gates (tier interval + 30-day cutoff — DESIGN §7)
 → claim_for_search(id, now) ← ATOMIC UPDATE … WHERE status='pending' (BEGIN IMMEDIATE)
 → resolve QualityProfile ← effective_quality(series, item)
 → search_candidates(…) → SearchOutcome (raw, un-ranked)
 → HARD-FILTERS ← apply_hard_filters(results, profile)
 → DEDUP ← dedup(filtered)
 → rank(survivors, ranking) ← soft score
-→ resolve_source(top, transports) ← fetch .torrent bytes
-→ torrent_client.add(source) ← idempotent (TorrentAdder)
-→ mark_grabbed(id, info_hash) ← persists hash for the idempotence guard
-→ emit GrabSucceeded
+→ persist verdict → set status ('available' / 'pending' / 'abandoned')
 ```
+
+The search pass **never touches the torrent client** — it states availability
+only. Cadence gates belong to THIS pass: cadence is what spaces the
+re-verification of an unavailable episode.
+
+### Grab pass (`AcquisitionService.run`)
+
+```
+WantedItem (with id) ← store.wanted.list_available() / list_stale_searching()
+→ apply cutoff gate ONLY (no cadence gate, no attempts cap)
+→ claim_for_grab / claim_for_search ← ATOMIC UPDATE (BEGIN IMMEDIATE)
+→ resolve QualityProfile ← effective_quality(series, item)
+→ RE-SEARCH: search_candidates → filter_to_episode → hard-filters → dedup → rank
+  → available → resolve_source(top, transports) ← fetch .torrent bytes
+  → torrent_client.add(source) ← idempotent (TorrentAdder)
+  → mark_grabbed(id, info_hash) ← persists hash for the idempotence guard
+  → emit GrabSucceeded
+  → not_found → revert 'pending' with verdict (torrent vanished between passes)
+  → retryable → keep 'available' with verdict UNTOUCHED (search didn't conclude)
+```
+
+The grab pass consumes `list_available()` **only** — the pending backlog is
+invisible to it (NE-DOIT-PAS-8). There is NO attempts cap: `attempts` counts
+cadence-paced searches, and capping the grab pass on it would abandon a
+known-available item after one flaky add.
 
 ## Module map
 
@@ -28,7 +57,7 @@ WantedItem (with id) ← store.wanted.list_pending() / list_stale_searching()
 | `acquire/_dedup.py`       | `SearchOutcome`, raw `search_candidates` seam, token-set normalizer, `dedup()`             |
 | `acquire/_filters.py`     | `apply_hard_filters()` — resolution floor (fail-open None) + anchored audio language regex |
 | `acquire/orchestrator.py` | `GrabOrchestrator` — single-item §1 chain, `GrabOutcome`, failure taxonomy, event emission |
-| `acquire/service.py`      | `AcquisitionService` batch loop, `GrabCore` handle, `RunSummary`, `MAX_ATTEMPTS`           |
+| `acquire/service.py`      | `AcquisitionService` batch loop, `GrabCore` handle, `RunSummary`, `SearchRunSummary`       |
 
 ## Failure taxonomy (§6.2)
 
@@ -48,7 +77,6 @@ Catch order matters: `CircuitOpenError` is a **sibling** of `ApiError` (NOT a su
 | Zero search results                      | TERMINAL  | `searching` → `abandoned` | `WantedAbandoned('no_candidates')`   |
 | All hard-filtered                        | TERMINAL  | `searching` → `abandoned` | `WantedAbandoned('all_filtered')`    |
 | `TrackerAuthError` (401/403)             | TERMINAL  | `searching` → `abandoned` | `WantedAbandoned('auth_failed:…')`   |
-| `attempts >= MAX_ATTEMPTS`               | TERMINAL  | `searching` → `abandoned` | `WantedAbandoned('attempts_cap')`    |
 
 ## Atomic-claim state machine
 
@@ -57,10 +85,10 @@ The service **never** does get-then-set (which has a TOCTOU race). Instead:
 - **`claim_for_search(id, now) -> bool`**: a single `UPDATE wanted SET status='searching', attempts=attempts+1, last_search_at=? WHERE id=? AND status='pending'` inside a `BEGIN IMMEDIATE` transaction. Returns `True` only when `cur.rowcount == 1`. A concurrent loser gets `False` and skips — no double-grab.
 - **`mark_grabbed(id, info_hash)`**: persists `status='grabbed'` **and the info_hash**. On re-run, the service consults the persisted hash — if the hash matches, it short-circuits without re-emitting `GrabSucceeded`. This closes the crash-window between `add()` and the status write.
 - **Failure recovery**: every failure branch transitions the row OUT of `'searching'`:
-  - RETRYABLE → reset to `'pending'` (re-listed next run, bounded by `MAX_ATTEMPTS`).
+  - RETRYABLE → reset to `'pending'` (re-listed next run under cadence pacing — see the cadence gate in the search pass; bounded by the 30-day cutoff the two passes share).
   - TERMINAL → set to `'abandoned'` (won't self-heal — needs operator intervention or a new wanted row).
-- **Stale-searching recovery**: `list_stale_searching(older_than)` finds rows stuck in `'searching'` longer than 1 hour (process killed mid-grab before any status write). These are folded into the same run alongside `list_pending()`.
-- **Attempts cap**: `MAX_ATTEMPTS = 5`. A RETRYABLE item that has been claimed 5 times without success is escalated to TERMINAL → `WantedAbandoned('attempts_cap')`.
+- **Stale-searching recovery**: `list_stale_searching(older_than)` finds rows stuck in `'searching'` longer than 1 hour (process killed mid-grab before any status write). These are folded into the same run alongside the pass's own queue.
+- **No attempts cap**: the search/grab split (acq-states phase 2) retired the `MAX_ATTEMPTS` constant. `attempts` counts cadence-paced searches, and capping the grab pass on it would abandon a known-available item after one flaky add. The 30-day cadence cutoff (applied at BOTH passes) bounds infinite retries instead — a permanently-unavailable item is aged out, not capped out. A clean search finding nothing (`not_found` disposition: `no_candidates` / `no_matching_episode` / `all_filtered`) is exempt from the cutoff's « abandon » path: the row stays `pending` under cadence pacing and `follow detect` resurrects an abandoned-aired-unowned episode still within its cutoff.
 
 ## Hard-filter defaults (permissive)
 

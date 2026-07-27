@@ -15,6 +15,11 @@ Load-bearing tests called out explicitly:
     * ``torrent_client is None`` → RETRYABLE ``no_torrent_client`` (no crash).
 - NEGATIVE seed-write assert (load-bearing): a seed-obligation spy's
   ``record_dispatch`` / ``seed.add`` ``call_count == 0`` across a full success.
+- SEARCH exit paths (acq-states phase 2): all NINE contract paths forced
+  through the real chain, asserting the ``SearchVerdict`` triple
+  ``(disposition, outcome, found)`` plus the two negative invariants — no
+  ``add()`` and no event emitted. ``found`` is ``None`` on every inconclusive
+  path (panne ≠ absence) and ``0`` only where the search really concluded.
 
 Every assertion is REAL (disposition + emitted event type/payload +
 call_counts), never assert-no-exception.
@@ -560,3 +565,276 @@ def test_negative_seed_write_never_called_during_full_success() -> None:
             name = str(call_item)
             assert "record_dispatch" not in name, f"record_dispatch leaked onto a dep: {call_item}"
             assert "seed" not in name, f"seed write leaked onto a dep: {call_item}"
+
+
+# ---------------------------------------------------------------------------
+# SEARCH exit paths (acq-states phase 2) — the NINE contract paths, forced
+# through the REAL chain (the service-level matrix mocks the orchestrator, so
+# this is the only place the chain's own routing is proven).
+# ---------------------------------------------------------------------------
+
+
+def _make_wanted_episode(season: int = 9, episode: int = 5) -> WantedItem:
+    """Build a claimed episode item so ``filter_to_episode`` runs on the chain."""
+    return WantedItem(
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="episode",
+        status="searching",
+        enqueued_at=1_700_000_000,
+        attempts=1,
+        season=season,
+        episode=episode,
+    )
+
+
+def _assert_no_side_effects(spy: _EventSpy, torrent_client: MagicMock | None) -> None:
+    """Assert the search pass touched nothing: no add() call, no event emitted.
+
+    This is invariant n°1 of the feature — a ``search`` that downloads is a
+    failed split. Asserted on EVERY exit path, not just the available one.
+    """
+    assert torrent_client is not None
+    torrent_client.add.assert_not_called()
+    assert spy.events == [], f"search must emit NO event; got {[type(e).__name__ for e in spy.events]}"
+
+
+def test_search_available_states_takeable_count() -> None:
+    """Ranked candidates → ('available', 'available', len(ranked)) + the top pick.
+
+    The ONE path that takes an item out of the pending queue. ``found`` is the
+    number of TAKEABLE candidates (post-filter, post-min_seeders), which is what
+    the operator screen shows next to « À récupérer ».
+    """
+    # Two DISTINCT releases (dedup collapses same-release duplicates, so
+    # ``found`` counts representatives — what is actually takeable).
+    two_hits = SearchOutcome(
+        results=[
+            _make_result(info_hash="aaaa1234"),
+            _make_result(
+                title="Inception 2010 MULTi 2160p UHD BluRay x265-OTHER",
+                resolution="2160p",
+                info_hash="bbbb5678",
+            ),
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=two_hits)
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("available", "available", 2)
+    assert verdict.chosen is not None
+    assert verdict.chosen.provider == "lacale"
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_circuit_open_is_retryable_and_inconclusive() -> None:
+    """CircuitOpenError → ('retryable', 'circuit_open', None).
+
+    A tripped circuit means we never asked the tracker. ``found=0`` would claim
+    « I looked, there is nothing » — false, and the exact lie this feature
+    removes (panne ≠ absence).
+    """
+    orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
+    registry.search_candidates.side_effect = CircuitOpenError("lacale", 30.0)
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("retryable", "circuit_open", None)
+    assert verdict.chosen is None
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_api_error_is_retryable_and_inconclusive() -> None:
+    """A generic ApiError during search → ('retryable', 'search_api_error', None)."""
+    orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
+    registry.search_candidates.side_effect = ApiError(provider="lacale", http_status=500, message="boom")
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("retryable", "search_api_error", None)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_tracker_auth_is_terminal() -> None:
+    """TrackerAuthError during search → ('terminal', 'tracker_auth', None).
+
+    A broken passkey does not self-heal, so the search pass states a TERMINAL
+    verdict rather than looping. ``TrackerAuthError`` is an ``ApiError``
+    SUBCLASS — if its ``except`` clause ever slips below the base clause this
+    test fails with ``search_api_error``.
+    """
+    assert issubclass(TrackerAuthError, ApiError)  # the ordering hazard this test pins
+
+    orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
+    registry.search_candidates.side_effect = TrackerAuthError(provider="lacale", http_status=403, message="forbidden")
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("terminal", "tracker_auth", None)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_all_trackers_errored_is_retryable_and_inconclusive() -> None:
+    """Every queried tracker errored → ('retryable', 'trackers_unavailable', None).
+
+    Distinct from a clean empty search: the swarm may be full of candidates we
+    simply could not reach, so nothing may be concluded.
+    """
+    all_errored = SearchOutcome(results=[], trackers_queried=2, trackers_errored=2)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=all_errored)
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("retryable", "trackers_unavailable", None)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_no_candidates_concludes_zero() -> None:
+    """Clean search, zero hits → ('not_found', 'no_candidates', 0).
+
+    Here ``0`` is TRUE: the trackers answered and had nothing. This is the only
+    family of paths allowed to persist a zero.
+    """
+    no_hits = SearchOutcome(results=[], trackers_queried=1, trackers_errored=0)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=no_hits)
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "no_candidates", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_no_matching_episode_concludes_zero() -> None:
+    """Only OTHER episodes came back → ('not_found', 'no_matching_episode', 0).
+
+    Wanting S09E05, the tracker returns S09E01 and a season pack. Both are
+    dropped by ``filter_to_episode``, so the wanted episode is simply not out
+    yet — concluded, hence a truthful zero.
+    """
+    wrong_episodes = SearchOutcome(
+        results=[
+            _make_result(title="Some Show S09E01 1080p WEB x265-GRP", info_hash="cccc1111"),
+            _make_result(title="Some Show S09 COMPLETE 1080p WEB x265-GRP", info_hash="dddd2222"),
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=wrong_episodes)
+
+    verdict = orchestrator.search(_make_wanted_episode(season=9, episode=5), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "no_matching_episode", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_all_filtered_concludes_zero() -> None:
+    """Only hard-filtered releases came back → ('not_found', 'all_filtered', 0).
+
+    A 3D Half-SBS encode is dropped by the default profile (``exclude_3d``). The
+    search concluded — there is nothing the profile accepts — so ``0`` is
+    truthful and a conforming release can still show up later.
+    """
+    only_3d = SearchOutcome(
+        results=[_make_result(title="Inception 2010 3D Half-SBS 1080p BluRay x264-GRP")],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=only_3d)
+
+    # Default profile: exclude_3d is on — a 2D library never wants a 3D encode.
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "all_filtered", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_no_seeders_is_retryable_and_inconclusive() -> None:
+    """Everything below ``min_seeders`` → ('retryable', 'no_seeders', None).
+
+    A dead swarm is NOT « there is nothing »: the release exists and peers may
+    come back, so the verdict stays inconclusive (``found=None``) and the item
+    is re-checked rather than reported as waiting.
+    """
+    low_seed = SearchOutcome(results=[_make_result(seeders=2)], trackers_queried=1, trackers_errored=0)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(
+        search_outcome=low_seed,
+        ranking=RankingConfig(min_seeders=10),
+    )
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("retryable", "no_seeders", None)
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_search_never_resolves_a_source_even_when_available() -> None:
+    """LOAD-BEARING: the available path stops at the verdict — no resolve, no add.
+
+    ``resolve_source`` is the first grab-only stage. If ``search`` ever grew a
+    download step this patch would record the call — the invariant that makes
+    « À récupérer » an observable state rather than a millisecond in a call
+    stack.
+    """
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator()
+
+    with patch(_RESOLVE) as mock_resolve:
+        verdict = orchestrator.search(_make_wanted(), QualityProfile())
+        mock_resolve.assert_not_called()
+
+    assert verdict.disposition == "available"
+    _assert_no_side_effects(spy, torrent_client)
+
+
+def test_grab_folds_a_search_time_auth_error_into_search_api_error() -> None:
+    """BEHAVIOUR PRESERVATION: grab keeps its historical search-stage classification.
+
+    Before the chain was extracted, a single ``except ApiError`` swallowed a
+    SEARCH-stage ``TrackerAuthError`` into the retryable ``search_api_error``
+    bucket. ``search()`` now needs that path as its own TERMINAL verdict, so the
+    shared chain surfaces it separately — and ``grab`` must fold it back, or the
+    split would silently change WHEN an item gets abandoned. Grab's terminal
+    ``tracker_auth`` stays the resolve/add-stage one
+    (``test_tracker_auth_error_terminal_no_add_call``).
+    """
+    orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
+    registry.search_candidates.side_effect = TrackerAuthError(provider="lacale", http_status=401, message="nope")
+
+    outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "search_api_error"
+    failed = [e for e in spy.events if isinstance(e, GrabFailed)]
+    assert len(failed) == 1
+    assert failed[0].reason == "search_api_error"
+    assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
+    assert torrent_client is not None
+    torrent_client.add.assert_not_called()
+
+
+def test_search_covers_every_declared_outcome() -> None:
+    """The nine cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
+
+    Exhaustiveness backstop at the orchestrator level: a new declared outcome
+    with no forcing test above fails here, so an exit path can never ship
+    untested (the service-level matrix mocks the orchestrator and would not
+    notice).
+    """
+    from personalscraper.acquire.orchestrator import SEARCH_OUTCOMES
+
+    covered = {
+        "available",
+        "circuit_open",
+        "search_api_error",
+        "tracker_auth",
+        "trackers_unavailable",
+        "no_candidates",
+        "no_matching_episode",
+        "all_filtered",
+        "no_seeders",
+    }
+    assert covered == set(SEARCH_OUTCOMES), (
+        f"exit paths without a forcing test: {sorted(set(SEARCH_OUTCOMES) - covered)}; "
+        f"stale test coverage: {sorted(covered - set(SEARCH_OUTCOMES))}"
+    )

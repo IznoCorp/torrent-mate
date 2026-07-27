@@ -123,3 +123,61 @@ def test_find_different_followed_id_no_match(store: ConcreteAcquireStore) -> Non
     store.wanted.add(_episode(followed_id=fid_a, season=1, ep=1))
     result = store.wanted.find(followed_id=fid_b, kind="episode", season=1, episode=1)
     assert result is None
+
+
+# ── list_for_followed — bulk read feeding the shared facts selector ────────
+
+
+def test_list_for_followed_returns_every_row_ordered_by_id(store: ConcreteAcquireStore) -> None:
+    """All rows of the follow come back, oldest first — the selector needs them all."""
+    fid = _add_series(store, tvdb_id=600)
+    first = store.wanted.add(_episode(followed_id=fid, season=1, ep=1))
+    second = store.wanted.add(_episode(followed_id=fid, season=1, ep=2))
+
+    rows = store.wanted.list_for_followed(fid, kind="episode")
+
+    assert [r.id for r in rows] == [first, second]
+    assert [(r.season, r.episode) for r in rows] == [(1, 1), (1, 2)]
+
+
+def test_list_for_followed_includes_closed_rows(store: ConcreteAcquireStore) -> None:
+    """Closed rows are NOT filtered here — that judgement belongs to the selector.
+
+    Filtering in SQL is exactly what let two surfaces diverge: each owned its
+    own WHERE clause. The store returns the facts; ``select_wanted_facts``
+    decides which row governs.
+    """
+    fid = _add_series(store, tvdb_id=601)
+    wid = store.wanted.add(_episode(followed_id=fid, season=1, ep=1))
+    store.wanted.set_status(wid, "done")
+
+    rows = store.wanted.list_for_followed(fid, kind="episode")
+
+    assert [r.status for r in rows] == ["done"]
+
+
+def test_list_for_followed_isolates_kind_and_follow(store: ConcreteAcquireStore) -> None:
+    """Another follow's rows — and the movie family — never leak into the result."""
+    fid_a = _add_series(store, tvdb_id=602)
+    fid_b = _add_series(store, tvdb_id=603)
+    store.wanted.add(_episode(followed_id=fid_a, season=1, ep=1))
+    store.wanted.add(_episode(followed_id=fid_b, season=9, ep=9))
+    store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="movie",
+            status="pending",
+            enqueued_at=1_000_000,
+            followed_id=fid_a,
+        )
+    )
+
+    rows = store.wanted.list_for_followed(fid_a, kind="episode")
+
+    assert [(r.season, r.episode) for r in rows] == [(1, 1)]
+
+
+def test_list_for_followed_empty_when_no_rows(store: ConcreteAcquireStore) -> None:
+    """A follow with no queue rows yields an empty list, not an error."""
+    fid = _add_series(store, tvdb_id=604)
+    assert store.wanted.list_for_followed(fid, kind="episode") == []

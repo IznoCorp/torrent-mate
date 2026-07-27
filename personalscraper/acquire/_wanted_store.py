@@ -16,7 +16,12 @@ from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_wanted,
 )
-from personalscraper.acquire.domain import WantedItem, WantedKind, WantedStatus
+from personalscraper.acquire.domain import (
+    OPEN_WANTED_STATUSES,
+    WantedItem,
+    WantedKind,
+    WantedStatus,
+)
 from personalscraper.logger import get_logger
 
 log = get_logger("acquire.wanted_store")
@@ -56,8 +61,9 @@ class _WantedSubStore:
                 """
                 INSERT INTO wanted
                   (followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   last_search_outcome, last_search_found)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.followed_id,
@@ -70,6 +76,8 @@ class _WantedSubStore:
                     item.enqueued_at,
                     item.last_search_at,
                     item.attempts,
+                    item.last_search_outcome,
+                    item.last_search_found,
                 ),
             )
             row_id = cur.lastrowid
@@ -90,7 +98,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted WHERE id = ?
             """,
             (wanted_id,),
@@ -123,7 +131,8 @@ class _WantedSubStore:
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
-            "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash "
+            "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
+            "last_search_outcome, last_search_found "
             "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
             (status,),
         ).fetchall()
@@ -136,6 +145,23 @@ class _WantedSubStore:
     def list_grabbed(self) -> list[WantedItem]:
         """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model, A4)."""
         return self._list_wanted_by_status("grabbed", "last_search_at DESC, id")
+
+    def list_searching(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='searching'`` (reconciliation input).
+
+        Unlike :meth:`list_stale_searching` this applies NO age threshold: the
+        reconciliation sweep judges a row on library ownership and torrent-client
+        truth, not on how long it has been claimed. It exists because a row can
+        legitimately sit at 'searching' while holding a ``grabbed_hash`` — the
+        §11(d) crash window between ``mark_grabbed`` and the next status write.
+        :meth:`reclaim_stale_searching` refuses to revert that row (it would
+        re-grab a torrent already added), so reconciliation is the ONLY path that
+        can close it and it has to be able to see it.
+
+        Returns:
+            The 'searching' rows ordered by id (FIFO, like the other queues).
+        """
+        return self._list_wanted_by_status("searching", "id")
 
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item for searching.
@@ -168,6 +194,84 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def claim_for_grab(self, wanted_id: int, now: int) -> bool:
+        """Atomically claim an AVAILABLE item for grabbing.
+
+        Mirrors :meth:`claim_for_search` exactly, one guard apart: the ``WHERE``
+        matches ``status='available'`` instead of ``'pending'``. That is what
+        keeps the two passes from stealing each other's rows — the search pass
+        only ever claims a queued item, the grab pass only ever claims an item a
+        search already concluded takeable. One ``UPDATE`` inside a single
+        ``BEGIN IMMEDIATE`` transaction is the SINGLE serialisation point for
+        concurrent grabbers; ``attempts + 1`` and ``last_search_at = now`` are
+        stamped atomically (``attempts`` counts every tracker interaction).
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            now: Unix epoch seconds (stamps ``last_search_at``).
+
+        Returns:
+            ``True`` if this caller won the claim; ``False`` otherwise (a
+            concurrent winner, or a row that is no longer 'available').
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'searching',
+                    attempts = attempts + 1,
+                    last_search_at = ?
+                WHERE id = ? AND status = 'available'
+                """,
+                (now, wanted_id),
+            )
+            return cur.rowcount == 1
+
+    def reclaim_stale_searching(self, wanted_id: int, older_than: int) -> bool:
+        """Atomically recover ONE stale 'searching' row back to 'pending'.
+
+        Mirrors :meth:`claim_for_search`'s shape — a single rowcount-gated
+        ``UPDATE`` inside one ``BEGIN IMMEDIATE`` transaction — because the
+        recovery has exactly the same TOCTOU exposure the claim had. The
+        previous get-then-set form read ``status`` from a row listed at the top
+        of the pass and blindly wrote ``'pending'`` seconds later: by then the
+        row could already have been grabbed by a concurrent runner, and the
+        write silently reverted a COMPLETED grab (dropping its ``grabbed``
+        status) or handed the same item to two passes at once.
+
+        The ``grabbed_hash IS NULL`` guard is the second half of that safety:
+        a 'searching' row that already carries a hash is the §11(d) crash
+        window (``mark_grabbed`` persisted the hash, the process died before the
+        next write). Such a row is NEVER reverted — reverting it would re-grab
+        an already-added torrent. It belongs to the reconciliation path
+        (:meth:`mark_done_by_hash` / :meth:`mark_done`), which closes it on the
+        dispatch correlation.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            older_than: Unix epoch seconds threshold (exclusive) — the row only
+                recovers when ``last_search_at`` predates it, the SAME staleness
+                predicate :meth:`list_stale_searching` applies.
+
+        Returns:
+            ``True`` iff this call recovered the row; ``False`` when it is no
+            longer a hash-less stale 'searching' row (concurrent winner, a
+            completed grab, or a fresher claim).
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'pending'
+                WHERE id = ?
+                  AND status = 'searching'
+                  AND last_search_at < ?
+                  AND grabbed_hash IS NULL
+                """,
+                (wanted_id, older_than),
+            )
+            return cur.rowcount == 1
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` AND the ``info_hash`` (idempotence guard).
 
@@ -190,15 +294,43 @@ class _WantedSubStore:
             )
 
     def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:
-        """Close ``grabbed`` rows whose torrent was DISPATCHED — return what closed.
+        """Close every OPEN row carrying *info_hash* — return what closed.
 
         The §5 closure the lifecycle was missing: ``done`` existed in the status
         CHECK but had zero writers, so every grabbed row froze at ``grabbed`` and
-        a followed FILM could never be auto-removed once acquired. Called from
-        the dispatch-time correlation (the same info-hash match that writes the
-        seed obligation), this flips every ``grabbed`` row carrying *info_hash*
-        to ``done`` and returns the closed rows so the caller can unfollow
-        acquired movies and emit the visible trace.
+        a followed FILM could never be auto-removed once acquired. This flips
+        every OPEN row carrying *info_hash* to ``done`` and returns the closed
+        rows so the caller can unfollow acquired movies and emit the visible
+        trace.
+
+        Caller status (stated plainly — the previous docstring claimed a
+        dispatch-time correlation that does not exist): nothing in the package
+        calls this today. The closure that actually runs is
+        :func:`~personalscraper.acquire.reconcile.reconcile_wanted`, which works
+        from library OWNERSHIP (:meth:`mark_done`) because a name+size
+        correlation can never match a renamed or aggregated TV-show folder. This
+        method is the by-hash counterpart, kept correct and tested for the
+        callers that will use it — it is not dead-code-by-accident, and the
+        distinction matters when reading a frozen row's history.
+
+        The status filter is derived from
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` — the SINGLE
+        source of « which statuses are still open » — rather than a literal
+        tuple that silently drifts each time a state ships. Two open states
+        besides ``grabbed`` genuinely carry a hash: ``searching`` (the §11(d)
+        crash window between ``mark_grabbed`` and the next status write) and
+        ``available`` (a row force-reset while retaining ``grabbed_hash``).
+        Omitting them left rows the pipeline had already dispatched frozen
+        forever.
+
+        The SELECT runs INSIDE the write transaction, before the UPDATE. Outside
+        it, the read is unserialised: a concurrent writer could add, close or
+        re-status a matching row in the gap, and the returned list would then
+        describe a state that never existed — the caller would unfollow a film
+        on the strength of a row somebody else had already closed, or miss one
+        this call actually transitioned. ``BEGIN IMMEDIATE`` takes the writer
+        lock for both statements, so the returned rows are exactly the rows the
+        UPDATE touched.
 
         Args:
             info_hash: The dispatched torrent's info-hash (case-insensitive —
@@ -208,24 +340,27 @@ class _WantedSubStore:
             The rows that were transitioned (possibly empty), read back BEFORE
             the update so ``followed_id``/``kind`` are available to the caller.
         """
+        # Sorted for a stable, deterministic SQL string (and stable test asserts).
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
         self._conn.row_factory = sqlite3.Row
-        rows = self._conn.execute(
-            """
-            SELECT id, followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
-            FROM wanted
-            WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)
-            """,
-            (info_hash,),
-        ).fetchall()
-        if not rows:
-            return []
         with self._write_tx(self._conn):
-            self._conn.execute(
-                "UPDATE wanted SET status = 'done' WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)",
-                (info_hash,),
-            )
+            rows = self._conn.execute(
+                f"""
+                SELECT id, followed_id, media_ref_json, kind, season, episode,
+                       status, criteria_json, enqueued_at, last_search_at, attempts,
+                       grabbed_hash, last_search_outcome, last_search_found
+                FROM wanted
+                WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)
+                """,  # noqa: S608 — placeholders are generated from an internal frozenset
+                (*open_statuses, info_hash),
+            ).fetchall()
+            if rows:
+                self._conn.execute(
+                    f"UPDATE wanted SET status = 'done' "  # noqa: S608 — same internal placeholders
+                    f"WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)",
+                    (*open_statuses, info_hash),
+                )
         return [_row_to_wanted(r) for r in rows]
 
     def mark_done(self, wanted_id: int) -> bool:
@@ -234,11 +369,18 @@ class _WantedSubStore:
         The ownership half of the B.3 reconciliation: when the library owns the
         episode/movie an open row was tracking, the row closes ``done``
         regardless of the info-hash path (which misses historical dispatches
-        and renamed content). Covers every OPEN status — ``grabbed`` (the
-        classic closure) and ``pending``/``searching`` (an owned work must
-        never be searched again: the resurrected-then-indexed shape, e.g. an
-        episode whose file predated its indexing). Never touches ``abandoned``
-        or ``done`` (idempotent).
+        and renamed content). Never touches ``abandoned`` or ``done``
+        (idempotent).
+
+        « Open » is derived from
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` — the SINGLE
+        source — and not from a hand-written tuple. The literal it replaced said
+        ``('pending', 'searching', 'grabbed')``: it predated the ``available``
+        state and was never updated, so an owned row sitting at ``available``
+        silently refused to close. Ownership is the strongest signal there is
+        (the file is ON DISK), and it was being ignored for one whole state —
+        the row stayed « À récupérer » and the grab pass would happily
+        re-download media the library already had.
 
         Args:
             wanted_id: Rowid of the ``wanted`` row.
@@ -246,20 +388,33 @@ class _WantedSubStore:
         Returns:
             ``True`` iff the row transitioned (was still open).
         """
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
         with self._write_tx(self._conn):
             cur = self._conn.execute(
-                "UPDATE wanted SET status = 'done' WHERE id = ? AND status IN ('pending', 'searching', 'grabbed')",
-                (wanted_id,),
+                f"UPDATE wanted SET status = 'done' "  # noqa: S608 — placeholders from an internal frozenset
+                f"WHERE id = ? AND status IN ({placeholders})",
+                (wanted_id, *open_statuses),
             )
             return cur.rowcount == 1
 
     def requeue_missing(self, wanted_id: int) -> bool:
-        """Requeue a ``grabbed`` row whose torrent vanished from the client.
+        """Requeue an OPEN row carrying a hash whose torrent vanished from the client.
 
         The torrent is gone and the library does not own the work (the caller
         checked both): the grab never really landed, so the row goes back to
         ``pending`` (hash cleared) and the normal cadence/cutoff pacing takes
-        over again. Guarded on ``status='grabbed'`` (idempotent).
+        over again.
+
+        Guarded on ``grabbed_hash IS NOT NULL`` (there is nothing to requeue
+        otherwise, and the guard makes a second call a no-op — idempotent) plus
+        the OPEN statuses, derived from
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` rather than
+        the ``'grabbed'`` literal it used to carry. A hash-carrying row is not
+        always 'grabbed': the §11(d) crash window leaves it at 'searching', and
+        rows predating the atomic stale-recovery fix sit at 'pending' with a
+        stale hash. Both were unreachable — the vanished torrent could never be
+        requeued and the row never progressed again.
 
         Args:
             wanted_id: Rowid of the ``wanted`` row.
@@ -267,10 +422,13 @@ class _WantedSubStore:
         Returns:
             ``True`` iff the row transitioned.
         """
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
         with self._write_tx(self._conn):
             cur = self._conn.execute(
-                "UPDATE wanted SET status = 'pending', grabbed_hash = NULL WHERE id = ? AND status = 'grabbed'",
-                (wanted_id,),
+                f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL "  # noqa: S608 — internal placeholders
+                f"WHERE id = ? AND status IN ({placeholders}) AND grabbed_hash IS NOT NULL",
+                (wanted_id, *open_statuses),
             )
             return cur.rowcount == 1
 
@@ -303,6 +461,48 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+        """Persist the verdict of the search that just ran for this item.
+
+        Called once per search attempt, at EVERY exit path — including failures
+        and outages. A path that forgets to call this leaves the item reading
+        « Non vérifié » forever, a lie by omission of exactly the kind this
+        feature removes.
+
+        Status transitions are NOT this method's job — the orchestrator owns
+        the status column. This method ONLY records what happened.
+
+        Args:
+            wanted_id: The ``wanted`` row that was searched.
+            outcome: The named outcome (``no_candidates``, ``all_filtered``,
+                ``trackers_unavailable``, ``available``, …). The full set is
+                defined by the orchestrator's exit-path taxonomy (DESIGN §3.3).
+            found: Number of TAKEABLE candidates — survivors of the
+                exact-episode filter, the hard profile filters and the
+                ``min_seeders`` floor. ``None`` when the search did NOT
+                conclude (outage, open circuit, dead swarm): zero would
+                falsely claim « I looked, there is nothing ».
+        """
+        with self._write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE wanted SET last_search_outcome = ?, last_search_found = ? WHERE id = ?",
+                (outcome, found, wanted_id),
+            )
+
+    def list_available(self) -> list[WantedItem]:
+        """Items a search found takeable but the grab pass has not taken yet.
+
+        This is the ONLY queue the grab pass walks. Bounding grab to this
+        subset is what keeps its re-search cheap: it re-queries a handful of
+        known-available items, never the whole pending backlog
+        (NE-DOIT-PAS-8).
+
+        Returns:
+            The available items, ordered by id (same order as
+            :meth:`list_pending` — FIFO fairness).
+        """
+        return self._list_wanted_by_status("available", "id")
+
     def list_stale_searching(self, older_than: int) -> list[WantedItem]:
         """Return ``wanted`` rows stuck in 'searching' with ``last_search_at < older_than``.
 
@@ -321,12 +521,43 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted
             WHERE status = 'searching' AND last_search_at < ?
             ORDER BY id
             """,
             (older_than,),
+        ).fetchall()
+        return [_row_to_wanted(r) for r in rows]
+
+    def list_for_followed(self, followed_id: int, *, kind: WantedKind) -> list[WantedItem]:
+        """Return EVERY ``wanted`` row of one follow, any status, ordered by id.
+
+        Read-model support: a per-episode reader needs all the rows of a follow
+        in ONE query (rather than one lookup per episode) AND it needs the
+        closed rows too, because the « which row governs » rule is applied by
+        the caller — :func:`~personalscraper.web.acquisition.states.select_wanted_facts`
+        — not by a WHERE clause that each caller would have to re-invent.
+
+        Args:
+            followed_id: FK to the ``followed_series`` row.
+            kind: ``"movie"`` or ``"episode"`` — the row family to return.
+
+        Returns:
+            The matching rows ordered by id ascending (oldest first, so the
+            governing row is the last one a caller sees).
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash, last_search_outcome, last_search_found
+            FROM wanted
+            WHERE followed_id IS ? AND kind = ?
+            ORDER BY id
+            """,
+            (followed_id, kind),
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]
 
@@ -358,7 +589,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted
             WHERE followed_id IS ?
               AND kind = ?

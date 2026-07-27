@@ -36,6 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
@@ -48,6 +49,7 @@ from personalscraper.web.acquisition._helpers import (
     _row_col,
 )
 from personalscraper.web.acquisition.obligation_titles import resolve_obligation_titles
+from personalscraper.web.acquisition.runner import parse_prime_options
 from personalscraper.web.acquisition.service import (
     _build_followed_item,
     _build_provider_clients,
@@ -73,6 +75,7 @@ from personalscraper.web.models.acquisition import (
     WantedItemResponse,
     WantedResponse,
 )
+from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run, pid_is_alive
 
 if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
@@ -89,34 +92,93 @@ _MAX_PAGE_SIZE = 200
 def _write_follow_metadata(
     store: "ConcreteAcquireStore",
     followed_id: int,
-    body: CreateFollowRequest,
+    metadata: FollowMetadata,
 ) -> None:
-    """Persist the card metadata captured from the add-by-search candidate (OBJ3).
+    """Persist the card metadata of a follow (OBJ3 + acq-states §7).
 
-    A no-op when nothing was supplied. Fail-soft: a DB error is logged and
-    swallowed — the follow itself already succeeded, the metadata is a nicety.
+    A no-op when nothing is known — which, since the server enriches, now means
+    the client sent nothing AND no provider could answer.  Fail-soft: a DB error
+    is logged and swallowed — the follow itself already succeeded, the metadata
+    is a nicety.
 
-    Routes the write through the acquire store's ``follow.set_metadata`` (single
-    ``_write_tx`` BEGIN IMMEDIATE) rather than opening a raw connection, so the
-    web layer never bypasses the store's single-writer discipline (ACQUIRE-09).
-    Reuses the caller's already-open ``store`` — no second connection.
+    Routes the write through the acquire store's ``follow.merge_metadata``
+    (single ``_write_tx`` BEGIN IMMEDIATE) rather than opening a raw connection,
+    so the web layer never bypasses the store's single-writer discipline
+    (ACQUIRE-09). Reuses the caller's already-open ``store`` — no second
+    connection. The merge is additive: a field the enrichment could not resolve
+    must not erase a value a previous add path already stored.
 
     Args:
         store: The already-open acquire store the caller owns.
         followed_id: The row to update.
-        body: The create request carrying optional ``poster_url``/``overview``/``year``.
+        metadata: The resolved card metadata (client candidate + provider).
     """
-    if body.poster_url is None and body.overview is None and body.year is None:
+    if metadata.is_empty:
         return
     try:
-        store.follow.set_metadata(
+        store.follow.merge_metadata(
             followed_id,
-            poster_url=body.poster_url,
-            overview=body.overview,
-            year=body.year,
+            poster_url=metadata.poster_url,
+            overview=metadata.overview,
+            year=metadata.year,
         )
     except Exception:  # noqa: BLE001 — fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
+
+
+def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_ref: MediaRef) -> FollowMetadata:
+    """Resolve the card metadata for a create/reactivate, enriching what is missing.
+
+    The client candidate wins; the providers are only consulted for the fields
+    it left out, so a POST carrying a full candidate makes ZERO provider calls.
+    Fail-soft end to end: a registry that cannot be built is logged at WARNING
+    and the follow keeps whatever the client sent — the 201 is never at risk
+    (plan §7 « Fail-soft, jamais bloquant »).
+
+    KNOWN UNBOUNDED WORST CASE (PR #320 review, M6 — OPEN, not fixed here).
+    These provider calls are SYNCHRONOUS inside the request. The enrichment
+    makes at most two lookups (primary provider, then the fallback), but each
+    one runs the shared transport retry loop: ``max_attempts=4`` over a 10 s
+    (TMDB) / 15 s (TVDB) per-request timeout, plus exponential-jitter backoff.
+    Against a host that accepts the TCP connection and never answers, one
+    lookup can therefore burn ~60-75 s and a two-source enrichment ~2 minutes,
+    with the worker thread held for the whole time. The circuit breaker only
+    helps from the SECOND affected request onwards — it cannot shorten the one
+    that trips it.
+
+    TODO(acq-states): bound this path to attempts=1. It is deliberately NOT
+    done here: the retry policy is baked into each provider's ``policy()`` and
+    reaches ``HttpTransport`` through ``ProviderRegistry`` →
+    ``build_providers``, with no per-call or per-registry override seam. The
+    only local workaround would be to mutate ``client._transport._policy``
+    (private state, frozen dataclass, on objects the registry owns) from this
+    route — and on TVDB merely READING ``_transport`` fires a bootstrap login.
+    The honest fix is an ``attempts`` override plumbed through the registry
+    factory, which is a provider-tree change, not a route change.
+
+    Args:
+        request: The incoming FastAPI request (carries config + settings).
+        body: The create request, source of the client-supplied values.
+        media_ref: The follow's provider IDs.
+
+    Returns:
+        The resolved :class:`FollowMetadata`.
+    """
+    known = FollowMetadata(poster_url=body.poster_url, overview=body.overview, year=body.year)
+    if known.is_complete:
+        return known
+    try:
+        tmdb_client, tvdb_client = _build_provider_clients(request)
+    except Exception as exc:  # noqa: BLE001 — incl. the HTTPException(502) the builder raises
+        logger.warning("acquisition_follow_enrich_registry_failed", error=str(exc))
+        return known
+    return enrich_follow_metadata(
+        media_ref,
+        body.kind,
+        tmdb_client=tmdb_client,
+        tvdb_client=tvdb_client,
+        existing=known,
+    )
 
 
 # ── /api/acquisition/followed ──────────────────────────────────────────
@@ -143,6 +205,7 @@ def get_followed(
         compute_follow_truth,
         compute_movie_truth,
     )
+    from personalscraper.web.models.acquisition import MovieFacts  # noqa: PLC0415
 
     db_path = request.app.state.config.acquire.db_path
     if db_path is None or not Path(db_path).exists():
@@ -184,6 +247,54 @@ def get_followed(
                     last = None if w["last_search_at"] is None else int(w["last_search_at"])
                     timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
 
+            # Batched lookup of in-flight priming runs — one query, never N+1.
+            # An open prime run overrides the card status to
+            # ``verification_en_cours``, so the predicate MUST be the one
+            # ``_has_live_run`` applies: un-ended AND pid-alive. ``ended_at IS
+            # NULL`` alone is not liveness — a runner that crashed never gets to
+            # write ``ended_at``, so its row stays open forever and pinned the
+            # card on « vérification en cours » for a process that died days
+            # ago, while the 409 guard reading the same row let the action
+            # through. The liveness check itself goes through the SINGLE
+            # authority (:func:`pid_is_alive`), applied in one pass over the
+            # handful of open prime rows the batched query returns.
+            #
+            # Parse the options_json through the single authority
+            # (prime_options_json / parse_prime_options in the runner module) so
+            # a reader can never interpret a row differently from how the writer
+            # built it.
+            #
+            # TODO(acq-states) (PR #320 review, m24 — OPEN, deliberately not
+            # indexed yet): this predicate is an unindexed scan of pipeline_run.
+            # No index covers (command, ended_at), so SQLite walks the whole
+            # table on every /followed render. Fine today — pipeline_run holds a
+            # few thousand rows and this is one scan per page load, not per card
+            # — and adding an index to a hot-write table has its own cost, so it
+            # is not worth paying blind. If the table grows (it is append-only
+            # and nothing prunes it), the shape to add is:
+            #   CREATE INDEX idx_pipeline_run_open_command
+            #     ON pipeline_run (command) WHERE ended_at IS NULL;
+            # a partial index — open runs are a handful at any instant, so it
+            # stays tiny however large the table gets.
+            priming_follow_ids: set[int] = set()
+            if indexer_db_path is not None and indexer_db_path.exists():
+                try:
+                    with closing(sqlite3.connect(str(indexer_db_path))) as idx_conn:
+                        apply_pragmas(idx_conn)
+                        idx_conn.row_factory = sqlite3.Row
+                        open_primes = idx_conn.execute(
+                            "SELECT pid, options_json FROM pipeline_run "
+                            "WHERE command = 'prime' AND ended_at IS NULL AND pid IS NOT NULL"
+                        ).fetchall()
+                    for pr in open_primes:
+                        if not pid_is_alive(pr["pid"]):
+                            continue  # crashed runner → stale row, not a live verification
+                        fid = parse_prime_options(pr["options_json"])
+                        if fid is not None:
+                            priming_follow_ids.add(fid)
+                except sqlite3.Error:
+                    logger.warning("acquisition_priming_lookup_failed", exc_info=True)
+
             items: list[FollowedSeriesItem] = []
             for row in rows:
                 # COUNT wanted pending for this series.
@@ -219,12 +330,14 @@ def get_followed(
                     effective = effective_cadence(cadence_from_json(row["cadence_json"]), global_cadence)
                     next_due, cadence_tier = _cadence_readout(timings_by_series.get(row["id"], []), effective, now)
 
-                # §5 truth table (P0-B.2): ownership (real disk presence by
-                # provider ID) × wanted — the card status derives from these
-                # facts, never from a raw wanted counter. Shows cross the aired
-                # catalog; films (D2-B) are a catalog of one, so the same
-                # ownership-aware fields drive the movie card status too.
+                # Five-state facts (acq-states phase 4): ownership (real disk
+                # presence by provider ID) × the wanted queue × the last search
+                # verdict — the card status derives from these facts, never from
+                # a raw wanted counter. Shows cross the aired catalog into
+                # per-state counts; films (D2-B) are a catalog of one and carry
+                # their single unit's facts instead.
                 truth = FollowTruth()
+                movie_facts: MovieFacts | None = None
                 kind = cast("str", _row_col(row, "kind")) or "show"
                 try:
                     core_ref: MediaRef | None = MediaRef(
@@ -236,8 +349,8 @@ def get_followed(
                     if ownership_checker is None:
                         ownership_checker = IndexerOwnershipChecker(Path(indexer_db_path))
                     if kind == "movie":
-                        truth = compute_movie_truth(
-                            ownership_checker, media_ref=core_ref, grabbed=grabbed, pending=pending
+                        movie_facts = compute_movie_truth(
+                            conn, ownership_checker, followed_id=row["id"], media_ref=core_ref
                         )
                     else:
                         truth = compute_follow_truth(conn, ownership_checker, followed_id=row["id"], media_ref=core_ref)
@@ -262,9 +375,12 @@ def get_followed(
                         cadence_tier=cadence_tier,
                         aired_count=truth.aired_count,
                         owned_count=truth.owned_count,
-                        inflight_count=truth.inflight_count,
-                        queued_count=truth.queued_count,
-                        missing_count=truth.missing_count,
+                        a_recuperer_count=truth.a_recuperer_count,
+                        en_acquisition_count=truth.en_acquisition_count,
+                        en_attente_count=truth.en_attente_count,
+                        non_verifie_count=truth.non_verifie_count,
+                        movie_facts=movie_facts,
+                        priming_running=row["id"] in priming_follow_ids,
                     )
                 )
             return FollowedResponse(items=items)
@@ -283,11 +399,13 @@ def get_followed(
 def get_followed_completeness(request: Request, followed_id: int) -> CompletenessResponse:
     """Per-season / per-episode completeness for one followed series (§5).
 
-    Read-only: crosses the provider catalog (aired episodes), the library
-    (ownership by provider id) and the wanted queue into one honest matrix —
-    "ce qui est déjà sorti vs ce qui est en médiathèque". An empty provider
-    catalog is an explicit state (``provider_catalog_empty``), never a
-    misleading all-missing grid.
+    Read-only: crosses the detect-written aired catalog, the library (ownership
+    by provider id) and the wanted queue into one honest matrix — "ce qui est
+    déjà sorti vs ce qui est en médiathèque". No provider is polled here: the
+    catalog comes from the cache alone, so this panel and the followed card read
+    the same facts through the same derivation and can never disagree
+    (acq-states phase 5). A follow with no cached catalog yields empty seasons
+    and ``source="unknown"`` rather than a fabricated all-missing grid.
 
     Args:
         request: The incoming FastAPI request.
@@ -297,8 +415,7 @@ def get_followed_completeness(request: Request, followed_id: int) -> Completenes
         The :class:`CompletenessResponse`.
 
     Raises:
-        HTTPException: 404 unknown follow; 502 when the provider registry
-            cannot be built.
+        HTTPException: 404 when the follow is unknown.
     """
     from personalscraper.core.ownership import NullOwnershipChecker
     from personalscraper.indexer.ownership import IndexerOwnershipChecker
@@ -311,19 +428,13 @@ def get_followed_completeness(request: Request, followed_id: int) -> Completenes
         if followed is None:
             raise HTTPException(status_code=404, detail="Followed series not found")
 
-        from personalscraper.cli_helpers import _build_app_context
-
-        try:
-            app_context = _build_app_context(config, request.app.state.settings)
-            registry = app_context.provider_registry
-        except Exception as exc:
-            logger.error("acquisition_completeness_registry_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
-
+        # No provider registry is built any more: the catalog is read from the
+        # cache, so this route makes ZERO provider calls (NE-DOIT-PAS-8) and no
+        # longer fails 502 on a registry construction problem.
         indexer_db = config.indexer.db_path
         checker = IndexerOwnershipChecker(Path(indexer_db)) if indexer_db is not None else NullOwnershipChecker()
         try:
-            return compute_completeness(followed, registry=registry, ownership=checker, store=store)
+            return compute_completeness(followed, ownership=checker, store=store)
         finally:
             if isinstance(checker, IndexerOwnershipChecker):
                 checker.close()
@@ -682,13 +793,21 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # series-shaped and no movie wanted row is ever produced).
             store.follow.set_active(existing.id, True)
             store.follow.set_kind(existing.id, body.kind)
-            _write_follow_metadata(store, existing.id, body)
+            # Reactivation backfills too: a follow paused before the server
+            # enriched anything must not stay posterless just because it is old.
+            metadata = _resolve_follow_metadata(request, body, media_ref)
+            _write_follow_metadata(store, existing.id, metadata)
+            # Reactivating re-primes: the catalog and the queue are as stale as
+            # they were the day the follow was paused (plan §6 idempotence).
+            prime_outcome = enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
             item = _item_from_followed(reactivated)
-            item.poster_url = body.poster_url
-            item.overview = body.overview
-            item.year = body.year
+            item.poster_url = metadata.poster_url
+            item.overview = metadata.overview
+            item.year = metadata.year
+            if prime_outcome in ("spawned", "already_running"):
+                item.priming_running = True
             return item
 
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
@@ -703,12 +822,21 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
-        # Persist + echo the card metadata captured from the search candidate.
-        _write_follow_metadata(store, new_id, body)
+        # Persist + echo the card metadata: the search candidate when the client
+        # supplied one, otherwise fetched from the provider by ID (§7 RC3 — the
+        # by-ID add form sends no poster, and the card stayed blank forever).
+        metadata = _resolve_follow_metadata(request, body, media_ref)
+        _write_follow_metadata(store, new_id, metadata)
+        # Amorce: catalog + queue + first search run NOW, through the existing
+        # run authority — a fresh follow is never left idle until the 03:00
+        # cron (the founding incident: a grab over an empty queue, rc=0).
+        prime_outcome = enqueue_prime_run(config.indexer.db_path, new_id)
         item = _item_from_followed(created)
-        item.poster_url = body.poster_url
-        item.overview = body.overview
-        item.year = body.year
+        item.poster_url = metadata.poster_url
+        item.overview = metadata.overview
+        item.year = metadata.year
+        if prime_outcome in ("spawned", "already_running"):
+            item.priming_running = True
         return item
     finally:
         store.close()

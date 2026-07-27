@@ -100,8 +100,11 @@ def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
 
     Covers BOTH populations (§5 visibility): the watcher-triggered pipeline
     runs (legacy triggers) AND the acquisition CLI runs — ``follow-detect`` /
-    ``grab`` rows written by the crons, a human CLI, or the web runner — each
-    carrying its structured numeric result when recorded.
+    ``grab`` / ``prime`` rows written by the crons, a human CLI, or the web
+    runner — each carrying its structured numeric result when recorded. The
+    ``prime`` rows are the acq-states amorce of a freshly followed series: a
+    run the operator triggered by adding a follow must be as visible as any
+    other.
 
     Args:
         db_path: Absolute path to the indexer SQLite database (library.db).
@@ -123,7 +126,7 @@ def _query_watcher_recent_runs(db_path: Path) -> list[RecentRun]:
                 SELECT run_uid, started_at, ended_at, outcome, command, "trigger", steps_json
                 FROM pipeline_run
                 WHERE trigger IN ({placeholders})
-                   OR command IN ('follow-detect', 'grab')
+                   OR command IN ('follow-detect', 'grab', 'prime')
                 ORDER BY started_at DESC
                 LIMIT ?
                 """,
@@ -207,6 +210,21 @@ def _build_provider_clients(request: Request) -> tuple[object, object]:
     for this single request (never stored on ``app.state`` — the composition-
     boundary rule). Live search is an infrequent operator action, not a hot
     polling endpoint.
+
+    LEAK (PR #320 review, m23 — OPEN): the registry built here is never closed.
+    ``ProviderRegistry.close()`` releases each provider's ``requests.Session``
+    (and its connection pool); dropping the registry on the floor leaves that to
+    the garbage collector, which closes sockets late and non-deterministically.
+    Two request paths reach this (create-follow enrichment, media search), both
+    operator-driven and low-frequency, so the leak has never been observed —
+    that is why it is documented rather than papered over.
+
+    TODO(acq-states): close it. Not a one-liner: the returned clients are USED by
+    the caller after this function returns, so the registry has to outlive the
+    call — it needs a context manager (or a FastAPI dependency with a
+    ``yield``) wrapping the whole handler, not a ``finally`` here. Doing it
+    wrong closes the transport under the client and turns the leak into a
+    request failure.
 
     Args:
         request: The incoming FastAPI request.

@@ -101,8 +101,48 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model)."""
         ...
 
+    def list_searching(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='searching'`` — NO age threshold.
+
+        Reconciliation input: a row can hold a ``grabbed_hash`` while reading
+        'searching' (§11(d) crash window), and that row is closable ONLY here.
+        """
+        ...
+
+    def list_available(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='available'`` — the grab pass queue."""
+        ...
+
+    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+        """Persist the verdict of the last search on *wanted_id*.
+
+        Called at EVERY exit path of the search pass. ``found`` is ``None``
+        when the search did NOT conclude (outage / dead swarm / open circuit):
+        zero would falsely claim « I looked, there is nothing ».
+        """
+        ...
+
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item; return ``True`` iff this call won."""
+        ...
+
+    def claim_for_grab(self, wanted_id: int, now: int) -> bool:
+        """Atomically claim an ``available`` item; return ``True`` iff this call won.
+
+        The grab pass's counterpart to :meth:`claim_for_search`: it matches
+        ``status='available'`` only, so the two passes never steal each other's
+        rows.
+        """
+        ...
+
+    def reclaim_stale_searching(self, wanted_id: int, older_than: int) -> bool:
+        """Atomically recover a stale hash-less 'searching' row to 'pending'.
+
+        Rowcount-gated exactly like :meth:`claim_for_search`: a row already
+        re-claimed, already grabbed, or carrying a ``grabbed_hash`` (the
+        §11(d) crash window) is NEVER reverted. Returns ``True`` iff this call
+        recovered it.
+        """
         ...
 
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
@@ -110,7 +150,12 @@ class WantedSubStore(Protocol):
         ...
 
     def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:
-        """Close ``grabbed`` rows carrying *info_hash* (dispatch-time §5 closure)."""
+        """Close every OPEN row carrying *info_hash* (§5 dispatch closure).
+
+        The open-status filter derives from ``OPEN_WANTED_STATUSES``, so a row
+        left 'searching' or 'available' while holding the hash of a torrent the
+        pipeline already dispatched still closes.
+        """
         ...
 
     def mark_done(self, wanted_id: int) -> bool:
@@ -118,7 +163,11 @@ class WantedSubStore(Protocol):
         ...
 
     def requeue_missing(self, wanted_id: int) -> bool:
-        """Requeue a ``grabbed`` row whose torrent vanished (and is unowned)."""
+        """Requeue an OPEN hash-carrying row whose torrent vanished (and is unowned).
+
+        Guarded on ``grabbed_hash IS NOT NULL`` + the OPEN statuses, so the
+        §11(d) crash window ('searching' + hash) is requeueable too.
+        """
         ...
 
     def resurrect(self, wanted_id: int, now: int) -> bool:
@@ -127,6 +176,14 @@ class WantedSubStore(Protocol):
 
     def list_stale_searching(self, older_than: int) -> list[WantedItem]:
         """Return ``wanted`` rows stuck in 'searching' older than the threshold."""
+        ...
+
+    def list_for_followed(self, followed_id: int, *, kind: WantedKind) -> list[WantedItem]:
+        """Return EVERY ``wanted`` row of one follow (any status), ordered by id.
+
+        Closed rows are included on purpose: the « which row governs » rule
+        belongs to the shared selector, not to each caller's WHERE clause.
+        """
         ...
 
     def find(

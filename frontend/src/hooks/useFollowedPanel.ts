@@ -2,9 +2,10 @@
  * useFollowedPanel — the data machine behind {@link FollowedPanel}.
  *
  * Owns everything the "Suivis" tab needs beyond raw presentation: the follow /
- * unfollow / update / manual-grab mutations, the live grab-scheduler cadence
- * caption, the fire-and-track manual grab (launch → track to NUMERIC result →
- * toast only on real end, via {@link useTrackedAcquisitionRun}), the add-by-id
+ * unfollow / update / verification / « Récupérer maintenant » mutations, the
+ * live grab-scheduler cadence caption, the fire-and-track runs (launch → track
+ * to NUMERIC result → toast only on real end, via
+ * {@link useTrackedAcquisitionRun}), the queued-grab readouts, the add-by-id
  * form buffer and the edit-cadence dialog buffer. The presentation component
  * (``components/acquisition/FollowedPanel.tsx``) consumes this hook's result and
  * renders it over the ``data`` prop — no data logic lives in the view layer.
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 
 import {
   acqKeys,
+  triggerFollowedGrab,
   triggerFollowedSearch,
   type CreateFollowRequest,
   type FollowedSeriesItem,
@@ -59,8 +61,21 @@ export interface FollowedPanelMachine {
   // ---- Per-series actions ----
   /** Launch a manual grab search for one followed series (OBJ3). */
   readonly triggerSearch: (id: number) => void;
-  /** The id of the series whose manual grab is currently in flight, or ``null``. */
+  /** The id of the series whose verification run is in flight, or ``null``. */
   readonly triggerPendingId: number | null;
+  /**
+   * Launch « Récupérer maintenant » for one item the server says is takeable
+   * (five-state ``a_recuperer``).
+   */
+  readonly grabNow: (id: number) => void;
+  /** The id of the item whose grab request is in flight, or ``null``. */
+  readonly grabPendingId: number | null;
+  /**
+   * ``true`` when *id* has a queued grab whose run has not ended yet — the row
+   * reads « En file ». A 202 is a queued state, never a promise of success
+   * (NE-DOIT-PAS-1); the set is cleared when the tracked run actually ends.
+   */
+  readonly isGrabQueued: (id: number) => boolean;
   /** Unfollow (retire) a series. */
   readonly handleUnfollow: (id: number) => void;
   /** ``true`` while an unfollow mutation is in flight. */
@@ -111,37 +126,84 @@ export function useFollowedPanel(): FollowedPanelMachine {
   // count / status reflect the freshly enqueued search without a manual reload.
   // §5: never a success toast on the 202 — track the launched grab to its
   // NUMERIC result and toast only once the run actually ends.
+  // « Récupérer maintenant » (§6): the operator must not wait for the 03:20
+  // cron when a takeable version is already known. The row shows « En file »
+  // until the launched run ends — a 202 is a queued state, never a promise of
+  // success (NE-DOIT-PAS-1). Declared before the run tracker below, which
+  // clears it when the run it belongs to ends.
+  const [queuedGrabs, setQueuedGrabs] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const markQueued = (id: number): void => {
+    setQueuedGrabs((prev) => new Set(prev).add(id));
+  };
+
   const [trackedRun, setTrackedRun] = useState<string | null>(null);
   const finishedRun = useTrackedAcquisitionRun(trackedRun);
   if (finishedRun?.ended_at != null && trackedRun != null) {
     if (finishedRun.outcome === "success") {
       const summary = formatRunResult(finishedRun.result);
-      toast.success(`Recherche terminée${summary ? ` — ${summary}` : ""}.`);
+      toast.success(`Exécution terminée${summary ? ` — ${summary}` : ""}.`);
     } else {
-      toast.error("La recherche a échoué — voir les exécutions récentes.");
+      toast.error("L'exécution a échoué — voir les exécutions récentes.");
     }
     setTrackedRun(null);
+    // The « En file » readouts end with the run that carried them.
+    setQueuedGrabs(new Set());
     void queryClient.invalidateQueries({ queryKey: acqKeys.all });
   }
 
   const triggerMutation = useMutation({
     mutationFn: (id: number) => triggerFollowedSearch(id),
     onSuccess: (res) => {
-      toast.info("Recherche lancée…");
+      // The action now runs the whole chain server-side (catalogue → trackers →
+      // récupération), so the wording says so instead of promising a "search".
+      toast.info(
+        "Vérification lancée — catalogue, trackers, puis récupération…",
+      );
       setTrackedRun(res.run_uid);
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          toast.error("Une recherche est déjà en cours pour cette série.");
+          // §6 / NE-DOIT-PAS-3: the duplicate of the SAME action is the one
+          // legitimate refusal — it is an information, never an error.
+          toast.info("Une vérification est déjà en cours pour ce titre.");
         } else if (err.status === 404) {
           toast.error("Série introuvable.");
         } else {
           toast.error(err.detail);
         }
       } else {
-        toast.error("Erreur lors du lancement de la recherche.");
+        toast.error("Erreur lors du lancement de la vérification.");
       }
+    },
+  });
+
+  const grabMutation = useMutation({
+    mutationFn: (id: number) => triggerFollowedGrab(id),
+    onSuccess: (res, id) => {
+      toast.info("Récupération mise en file…");
+      markQueued(id);
+      setTrackedRun(res.run_uid);
+    },
+    onError: (err: unknown, id: number) => {
+      if (err instanceof ApiError && err.status === 409) {
+        // Already running for this very item: the one permitted refusal. The
+        // operator's intent is satisfied, so it reads as « déjà en cours ».
+        toast.info("Récupération déjà en cours pour ce titre.");
+        markQueued(id);
+        return;
+      }
+      if (err instanceof ApiError && err.status === 404) {
+        toast.error("Titre introuvable.");
+        return;
+      }
+      toast.error(
+        err instanceof ApiError
+          ? err.detail
+          : "Erreur lors du lancement de la récupération.",
+      );
     },
   });
 
@@ -215,6 +277,11 @@ export function useFollowedPanel(): FollowedPanelMachine {
     triggerPendingId: triggerMutation.isPending
       ? triggerMutation.variables
       : null,
+    grabNow: (id: number) => {
+      grabMutation.mutate(id);
+    },
+    grabPendingId: grabMutation.isPending ? grabMutation.variables : null,
+    isGrabQueued: (id: number) => queuedGrabs.has(id),
     handleUnfollow,
     unfollowPending: unfollowMutation.isPending,
     handleToggleActive,

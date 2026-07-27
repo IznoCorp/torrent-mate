@@ -16,6 +16,18 @@ from personalscraper.logger import get_logger
 log = get_logger("core.sqlite.migrate")
 
 
+def safe_rollback(conn: sqlite3.Connection) -> None:
+    """Roll back *conn* best-effort, ignoring "no transaction active" errors.
+
+    Args:
+        conn: The connection to roll back.
+    """
+    try:
+        conn.execute("ROLLBACK")
+    except sqlite3.Error:
+        pass
+
+
 def _migration_version(sql_path: Path) -> int:
     """Extract the leading integer from a migration filename.
 
@@ -93,12 +105,14 @@ def apply_migrations(
             ``error_factory`` is supplied.
         BaseException: Whatever ``error_factory(version)`` returns, when supplied.
 
-            **Closed-connection invariant**: when this exception is raised
-            because of a restore-from-snapshot, *conn* has already been
-            ``.close()``-d (the snapshot is restored by overwriting the DB
-            file on disk, which requires the active connection to be closed).
-            Callers MUST re-open a fresh connection before issuing further
-            queries; reusing the closed *conn* will raise
+            **Closed-connection invariant**: on EVERY failure path *conn* has
+            already been ``.close()``-d. With a snapshot, because restoring it
+            overwrites the DB file on disk and that requires the active
+            connection closed. Without one, because a script that fails inside
+            its own ``BEGIN`` leaves an open transaction holding the writer
+            lock — the connection is rolled back and closed rather than handed
+            back poisoned. Callers MUST re-open a fresh connection before
+            issuing further queries; reusing the closed *conn* will raise
             ``sqlite3.ProgrammingError``.
     """
     # Resolve current schema version from the database.
@@ -151,6 +165,17 @@ def apply_migrations(
                 error=str(exc),
             )
             # --- Step 4 (failure path): restore from snapshot ---
+            #
+            # KNOWN LIMITATION (PR #320 review, M8 — OPEN, not fixed here): this
+            # restore rewrites the DB FILE under whatever other processes have it
+            # open. On this host acquire.db and library.db are shared by the web
+            # app, the watcher and the crons, all in WAL mode. A raw file
+            # overwrite leaves their `-wal` / `-shm` siblings untouched, so a
+            # live reader can keep serving pages from a WAL that no longer
+            # describes the file beneath it. A correct restore has to fence the
+            # other readers (or restore through the SQLite backup API onto a
+            # freshly-opened connection with its WAL removed), which is a
+            # migration-runner redesign, not a review fix.
             if bak_path is not None and db_path is not None and bak_path.exists():
                 conn.close()
                 db_path.write_bytes(bak_path.read_bytes())
@@ -159,6 +184,16 @@ def apply_migrations(
                 # restored file's pages back into the existing connection object via
                 # the backup API.  However, since conn is now closed we cannot use it.
                 # The contract: caller must re-open after error.
+            else:
+                # No snapshot to restore (in-memory DB, or the backup was never
+                # taken). The failed script may have left an OPEN transaction —
+                # 008's explicit BEGIN does exactly that when a statement inside
+                # it raises. Raising without closing it left the caller holding a
+                # connection with `in_transaction=True`, which silently held the
+                # writer lock and made every later write on it fail. Roll back
+                # and close before raising, mirroring the restore branch.
+                safe_rollback(conn)
+                conn.close()
             raise (
                 error_factory(ver) if error_factory is not None else SqliteMigrationError(f"Migration {ver} failed")
             ) from exc

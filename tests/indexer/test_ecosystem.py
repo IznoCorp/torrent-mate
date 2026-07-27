@@ -1,7 +1,7 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: the nine apps (watch daemon + five cron jobs + prod/staging web + autodeploy),
+design: the ten apps (watch daemon + six cron jobs + prod/staging web + autodeploy),
 correct ``interpreter`` / ``script`` / ``cwd``, proper ``autorestart`` vs
 ``cron_restart`` segregation, valid cron expressions, and the ENV-SEP invariant that
 every daemon/cron runs from the PROD clone — never the dev checkout.
@@ -34,6 +34,7 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
         "personalscraper-follow-detect",
+        "personalscraper-search",
         "personalscraper-grab",
         "personalscraper-health-check",
         "torrentmate-web",
@@ -61,6 +62,7 @@ _PROD_PYTHON_APP_NAMES = frozenset(
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
         "personalscraper-follow-detect",
+        "personalscraper-search",
         "personalscraper-grab",
         "personalscraper-health-check",
     }
@@ -423,6 +425,16 @@ def test_grab_app_is_valid_cron_job() -> None:
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     app = _get_app_by_name(apps, "personalscraper-grab")
     assert app.get("args") == "grab", f"expected args 'grab', got {app.get('args')!r}"
+    assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
+    cron = app.get("cron_restart")
+    assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
+
+
+def test_search_app_is_valid_cron_job() -> None:
+    """``personalscraper-search`` runs ``search`` on a valid cron (twice daily, 10 past), no autorestart."""
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    app = _get_app_by_name(apps, "personalscraper-search")
+    assert app.get("args") == "search", f"expected args 'search', got {app.get('args')!r}"
     assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
     cron = app.get("cron_restart")
     assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"

@@ -100,7 +100,8 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 48. [`follow list`](#personalscraper-follow) — list followed series
 49. [`follow remove`](#personalscraper-follow) — soft-unfollow a series
 50. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
-51. [`grab`](#personalscraper-grab) — search trackers + add top exact-episode candidate to qBittorrent
+51. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
+52. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
 
 ### Make targets + scheduling (appendix)
 
@@ -1724,11 +1725,14 @@ sentinel persists and is consumed at the next boot.
 
 ## Acquisition — Follow (auto-download, PM2)
 
-> The follow → detect → grab flow auto-downloads new episodes of series you
-> follow. It is library-aware (episodes already on disk are skipped) and is
-> designed to run under PM2 via `ecosystem.config.js` (`personalscraper-follow-detect`
->
-> - `personalscraper-grab`). State lives in `acquire.db` (`followed_series`, `wanted`).
+> The three-pass detect → search → grab flow auto-downloads new episodes of
+> series you follow. `detect` enqueues newly-aired episodes as wanted;
+> `search` states tracker availability for each pending item (no downloads,
+> no torrent client needed); `grab` walks known-available items, selects the
+> top-ranked exact-episode candidate, and adds it to qBittorrent. It is
+> library-aware (episodes already on disk are skipped) and runs under PM2 via
+> `ecosystem.config.js` (`personalscraper-follow-detect`, `personalscraper-search`,
+> `personalscraper-grab`). State lives in `acquire.db` (`followed_series`, `wanted`).
 
 ## `personalscraper follow`
 
@@ -1755,15 +1759,53 @@ Sub-commands:
     personalscraper follow detect --dry-run          # preview wanted episodes
     personalscraper follow detect                    # enqueue them
 
-**Related**: `grab`
+**Related**: `search`, `grab`
+
+## `personalscraper search`
+
+**Purpose**: The middle pass of the three-pass detect → search → grab flow.
+States tracker availability for pending `wanted` items — queries each
+configured tracker to determine whether a matching release exists, then records
+the result in `acquire.db`. Downloads **nothing** and holds no torrent client
+at all, so it runs independently from qBittorrent. Items past their cutoff are
+abandoned; items still within their cadence window are skipped and retried next
+run.
+
+**Side effects**: `network` (trackers), `mutate` (`acquire.db` status)
+
+**Args**:
+
+- `--dry-run` — preview what WOULD be searched after cadence gating. No tracker
+  calls, no writes.
+- `-n, --limit N` — cap the number of items searched in one run.
+- `--followed-id ID` — restrict the run to one followed series' pending items.
+
+**Summary line format** (real run):
+
+    Search complete: N available, N waiting, N unverified, N abandoned, N skipped.
+
+**Examples**:
+
+    personalscraper search --dry-run                  # preview candidates, no tracker calls
+    personalscraper search                            # state availability for all pending items
+    personalscraper search -n 10                      # cap to 10 items
+    personalscraper search --followed-id 3            # only one series
+
+**Related**: `follow detect`, `grab`
+
+> **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-search` runs
+> `search` at 03:10 and 15:10 daily, between the detect pass (03:00) and each
+> grab pass (03:20 / 15:20). The second pass catches items that were still
+> in their cadence cooldown during the morning run.
 
 ## `personalscraper grab`
 
-**Purpose**: Run the grab loop — for each pending `wanted` item, search the
-configured trackers with a title query (`"{series title} SxxEyy}"`, Follow D3),
-keep only results naming the **exact** episode, hard-filter + dedup + rank, then
-add the top candidate to qBittorrent. Items that fail transiently are retried
-next run (backoff cadence); items with no matching release are abandoned.
+**Purpose**: Run the grab loop — for each **known-available** `wanted` item
+(previously marked available by `search`), re-search the configured trackers
+with a title query (`"{series title} SxxEyy}"`, Follow D3), keep only results
+naming the **exact** episode, hard-filter + dedup + rank, then add the top
+candidate to qBittorrent. Items that fail transiently are retried next run
+(backoff cadence); items whose tracker results no longer match are unverified.
 
 **Side effects**: `network` (trackers, qBittorrent), `mutate` (`acquire.db` status +
 qBittorrent adds).
@@ -1779,11 +1821,12 @@ qBittorrent adds).
     personalscraper grab                             # search + add to qBittorrent
     personalscraper grab -n 5                         # cap to 5 wanted items
 
-**Related**: `follow detect`, `watch`
+**Related**: `follow detect`, `search`, `watch`
 
-> **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-follow-detect`
-> runs `follow detect` daily at 03:00; `personalscraper-grab` runs `grab` at
-> 03:20 and 15:20 (the second pass retries items past their backoff cooldown).
+> **PM2 scheduling** (`ecosystem.config.js`): the three-pass flow runs daily:
+> `personalscraper-follow-detect` at 03:00 (enqueue aired),
+> `personalscraper-search` at 03:10 and 15:10 (state availability),
+> `personalscraper-grab` at 03:20 and 15:20 (take what is available).
 
 ---
 
@@ -1848,13 +1891,13 @@ manually too.
 
 Records **who started the run** in the `pipeline_run` history table. Values:
 
-| Value        | Meaning                                                     |
-| ------------ | ----------------------------------------------------------- |
-| `web`        | started via the web UI `POST /api/pipeline/run`             |
-| `completion` | Watcher fired on newly completed torrents                   |
-| `safety_net` | Watcher safety-net (no successful run for too long)         |
-| `manual`     | a manually-labelled run                                     |
-| `""` (empty) | default — unlabelled                                        |
+| Value        | Meaning                                             |
+| ------------ | --------------------------------------------------- |
+| `web`        | started via the web UI `POST /api/pipeline/run`     |
+| `completion` | Watcher fired on newly completed torrents           |
+| `safety_net` | Watcher safety-net (no successful run for too long) |
+| `manual`     | a manually-labelled run                             |
+| `""` (empty) | default — unlabelled                                |
 
 Validated by `_validate_trigger_reason`; other values raise `typer.BadParameter`.
 
@@ -1865,11 +1908,11 @@ run's history row (`run()` honours the env var, falling back to a fresh
 
 ### Sentinel files (in `paths.data_dir`)
 
-| File             | Effect                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------ |
+| File             | Effect                                                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pipeline.pause` | While present, a running pipeline pauses **at the next step boundary** and polls until it is removed (or SIGTERM). Create/remove it manually to pause/resume a run without the web UI. |
-| `watcher.paused` | While present, the Watcher daemon no-ops (does not auto-start runs). Distinct from pausing a run in progress. |
-| `pipeline.lock`  | Single trigger authority — holds the running pipeline's pid; `POST /api/pipeline/kill` reads it to SIGTERM the run. |
+| `watcher.paused` | While present, the Watcher daemon no-ops (does not auto-start runs). Distinct from pausing a run in progress.                                                                          |
+| `pipeline.lock`  | Single trigger authority — holds the running pipeline's pid; `POST /api/pipeline/kill` reads it to SIGTERM the run.                                                                    |
 
 Manual example — pause the current run, then resume:
 

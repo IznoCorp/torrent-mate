@@ -351,6 +351,43 @@ The unified `pipeline_run` table means the frontend's `RunHistoryTable`
 `options_json`, `output_tail` in the detail view) serve both pipeline and
 maintenance history from the same endpoints.
 
+### Prime runner — acquisition chain (`command='prime'`)
+
+The **prime** runner (`python -m personalscraper.web.acquisition.runner`,
+`command='prime'`) is the single amorce of a freshly followed series. Spawned by
+`POST /api/acquisition/followed/{id}/search` (the « Rechercher » button) and by
+`POST /api/acquisition/followed` (`create_follow` — acq-states phase 6 priming
+on follow creation), it chains three CLI invocations under the **same**
+`pipeline_run` row:
+
+```
+follow detect --series N  →  search --followed-id N  →  grab --followed-id N
+```
+
+Each step is announced by a `--- <step> ---` separator line in the output
+stream. The chain **stops at the first non-zero exit code** — a failing detect
+never proceeds to a search whose catalog it would have needed, and a failing
+search never proceeds to a grab with nothing to claim. The partial output shows
+exactly where the chain stopped. Every step is scoped to the single follow
+(`--series N` / `--followed-id N`) — priming one series must never trigger a
+library-wide pass.
+
+The prime runner reuses the same runner lifecycle as every other maintenance
+action: it reserves the `pipeline_run` row (inserted by the spawner with
+`if_absent=True`), streams output to a 64 KiB ring buffer + Redis (fail-soft),
+and finalizes the row on every exit path (`success` / `error` / `killed`). It
+holds **no** `pipeline.lock` — each wanted item is claimed atomically by the
+`grab` CLI, like the scheduled grab cron, so two concurrent primes for different
+follows are safe.
+
+Environment contract: `PERSONALSCRAPER_RUN_UID` (mandatory),
+`PERSONALSCRAPER_ACQ_COMMAND=prime` (mandatory for the prime path),
+`PERSONALSCRAPER_GRAB_FOLLOWED_ID` (mandatory — the follow to prime).
+
+The `prime` command appears in the maintenance history alongside other actions
+(filter `?kind=maintenance`), so the operator can see the full output of every
+priming run, including which step failed when the chain stopped early.
+
 ### Safety guarantees
 
 **Pipeline lock.** Write/destructive actions hold the same `pipeline.lock` as

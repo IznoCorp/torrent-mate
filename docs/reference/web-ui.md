@@ -1168,19 +1168,22 @@ and invalidates matching TanStack Query caches without a page reload.
 
 ### API surface
 
-| Method | Path                             | Auth    | Staging | XRW |
-| ------ | -------------------------------- | ------- | ------- | --- |
-| GET    | `/api/acquisition/followed`      | session | allowed | no  |
-| GET    | `/api/acquisition/wanted`        | session | allowed | no  |
-| GET    | `/api/acquisition/obligations`   | session | allowed | no  |
-| GET    | `/api/acquisition/status`        | session | allowed | no  |
-| POST   | `/api/acquisition/followed`      | session | 403     | yes |
-| PATCH  | `/api/acquisition/followed/{id}` | session | 403     | yes |
-| DELETE | `/api/acquisition/followed/{id}` | session | 403     | yes |
+| Method | Path                                    | Auth    | Staging | XRW |
+| ------ | --------------------------------------- | ------- | ------- | --- |
+| GET    | `/api/acquisition/followed`             | session | allowed | no  |
+| GET    | `/api/acquisition/wanted`               | session | allowed | no  |
+| GET    | `/api/acquisition/obligations`          | session | allowed | no  |
+| GET    | `/api/acquisition/status`               | session | allowed | no  |
+| POST   | `/api/acquisition/followed`             | session | 403     | yes |
+| PATCH  | `/api/acquisition/followed/{id}`        | session | 403     | yes |
+| DELETE | `/api/acquisition/followed/{id}`        | session | 403     | yes |
+| POST   | `/api/acquisition/detect`               | session | 403     | yes |
+| POST   | `/api/acquisition/followed/{id}/search` | session | 403     | yes |
+| POST   | `/api/acquisition/followed/{id}/grab`   | session | 403     | yes |
 
 All routes are mounted under the single `guarded_api` router (auth perimeter
-§6). The four GET routes are staging-allowed (no `require_not_staging`). The
-three mutating routes carry `require_not_staging` (staging → 403) and
+§6). The four GET routes are staging-allowed (no `require_not_staging`). Every
+mutating route carries `require_not_staging` (staging → 403) and
 `require_x_requested_with` (missing XRW → 400) as per-route dependencies.
 
 The watcher toggle reuses `POST /api/pipeline/watcher` (S2) — S7 does NOT
@@ -1312,12 +1315,25 @@ stage filter (P0-A.1), so per-stage lists partition the staging set.
 ### OBJ3 — per-series trigger + cadence readout
 
 - `POST /api/acquisition/followed/{id}/search` → `GrabTriggerResponse` (202 +
-  `run_uid`). Reserves a tracked `pipeline_run` (`kind='maintenance'`,
-  `command='grab'`) and spawns a detached runner (`web/acquisition/runner.py`)
-  that runs `grab --followed-id N`. The runner holds **no** `pipeline.lock` (grab
-  claims each wanted item atomically, like the scheduled grab cron) and finalizes
-  the run row on every exit path. `require_not_staging` + `require_x_requested_with`
-  - a per-series 409 guard.
+  `run_uid`) — the « Rechercher » button. Reserves a tracked `pipeline_run`
+  (`kind='maintenance'`, `command='prime'`) and spawns a detached runner
+  (`web/acquisition/runner.py`) that chains `follow detect --series N` →
+  `search --followed-id N` → `grab --followed-id N`. It spawned a bare `grab`
+  until acq-states phase 8: post-split, `grab` only claims items a previous
+  search already marked takeable, so on a follow reading `en_attente` /
+  `non_verifie` the button did nothing and reported success.
+- `POST /api/acquisition/followed/{id}/grab` → `GrabTriggerResponse` (202 +
+  `run_uid`) — the « Récupérer maintenant » button (acq-states phase 8).
+  Reserves `command='grab'` and spawns `grab --followed-id N` alone: no catalog
+  poll, no tracker search, just claim what is already available. Offered by the
+  UI exactly where the server status reads `a_recuperer`.
+- Both triggers share one reserve → guard → spawn → pid body
+  (`_launch_followed_action`), hold **no** `pipeline.lock` (grab claims each
+  wanted item atomically, like the scheduled grab cron), finalize the run row on
+  every exit path, and carry `require_not_staging` + `require_x_requested_with`.
+  Their 409 guard is **per action AND per series** (§6): a live grab never
+  refuses a search, a live prime never refuses a grab — the only permitted
+  refusal is the duplicate of the same action on the same follow.
 - `GET /api/acquisition/followed` — `FollowedSeriesItem` additionally exposes
   `next_search_at` (soonest next-due epoch across the series' pending wanted
   items) and `cadence_tier` (`hot`/`warm`/`cold`/`cutoff`), derived from the
@@ -1326,6 +1342,101 @@ stage filter (P0-A.1), so per-stage lists partition the staging set.
 
 Any route/signature/docstring change here still requires `make openapi` +
 committing the regenerated `openapi.json` + `schema.d.ts`.
+
+### Five-state vocabulary (acq-states)
+
+The acquisition surface uses **exactly five episode states** (and one card-only state),
+derived in a single module (`personalscraper/web/acquisition/states.py`) so two
+surfaces can never disagree about the same episode.
+
+**EpisodeState** (5 values — `derive_episode_state`):
+
+| Value            | French label           | Meaning                                                        |
+| ---------------- | ---------------------- | -------------------------------------------------------------- |
+| `en_mediatheque` | En médiathèque         | A live file exists for this episode in the library.            |
+| `a_recuperer`    | À récupérer            | The search concluded takeable — a candidate is waiting.        |
+| `en_acquisition` | En cours d'acquisition | A torrent was claimed (`grabbed`) and the pipeline carries it. |
+| `en_attente`     | En attente             | Searched, concluded, nothing takeable yet.                     |
+| `non_verifie`    | Non vérifié            | Never searched, OR the search did NOT conclude (outage).       |
+
+**Evaluation order is the spec** (first match wins):
+
+1. **Owned** → `en_mediatheque` — ownership beats everything (a `grabbed` row on
+   an owned episode is a phantom, not an acquisition in progress — the Silo bug).
+2. **`grabbed`** → `en_acquisition` — the torrent was taken.
+3. **`available`** → `a_recuperer` — the search found something.
+4. **Never searched** (`last_search_outcome is None`) → `non_verifie`.
+5. **Inconclusive** (`last_search_outcome in INCONCLUSIVE_OUTCOMES`) → `non_verifie`
+   — **panne ≠ absence**: an outage, an open circuit or a dead swarm is not a
+   statement about what the trackers hold.
+6. **`last_search_found > 0`** → `a_recuperer` (defensive fallback).
+7. **Otherwise** → `en_attente`.
+
+**FollowStatus** (7 values — `derive_follow_status` + `derive_movie_status`):
+
+| Value                   | French label           | Source                                                                                                           |
+| ----------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `disabled`              | Désactivé              | `active=False` on the follow row.                                                                                |
+| `verification_en_cours` | Vérification en cours  | A priming runner is in flight — overlaid by the route layer (phase 6), never returned by the aggregation itself. |
+| `a_recuperer`           | À récupérer            | ≥1 episode in `a_recuperer`.                                                                                     |
+| `en_acquisition`        | En cours d'acquisition | ≥1 episode in `en_acquisition`.                                                                                  |
+| `en_attente`            | En attente             | ≥1 episode in `en_attente`.                                                                                      |
+| `non_verifie`           | Non vérifié            | ≥1 episode in `non_verifie`, OR no aired catalog exists (never detected).                                        |
+| `a_jour`                | À jour                 | Every aired episode is owned.                                                                                    |
+
+Card-level aggregation is **most-actionable-first**: if any episode is
+`a_recuperer`, the card reads `a_recuperer` — the operator needs to see what
+asks for an action, not the most frequent state.
+
+**`verification_en_cours`** is applied by the route layer when the priming runner
+(see below) is live for that follow — it is deliberately NOT a property of the
+persisted counts. The `GET /api/acquisition/followed` response carries a
+`priming_running: bool` flag the UI maps to this status.
+
+#### Three-pass acquisition flow
+
+The acquisition system runs in **three timed passes**, each scoped to the wanted
+queue by status:
+
+| Pass   | Cron schedule | Queue source       | What it does                                                                                                                                                                                                                                                 |
+| ------ | ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Detect | daily 03:00   | Active follows     | Polls the provider catalog for newly aired episodes, enqueues `wanted` rows (`pending`), ages out past-cutoff items.                                                                                                                                         |
+| Search | 03:10 + 15:10 | `list_pending()`   | For each pending item: search → filter → rank → persist verdict (`available` / `pending` / `abandoned`). Cadence gates (tier interval) belong to THIS pass — cadence spaces the re-verification of an unavailable episode. Never touches the torrent client. |
+| Grab   | 03:20 + 15:20 | `list_available()` | For each available item: re-search → resolve source → add torrent → `mark_grabbed`. Carries NO cadence gate (an available item is taken at the next tick) and NO attempts cap. 30-day cutoff bounds infinite retries on a permanently-failing add.           |
+
+The three passes are intentionally **offset**: detect runs first so new episodes
+are queued before the search pass lists them; search runs before grab so
+available items are waiting when grab runs; grab runs last, taking only what a
+previous search already concluded takeable. A one-hour gap between the morning
+(03:00) and afternoon (15:00) cycles gives trackers time to pick up new releases.
+
+#### Per-follow triggers
+
+Two manual triggers let the operator act on a single follow without waiting for
+the next cron tick:
+
+- **`POST /api/acquisition/followed/{id}/search`** — the « Rechercher » button.
+  Spawns the **prime** chain: `follow detect --series N` → `search --followed-id N`
+  → `grab --followed-id N`, all under a single `pipeline_run` row
+  (`command='prime'`). Catalog refresh, then search, then grab — the full amorce
+  of a freshly followed series.
+- **`POST /api/acquisition/followed/{id}/grab`** — the « Récupérer maintenant »
+  button (acq-states phase 8). Spawns `grab --followed-id N` alone: no catalog
+  poll, no tracker search, just claim what a previous search already marked
+  `available`. Offered by the UI exactly where the server status reads
+  `a_recuperer`.
+
+Both triggers share the same reserve → guard → spawn → finalize path
+(`_launch_followed_action`), hold **no** `pipeline.lock`, and are tracked as
+`kind='maintenance'` rows in `pipeline_run`.
+
+#### Purity contract
+
+`states.py` imports NO provider, tracker or network client and performs ZERO
+I/O — it is a pure function of facts already read from SQLite.
+`INCONCLUSIVE_OUTCOMES` is imported from the acquire orchestrator so the two can
+never drift apart. Every acquisition surface — followed cards, the completeness
+matrix, episode chips — reads its state from THIS module.
 
 ### v2 polish contract deltas (2026-07-13, `feat/webui-polish`)
 

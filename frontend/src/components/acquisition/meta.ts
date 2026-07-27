@@ -8,7 +8,12 @@
  * epoch/format helpers.
  */
 
-import { type ObligationItem } from "@/api/acquisition";
+import {
+  type EpisodeCompleteness,
+  type FollowedSeriesItem,
+  type ObligationItem,
+  type SeasonCompleteness,
+} from "@/api/acquisition";
 import type { BadgeTone } from "@/components/ui/badge";
 import {
   OUTCOME_LABEL,
@@ -131,43 +136,243 @@ export const TIER_LABEL: Record<string, string> = {
   cutoff: "abandonnée",
 };
 
+// ---------------------------------------------------------------------------
+// The five-state vocabulary (acq-states phase 8)
+// ---------------------------------------------------------------------------
+//
+// Vocabulary HOME. The shared ``@/lib/outcome-labels`` module owns the
+// CROSS-DOMAIN run-outcome / generic item-state vocabulary (success, killed,
+// pending, …), keyed by loose strings because a dozen unrelated surfaces feed
+// it. The acquisition five states are a different animal: they are a CLOSED
+// enum of the acquisition contract, and the whole point of phase 8 is that the
+// maps be exhaustive against that enum. Typing them here — where
+// ``FOLLOW_STATUS_LABEL`` / ``FOLLOW_STATUS_LABEL_MOVIE`` have lived since
+// systeme-hub unified them — keeps ONE map per state family (never a second
+// one) while giving `tsc` the exhaustiveness check that
+// ``Record<string, …>`` can never provide. Extend HERE; never re-declare a
+// follow/episode label anywhere else.
+// ---------------------------------------------------------------------------
+
 /**
- * Followed-series lifecycle status → badge tone (C14).
+ * A followed card's lifecycle status — read STRAIGHT from the generated OpenAPI
+ * contract, never re-typed by hand.
  *
- * Mirrors the backend-derived ``FollowedSeriesItem.status`` so the UI paints
- * without re-deriving business state in JSX.
+ * Because the maps below are ``Record<FollowStatus, …>``, a server-side change
+ * to the enum (a new state, a renamed one) breaks `npm run typecheck` instead
+ * of silently rendering a raw slug like ``a_recuperer`` to the operator.
  */
-export const FOLLOW_STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "neutral" | "info"
-> = {
+export type FollowStatus = FollowedSeriesItem["status"];
+
+/** One aired episode's state — same contract-derived guarantee as {@link FollowStatus}. */
+export type EpisodeState = SeasonCompleteness["episodes"][number]["state"];
+
+/**
+ * Followed-card status → badge tone (phase-08 vocabulary table).
+ *
+ * The table's ``muted`` tone for ``disabled`` IS the DS ``neutral`` chip
+ * (``bg-muted`` / ``text-muted-foreground``) — the design system exposes no
+ * separate ``muted`` badge tone, so the two names denote the same paint.
+ */
+export const FOLLOW_STATUS_TONE: Record<FollowStatus, BadgeTone> = {
   disabled: "neutral",
-  pending: "warning",
-  acquiring: "info",
-  incomplete: "warning",
-  up_to_date: "success",
+  verification_en_cours: "info",
+  a_recuperer: "warning",
+  en_acquisition: "info",
+  en_attente: "neutral",
+  non_verifie: "neutral",
+  a_jour: "success",
 };
 
-/** Followed-series lifecycle status → French badge label (C14 / §5). */
-export const FOLLOW_STATUS_LABEL: Record<string, string> = {
-  disabled: "Désactivé",
-  pending: "En attente",
-  acquiring: "En cours d'acquisition",
-  incomplete: "Épisodes manquants",
-  up_to_date: "À jour",
+/** Followed-card status → French badge label, série wording (§5). */
+export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
+  disabled: "En pause",
+  verification_en_cours: "Vérification en cours",
+  a_recuperer: "À récupérer",
+  en_acquisition: "En cours d'acquisition",
+  en_attente: "En attente",
+  non_verifie: "Non vérifié",
+  a_jour: "À jour",
 };
 
 /**
- * Film-specific overrides for the two status labels that read as series-only
- * (D2-B). A film has no episodes, so « Épisodes manquants » / « À jour » are
- * wrong on a movie card — the status itself is now ownership-driven (real disk
- * presence), so a film reads « Acquis » once in the library and « Manquant »
- * when absent with nothing in flight. Presentational only; tones are shared.
+ * Film-specific label overrides (D2-B).
+ *
+ * A film has no episode catalog, so « À jour » reads wrong on a movie card: it
+ * is either acquired or it is not. Only the states whose série wording does not
+ * fit a single unit are overridden; every other state keeps the shared label.
+ * Presentational only — tones are shared with {@link FOLLOW_STATUS_TONE}.
  */
-export const FOLLOW_STATUS_LABEL_MOVIE: Record<string, string> = {
-  incomplete: "Manquant",
-  up_to_date: "Acquis",
+export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
+  a_jour: "Acquis",
 };
+
+/**
+ * Followed-card status → the sentence that disambiguates it (tooltip / title).
+ *
+ * « En attente » and « Non vérifié » share a neutral tone and must NEVER be
+ * confusable: one says « I searched the trackers and nothing was takeable »,
+ * the other « I have no verdict at all yet ». The label carries the
+ * distinction, this hint spells it out (DOIT-1: compréhensible sans être
+ * ingénieur).
+ */
+export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
+  disabled: "Suivi en pause — aucune recherche automatique n'est faite.",
+  verification_en_cours:
+    "Vérification en cours — le catalogue puis les trackers sont interrogés.",
+  a_recuperer:
+    "Une version conforme au profil est disponible — il reste à la récupérer.",
+  en_acquisition:
+    "Torrent pris — le pipeline le porte jusqu'à la médiathèque.",
+  en_attente:
+    "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
+  non_verifie:
+    "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
+  a_jour: "Tout ce qui est sorti est en médiathèque.",
+};
+
+/** Film wording of {@link FOLLOW_STATUS_HINT}, for the overridden states only. */
+export const FOLLOW_STATUS_HINT_MOVIE: Partial<Record<FollowStatus, string>> = {
+  a_jour: "Le film est en médiathèque.",
+};
+
+/**
+ * Return the French label of a card status for the right media kind.
+ *
+ * Zero derivation in JSX (phase-08 rule): the component passes the SERVER
+ * status and the media kind, and gets the operator-facing wording back.
+ *
+ * Args:
+ *   status: The server-derived card status.
+ *   kind: ``"movie"`` or ``"show"`` (anything else reads as a série).
+ *
+ * Returns:
+ *   The French label — film wording when one is defined for that state.
+ */
+export function followStatusLabel(status: FollowStatus, kind: string): string {
+  if (kind === "movie") {
+    return FOLLOW_STATUS_LABEL_MOVIE[status] ?? FOLLOW_STATUS_LABEL[status];
+  }
+  return FOLLOW_STATUS_LABEL[status];
+}
+
+/**
+ * Return the disambiguating sentence of a card status for the right media kind.
+ *
+ * Args:
+ *   status: The server-derived card status.
+ *   kind: ``"movie"`` or ``"show"``.
+ *
+ * Returns:
+ *   The French hint — film wording when one is defined for that state.
+ */
+export function followStatusHint(status: FollowStatus, kind: string): string {
+  if (kind === "movie") {
+    return FOLLOW_STATUS_HINT_MOVIE[status] ?? FOLLOW_STATUS_HINT[status];
+  }
+  return FOLLOW_STATUS_HINT[status];
+}
+
+/**
+ * Per-state count noun, singular / plural (card caption wording).
+ *
+ * ``en_mediatheque`` is absent on purpose: owned episodes are already the
+ * numerator of the ``NN/NN`` fraction, and repeating them would inflate the
+ * caption with the only number that is never actionable.
+ */
+const COUNT_NOUN: Record<
+  Exclude<EpisodeState, "en_mediatheque">,
+  { readonly one: string; readonly many: string }
+> = {
+  a_recuperer: { one: "à récupérer", many: "à récupérer" },
+  en_acquisition: {
+    one: "en cours d'acquisition",
+    many: "en cours d'acquisition",
+  },
+  en_attente: { one: "en attente", many: "en attente" },
+  non_verifie: { one: "non vérifié", many: "non vérifiés" },
+};
+
+/** The caption's bucket order — most actionable first, as the card status is. */
+const COUNT_ORDER: readonly Exclude<EpisodeState, "en_mediatheque">[] = [
+  "a_recuperer",
+  "en_acquisition",
+  "en_attente",
+  "non_verifie",
+];
+
+/**
+ * Render a followed SHOW's library fraction, or ``null`` when it has none.
+ *
+ * A film is a catalog of exactly ONE unit: a fraction (« 1/1 ») says nothing
+ * its status chip does not already say, and « 0/1 » would read as a
+ * completeness failure rather than as « pas encore acquis ». So films get no
+ * fraction at all — their card readout IS the status chip (+ the waiting
+ * reason when they wait).
+ *
+ * Args:
+ *   item: The followed item.
+ *
+ * Returns:
+ *   ``"15/18"``, ``"—"`` when a série has no cached catalog (honest ignorance,
+ *   matching its ``non_verifie`` status), or ``null`` for a film.
+ */
+export function followFraction(item: FollowedSeriesItem): string | null {
+  if (item.kind === "movie") return null;
+  if (item.aired_count == null) return "—";
+  return `${String(item.owned_count ?? 0)}/${String(item.aired_count)}`;
+}
+
+/**
+ * Render the non-zero five-state episode counts as a French caption.
+ *
+ * This is what makes the queue and the wait VISIBLE on the compact row
+ * (NE-DOIT-PAS-2), and it replaces the raw ``wanted_pending`` chip: that
+ * counter knows nothing about ownership or about the aired catalog, and
+ * printing « 3 en attente » next to an « À jour » chip is exactly the founding
+ * incident's lie. Every number here comes from the SAME server-side derivation
+ * the status chip comes from, so the two can never contradict each other.
+ *
+ * Args:
+ *   item: The followed item (its per-state counts).
+ *
+ * Returns:
+ *   E.g. ``"3 à récupérer · 1 non vérifié"``, or ``null`` when every bucket is
+ *   empty / unknown (a fully-owned série, or a follow with no catalog).
+ */
+export function followCountsCaption(item: FollowedSeriesItem): string | null {
+  const counts: Record<Exclude<EpisodeState, "en_mediatheque">, number | null> =
+    {
+      a_recuperer: item.a_recuperer_count ?? null,
+      en_acquisition: item.en_acquisition_count ?? null,
+      en_attente: item.en_attente_count ?? null,
+      non_verifie: item.non_verifie_count ?? null,
+    };
+  const parts = COUNT_ORDER.filter((state) => (counts[state] ?? 0) > 0).map(
+    (state) => {
+      const n = counts[state] ?? 0;
+      const noun = n > 1 ? COUNT_NOUN[state].many : COUNT_NOUN[state].one;
+      return `${String(n)} ${noun}`;
+    },
+  );
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/**
+ * Report whether « Récupérer maintenant » applies to this follow.
+ *
+ * Offered exactly where the SERVER says something is takeable right now
+ * (``a_recuperer``) — never derived from a queue counter. Elsewhere the action
+ * would have nothing to claim and would report success having done nothing.
+ *
+ * Args:
+ *   item: The followed item.
+ *
+ * Returns:
+ *   ``true`` when the grab-only action is meaningful for this follow.
+ */
+export function canGrabNow(item: FollowedSeriesItem): boolean {
+  return item.active && item.status === "a_recuperer";
+}
 
 /** Followed kind → French badge label (§5 film vs série). */
 export const FOLLOW_KIND_LABEL: Record<string, string> = {
@@ -235,24 +440,156 @@ export function formatRunResult(
   return parts.length > 0 ? parts.join(", ") : "rien de nouveau";
 }
 
-/** Per-episode §5 state → chip tone (completeness matrix). */
-export const EPISODE_STATE_TONE: Record<
-  string,
-  "success" | "warning" | "info" | "neutral"
-> = {
+/** Per-episode §5 state → chip tone (completeness matrix, phase-08 table). */
+export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   en_mediatheque: "success",
-  en_file: "warning",
-  en_cours: "info",
-  manquant: "neutral",
+  a_recuperer: "warning",
+  en_acquisition: "info",
+  en_attente: "neutral",
+  non_verifie: "neutral",
 };
 
-/** Per-episode §5 state → French label (completeness matrix). */
-export const EPISODE_STATE_LABEL: Record<string, string> = {
+/**
+ * Per-episode §5 state → French label (completeness matrix).
+ *
+ * ``en_mediatheque`` keeps the §5 wording « En médiathèque » on an EPISODE: the
+ * vocabulary table's « À jour » is the CARD reading of that state (a card
+ * aggregates to ``a_jour``), and an individual episode is never « à jour » — it
+ * is on the disks or it is not.
+ */
+export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
   en_mediatheque: "En médiathèque",
-  en_file: "En file",
-  en_cours: "En cours",
-  manquant: "Manquant",
+  a_recuperer: "À récupérer",
+  en_acquisition: "En cours d'acquisition",
+  en_attente: "En attente",
+  non_verifie: "Non vérifié",
 };
+
+/**
+ * Per-episode state → the sentence that disambiguates it (chip tooltip).
+ *
+ * Same anti-confusion contract as {@link FOLLOW_STATUS_HINT}: « En attente »
+ * (searched, nothing conforming) must never read like « Non vérifié » (no
+ * verdict yet).
+ */
+export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
+  en_mediatheque: "L'épisode est en médiathèque.",
+  a_recuperer:
+    "Une version conforme au profil est disponible — il reste à la récupérer.",
+  en_acquisition:
+    "Torrent pris — le pipeline le porte jusqu'à la médiathèque.",
+  en_attente:
+    "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
+  non_verifie:
+    "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
+};
+
+/**
+ * Search outcome → the French reason an item is not acquired yet.
+ *
+ * The backend exposes the engine's machine verdict (``no_candidates``,
+ * ``all_filtered``, …) because it is the very fact the state was derived from.
+ * It is a MACHINE value: it is mapped here and never printed raw
+ * (NE-DOIT-PAS-4). The three concluding verdicts explain an « En attente »;
+ * the four inconclusive ones explain a « Non vérifié » — panne ≠ absence, and
+ * an operator staring at « Non vérifié » deserves to know the trackers were
+ * unreachable rather than assume nothing was found.
+ */
+export const SEARCH_OUTCOME_REASON: Record<string, string> = {
+  // Concluding verdicts → « En attente ».
+  no_candidates: "aucun résultat",
+  no_matching_episode: "pas d'épisode exact",
+  all_filtered: "rien de conforme au profil",
+  // Inconclusive verdicts → « Non vérifié » (the search never concluded).
+  trackers_unavailable: "trackers injoignables",
+  circuit_open: "recherche suspendue après trop d'échecs",
+  search_api_error: "erreur de recherche côté tracker",
+  no_seeders: "aucune source active",
+};
+
+/** Fallback for a verdict this build does not know — still French, still honest. */
+const UNKNOWN_OUTCOME_REASON = "rien de prenable au dernier passage";
+
+/**
+ * Return the French reason a unit is waiting, or ``null`` when there is none.
+ *
+ * Args:
+ *   state: The unit's five-state reading (card status or episode state).
+ *   outcome: The raw ``last_search_outcome`` served with it.
+ *
+ * Returns:
+ *   The French reason — never the machine token — or ``null`` when the unit is
+ *   not waiting, or when it has no verdict at all (never searched: the state's
+ *   own hint already says exactly that).
+ */
+export function searchOutcomeReason(
+  state: EpisodeState | FollowStatus,
+  outcome: string | null | undefined,
+): string | null {
+  if (state !== "en_attente" && state !== "non_verifie") return null;
+  if (outcome == null || outcome === "") return null;
+  return SEARCH_OUTCOME_REASON[outcome] ?? UNKNOWN_OUTCOME_REASON;
+}
+
+/** One waiting reason and the episodes of a season that share it. */
+export interface WaitingGroup {
+  /** The French reason (already mapped — never a machine token). */
+  readonly reason: string;
+  /** The episode numbers waiting for that reason, in ascending order. */
+  readonly episodes: readonly number[];
+}
+
+/**
+ * Group a season's waiting episodes by their French reason.
+ *
+ * A tooltip alone would be invisible on a phone (no hover), so the accordion
+ * prints these groups under the chips. Grouping keeps the line short when a
+ * whole season shares one verdict, which is the common case.
+ *
+ * Args:
+ *   episodes: The season's episodes, as served.
+ *
+ * Returns:
+ *   One group per distinct reason, in first-appearance order. Empty when
+ *   nothing is waiting or no verdict was recorded.
+ */
+export function waitingGroups(
+  episodes: readonly EpisodeCompleteness[],
+): WaitingGroup[] {
+  const byReason = new Map<string, number[]>();
+  for (const ep of episodes) {
+    const reason = searchOutcomeReason(ep.state, ep.last_search_outcome);
+    if (reason == null) continue;
+    const bucket = byReason.get(reason);
+    if (bucket) bucket.push(ep.episode);
+    else byReason.set(reason, [ep.episode]);
+  }
+  return [...byReason.entries()].map(([reason, eps]) => ({
+    reason,
+    episodes: [...eps].sort((a, b) => a - b),
+  }));
+}
+
+/**
+ * Return the French reason a followed FILM is waiting, or ``null``.
+ *
+ * A film has no episode matrix, so the reason its single unit is not acquired
+ * belongs on the card itself — read from the same ``movie_facts`` the server
+ * derived the card status from.
+ *
+ * Args:
+ *   item: The followed item (films only; a série always returns ``null``).
+ *
+ * Returns:
+ *   The French reason, or ``null``.
+ */
+export function followWaitingReason(item: FollowedSeriesItem): string | null {
+  if (item.kind !== "movie") return null;
+  return searchOutcomeReason(
+    item.status,
+    item.movie_facts?.last_search_outcome,
+  );
+}
 
 /** Live download state → Badge tone (A4). */
 export const DOWNLOAD_STATE_TONE: Record<

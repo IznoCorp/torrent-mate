@@ -1,8 +1,9 @@
 /**
- * CompletenessAccordion — P0-B.1 tests: the aired-catalog provenance caption
- * renders honestly at the bottom of the open accordion — dated
- * « Catalogue du JJ/MM/AAAA » on the cache path, « Catalogue interrogé en
- * direct » on the live fallback path.
+ * CompletenessAccordion — the §5 per-season / per-episode matrix.
+ *
+ * Covers the P0-B.1 provenance caption (dated « Catalogue du JJ/MM/AAAA »), the
+ * five per-episode states (phase 8), the in-motion season caption and the
+ * honest empty state served when no catalog has ever been written.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -39,12 +40,12 @@ function makeCompleteness(
             title: "The Heirs of the Dragon",
             air_date: "2022-08-21",
           },
-          { episode: 2, state: "manquant", title: null, air_date: null },
+          { episode: 2, state: "en_attente", title: null, air_date: null },
         ],
       },
     ],
-    source: "live",
-    catalog_refreshed_at: null,
+    source: "cache",
+    catalog_refreshed_at: REFRESHED_AT,
     ...overrides,
   };
 }
@@ -91,13 +92,241 @@ describe("CompletenessAccordion catalog caption (P0-B.1)", () => {
     expect(screen.getByText("Saison 1")).toBeInTheDocument();
   });
 
-  it("captions the live provider poll when source is live", () => {
-    mockCompleteness(makeCompleteness({ source: "live" }));
+  it("captions nothing when the catalog provenance is unknown", () => {
+    // The "live" provenance died with the synchronous provider poll
+    // (acq-states phase 5): an unknown catalog claims NOTHING.
+    mockCompleteness(
+      makeCompleteness({ source: "unknown", catalog_refreshed_at: null }),
+    );
+    renderOpen();
+
+    expect(screen.queryByText(/Catalogue du /)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Catalogue interrogé en direct"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("CompletenessAccordion — les cinq états par épisode (phase 8)", () => {
+  it("peint chaque état avec son libellé français en infobulle", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 1,
+            queued: 2,
+            total: 5,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_mediatheque",
+                title: null,
+                air_date: null,
+              },
+              { episode: 2, state: "a_recuperer", title: null, air_date: null },
+              {
+                episode: 3,
+                state: "en_acquisition",
+                title: null,
+                air_date: null,
+              },
+              { episode: 4, state: "en_attente", title: null, air_date: null },
+              { episode: 5, state: "non_verifie", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const titleOf = (episode: number): string =>
+      screen
+        .getByText(`E${String(episode)}`)
+        .closest("[title]")
+        ?.getAttribute("title") ?? "";
+
+    expect(titleOf(1)).toContain("En médiathèque");
+    expect(titleOf(2)).toContain("À récupérer");
+    expect(titleOf(3)).toContain("En cours d'acquisition");
+    expect(titleOf(4)).toContain("En attente");
+    expect(titleOf(5)).toContain("Non vérifié");
+    // « En attente » and « Non vérifié » must never read alike.
+    expect(titleOf(4)).toMatch(/rien de conforme/);
+    expect(titleOf(5)).toMatch(/[Pp]as encore vérifié/);
+    // Never the raw machine token (NE-DOIT-PAS-4).
+    expect(
+      screen.queryByText(/non_verifie|a_recuperer/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("légende la saison avec ce qui est EN COURS, pas une file", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 3,
+            queued: 2,
+            total: 6,
+            episodes: [
+              { episode: 1, state: "a_recuperer", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
     renderOpen();
 
     expect(
-      screen.getByText("Catalogue interrogé en direct"),
+      screen.getByText(/3\/6 en médiathèque · 2 en cours/),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Catalogue du /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/en file/)).not.toBeInTheDocument();
+  });
+
+  it("n'affiche aucun compteur de mouvement quand rien ne bouge", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 6,
+            queued: 0,
+            total: 6,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_mediatheque",
+                title: null,
+                air_date: null,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    expect(screen.getByText("6/6 en médiathèque")).toBeInTheDocument();
+  });
+});
+
+describe("CompletenessAccordion — le motif d'attente (phase 8)", () => {
+  it("dit en français pourquoi les épisodes attendent, sous les pastilles", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 3,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_attente",
+                title: null,
+                air_date: null,
+                last_search_outcome: "all_filtered",
+              },
+              {
+                episode: 2,
+                state: "en_attente",
+                title: null,
+                air_date: null,
+                last_search_outcome: "all_filtered",
+              },
+              {
+                episode: 3,
+                state: "en_attente",
+                title: null,
+                air_date: null,
+                last_search_outcome: "no_candidates",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    // Grouped by reason, visible WITHOUT hovering (a phone has no hover).
+    expect(
+      screen.getByText("E1, E2 — rien de conforme au profil"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("E3 — aucun résultat")).toBeInTheDocument();
+    // The machine verdict never reaches the operator.
+    expect(screen.queryByText(/all_filtered|no_candidates/)).toBeNull();
+  });
+
+  it("explique aussi un « Non vérifié » causé par une panne (panne ≠ absence)", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 1,
+            episodes: [
+              {
+                episode: 1,
+                state: "non_verifie",
+                title: null,
+                air_date: null,
+                last_search_outcome: "trackers_unavailable",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    expect(screen.getByText("E1 — trackers injoignables")).toBeInTheDocument();
+  });
+
+  it("n'ajoute aucune ligne quand rien n'attend", () => {
+    mockCompleteness(makeCompleteness());
+    renderOpen();
+
+    expect(screen.queryByText(/ — aucun résultat/)).toBeNull();
+  });
+});
+
+describe("CompletenessAccordion — catalogue inconnu (phase 8)", () => {
+  it("dit qu'il ne sait pas encore, au lieu d'une matrice ou d'un « aucune saison »", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [],
+        source: "unknown",
+        catalog_refreshed_at: null,
+      }),
+    );
+    renderOpen();
+
+    expect(
+      screen.getByText(/Catalogue pas encore vérifié/),
+    ).toBeInTheDocument();
+    // Never the assertive « nothing aired » on zero knowledge.
+    expect(
+      screen.queryByText("Aucune saison diffusée."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("garde « Aucune saison diffusée » quand le catalogue est connu et vide", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [],
+        source: "cache",
+        catalog_refreshed_at: REFRESHED_AT,
+      }),
+    );
+    renderOpen();
+
+    expect(screen.getByText("Aucune saison diffusée.")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Catalogue pas encore vérifié/),
+    ).not.toBeInTheDocument();
   });
 });

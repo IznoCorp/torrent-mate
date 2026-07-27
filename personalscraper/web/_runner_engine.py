@@ -44,6 +44,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -276,6 +277,112 @@ def terminate_quietly(proc: subprocess.Popen[str]) -> None:
         log.warning("runner_terminate_failed", error=str(exc))
 
 
+class _Flag:
+    """One mutable boolean the watchdog thread sets and the main thread reads.
+
+    A plain ``bool`` local cannot be rebound from the timer callback, and
+    ``nonlocal`` inside a loop body is easy to get subtly wrong; a tiny holder
+    keeps the hand-off explicit.
+    """
+
+    __slots__ = ("set",)
+
+    def __init__(self) -> None:
+        """Start clear."""
+        self.set = False
+
+
+def _start_step_watchdog(
+    proc: subprocess.Popen[str],
+    timeout_s: float | None,
+    flag: _Flag,
+) -> threading.Timer | None:
+    """Arm a timer that kills *proc*'s group after *timeout_s* and raises *flag*.
+
+    The engine's streaming loop blocks on ``proc.stdout``; a child that never
+    writes and never exits blocks it forever. Killing the process GROUP closes
+    that pipe, so the loop drains and ``wait()`` returns — the same unblocking
+    path a SIGTERM takes. The caller MUST cancel the returned timer once the
+    step is done (it is a daemon thread, so a leaked one cannot hold the
+    process open, but it could still kill an unrelated later child).
+
+    Args:
+        proc: The live child.
+        timeout_s: Seconds before the kill, or ``None`` to arm nothing.
+        flag: Raised just before the kill so the caller can tell a timeout
+            apart from an ordinary non-zero exit.
+
+    Returns:
+        The armed :class:`threading.Timer`, or ``None`` when no ceiling applies.
+    """
+    if timeout_s is None:
+        return None
+
+    def _fire() -> None:
+        flag.set = True
+        kill_child_group(proc)
+
+    timer = threading.Timer(timeout_s, _fire)
+    timer.daemon = True
+    timer.start()
+    return timer
+
+
+def record_step(spec: "RunnerSpec", label: str, started_at: float, status: str, *, rc: int | None = None) -> None:
+    """Append ONE step's timing + outcome to the run row's ``steps_json``.
+
+    Fail-soft by design: the run row's terminal ``outcome`` is the contract, and
+    a bookkeeping write must never take a run down with it. A failure is logged,
+    not raised.
+
+    Args:
+        spec: The running :class:`RunnerSpec` (writer + run_uid + log context).
+        label: The step's human-readable label (see :func:`step_label`).
+        started_at: Unix-epoch ``time.time()`` when the step started — the
+            column's documented unit.
+        status: ``'success'`` or ``'error'``.
+        rc: The child's exit code, folded in as a ``counts`` entry so the
+            persisted report says WHICH code a failing step returned. Omitted
+            when the step never produced one (spawn failure, timeout kill).
+    """
+    try:
+        spec.writer.update_step(
+            spec.run_uid,
+            label,
+            started_at,
+            time.time(),
+            status,
+            counts={"rc": rc} if rc is not None else None,
+        )
+    except Exception:  # noqa: BLE001 — bookkeeping must never sink the run
+        log.warning(
+            spec.event_prefix + "_step_record_failed",
+            run_uid=spec.run_uid,
+            step=label,
+            exc_info=True,
+            **spec.log_context,
+        )
+
+
+def step_label(argv: list[str]) -> str:
+    """Human-readable label of one step, for the ``--- <step> ---`` separator.
+
+    Every runner spawns ``[sys.executable, "-m", "personalscraper", <cli…>]``,
+    so the interpreter/module prefix is stripped and only the CLI part is shown
+    (e.g. ``"follow detect --series 42"``). An argv that does not match that
+    shape is rendered whole rather than truncated to nothing.
+
+    Args:
+        argv: The step's full argument list.
+
+    Returns:
+        The CLI part of the argv, or the whole argv when the prefix differs.
+    """
+    if argv[:2] == [sys.executable, "-m"]:
+        return " ".join(argv[3:]) or " ".join(argv)
+    return " ".join(argv)
+
+
 # ---------------------------------------------------------------------------
 # Run-row reservation (the ONE atomic reserve — WEB-BACKEND-02 / ACQUIRE-04)
 # ---------------------------------------------------------------------------
@@ -403,7 +510,17 @@ class RunnerSpec:
         command: ``pipeline_run.command``.
         options_json: Canonical ``pipeline_run.options_json``.
         dry_run: ``pipeline_run.dry_run``.
-        argv: The CLI argument vector to spawn.
+        argv: The CLI argument vector to spawn (the first — and by default only
+            — step of the run).
+        extra_steps: Additional CLI argument vectors run in order AFTER *argv*,
+            inside the SAME run row and the SAME ring buffer (the acquisition
+            runner's ``prime`` chain: detect → search → grab). The chain stops
+            at the first non-zero exit code, whose code becomes the run's. When
+            a run has more than one step, each step is announced by a
+            ``--- <label> ---`` separator line (see :func:`step_label`) so a
+            partial output shows exactly where the chain stopped; a single-step
+            run emits no separator. Empty (default) = the one-``argv``
+            lifecycle every other runner uses.
         child: Mutable holder the SIGTERM handler shares — the engine stores the
             live ``Popen`` under ``child["proc"]``.
         ring: The runner's :class:`RingBuffer` instance (shared with the SIGTERM
@@ -435,6 +552,14 @@ class RunnerSpec:
             out.
         requeue_timeout_error: French finalize message when the exit-3 re-queue
             exhausts the deadline.
+        step_timeout_s: Wall-clock ceiling for ONE step. ``None`` (default) =
+            unbounded, which keeps every existing runner byte-identical. When
+            set, a step that overruns has its process GROUP killed and the run
+            is finalized ``error`` with a readable marker. Without a ceiling a
+            hung child (a tracker that accepts the connection and never
+            answers) leaves the run row ``'running'`` forever: the pid stays
+            alive, so the liveness guard 409s every retry and the card is pinned
+            on « en cours » with no way for the operator to stop it.
         on_success: Optional hook run after a ``rc == 0`` finalize (the decisions
             §4 continuation) — called before the engine exits 0.
     """
@@ -452,6 +577,7 @@ class RunnerSpec:
     stream_key: str
     stream_maxlen: int
     event_prefix: str
+    extra_steps: list[list[str]] = field(default_factory=list)
     log_context: dict[str, Any] = field(default_factory=dict)
     hold_lock: bool = False
     probe_lock_each_iter: bool = False
@@ -465,7 +591,28 @@ class RunnerSpec:
     queue_timeout_s: float = 1800.0
     queue_timeout_error: str = ""
     requeue_timeout_error: str = ""
+    step_timeout_s: float | None = None
     on_success: Callable[[], None] | None = None
+
+    def __post_init__(self) -> None:
+        """Reject the untested ``extra_steps`` + ``requeue_on_exit3`` combination.
+
+        The exit-3 re-queue restarts the WHOLE chain from step 1, which for a
+        multi-step run means re-running steps that already succeeded — for the
+        acquisition ``prime`` chain that would mean a second catalog poll and a
+        second tracker search per retry. No runner asks for both today; failing
+        loudly at construction is better than shipping that behaviour the first
+        time someone does.
+
+        Raises:
+            ValueError: When both ``extra_steps`` and ``requeue_on_exit3`` are set.
+        """
+        if self.extra_steps and self.requeue_on_exit3:
+            raise ValueError(
+                "RunnerSpec: extra_steps + requeue_on_exit3 is unsupported — "
+                "the exit-3 re-queue restarts the chain from step 1, re-running "
+                "steps that already succeeded"
+            )
 
 
 def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
@@ -473,11 +620,12 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
 
     Ensures the ``pipeline_run`` row exists (idempotent — the POST handler
     reserves it first) and claims its pid, optionally acquires / probes
-    ``pipeline.lock`` in the shared visible queue (§6), spawns the CLI child,
-    streams its output to the ring buffer + Redis, re-queues on exit-3 when
-    configured, finalizes the row on every exit path (never left ``'running'``),
-    and releases a held lock in the ``finally``. Always exits the process — the
-    caller does not return from here.
+    ``pipeline.lock`` in the shared visible queue (§6), spawns the CLI child
+    (or the ``argv`` + ``extra_steps`` chain, stopping at the first non-zero
+    exit code), streams its output to the ring buffer + Redis, re-queues on
+    exit-3 when configured, finalizes the row on every exit path (never left
+    ``'running'``), and releases a held lock in the ``finally``. Always exits
+    the process — the caller does not return from here.
 
     Args:
         spec: The fully-resolved :class:`RunnerSpec`.
@@ -553,47 +701,119 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
                     sys.exit(1)
 
             attempt += 1
-            log.info(
-                spec.event_prefix + "_starting",
-                run_uid=run_uid,
-                argv=spec.argv,
-                attempt=attempt,
-                **spec.log_context,
-            )
 
-            try:
-                proc = subprocess.Popen(
-                    spec.argv,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    errors="replace",
-                    bufsize=1,
-                    start_new_session=True,
-                )
-            except (OSError, ValueError) as exc:
-                # OSError → exec failure; ValueError → embedded null byte in an arg.
-                log.error(spec.event_prefix + "_spawn_failed", run_uid=run_uid, error=str(exc), **spec.log_context)
-                writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc))
-                sys.exit(2)
-
-            spec.child["proc"] = proc
-
-            # Stream output — ring buffer + Redis. Any failure finalizes 'error'
-            # so the row is never left 'running'.
-            try:
-                assert proc.stdout is not None
-                for line in proc.stdout:
-                    spec.ring.append(line)
-                    redis_publish_line(spec.redis, line, run_uid, seq, spec.stream_key, spec.stream_maxlen)
+            # Step chain: one argv by default, N when the runner supplies
+            # extra_steps (the acquisition ``prime`` amorce). Every step shares
+            # THIS run row, ring buffer and seq counter; the chain stops at the
+            # first non-zero rc so a later step never runs on a state the
+            # failed one never produced.
+            steps = [spec.argv, *spec.extra_steps]
+            failed_label = ""
+            for step_argv in steps:
+                label = step_label(step_argv)
+                if len(steps) > 1:
+                    # A multi-step run announces each step so a partial output
+                    # shows exactly where the chain stopped.
+                    separator = f"--- {label} ---\n"
+                    spec.ring.append(separator)
+                    redis_publish_line(spec.redis, separator, run_uid, seq, spec.stream_key, spec.stream_maxlen)
                     seq += 1
-                rc = proc.wait()
-            except Exception as exc:
-                kill_child_group(proc)
-                output_tail = spec.ring.to_str()
-                writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc) or type(exc).__name__, output_tail=output_tail)
-                log.error(spec.event_prefix + "_stream_failed", run_uid=run_uid, exc_info=True, **spec.log_context)
-                sys.exit(1)
+
+                log.info(
+                    spec.event_prefix + "_starting",
+                    run_uid=run_uid,
+                    argv=step_argv,
+                    attempt=attempt,
+                    **spec.log_context,
+                )
+
+                step_started = time.time()
+                try:
+                    proc = subprocess.Popen(
+                        step_argv,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        errors="replace",
+                        bufsize=1,
+                        start_new_session=True,
+                    )
+                except (OSError, ValueError) as exc:
+                    # OSError → exec failure; ValueError → embedded null byte in an arg.
+                    log.error(spec.event_prefix + "_spawn_failed", run_uid=run_uid, error=str(exc), **spec.log_context)
+                    record_step(spec, label, step_started, OUTCOME_ERROR)
+                    # ``or None`` writes NULL only when the ring is genuinely
+                    # empty — nothing ran, so there is nothing to show.
+                    #
+                    # It is NOT a byte-identity device: whenever the ring already
+                    # holds output the tail is now persisted where the pre-chain
+                    # engine wrote NULL. That happens on a chain whose earlier
+                    # steps ran, and on any re-queued runner failing to spawn at
+                    # attempt ≥ 2 with attempt 1's output still buffered. Both are
+                    # deliberate improvements: a spawn failure that discards the
+                    # output preceding it says nothing about where the run got to.
+                    writer.finalize(run_uid, OUTCOME_ERROR, error=str(exc), output_tail=spec.ring.to_str() or None)
+                    sys.exit(2)
+
+                spec.child["proc"] = proc
+
+                # Per-step wall-clock ceiling (opt-in). The watchdog kills the
+                # child's process GROUP, which closes its stdout and unblocks the
+                # streaming loop below — the same path a SIGTERM takes.
+                timed_out = _Flag()
+                watchdog = _start_step_watchdog(proc, spec.step_timeout_s, timed_out)
+
+                # Stream output — ring buffer + Redis. Any failure finalizes 'error'
+                # so the row is never left 'running'.
+                try:
+                    assert proc.stdout is not None
+                    for line in proc.stdout:
+                        spec.ring.append(line)
+                        redis_publish_line(spec.redis, line, run_uid, seq, spec.stream_key, spec.stream_maxlen)
+                        seq += 1
+                    rc = proc.wait()
+                except Exception as exc:
+                    kill_child_group(proc)
+                    output_tail = spec.ring.to_str()
+                    record_step(spec, label, step_started, OUTCOME_ERROR)
+                    writer.finalize(
+                        run_uid, OUTCOME_ERROR, error=str(exc) or type(exc).__name__, output_tail=output_tail
+                    )
+                    log.error(spec.event_prefix + "_stream_failed", run_uid=run_uid, exc_info=True, **spec.log_context)
+                    sys.exit(1)
+                finally:
+                    if watchdog is not None:
+                        watchdog.cancel()
+
+                if timed_out.set:
+                    # The step overran its ceiling and was killed. Say so in the
+                    # tail AND in the error column, in the operator's language —
+                    # « le runner s'est arrêté » with no reason is the silent
+                    # failure the constitution forbids.
+                    marker = f"--- étape {label} interrompue après {int(spec.step_timeout_s or 0)}s ---\n"
+                    spec.ring.append(marker)
+                    redis_publish_line(spec.redis, marker, run_uid, seq, spec.stream_key, spec.stream_maxlen)
+                    seq += 1
+                    record_step(spec, label, step_started, OUTCOME_ERROR)
+                    writer.finalize(run_uid, OUTCOME_ERROR, error=marker.strip(), output_tail=spec.ring.to_str())
+                    log.error(
+                        spec.event_prefix + "_step_timeout",
+                        run_uid=run_uid,
+                        step=label,
+                        timeout_s=spec.step_timeout_s,
+                        **spec.log_context,
+                    )
+                    sys.exit(1)
+
+                # Per-step timing/rc on the run row (steps_json). Without this a
+                # chain reported one opaque outcome and the failing step was only
+                # identifiable from the output tail — which the 2000-char slice
+                # below can truncate away entirely.
+                record_step(spec, label, step_started, OUTCOME_SUCCESS if rc == 0 else OUTCOME_ERROR, rc=rc)
+
+                if rc != 0:
+                    failed_label = label
+                    break
 
             if spec.requeue_on_exit3 and rc == 3:
                 # Exit 3 = lock busy at claim time (the lock was re-acquired
@@ -622,10 +842,23 @@ def run_spawn_stream(spec: RunnerSpec) -> NoReturn:
             if spec.on_success is not None:
                 spec.on_success()
         else:
-            # On failure, capture the last portion of output as the error context.
+            # On failure, capture the last portion of output as the error context,
+            # PREFIXED with which step failed and with what code. The prefix comes
+            # first on purpose: the tail is sliced to its last 2000 characters, so
+            # attribution placed after it is exactly what a chatty step truncates
+            # away — and « the run failed » without naming the step is unusable.
             error_tail = output_tail[-2000:] if len(output_tail) > 2000 else output_tail
+            if failed_label:
+                error_tail = f"step {failed_label} rc={rc}: {error_tail}"
             writer.finalize(run_uid, OUTCOME_ERROR, error=error_tail, output_tail=output_tail)
-            log.error(spec.event_prefix + "_failed", run_uid=run_uid, rc=rc, lines=seq, **spec.log_context)
+            log.error(
+                spec.event_prefix + "_failed",
+                run_uid=run_uid,
+                rc=rc,
+                step=failed_label,
+                lines=seq,
+                **spec.log_context,
+            )
 
         sys.exit(rc)
     finally:

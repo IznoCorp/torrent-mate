@@ -1,65 +1,97 @@
-# Implementation Progress — solidify
+# Implementation Progress — acq-states
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Architecture consolidation — SOLID/DRY refactor (backend + frontend)
-**Type**: refactor
-**Version bump**: 0.49.15 → 0.55.1 (minor; re-bumped ×5 as main advanced: #310, #311/#312, #313/#314, #315, #317/#318; +patch 0.55.1 for PR-review cycle 1 fixes)
-**Branch**: refactor/solidify (isolated worktree `.claude/worktrees/solidify` — operator directive: do not disturb the main checkout; merge `origin/main` into the branch at phase boundaries and before the PR)
-**PR merge**: manual (operator merges; single PR for the whole refactor — operator choice 2026-07-16)
-**PR**: #316 → main (https://github.com/IznoCorp/torrent-mate/pull/316) — OPEN, operator squash-merges manually
-**Design**: docs/features/solidify/DESIGN.md
-**Evidence**: docs/analysis/2026-07-16-architecture-audit.md (untracked by convention — lives in the main checkout)
-**Master plan**: docs/features/solidify/plan/INDEX.md
+**Feature**: Acquisitions — états véridiques (disponibilité tracker) + amorce du suivi + poster serveur
+**Type**: feat
+**Version bump**: 0.54.1 → 0.56.0 (minor — re-bumped past `origin/main` 0.55.1 when solidify #316 was merged in)
+**Branch**: feat/acq-states
+**Ticket**: #319 — claimed (session locale, heartbeat actif)
+**PR merge**: auto
+**PR**: _(created after last phase)_
+**Design**: docs/features/acq-states/DESIGN.md
+**Master plan**: `docs/features/acq-states/plan/INDEX.md`
+
+## Contexte
+
+Incident fondateur : la série _Furious_ (TVDB 468000), ajoutée le 2026-07-27, affichait
+« À jour » avec 3 épisodes diffusés absents de la médiathèque, et sans poster.
+
+Trois causes racines établies avec preuves (détail dans le DESIGN) :
+
+- **RC1** — `POST /followed` n'amorce ni catalogue ni file `wanted` ; seul le cron `detect`
+  de 03:00 le fait → le « Rechercher » manuel est un succès silencieux.
+- **RC2** — la carte et le panneau de détail lisent **deux sources divergentes** : cache vide
+  → « À jour » côté carte, repli `poll_aired` live → 3 épisodes `manquant` côté détail.
+- **RC3** — aucun enrichissement serveur du poster ; il ne vient que du candidat de recherche
+  envoyé par le client, donc jamais par le formulaire d'ajout par ID.
+
+L'incident lui-même a été résolu manuellement le 2026-07-27 (`detect` + `grab` + pipeline 264) :
+les 3 épisodes sont en médiathèque. Cette feature corrige les causes, pas le symptôme.
+
+## Décisions opérateur (2026-07-27)
+
+| Sujet             | Décision                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| Modèle d'états    | 5 états — À jour / En attente / À récupérer / En cours d'acquisition / **Non vérifié** |
+| « Disponible »    | = **candidat réellement prenable** (survit aux filtres éliminatoires)                  |
+| Persistance       | colonnes sur `wanted` (`last_search_outcome`, `last_search_found`)                     |
+| Amorce            | 201 immédiat + run d'amorce **visible** via l'autorité de déclenchement existante      |
+| Fichier `VERSION` | **supprimé** — mort et désynchronisé (0.48.0 vs 0.54.1 réel)                           |
+| Merge             | auto                                                                                   |
+
+**Arbitrage complémentaire (2026-07-27, après relecture du plan initial)** — recherche et
+récupération deviennent **deux opérations distinctes** : sans cette séparation, « À récupérer »
+ne durerait que quelques millisecondes à l'intérieur d'un appel de fonction. Trois passes
+(`detect` → `search` → `grab`), le grab reste **automatique** à la passe suivante, avec un
+bouton « Récupérer maintenant » pour ne pas attendre. Le grab **refait sa propre recherche**
+plutôt que de réutiliser le candidat mémorisé (choix opérateur) : le surcoût tracker reste
+borné parce que le grab ne parcourt que les items déjà connus disponibles.
 
 ## Phases
 
-| # | Phase | File | Status |
-|---|-------|------|--------|
-| 0 | Worktree safety net + gate parity | phase-00-safety-net.md | [x] |
-| 1 | Pipeline step-spec + shared reporter (T2) | phase-01-step-spec.md | [x] |
-| 2 | Dispatch item template + journal parity (T3) | phase-02-dispatch-template.md | [x] |
-| 3 | CLI boundary + composition root (T7) | phase-03-cli-boundary.md | [x] |
-| 4 | Scraper flow unification (T1) | phase-04-scraper-unification.md | [x] |
-| 5 | Completeness read-model (T4) | phase-05-completeness-readmodel.md | [x] |
-| 6 | Trailers ownership + single truth (T5) | phase-06-trailers.md | [x] |
-| 7 | Scanner walk skeleton (T8) | phase-07-scanner-walker.md | [x] |
-| 8 | API honesty + tracker symmetry + dry-run (standalone) | phase-08-api-honesty.md | [x] |
-| 9 | Web runner engine + acquire hygiene (T6) | phase-09-web-runner-acquire.md | [x] |
-| 10 | Frontend data kit (T9a) | phase-10-frontend-data-kit.md | [x] |
-| 11 | Frontend component decomposition (T9b) | phase-11-frontend-components.md | [x] |
-| 12 | Tests-architecture consolidation (tests) | phase-12-tests-arch.md | [x] |
-| 13 | Docs, gates, module-size zero, reintegration + PR (T10) | phase-13-docs-gates-pr.md | [x] |
-| 14 | PR review fixes, cycle 1 (Finding A data-loss + B .env perms) | phase-14-pr-fixes-cycle-1.md | [x] |
+| #   | Phase                                    | File                                                                                         | Status |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------- | ------ |
+| 1   | Socle de persistance (migration + store) | [phase-01-persistence.md](docs/features/acq-states/plan/phase-01-persistence.md)             | [x]    |
+| 2   | Séparation search / grab dans le moteur  | [phase-02-search-grab-split.md](docs/features/acq-states/plan/phase-02-search-grab-split.md) | [x]    |
+| 3   | Commande `search` + ordonnancement       | [phase-03-search-command.md](docs/features/acq-states/plan/phase-03-search-command.md)       | [x]    |
+| 4   | Dérivation serveur des 5 états           | [phase-04-state-derivation.md](docs/features/acq-states/plan/phase-04-state-derivation.md)   | [x]    |
+| 5   | Fin des sources divergentes              | [phase-05-single-source.md](docs/features/acq-states/plan/phase-05-single-source.md)         | [x]    |
+| 6   | Amorce à la création du suivi            | [phase-06-follow-priming.md](docs/features/acq-states/plan/phase-06-follow-priming.md)       | [x]    |
+| 7   | Enrichissement serveur des métadonnées   | [phase-07-server-metadata.md](docs/features/acq-states/plan/phase-07-server-metadata.md)     | [x]    |
+| 8   | UI — 5 états + Récupérer maintenant      | [phase-08-ui-states.md](docs/features/acq-states/plan/phase-08-ui-states.md)                 | [x]    |
+| 9   | Garde-fous et acceptation                | [phase-09-guardrails-acc.md](docs/features/acq-states/plan/phase-09-guardrails-acc.md)       | [x]    |
+
+## ACC — vérification exécutée (2026-07-27, session dev)
+
+Commande globale : `python3 -m pytest tests/unit/web/routes/test_create_follow_priming.py
+tests/unit/web/acquisition/test_states.py tests/unit/web/acquisition/test_source_agreement.py
+tests/acquire/test_search_verdicts.py tests/acquire/test_search_pass.py
+tests/acquire/test_grab_pass.py tests/unit/web/test_no_tracker_call_on_read.py -q`
+→ **84 passed**.
+
+| ID     | Verdict | Preuve exécutée                                                                                                                                                                             |
+| ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | ✅      | `test_create_follow_priming.py` 4/4 — 201 + run prime + `verification_en_cours`                                                                                                             |
+| ACC-02 | ✅      | `test_states.py::test_empty_catalog_is_never_up_to_date` (mutation-vérifié en phase 4)                                                                                                      |
+| ACC-03 | ✅      | `test_source_agreement.py` 12/12 — mêmes faits, même dérivation, règle open-rows-latest partagée                                                                                            |
+| ACC-04 | ✅      | matrice verdicts : chaque outcome INCONCLUSIVE ⇒ `non_verifie`, found=None jamais 0                                                                                                         |
+| ACC-05 | ✅      | exit-paths orchestrateur : 3D-only/0-seed/packs ⇒ `all_filtered`/`no_seeders`/`no_matching_episode`                                                                                         |
+| ACC-06 | ✅ réel | backfill exécuté sur la base réelle : `SELECT COUNT(*) … poster_url IS NULL` → **0** sur 10 suivis                                                                                          |
+| ACC-07 | ⏸ défér | 4 anomalies `SEARCHED_WITHOUT_VERDICT` = lignes héritées du moteur pré-verdict (prod sur main) ; se résorbent à la 1re passe `search` post-déploiement — re-exercice post-merge obligatoire |
+| ACC-08 | ✅      | `test_no_tracker_call_on_read.py` — 3 couches instrumentées, 0 appel sur GET followed + completeness                                                                                        |
+| ACC-09 | ✅ +⏸   | `test_search_pass_adds_no_torrent` ; re-exercice réel post-déploiement (passe 03:10)                                                                                                        |
+| ACC-10 | ✅      | `test_grab_reverts_to_pending_when_the_torrent_vanished` — revert honnête + verdict enregistré                                                                                              |
+| ACC-11 | ✅      | `test_grab_only_walks_available_items` + `test_grab_pass_never_walks_pending…` (mutation-vérifié)                                                                                           |
+| ACC-12 | ⏸ défér | bouton « Récupérer maintenant » — vérification Chrome sur staging post-déploiement (+ preuve 390 px)                                                                                        |
+
+Protocole critère-différé (feature-lifecycle.md) : ACC-07, ACC-09 (volet réel) et ACC-12
+sont ré-exercés post-merge sur l'environnement déployé, avant clôture du ticket #319.
 
 ## Review cycles
 
-### Cycle 1 (2026-07-21) — `/implement:pr-review` (track `full`, cycle 1/5)
-
-Multi-agent fan-out review of the full PR diff (509 files): 13 subsystem chunks ×
-{correctness, silent-failure, over-deletion, design-conformity vs DESIGN.md +
-phase plans}, each finding adversarially verified against live code, then
-re-verified by the guarantor. 17 agents, 0 errors. **4 raw findings → 2 confirmed,
-2 refuted.** No DESIGN.md contradiction → no escalation-halt. Both confirmed
-retained and fixed in Phase 14.
-
-- **A — MAJOR** (`trailers/cli.py` purge FS-truth walk + `trailers/scanner.py:302`):
-  deletes legitimate trailers of present-but-non-dispatched media. Fix: combined
-  FS+index orphan rule + index self-heal (operator decision). Phase 14.1–14.2.
-- **B — minor** (`conf/envfile.py:89` + `io_utils.py:35`): `.env` secrets
-  world-readable window vs pre-refactor `mkstemp(0o600)`. Phase 14.3.
-- Refuted: dispatch-t3 (clean chunk, self-declared placeholder) + 1 other.
-- Also verified: PR-body "22 Co-Authored-By trailers" note is **moot** — 0
-  attribution trailers in the 168-commit range; squash erases per-commit messages
-  regardless.
-
-Merge stays operator-manual (single-PR refactor). Phase 14 lands the fixes in
-#316 for the operator to review before squash-merge.
+_(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phases 0–13 DONE, ACC 15/15. `/implement:pr-review` cycle 1 opened Phase 14 (2
-confirmed fixes: A data-loss in `trailers purge`, B `.env` perms) — implementing
-test-first in this worktree. On green + operator review, operator squash-merges
-#316 manually, then runbook-post-merge (incl. the deferred 390px staging audit).
-Work ONLY in this worktree; merge origin/main at phase boundaries when main moved.
+All phases done — `/implement:feature-pr` (gate + push + PR + CI), puis re-exercice ACC différés post-déploiement.

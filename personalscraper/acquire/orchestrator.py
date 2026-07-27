@@ -1,15 +1,22 @@
-"""Grab orchestrator — single-item §1 chain (RP5b, phase 4a).
+"""Grab orchestrator — search pass + grab pass (acq-states phase 2).
 
-``GrabOrchestrator.grab(item, profile)`` executes the §1 grab chain for ONE
-already-claimed ``WantedItem`` and returns a :class:`GrabOutcome`:
+``GrabOrchestrator.search(item, profile)`` runs the search→filter→rank chain
+and returns a :class:`SearchVerdict` — a pure verdict with NO side effects
+(no torrent-client use, no add, no event emit). The :meth:`grab` method
+re-uses the same chain then proceeds to resolve_source + add + event emission.
 
-    profile → search → hard-filter → dedup → rank → resolve_source → add
+The split (DESIGN §3.3–§3.4) is the heart of the acq-states feature: before it,
+« À récupérer » existed for milliseconds inside a single function call and the
+operator could never see what was available but not yet taken.
+
+Shared chain: :meth:`_search_chain` runs query build → search_candidates →
+filter_to_episode → apply_hard_filters → dedup → rank and returns a
+:class:`_SearchChainResult` both public methods consume.
 
 It does **not** touch the store or the wanted state machine — the
 ``AcquisitionService`` (phase 4b) owns the atomic claim, the status
-transitions (success→grabbed / retryable→pending / terminal→abandoned) and
-``mark_grabbed``. The orchestrator returns the typed disposition the service
-maps onto a status.
+transitions and ``mark_grabbed``. The orchestrator returns typed dispositions
+the service maps onto statuses.
 
 Emission asymmetry (DESIGN §15 / §11(d)): the orchestrator emits the FAILURE
 events (``GrabFailed`` / ``WantedAbandoned``) itself but NOT ``GrabSucceeded``.
@@ -81,6 +88,91 @@ if TYPE_CHECKING:
     from personalscraper.core.identity import MediaRef
 
 log = get_logger("acquire.orchestrator")
+
+#: Named outcomes a search pass can conclude with. The service's status mapping
+#: must cover EXACTLY this set (set-equality test) — a new outcome added here
+#: without a service mapping fails the exhaustiveness test.
+SEARCH_OUTCOMES: frozenset[str] = frozenset(
+    {
+        "available",
+        "no_candidates",
+        "no_matching_episode",
+        "all_filtered",
+        "trackers_unavailable",
+        "circuit_open",
+        "search_api_error",
+        "no_seeders",
+        "tracker_auth",
+    }
+)
+
+#: Outcomes meaning « the search did NOT conclude » — outage/circuit/dead swarm.
+#: Reporting these as « En attente » would claim knowledge we do not have.
+INCONCLUSIVE_OUTCOMES: frozenset[str] = frozenset(
+    {
+        "trackers_unavailable",
+        "circuit_open",
+        "search_api_error",
+        "no_seeders",
+    }
+)
+
+
+@dataclass(frozen=True)
+class _SearchChainResult:
+    """Intermediate of the shared search→filter→rank pipeline.
+
+    Produced by :meth:`GrabOrchestrator._search_chain` and consumed by both
+    :meth:`search` (→ :class:`SearchVerdict`) and :meth:`grab` (→
+    :class:`GrabOutcome`).  Encodes the exit path so the two callers can map
+    it onto their respective outcome types without duplicating the chain
+    logic.
+
+    Attributes:
+        exit_path: Named outcome — one of the :data:`SEARCH_OUTCOMES` values.
+        ranked: Ranked ``(result, score)`` pairs as returned by
+            :func:`personalscraper.api.tracker._ranking.rank` (integer scores).
+            Empty on every path except ``"available"``.
+        top: Top-ranked ``(result, score)`` pair, or ``None`` when no candidate
+            survived.
+    """
+
+    exit_path: str
+    ranked: list[tuple[TrackerResult, int]]
+    top: tuple[TrackerResult, int] | None
+
+
+#: High-level bucket a search verdict falls into. Kept as a named alias so the
+#: exit-path mapping table in :meth:`GrabOrchestrator.search` is typed against
+#: the SAME literals as :attr:`SearchVerdict.disposition` (a typo in either
+#: place is then a type error, not a runtime surprise).
+SearchDisposition = Literal["available", "not_found", "retryable", "terminal"]
+
+
+@dataclass(frozen=True)
+class SearchVerdict:
+    """Verdict of one search pass for one wanted item (no side effects).
+
+    Returned by :meth:`GrabOrchestrator.search`.  The orchestrator never
+    touches the torrent client, never emits events, and never writes to the
+    store on this path — the verdict is a pure data object the service maps
+    onto a wanted status via :func:`personalscraper.acquire.service.SEARCH_OUTCOME_STATUS`.
+
+    Attributes:
+        disposition: High-level bucket the service uses for summary counting.
+        outcome: Named outcome — a member of :data:`SEARCH_OUTCOMES`.
+        found: Number of takeable candidates that survived every filter,
+            including the ``min_seeders`` floor.  ``None`` when the search
+            did NOT conclude (outage / circuit open / dead swarm): zero would
+            falsely claim « I looked, there is nothing » (panne ≠ absence).
+        chosen: The top-ranked candidate, for logging only — the grab pass
+            re-searches rather than re-using a stored reference.
+    """
+
+    disposition: SearchDisposition
+    outcome: str  # member of SEARCH_OUTCOMES
+    found: int | None  # takeable count; None = not concluded (NEVER 0 on outage)
+    chosen: TrackerResult | None = None  # top-ranked candidate, for logging only
 
 
 def build_search_query(item: "WantedItem", title: str | None) -> str:
@@ -223,6 +315,11 @@ class GrabOutcome:
             ``GrabSucceeded`` payload). ``None`` off the success path.
         tags: Tags passed to ``add()`` (carried for the service's
             ``GrabSucceeded`` payload). Empty off the success path.
+        found: Number of takeable candidates that survived the search→filter→rank
+            chain. Populated with ``len(ranked)`` on the success path and ``0``
+            on the ``not_found`` paths (the grab's own re-search concluded with
+            nothing). ``None`` everywhere else (retryable/terminal — the search
+            did not conclude).
     """
 
     disposition: Literal["success", "retryable", "not_found", "terminal"]
@@ -231,6 +328,7 @@ class GrabOutcome:
     chosen: TrackerResult | None = None
     category: str | None = None
     tags: tuple[str, ...] = ()
+    found: int | None = None
 
 
 class GrabOrchestrator:
@@ -291,6 +389,182 @@ class GrabOrchestrator:
         self._ranking = ranking
         self._title_resolver = title_resolver
 
+    # ------------------------------------------------------------------
+    # Shared search→filter→rank chain
+    # ------------------------------------------------------------------
+
+    def _search_chain(self, item: WantedItem, profile: QualityProfile) -> _SearchChainResult:
+        """Run the shared search→filter→rank pipeline and return the exit path.
+
+        Both :meth:`search` and :meth:`grab` call this private method.  It
+        executes the full chain — query build → search_candidates →
+        filter_to_episode → apply_hard_filters → dedup → rank — catches
+        operational exceptions, and encodes the result as a
+        :class:`_SearchChainResult` whose ``exit_path`` the two callers map
+        onto their respective outcome types.
+
+        The torrent client is never touched and no events are emitted here.
+        Catch order is load-bearing: :exc:`CircuitOpenError` first (it is a
+        *sibling* of :exc:`ApiError`, ``core/_contracts.py`` — a bare
+        ``except ApiError`` would miss it), then :exc:`TrackerAuthError`
+        (a *subclass*, so it must precede its base to reach its own exit
+        path), then :exc:`ApiError` for everything else (including
+        :exc:`TorrentFetchError`).
+
+        The ``"tracker_auth"`` exit path exists for :meth:`search`, which
+        must state a TERMINAL verdict on a broken passkey.  :meth:`grab`
+        deliberately folds it back into its historical retryable
+        ``search_api_error`` bucket, so this extraction leaves grab's
+        behaviour and reason strings byte-identical.
+
+        REACHABILITY of that clause from the SEARCH stage (PR #320 review,
+        m15 — OPEN): defense-in-depth only, today.
+        :meth:`TrackerRegistry.search_candidates` swallows every per-tracker
+        exception — including :exc:`TrackerAuthError`, which is an
+        :exc:`ApiError` subclass — and reports the failure by NAME in
+        ``SearchOutcome.errored_names``, with no error type attached. So a
+        broken passkey on one tracker surfaces here as
+        ``trackers_unavailable`` (all trackers errored) or is simply absent
+        from the results (some succeeded), never as ``tracker_auth``. The
+        clause below still catches an auth failure raised OUTSIDE that
+        per-tracker loop, which is why it stays.
+
+        Surfacing it properly means teaching ``SearchOutcome`` to carry the
+        per-tracker error TYPE, not just the name — a reshape of a type shared
+        by the whole tracker layer, deliberately NOT attempted in a review fix.
+        ``SEARCH_OUTCOMES`` is unchanged: the taxonomy is right, only one of
+        its inputs cannot currently be observed.
+
+        Args:
+            item: The claimed ``WantedItem`` to search for.
+            profile: The effective :class:`QualityProfile` for the hard-filter
+                stage.
+
+        Returns:
+            A :class:`_SearchChainResult` whose ``exit_path`` is one of the
+            :data:`SEARCH_OUTCOMES` values.
+        """
+        media_ref = item.media_ref
+        media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
+        title = self._title_resolver(item) if self._title_resolver is not None else None
+        query = build_search_query(item, title)
+        year: int | None = None
+
+        # --- Search (CircuitOpenError is NOT an ApiError → catch separately;
+        # TrackerAuthError IS an ApiError → must precede its base clause) ---
+        try:
+            outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
+        except CircuitOpenError:
+            return _SearchChainResult(exit_path="circuit_open", ranked=[], top=None)
+        except TrackerAuthError:
+            return _SearchChainResult(exit_path="tracker_auth", ranked=[], top=None)
+        except ApiError:
+            return _SearchChainResult(exit_path="search_api_error", ranked=[], top=None)
+
+        if outcome.all_errored:
+            return _SearchChainResult(exit_path="trackers_unavailable", ranked=[], top=None)
+        if not outcome.results:
+            return _SearchChainResult(exit_path="no_candidates", ranked=[], top=None)
+
+        # --- Episode-exactness (BEFORE hard-filter): the title query returns
+        # fuzzy matches (other episodes, season packs); keep only releases
+        # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
+        results = outcome.results
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
+
+        # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
+        # Delegated to the module-level :func:`rank_candidates` seam so the
+        # search pass, the grab pass AND the ``grab --dry-run`` preview all
+        # consume the SAME ranked result (solidify F4 — a preview that ranks
+        # differently from the run is a lie). Empty ``representatives`` ⇔ empty
+        # hard-filter survivors (``dedup([])`` is ``[]``), so the two guards
+        # below keep the all_filtered / no_seeders taxonomy bit-for-bit.
+        representatives, ranked = rank_candidates(results, profile, media_ref, self._ranking)
+        if not representatives:
+            return _SearchChainResult(exit_path="all_filtered", ranked=[], top=None)
+        if not ranked:
+            return _SearchChainResult(exit_path="no_seeders", ranked=[], top=None)
+
+        return _SearchChainResult(exit_path="available", ranked=ranked, top=ranked[0])
+
+    # ------------------------------------------------------------------
+    # Public methods
+    # ------------------------------------------------------------------
+
+    def search(self, item: WantedItem, profile: QualityProfile) -> SearchVerdict:
+        """State availability for one wanted item — NEVER downloads.
+
+        Runs the full search→filter→rank chain and returns a pure
+        :class:`SearchVerdict`.  This method has **no side effects**: it
+        never touches the torrent client, never emits events (logging only),
+        and never writes to the store.  The verdict is a data object the
+        service maps onto a wanted status.
+
+        Exit mapping (exhaustive — every path returns a verdict):
+
+        ============================= =============== ===================== =====
+        Condition                      Disposition     Outcome               Found
+        ============================= =============== ===================== =====
+        ``CircuitOpenError``           ``retryable``   ``circuit_open``      None
+        ``TrackerAuthError``           ``terminal``    ``tracker_auth``      None
+        ``ApiError``                   ``retryable``   ``search_api_error``  None
+        ``all_errored``                ``retryable``   ``trackers_unavail.`` None
+        No results                     ``not_found``   ``no_candidates``     0
+        ``filter_to_episode`` empty    ``not_found``   ``no_matching_ep.``   0
+        ``apply_hard_filters`` empty   ``not_found``   ``all_filtered``      0
+        ``rank`` empty (min_seeders)   ``retryable``   ``no_seeders``        None
+        Ranked non-empty               ``available``   ``available``         len(ranked)
+        ============================= =============== ===================== =====
+
+        ``found`` is ``None`` on every path where the search did NOT conclude
+        (panne ≠ absence): zero would claim « I looked, there is nothing »,
+        which is false during an outage — the founding lie this feature removes.
+
+        One row of that table is currently UNREACHABLE from the search stage:
+        ``TrackerAuthError`` → ``tracker_auth``. The registry swallows
+        per-tracker exceptions and reports only tracker NAMES, so a broken
+        passkey arrives here as ``trackers_unavailable`` (or is silently absent
+        from the results). The mapping is kept — it is correct, and the clause
+        that feeds it still guards auth failures raised outside that loop — but
+        it must not be read as « a broken passkey abandons the item today ».
+        See :meth:`_search_chain` for what surfacing it would cost.
+
+        Args:
+            item: The wanted item to search for (read-only).
+            profile: The effective :class:`QualityProfile` for the hard-filter
+                stage.
+
+        Returns:
+            A :class:`SearchVerdict` describing availability.
+        """
+        result = self._search_chain(item, profile)
+
+        mapping: dict[str, tuple[SearchDisposition, str, int | None]] = {
+            "circuit_open": ("retryable", "circuit_open", None),
+            "tracker_auth": ("terminal", "tracker_auth", None),
+            "search_api_error": ("retryable", "search_api_error", None),
+            "trackers_unavailable": ("retryable", "trackers_unavailable", None),
+            "no_candidates": ("not_found", "no_candidates", 0),
+            "no_matching_episode": ("not_found", "no_matching_episode", 0),
+            "all_filtered": ("not_found", "all_filtered", 0),
+            "no_seeders": ("retryable", "no_seeders", None),
+            "available": ("available", "available", len(result.ranked)),
+        }
+        disposition, outcome, found = mapping[result.exit_path]
+
+        chosen = result.top[0] if result.top is not None else None
+        log.debug(
+            "acquire.search.verdict",
+            disposition=disposition,
+            outcome=outcome,
+            found=found,
+            kind=item.kind,
+        )
+        return SearchVerdict(disposition=disposition, outcome=outcome, found=found, chosen=chosen)
+
     def grab(self, item: WantedItem, profile: QualityProfile) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
@@ -303,13 +577,20 @@ class GrabOrchestrator:
         ``GrabSucceeded`` after ``mark_grabbed`` persists (DESIGN §15 /
         §11(d), emit-after-persist).
 
+        The search→filter→rank chain is delegated to :meth:`_search_chain`;
+        this method adds the grab-only stages (resolve_source → add → event
+        emission) on top.
+
         Failure routing (DESIGN §6.2), in catch order — ``CircuitOpenError``
         is a sibling of ``ApiError`` (caught FIRST and SEPARATELY, else a bare
         ``except ApiError`` misses it and crashes the batch):
 
         - ``CircuitOpenError`` → RETRYABLE ``circuit_open``.
         - ``TrackerAuthError`` (401/403, passkey broken) → TERMINAL
-          ``tracker_auth``.
+          ``tracker_auth``. This applies to the resolve/add stage only: a
+          SEARCH-stage auth failure keeps its historical RETRYABLE
+          ``search_api_error`` classification (see the exit-path fold below),
+          so the chain extraction changed no grab behaviour.
         - ``TorrentFetchError`` → RETRYABLE ``fetch_failed``.
         - other ``ApiError`` (add failure / transient) → RETRYABLE
           ``add_failed``.
@@ -323,58 +604,38 @@ class GrabOrchestrator:
             The :class:`GrabOutcome` describing success / retryable / terminal.
         """
         media_ref = item.media_ref
-        media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
-        # Follow D3: resolve the series/movie title (from the followed row) so the
-        # query is "{title} SxxEyy" the title-based trackers match — not the bare
-        # provider ID. Falls back to the ID string when no title is available.
-        title = self._title_resolver(item) if self._title_resolver is not None else None
-        query = build_search_query(item, title)
-        year: int | None = None
 
-        # --- Search (CircuitOpenError is NOT an ApiError → catch separately) ---
-        try:
-            outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
-        except CircuitOpenError:
+        # --- Shared search→filter→rank chain ---
+        result = self._search_chain(item, profile)
+
+        # Map each exit path to the same disposition + event the inline chain
+        # produced before the extraction (outcome.reason strings unchanged).
+        if result.exit_path == "circuit_open":
             return self._retryable(media_ref, "circuit_open")
-        except ApiError:
+        if result.exit_path in ("search_api_error", "tracker_auth"):
+            # A search-time auth failure keeps grab's HISTORICAL classification
+            # (retryable ``search_api_error``): before the chain extraction the
+            # single ``except ApiError`` swallowed TrackerAuthError here. Only
+            # ``search()`` states the TERMINAL ``tracker_auth`` verdict; grab's
+            # terminal auth path stays the post-search resolve/add one below.
             return self._retryable(media_ref, "search_api_error")
-
-        if outcome.all_errored:
-            # Every queried tracker errored → transient outage, retry next run.
+        if result.exit_path == "trackers_unavailable":
             return self._retryable(media_ref, "trackers_unavailable")
-        if not outcome.results:
-            # Clean search, zero hits → the release is not on the trackers YET.
-            # NOT terminal: a just-aired episode routinely shows up hours/days
-            # later (the House-of-the-Dragon abandon-after-one-search bug) —
-            # cadence paces the retries and only the cutoff ages the item out.
+        if result.exit_path == "no_candidates":
             return self._not_found(media_ref, "no_candidates")
-
-        # --- Episode-exactness (BEFORE hard-filter): the title query returns
-        # fuzzy matches (other episodes, season packs); keep only releases
-        # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
-        results = outcome.results
-        if item.kind == "episode" and item.season is not None and item.episode is not None:
-            results = filter_to_episode(results, item.season, item.episode)
-            if not results:
-                # Only season packs / other episodes exist today — the exact
-                # episode may be uploaded later. Same not-found semantics.
-                return self._not_found(media_ref, "no_matching_episode")
-
-        # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
-        # Shared with the grab --dry-run preview via rank_candidates so both act
-        # on the SAME ranked result (F4). Empty representatives ⇔ empty
-        # hard-filter survivors (dedup([]) is []), so the two guards below keep
-        # the original all_filtered / no_seeders taxonomy bit-for-bit.
-        representatives, ranked = rank_candidates(results, profile, media_ref, self._ranking)
-        if not representatives:
-            # Every candidate violated the hard profile (resolution/3D/lang) —
-            # a conforming release can still appear later. Not-found, not fatal.
+        if result.exit_path == "no_matching_episode":
+            return self._not_found(media_ref, "no_matching_episode")
+        if result.exit_path == "all_filtered":
             return self._not_found(media_ref, "all_filtered")
-        if not ranked:
-            # Everything dropped below min_seeders during ranking — no healthy
-            # swarm right now → retry next run rather than abandon permanently.
+        if result.exit_path == "no_seeders":
             return self._retryable(media_ref, "no_seeders")
-        top, _score = ranked[0]
+
+        # --- Available: proceed to the grab-only stages ---
+        # The chain only reaches "available" with a non-empty ``ranked`` list, so
+        # ``top`` is guaranteed present here; assert it so the invariant is
+        # checked rather than implied by the exit-path chain above.
+        assert result.top is not None  # noqa: S101 — "available" always carries a top
+        top, _score = result.top
 
         # --- No torrent client → cannot add (search-only / dry-run). RETRYABLE. ---
         if self._torrent_client is None:
@@ -442,6 +703,7 @@ class GrabOrchestrator:
             chosen=top,
             category=None,
             tags=(top.provider,),
+            found=len(result.ranked),
         )
 
     def _retryable(
@@ -464,7 +726,7 @@ class GrabOrchestrator:
         source_tracker = chosen.provider if chosen is not None else None
         self._event_bus.emit(GrabFailed(media_ref=media_ref, source_tracker=source_tracker, reason=reason))
         log.warning("acquire.grab.retryable", reason=reason, source_tracker=source_tracker)
-        return GrabOutcome(disposition="retryable", reason=reason, chosen=chosen)
+        return GrabOutcome(disposition="retryable", reason=reason, chosen=chosen, found=None)
 
     def _not_found(
         self,
@@ -489,7 +751,7 @@ class GrabOrchestrator:
         """
         self._event_bus.emit(GrabFailed(media_ref=media_ref, source_tracker=None, reason=reason))
         log.info("acquire.grab.not_found", reason=reason)
-        return GrabOutcome(disposition="not_found", reason=reason)
+        return GrabOutcome(disposition="not_found", reason=reason, found=0)
 
     def _terminal(
         self,
@@ -513,7 +775,15 @@ class GrabOrchestrator:
         assert media_ref is not None  # noqa: S101 — every WantedItem has a MediaRef
         self._event_bus.emit(WantedAbandoned(media_ref=media_ref, reason=reason))
         log.warning("acquire.grab.terminal", reason=reason)
-        return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen)
+        return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen, found=None)
 
 
-__all__ = ["GrabOrchestrator", "GrabOutcome", "rank_candidates"]
+__all__ = [
+    "GrabOrchestrator",
+    "GrabOutcome",
+    "SearchDisposition",
+    "SearchVerdict",
+    "SEARCH_OUTCOMES",
+    "INCONCLUSIVE_OUTCOMES",
+    "rank_candidates",
+]

@@ -16,6 +16,8 @@ acquisition lobe relies on and prints one loud line per incoherence:
 
 Anomaly rules (each printed as ``[RULE] title SxxEyy (wanted #id): explanation``):
 
+Ownership and queue shape:
+
 - GRABBED_OWNED       — wanted 'grabbed' whose work IS owned (phantom in-flight;
   reconciliation should have closed it).
 - GRABBED_HASH_MISSING — wanted 'grabbed' whose grabbed_hash the torrent client
@@ -29,10 +31,36 @@ Anomaly rules (each printed as ``[RULE] title SxxEyy (wanted #id): explanation``
 - FOLLOW_NO_REF       — a follow whose media_ref_json has no tvdb/tmdb/imdb id
   (detect silently skips it).
 - SHOW_NO_CATALOG     — an ACTIVE show follow with zero aired_episode rows
-  (completeness falls back to live provider calls) — severity INFO, printed
-  but NOT counted in the exit code.
+  (completeness falls back to live provider calls) — severity ``info``, not
+  counted in the exit code.
 
-Exit code = number of counted anomalies (rules 1-6; 0 = coherent).
+The five states (acq-states phase 9) — every rule below audits the columns the
+state derivation reads, on OPEN wanted rows only (a closed row is history, and
+:func:`~personalscraper.web.acquisition.states.select_wanted_facts` ignores it):
+
+- INCONCLUSIVE_WITH_FOUND — OPEN row whose last_search_outcome did not conclude
+  (it is in ``INCONCLUSIVE_OUTCOMES``) yet stored a last_search_found instead of
+  NULL. Storing 0 there claims « I looked, there is nothing » about trackers
+  that were never reached — panne ≠ absence.
+- SEARCHED_WITHOUT_VERDICT — OPEN row with last_search_at set but
+  last_search_outcome NULL: a search exit path forgot to record its verdict, so
+  the item reads « Non vérifié » forever (a lie by omission).
+- AVAILABLE_VERDICT_DESYNC — 'available' row whose last_search_outcome is not
+  'available': the status and the verdict that produced it disagree.
+- AVAILABLE_STALE — 'available' for more than 24h against last_search_at. That
+  status is a hand-off to the grab pass, not a resting state — severity
+  ``warning`` (an operator fixes it, not a code change).
+- ACTIVE_A_JOUR_NO_CATALOG — active show follow with an empty aired catalog, for
+  which the SHARED card derivation reads « À jour ». The founding incident made
+  executable: Furious was followed at 09:18, detect had last run at 03:00, and
+  its card declared « À jour » with three aired episodes missing.
+- FOLLOW_MISSING_POSTER — active follow with poster_url NULL: its card renders
+  without artwork — severity ``warning``.
+
+Severity: ``error`` (broken invariant) and ``warning`` (degraded state needing
+an operator) are counted; ``info`` is printed but never counted.
+
+Exit code = number of counted anomalies; 0 = coherent.
 
 Usage:
     python scripts/check-acquisition-coherence.py          # human-readable
@@ -45,12 +73,23 @@ import argparse
 import json
 import sqlite3
 import sys
+import time
 from dataclasses import asdict, dataclass, field
 
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
+from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 from personalscraper.indexer.ownership import is_owned, owned_episode_pairs
 
 # Statuses that mean "the queue still intends to fetch this in the future".
 _FUTURE_STATUSES = ("pending", "searching")
+
+#: Stale-available threshold: 'available' hands an item to the grab pass, so a
+#: row still waiting a day later means that pass is dead or its cron is gone.
+_STALE_AVAILABLE_S = 24 * 3600
+
+#: Printed marker per severity. The exit code derives from that SAME severity
+#: (see :class:`Anomaly`), so the marker and the code can never disagree.
+_MARKERS = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}
 
 
 @dataclass
@@ -67,8 +106,13 @@ class Anomaly:
         wanted_ids: The wanted row id(s) involved (empty for follow-level rules).
         followed_id: The followed_series row id involved, when known.
         explanation: Human-readable one-line explanation.
-        counted: Whether the anomaly counts toward the exit code (rule 7
-            SHOW_NO_CATALOG is INFO-only and does not).
+        severity: ``"error"`` (a broken invariant), ``"warning"`` (a degraded
+            state that needs an operator, not a code fix) or ``"info"`` (a
+            note). Set at construction — it is the ONLY knob.
+        counted: Whether the anomaly counts toward the exit code. Derived from
+            :attr:`severity`, never passed: ``error`` and ``warning`` count,
+            ``info`` does not. A single source keeps the printed marker and
+            the exit code from ever disagreeing.
     """
 
     rule: str
@@ -79,7 +123,16 @@ class Anomaly:
     wanted_ids: list[int] = field(default_factory=list)
     followed_id: int | None = None
     explanation: str = ""
-    counted: bool = True
+    severity: str = "error"
+    counted: bool = field(init=False, default=True)
+
+    def __post_init__(self) -> None:
+        """Derive :attr:`counted` from :attr:`severity`.
+
+        Kept a real field rather than a property so ``asdict`` (and therefore
+        the ``--json`` dump, a stable consumer contract) still carries it.
+        """
+        self.counted = self.severity != "info"
 
     def line(self) -> str:
         """Render the anomaly as the canonical one-line report.
@@ -211,11 +264,12 @@ def collect_anomalies(
     """
     followed: dict[int, sqlite3.Row] = {}
     acquire_conn.row_factory = sqlite3.Row
-    for row in acquire_conn.execute("SELECT id, title, active, kind, media_ref_json FROM followed_series"):
+    for row in acquire_conn.execute("SELECT id, title, active, kind, media_ref_json, poster_url FROM followed_series"):
         followed[row["id"]] = row
 
     wanted_rows = acquire_conn.execute(
-        "SELECT id, followed_id, media_ref_json, kind, season, episode, status, grabbed_hash FROM wanted ORDER BY id"
+        "SELECT id, followed_id, media_ref_json, kind, season, episode, status, grabbed_hash, "
+        "last_search_at, last_search_outcome, last_search_found FROM wanted ORDER BY id"
     ).fetchall()
 
     aired_keys: set[tuple[int, int, int]] = set()
@@ -226,6 +280,8 @@ def collect_anomalies(
 
     ownership = _OwnershipIndex(indexer_conn)
     anomalies: list[Anomaly] = []
+    # Sampled once so every staleness verdict in one report shares a clock.
+    now = int(time.time())
 
     def _title_of(followed_id: int | None) -> str:
         row = followed.get(followed_id) if followed_id is not None else None
@@ -293,6 +349,76 @@ def collect_anomalies(
                 )
             )
 
+        # --------------------------------------------------------------
+        # Rules 8-11 — the search-verdict columns (acq-states phase 9).
+        # Independent of the status chain above: those rules audit
+        # ownership, these audit what the last search pass persisted.
+        # --------------------------------------------------------------
+        if w["status"] not in OPEN_WANTED_STATUSES:
+            # A 'done'/'abandoned' row is HISTORY, not state: no surface
+            # reads its verdict (select_wanted_facts skips it), so a stale
+            # verdict there is noise rather than an incoherence.
+            continue
+
+        outcome = w["last_search_outcome"]
+        found = w["last_search_found"]
+        searched_at = w["last_search_at"]
+
+        # Rule 8 — the search did not conclude, yet it stored a count.
+        # ``record_search_outcome`` contracts ``found=None`` for every
+        # inconclusive exit: storing 0 claims « I looked, there is
+        # nothing » about trackers we never reached (panne ≠ absence).
+        if outcome in INCONCLUSIVE_OUTCOMES and found is not None:
+            anomalies.append(
+                Anomaly(
+                    rule="INCONCLUSIVE_WITH_FOUND",
+                    explanation=f"last_search_outcome='{outcome}' did not conclude but "
+                    f"last_search_found={found} is stored (must be NULL — panne ≠ absence)",
+                    **common,
+                )
+            )
+
+        # Rule 9 — a search ran and no exit path recorded its verdict, so
+        # the item reads « Non vérifié » forever: a lie by omission.
+        if searched_at is not None and outcome is None:
+            anomalies.append(
+                Anomaly(
+                    rule="SEARCHED_WITHOUT_VERDICT",
+                    explanation=f"status='{w['status']}' with last_search_at set but no "
+                    "last_search_outcome — a search exit path forgot to record its verdict",
+                    **common,
+                )
+            )
+
+        if w["status"] == "available":
+            # Rule 10 — 'available' is written by the very pass that
+            # produced the verdict, so the two can only disagree if one
+            # of the two writes was lost.
+            if outcome != "available":
+                shown = f"'{outcome}'" if outcome is not None else "NULL"
+                anomalies.append(
+                    Anomaly(
+                        rule="AVAILABLE_VERDICT_DESYNC",
+                        explanation=f"status='available' but last_search_outcome={shown} "
+                        "— the status and the verdict that produced it disagree",
+                        **common,
+                    )
+                )
+            # Rule 11 — 'available' is a hand-off, not a resting state:
+            # the grab pass is the only consumer, so a row still waiting
+            # a day later means that pass is dead or its cron is gone.
+            if searched_at is not None and (now - searched_at) > _STALE_AVAILABLE_S:
+                anomalies.append(
+                    Anomaly(
+                        rule="AVAILABLE_STALE",
+                        explanation=f"status='available' and last_search_at is "
+                        f"{(now - searched_at) // 3600}h old — the grab pass is not "
+                        "consuming it (dead pass or missing cron)",
+                        severity="warning",
+                        **common,
+                    )
+                )
+
     # ------------------------------------------------------------------
     # Rule 5 — DUPLICATE_WANTED (NULL-safe grouping in Python: None is a
     # perfectly good dict-key component, unlike SQL NULL equality).
@@ -316,8 +442,31 @@ def collect_anomalies(
             )
 
     # ------------------------------------------------------------------
-    # Rules 6-7 — per followed row
+    # Rules 6-7 + 12-13 — per followed row
     # ------------------------------------------------------------------
+    # Imported here, not at module scope: ``personalscraper.web`` eagerly builds
+    # the FastAPI app in its ``__init__``, and this guard must stay runnable as
+    # a plain CLI script — same reason ``load_config`` is imported locally below.
+    from personalscraper.web.acquisition.states import derive_follow_status  # noqa: PLC0415
+
+    # Would the SHARED card derivation say « À jour » about a follow whose
+    # aired catalog is empty? The question is ASKED, never assumed: today the
+    # answer is yes, and only truth.py's all-None sentinel stands between an
+    # empty catalog and the founding lie. The day the derivation itself
+    # refuses ``aired_count == 0``, this guard falls silent on its own instead
+    # of drifting into a rule the product no longer has.
+    empty_catalog_reads_a_jour = (
+        derive_follow_status(
+            active=True,
+            aired_count=0,
+            a_recuperer_count=0,
+            en_acquisition_count=0,
+            en_attente_count=0,
+            non_verifie_count=0,
+        )
+        == "a_jour"
+    )
+
     for fid, f in followed.items():
         ref = _parse_ref(f["media_ref_json"])
         if ref == (None, None, None):
@@ -343,7 +492,44 @@ def collect_anomalies(
                     followed_id=fid,
                     explanation="active show follow with zero aired_episode rows — completeness falls back to "
                     "live provider calls (detect has not cached it yet)",
-                    counted=False,
+                    severity="info",
+                )
+            )
+            # Rule 12 — the founding incident, made executable: Furious was
+            # followed at 09:18, detect had last run at 03:00, and the card
+            # declared « À jour » with three aired episodes missing. Priming
+            # (phase 6) is supposed to fill the catalog at follow time, so an
+            # active show still without one is a failure, not a note.
+            if empty_catalog_reads_a_jour:
+                anomalies.append(
+                    Anomaly(
+                        rule="ACTIVE_A_JOUR_NO_CATALOG",
+                        title=f["title"],
+                        kind=f["kind"],
+                        season=None,
+                        episode=None,
+                        followed_id=fid,
+                        explanation="active show follow with an empty aired catalog — the shared card "
+                        "derivation reads « À jour » on that zero knowledge (founding incident); "
+                        "priming should have written the catalog at follow time",
+                    )
+                )
+
+        # Rule 13 — a card with no poster is a card the operator has to read
+        # instead of recognise. The provider exposes one; a NULL here means
+        # the follow-time metadata fetch failed and was never retried.
+        if f["active"] and f["poster_url"] is None:
+            anomalies.append(
+                Anomaly(
+                    rule="FOLLOW_MISSING_POSTER",
+                    title=f["title"],
+                    kind=f["kind"],
+                    season=None,
+                    episode=None,
+                    followed_id=fid,
+                    explanation="active follow with poster_url NULL — its card renders without artwork "
+                    "(the provider exposes one; the follow-time metadata fetch never landed)",
+                    severity="warning",
                 )
             )
 
@@ -392,8 +578,9 @@ def main() -> int:
     """Run the guardrail against the config-resolved databases.
 
     Returns:
-        The number of counted anomalies (rules 1-6), capped at 255 so the
-        process exit code can never wrap back to a false 0.
+        The number of counted anomalies (error + warning severities),
+        capped at 255 so the process exit code can never wrap back to a
+        false 0.
     """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--json", action="store_true", help="Dump the anomaly list as JSON instead of human lines.")
@@ -438,10 +625,12 @@ def main() -> int:
         print(json.dumps([asdict(a) for a in anomalies], indent=2, ensure_ascii=False))
     else:
         for a in anomalies:
-            marker = "❌" if a.counted else "ℹ️ "
-            print(f"{marker} {a.line()}")
+            print(f"{_MARKERS.get(a.severity, '❓')} {a.line()}")
+        tally = ", ".join(
+            f"{sum(1 for a in anomalies if a.severity == level)} {level}" for level in ("error", "warning", "info")
+        )
         skipped = " (client checks SKIPPED)" if client_hashes is None else ""
-        print(f"\n{len(anomalies)} anomalies ({counted} counted, {len(anomalies) - counted} info){skipped}.")
+        print(f"\n{len(anomalies)} anomalies — {tally} ({counted} counted){skipped}.")
     return min(counted, 255)
 
 

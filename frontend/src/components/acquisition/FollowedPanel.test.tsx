@@ -4,10 +4,40 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
+import { ApiError } from "@/api/client";
+
+// The « Récupérer maintenant » action posts through the API module directly
+// (no hook), so the endpoint itself is stubbed; everything else stays real.
+const { grabMock, toastMock } = vi.hoisted(() => ({
+  grabMock: vi.fn(),
+  toastMock: {
+    info: vi.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock("@/api/acquisition", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/acquisition")>();
+  return {
+    ...actual,
+    triggerFollowedGrab: (id: number): Promise<{ run_uid: string }> =>
+      grabMock(id) as Promise<{ run_uid: string }>,
+  };
+});
+
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 // Inert hook mocks: the panel's mutations/queries never fire in these render
 // tests — only the markup derived from the `data` prop is under test.
@@ -29,7 +59,7 @@ vi.mock("@/hooks/useSchedulers", () => ({
 
 import { FollowedPanel } from "./FollowedPanel";
 
-/** A fully-typed followed item, with the P0-B counter fields nulled (no catalog). */
+/** A fully-typed followed item, with the five-state counters nulled (no catalog). */
 function makeItem(
   overrides: Partial<FollowedSeriesItem> = {},
 ): FollowedSeriesItem {
@@ -50,12 +80,15 @@ function makeItem(
     overview: null,
     poster_url: null,
     media_ref: { tvdb_id: 371572, tmdb_id: null, imdb_id: null },
-    status: "up_to_date",
+    status: "a_jour",
+    priming_running: false,
     aired_count: null,
     owned_count: null,
-    inflight_count: null,
-    queued_count: null,
-    missing_count: null,
+    a_recuperer_count: null,
+    en_acquisition_count: null,
+    en_attente_count: null,
+    non_verifie_count: null,
+    movie_facts: null,
     ...overrides,
   };
 }
@@ -80,21 +113,19 @@ afterEach(() => {
 });
 
 describe("FollowedPanel — compact rows (Phase 02)", () => {
-  it("renders the incomplete status badge as « Épisodes manquants »", () => {
-    renderPanel([makeItem({ status: "incomplete" })]);
+  it("renders the a_recuperer status badge as « À récupérer »", () => {
+    renderPanel([makeItem({ status: "a_recuperer" })]);
 
-    expect(screen.getByText("Épisodes manquants")).toBeInTheDocument();
+    expect(screen.getByText("À récupérer")).toBeInTheDocument();
   });
 
   it("renders completeness as NN/NN in font-mono tabular-nums", () => {
     renderPanel([
       makeItem({
-        status: "incomplete",
+        status: "a_recuperer",
         aired_count: 18,
         owned_count: 15,
-        inflight_count: 0,
-        queued_count: 0,
-        missing_count: 3,
+        a_recuperer_count: 3,
       }),
     ]);
 
@@ -112,10 +143,10 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
       makeItem({
         id: 1,
         title: "Silo",
-        status: "incomplete",
+        status: "a_recuperer",
         aired_count: 10,
         owned_count: 9,
-        missing_count: 1,
+        a_recuperer_count: 1,
       }),
       // aired_count null = no cached catalog → "—" for completeness.
       makeItem({ id: 2, title: "Top Chef" }),
@@ -176,31 +207,150 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
   });
 });
 
-describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
-  it("libelle un film manquant « Manquant » (pas « Épisodes manquants »)", () => {
+describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
+  it.each([
+    ["a_jour", "À jour"],
+    ["a_recuperer", "À récupérer"],
+    ["en_acquisition", "En cours d'acquisition"],
+    ["en_attente", "En attente"],
+    ["non_verifie", "Non vérifié"],
+    ["verification_en_cours", "Vérification en cours"],
+  ])("affiche %s comme « %s »", (status, label) => {
+    renderPanel([makeItem({ status: status as FollowedSeriesItem["status"] })]);
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("affiche « En pause » pour un suivi désactivé (section repliée)", () => {
+    // A disabled follow lives in the retired section, which carries no chip —
+    // the vocabulary still owns the label, exercised through the map.
+    renderPanel([makeItem({ active: false, status: "disabled" })]);
+
+    expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
+  });
+
+  it("explique l'état en infobulle (En attente ≠ Non vérifié)", () => {
     renderPanel([
-      makeItem({ kind: "movie", title: "Ferrari", status: "incomplete" }),
+      makeItem({ id: 1, title: "Silo", status: "en_attente" }),
+      makeItem({ id: 2, title: "Furious", status: "non_verifie" }),
     ]);
 
-    expect(screen.getByText("Manquant")).toBeInTheDocument();
-    expect(screen.queryByText("Épisodes manquants")).not.toBeInTheDocument();
+    const attente = screen.getByText("En attente").closest("[title]");
+    const nonVerifie = screen.getByText("Non vérifié").closest("[title]");
+    expect(attente?.getAttribute("title")).toMatch(/rien de conforme/);
+    expect(nonVerifie?.getAttribute("title")).toMatch(/[Pp]as encore vérifié/);
+    expect(attente?.getAttribute("title")).not.toBe(
+      nonVerifie?.getAttribute("title"),
+    );
+  });
+
+  it("affiche les compteurs par état, jamais le compteur wanted_pending brut", () => {
+    renderPanel([
+      makeItem({
+        status: "a_recuperer",
+        aired_count: 18,
+        owned_count: 12,
+        a_recuperer_count: 3,
+        en_acquisition_count: 1,
+        en_attente_count: 1,
+        non_verifie_count: 1,
+        // The lying counter: 9 rows queued while only 6 episodes are not owned.
+        wanted_pending: 9,
+      }),
+    ]);
+
+    expect(
+      screen.getByText(
+        "3 à récupérer · 1 en cours d'acquisition · 1 en attente · 1 non vérifié",
+      ),
+    ).toBeInTheDocument();
+    // The raw wanted_pending chip is gone — it knew nothing about ownership.
+    expect(screen.queryByText("9 en attente")).not.toBeInTheDocument();
+  });
+
+  it("n'affiche aucun compteur quand tout est en médiathèque", () => {
+    renderPanel([
+      makeItem({
+        status: "a_jour",
+        aired_count: 10,
+        owned_count: 10,
+        a_recuperer_count: 0,
+        en_acquisition_count: 0,
+        en_attente_count: 0,
+        non_verifie_count: 0,
+      }),
+    ]);
+
+    expect(screen.getByText("10/10")).toBeInTheDocument();
+    expect(screen.queryByText(/à récupérer/)).not.toBeInTheDocument();
+  });
+});
+
+describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
+  it("n'affiche aucune fraction pour un film (son état EST la pastille)", () => {
+    renderPanel([
+      makeItem({
+        kind: "movie",
+        title: "Ferrari",
+        status: "a_jour",
+        movie_facts: {
+          owned: true,
+          wanted_status: null,
+          last_search_outcome: null,
+          last_search_found: null,
+        },
+      }),
+    ]);
+
+    expect(screen.getByText("Acquis")).toBeInTheDocument();
+    // No "1/1", and no "—" either: a film is not a completeness fraction.
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+    expect(screen.queryByText("1/1")).not.toBeInTheDocument();
+  });
+
+  it("garde le libellé partagé pour un film à récupérer", () => {
+    renderPanel([
+      makeItem({ kind: "movie", title: "Ferrari", status: "a_recuperer" }),
+    ]);
+
+    expect(screen.getByText("À récupérer")).toBeInTheDocument();
+  });
+
+  it("dit en français pourquoi un film attend, jamais le jeton machine", () => {
+    renderPanel([
+      makeItem({
+        kind: "movie",
+        title: "Ferrari",
+        status: "en_attente",
+        movie_facts: {
+          owned: false,
+          wanted_status: "pending",
+          last_search_outcome: "all_filtered",
+          last_search_found: 0,
+        },
+      }),
+    ]);
+
+    expect(screen.getByText("En attente")).toBeInTheDocument();
+    expect(screen.getByText("rien de conforme au profil")).toBeInTheDocument();
+    expect(screen.queryByText(/all_filtered/)).not.toBeInTheDocument();
   });
 
   it("libelle un film en médiathèque « Acquis » (pas « À jour »)", () => {
     renderPanel([
-      makeItem({ kind: "movie", title: "Ferrari", status: "up_to_date" }),
+      makeItem({ kind: "movie", title: "Ferrari", status: "a_jour" }),
     ]);
 
     expect(screen.getByText("Acquis")).toBeInTheDocument();
     expect(screen.queryByText("À jour")).not.toBeInTheDocument();
   });
 
-  it("garde les libellés série pour une série incomplète", () => {
-    renderPanel([makeItem({ kind: "show", status: "incomplete" })]);
+  it("garde les libellés série pour une série à jour", () => {
+    renderPanel([makeItem({ kind: "show", status: "a_jour" })]);
 
     // The movie override must not leak into series cards.
-    expect(screen.getByText("Épisodes manquants")).toBeInTheDocument();
-    expect(screen.queryByText("Manquant")).not.toBeInTheDocument();
+    expect(screen.getByText("À jour")).toBeInTheDocument();
+    expect(screen.queryByText("Acquis")).not.toBeInTheDocument();
   });
 });
 
@@ -233,5 +383,72 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
   it("aucune section retirés quand tout est actif", () => {
     renderPanel([makeItem()]);
     expect(screen.queryByText(/Suivis retirés/)).not.toBeInTheDocument();
+  });
+});
+
+describe("FollowedPanel — « Récupérer maintenant » (phase 8 / §6)", () => {
+  it("n'offre l'action que là où quelque chose est réellement récupérable", () => {
+    renderPanel([
+      makeItem({ id: 1, title: "Silo", status: "a_recuperer" }),
+      makeItem({ id: 2, title: "Furious", status: "en_attente" }),
+      makeItem({ id: 3, title: "Top Chef", status: "a_jour" }),
+    ]);
+
+    expect(
+      screen.getAllByRole("button", { name: /Récupérer maintenant/ }),
+    ).toHaveLength(1);
+  });
+
+  it("passe en « En file » sur un 202, sans toast de succès (NE-DOIT-PAS-1)", async () => {
+    grabMock.mockResolvedValueOnce({ run_uid: "run-1" });
+    renderPanel([makeItem({ id: 4, title: "Silo", status: "a_recuperer" })]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /En file/ })).toBeDisabled();
+    });
+    expect(grabMock).toHaveBeenCalledWith(4);
+    expect(toastMock.success).not.toHaveBeenCalled();
+    expect(toastMock.error).not.toHaveBeenCalled();
+  });
+
+  it("traite le seul refus permis (409) comme « déjà en cours », pas une erreur", async () => {
+    grabMock.mockRejectedValueOnce(
+      new ApiError(409, "A matching acquisition run is already in flight"),
+    );
+    renderPanel([makeItem({ id: 5, title: "Silo", status: "a_recuperer" })]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /En file/ })).toBeInTheDocument();
+    });
+    // §6 / NE-DOIT-PAS-3: the duplicate of the same action is an information.
+    expect(toastMock.error).not.toHaveBeenCalled();
+    expect(toastMock.info).toHaveBeenCalledWith(
+      "Récupération déjà en cours pour ce titre.",
+    );
+  });
+
+  it("remonte bruyamment une vraie erreur (NE-DOIT-PAS-5)", async () => {
+    grabMock.mockRejectedValueOnce(new ApiError(500, "boom"));
+    renderPanel([makeItem({ id: 6, title: "Silo", status: "a_recuperer" })]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    );
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith("boom");
+    });
+    // A failed launch leaves the action available — nothing was queued.
+    expect(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    ).toBeEnabled();
   });
 });

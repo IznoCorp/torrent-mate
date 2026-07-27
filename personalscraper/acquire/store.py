@@ -372,7 +372,7 @@ class _FollowSubStore:
                 (cadence_json, followed_id),
             )
 
-    def set_metadata(
+    def merge_metadata(
         self,
         followed_id: int,
         *,
@@ -380,24 +380,27 @@ class _FollowSubStore:
         overview: str | None,
         year: int | None,
     ) -> None:
-        """Overwrite the OBJ3 card metadata columns for a followed series.
+        """Merge the OBJ3 card metadata columns of a followed series (additive).
 
-        Persists the ``poster_url`` / ``overview`` / ``year`` captured from an
-        add-by-search candidate. All three columns are written together (a
-        ``None`` clears its column), matching the web layer's former raw
-        ``UPDATE``. Runs inside a single ``_write_tx`` BEGIN IMMEDIATE so the web
-        route no longer opens its own connection — single-writer discipline
+        Persists the ``poster_url`` / ``overview`` / ``year`` resolved for a
+        follow — from the add-by-search candidate and/or the server-side
+        provider enrichment (acq-states §7). ``None`` means « not known right
+        now », NEVER « clear »: each column is written through ``COALESCE(?,
+        col)`` so a provider outage cannot erase a value a previous add path
+        already stored. Runs inside a single ``_write_tx`` BEGIN IMMEDIATE so
+        the web route never opens its own connection — single-writer discipline
         (ACQUIRE-09).
 
         Args:
             followed_id: Rowid of the ``followed_series`` row.
-            poster_url: Poster URL, or ``None`` to clear it.
-            overview: Overview/synopsis text, or ``None`` to clear it.
-            year: Release/first-air year, or ``None`` to clear it.
+            poster_url: Poster URL, or ``None`` to leave the stored one intact.
+            overview: Overview/synopsis text, or ``None`` to leave it intact.
+            year: Release/first-air year, or ``None`` to leave it intact.
         """
         with _write_tx(self._conn):
             self._conn.execute(
-                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
+                "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
+                "overview = COALESCE(?, overview), year = COALESCE(?, year) WHERE id = ?",
                 (poster_url, overview, year, followed_id),
             )
 

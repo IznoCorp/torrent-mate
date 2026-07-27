@@ -29,7 +29,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Expected tables after the full migration chain (001 → 004) is applied.
-_LATEST_VERSION = 7
+_LATEST_VERSION = 8
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -102,7 +102,7 @@ class TestAcquireMigrations:
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
-        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,)]
+        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,)]
 
     def test_unique_index_followed_media_ref_exists(self, tmp_path: Path) -> None:
         """After applying the full chain, the UNIQUE index ux_followed_media_ref exists (004)."""
@@ -334,3 +334,435 @@ class TestMigration004Dedup:
         ).fetchall()
         assert len(rows) == 1
         assert _user_version(conn) == _LATEST_VERSION
+
+
+# ---------------------------------------------------------------------------
+# Helpers for migration 008
+# ---------------------------------------------------------------------------
+
+
+def _apply_up_to_007(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """Apply migrations 001–007 only (schema BEFORE the 008 wanted rebuild).
+
+    Copies the pre-008 ``*.sql`` scripts into an isolated temp dir so that
+    ``apply_migrations`` sees exactly the 001–007 chain — leaving the DB at
+    ``user_version=7`` with the original CHECK constraint and no verdict columns.
+    This lets the test seed wanted rows before exercising the 008 rebuild.
+
+    Args:
+        conn: Open connection to the DB being migrated.
+        tmp_path: Pytest temp dir used to stage the pre-008 migration subset.
+    """
+    subset = tmp_path / "migrations_pre_008"
+    subset.mkdir()
+    for name in (
+        "001_init.sql",
+        "002_cross_seed.sql",
+        "003_watch_state.sql",
+        "004_followed_unique.sql",
+        "005_followed_metadata.sql",
+        "006_followed_kind.sql",
+        "007_aired_episode.sql",
+    ):
+        (subset / name).write_text((MIGRATIONS_DIR / name).read_text(encoding="utf-8"), encoding="utf-8")
+    apply_migrations(conn, subset)
+
+
+def _squat_index_name(conn: sqlite3.Connection) -> None:
+    """Force 008 to fail at the statement AFTER its destructive swap.
+
+    ``DROP TABLE wanted`` takes ``idx_wanted_pending`` with it, so the name is
+    free by the time 008 recreates the index. Parking a TABLE on that name makes
+    ``CREATE INDEX IF NOT EXISTS`` raise — which happens once the drop and the
+    rename have already run, exactly the window the transaction must cover.
+
+    Args:
+        conn: A connection already migrated to 007.
+    """
+    conn.execute("DROP INDEX idx_wanted_pending")
+    conn.execute("CREATE TABLE idx_wanted_pending (boom INTEGER)")
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Migration 008: available status + verdict columns on wanted (table rebuild)
+# ---------------------------------------------------------------------------
+
+
+class TestMigration008:
+    """008 adds 'available' status + last_search_outcome / last_search_found to wanted."""
+
+    # ── (a) fresh DB → new columns + 'available' accepted ─────────────────
+
+    def test_fresh_db_has_new_columns(self, tmp_path: Path) -> None:
+        """After applying the full chain, wanted has last_search_outcome and last_search_found."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        # Verify the two new columns exist on the wanted table.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" in cols
+        assert "last_search_found" in cols
+
+    def test_fresh_db_accepts_available_status(self, tmp_path: Path) -> None:
+        """After migration, INSERT with status='available' succeeds."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 'available', 1)"
+        )
+        conn.commit()
+        row = conn.execute("SELECT status FROM wanted WHERE id = 1").fetchone()
+        assert row[0] == "available"
+
+    # ── (b) idempotence ───────────────────────────────────────────────────
+
+    def test_idempotent_second_call(self, tmp_path: Path) -> None:
+        """Calling apply_migrations twice leaves wanted unchanged on second call."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        version_after_first = _user_version(conn)
+
+        # Insert a row so we can verify it survives a second apply untouched.
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 'available', 1)"
+        )
+        conn.commit()
+
+        apply_migrations(conn, MIGRATIONS_DIR)
+        assert _user_version(conn) == version_after_first
+
+        # The row we inserted must still be there — the second apply didn't
+        # re-execute the rebuild (user_version was already 8).
+        count = conn.execute("SELECT COUNT(*) FROM wanted").fetchone()[0]
+        assert count == 1
+
+    # ── (c) data preservation ─────────────────────────────────────────────
+
+    def test_data_preservation_all_statuses(self, tmp_path: Path) -> None:
+        """Rows covering every status survive 008 with all values intact, new cols NULL."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+
+        # Insert a row for every pre-008 status with non-default values.
+        conn.executescript(
+            """
+            INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode,
+                                status, criteria_json, enqueued_at, last_search_at,
+                                attempts, grabbed_hash)
+            VALUES
+              (1, NULL, '{}', 'episode', 1, 1,
+               'pending',   '{"lang":"fr"}', 100, 200, 0, NULL),
+              (2, NULL, '{}', 'episode', 1, 2,
+               'searching', '{"lang":"fr"}', 110, 210, 1, NULL),
+              (3, NULL, '{}', 'episode', 1, 3,
+               'grabbed',   '{"lang":"en"}', 120, 220, 1, 'deadbeef01'),
+              (4, NULL, '{}', 'episode', 1, 4,
+               'done',      '{"lang":"en"}', 130, 230, 1, 'deadbeef02'),
+              (5, NULL, '{}', 'episode', 1, 5,
+               'abandoned', '{"lang":"fr"}', 140, 240, 3, NULL);
+            """
+        )
+        conn.commit()
+
+        # Apply 008 (rebuilds wanted).
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        # Every row must survive with every column value intact.
+        rows = conn.execute(
+            "SELECT id, followed_id, media_ref_json, kind, season, episode, "
+            "status, criteria_json, enqueued_at, last_search_at, attempts, "
+            "grabbed_hash, last_search_outcome, last_search_found "
+            "FROM wanted ORDER BY id"
+        ).fetchall()
+
+        assert len(rows) == 5
+
+        # Row 1: pending
+        assert rows[0] == (1, None, "{}", "episode", 1, 1, "pending", '{"lang":"fr"}', 100, 200, 0, None, None, None)
+        # Row 2: searching
+        assert rows[1] == (2, None, "{}", "episode", 1, 2, "searching", '{"lang":"fr"}', 110, 210, 1, None, None, None)
+        # Row 3: grabbed (with hash)
+        assert rows[2] == (
+            3,
+            None,
+            "{}",
+            "episode",
+            1,
+            3,
+            "grabbed",
+            '{"lang":"en"}',
+            120,
+            220,
+            1,
+            "deadbeef01",
+            None,
+            None,
+        )
+        # Row 4: done (with hash)
+        assert rows[3] == (
+            4,
+            None,
+            "{}",
+            "episode",
+            1,
+            4,
+            "done",
+            '{"lang":"en"}',
+            130,
+            230,
+            1,
+            "deadbeef02",
+            None,
+            None,
+        )
+        # Row 5: abandoned
+        assert rows[4] == (5, None, "{}", "episode", 1, 5, "abandoned", '{"lang":"fr"}', 140, 240, 3, None, None, None)
+
+    # ── (d) partial index preservation ────────────────────────────────────
+
+    def test_idx_wanted_pending_is_partial(self, tmp_path: Path) -> None:
+        """After 008 rebuild, idx_wanted_pending exists and is still partial."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        row = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'idx_wanted_pending'").fetchone()
+        assert row is not None, "idx_wanted_pending must exist after rebuild"
+        assert "WHERE" in row[0], "idx_wanted_pending must be a partial index (contain WHERE)"
+
+    # ── (e) FK integrity ──────────────────────────────────────────────────
+
+    def test_foreign_key_check_clean(self, tmp_path: Path) -> None:
+        """After 008, PRAGMA foreign_key_check returns no violations."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        assert len(violations) == 0, f"foreign_key_check found violations: {violations}"
+
+    # ── (f) CHECK constraint: 'available' OK, bogus rejected ──────────────
+
+    def test_insert_available_succeeds(self, tmp_path: Path) -> None:
+        """INSERT with status='available' succeeds (new status in CHECK)."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 1, 1, 'available', 1)"
+        )
+        conn.commit()
+        assert conn.execute("SELECT COUNT(*) FROM wanted WHERE status = 'available'").fetchone()[0] == 1
+
+    def test_insert_bogus_rejected(self, tmp_path: Path) -> None:
+        """INSERT with status='bogus' raises IntegrityError (CHECK constraint)."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at) "
+                "VALUES (NULL, '{}', 'episode', 'bogus', 1)"
+            )
+            conn.commit()
+
+    # ── (f) atomicity: user_version advances only on success ──────────────
+
+    def test_failed_rebuild_leaves_user_version_at_7(self, tmp_path: Path) -> None:
+        """Regression (PR #320 review, F-M7): a failed 008 must not claim schema 8.
+
+        ``PRAGMA user_version = 8`` used to be the FIRST statement, and
+        ``executescript`` is not one transaction — so it auto-committed on its
+        own. A crash anywhere in the rebuild therefore left a DB advertising
+        schema 8 while carrying schema 7 (or a half-swapped one), and the
+        applier — which skips any script whose version <= user_version — would
+        never run it again to repair the damage.
+
+        Forced failure: pre-create a conflicting ``wanted_new`` table so
+        ``CREATE TABLE wanted_new`` raises. The script is executed directly
+        (not through ``apply_migrations``) because the applier restores its
+        pre-migration snapshot on failure, which would mask what the script
+        itself left behind.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        conn.execute("CREATE TABLE wanted_new (boom INTEGER)")
+        conn.commit()
+        assert _user_version(conn) == 7
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        with pytest.raises(sqlite3.OperationalError):
+            conn.executescript(sql_text)
+        conn.execute("ROLLBACK")  # the failed script left its transaction open
+
+        assert _user_version(conn) == 7, (
+            "a failed rebuild must NOT advertise schema 8 — the applier would never re-run it"
+        )
+        # And the original table is intact: the destructive part never ran.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" not in cols
+        assert conn.execute("SELECT COUNT(*) FROM schema_version WHERE version = 8").fetchone()[0] == 0
+
+    def test_destructive_rebuild_is_one_transaction(self, tmp_path: Path) -> None:
+        """The swap, the marker row AND ``user_version`` commit together, or not at all.
+
+        Proven behaviourally by failing AFTER the destructive part: a table
+        squatting the ``idx_wanted_pending`` name makes ``CREATE INDEX`` raise,
+        which happens once ``DROP TABLE wanted`` and the rename have already
+        run. Everything must still roll back — old schema, no orphan
+        ``wanted_new``, ``user_version`` still 7.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        _squat_index_name(conn)
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        with pytest.raises(sqlite3.OperationalError):
+            conn.executescript(sql_text)
+        conn.execute("ROLLBACK")
+
+        assert _user_version(conn) == 7
+        # The swap rolled back with the rest: old schema, no orphan wanted_new.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" not in cols, "the rebuild must roll back whole"
+        names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
+        assert "wanted" in names
+        assert "wanted_new" not in names, "a rolled-back rebuild must leave no orphan table"
+        assert conn.execute("SELECT COUNT(*) FROM schema_version WHERE version = 8").fetchone()[0] == 0
+
+    def test_user_version_and_schema_commit_together(self, tmp_path: Path) -> None:
+        """Regression (PR #320 review, cycle 2): no window between the two.
+
+        ``PRAGMA user_version`` writes the database header and IS transactional.
+        Leaving it after the COMMIT opened a window where the rebuild was
+        durable but the version was not — and a re-run from there BRICKS the DB:
+        the destructive part replays against an already-migrated schema and dies
+        on the ``schema_version`` PRIMARY KEY, forever. Inside the transaction
+        the two become durable in the same commit, so the window does not exist.
+
+        Probes the window directly: run the script only as far as its COMMIT —
+        i.e. simulate the process dying the instant the rebuild became durable —
+        and assert the version is ALREADY 8 there. With the pragma after the
+        COMMIT this stops at 8-worth of schema advertising version 7, and the
+        re-run bricks the DB.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        head, sep, _tail = sql_text.partition("COMMIT;")
+        assert sep, "008 must wrap its rebuild in an explicit transaction"
+        conn.executescript(head + sep)  # everything up to and including COMMIT
+
+        migrated = "last_search_outcome" in {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        version_after = _user_version(conn)
+        assert migrated, "the prefix must have applied the rebuild"
+        assert version_after == 8, (
+            "the schema is durable but user_version is still "
+            f"{version_after}: a crash here leaves a DB whose re-run replays the "
+            "destructive part against an already-migrated schema"
+        )
+
+    def test_a_replay_from_the_committed_state_is_a_clean_no_op(self, tmp_path: Path) -> None:
+        """The applier skips 008 once the rebuild committed — no destructive replay.
+
+        The end state of the window probed above: with the version inside the
+        transaction, a process that died right after the COMMIT restarts into a
+        DB the applier considers done. The data survives untouched.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        conn.execute(
+            "INSERT INTO wanted (id, followed_id, media_ref_json, kind, status, enqueued_at) "
+            "VALUES (1, NULL, '{}', 'episode', 'pending', 100)"
+        )
+        conn.commit()
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        head, sep, _tail = sql_text.partition("COMMIT;")
+        conn.executescript(head + sep)  # "crash" right after the commit
+
+        apply_migrations(conn, MIGRATIONS_DIR)  # the restart
+
+        assert _user_version(conn) == _LATEST_VERSION
+        assert conn.execute("SELECT COUNT(*) FROM wanted").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM schema_version WHERE version = 8").fetchone()[0] == 1
+
+    def test_replaying_the_script_over_an_existing_marker_still_completes(self, tmp_path: Path) -> None:
+        """``INSERT OR IGNORE`` keeps the marker row from blocking a rebuild.
+
+        The marker is a record that the migration ran, not a constraint to trip
+        over. A plain INSERT made a DB that already carried the row impossible
+        to migrate — the rebuild died at its final statement every time.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        conn.execute("INSERT INTO schema_version(version) VALUES (8)")
+        conn.commit()
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        conn.executescript(sql_text)  # must NOT raise
+
+        assert _user_version(conn) == 8
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" in cols
+        assert conn.execute("SELECT COUNT(*) FROM schema_version WHERE version = 8").fetchone()[0] == 1
+
+
+class TestMigrationFailureLeavesNoOpenTransaction:
+    """The applier never hands back a connection stuck inside a failed script's tx."""
+
+    def test_failure_without_a_snapshot_rolls_back_and_closes(self, tmp_path: Path) -> None:
+        """Regression (PR #320 review, M8): the no-snapshot raise path must clean up.
+
+        An in-memory DB gets no ``.bak``, so the restore branch is skipped. 008
+        opens an explicit ``BEGIN``, so a statement failing inside it leaves that
+        transaction OPEN. The applier used to raise straight through, handing the
+        caller a connection with ``in_transaction=True`` still holding the writer
+        lock — every later write on it failed for reasons no log explained. Both
+        failure paths now leave the connection closed.
+        """
+        from personalscraper.core.sqlite.errors import SqliteMigrationError
+
+        conn = sqlite3.connect(":memory:")
+        _apply_up_to_007(conn, tmp_path)
+        _squat_index_name(conn)
+
+        with pytest.raises(SqliteMigrationError):
+            apply_migrations(conn, MIGRATIONS_DIR)
+
+        with pytest.raises(sqlite3.ProgrammingError):
+            conn.execute("SELECT 1")
+
+    def test_a_fresh_connection_can_still_migrate_afterwards(self, tmp_path: Path) -> None:
+        """The failure is recoverable: nothing is left holding the DB hostage."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        _squat_index_name(conn)
+        conn.close()
+
+        # Clear the squatter, then a fresh connection completes the chain.
+        repair = sqlite3.connect(str(db_path))
+        repair.execute("DROP TABLE idx_wanted_pending")
+        repair.commit()
+        apply_migrations(repair, MIGRATIONS_DIR)
+        assert _user_version(repair) == _LATEST_VERSION
+        repair.close()

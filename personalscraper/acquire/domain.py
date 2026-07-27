@@ -18,8 +18,15 @@ from typing import Literal
 from personalscraper.core.identity import MediaRef
 
 WantedKind = Literal["movie", "episode"]
-WantedStatus = Literal["pending", "searching", "grabbed", "done", "abandoned"]
+WantedStatus = Literal["pending", "searching", "available", "grabbed", "done", "abandoned"]
 FollowKind = Literal["movie", "show"]
+
+#: The ``wanted`` statuses that describe an acquisition still in flight — the
+#: ONE definition of « open », so no reader can invent its own. ``done`` and
+#: ``abandoned`` are deliberately absent: a closed row is history, not state,
+#: and letting one speak for its episode is how two surfaces start disagreeing
+#: about the same episode (acq-states phase 5).
+OPEN_WANTED_STATUSES: frozenset[str] = frozenset({"pending", "searching", "available", "grabbed"})
 
 
 @dataclass(frozen=True)
@@ -100,15 +107,43 @@ class WantedItem:
         episode: Episode number (episodes only).
         criteria_json: Nullable JSON for search criteria (RP3a).
         last_search_at: Unix epoch seconds of last search attempt.
-        attempts: Number of search attempts made.
+        attempts: Number of tracker interactions — incremented by BOTH atomic
+            claims (``claim_for_search`` for a search-pass claim,
+            ``claim_for_grab`` for a grab-pass claim), since each one leads to a
+            tracker query. It is NOT a count of search-pass attempts alone, and
+            the grab pass deliberately applies no cap to it: capping there would
+            abandon a known-available item on its first flaky add.
         id: SQLite rowid — populated by ``list_pending()`` / ``get()`` /
             ``list_stale_searching()``; ``None`` for an as-yet-unpersisted item.
             The acquisition service needs it to call ``claim_for_search`` /
             ``mark_grabbed`` / ``set_status`` (RP5b, was a blocking gap).
-        grabbed_hash: Torrent info-hash persisted by ``mark_grabbed`` — the
-            idempotence guard consults the persisted hash (not status alone),
-            so a crash between ``add()`` and the status write does NOT
-            double-emit ``GrabSucceeded`` on re-run. ``None`` until grabbed.
+        grabbed_hash: Torrent info-hash persisted by ``mark_grabbed``. The
+            idempotence guard consults this persisted hash rather than the
+            status alone, so once it is set no later pass can re-grab or
+            re-emit — including a row left at 'searching' by a crash right
+            after the write (the §11(d) window).
+
+            It does NOT cover the window BEFORE it is written (PR #320 review,
+            M9 — OPEN): between the orchestrator's ``add()`` returning and
+            ``mark_grabbed`` committing, the torrent is in the client and
+            nothing on the row records it. A crash there leaves an orphan
+            torrent with no seed obligation, and the row recovers by being
+            re-SEARCHED from scratch — a fresh decision against today's
+            trackers, not a replay of the one already acted on. See
+            ``AcquisitionService._persist_success``. ``None`` until grabbed.
+        last_search_outcome: Named issue of the last search pass
+            (``no_candidates``, ``all_filtered``, ``trackers_unavailable``,
+            ``available``, …). ``None`` means never searched — the honest
+            default for pre-existing rows and freshly-enqueued items: we
+            genuinely do not know. Distinguishing ``None`` from a real outcome
+            is what prevents a tracker outage from reading as « À jour ».
+        last_search_found: Count of TAKEABLE candidates — survivors of the
+            exact-episode filter, the hard profile filters and the
+            ``min_seeders`` floor — at the time of the last concluded search.
+            ``None`` when the search did NOT conclude (outage, open circuit,
+            dead swarm): zero would falsely claim « I looked, there is
+            nothing », which is the lie of the Furious incident (DESIGN §1).
+            ``None`` is also the default for never-searched rows.
     """
 
     media_ref: MediaRef
@@ -123,6 +158,8 @@ class WantedItem:
     attempts: int = 0
     id: int | None = None
     grabbed_hash: str | None = None
+    last_search_outcome: str | None = None
+    last_search_found: int | None = None
 
     def __post_init__(self) -> None:
         """Validate kind and status values.
@@ -131,7 +168,7 @@ class WantedItem:
             ValueError: If kind or status is not a valid literal.
         """
         valid_kinds: tuple[str, ...] = ("movie", "episode")
-        valid_statuses: tuple[str, ...] = ("pending", "searching", "grabbed", "done", "abandoned")
+        valid_statuses: tuple[str, ...] = ("pending", "searching", "available", "grabbed", "done", "abandoned")
         if self.kind not in valid_kinds:
             raise ValueError(f"Invalid WantedItem.kind={self.kind!r}; must be one of {valid_kinds}")
         if self.status not in valid_statuses:
@@ -229,6 +266,7 @@ class AiredEpisodeRow:
 
 
 __all__ = [
+    "OPEN_WANTED_STATUSES",
     "AiredEpisode",
     "AiredEpisodeRow",
     "FollowedSeries",

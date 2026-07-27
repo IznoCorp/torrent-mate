@@ -474,12 +474,15 @@ def test_follow_set_active_flips_flag(store: ConcreteAcquireStore) -> None:
     assert any(s.id == row_id for s in active_list), "Reactivated row must appear in list_active()"
 
 
-def test_follow_set_metadata_overwrites_card_columns(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """set_metadata overwrites poster_url/overview/year together — the web write path (ACQUIRE-09).
+def test_follow_merge_metadata_is_additive(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """merge_metadata writes poster_url/overview/year additively — the web write path (ACQUIRE-09).
 
-    Replaces the web layer's former raw ``UPDATE followed_series`` — the full
-    three-column overwrite (a ``None`` clears its column) must be byte-identical
-    so the create-follow route keeps persisting the search-candidate card.
+    Owns the write the web layer used to do with a raw ``UPDATE
+    followed_series`` (single-writer discipline). ``None`` means « not known
+    right now », never « clear »: the acq-states server-side enrichment resolves
+    each field independently and a provider that cannot answer must not erase a
+    value a previous add path already stored (the reactivate path re-runs the
+    enrichment on a row that may already carry a poster).
     """
     import sqlite3
 
@@ -494,18 +497,19 @@ def test_follow_set_metadata_overwrites_card_columns(store: ConcreteAcquireStore
                 "SELECT poster_url, overview, year FROM followed_series WHERE id = ?", (row_id,)
             ).fetchone()
 
-    store.follow.set_metadata(row_id, poster_url="https://x/p.jpg", overview="A synopsis.", year=2023)
+    store.follow.merge_metadata(row_id, poster_url="https://x/p.jpg", overview="A synopsis.", year=2023)
     row = _cols()
     assert row["poster_url"] == "https://x/p.jpg"
     assert row["overview"] == "A synopsis."
     assert row["year"] == 2023
 
-    # A None clears its column (the route's full 3-column overwrite semantics).
-    store.follow.set_metadata(row_id, poster_url=None, overview="kept", year=None)
+    # A None LEAVES its column intact — an unresolved field never erases a
+    # stored one; a supplied field still overwrites.
+    store.follow.merge_metadata(row_id, poster_url=None, overview="replaced", year=None)
     row = _cols()
-    assert row["poster_url"] is None
-    assert row["overview"] == "kept"
-    assert row["year"] is None
+    assert row["poster_url"] == "https://x/p.jpg", "A None poster must not erase the stored poster"
+    assert row["overview"] == "replaced"
+    assert row["year"] == 2023, "A None year must not erase the stored year"
 
 
 def test_follow_add_same_ref_twice_no_duplicate_reactivates(store: ConcreteAcquireStore) -> None:
@@ -622,6 +626,138 @@ def test_wanted_mark_done_by_hash_closes_grabbed_rows(store: ConcreteAcquireStor
     assert store.wanted.mark_done_by_hash("feedface") == []
 
 
+def test_wanted_mark_done_by_hash_closes_an_available_row(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review, m3): 'available' is an OPEN status and must close.
+
+    The IN clause used to be the literal ``('grabbed',)``, so a row force-reset
+    to 'available' while retaining its ``grabbed_hash`` — the shape the grab
+    pass's retryable path produced — was invisible to the §5 dispatch closure
+    and froze forever: nothing else closes it. Building the filter from
+    ``OPEN_WANTED_STATUSES`` (the single source) removes the drift by
+    construction.
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tmdb_id=1184918), kind="movie", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "ABCDEF0123456789")
+    # Force-reset to 'available' while KEEPING the hash (the retryable shape).
+    store.wanted.set_status(wid, "available")
+
+    closed = store.wanted.mark_done_by_hash("abcdef0123456789")
+
+    assert [w.id for w in closed] == [wid]
+    done = store.wanted.get(wid)
+    assert done is not None and done.status == "done"
+
+
+def test_wanted_mark_done_by_hash_closes_a_searching_row(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review, F-B2): the §11(d) crash window must be closable.
+
+    ``reclaim_stale_searching`` deliberately REFUSES to revert a 'searching'
+    row that already carries a ``grabbed_hash``: the torrent was added, only the
+    status write was lost. That leaves ``mark_done_by_hash`` as the ONLY path
+    that can close it, so its status filter has to include 'searching' — else
+    the row is stuck open with nobody able to touch it.
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=77), kind="episode", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "cafebabe")
+    # The crash window: hash persisted, status rolled back to 'searching'.
+    store.wanted.set_status(wid, "searching")
+
+    closed = store.wanted.mark_done_by_hash("cafebabe")
+
+    assert [w.id for w in closed] == [wid]
+    done = store.wanted.get(wid)
+    assert done is not None and done.status == "done"
+
+
+def test_wanted_mark_done_by_hash_never_closes_terminal_rows(store: ConcreteAcquireStore) -> None:
+    """The widened filter still stops at the CLOSED statuses (done / abandoned)."""
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=78), kind="episode", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "deadbeef")
+    store.wanted.set_status(wid, "abandoned")
+
+    assert store.wanted.mark_done_by_hash("deadbeef") == []
+    row = store.wanted.get(wid)
+    assert row is not None and row.status == "abandoned"
+
+
+def test_reclaim_stale_searching_recovers_only_a_stale_hashless_row(store: ConcreteAcquireStore) -> None:
+    """The atomic recovery is rowcount-gated on stale AND hash-less AND 'searching'."""
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=1), kind="episode", status="pending", enqueued_at=1_700_000_000)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_100)
+
+    # Not stale yet (last_search_at == threshold is NOT < threshold).
+    assert store.wanted.reclaim_stale_searching(wid, 1_700_000_100) is False
+    still = store.wanted.get(wid)
+    assert still is not None and still.status == "searching"
+
+    # Stale → recovered exactly once; the second call finds nothing to recover.
+    assert store.wanted.reclaim_stale_searching(wid, 1_700_000_200) is True
+    recovered = store.wanted.get(wid)
+    assert recovered is not None and recovered.status == "pending"
+    assert store.wanted.reclaim_stale_searching(wid, 1_700_000_200) is False
+
+
+def test_reclaim_stale_searching_never_reverts_a_completed_grab(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review, F-B2): the recovery must not clobber a grab.
+
+    The get-then-set form read ``status='searching'`` at the top of the pass and
+    wrote ``'pending'`` seconds later — by which time a concurrent runner could
+    have completed the grab. The write then DELETED that grab's status while its
+    torrent kept downloading. The atomic form refuses both shapes: a row already
+    'grabbed', and a 'searching' row that still holds its hash (the §11(d)
+    crash window).
+    """
+    grabbed = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=2), kind="episode", status="pending", enqueued_at=1_700_000_000)
+    )
+    store.wanted.claim_for_search(grabbed, 1_700_000_100)
+    store.wanted.mark_grabbed(grabbed, "beefcafe")
+
+    assert store.wanted.reclaim_stale_searching(grabbed, 1_700_000_999) is False
+    row = store.wanted.get(grabbed)
+    assert row is not None
+    assert row.status == "grabbed", f"a completed grab must never be reverted; got {row.status!r}"
+    assert row.grabbed_hash == "beefcafe"
+
+    # Same refusal for the crash window: 'searching' but hash already persisted.
+    store.wanted.set_status(grabbed, "searching")
+    assert store.wanted.reclaim_stale_searching(grabbed, 1_700_000_999) is False
+    crash_window = store.wanted.get(grabbed)
+    assert crash_window is not None and crash_window.status == "searching"
+    assert crash_window.grabbed_hash == "beefcafe"
+
+
+def test_reclaim_stale_searching_second_concurrent_caller_loses(tmp_path: Path) -> None:
+    """Two stores racing the SAME stale row: exactly one recovery wins."""
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    store_a = build_acquire_store(cfg)
+    store_b = build_acquire_store(cfg)
+    try:
+        wid = store_a.wanted.add(
+            WantedItem(media_ref=MediaRef(tvdb_id=3), kind="episode", status="pending", enqueued_at=1_700_000_000)
+        )
+        store_a.wanted.claim_for_search(wid, 1_700_000_100)
+
+        first = store_a.wanted.reclaim_stale_searching(wid, 1_700_000_200)
+        second = store_b.wanted.reclaim_stale_searching(wid, 1_700_000_200)
+
+        assert [first, second] == [True, False], "exactly one caller may win the recovery"
+    finally:
+        store_a.close()
+        store_b.close()
+
+
 def test_wanted_list_grabbed_returns_only_grabbed_rows(store: ConcreteAcquireStore) -> None:
     """list_grabbed (A4 downloads read-model) returns grabbed rows with their hash.
 
@@ -698,6 +834,197 @@ def test_wanted_list_pending_partial_index_path(store: ConcreteAcquireStore) -> 
     assert [w.media_ref.tvdb_id for w in listed] == [1]
     # Round-trip equality on the single pending item too (id now populated).
     assert store.wanted.get(pid) == replace(pending, id=pid)
+
+
+# ---------------------------------------------------------------------------
+# acq-states — search verdict + available status
+# ---------------------------------------------------------------------------
+
+
+def test_wanted_round_trips_search_verdict_fields(store: ConcreteAcquireStore) -> None:
+    """The two new verdict fields round-trip through add() + get()."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=99),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_300,
+        season=1,
+        episode=6,
+        last_search_outcome="no_candidates",
+        last_search_found=0,
+    )
+    wid = store.wanted.add(item)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome == "no_candidates"
+    assert fetched.last_search_found == 0
+
+
+def test_wanted_verdict_defaults_to_none_for_new_item(store: ConcreteAcquireStore) -> None:
+    """A WantedItem without verdict fields stores and returns None (not 0)."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=100),
+        kind="movie",
+        status="pending",
+        enqueued_at=1_700_000_400,
+    )
+    wid = store.wanted.add(item)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome is None
+    assert fetched.last_search_found is None
+
+
+def test_record_search_outcome_persists_and_get_returns(store: ConcreteAcquireStore) -> None:
+    """record_search_outcome writes outcome+found; get() reads them back."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=101),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_500,
+        season=2,
+        episode=3,
+    )
+    wid = store.wanted.add(item)
+    store.wanted.record_search_outcome(wid, "all_filtered", 0)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome == "all_filtered"
+    assert fetched.last_search_found == 0
+
+
+def test_record_search_outcome_found_none_round_trips_none(store: ConcreteAcquireStore) -> None:
+    """found=None round-trips None (not 0): outage ≠ empty result."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=102),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_600,
+        season=1,
+        episode=1,
+    )
+    wid = store.wanted.add(item)
+    store.wanted.record_search_outcome(wid, "trackers_unavailable", None)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome == "trackers_unavailable"
+    assert fetched.last_search_found is None
+
+
+def test_list_available_returns_only_available_rows(store: ConcreteAcquireStore) -> None:
+    """list_available returns only status='available' rows, FIFO order."""
+    pending = WantedItem(media_ref=MediaRef(tvdb_id=1), kind="movie", status="pending", enqueued_at=10)
+    avail1 = WantedItem(media_ref=MediaRef(tvdb_id=2), kind="movie", status="available", enqueued_at=20)
+    avail2 = WantedItem(
+        media_ref=MediaRef(tvdb_id=3), kind="episode", status="available", enqueued_at=30, season=1, episode=1
+    )
+    grabbed = WantedItem(
+        media_ref=MediaRef(tvdb_id=4), kind="episode", status="grabbed", enqueued_at=40, season=2, episode=5
+    )
+    store.wanted.add(pending)
+    aid1 = store.wanted.add(avail1)
+    aid2 = store.wanted.add(avail2)
+    store.wanted.add(grabbed)
+
+    available = store.wanted.list_available()
+    assert len(available) == 2
+    assert [w.id for w in available] == [aid1, aid2]  # FIFO order
+    assert all(w.status == "available" for w in available)
+
+
+def test_add_wanted_item_with_status_available_round_trips(store: ConcreteAcquireStore) -> None:
+    """A WantedItem constructed with status='available' round-trips correctly."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=103),
+        kind="episode",
+        status="available",
+        enqueued_at=1_700_000_700,
+        season=3,
+        episode=4,
+        last_search_outcome="available",
+        last_search_found=3,
+    )
+    wid = store.wanted.add(item)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.status == "available"
+    assert fetched.last_search_outcome == "available"
+    assert fetched.last_search_found == 3
+
+    # It also shows up in list_available.
+    available = store.wanted.list_available()
+    assert wid in [w.id for w in available]
+
+
+def test_claim_for_grab_claims_an_available_row_and_stamps_it(store: ConcreteAcquireStore) -> None:
+    """claim_for_grab wins on an 'available' row and stamps attempts + last_search_at."""
+    wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=201),
+            kind="movie",
+            status="available",
+            enqueued_at=1_700_000_000,
+            last_search_outcome="available",
+            last_search_found=4,
+        )
+    )
+
+    assert store.wanted.claim_for_grab(wid, 1_700_000_900) is True
+
+    claimed = store.wanted.get(wid)
+    assert claimed is not None
+    assert claimed.status == "searching"
+    assert claimed.attempts == 1
+    assert claimed.last_search_at == 1_700_000_900
+    # The claim never touches the search pass's verdict.
+    assert claimed.last_search_outcome == "available"
+    assert claimed.last_search_found == 4
+
+
+def test_claim_for_grab_refuses_a_pending_row(store: ConcreteAcquireStore) -> None:
+    """A 'pending' row is the SEARCH pass's — claim_for_grab must not take it.
+
+    Without the ``status='available'`` guard the grab pass would reach into the
+    pending backlog and re-search the whole queue (NE-DOIT-PAS-8).
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=202), kind="movie", status="pending", enqueued_at=1_700_000_000)
+    )
+
+    assert store.wanted.claim_for_grab(wid, 1_700_000_900) is False
+
+    untouched = store.wanted.get(wid)
+    assert untouched is not None
+    assert untouched.status == "pending"
+    assert untouched.attempts == 0, "a lost claim must not stamp attempts"
+    assert untouched.last_search_at is None
+
+
+def test_claim_for_grab_second_concurrent_claim_loses(tmp_path: Path) -> None:
+    """Two handles racing on one 'available' row → exactly one True (atomic claim).
+
+    Same serialisation guarantee as ``claim_for_search``: ``BEGIN IMMEDIATE`` +
+    ``WHERE status='available'`` means the loser sees 'searching' (rowcount==0)
+    and must skip, so one item is never grabbed twice.
+    """
+    cfg = AcquireConfig(db_path=tmp_path / "acquire_grab_race.db")
+    store1 = build_acquire_store(cfg)
+    store2 = build_acquire_store(cfg)
+    try:
+        wid = store1.wanted.add(
+            WantedItem(media_ref=MediaRef(tvdb_id=203), kind="movie", status="available", enqueued_at=1_700_000_000)
+        )
+        result1 = store1.wanted.claim_for_grab(wid, 1_700_000_900)
+        result2 = store2.wanted.claim_for_grab(wid, 1_700_000_900)
+
+        assert [result1, result2].count(True) == 1, f"exactly one claim must win; got {result1=}, {result2=}"
+        item = store1.wanted.get(wid)
+        assert item is not None
+        assert item.status == "searching"
+        assert item.attempts == 1, "the loser is a no-op — attempts stamped exactly once"
+    finally:
+        store1.close()
+        store2.close()
 
 
 def test_seed_round_trip_and_marks(store: ConcreteAcquireStore) -> None:
@@ -1062,3 +1389,55 @@ def test_watch_set_upsert_overwrites_previous_value(store):
     conn.row_factory = lambda cursor, row: row[0]
     count: int = conn.execute("SELECT COUNT(*) FROM watch_state WHERE key = 'last_successful_run_at'").fetchone()
     assert count == 1
+
+
+def test_mark_done_closes_an_available_row(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review cycle 2, M3): 'available' is OPEN and must close.
+
+    ``mark_done``'s status filter was the literal
+    ``('pending', 'searching', 'grabbed')`` — written before the ``available``
+    state existed and never updated. An owned row sitting at ``available``
+    therefore refused to close, even though ownership (the file is ON DISK) is
+    the strongest signal there is. The row stayed « À récupérer » and the grab
+    pass kept a standing order to re-download media the library already had.
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=91), kind="episode", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.record_search_outcome(wid, "available", 3)
+    store.wanted.set_status(wid, "available")
+
+    assert store.wanted.mark_done(wid) is True
+    row = store.wanted.get(wid)
+    assert row is not None and row.status == "done"
+
+
+def test_mark_done_covers_every_open_status_and_no_closed_one(store: ConcreteAcquireStore) -> None:
+    """The filter is derived from OPEN_WANTED_STATUSES — all four, and only those."""
+    from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
+
+    for offset, status in enumerate(sorted(OPEN_WANTED_STATUSES)):
+        wid = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=1000 + offset),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_700_000_100,
+            )
+        )
+        store.wanted.set_status(wid, status)  # type: ignore[arg-type]
+        assert store.wanted.mark_done(wid) is True, f"an owned {status!r} row must close"
+        assert store.wanted.mark_done(wid) is False, "closing twice must be a no-op (idempotent)"
+
+    for offset, status in enumerate(("done", "abandoned")):
+        wid = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=2000 + offset),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_700_000_100,
+            )
+        )
+        store.wanted.set_status(wid, status)  # type: ignore[arg-type]
+        assert store.wanted.mark_done(wid) is False, f"a closed {status!r} row must never be touched"
