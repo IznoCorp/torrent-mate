@@ -673,21 +673,230 @@ def test_follow_detect_wires_publisher_and_closes(tmp_path: Path, monkeypatch, t
     acquire.store.close()  # type: ignore[union-attr]
 
 
-def test_candidate_matching_id_never_guesses() -> None:
-    """`_candidate_matching_id` matches strictly by provider id — no rank fallback."""
-    from types import SimpleNamespace
+# ---------------------------------------------------------------------------
+# follow backfill-metadata (acq-states §7.3) — shares the enrichment authority
+# ---------------------------------------------------------------------------
 
-    from personalscraper.commands.follow import _candidate_matching_id
 
-    cands = [
-        SimpleNamespace(provider="tvdb", provider_id=999, poster_url="a"),
-        SimpleNamespace(provider="tvdb", provider_id=275274, poster_url="b"),
-        SimpleNamespace(provider="tmdb", provider_id=42, poster_url="c"),
-    ]
-    # Exact TVDB id → that candidate (int vs str tolerant).
-    assert _candidate_matching_id(cands, 275274, None).poster_url == "b"
-    # TMDB id when no tvdb match.
-    assert _candidate_matching_id(cands, None, 42).poster_url == "c"
-    # No id-matched candidate → None (skip, never a wrong poster) — NOT the top rank.
-    assert _candidate_matching_id(cands, 111111, 222222) is None
-    assert _candidate_matching_id([], 275274, None) is None
+def test_media_ref_from_json_never_guesses() -> None:
+    """A row with no usable provider id yields ``None`` — never a guessed ref.
+
+    Replaces the former ``_candidate_matching_id`` test: the backfill no longer
+    searches by title at all, so "never a wrong poster" is now structural (the
+    provider is called BY ID or not at all). What remains to pin is that a
+    legacy/ref-less row is recognised as unusable instead of being looked up.
+    """
+    from personalscraper.commands.follow import _media_ref_from_json
+
+    assert _media_ref_from_json(None) is None
+    assert _media_ref_from_json("") is None
+    assert _media_ref_from_json("not json") is None
+    assert _media_ref_from_json("[1, 2]") is None
+    assert _media_ref_from_json('{"tvdb_id": null, "tmdb_id": null, "imdb_id": null}') is None
+    ref = _media_ref_from_json('{"tvdb_id": 275274, "tmdb_id": 42}')
+    assert ref is not None
+    assert (ref.tvdb_id, ref.tmdb_id) == (275274, 42)
+
+
+class _BackfillArtwork:
+    """Minimal ArtworkItem stand-in for the backfill fakes."""
+
+    def __init__(self, type_: str, url: str) -> None:
+        self.type = type_
+        self.url = url
+
+
+class _BackfillDetails:
+    """Minimal MediaDetails stand-in carrying the three card fields."""
+
+    def __init__(self, year: int, overview: str, poster_url: str) -> None:
+        self.year = year
+        self.overview = overview
+        self.images = [_BackfillArtwork("poster", poster_url)]
+
+
+class _BackfillTvdbClient:
+    """Fake TVDB client: answers ``get_series`` for the seeded id, or explodes."""
+
+    def __init__(self, *, boom: bool = False) -> None:
+        self.boom = boom
+        self.calls: list[int] = []
+
+    def get_series(self, series_id: int) -> _BackfillDetails:
+        """TVDB by-id series endpoint."""
+        self.calls.append(series_id)
+        if self.boom:
+            raise RuntimeError("TVDB is unreachable")
+        return _BackfillDetails(_BACKFILL_YEAR, _BACKFILL_OVERVIEW, _BACKFILL_POSTER)
+
+
+class _FakeRegistry:
+    """Provider registry stub returning the fake clients by name."""
+
+    def __init__(self, tvdb: object) -> None:
+        self._tvdb = tvdb
+
+    def get(self, name: str) -> object | None:
+        """Return the client registered under *name*."""
+        return self._tvdb if name == "tvdb" else None
+
+
+_BACKFILL_TVDB_ID = 468000
+_BACKFILL_YEAR = 2024
+_BACKFILL_OVERVIEW = "A series about furious things."
+_BACKFILL_POSTER = "https://artworks.thetvdb.com/banners/posters/468000-1.jpg"
+
+
+def _seed_follow_row(db_path: Path, *, poster: str | None, overview: str | None, year: int | None) -> int:
+    """Insert one follow with the given (possibly partial) card metadata.
+
+    Args:
+        db_path: The acquire.db to seed (created + migrated on the fly).
+        poster: ``poster_url`` value, or ``None``.
+        overview: ``overview`` value, or ``None``.
+        year: ``year`` value, or ``None``.
+
+    Returns:
+        The new ``followed_series`` rowid.
+    """
+    import sqlite3
+    import time as _time
+
+    from personalscraper.acquire.domain import FollowedSeries
+    from personalscraper.core.identity import MediaRef
+
+    store = build_acquire_store(AcquireConfig(db_path=db_path))
+    try:
+        follow_id = store.follow.add(
+            FollowedSeries(
+                media_ref=MediaRef(tvdb_id=_BACKFILL_TVDB_ID),
+                title="Furious",
+                added_at=int(_time.time()),
+                active=True,
+                kind="show",
+            )
+        )
+    finally:
+        store.close()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
+        (poster, overview, year, follow_id),
+    )
+    conn.commit()
+    conn.close()
+    return follow_id
+
+
+def _read_card_metadata(db_path: Path, follow_id: int) -> tuple[str | None, str | None, int | None]:
+    """Read ``(poster_url, overview, year)`` back from the DB."""
+    import sqlite3
+
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute("SELECT poster_url, overview, year FROM followed_series WHERE id = ?", (follow_id,)).fetchone()
+    conn.close()
+    return (row[0], row[1], row[2])
+
+
+def _run_backfill(
+    tmp_path: Path,
+    monkeypatch,
+    test_config,
+    tvdb_client: object,
+    *,
+    dry_run: bool = False,
+) -> tuple[Path, int, object]:
+    """Seed a partial row and run ``follow backfill-metadata`` against fake providers.
+
+    Returns:
+        ``(db_path, follow_id, CliRunner result)``.
+    """
+    db_path = tmp_path / "acquire.db"
+    follow_id = _seed_follow_row(db_path, poster=None, overview="already there", year=None)
+    cfg = test_config.model_copy(update={"acquire": AcquireConfig(db_path=db_path)})
+
+    event_bus = EventBus()
+    app_ctx = AppContext(
+        config=cfg,
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=_FakeRegistry(tvdb_client),
+        acquire=_acquire_ctx_for(db_path, event_bus),
+    )
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    from unittest.mock import patch
+
+    argv = ["follow", "backfill-metadata"] + (["--dry-run"] if dry_run else [])
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+    ):
+        result = runner.invoke(app, argv)
+    app_ctx.acquire.store.close()  # type: ignore[union-attr]
+    return db_path, follow_id, result
+
+
+def test_backfill_fills_only_missing_fields_and_extends_year(tmp_path: Path, monkeypatch, test_config) -> None:
+    """Poster + year are fetched by ID; an overview already stored is preserved."""
+    tvdb = _BackfillTvdbClient()
+    db_path, follow_id, result = _run_backfill(tmp_path, monkeypatch, test_config, tvdb)
+
+    assert result.exit_code == 0, result.output
+    assert tvdb.calls == [_BACKFILL_TVDB_ID], "the provider must be queried BY ID, once"
+    poster, overview, year = _read_card_metadata(db_path, follow_id)
+    assert poster == _BACKFILL_POSTER
+    assert year == _BACKFILL_YEAR, "acq-states §7.3: the backfill now extends to year"
+    assert overview == "already there", "an existing value must never be overwritten"
+    assert "Backfilled 1" in result.output
+
+
+def test_backfill_dry_run_writes_nothing(tmp_path: Path, monkeypatch, test_config) -> None:
+    """``--dry-run`` reports what it would do and leaves the row untouched."""
+    tvdb = _BackfillTvdbClient()
+    db_path, follow_id, result = _run_backfill(tmp_path, monkeypatch, test_config, tvdb, dry_run=True)
+
+    assert result.exit_code == 0, result.output
+    assert _read_card_metadata(db_path, follow_id) == (None, "already there", None)
+    assert "(dry-run)" in result.output
+
+
+def test_backfill_provider_outage_skips_the_row(tmp_path: Path, monkeypatch, test_config) -> None:
+    """A provider failure leaves the row as-is and never fails the command."""
+    tvdb = _BackfillTvdbClient(boom=True)
+    db_path, follow_id, result = _run_backfill(tmp_path, monkeypatch, test_config, tvdb)
+
+    assert result.exit_code == 0, result.output
+    assert _read_card_metadata(db_path, follow_id) == (None, "already there", None)
+    assert "skipped 1" in result.output
+
+
+def test_backfill_skips_rows_that_are_already_complete(tmp_path: Path, monkeypatch, test_config) -> None:
+    """Idempotence: a complete row costs ZERO provider calls."""
+    db_path = tmp_path / "acquire.db"
+    follow_id = _seed_follow_row(db_path, poster="https://kept/p.jpg", overview="kept", year=1999)
+    cfg = test_config.model_copy(update={"acquire": AcquireConfig(db_path=db_path)})
+
+    tvdb = _BackfillTvdbClient()
+    event_bus = EventBus()
+    app_ctx = AppContext(
+        config=cfg,
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=_FakeRegistry(tvdb),
+        acquire=_acquire_ctx_for(db_path, event_bus),
+    )
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    from unittest.mock import patch
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+    ):
+        result = runner.invoke(app, ["follow", "backfill-metadata"])
+    app_ctx.acquire.store.close()  # type: ignore[union-attr]
+
+    assert result.exit_code == 0, result.output
+    assert tvdb.calls == [], "a complete row must not be looked up"
+    assert _read_card_metadata(db_path, follow_id) == ("https://kept/p.jpg", "kept", 1999)

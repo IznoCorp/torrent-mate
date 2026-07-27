@@ -560,32 +560,30 @@ def follow_detect(
                 redis_publisher.close()
 
 
-def _candidate_matching_id(
-    candidates: list[object],
-    tvdb_id: int | None,
-    tmdb_id: int | None,
-) -> object | None:
-    """Return the candidate whose provider id equals the follow's own id, or None.
-
-    Matching strictly by id (never by rank/title) so a follow with no id-matched
-    candidate is skipped rather than assigned a wrong poster.
+def _media_ref_from_json(media_ref_json: str | None) -> MediaRef | None:
+    """Parse a ``followed_series.media_ref_json`` column into a :class:`MediaRef`.
 
     Args:
-        candidates: Scored provider candidates from a detailed match.
-        tvdb_id: The follow's TVDB id, or None.
-        tmdb_id: The follow's TMDB id, or None.
+        media_ref_json: The raw JSON column value, or ``None``.
 
     Returns:
-        The matching candidate, or None.
+        The parsed ref, or ``None`` when the column is empty, malformed, or
+        carries no provider id at all (a legacy row nothing can be looked up by).
     """
-    for candidate in candidates:
-        provider = getattr(candidate, "provider", None)
-        provider_id = str(getattr(candidate, "provider_id", ""))
-        if provider == "tvdb" and tvdb_id is not None and str(tvdb_id) == provider_id:
-            return candidate
-        if provider == "tmdb" and tmdb_id is not None and str(tmdb_id) == provider_id:
-            return candidate
-    return None
+    import json as _json
+
+    if not media_ref_json:
+        return None
+    try:
+        ref = _json.loads(media_ref_json)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(ref, dict):
+        return None
+    try:
+        return MediaRef(tvdb_id=ref.get("tvdb_id"), tmdb_id=ref.get("tmdb_id"), imdb_id=ref.get("imdb_id"))
+    except ValueError:
+        return None
 
 
 @follow_app.command("backfill-metadata")
@@ -594,20 +592,20 @@ def follow_backfill_metadata(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing."),
 ) -> None:
-    """Backfill ``poster_url`` + ``overview`` for follows added before those columns.
+    """Backfill ``poster_url`` + ``overview`` + ``year`` for follows added before this fix.
 
-    For each follow missing a poster and/or overview, searches the provider by
-    title and takes ONLY the candidate whose provider id matches the follow's own
-    id — a follow with no id-matched candidate is skipped, so a wrong poster is
-    impossible. Idempotent (follows that already have both are untouched) and
-    additive (``COALESCE`` never overwrites an existing value). Read-only under
-    ``--dry-run``.
+    Repairs the rows the server could not enrich at creation time (acq-states
+    §7.3). Shares the SINGLE enrichment authority with the create-follow route
+    (``acquire.metadata_enrich``): each missing field is fetched from the
+    provider BY ID — never by a title search — so a wrong poster is impossible
+    by construction, and the strict TVDB/TMDB separation is honoured for free.
+    Idempotent (a complete row is untouched) and additive (``COALESCE`` never
+    overwrites an existing value). Read-only under ``--dry-run``.
     """
-    import json as _json
     import sqlite3
 
+    from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
     from personalscraper.core.sqlite._pragmas import apply_pragmas
-    from personalscraper.scraper.confidence import match_tvshow_detailed
 
     config = ctx.obj.config
     assert config is not None  # noqa: S101 — set by the CLI root callback
@@ -627,48 +625,63 @@ def follow_backfill_metadata(
         apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         try:
-            # The poster_url/overview columns land with acquire migration 005; on a
-            # DB still at an earlier version (e.g. prod before this feature merges)
-            # this command is a clean no-op rather than an OperationalError.
+            # The poster_url/overview/year columns land together with acquire
+            # migration 005; on a DB still at an earlier version (e.g. prod before
+            # this feature merges) this command is a clean no-op rather than an
+            # OperationalError. ``kind`` arrives later (006) — its absence just
+            # means every row is treated as a show, which is what it was then.
             columns = {r[1] for r in conn.execute("PRAGMA table_info(followed_series)").fetchall()}
-            if "poster_url" not in columns or "overview" not in columns:
+            if not {"poster_url", "overview", "year"} <= columns:
                 console.print(
-                    "[yellow]followed_series has no poster_url/overview columns yet "
+                    "[yellow]followed_series has no poster_url/overview/year columns yet "
                     "(acquire migration 005 not applied) — nothing to backfill.[/yellow]"
                 )
                 return
-            rows = conn.execute(
-                "SELECT id, title, media_ref_json, poster_url, overview FROM followed_series"
-            ).fetchall()
+            has_kind = "kind" in columns
+            rows = conn.execute("SELECT * FROM followed_series").fetchall()
             updated = 0
             skipped = 0
             for row in rows:
-                if row["poster_url"] and row["overview"]:
+                existing = FollowMetadata(
+                    poster_url=row["poster_url"] or None,
+                    overview=row["overview"] or None,
+                    year=row["year"],
+                )
+                if existing.is_complete:
                     continue
-                ref = _json.loads(row["media_ref_json"]) if row["media_ref_json"] else {}
-                tvdb_id, tmdb_id = ref.get("tvdb_id"), ref.get("tmdb_id")
-                # year is a migration-005 column too; search by title only (year is
-                # an optional disambiguator) and match strictly by provider id.
-                _, candidates = match_tvshow_detailed(tvdb_client, tmdb_client, row["title"], None)
-                match = _candidate_matching_id(list(candidates), tvdb_id, tmdb_id)
-                if match is None:
+                media_ref = _media_ref_from_json(row["media_ref_json"])
+                if media_ref is None:
                     skipped += 1
-                    log.info("cli.follow.backfill.no_id_match", followed_id=row["id"], title=row["title"])
+                    log.info("cli.follow.backfill.no_provider_id", followed_id=row["id"], title=row["title"])
                     continue
-                new_poster = getattr(match, "poster_url", None) if not row["poster_url"] else None
-                new_overview = getattr(match, "overview", None) if not row["overview"] else None
-                if not new_poster and not new_overview:
+                kind = (row["kind"] if has_kind else None) or "show"
+                resolved = enrich_follow_metadata(
+                    media_ref,
+                    kind,
+                    tmdb_client=tmdb_client,
+                    tvdb_client=tvdb_client,
+                    existing=existing,
+                )
+                if resolved == existing:
                     skipped += 1
+                    log.info("cli.follow.backfill.no_provider_data", followed_id=row["id"], title=row["title"])
                     continue
                 console.print(
-                    f"[green]{row['title']}[/green] ← poster={'yes' if new_poster else '—'} "
-                    f"overview={'yes' if new_overview else '—'}"
+                    f"[green]{row['title']}[/green] ← "
+                    + " ".join(
+                        f"{label}={'yes' if before is None and after is not None else '—'}"
+                        for label, before, after in (
+                            ("poster", existing.poster_url, resolved.poster_url),
+                            ("overview", existing.overview, resolved.overview),
+                            ("year", existing.year, resolved.year),
+                        )
+                    )
                 )
                 if not dry_run:
                     conn.execute(
                         "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
-                        "overview = COALESCE(?, overview) WHERE id = ?",
-                        (new_poster, new_overview, row["id"]),
+                        "overview = COALESCE(?, overview), year = COALESCE(?, year) WHERE id = ?",
+                        (resolved.poster_url, resolved.overview, resolved.year, row["id"]),
                     )
                     updated += 1
             if not dry_run:
