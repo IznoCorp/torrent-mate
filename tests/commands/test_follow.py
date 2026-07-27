@@ -900,3 +900,136 @@ def test_backfill_skips_rows_that_are_already_complete(tmp_path: Path, monkeypat
     assert result.exit_code == 0, result.output
     assert tvdb.calls == [], "a complete row must not be looked up"
     assert _read_card_metadata(db_path, follow_id) == ("https://kept/p.jpg", "kept", 1999)
+
+
+# ---------------------------------------------------------------------------
+# PR #320 review cycle 1 — the backfill must not hold a write lock across I/O
+# ---------------------------------------------------------------------------
+
+
+def _seed_partial_follow(db_path: Path, tvdb_id: int, title: str) -> int:
+    """Insert one follow with NO card metadata and return its rowid."""
+    import sqlite3
+    import time as _time
+
+    from personalscraper.acquire.domain import FollowedSeries
+    from personalscraper.core.identity import MediaRef
+
+    store = build_acquire_store(AcquireConfig(db_path=db_path))
+    try:
+        follow_id = store.follow.add(
+            FollowedSeries(
+                media_ref=MediaRef(tvdb_id=tvdb_id),
+                title=title,
+                added_at=int(_time.time()),
+                active=True,
+                kind="show",
+            )
+        )
+    finally:
+        store.close()
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "UPDATE followed_series SET poster_url = NULL, overview = NULL, year = NULL WHERE id = ?",
+        (follow_id,),
+    )
+    conn.commit()
+    conn.close()
+    return follow_id
+
+
+class _LockProbingTvdbClient:
+    """Fake TVDB client that probes, on every call, whether a writer lock is held.
+
+    Stands in for « another process » (the watcher, the web app, a cron): each
+    provider call tries to take the acquire-DB write lock from an independent
+    connection with a ZERO busy timeout. If the backfill is holding a
+    transaction open across its provider I/O, that probe is refused.
+    """
+
+    def __init__(self, db_path: Path) -> None:
+        self._db_path = db_path
+        self.calls: list[int] = []
+        self.lock_refusals: list[int] = []
+
+    def get_series(self, series_id: int) -> _BackfillDetails:
+        """TVDB by-id series endpoint + a concurrent-writer probe."""
+        import sqlite3
+
+        self.calls.append(series_id)
+        probe = sqlite3.connect(str(self._db_path), timeout=0, isolation_level=None)
+        try:
+            probe.execute("BEGIN IMMEDIATE")
+            probe.execute("ROLLBACK")
+        except sqlite3.OperationalError:
+            self.lock_refusals.append(series_id)
+        finally:
+            probe.close()
+        return _BackfillDetails(_BACKFILL_YEAR, _BACKFILL_OVERVIEW, _BACKFILL_POSTER)
+
+
+def test_backfill_never_holds_a_write_lock_across_provider_calls(
+    tmp_path: Path, monkeypatch, test_config
+) -> None:
+    """Regression (PR #320 review, m10): no writer lock is held during provider I/O.
+
+    The old form issued raw ``UPDATE``s on the scan connection and committed
+    once at the end. Python's sqlite3 opens an implicit transaction on the first
+    of those updates, so from row 2 onward the single-writer lock was held
+    across every remaining HTTP round-trip — blocking the watcher, the web app
+    and the crons for as long as the scan took, and hostage to one slow
+    provider. Each row now writes through the store in its own short
+    transaction, taken only after its provider call returned.
+    """
+    db_path = tmp_path / "acquire.db"
+    first = _seed_partial_follow(db_path, 468001, "Furious One")
+    second = _seed_partial_follow(db_path, 468002, "Furious Two")
+    cfg = test_config.model_copy(update={"acquire": AcquireConfig(db_path=db_path)})
+
+    tvdb = _LockProbingTvdbClient(db_path)
+    event_bus = EventBus()
+    app_ctx = AppContext(
+        config=cfg,
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=_FakeRegistry(tvdb),
+        acquire=_acquire_ctx_for(db_path, event_bus),
+    )
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    from unittest.mock import patch
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+    ):
+        result = runner.invoke(app, ["follow", "backfill-metadata"])
+    app_ctx.acquire.store.close()  # type: ignore[union-attr]
+
+    assert result.exit_code == 0, result.output
+    assert len(tvdb.calls) == 2, f"both rows must be enriched; got {tvdb.calls}"
+    assert tvdb.lock_refusals == [], (
+        "a concurrent writer was refused DURING a provider call — the backfill is "
+        f"holding a transaction across its I/O (refused on {tvdb.lock_refusals})"
+    )
+    # And the writes still landed.
+    for follow_id in (first, second):
+        poster, _overview, year = _read_card_metadata(db_path, follow_id)
+        assert poster == _BACKFILL_POSTER
+        assert year == _BACKFILL_YEAR
+
+
+def test_backfill_never_writes_through_a_raw_connection(tmp_path: Path) -> None:
+    """Structure-level (m10): no ``UPDATE followed_series`` remains under commands/.
+
+    Acquire-DB writes belong to the store seam (ACQUIRE-09). A raw UPDATE on a
+    hand-rolled connection is what let the long transaction exist in the first
+    place, so the absence is pinned rather than left to review discipline.
+    """
+    import personalscraper.commands as commands_pkg
+
+    commands_root = Path(commands_pkg.__file__).resolve().parent
+    offenders = sorted(
+        str(py) for py in commands_root.rglob("*.py") if "UPDATE followed_series" in py.read_text(encoding="utf-8")
+    )
+    assert offenders == [], f"acquire-DB writes must go through the store; raw UPDATE found in {offenders}"

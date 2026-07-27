@@ -418,10 +418,21 @@ def follow_backfill_metadata(
     by construction, and the strict TVDB/TMDB separation is honoured for free.
     Idempotent (a complete row is untouched) and additive (``COALESCE`` never
     overwrites an existing value). Read-only under ``--dry-run``.
+
+    Transaction shape (PR #320 review, m10): the scan connection is READ-ONLY
+    and every write goes through ``store.follow.merge_metadata`` — one short
+    ``BEGIN IMMEDIATE`` per row, taken AFTER that row's provider calls have
+    returned. The previous form issued raw ``UPDATE``s on the scan connection
+    and committed once at the end, so Python's implicit transaction opened on
+    the first update and held the single-writer lock across every remaining
+    HTTP round-trip: on a large library that blocked the watcher, the web app
+    and the crons for minutes, and one slow provider could stall them all. It
+    also bypassed the store seam that owns acquire-DB writes (ACQUIRE-09).
     """
     import sqlite3
 
     from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
+    from personalscraper.acquire.store import build_acquire_store
     from personalscraper.core.sqlite._pragmas import apply_pragmas
 
     config = ctx.obj.config
@@ -438,9 +449,11 @@ def follow_backfill_metadata(
         tmdb_client = registry.get("tmdb")
         tvdb_client = registry.get("tvdb")
 
+        # Reads are lock-free (WAL); writes go through the store below.
         conn = sqlite3.connect(str(db_path))
         apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
+        store = build_acquire_store(config.acquire)
         try:
             # The poster_url/overview/year columns land together with acquire
             # migration 005; on a DB still at an earlier version (e.g. prod before
@@ -495,16 +508,18 @@ def follow_backfill_metadata(
                     )
                 )
                 if not dry_run:
-                    conn.execute(
-                        "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
-                        "overview = COALESCE(?, overview), year = COALESCE(?, year) WHERE id = ?",
-                        (resolved.poster_url, resolved.overview, resolved.year, row["id"]),
+                    # One short write transaction for THIS row, taken after its
+                    # provider calls returned — never a lock held across I/O.
+                    store.follow.merge_metadata(
+                        row["id"],
+                        poster_url=resolved.poster_url,
+                        overview=resolved.overview,
+                        year=resolved.year,
                     )
                     updated += 1
-            if not dry_run:
-                conn.commit()
             console.print(f"[bold]{'(dry-run) ' if dry_run else ''}Backfilled {updated}, skipped {skipped}.[/bold]")
         finally:
+            store.close()
             conn.close()
 
 
