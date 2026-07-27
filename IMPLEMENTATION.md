@@ -60,7 +60,33 @@ borné parce que le grab ne parcourt que les items déjà connus disponibles.
 | 6   | Amorce à la création du suivi            | [phase-06-follow-priming.md](docs/features/acq-states/plan/phase-06-follow-priming.md)       | [x]    |
 | 7   | Enrichissement serveur des métadonnées   | [phase-07-server-metadata.md](docs/features/acq-states/plan/phase-07-server-metadata.md)     | [x]    |
 | 8   | UI — 5 états + Récupérer maintenant      | [phase-08-ui-states.md](docs/features/acq-states/plan/phase-08-ui-states.md)                 | [x]    |
-| 9   | Garde-fous et acceptation                | [phase-09-guardrails-acc.md](docs/features/acq-states/plan/phase-09-guardrails-acc.md)       | [ ]    |
+| 9   | Garde-fous et acceptation                | [phase-09-guardrails-acc.md](docs/features/acq-states/plan/phase-09-guardrails-acc.md)       | [x]    |
+
+## ACC — vérification exécutée (2026-07-27, session dev)
+
+Commande globale : `python3 -m pytest tests/unit/web/routes/test_create_follow_priming.py
+tests/unit/web/acquisition/test_states.py tests/unit/web/acquisition/test_source_agreement.py
+tests/acquire/test_search_verdicts.py tests/acquire/test_search_pass.py
+tests/acquire/test_grab_pass.py tests/unit/web/test_no_tracker_call_on_read.py -q`
+→ **84 passed**.
+
+| ID     | Verdict | Preuve exécutée                                                                                                                                                                             |
+| ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | ✅      | `test_create_follow_priming.py` 4/4 — 201 + run prime + `verification_en_cours`                                                                                                             |
+| ACC-02 | ✅      | `test_states.py::test_empty_catalog_is_never_up_to_date` (mutation-vérifié en phase 4)                                                                                                      |
+| ACC-03 | ✅      | `test_source_agreement.py` 12/12 — mêmes faits, même dérivation, règle open-rows-latest partagée                                                                                            |
+| ACC-04 | ✅      | matrice verdicts : chaque outcome INCONCLUSIVE ⇒ `non_verifie`, found=None jamais 0                                                                                                         |
+| ACC-05 | ✅      | exit-paths orchestrateur : 3D-only/0-seed/packs ⇒ `all_filtered`/`no_seeders`/`no_matching_episode`                                                                                         |
+| ACC-06 | ✅ réel | backfill exécuté sur la base réelle : `SELECT COUNT(*) … poster_url IS NULL` → **0** sur 10 suivis                                                                                          |
+| ACC-07 | ⏸ défér | 4 anomalies `SEARCHED_WITHOUT_VERDICT` = lignes héritées du moteur pré-verdict (prod sur main) ; se résorbent à la 1re passe `search` post-déploiement — re-exercice post-merge obligatoire |
+| ACC-08 | ✅      | `test_no_tracker_call_on_read.py` — 3 couches instrumentées, 0 appel sur GET followed + completeness                                                                                        |
+| ACC-09 | ✅ +⏸   | `test_search_pass_adds_no_torrent` ; re-exercice réel post-déploiement (passe 03:10)                                                                                                        |
+| ACC-10 | ✅      | `test_grab_reverts_to_pending_when_the_torrent_vanished` — revert honnête + verdict enregistré                                                                                              |
+| ACC-11 | ✅      | `test_grab_only_walks_available_items` + `test_grab_pass_never_walks_pending…` (mutation-vérifié)                                                                                           |
+| ACC-12 | ⏸ défér | bouton « Récupérer maintenant » — vérification Chrome sur staging post-déploiement (+ preuve 390 px)                                                                                        |
+
+Protocole critère-différé (feature-lifecycle.md) : ACC-07, ACC-09 (volet réel) et ACC-12
+sont ré-exercés post-merge sur l'environnement déployé, avant clôture du ticket #319.
 
 ## Review cycles
 
@@ -68,4 +94,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start phase 1.
+All phases done — `/implement:feature-pr` (gate + push + PR + CI), puis re-exercice ACC différés post-déploiement.
