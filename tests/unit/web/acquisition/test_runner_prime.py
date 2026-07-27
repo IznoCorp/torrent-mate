@@ -1,25 +1,30 @@
 """Unit tests for the ``prime`` command in the acquisition runner.
 
-(acq-states phase 6.1 — failing-first).
+(acq-states phase 6 — the amorce of a freshly followed series).
 
 Targets the runner seams:
 
-- ``_build_argv('prime', id)`` — must yield the three-step sequence (detect →
-  search → grab) instead of a single grab argv.
-- ``_read_mandatory_env`` — must accept ``PERSONALSCRAPER_ACQ_COMMAND=prime``
-  as a valid command and require ``PERSONALSCRAPER_GRAB_FOLLOWED_ID``.
-
-INTENTIONALLY FAILING — the ``prime`` command is rejected today. The runner
-only knows ``grab`` and ``detect``; ``_build_argv`` has no ``prime`` branch.
+- ``_build_argv('prime', id)`` — yields the three-step sequence (detect →
+  search → grab), each step scoped to the single follow.
+- ``_read_mandatory_env`` — accepts ``PERSONALSCRAPER_ACQ_COMMAND=prime`` as a
+  valid command and requires ``PERSONALSCRAPER_GRAB_FOLLOWED_ID``.
+- ``main()`` — chains the steps in ONE run row / ONE ring buffer, announces
+  each with a ``--- <step> ---`` separator, and stops at the first non-zero rc.
 """
 
 from __future__ import annotations
 
 import os
+import signal
 import sys
+from collections.abc import Iterator
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
+from personalscraper.web.acquisition import runner as runner_mod
 from personalscraper.web.acquisition.runner import _build_argv, _read_mandatory_env
 
 
@@ -78,23 +83,28 @@ class TestBuildArgvPrime:
         assert "--followed-id" in argv2, f"Step 3 missing '--followed-id': {argv2}"
         assert "42" in argv2, f"Step 3 missing '42': {argv2}"
 
-    def test_prime_falls_through_to_grab_today(self) -> None:
-        """DOCUMENT the current broken state: 'prime' maps to the grab argv.
+    def test_every_step_is_scoped_to_the_single_follow(self) -> None:
+        """No priming step may run a library-wide pass.
 
-        This test is the gap the 6.2 implementation must close. Once
-        ``_build_argv`` gains the ``prime`` branch, remove this test — it
-        exists only to prove the failing-first gate is real.
+        Adding one series must never re-run the acquisition of the whole
+        library (plan §6 « Périmètre du run d'amorce »): every step of the
+        sequence carries the scoping flag for THIS follow.
         """
-        result = _build_argv("prime", 42)
+        steps = _build_argv("prime", 42)
 
-        # Today, 'prime' falls through to the grab branch — a single flat argv
-        # that starts [sys.executable, -m, personalscraper, grab, ...].
-        is_flat_grab = isinstance(result, list) and len(result) > 3 and result[3] == "grab"
-        assert is_flat_grab, (
-            "Expected 'prime' to fall through to the grab branch (current behaviour). "
-            "Once 6.2 is implemented, this state should no longer hold — remove this "
-            "test or flip the assertion."
-        )
+        for argv in steps:
+            assert "--series" in argv or "--followed-id" in argv, f"Unscoped priming step (global pass): {argv}"
+            assert "42" in argv, f"Step not scoped to follow 42: {argv}"
+
+    def test_grab_and_detect_still_yield_one_step(self) -> None:
+        """The single-command runs keep their argv — one step, unchanged."""
+        grab_steps = _build_argv("grab", 42)
+        assert len(grab_steps) == 1, f"grab must be a single step, got {len(grab_steps)}"
+        assert grab_steps[0] == [sys.executable, "-m", "personalscraper", "grab", "--followed-id", "42"]
+
+        detect_steps = _build_argv("detect", None)
+        assert len(detect_steps) == 1, f"detect must be a single step, got {len(detect_steps)}"
+        assert detect_steps[0] == [sys.executable, "-m", "personalscraper", "follow", "detect"]
 
 
 # ---------------------------------------------------------------------------
@@ -119,24 +129,16 @@ class TestEnvContractPrime:
         finally:
             _clear_runner_env()
 
-    def test_prime_rejected_as_unknown_today(self) -> None:
-        """DOCUMENT the current broken state: 'prime' exits 2 as unknown.
-
-        This test is the gap the 6.2 implementation must close. Once
-        ``_read_mandatory_env`` accepts ``prime``, remove this test.
-        """
+    def test_unknown_command_still_exits_2(self) -> None:
+        """An unknown PERSONALSCRAPER_ACQ_COMMAND is still rejected (exit 2)."""
         _clear_runner_env()
         os.environ["PERSONALSCRAPER_RUN_UID"] = "test-uid-prime-2"
-        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "prime"
+        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "primer"
         os.environ["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] = "42"
         try:
             with pytest.raises(SystemExit) as exc_info:
                 _read_mandatory_env()
-            assert exc_info.value.code == 2, (
-                "Today 'prime' IS rejected with exit code 2. Once 6.2 is "
-                "implemented, this SystemExit should no longer fire — remove "
-                "this test or flip the assertion."
-            )
+            assert exc_info.value.code == 2, "An unknown acquisition command must exit 2"
         finally:
             _clear_runner_env()
 
@@ -159,3 +161,172 @@ class TestEnvContractPrime:
             )
         finally:
             _clear_runner_env()
+
+
+# ---------------------------------------------------------------------------
+# Tests — main() chains the three steps in ONE run row
+# ---------------------------------------------------------------------------
+
+
+class _FakeProc:
+    """Minimal ``Popen`` stand-in: an iterable stdout + a fixed return code."""
+
+    def __init__(self, lines: list[str], rc: int) -> None:
+        """Store the canned output and exit code.
+
+        Args:
+            lines: The lines the fake process writes to stdout.
+            rc: The exit code :meth:`wait` returns.
+        """
+        self.stdout: Iterator[str] = iter(lines)
+        self._rc = rc
+
+    def wait(self) -> int:
+        """Return the canned exit code."""
+        return self._rc
+
+
+class _FakeWriter:
+    """Recording stand-in for :class:`PipelineRunWriter`."""
+
+    calls: list[tuple[str, Any]] = []
+
+    def __init__(self, db_path: Path) -> None:
+        """Record nothing but the path (the fake writes no DB).
+
+        Args:
+            db_path: The library.db path the runner passed.
+        """
+        self.db_path = db_path
+
+    def insert(self, run_uid: str, **kwargs: Any) -> None:
+        """Record the row reservation."""
+        _FakeWriter.calls.append(("insert", {"run_uid": run_uid, **kwargs}))
+
+    def update_pid(self, run_uid: str, pid: int) -> None:
+        """Record the pid claim."""
+        _FakeWriter.calls.append(("update_pid", pid))
+
+    def finalize(self, run_uid: str, outcome: str, **kwargs: Any) -> None:
+        """Record the finalization."""
+        _FakeWriter.calls.append(("finalize", {"outcome": outcome, **kwargs}))
+
+
+@pytest.fixture
+def primed_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[list[list[str]]]:
+    """Neutralize the runner's I/O and yield the list of spawned argvs.
+
+    Patches config loading, the run-row writer and Redis so ``main()`` can be
+    exercised in-process; each test then installs its own ``subprocess.Popen``
+    fake through :func:`_install_procs`.
+    """
+    _FakeWriter.calls = []
+    spawned: list[list[str]] = []
+    config = SimpleNamespace(
+        indexer=SimpleNamespace(db_path=tmp_path / "library.db"),
+        web=SimpleNamespace(enabled=False, stream_key="tm:test", stream_maxlen=100),
+    )
+    monkeypatch.setattr(runner_mod, "load_config", lambda: config)
+    monkeypatch.setattr(runner_mod, "PipelineRunWriter", _FakeWriter)
+    monkeypatch.setattr(runner_mod, "_get_redis", lambda _cfg: None)
+
+    original_sigterm = signal.getsignal(signal.SIGTERM)
+    _clear_runner_env()
+    try:
+        yield spawned
+    finally:
+        _clear_runner_env()
+        signal.signal(signal.SIGTERM, original_sigterm)
+
+
+def _install_procs(monkeypatch: pytest.MonkeyPatch, spawned: list[list[str]], rcs: list[int]) -> None:
+    """Make ``Popen`` return one :class:`_FakeProc` per *rcs* entry, in order.
+
+    Args:
+        monkeypatch: The pytest monkeypatch fixture.
+        spawned: List the fake records each spawned argv into.
+        rcs: The exit code of each successive step.
+    """
+    queue = list(rcs)
+
+    def _fake_popen(argv: list[str], **_kwargs: Any) -> _FakeProc:
+        spawned.append(argv)
+        rc = queue.pop(0) if queue else 0
+        return _FakeProc([f"line from {argv[3]}\n"], rc)
+
+    monkeypatch.setattr(runner_mod.subprocess, "Popen", _fake_popen)
+
+
+class TestPrimeChaining:
+    """``main()`` runs the three prime steps in ONE run row / ring buffer."""
+
+    def test_three_steps_run_in_one_row_with_separators(
+        self, monkeypatch: pytest.MonkeyPatch, primed_runner: list[list[str]]
+    ) -> None:
+        """All three steps run, each announced by its separator line."""
+        _install_procs(monkeypatch, primed_runner, [0, 0, 0])
+        os.environ["PERSONALSCRAPER_RUN_UID"] = "uid-chain-ok"
+        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "prime"
+        os.environ["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] = "42"
+
+        with pytest.raises(SystemExit) as exc_info:
+            runner_mod.main()
+
+        assert exc_info.value.code == 0
+        assert len(primed_runner) == 3, f"Expected 3 spawned steps, got {primed_runner}"
+
+        # ONE row: a single insert (command='prime') and a single finalize.
+        inserts = [c for c in _FakeWriter.calls if c[0] == "insert"]
+        finals = [c for c in _FakeWriter.calls if c[0] == "finalize"]
+        assert len(inserts) == 1, f"Expected 1 run row, got {len(inserts)}"
+        assert inserts[0][1]["command"] == "prime"
+        assert inserts[0][1]["options_json"] == '{"followed_id": 42}'
+        assert len(finals) == 1, f"Expected 1 finalize, got {len(finals)}"
+        assert finals[0][1]["outcome"] == "success"
+
+        # ONE buffer: the three steps + their separators are all in the tail.
+        tail: str = finals[0][1]["output_tail"]
+        assert "--- follow detect --series 42 ---" in tail, tail
+        assert "--- search --followed-id 42 ---" in tail, tail
+        assert "--- grab --followed-id 42 ---" in tail, tail
+
+    def test_chain_stops_at_the_first_failing_step(
+        self, monkeypatch: pytest.MonkeyPatch, primed_runner: list[list[str]]
+    ) -> None:
+        """A non-zero rc stops the chain — outcome error, partial output kept."""
+        _install_procs(monkeypatch, primed_runner, [0, 3, 0])
+        os.environ["PERSONALSCRAPER_RUN_UID"] = "uid-chain-fail"
+        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "prime"
+        os.environ["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] = "7"
+
+        with pytest.raises(SystemExit) as exc_info:
+            runner_mod.main()
+
+        assert exc_info.value.code == 3
+        assert len(primed_runner) == 2, f"The grab step must NOT run after a failure: {primed_runner}"
+
+        finals = [c for c in _FakeWriter.calls if c[0] == "finalize"]
+        assert len(finals) == 1
+        assert finals[0][1]["outcome"] == "error"
+        # The partial output shows WHERE it stopped (the search separator is
+        # the last one, the grab separator never emitted).
+        tail: str = finals[0][1]["output_tail"]
+        assert "--- search --followed-id 7 ---" in tail, tail
+        assert "--- grab --followed-id 7 ---" not in tail, tail
+
+    def test_single_step_grab_has_no_separator(
+        self, monkeypatch: pytest.MonkeyPatch, primed_runner: list[list[str]]
+    ) -> None:
+        """A one-step run keeps its plain output — no separator noise."""
+        _install_procs(monkeypatch, primed_runner, [0])
+        os.environ["PERSONALSCRAPER_RUN_UID"] = "uid-single"
+        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "grab"
+        os.environ["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] = "5"
+
+        with pytest.raises(SystemExit) as exc_info:
+            runner_mod.main()
+
+        assert exc_info.value.code == 0
+        assert len(primed_runner) == 1
+        finals = [c for c in _FakeWriter.calls if c[0] == "finalize"]
+        assert "---" not in finals[0][1]["output_tail"]
