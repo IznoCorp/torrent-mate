@@ -1,4 +1,4 @@
-# Phase 07 — UI : les 5 états en français
+# Phase 08 — UI : les 5 états en français
 
 **Goal**: afficher les 5 états, en français clair, sur la carte et épisode par épisode groupé par
 saison. L'UI **mappe** un état serveur vers un libellé et un ton — elle n'en dérive aucun.
@@ -53,21 +53,30 @@ mobile. Auditer `scrollWidth - innerWidth == 0` sur les routes touchées.
 
 ## Sous-phases
 
-### 7.1 — Vocabulaire + tons
+### 8.1 — Vocabulaire + tons
 
 **Commit**: `feat(acq-states): extend the follow-status vocabulary to five states`
 
-### 7.2 — Carte
+### 8.2 — Carte
 
 **Commit**: `feat(acq-states): render the five states on the follow card`
 
-### 7.3 — Épisode par épisode
+### 8.3 — Épisode par épisode
 
 **Commit**: `feat(acq-states): per-episode states grouped by season`
 
-### 7.4 — Motif d'attente
+### 8.4 — Motif d'attente
 
 **Commit**: `feat(acq-states): explain in French why an episode is waiting`
+
+### 8.5 — Bouton « Récupérer maintenant »
+
+**Commit**: `feat(acq-states): add a Récupérer maintenant action on available items`
+
+Sur un item « À récupérer », l'opérateur peut déclencher le grab sans attendre la passe de
+03:20. L'action passe par **le runner existant** (NE-DOIT-PAS-7) et répond 202 avec un état
+« En file » visible — jamais un 409 « occupé » face à une action légitime (§6). Seul refus
+permis : la même action déjà en cours sur le même item.
 
 ## Gate
 

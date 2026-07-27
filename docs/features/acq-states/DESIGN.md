@@ -131,17 +131,49 @@ du pack-de-saison que le moteur ne prendra jamais.
 
 L'orchestrateur distingue déjà ses issues. La correspondance est **non négociable** :
 
-| Issue orchestrateur         | État dérivé            | Justification                     |
-| --------------------------- | ---------------------- | --------------------------------- |
-| `no_candidates`             | En attente             | recherche propre, zéro résultat   |
-| `no_matching_episode`       | En attente             | seulement packs / autres épisodes |
-| `all_filtered`              | En attente             | tout violait le profil dur        |
-| candidat retenu, non ajouté | À récupérer            | prenable connu, pas encore pris   |
-| `grabbed`                   | En cours d'acquisition | torrent ajouté                    |
-| en médiathèque              | À jour                 | possession vérifiée               |
-| `trackers_unavailable`      | **Non vérifié**        | panne — pas une absence           |
-| `circuit_open`              | **Non vérifié**        | panne — pas une absence           |
-| `no_seeders`                | **Non vérifié**        | swarm mort ≠ conclusion           |
+| Issue de la passe `search` | État dérivé            | Justification                     |
+| -------------------------- | ---------------------- | --------------------------------- |
+| `no_candidates`            | En attente             | recherche propre, zéro résultat   |
+| `no_matching_episode`      | En attente             | seulement packs / autres épisodes |
+| `all_filtered`             | En attente             | tout violait le profil dur        |
+| candidat prenable trouvé   | À récupérer            | disponible, pas encore pris       |
+| `grabbed`                  | En cours d'acquisition | torrent ajouté                    |
+| en médiathèque             | À jour                 | possession vérifiée               |
+| `trackers_unavailable`     | **Non vérifié**        | panne — pas une absence           |
+| `circuit_open`             | **Non vérifié**        | panne — pas une absence           |
+| `no_seeders`               | **Non vérifié**        | swarm mort ≠ conclusion           |
+
+### 3.4 Recherche et récupération sont deux opérations (arbitrage opérateur)
+
+Aujourd'hui l'orchestrateur cherche **et** ajoute le torrent dans la même opération : « À
+récupérer » n'existerait alors que quelques secondes, ce qui ne répond pas à la demande. Les
+deux opérations sont donc **séparées** :
+
+| Passe    | Responsabilité                                        | Effet sur l'état                    |
+| -------- | ----------------------------------------------------- | ----------------------------------- |
+| `detect` | trouver les épisodes diffusés, les enfiler            | → **Non vérifié**                   |
+| `search` | interroger les trackers, statuer sur la disponibilité | → **À récupérer** ou **En attente** |
+| `grab`   | prendre ce qui est connu disponible                   | → **En cours d'acquisition**        |
+
+**Le grab reste automatique** (§5 : l'écran contrôle l'acquisition _automatique_) : la passe
+suivante prend ce qui est « À récupérer », sans validation. Un bouton **« Récupérer
+maintenant »** permet de ne pas attendre la passe (§6 : l'action s'exécute ou s'enfile
+visiblement).
+
+**Le grab refait sa propre recherche** (arbitrage opérateur) plutôt que de réutiliser le
+candidat mémorisé par `search`. Conséquence assumée : la version finalement prise peut différer
+de celle qui a fait basculer l'état à « À récupérer ». Contrepartie retenue : on prend toujours
+le **meilleur du moment**, et un torrent disparu entre les deux passes est détecté au lieu
+d'être ajouté à l'aveugle.
+
+Le surcoût tracker reste borné, et c'est ce qui rend ce choix compatible avec NE-DOIT-PAS-8 :
+`grab` ne parcourt **que** les items déjà connus disponibles — quelques-uns — et non toute la
+file en attente. Si sa re-recherche ne trouve plus rien, l'item **retourne** en « En attente »
+avec le nouveau verdict enregistré : jamais un ajout silencieux, jamais un état figé.
+
+**La cadence s'applique à `search`**, pas à `grab` : c'est elle qui espace les re-vérifications
+d'un épisode indisponible (2 h à chaud, 1 j, 7 j, puis coupure à 30 j). Un item « À récupérer »
+est pris à la passe `grab` suivante sans attendre sa cadence — il est déjà connu disponible.
 
 Une panne tracker rapportée comme « En attente » serait exactement le mensonge de l'incident,
 déplacé d'un cran. Une recherche qui n'a pas conclu laisse l'état à « Non vérifié ».
@@ -158,7 +190,7 @@ recherche a lieu. On y ajoute le **résultat** de la dernière recherche.
 Migration `acquire.db` :
 
 ```sql
-ALTER TABLE wanted ADD COLUMN last_search_outcome TEXT;    -- l'issue orchestrateur, NULL = jamais cherché
+ALTER TABLE wanted ADD COLUMN last_search_outcome TEXT;    -- l'issue de la passe search, NULL = jamais cherché
 ALTER TABLE wanted ADD COLUMN last_search_found INTEGER;   -- nb de candidats PRENABLES, NULL = inconnu
 ```
 
@@ -166,14 +198,27 @@ ALTER TABLE wanted ADD COLUMN last_search_found INTEGER;   -- nb de candidats PR
 `trackers_unavailable`, …), pas un booléen : c'est ce qui permet de distinguer panne et
 absence, et de diagnostiquer sans relire les logs.
 
+**Nouveau statut `available`.** La séparation §3.4 exige un statut entre `pending` et
+`grabbed` : `available` = la recherche a trouvé du prenable, le grab n'est pas encore passé.
+
+```sql
+status TEXT NOT NULL DEFAULT 'pending'
+  CHECK (status IN ('pending', 'searching', 'available', 'grabbed', 'done', 'abandoned'))
+```
+
+**Attention — coût réel de cette migration** : SQLite ne sait pas modifier une contrainte
+`CHECK` par `ALTER TABLE`. Il faut la reconstruction en 12 étapes (table neuve, copie, drop,
+rename), index `idx_wanted_pending` compris. C'est la partie risquée de la phase 1 ; elle est
+identifiée ici pour ne pas être découverte en cours de route.
+
 Rejeté : table de disponibilité dédiée — clé dupliquée et nettoyage à prévoir, sans bénéfice
 tant que chaque épisode diffusé non possédé a sa ligne `wanted` (garanti par l'amorce D2).
 
 ### D2 — Amorce à la création : 201 + run visible (arbitrage opérateur)
 
 `POST /api/acquisition/followed` répond **201 immédiatement**, puis enfile **un run d'amorce**
-pour ce suivi (catalogue + file `wanted` + première recherche) via **l'autorité de
-déclenchement existante** — le même lock et le même runner que les autres actions
+pour ce suivi — `detect` → `search` → `grab` enchaînés sur ce seul suivi — via **l'autorité de
+déclenchement existante** : le même lock et le même runner que les autres actions
 (NE-DOIT-PAS-7 : jamais un second mécanisme).
 
 Pendant le run, la carte affiche **« Vérification en cours »**, pas un état deviné. Conforme
@@ -201,31 +246,63 @@ n'a pas fourni poster/overview/year, le serveur les récupère lui-même via le 
 Le formulaire d'ajout par ID reste inchangé côté client : c'est le serveur qui devient
 responsable, ce qui ferme la classe de bug entière plutôt qu'un seul chemin.
 
+### D5 — Une commande et un cron dédiés pour `search` (arbitrage opérateur)
+
+`personalscraper search` devient une commande de premier rang, avec son entrée dans
+`ecosystem.config.js`, entre `follow detect` (03:00) et `grab` (03:20 et 15:20).
+
+Trois passes, trois responsabilités — `detect` n'a pas à connaître les trackers, `grab` n'a pas
+à décider de la disponibilité. Rejeté : replier la recherche dans `detect` (le cron d'enfilage
+se mettrait à taper les trackers, deux responsabilités mêlées) ; la replier dans `grab` (l'état
+« À récupérer » ne durerait que quelques secondes — la demande ne serait pas satisfaite).
+
+Ordonnancement retenu, calé sur l'existant :
+
+| Heure | Passe              | Effet                                                   |
+| ----- | ------------------ | ------------------------------------------------------- |
+| 03:00 | `follow detect`    | nouveaux épisodes diffusés enfilés → Non vérifié        |
+| 03:10 | `search` (nouveau) | disponibilité statuée → À récupérer / En attente        |
+| 03:20 | `grab`             | ce qui est disponible est pris → En cours d'acquisition |
+| 15:10 | `search`           | re-vérification des indisponibles, selon cadence        |
+| 15:20 | `grab`             | prise de ce qui est devenu disponible                   |
+
+Le bouton **« Récupérer maintenant »** de l'interface déclenche un `grab` ciblé sur un item,
+par le runner existant, sans attendre 03:20.
+
 ---
 
 ## 5. Périmètre
 
-1. Migration `acquire.db` : `last_search_outcome` + `last_search_found` sur `wanted`.
-2. L'orchestrateur persiste l'issue de chaque recherche (tous les chemins de sortie).
-3. Dérivation serveur des 5 états — **source unique**, l'UI ne re-dérive rien.
-4. Amorce à la création du suivi via l'autorité de déclenchement existante (D2).
+1. Migration `acquire.db` : statut `available` + `last_search_outcome` + `last_search_found`
+   sur `wanted` (reconstruction de table — la contrainte `CHECK` change).
+2. **Séparation `search` / `grab`** dans le moteur (§3.4) : `search` statue sur la
+   disponibilité et persiste son verdict à tous ses chemins de sortie ; `grab` ne consomme que
+   les items `available` et refait sa propre recherche.
+3. Commande `personalscraper search` + entrée cron dédiée (D5).
+4. Dérivation serveur des 5 états — **source unique**, l'UI ne re-dérive rien.
 5. Suppression du repli `poll_aired` divergent dans `compute_completeness` (D3).
-6. Enrichissement serveur poster/overview/year (D4).
-7. UI : libellés français des 5 états, épisode par épisode groupé par saison (§5).
-8. Tests de régression, un par cause racine.
+6. Amorce à la création du suivi — `detect` → `search` → `grab` via l'autorité existante (D2).
+7. Enrichissement serveur poster/overview/year (D4).
+8. UI : libellés français des 5 états, épisode par épisode groupé par saison (§5), bouton
+   « Récupérer maintenant ».
+9. Tests de régression, un par cause racine.
 
 ## 6. Critères d'acceptation (exécutables)
 
-| ID     | Critère                                                                                                                                                      |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ACC-01 | Un suivi fraîchement créé n'affiche **jamais** « À jour » — l'état est « Vérification en cours » puis un état dérivé de faits. Reproduit l'incident Furious. |
-| ACC-02 | Catalogue absent ⇒ « Non vérifié », jamais « À jour ». Test direct sur la dérivation.                                                                        |
-| ACC-03 | Carte et panneau de détail s'accordent toujours : mêmes faits, même source. Test qui échoue sur le code actuel.                                              |
-| ACC-04 | Une panne tracker (`trackers_unavailable`, `circuit_open`) laisse « Non vérifié », jamais « En attente ».                                                    |
-| ACC-05 | Un épisode dont tous les candidats sont 3D / 0-seeder / packs ⇒ « En attente », jamais « À récupérer ».                                                      |
-| ACC-06 | Un suivi ajouté par ID TVDB seul obtient poster + overview + year côté serveur. Reproduit RC3.                                                               |
-| ACC-07 | `scripts/check-acquisition-coherence.py` à zéro anomalie.                                                                                                    |
-| ACC-08 | Aucun appel tracker déclenché par le rendu d'une carte ou d'un panneau (NE-DOIT-PAS-8).                                                                      |
+| ID     | Critère                                                                                                                                                           |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | Un suivi fraîchement créé n'affiche **jamais** « À jour » — l'état est « Vérification en cours » puis un état dérivé de faits. Reproduit l'incident Furious.      |
+| ACC-02 | Catalogue absent ⇒ « Non vérifié », jamais « À jour ». Test direct sur la dérivation.                                                                             |
+| ACC-03 | Carte et panneau de détail s'accordent toujours : mêmes faits, même source. Test qui échoue sur le code actuel.                                                   |
+| ACC-04 | Une panne tracker (`trackers_unavailable`, `circuit_open`) laisse « Non vérifié », jamais « En attente ».                                                         |
+| ACC-05 | Un épisode dont tous les candidats sont 3D / 0-seeder / packs ⇒ « En attente », jamais « À récupérer ».                                                           |
+| ACC-06 | Un suivi ajouté par ID TVDB seul obtient poster + overview + year côté serveur. Reproduit RC3.                                                                    |
+| ACC-07 | `scripts/check-acquisition-coherence.py` à zéro anomalie.                                                                                                         |
+| ACC-08 | Aucun appel tracker déclenché par le rendu d'une carte ou d'un panneau (NE-DOIT-PAS-8).                                                                           |
+| ACC-09 | `search` seul ne télécharge **rien** : après une passe `search`, zéro torrent ajouté au client et les items disponibles sont en `available`.                      |
+| ACC-10 | Un item `available` dont le torrent a disparu **retourne** en « En attente » au grab suivant, avec le nouveau verdict enregistré — jamais d'ajout à l'aveugle.    |
+| ACC-11 | `grab` ne parcourt **que** les items `available` : sur une file majoritairement `pending`, le nombre de recherches d'une passe grab est borné à ce sous-ensemble. |
+| ACC-12 | « Récupérer maintenant » récupère l'item sans attendre la passe planifiée, par le runner existant (aucun second mécanisme).                                       |
 
 ## 7. Hors périmètre
 

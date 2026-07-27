@@ -40,18 +40,27 @@ les 3 épisodes sont en médiathèque. Cette feature corrige les causes, pas le 
 | Fichier `VERSION` | **supprimé** — mort et désynchronisé (0.48.0 vs 0.54.1 réel)                           |
 | Merge             | auto                                                                                   |
 
+**Arbitrage complémentaire (2026-07-27, après relecture du plan initial)** — recherche et
+récupération deviennent **deux opérations distinctes** : sans cette séparation, « À récupérer »
+ne durerait que quelques millisecondes à l'intérieur d'un appel de fonction. Trois passes
+(`detect` → `search` → `grab`), le grab reste **automatique** à la passe suivante, avec un
+bouton « Récupérer maintenant » pour ne pas attendre. Le grab **refait sa propre recherche**
+plutôt que de réutiliser le candidat mémorisé (choix opérateur) : le surcoût tracker reste
+borné parce que le grab ne parcourt que les items déjà connus disponibles.
+
 ## Phases
 
-| #   | Phase                                    | File                                                                                               | Status |
-| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Socle de persistance (migration + store) | [phase-01-persistence.md](docs/features/acq-states/plan/phase-01-persistence.md)                   | [ ]    |
-| 2   | Le moteur enregistre son verdict         | [phase-02-orchestrator-verdict.md](docs/features/acq-states/plan/phase-02-orchestrator-verdict.md) | [ ]    |
-| 3   | Dérivation serveur des 5 états           | [phase-03-state-derivation.md](docs/features/acq-states/plan/phase-03-state-derivation.md)         | [ ]    |
-| 4   | Fin des sources divergentes              | [phase-04-single-source.md](docs/features/acq-states/plan/phase-04-single-source.md)               | [ ]    |
-| 5   | Amorce à la création du suivi            | [phase-05-follow-priming.md](docs/features/acq-states/plan/phase-05-follow-priming.md)             | [ ]    |
-| 6   | Enrichissement serveur des métadonnées   | [phase-06-server-metadata.md](docs/features/acq-states/plan/phase-06-server-metadata.md)           | [ ]    |
-| 7   | UI — les 5 états en français             | [phase-07-ui-states.md](docs/features/acq-states/plan/phase-07-ui-states.md)                       | [ ]    |
-| 8   | Garde-fous et acceptation                | [phase-08-guardrails-acc.md](docs/features/acq-states/plan/phase-08-guardrails-acc.md)             | [ ]    |
+| #   | Phase                                    | File                                                                                         | Status |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------- | ------ |
+| 1   | Socle de persistance (migration + store) | [phase-01-persistence.md](docs/features/acq-states/plan/phase-01-persistence.md)             | [ ]    |
+| 2   | Séparation search / grab dans le moteur  | [phase-02-search-grab-split.md](docs/features/acq-states/plan/phase-02-search-grab-split.md) | [ ]    |
+| 3   | Commande `search` + ordonnancement       | [phase-03-search-command.md](docs/features/acq-states/plan/phase-03-search-command.md)       | [ ]    |
+| 4   | Dérivation serveur des 5 états           | [phase-04-state-derivation.md](docs/features/acq-states/plan/phase-04-state-derivation.md)   | [ ]    |
+| 5   | Fin des sources divergentes              | [phase-05-single-source.md](docs/features/acq-states/plan/phase-05-single-source.md)         | [ ]    |
+| 6   | Amorce à la création du suivi            | [phase-06-follow-priming.md](docs/features/acq-states/plan/phase-06-follow-priming.md)       | [ ]    |
+| 7   | Enrichissement serveur des métadonnées   | [phase-07-server-metadata.md](docs/features/acq-states/plan/phase-07-server-metadata.md)     | [ ]    |
+| 8   | UI — 5 états + Récupérer maintenant      | [phase-08-ui-states.md](docs/features/acq-states/plan/phase-08-ui-states.md)                 | [ ]    |
+| 9   | Garde-fous et acceptation                | [phase-09-guardrails-acc.md](docs/features/acq-states/plan/phase-09-guardrails-acc.md)       | [ ]    |
 
 ## Review cycles
 

@@ -1,4 +1,4 @@
-# Phase 06 — Enrichissement serveur des métadonnées
+# Phase 07 — Enrichissement serveur des métadonnées
 
 **Goal**: le serveur récupère lui-même poster / overview / year quand le client ne les fournit
 pas. Ferme la classe de bug entière plutôt qu'un seul chemin d'ajout.
@@ -49,7 +49,7 @@ depuis l'indexeur.
 
 ## Sous-phases
 
-### 6.1 — Test-first : reproduire RC3
+### 7.1 — Test-first : reproduire RC3
 
 **Commit**: `test(acq-states): a follow added by ID alone still gets its poster`
 
@@ -68,11 +68,11 @@ def test_provider_outage_does_not_fail_follow_creation() -> None:
     """Metadata enrichment is a nicety; the follow itself must still be created."""
 ```
 
-### 6.2 — L'enrichissement serveur
+### 7.2 — L'enrichissement serveur
 
 **Commit**: `feat(acq-states): enrich follow metadata server-side on every add path`
 
-### 6.3 — Réparation des suivis existants
+### 7.3 — Réparation des suivis existants
 
 **Commit**: `feat(acq-states): backfill metadata for follows added before this fix`
 
@@ -82,7 +82,7 @@ la base réelle après merge — Furious (id 10) en est le premier bénéficiair
 ## Gate
 
 1. `make lint` + `make test`.
-2. Les deux tests de 6.1 échouaient avant 6.2, passent après.
+2. Les deux tests de 7.1 échouaient avant 7.2, passent après.
 3. `rg -n "poster_url" --type py personalscraper/web/routes/acquisition.py` — une seule
    fonction d'enrichissement, partagée.
 4. Sur la base réelle : `sqlite3 .data/acquire.db "SELECT id,title,poster_url IS NOT NULL FROM followed_series"` — aucune ligne sans poster après backfill, sauf absence provider avérée.

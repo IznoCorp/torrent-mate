@@ -1,4 +1,4 @@
-# Phase 04 — Fin des sources divergentes
+# Phase 05 — Fin des sources divergentes
 
 **Goal**: supprimer la seconde source de vérité. La carte et le panneau de complétude doivent
 répondre la même chose parce qu'ils lisent les mêmes faits, par la même fonction.
@@ -25,7 +25,7 @@ produit le 2026-07-27 : la carte disait « À jour » pendant que le panneau aur
 
 ## Sous-phases
 
-### 4.1 — Test-first : l'accord des deux surfaces
+### 5.1 — Test-first : l'accord des deux surfaces
 
 **Commit**: `test(acq-states): card and completeness panel must never disagree`
 
@@ -43,7 +43,7 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
 Le test est paramétré sur les cas qui divergeaient : cache vide, cache partiel, cache à jour,
 panne provider.
 
-### 4.2 — Suppression du repli divergent
+### 5.2 — Suppression du repli divergent
 
 **Commit**: `fix(acq-states): remove the divergent live poll_aired fallback`
 
@@ -56,13 +56,13 @@ panne provider.
   « Non vérifié ». Ne pas fusionner les deux : ce sont deux ignorances différentes.
 
 **Effet de bord assumé** : une série jamais détectée n'affiche plus sa matrice d'épisodes
-immédiatement. C'est voulu — c'est le prix de la cohérence, et la phase 5 le rend indolore en
+immédiatement. C'est voulu — c'est le prix de la cohérence, et la phase 6 le rend indolore en
 amorçant le catalogue dès la création du suivi.
 
 ## Gate
 
 1. `make lint` + `make test`.
-2. Le test d'accord échouait avant 4.2, passe après.
+2. Le test d'accord échouait avant 5.2, passe après.
 3. `rg -n "poll_aired" --type py personalscraper/web/` — plus aucun appel depuis un chemin de
    lecture web.
 4. `rg -n "def _episode_state" --type py personalscraper/` — une seule définition, dans

@@ -1,4 +1,4 @@
-# Phase 03 — Dérivation serveur des 5 états
+# Phase 04 — Dérivation serveur des 5 états
 
 **Goal**: un point de dérivation unique, côté serveur, produisant les 5 états à partir de faits
 (catalogue diffusé × possession × file `wanted` × verdict de recherche). C'est le cœur de la
@@ -6,7 +6,7 @@ feature et le remplacement direct du code qui affirmait « À jour » sur zéro 
 
 **Constitution servie**: §5 (états visibles), NE-DOIT-PAS-1 (mentir).
 
-**Design**: `DESIGN.md` §3.1, §3.2, §3.3.
+**Design**: `DESIGN.md` §4.1, §4.2, §4.3.
 
 ## Surface
 
@@ -31,7 +31,7 @@ EpisodeState = Literal[
 ```
 
 `FollowStatus` (état de carte) reprend les mêmes valeurs, plus `disabled` (suivi en pause) et
-`verification_en_cours` (run d'amorce en vol, phase 5).
+`verification_en_cours` (run d'amorce en vol, phase 6).
 
 ## La règle de dérivation, par épisode diffusé
 
@@ -91,7 +91,7 @@ d'elle.
 
 ## Sous-phases
 
-### 3.1 — Test-first : la table de vérité
+### 4.1 — Test-first : la table de vérité
 
 **Commit**: `test(acq-states): truth table for the five acquisition states`
 
@@ -111,7 +111,7 @@ def test_empty_catalog_is_never_up_to_date() -> None:
 Plus la table exhaustive : chaque combinaison (possession × statut wanted × outcome × found)
 produit l'état attendu, avec une ligne dédiée par outcome non concluant.
 
-### 3.2 — La dérivation
+### 4.2 — La dérivation
 
 **Commit**: `feat(acq-states): derive the five acquisition states server-side`
 
@@ -121,7 +121,7 @@ repli sur les compteurs bruts : il n'a plus de raison d'être et il est la cause
 ## Gate
 
 1. `make lint` + `make test`.
-2. Le test `test_empty_catalog_is_never_up_to_date` échouait avant 3.2, passe après.
+2. Le test `test_empty_catalog_is_never_up_to_date` échouait avant 4.2, passe après.
 3. `rg -n "up_to_date" --type py personalscraper/web/models/acquisition.py` — plus aucun retour
    `up_to_date` sur un chemin d'ignorance.
 4. Table de vérité complète : chaque outcome de la phase 2 a sa ligne de test.
