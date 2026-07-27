@@ -165,11 +165,13 @@ export interface paths {
          * Get Followed Completeness
          * @description Per-season / per-episode completeness for one followed series (§5).
          *
-         *     Read-only: crosses the provider catalog (aired episodes), the library
-         *     (ownership by provider id) and the wanted queue into one honest matrix —
-         *     "ce qui est déjà sorti vs ce qui est en médiathèque". An empty provider
-         *     catalog is an explicit state (``provider_catalog_empty``), never a
-         *     misleading all-missing grid.
+         *     Read-only: crosses the detect-written aired catalog, the library (ownership
+         *     by provider id) and the wanted queue into one honest matrix — "ce qui est
+         *     déjà sorti vs ce qui est en médiathèque". No provider is polled here: the
+         *     catalog comes from the cache alone, so this panel and the followed card read
+         *     the same facts through the same derivation and can never disagree
+         *     (acq-states phase 5). A follow with no cached catalog yields empty seasons
+         *     and ``source="unknown"`` rather than a fabricated all-missing grid.
          *
          *     Args:
          *         request: The incoming FastAPI request.
@@ -179,8 +181,7 @@ export interface paths {
          *         The :class:`CompletenessResponse`.
          *
          *     Raises:
-         *         HTTPException: 404 unknown follow; 502 when the provider registry
-         *             cannot be built.
+         *         HTTPException: 404 when the follow is unknown.
          */
         get: operations["get_followed_completeness_api_acquisition_followed__followed_id__completeness_get"];
         put?: never;
@@ -2046,17 +2047,27 @@ export interface components {
          *         title: The followed title (display).
          *         kind: ``"show"`` or ``"movie"`` (movies get an empty seasons list —
          *             their lifecycle lives on the card status instead).
-         *         provider_catalog_empty: ``True`` when the provider returned NO aired
-         *             episodes (the Top Chef case — the UI must say "catalogue provider
-         *             vide", never render a misleading all-missing matrix).
-         *         seasons: Season-by-season completeness, newest season first.
+         *         provider_catalog_empty: Reserved for a DETECT-confirmed empty catalog —
+         *             « the provider KNOWS the series and lists no episode » (the Top Chef
+         *             case). The web read path can no longer assert it: since acq-states
+         *             phase 5 it never polls a provider, and the ``aired_episode`` cache
+         *             has no marker distinguishing « polled, zero aired » from « never
+         *             polled » (``replace_for_followed`` is skipped entirely on an empty
+         *             poll, precisely so an outage cannot wipe a good cache). It is
+         *             therefore always ``False`` today; an absent catalog surfaces as
+         *             ``source="unknown"`` with empty ``seasons`` instead. The field
+         *             stays in the contract for the day detect persists that marker.
+         *         seasons: Season-by-season completeness, newest season first. Empty when
+         *             no catalog is known — never a fabricated all-missing matrix.
          *         source: Where the aired catalog came from: ``"cache"`` (the
-         *             detect-written ``aired_episode`` table — fast, no provider call)
-         *             or ``"live"`` (fallback synchronous provider poll for a series
-         *             not cached yet). P0-B.1.
+         *             detect-written ``aired_episode`` table — the ONLY catalog source)
+         *             or ``"unknown"`` (nothing cached for this follow yet, so the panel
+         *             asserts nothing; the card reads ``non_verifie`` from the same
+         *             absence). The former ``"live"`` value died with the synchronous
+         *             provider fallback (acq-states phase 5) — a web read never polls.
          *         catalog_refreshed_at: Epoch seconds of the detect pass that wrote the
-         *             cached catalog, or ``None`` on the live path — the UI can caption
-         *             « catalogue du JJ/MM » honestly.
+         *             cached catalog, or ``None`` when the catalog is unknown — the UI can
+         *             caption « catalogue du JJ/MM » honestly.
          */
         CompletenessResponse: {
             /** Catalog Refreshed At */
@@ -2074,10 +2085,10 @@ export interface components {
             seasons: components["schemas"]["SeasonCompleteness"][];
             /**
              * Source
-             * @default live
+             * @default unknown
              * @enum {string}
              */
-            source: "cache" | "live";
+            source: "cache" | "unknown";
             /** Title */
             title: string;
         };
@@ -2584,10 +2595,15 @@ export interface components {
          *         episode: Episode number within the season.
          *         title: Episode title, or ``None`` when the provider omitted it.
          *         air_date: ISO ``YYYY-MM-DD`` air date.
-         *         state: ``en_mediatheque`` (a live file exists in the library),
-         *             ``en_file`` (a pending wanted row), ``en_cours`` (a wanted row is
-         *             searching/grabbed — acquisition under way), or ``manquant`` (aired,
-         *             not owned, not queued).
+         *         state: The five-state reading produced by
+         *             :func:`~personalscraper.web.acquisition.states.derive_episode_state`
+         *             — the SAME derivation the followed card aggregates, so the card and
+         *             this matrix can never disagree about one episode:
+         *             ``en_mediatheque`` (a live file exists in the library),
+         *             ``en_acquisition`` (a torrent was taken, the pipeline carries it),
+         *             ``a_recuperer`` (a takeable candidate is known), ``en_attente``
+         *             (searched, concluded, nothing takeable) or ``non_verifie`` (never
+         *             searched, or the last search did not conclude — panne ≠ absence).
          */
         EpisodeCompleteness: {
             /** Air Date */
@@ -2598,7 +2614,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "en_mediatheque" | "manquant" | "en_file" | "en_cours";
+            state: "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie";
             /** Title */
             title?: string | null;
         };
@@ -3679,8 +3695,16 @@ export interface components {
          *
          *     Attributes:
          *         season: Season number (1-based; specials excluded by the poller).
-         *         owned: Episodes with a live library file.
-         *         queued: Episodes currently in the wanted queue (en_file + en_cours).
+         *         owned: Episodes reading ``en_mediatheque`` (a live library file).
+         *         queued: Episodes « en mouvement » — ``a_recuperer`` + ``en_acquisition``.
+         *             The field NAME is kept from the old three-value vocabulary to bound
+         *             the phase-5 blast radius (the frontend accordion consumes
+         *             ``owned`` / ``queued`` / ``total``); what it COUNTS is now the two
+         *             five-state buckets where something is actually moving. Episodes
+         *             reading ``en_attente`` or ``non_verifie`` are deliberately NOT
+         *             counted here: nothing is in motion for them, and folding them in
+         *             would re-create the « queue volume implies progress » lie the
+         *             five states exist to kill. A rename is phase 8's call.
          *         total: Aired episodes in the season.
          *         episodes: The per-episode states, ordered by episode number.
          */
