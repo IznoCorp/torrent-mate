@@ -263,6 +263,11 @@ class GrabOutcome:
             ``GrabSucceeded`` payload). ``None`` off the success path.
         tags: Tags passed to ``add()`` (carried for the service's
             ``GrabSucceeded`` payload). Empty off the success path.
+        found: Number of takeable candidates that survived the search→filter→rank
+            chain. Populated with ``len(ranked)`` on the success path and ``0``
+            on the ``not_found`` paths (the grab's own re-search concluded with
+            nothing). ``None`` everywhere else (retryable/terminal — the search
+            did not conclude).
     """
 
     disposition: Literal["success", "retryable", "not_found", "terminal"]
@@ -271,6 +276,7 @@ class GrabOutcome:
     chosen: TrackerResult | None = None
     category: str | None = None
     tags: tuple[str, ...] = ()
+    found: int | None = None
 
 
 class GrabOrchestrator:
@@ -598,6 +604,7 @@ class GrabOrchestrator:
             chosen=top,
             category=category,
             tags=(top.provider,),
+            found=len(result.ranked),
         )
 
     def _retryable(
@@ -620,7 +627,7 @@ class GrabOrchestrator:
         source_tracker = chosen.provider if chosen is not None else None
         self._event_bus.emit(GrabFailed(media_ref=media_ref, source_tracker=source_tracker, reason=reason))
         log.warning("acquire.grab.retryable", reason=reason, source_tracker=source_tracker)
-        return GrabOutcome(disposition="retryable", reason=reason, chosen=chosen)
+        return GrabOutcome(disposition="retryable", reason=reason, chosen=chosen, found=None)
 
     def _not_found(
         self,
@@ -645,7 +652,7 @@ class GrabOrchestrator:
         """
         self._event_bus.emit(GrabFailed(media_ref=media_ref, source_tracker=None, reason=reason))
         log.info("acquire.grab.not_found", reason=reason)
-        return GrabOutcome(disposition="not_found", reason=reason)
+        return GrabOutcome(disposition="not_found", reason=reason, found=0)
 
     def _terminal(
         self,
@@ -669,7 +676,7 @@ class GrabOrchestrator:
         assert media_ref is not None  # noqa: S101 — every WantedItem has a MediaRef
         self._event_bus.emit(WantedAbandoned(media_ref=media_ref, reason=reason))
         log.warning("acquire.grab.terminal", reason=reason)
-        return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen)
+        return GrabOutcome(disposition="terminal", reason=reason, chosen=chosen, found=None)
 
 
 __all__ = [
