@@ -2728,6 +2728,11 @@ export interface components {
             owned_count?: number | null;
             /** Poster Url */
             poster_url?: string | null;
+            /**
+             * Priming Running
+             * @default false
+             */
+            priming_running: boolean;
             /** Quality Profile */
             quality_profile?: {
                 [key: string]: unknown;
@@ -2753,6 +2758,11 @@ export interface components {
              *     branch that declared a freshly-followed series « À jour » while three
              *     aired episodes were missing (founding incident). They survive as data
              *     fields for display, never as a status source.
+             *
+             *     A priming run in flight overrides the card to ``verification_en_cours``
+             *     BEFORE any derived status (phase 6). The flag is set by the route layer
+             *     from the live ``pipeline_run`` rows; it is never stored in ``acquire.db``
+             *     and can never disagree with the run history.
              *
              *     Returns:
              *         The derived lifecycle status.
