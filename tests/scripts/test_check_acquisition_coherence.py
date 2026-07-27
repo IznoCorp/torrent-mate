@@ -13,6 +13,19 @@ schema), asserting the exact rule tags:
 - FOLLOW_NO_REF fires for a follow with an empty media_ref_json.
 - SHOW_NO_CATALOG is emitted with ``counted=False`` (INFO — not in exit code).
 - A coherent seeding yields zero anomalies (rules do not overfire).
+
+Plus the five-state rules (acq-states phase 9), each with a violating fixture
+AND a clean one — a rule that only ever fires proves nothing about the day it
+should stay quiet:
+
+- ACTIVE_A_JOUR_NO_CATALOG fires on the founding incident (active show, empty
+  aired catalog) and stays silent on a primed catalog, a paused follow, a film.
+- INCONCLUSIVE_WITH_FOUND fires when a non-concluding verdict stored a count,
+  and stays silent on the contracted NULL and on closed (history) rows.
+- SEARCHED_WITHOUT_VERDICT fires on a search that recorded no outcome.
+- AVAILABLE_VERDICT_DESYNC fires on a disagreeing verdict AND on a missing one.
+- AVAILABLE_STALE fires past the 24h hand-off window, as a counted WARNING.
+- FOLLOW_MISSING_POSTER fires for an active follow with no poster_url.
 """
 
 from __future__ import annotations
@@ -24,6 +37,10 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
+from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 from personalscraper.core.sqlite import apply_migrations as apply_acquire_migrations
 from personalscraper.indexer.db import apply_migrations as apply_indexer_migrations
 
@@ -83,11 +100,13 @@ def _insert_follow(
     title: str = "House Test",
     kind: str = "show",
     active: int = 1,
+    poster_url: str | None = "https://example.com/poster.jpg",
 ) -> None:
     """Insert one followed_series row."""
     conn.execute(
-        "INSERT INTO followed_series (id, media_ref_json, title, active, kind, added_at) VALUES (?,?,?,?,?,?)",
-        (followed_id, ref, title, active, kind, NOW),
+        "INSERT INTO followed_series (id, media_ref_json, title, active, kind, added_at, poster_url) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (followed_id, ref, title, active, kind, NOW, poster_url),
     )
 
 
@@ -102,12 +121,29 @@ def _insert_wanted(
     episode: int | None = None,
     status: str = "pending",
     grabbed_hash: str | None = None,
+    last_search_at: int | None = None,
+    last_search_outcome: str | None = None,
+    last_search_found: int | None = None,
 ) -> None:
     """Insert one wanted row."""
     conn.execute(
         "INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode, status, enqueued_at,"
-        " grabbed_hash) VALUES (?,?,?,?,?,?,?,?,?)",
-        (wanted_id, followed_id, ref, kind, season, episode, status, NOW, grabbed_hash),
+        " grabbed_hash, last_search_at, last_search_outcome, last_search_found)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            wanted_id,
+            followed_id,
+            ref,
+            kind,
+            season,
+            episode,
+            status,
+            NOW,
+            grabbed_hash,
+            last_search_at,
+            last_search_outcome,
+            last_search_found,
+        ),
     )
 
 
@@ -264,12 +300,17 @@ def test_follow_no_ref_and_show_no_catalog(tmp_path: Path) -> None:
     """Rule 6 counts; rule 7 is INFO-only (printed but counted=False)."""
     acquire = _acquire_db(tmp_path)
     indexer = _indexer_db(tmp_path)
-    # Active show follow with no provider ids and no aired cache → both rules.
+    # Active show follow with no provider ids and no aired cache → rules 6, 7
+    # and — because an empty catalog is exactly the founding incident — 12.
     _insert_follow(acquire, 1, ref="{}", title="Ghost Follow")
     acquire.commit()
 
     anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
-    assert sorted(a.rule for a in anomalies) == ["FOLLOW_NO_REF", "SHOW_NO_CATALOG"]
+    assert sorted(a.rule for a in anomalies) == [
+        "ACTIVE_A_JOUR_NO_CATALOG",
+        "FOLLOW_NO_REF",
+        "SHOW_NO_CATALOG",
+    ]
     by_rule = {a.rule: a for a in anomalies}
     assert by_rule["FOLLOW_NO_REF"].counted is True
     assert by_rule["SHOW_NO_CATALOG"].counted is False, "SHOW_NO_CATALOG must not count in the exit code"
@@ -293,3 +334,348 @@ def test_coherent_state_yields_zero_anomalies(tmp_path: Path) -> None:
 
     anomalies = collect_anomalies(acquire, indexer, client_hashes={"abcd12"})
     assert anomalies == []
+
+
+# ---------------------------------------------------------------------------
+# The five states (acq-states phase 9)
+# ---------------------------------------------------------------------------
+
+
+def _rules(acquire: sqlite3.Connection, indexer: sqlite3.Connection) -> set[str]:
+    """Collect the rule tags fired for one acquire/library pair."""
+    return {a.rule for a in collect_anomalies(acquire, indexer, client_hashes=set())}
+
+
+def _other_ref(tvdb_id: int) -> str:
+    """Build a distinct show ref — ``followed_series.media_ref_json`` is UNIQUE."""
+    return json.dumps({"tvdb_id": tvdb_id, "tmdb_id": None, "imdb_id": None})
+
+
+def test_active_a_jour_no_catalog_fires_on_an_empty_catalog(tmp_path: Path) -> None:
+    """Rule 12 fires for the founding incident: an active show, no aired catalog.
+
+    The card derivation, asked about zero knowledge, answers « À jour » — so an
+    active show follow whose catalog priming never landed is an ERROR, not the
+    INFO note SHOW_NO_CATALOG was in phase 8.
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1, title="Furious")
+    acquire.commit()
+
+    anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
+    fired = {a.rule: a for a in anomalies}
+    assert "ACTIVE_A_JOUR_NO_CATALOG" in fired
+    assert fired["ACTIVE_A_JOUR_NO_CATALOG"].severity == "error"
+    assert fired["ACTIVE_A_JOUR_NO_CATALOG"].counted is True
+    assert fired["ACTIVE_A_JOUR_NO_CATALOG"].followed_id == 1
+    assert fired["ACTIVE_A_JOUR_NO_CATALOG"].title == "Furious"
+
+
+def test_active_a_jour_no_catalog_silent_when_the_catalog_exists(tmp_path: Path) -> None:
+    """Rule 12 is silent on a primed catalog, an inactive follow and a film.
+
+    A film has no aired catalog by construction — flagging it would be the
+    guard inventing a defect — and a paused follow renders ``disabled``, so
+    neither can read « À jour » on missing knowledge.
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1, title="Primed")
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_follow(acquire, 2, ref=_other_ref(556), title="Paused", active=0)
+    _insert_follow(acquire, 3, ref=_REF_MOVIE, title="A Film", kind="movie")
+    acquire.commit()
+
+    assert "ACTIVE_A_JOUR_NO_CATALOG" not in _rules(acquire, indexer)
+
+
+def test_inconclusive_with_found_fires_when_a_count_is_stored(tmp_path: Path) -> None:
+    """Rule 8 fires when an inconclusive verdict stored a count instead of NULL.
+
+    ``record_search_outcome`` contracts NULL for every non-concluding exit:
+    ``found=0`` claims « I looked, there is nothing » about trackers that were
+    never reached, and a non-zero count is just as much a claim.
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_aired(acquire, 1, 1, 2)
+    _insert_wanted(
+        acquire,
+        10,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="pending",
+        last_search_at=NOW,
+        last_search_outcome="circuit_open",
+        last_search_found=0,
+    )
+    _insert_wanted(
+        acquire,
+        11,
+        followed_id=1,
+        season=1,
+        episode=2,
+        status="searching",
+        last_search_at=NOW,
+        last_search_outcome="trackers_unavailable",
+        last_search_found=4,
+    )
+    acquire.commit()
+
+    anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
+    assert {a.rule for a in anomalies} == {"INCONCLUSIVE_WITH_FOUND"}
+    assert sorted(i for a in anomalies for i in a.wanted_ids) == [10, 11]
+    assert all(a.severity == "error" for a in anomalies)
+
+
+def test_inconclusive_with_found_silent_on_null_and_on_closed_rows(tmp_path: Path) -> None:
+    """Rule 8 is silent on the contracted NULL, and on rows that are history.
+
+    A ``done`` row's verdict answers for nothing — ``select_wanted_facts``
+    skips it — so a stale count there is noise, not an incoherence.
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_wanted(
+        acquire,
+        12,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="pending",
+        last_search_at=NOW,
+        last_search_outcome="circuit_open",
+        last_search_found=None,
+    )
+    _insert_wanted(
+        acquire,
+        13,
+        followed_id=1,
+        season=1,
+        episode=2,
+        status="done",
+        last_search_at=NOW,
+        last_search_outcome="circuit_open",
+        last_search_found=0,
+    )
+    acquire.commit()
+
+    assert _rules(acquire, indexer) == set()
+
+
+def test_searched_without_verdict_fires_on_a_forgotten_exit_path(tmp_path: Path) -> None:
+    """Rule 9 fires for an OPEN row searched without a recorded verdict.
+
+    The search ran (``last_search_at`` is set) but no exit path wrote its
+    outcome, so the item reads « Non vérifié » forever — a lie by omission.
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_wanted(
+        acquire,
+        20,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="searching",
+        last_search_at=NOW,
+        last_search_outcome=None,
+    )
+    acquire.commit()
+
+    anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
+    assert {a.rule for a in anomalies} == {"SEARCHED_WITHOUT_VERDICT"}
+    assert anomalies[0].wanted_ids == [20]
+    assert anomalies[0].severity == "error"
+
+
+def test_searched_without_verdict_silent_when_recorded_or_never_searched(tmp_path: Path) -> None:
+    """Rule 9 is silent with a verdict recorded, and on a never-searched row."""
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_wanted(
+        acquire,
+        21,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="searching",
+        last_search_at=NOW,
+        last_search_outcome="no_candidates",
+        last_search_found=0,
+    )
+    _insert_wanted(acquire, 22, followed_id=1, season=1, episode=2, status="pending")
+    acquire.commit()
+
+    assert _rules(acquire, indexer) == set()
+
+
+def test_available_verdict_desync_fires_on_a_disagreeing_verdict(tmp_path: Path) -> None:
+    """Rule 10 fires when 'available' is not backed by an 'available' verdict.
+
+    Both shapes are covered: a concluding verdict that says something else, and
+    no verdict at all (the status was written, the verdict write was lost).
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_aired(acquire, 1, 1, 2)
+    _insert_wanted(
+        acquire,
+        30,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="available",
+        last_search_at=NOW,
+        last_search_outcome="no_candidates",
+        last_search_found=0,
+    )
+    _insert_wanted(acquire, 31, followed_id=1, season=1, episode=2, status="available")
+    acquire.commit()
+
+    anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
+    assert {a.rule for a in anomalies} == {"AVAILABLE_VERDICT_DESYNC"}
+    assert sorted(i for a in anomalies for i in a.wanted_ids) == [30, 31]
+    by_id = {a.wanted_ids[0]: a for a in anomalies}
+    assert "'no_candidates'" in by_id[30].explanation
+    assert "NULL" in by_id[31].explanation, "a missing verdict must be named, not rendered as 'None'"
+
+
+def test_available_verdict_desync_silent_when_the_verdict_matches(tmp_path: Path) -> None:
+    """Rule 10 is silent when status and verdict were written by the same pass."""
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_wanted(
+        acquire,
+        32,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="available",
+        last_search_at=NOW,
+        last_search_outcome="available",
+        last_search_found=2,
+    )
+    acquire.commit()
+
+    assert _rules(acquire, indexer) == set()
+
+
+def test_available_stale_fires_past_the_window_as_a_warning(tmp_path: Path) -> None:
+    """Rule 11 fires — as a WARNING — for an 'available' row older than 24h.
+
+    'available' hands the item to the grab pass; a row still waiting a day
+    later means that pass is dead or its cron is gone. That needs an operator,
+    not a code change, hence ``warning`` — but it still counts in the exit code.
+    """
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_wanted(
+        acquire,
+        40,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="available",
+        last_search_at=NOW - 25 * 3600,
+        last_search_outcome="available",
+        last_search_found=3,
+    )
+    acquire.commit()
+
+    anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
+    assert {a.rule for a in anomalies} == {"AVAILABLE_STALE"}
+    assert anomalies[0].wanted_ids == [40]
+    assert anomalies[0].severity == "warning"
+    assert anomalies[0].counted is True, "a warning still counts toward the exit code"
+
+
+def test_available_stale_silent_inside_the_window(tmp_path: Path) -> None:
+    """Rule 11 is silent for a row still inside the 24h hand-off window."""
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_wanted(
+        acquire,
+        41,
+        followed_id=1,
+        season=1,
+        episode=1,
+        status="available",
+        last_search_at=NOW - 23 * 3600,
+        last_search_outcome="available",
+        last_search_found=2,
+    )
+    acquire.commit()
+
+    assert _rules(acquire, indexer) == set()
+
+
+def test_follow_missing_poster_fires_as_a_warning(tmp_path: Path) -> None:
+    """Rule 13 fires — as a WARNING — for an active follow with no poster_url."""
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1, title="No Poster Show", poster_url=None)
+    _insert_aired(acquire, 1, 1, 1)
+    acquire.commit()
+
+    anomalies = collect_anomalies(acquire, indexer, client_hashes=set())
+    assert {a.rule for a in anomalies} == {"FOLLOW_MISSING_POSTER"}
+    assert anomalies[0].followed_id == 1
+    assert anomalies[0].severity == "warning"
+    assert anomalies[0].counted is True
+
+
+def test_follow_missing_poster_silent_with_a_poster_or_when_paused(tmp_path: Path) -> None:
+    """Rule 13 is silent with a poster, and on a paused follow (no card to render)."""
+    acquire = _acquire_db(tmp_path)
+    indexer = _indexer_db(tmp_path)
+    _insert_follow(acquire, 1, title="Has Poster", poster_url="https://img.example.com/p.jpg")
+    _insert_aired(acquire, 1, 1, 1)
+    _insert_follow(acquire, 2, ref=_other_ref(556), title="Paused", active=0, poster_url=None)
+    acquire.commit()
+
+    assert "FOLLOW_MISSING_POSTER" not in _rules(acquire, indexer)
+
+
+def test_the_guard_reads_the_engine_constants_rather_than_copying_them() -> None:
+    """The guard must not carry its own copy of the engine's taxonomies.
+
+    A mirrored ``INCONCLUSIVE_OUTCOMES`` (or open-status set) would keep
+    passing its tests while silently disagreeing with the engine the day a new
+    outcome is added — so identity, not equality, is what is asserted here.
+    """
+    assert _mod.INCONCLUSIVE_OUTCOMES is INCONCLUSIVE_OUTCOMES
+    assert _mod.OPEN_WANTED_STATUSES is OPEN_WANTED_STATUSES
+
+
+def test_counted_is_derived_from_severity_and_cannot_be_overridden() -> None:
+    """``counted`` follows ``severity`` alone, so marker and exit code agree.
+
+    It is an ``init=False`` field: no call site can print a ⚠️ while quietly
+    keeping the anomaly out of the exit code.
+    """
+    common = {"title": "T", "kind": None, "season": None, "episode": None}
+    assert Anomaly(rule="R", severity="error", **common).counted is True
+    assert Anomaly(rule="R", severity="warning", **common).counted is True
+    assert Anomaly(rule="R", severity="info", **common).counted is False
+    assert Anomaly(rule="R", **common).severity == "error", "error is the default severity"
+    with pytest.raises(TypeError):
+        Anomaly(rule="R", severity="info", counted=True, **common)  # type: ignore[call-arg]
