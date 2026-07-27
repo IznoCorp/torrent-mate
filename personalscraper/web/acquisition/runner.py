@@ -33,7 +33,8 @@ Exit codes:
 * ``0`` — every CLI step completed successfully.
 * ``2`` — misconfiguration (missing env, config load failure, spawn failure).
 * ``143`` — runner killed via SIGTERM.
-* ``1`` — the engine's own failure paths (stream error, queue timeout).
+* ``1`` — the engine's own failure paths (stream error, queue timeout, a step
+  killed for overrunning its 30-minute ceiling).
 * **anything else** — the failing CLI step's OWN exit code, passed through
   verbatim by the engine (``sys.exit(rc)``). A step exiting ``3`` therefore
   makes this runner exit ``3``, not ``1``: the code identifies WHAT failed, and
@@ -82,6 +83,16 @@ _SCOPED_COMMANDS = ("grab", "prime")
 
 #: ``pipeline_run.command`` written for each runner command.
 _ROW_COMMANDS = {"grab": "grab", "detect": "follow-detect", "prime": "prime"}
+
+#: Wall-clock ceiling for ONE acquisition step (30 min). Every step here talks
+#: to trackers and providers over the network, so a hung step is not
+#: hypothetical: a server that accepts the TCP connection and never answers
+#: blocks the streaming loop forever. Without a ceiling that run row stays
+#: 'running' with a LIVE pid, so the idempotence guard 409s every retry and the
+#: card is pinned on « vérification en cours » with nothing the operator can do
+#: from the UI. Generous on purpose — priming a long-running series legitimately
+#: takes minutes; this bounds a hang, it does not pace a slow run.
+_STEP_TIMEOUT_S = 1800.0
 
 
 def prime_options_json(followed_id: int) -> str:
@@ -299,6 +310,7 @@ def main() -> None:
             stream_maxlen=web_config.stream_maxlen,
             event_prefix="grab_runner",
             log_context={"command": command, "followed_id": followed_id},
+            step_timeout_s=_STEP_TIMEOUT_S,
         )
     )
 
