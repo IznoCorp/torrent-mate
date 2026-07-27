@@ -288,11 +288,13 @@ def get_followed(
 def get_followed_completeness(request: Request, followed_id: int) -> CompletenessResponse:
     """Per-season / per-episode completeness for one followed series (§5).
 
-    Read-only: crosses the provider catalog (aired episodes), the library
-    (ownership by provider id) and the wanted queue into one honest matrix —
-    "ce qui est déjà sorti vs ce qui est en médiathèque". An empty provider
-    catalog is an explicit state (``provider_catalog_empty``), never a
-    misleading all-missing grid.
+    Read-only: crosses the detect-written aired catalog, the library (ownership
+    by provider id) and the wanted queue into one honest matrix — "ce qui est
+    déjà sorti vs ce qui est en médiathèque". No provider is polled here: the
+    catalog comes from the cache alone, so this panel and the followed card read
+    the same facts through the same derivation and can never disagree
+    (acq-states phase 5). A follow with no cached catalog yields empty seasons
+    and ``source="unknown"`` rather than a fabricated all-missing grid.
 
     Args:
         request: The incoming FastAPI request.
@@ -302,8 +304,7 @@ def get_followed_completeness(request: Request, followed_id: int) -> Completenes
         The :class:`CompletenessResponse`.
 
     Raises:
-        HTTPException: 404 unknown follow; 502 when the provider registry
-            cannot be built.
+        HTTPException: 404 when the follow is unknown.
     """
     from personalscraper.core.ownership import NullOwnershipChecker
     from personalscraper.indexer.ownership import IndexerOwnershipChecker
@@ -316,19 +317,13 @@ def get_followed_completeness(request: Request, followed_id: int) -> Completenes
         if followed is None:
             raise HTTPException(status_code=404, detail="Followed series not found")
 
-        from personalscraper.cli_helpers import _build_app_context
-
-        try:
-            app_context = _build_app_context(config, request.app.state.settings)
-            registry = app_context.provider_registry
-        except Exception as exc:
-            logger.error("acquisition_completeness_registry_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
-
+        # No provider registry is built any more: the catalog is read from the
+        # cache, so this route makes ZERO provider calls (NE-DOIT-PAS-8) and no
+        # longer fails 502 on a registry construction problem.
         indexer_db = config.indexer.db_path
         checker = IndexerOwnershipChecker(Path(indexer_db)) if indexer_db is not None else NullOwnershipChecker()
         try:
-            return compute_completeness(followed, registry=registry, ownership=checker, store=store)
+            return compute_completeness(followed, ownership=checker, store=store)
         finally:
             if isinstance(checker, IndexerOwnershipChecker):
                 checker.close()
