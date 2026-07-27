@@ -1,8 +1,13 @@
 """Unit tests for acquisition API Pydantic models (acq-watch feature).
 
-Focused on the C14 server-side ``FollowedSeriesItem.status`` derivation — the
-single source of truth the UI maps to a badge tone/label without re-deriving
-business state in JSX.
+Focused on the server-side ``FollowedSeriesItem.status`` derivation — the single
+source of truth the UI maps to a badge tone/label without re-deriving business
+state in JSX.
+
+Translated to the five-state model (acq-states phase 4): the raw
+``wanted_pending`` / ``wanted_grabbed`` counters no longer derive anything, so
+the two former counter-driven cases now pin the OPPOSITE guarantee — a card with
+no catalogue knowledge reads ``non_verifie`` whatever the counters say.
 """
 
 from __future__ import annotations
@@ -28,22 +33,31 @@ def _item(*, active: bool, wanted_pending: int) -> FollowedSeriesItem:
 
 
 class TestFollowedStatusDerivation:
-    """``FollowedSeriesItem.status`` is derived from active + wanted_pending."""
+    """``FollowedSeriesItem.status`` is derived from the five-state facts."""
 
     @pytest.mark.parametrize("pending", [0, 1, 7])
     def test_disabled_when_inactive(self, pending: int) -> None:
         """An inactive series is ``disabled`` regardless of pending count."""
         assert _item(active=False, wanted_pending=pending).status == "disabled"
 
-    def test_pending_when_active_with_pending(self) -> None:
-        """An active series with pending searches is ``pending``."""
-        assert _item(active=True, wanted_pending=3).status == "pending"
+    def test_raw_pending_counter_does_not_drive_status(self) -> None:
+        """Pending wanted rows alone no longer produce a state.
 
-    def test_up_to_date_when_active_and_idle(self) -> None:
-        """An active series with nothing pending is ``up_to_date``."""
-        assert _item(active=True, wanted_pending=0).status == "up_to_date"
+        Was ``pending`` when the counter drove the derivation. A queue volume
+        says nothing about what is owned, aired or searched — with no catalogue
+        the card must admit it does not know.
+        """
+        assert _item(active=True, wanted_pending=3).status == "non_verifie"
+
+    def test_idle_without_catalog_is_non_verifie_never_a_jour(self) -> None:
+        """An active series with no catalogue and no queue is ``non_verifie``.
+
+        Was ``up_to_date`` — the founding incident's exact shape: zero wanted
+        rows read as « À jour » while aired episodes were missing.
+        """
+        assert _item(active=True, wanted_pending=0).status == "non_verifie"
 
     def test_status_is_serialised(self) -> None:
         """The computed field is present in the serialised payload."""
         dumped = _item(active=True, wanted_pending=0).model_dump()
-        assert dumped["status"] == "up_to_date"
+        assert dumped["status"] == "non_verifie"
