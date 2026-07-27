@@ -67,6 +67,7 @@ from personalscraper.web.models.acquisition import (
     WantedItemResponse,
     WantedResponse,
 )
+from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run
 
 if TYPE_CHECKING:
     from personalscraper.scraper.decision_candidate import DecisionCandidate
@@ -957,6 +958,9 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             store.follow.set_active(existing.id, True)
             store.follow.set_kind(existing.id, body.kind)
             _write_follow_metadata(config.acquire.db_path, existing.id, body)
+            # Reactivating re-primes: the catalog and the queue are as stale as
+            # they were the day the follow was paused (plan §6 idempotence).
+            enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
             item = _item_from_followed(reactivated)
@@ -979,6 +983,10 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         assert created is not None  # noqa: S101 — just inserted it
         # Persist + echo the card metadata captured from the search candidate.
         _write_follow_metadata(config.acquire.db_path, new_id, body)
+        # Amorce: catalog + queue + first search run NOW, through the existing
+        # run authority — a fresh follow is never left idle until the 03:00
+        # cron (the founding incident: a grab over an empty queue, rc=0).
+        enqueue_prime_run(config.indexer.db_path, new_id)
         item = _item_from_followed(created)
         item.poster_url = body.poster_url
         item.overview = body.overview

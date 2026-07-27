@@ -44,6 +44,7 @@ from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.web.app import create_app
 from personalscraper.web.auth.tokens import create_session_token
+from personalscraper.web.routes import acquisition_triggers
 
 # ---------------------------------------------------------------------------
 # DDL (matching the real schemas — same as test_acquisition_write.py)
@@ -167,6 +168,32 @@ def _count_prime_runs(indexer_path: Path, followed_id: int) -> int:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def spawned_primes(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Record priming spawns instead of detaching a REAL acquisition runner.
+
+    ``_spawn_prime_runner`` is the spawn hook the contract names. Patching it
+    is mandatory, not cosmetic: the real hook detaches
+    ``python -m personalscraper.web.acquisition.runner``, which loads the
+    OPERATOR's config (not the synthetic test one) and chains detect → search →
+    grab against the production DBs and the trackers.
+
+    The stub returns this process' pid so the reserved run row looks alive to
+    the idempotence guard — exactly like a freshly spawned runner.
+
+    Returns:
+        The list of ``followed_id`` values the handler asked to prime.
+    """
+    calls: list[int] = []
+
+    def _fake_spawn(run_uid: str, followed_id: int) -> int:
+        calls.append(followed_id)
+        return os.getpid()
+
+    monkeypatch.setattr(acquisition_triggers, "_spawn_prime_runner", _fake_spawn)
+    return calls
+
+
 @pytest.fixture
 def client(test_config: Any, tmp_path: Path) -> TestClient:
     """Build a TestClient with temp acquire.db + library.db.
@@ -206,7 +233,9 @@ def client(test_config: Any, tmp_path: Path) -> TestClient:
 class TestCreateFollowPriming:
     """POST /api/acquisition/followed — enqueues a priming run on creation."""
 
-    def test_create_follow_enqueues_a_priming_run(self, client: TestClient, tmp_path: Path) -> None:
+    def test_create_follow_enqueues_a_priming_run(
+        self, client: TestClient, tmp_path: Path, spawned_primes: list[int]
+    ) -> None:
         """Creating a follow must prime it — catalog, queue, first search.
 
         Reproduces the founding incident: Furious was added at 09:18:50 while
@@ -234,25 +263,35 @@ class TestCreateFollowPriming:
             f"Expected 1 prime run row, found {prime_count}. create_follow did not enqueue a priming run."
         )
 
+        # And the spawn hook ran for THIS follow — the row alone would only
+        # prove an enqueue, not that the amorce was launched.
+        assert spawned_primes == [follow_id], f"Expected a spawn for follow {follow_id}, got {spawned_primes}"
+
         # The immediate response shows the truth: verification is running.
         assert data["status"] == "verification_en_cours", (
             f"Expected verification_en_cours on a freshly primed follow, got {data['status']!r}"
         )
 
     def test_priming_failure_leaves_non_verifie_not_up_to_date(
-        self, client: TestClient, tmp_path: Path, caplog: pytest.LogCaptureFixture
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """A failed priming run must never leave the card looking healthy.
 
         When the spawn fails (OSError), the follow is still created (fail-soft:
         a spawn failure never blocks the 201), but the card reads
         ``non_verifie`` — never ``a_jour``, and the failure IS logged.
-
-        NOTE: today (pre-6.2), no spawn is attempted at all, so the
-        ``caplog`` assertion on a spawn-failure warning will also fail —
-        proving the gap.
         """
         caplog.set_level(logging.WARNING)
+
+        def _spawn_boom(run_uid: str, followed_id: int) -> int:
+            """Simulate a spawn that cannot fork (the fail-soft path)."""
+            raise OSError("cannot spawn the priming runner")
+
+        monkeypatch.setattr(acquisition_triggers, "_spawn_prime_runner", _spawn_boom)
 
         resp = client.post(
             "/api/acquisition/followed",
@@ -270,15 +309,12 @@ class TestCreateFollowPriming:
         # Never a_jour — the card is honest about not knowing.
         assert data["status"] == "non_verifie", f"A failed prime must read non_verifie, not {data['status']!r}"
 
-        # A warning about the spawn failure must appear in the logs.
-        # FAILS TODAY: no spawn → no warning emitted.
+        # A warning about the spawn failure must appear in the logs — a failed
+        # amorce is loud (NE-DOIT-PAS-5), never a silent nothing.
         spawn_warnings = [
             r for r in caplog.records if r.levelno >= logging.WARNING and "spawn" in r.getMessage().lower()
         ]
-        assert len(spawn_warnings) > 0, (
-            "A spawn failure must be logged at WARNING level or above. "
-            "Today (pre-6.2): no spawn, so no such warning exists."
-        )
+        assert len(spawn_warnings) > 0, "A spawn failure must be logged at WARNING level or above."
 
     def test_priming_is_idempotent(self, client: TestClient, tmp_path: Path) -> None:
         """A concurrent prime on the same follow must not double-spawn.
@@ -288,9 +324,11 @@ class TestCreateFollowPriming:
         (pipeline_run kind='maintenance' command='prime' ended_at IS NULL),
         the handler must NOT insert a second run — the only allowed refusal
         is the duplicate of the same action.
-        """
-        now = time.time()
 
+        The in-flight run is the one the first POST left open: its runner is
+        stubbed to this (live) pid and never finalizes the row, which is
+        exactly the state a real priming runner holds while it works.
+        """
         # Step 1: Create a follow.
         resp = client.post(
             "/api/acquisition/followed",
@@ -308,23 +346,9 @@ class TestCreateFollowPriming:
         conn.commit()
         conn.close()
 
-        # Step 3: Insert a running prime run row (simulating an in-flight prime).
+        # Step 3: the priming run of step 1 is still in flight (open row).
         indexer_path = tmp_path / "library.db"
-        conn = sqlite3.connect(str(indexer_path))
-        apply_pragmas(conn)
-        conn.execute(
-            "INSERT INTO pipeline_run "
-            "(run_uid, trigger, dry_run, started_at, ended_at, pid, kind, command, options_json) "
-            "VALUES (?, 'web', 0, ?, NULL, ?, 'maintenance', 'prime', ?)",
-            (
-                "live-prime-idem",
-                now,
-                os.getpid(),
-                json.dumps({"followed_id": follow_id}),
-            ),
-        )
-        conn.commit()
-        conn.close()
+        assert _count_prime_runs(indexer_path, follow_id) == 1, "Step 1 must have left one open priming run"
 
         # Step 4: Reactivate — must NOT insert a second prime run.
         resp = client.post(

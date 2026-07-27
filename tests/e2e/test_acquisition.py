@@ -13,6 +13,7 @@ participate in the feature-map coverage system.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -208,6 +209,22 @@ def _assert_row_active(acquire_path: Path, row_id: int, expected_active: bool) -
 # ---------------------------------------------------------------------------
 # Client fixture
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _no_real_prime_spawn(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neutralize the create-follow priming spawn (acq-states phase 6).
+
+    ``POST /followed`` now enqueues an amorce run. Its spawn hook detaches
+    ``python -m personalscraper.web.acquisition.runner``, which loads the
+    OPERATOR's config — not the synthetic test one — and chains detect →
+    search → grab against the production DBs and the trackers. No test may
+    trigger that.
+    """
+    monkeypatch.setattr(
+        "personalscraper.web.routes.acquisition_triggers._spawn_prime_runner",
+        lambda run_uid, followed_id: os.getpid(),
+    )
 
 
 @pytest.fixture

@@ -16,7 +16,7 @@ import sys
 import uuid
 from contextlib import closing
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -24,11 +24,17 @@ from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
+from personalscraper.web.acquisition.runner import prime_options_json
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import GrabTriggerResponse
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 logger = get_logger(__name__)
+
+#: What :func:`enqueue_prime_run` did — the seam the card status reads: a
+#: priming run in flight (spawned / already running) is « vérification en
+#: cours », a failed enqueue leaves the card on its derived (honest) state.
+PrimeOutcome = Literal["spawned", "already_running", "failed"]
 
 
 # ── POST /api/acquisition/followed/{id}/search — per-series manual grab (OBJ3) ──
@@ -47,24 +53,28 @@ def _grab_options_json(followed_id: int) -> str:
     return json.dumps({"followed_id": followed_id}, sort_keys=True, separators=(",", ":"))
 
 
-def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "grab") -> None:
-    """Raise 409 when a live acquisition run with the same scope is in flight.
+def _has_live_run(db_path: Path, command: str, options_json: str) -> bool:
+    """Report whether an acquisition run with the same scope is still in flight.
 
     Scans ``pipeline_run`` for an un-ended row of the given *command* whose
     ``options_json`` matches (same followed series / same detect scope) and
     whose pid is still alive. A dead/NULL pid is a stale row (crashed runner)
-    and is ignored.
+    and is ignored. Single authority for « is this action already running? » —
+    both the 409 guard and the amorce idempotence read it.
 
     Args:
         db_path: Absolute path to ``library.db``.
+        command: The run command to match (``'grab'`` / ``'follow-detect'`` /
+            ``'prime'``).
         options_json: The canonical options string for the run scope.
-        command: The run command to match (``'grab'`` / ``'follow-detect'``).
 
-    Raises:
-        HTTPException: 409 when a live matching run is already running.
+    Returns:
+        ``True`` when a live matching run exists, ``False`` otherwise (also on
+        a missing DB or an unreadable ``pipeline_run`` — the guard fails open
+        rather than blocking a legitimate action).
     """
     if not db_path.exists():
-        return
+        return False
     try:
         with closing(sqlite3.connect(str(db_path))) as conn:
             apply_pragmas(conn)
@@ -74,18 +84,34 @@ def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "gra
                 (command, options_json),
             ).fetchall()
     except sqlite3.Error:
-        logger.warning("grab_guard_query_failed", exc_info=True)
-        return
+        logger.warning("grab_guard_query_failed", command=command, exc_info=True)
+        return False
     for row in rows:
         pid = row["pid"]
         if pid is None:
-            continue
+            continue  # never claimed → stale row
         try:
             os.kill(int(pid), 0)
         except ProcessLookupError:
             continue  # dead pid → stale row
         except PermissionError:
             pass  # alive, owned by another user
+        return True
+    return False
+
+
+def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "grab") -> None:
+    """Raise 409 when a live acquisition run with the same scope is in flight.
+
+    Args:
+        db_path: Absolute path to ``library.db``.
+        options_json: The canonical options string for the run scope.
+        command: The run command to match (``'grab'`` / ``'follow-detect'``).
+
+    Raises:
+        HTTPException: 409 when a live matching run is already running.
+    """
+    if _has_live_run(db_path, command, options_json):
         raise HTTPException(status_code=409, detail="A matching acquisition run is already in flight")
 
 
@@ -111,6 +137,90 @@ def _spawn_grab_runner(run_uid: str, followed_id: int) -> int:
         env=env,
     )
     return proc.pid
+
+
+def _spawn_prime_runner(run_uid: str, followed_id: int) -> int:
+    """Spawn the priming runner as a detached subprocess.
+
+    Mirrors :func:`_spawn_grab_runner` — same runner, same env contract, the
+    ``prime`` command only chaining three CLI steps instead of one.
+
+    Args:
+        run_uid: The reserved run's unique identifier.
+        followed_id: The followed series to prime.
+
+    Returns:
+        The pid of the spawned runner process.
+    """
+    env = {
+        **os.environ,
+        "PERSONALSCRAPER_RUN_UID": run_uid,
+        "PERSONALSCRAPER_ACQ_COMMAND": "prime",
+        "PERSONALSCRAPER_GRAB_FOLLOWED_ID": str(followed_id),
+    }
+    logger.info("prime_trigger_spawned", run_uid=run_uid, followed_id=followed_id)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+        start_new_session=True,
+        env=env,
+    )
+    return proc.pid
+
+
+def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
+    """Enqueue the amorce of a freshly followed (or reactivated) series.
+
+    Reserves a ``pipeline_run`` row (``kind='maintenance'``, ``command='prime'``)
+    through the SAME run authority as the manual grab/detect triggers — never a
+    parallel mechanism (NE-DOIT-PAS-7) — then spawns the runner. The run is
+    fire-and-forget from the request's viewpoint: every failure is logged and
+    swallowed so the follow is still created (the card then simply reads
+    ``non_verifie``, never an optimistic « À jour »).
+
+    Idempotence: a prime already in flight for this follow is NOT duplicated —
+    §6 allows exactly one refusal, the duplicate of the same action.
+
+    Args:
+        db_path: Absolute path to ``library.db`` (``None`` when the indexer is
+            not configured — the amorce is then impossible and reported failed).
+        followed_id: Rowid of the ``followed_series`` row to prime.
+
+    Returns:
+        ``'spawned'`` when a new priming run started, ``'already_running'``
+        when one was already in flight, ``'failed'`` when nothing runs.
+    """
+    if db_path is None:
+        logger.warning("prime_enqueue_no_db_path", followed_id=followed_id)
+        return "failed"
+
+    options_json = prime_options_json(followed_id)
+    if _has_live_run(db_path, "prime", options_json):
+        logger.info("prime_already_running", followed_id=followed_id)
+        return "already_running"
+
+    run_uid = uuid.uuid4().hex
+    writer = PipelineRunWriter(db_path)
+    writer.insert(
+        run_uid,
+        trigger="web",
+        dry_run=False,
+        pid=os.getpid(),
+        kind="maintenance",
+        command="prime",
+        options_json=options_json,
+        if_absent=True,
+    )
+    try:
+        pid = _spawn_prime_runner(run_uid, followed_id)
+    except Exception as exc:  # noqa: BLE001 — the 201 must never depend on the amorce
+        # Finalize the reserved row: a failed amorce is a visible error run,
+        # never a row stuck at 'running' and never a silent nothing.
+        writer.finalize(run_uid, "error", error=f"Runner spawn failed: {exc}")
+        logger.warning("prime_spawn_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
+        return "failed"
+
+    writer.update_pid(run_uid, pid)
+    return "spawned"
 
 
 @router.post(
