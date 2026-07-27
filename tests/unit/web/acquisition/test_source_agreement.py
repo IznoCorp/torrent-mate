@@ -79,10 +79,31 @@ def _cached_row(season: int, episode: int) -> Mock:
     return row
 
 
-def _store_with_cache(rows: list[Mock]) -> MagicMock:
-    """Build a store whose ``aired.list_for_followed`` returns *rows* (the cached path)."""
+def _wanted_row(
+    season: int,
+    episode: int,
+    status: str,
+    *,
+    row_id: int,
+    last_search_outcome: str | None = None,
+    last_search_found: int | None = None,
+) -> Mock:
+    """Return a mock ``wanted`` row as the bulk read yields it."""
+    row = Mock()
+    row.id = row_id
+    row.season = season
+    row.episode = episode
+    row.status = status
+    row.last_search_outcome = last_search_outcome
+    row.last_search_found = last_search_found
+    return row
+
+
+def _store_with_cache(rows: list[Mock], wanted: list[Mock] | None = None) -> MagicMock:
+    """Build a store serving *rows* as the cached catalog and *wanted* as the queue."""
     store = MagicMock()
     store.aired.list_for_followed.return_value = list(rows)
+    store.wanted.list_for_followed.return_value = list(wanted or [])
     return store
 
 
@@ -121,7 +142,7 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     # Store with EMPTY cache: no detect pass has run yet.
     store = MagicMock()
     store.aired.list_for_followed.return_value = []
-    store.wanted.find.return_value = None
+    store.wanted.list_for_followed.return_value = []
 
     ownership = MagicMock()
     ownership.owns.return_value = False
@@ -204,18 +225,23 @@ def test_card_and_completeness_agree_on_cached_facts(
     """
     followed = _follow()
 
-    # One cached row for the parametrised episode.
-    store = _store_with_cache([_cached_row(season, episode)])
-
-    # Wanted lookup: the store returns a row carrying the parametrised facts.
-    if wanted_status is not None:
-        wanted_row = Mock()
-        wanted_row.status = wanted_status
-        wanted_row.last_search_outcome = last_search_outcome
-        wanted_row.last_search_found = last_search_found
-        store.wanted.find.return_value = wanted_row
-    else:
-        store.wanted.find.return_value = None
+    # One cached row for the parametrised episode, plus the queue row carrying
+    # the parametrised facts (no row at all when the case has no status).
+    queue = (
+        []
+        if wanted_status is None
+        else [
+            _wanted_row(
+                season,
+                episode,
+                wanted_status,
+                row_id=1,
+                last_search_outcome=last_search_outcome,
+                last_search_found=last_search_found,
+            )
+        ]
+    )
+    store = _store_with_cache([_cached_row(season, episode)], queue)
 
     ownership = MagicMock()
     ownership.owns.return_value = owned
@@ -253,6 +279,70 @@ def test_card_and_completeness_agree_on_cached_facts(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Test 2b — WHICH row governs: the two surfaces must select the same one
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("closed_status", ["done", "abandoned"])
+def test_a_closed_row_alone_reads_non_verifie_on_both_surfaces(closed_status: str) -> None:
+    """A ``done`` / ``abandoned`` row is history — it must not answer for its episode.
+
+    Agreeing on the derivation is not enough: the two surfaces must also read
+    the SAME row. The card's ``compute_follow_truth`` only ever considered OPEN
+    rows, so an episode whose sole row is closed derives from « no row » facts
+    and reads ``non_verifie``. The panel used ``store.wanted.find``, which
+    returns the first row of ANY status — so it read the closed row's concluded
+    verdict and could answer ``en_attente`` (or ``a_recuperer``) where the card
+    said ``non_verifie``. Both now go through ``select_wanted_facts``.
+    """
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    # The closed row carries a concluded verdict — precisely what must NOT leak.
+    store = _store_with_cache(
+        [_cached_row(1, 1)],
+        [_wanted_row(1, 1, closed_status, row_id=10, last_search_outcome="no_candidates", last_search_found=0)],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    card_state = derive_episode_state(owned=False, wanted_status=None, last_search_outcome=None, last_search_found=None)
+    assert card_state == "non_verifie"
+    assert result.seasons[0].episodes[0].state == card_state, (
+        f"A lone {closed_status} row must not speak for its episode: the card reads "
+        f"{card_state!r} from « no open row », so the panel must too."
+    )
+
+
+def test_duplicate_rows_resolve_to_the_latest_open_one_on_both_surfaces() -> None:
+    """One abandoned leftover + one available row → ``a_recuperer`` on both surfaces.
+
+    A re-follow leaves the closed row behind with a LOWER id. ``find`` returned
+    that one (first by id, any status); the card took the latest OPEN one. Same
+    episode, same instant, opposite answers — the exact divergence shape this
+    phase exists to remove.
+    """
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store_with_cache(
+        [_cached_row(1, 1)],
+        [
+            _wanted_row(1, 1, "abandoned", row_id=10, last_search_outcome="no_candidates", last_search_found=0),
+            _wanted_row(1, 1, "available", row_id=11, last_search_outcome="available", last_search_found=2),
+        ],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    card_state = derive_episode_state(
+        owned=False, wanted_status="available", last_search_outcome="available", last_search_found=2
+    )
+    assert card_state == "a_recuperer"
+    assert result.seasons[0].episodes[0].state == card_state
+    # And it counts as « en mouvement » in the season aggregate.
+    assert result.seasons[0].queued == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Test 3 — no provider call from any web-read path
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -270,18 +360,18 @@ def test_completeness_never_calls_a_provider() -> None:
     with patch(_POLL_AIRED) as poll_mock:
         # ── Cached show ──
         store_cached = _store_with_cache([_cached_row(1, 1)])
-        store_cached.wanted.find.return_value = None
+        store_cached.wanted.list_for_followed.return_value = []
         compute_completeness(_follow(), ownership=ownership, store=store_cached)
 
         # ── Movie ──
         store_movie = MagicMock()
-        store_movie.wanted.find.return_value = None
+        store_movie.wanted.list_for_followed.return_value = []
         compute_completeness(_follow(kind="movie"), ownership=ownership, store=store_movie)
 
         # ── Uncached show: the case that polled live before 5.2 ──
         store_uncached = MagicMock()
         store_uncached.aired.list_for_followed.return_value = []
-        store_uncached.wanted.find.return_value = None
+        store_uncached.wanted.list_for_followed.return_value = []
         compute_completeness(_follow(), ownership=ownership, store=store_uncached)
 
     # Catches a LAZY re-import (a call resolved through the patched module).
@@ -323,7 +413,7 @@ def test_provider_catalog_empty_stays_distinct() -> None:
     followed = _follow()
     store = MagicMock()
     store.aired.list_for_followed.return_value = []
-    store.wanted.find.return_value = None
+    store.wanted.list_for_followed.return_value = []
     ownership = MagicMock()
     ownership.owns.return_value = False
 

@@ -151,6 +151,14 @@ class WantedSubStore(Protocol):
         """Return ``wanted`` rows stuck in 'searching' older than the threshold."""
         ...
 
+    def list_for_followed(self, followed_id: int, *, kind: WantedKind) -> list[WantedItem]:
+        """Return EVERY ``wanted`` row of one follow (any status), ordered by id.
+
+        Closed rows are included on purpose: the « which row governs » rule
+        belongs to the shared selector, not to each caller's WHERE clause.
+        """
+        ...
+
     def find(
         self,
         *,

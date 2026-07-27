@@ -17,6 +17,8 @@ import ast
 
 import pytest
 
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
+from personalscraper.web.acquisition.states import NO_WANTED_FACTS, select_wanted_facts
 from personalscraper.web.models.acquisition import FollowedSeriesItem, MediaRefResponse
 
 # ── 1. The founding incident ──────────────────────────────────────────────
@@ -64,13 +66,12 @@ def test_empty_catalog_is_never_up_to_date() -> None:
 
 def _import_future_api():
     """Import the future states module (will fail until 4.2 delivers it)."""
+    from personalscraper.acquire.orchestrator import (  # noqa: F811
+        INCONCLUSIVE_OUTCOMES,
+    )
     from personalscraper.web.acquisition.states import (  # noqa: F811
         EpisodeState,
         derive_episode_state,
-    )
-
-    from personalscraper.acquire.orchestrator import (  # noqa: F811
-        INCONCLUSIVE_OUTCOMES,
     )
 
     return EpisodeState, derive_episode_state, INCONCLUSIVE_OUTCOMES
@@ -282,6 +283,56 @@ def test_aggregation_non_verifie_wins_over_a_jour() -> None:
         non_verifie_count=2,  # type: ignore[call-arg]
     )
     assert item.status == "non_verifie"
+
+
+# ── 3b. Which row governs (select_wanted_facts) ───────────────────────────
+
+
+def test_no_rows_at_all_yields_the_never_searched_facts() -> None:
+    """No row is no knowledge — the derivation must not be handed a verdict."""
+    assert select_wanted_facts(()) == NO_WANTED_FACTS
+
+
+@pytest.mark.parametrize("closed_status", ["done", "abandoned"])
+def test_a_closed_row_never_governs(closed_status: str) -> None:
+    """A closed row is history: its concluded verdict must not answer for the unit.
+
+    Letting it speak is what made the completeness panel read ``en_attente``
+    where the card read ``non_verifie`` for the same episode (acq-states §5.2).
+    """
+    rows = [(10, closed_status, "no_candidates", 0)]
+    assert select_wanted_facts(rows) == NO_WANTED_FACTS
+
+
+@pytest.mark.parametrize("open_status", ["pending", "searching", "available", "grabbed"])
+def test_every_open_status_governs(open_status: str) -> None:
+    """The four in-flight statuses all speak for their unit."""
+    assert select_wanted_facts([(1, open_status, "available", 2)]) == (open_status, "available", 2)
+
+
+def test_the_latest_open_row_wins_over_an_older_open_one() -> None:
+    """A leftover open row from a previous pass must not outrank the current intent."""
+    rows = [(10, "pending", "no_candidates", 0), (11, "grabbed", None, None)]
+    assert select_wanted_facts(rows) == ("grabbed", None, None)
+
+
+def test_the_latest_open_row_wins_regardless_of_input_order() -> None:
+    """Selection is by id, not by the order the caller happens to yield rows in."""
+    rows = [(11, "grabbed", None, None), (10, "pending", "no_candidates", 0)]
+    assert select_wanted_facts(rows) == ("grabbed", None, None)
+
+
+def test_a_closed_row_with_a_higher_id_does_not_shadow_an_open_one() -> None:
+    """Closing a row must not silence the open row that replaced it."""
+    rows = [(10, "available", "available", 2), (11, "abandoned", "no_candidates", 0)]
+    assert select_wanted_facts(rows) == ("available", "available", 2)
+
+
+def test_open_statuses_come_from_the_domain_definition() -> None:
+    """The « open » vocabulary has ONE definition — readers must not re-invent it."""
+    assert OPEN_WANTED_STATUSES == frozenset({"pending", "searching", "available", "grabbed"})
+    assert "done" not in OPEN_WANTED_STATUSES
+    assert "abandoned" not in OPEN_WANTED_STATUSES
 
 
 # ── 4. Module purity ──────────────────────────────────────────────────────

@@ -26,8 +26,9 @@ import sqlite3
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
 from personalscraper.logger import get_logger
-from personalscraper.web.acquisition.states import EpisodeState, derive_episode_state
+from personalscraper.web.acquisition.states import EpisodeState, derive_episode_state, select_wanted_facts
 from personalscraper.web.models.acquisition import MovieFacts
 
 if TYPE_CHECKING:
@@ -35,13 +36,6 @@ if TYPE_CHECKING:
     from personalscraper.indexer.ownership import IndexerOwnershipChecker
 
 logger = get_logger(__name__)
-
-#: Facts of one episode's wanted row: (status, last_search_outcome, last_search_found).
-_WantedFacts = tuple[str | None, str | None, int | None]
-
-#: The facts of an episode with no open wanted row — no status, no verdict, so
-#: the derivation reads it as « never searched ».
-_NO_WANTED_ROW: _WantedFacts = (None, None, None)
 
 
 @dataclass(frozen=True)
@@ -82,10 +76,13 @@ def compute_follow_truth(
     its own facts — ownership, its open ``wanted`` row (if any) and that row's
     last search verdict — and the result is tallied. No state is inferred here.
 
-    Only OPEN wanted rows (``pending`` / ``searching`` / ``available`` /
-    ``grabbed``) are read: a ``done`` or ``abandoned`` row is not an ongoing
-    acquisition, so its episode derives from « no row » facts (``non_verifie``
-    when the library does not hold it) rather than from a closed verdict.
+    Which row supplies those facts is NOT decided here: every row of the follow
+    is handed to
+    :func:`~personalscraper.web.acquisition.states.select_wanted_facts`, the
+    same selector the completeness panel calls (open rows only, latest wins).
+    A ``done`` or ``abandoned`` row is not an ongoing acquisition, so its
+    episode derives from « no row » facts (``non_verifie`` when the library does
+    not hold it) rather than from a closed verdict.
 
     Args:
         acquire_conn: Open (read) connection to ``acquire.db``.
@@ -112,20 +109,21 @@ def compute_follow_truth(
 
     owned = checker.owned_pairs(media_ref)
 
-    # Facts of the open wanted rows, keyed by episode. Ordered by id so that a
-    # duplicate row for the same episode leaves the LATEST one in place.
-    wanted_facts: dict[tuple[int, int], _WantedFacts] = {}
+    # Every row of the follow, keyed by episode — closed ones included, because
+    # WHICH row governs is decided by the shared selector below, never by a
+    # WHERE clause private to this module (that private clause is exactly how
+    # the card and the completeness panel could pick different rows).
+    rows_by_episode: dict[tuple[int, int], list[tuple[int, str | None, str | None, int | None]]] = {}
     try:
         for r in acquire_conn.execute(
-            "SELECT season, episode, status, last_search_outcome, last_search_found FROM wanted "
+            "SELECT id, season, episode, status, last_search_outcome, last_search_found FROM wanted "
             "WHERE followed_id = ? AND kind = 'episode' "
             "AND season IS NOT NULL AND episode IS NOT NULL "
-            "AND status IN ('pending', 'searching', 'available', 'grabbed') "
             "ORDER BY id",
             (followed_id,),
         ).fetchall():
-            found = None if r[4] is None else int(r[4])
-            wanted_facts[(int(r[0]), int(r[1]))] = (r[2], r[3], found)
+            found = None if r[5] is None else int(r[5])
+            rows_by_episode.setdefault((int(r[1]), int(r[2])), []).append((int(r[0]), r[3], r[4], found))
     except sqlite3.Error as exc:
         logger.debug("acquisition_truth_wanted_read_failed", followed_id=followed_id, error=str(exc))
 
@@ -137,7 +135,7 @@ def compute_follow_truth(
         "non_verifie": 0,
     }
     for pair in aired:
-        status, outcome, found = wanted_facts.get(pair, _NO_WANTED_ROW)
+        status, outcome, found = select_wanted_facts(rows_by_episode.get(pair, ()))
         state = derive_episode_state(
             owned=pair in owned,
             wanted_status=status,
@@ -174,9 +172,12 @@ def compute_movie_truth(
     a film nobody ever searched reads ``non_verifie`` instead of « À jour ».
 
     Row selection: a film follow carries ONE wanted row, but a re-follow can
-    leave a closed row behind — so the OPEN row wins (``pending`` / ``searching``
-    / ``available`` / ``grabbed``), and only failing that the most recent row of
-    any status. No row at all yields the never-searched facts.
+    leave a closed row behind — so an OPEN row wins (the statuses of
+    :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`, the same set
+    the episode selector uses), and only failing that the most recent row of any
+    status. No row at all yields the never-searched facts. That last fallback is
+    the ONE place a closed row can still speak: a film has no episode matrix, so
+    no second surface can contradict its card here.
 
     Args:
         acquire_conn: Open (read) connection to ``acquire.db``.
@@ -189,13 +190,15 @@ def compute_movie_truth(
         by the film's card.
     """
     owned = checker.owns(media_ref, kind="movie")
+    open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+    placeholders = ", ".join("?" for _ in open_statuses)
     try:
         row = acquire_conn.execute(
             "SELECT status, last_search_outcome, last_search_found FROM wanted "
             "WHERE followed_id = ? AND kind = 'movie' "
-            "ORDER BY (status IN ('pending', 'searching', 'available', 'grabbed')) DESC, id DESC "
+            f"ORDER BY (status IN ({placeholders})) DESC, id DESC "
             "LIMIT 1",
-            (followed_id,),
+            (followed_id, *open_statuses),
         ).fetchone()
     except sqlite3.Error as exc:
         logger.debug("acquisition_truth_movie_read_failed", followed_id=followed_id, error=str(exc))

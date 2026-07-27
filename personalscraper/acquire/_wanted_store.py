@@ -409,6 +409,37 @@ class _WantedSubStore:
         ).fetchall()
         return [_row_to_wanted(r) for r in rows]
 
+    def list_for_followed(self, followed_id: int, *, kind: WantedKind) -> list[WantedItem]:
+        """Return EVERY ``wanted`` row of one follow, any status, ordered by id.
+
+        Read-model support: a per-episode reader needs all the rows of a follow
+        in ONE query (rather than one lookup per episode) AND it needs the
+        closed rows too, because the « which row governs » rule is applied by
+        the caller — :func:`~personalscraper.web.acquisition.states.select_wanted_facts`
+        — not by a WHERE clause that each caller would have to re-invent.
+
+        Args:
+            followed_id: FK to the ``followed_series`` row.
+            kind: ``"movie"`` or ``"episode"`` — the row family to return.
+
+        Returns:
+            The matching rows ordered by id ascending (oldest first, so the
+            governing row is the last one a caller sees).
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, followed_id, media_ref_json, kind, season, episode,
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   grabbed_hash, last_search_outcome, last_search_found
+            FROM wanted
+            WHERE followed_id IS ? AND kind = ?
+            ORDER BY id
+            """,
+            (followed_id, kind),
+        ).fetchall()
+        return [_row_to_wanted(r) for r in rows]
+
     def find(
         self,
         *,

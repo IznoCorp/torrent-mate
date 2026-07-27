@@ -21,6 +21,13 @@ WantedKind = Literal["movie", "episode"]
 WantedStatus = Literal["pending", "searching", "available", "grabbed", "done", "abandoned"]
 FollowKind = Literal["movie", "show"]
 
+#: The ``wanted`` statuses that describe an acquisition still in flight — the
+#: ONE definition of « open », so no reader can invent its own. ``done`` and
+#: ``abandoned`` are deliberately absent: a closed row is history, not state,
+#: and letting one speak for its episode is how two surfaces start disagreeing
+#: about the same episode (acq-states phase 5).
+OPEN_WANTED_STATUSES: frozenset[str] = frozenset({"pending", "searching", "available", "grabbed"})
+
 
 @dataclass(frozen=True)
 class FollowedSeries:
@@ -244,6 +251,7 @@ class AiredEpisodeRow:
 
 
 __all__ = [
+    "OPEN_WANTED_STATUSES",
     "AiredEpisode",
     "AiredEpisodeRow",
     "FollowedSeries",

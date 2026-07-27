@@ -31,9 +31,20 @@ copied here.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Literal
 
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
 from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
+
+#: The three ``wanted`` facts :func:`derive_episode_state` consumes:
+#: ``(status, last_search_outcome, last_search_found)``.
+WantedFacts = tuple[str | None, str | None, int | None]
+
+#: The facts of a unit with NO open ``wanted`` row: no status, no verdict, so
+#: the derivation reads it as « never searched » (``non_verifie`` unless the
+#: library holds the file).
+NO_WANTED_FACTS: WantedFacts = (None, None, None)
 
 #: State of ONE aired episode (or of the single unit a followed film is).
 EpisodeState = Literal["en_mediatheque", "a_recuperer", "en_acquisition", "en_attente", "non_verifie"]
@@ -63,6 +74,45 @@ _EPISODE_TO_FOLLOW_STATUS: dict[EpisodeState, FollowStatus] = {
     "en_attente": "en_attente",
     "non_verifie": "non_verifie",
 }
+
+
+def select_wanted_facts(rows: Iterable[tuple[int, str | None, str | None, int | None]]) -> WantedFacts:
+    """Select the ``wanted`` facts that govern ONE unit, out of all its rows.
+
+    Which row speaks is as much a part of the truth as the derivation itself:
+    two surfaces reading the SAME rows but picking DIFFERENT ones disagree just
+    as loudly as two different derivations would. So the rule lives here, beside
+    :func:`derive_episode_state`, and every surface calls it:
+
+    1. Only OPEN rows speak — see
+       :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`. A ``done``
+       or ``abandoned`` row is HISTORY, not state: it describes an acquisition
+       that ended, so letting its stale verdict answer for the episode would
+       claim knowledge the queue no longer holds.
+    2. Among the open rows, the HIGHEST id wins — a re-follow or a crash between
+       two passes can leave an older open row behind, and the latest one is the
+       current intent.
+    3. No open row at all → :data:`NO_WANTED_FACTS`, which reads as « never
+       searched » (``non_verifie`` unless the library holds the file).
+
+    Args:
+        rows: ``(id, status, last_search_outcome, last_search_found)`` tuples of
+            every ``wanted`` row of one unit — any order, any status.
+
+    Returns:
+        The governing :data:`WantedFacts`.
+    """
+    governing_id = -1
+    facts = NO_WANTED_FACTS
+    for row_id, status, outcome, found in rows:
+        if status not in OPEN_WANTED_STATUSES:
+            continue
+        # ``>=`` so that, at equal ids, the last row seen wins — matching a
+        # caller that already reads its rows in id order.
+        if row_id >= governing_id:
+            governing_id = row_id
+            facts = (status, outcome, found)
+    return facts
 
 
 def derive_episode_state(
@@ -226,9 +276,12 @@ def derive_movie_status(
 
 
 __all__ = [
+    "NO_WANTED_FACTS",
     "EpisodeState",
     "FollowStatus",
+    "WantedFacts",
     "derive_episode_state",
     "derive_follow_status",
     "derive_movie_status",
+    "select_wanted_facts",
 ]

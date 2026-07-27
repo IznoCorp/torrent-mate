@@ -45,6 +45,7 @@ def _wanted(
     episode: int,
     status: str,
     *,
+    row_id: int | None = None,
     last_search_outcome: str | None = None,
     last_search_found: int | None = None,
 ) -> WantedItem:
@@ -57,18 +58,17 @@ def _wanted(
         followed_id=5,
         season=season,
         episode=episode,
-        id=100 + episode,
+        id=row_id if row_id is not None else 100 + episode,
         last_search_outcome=last_search_outcome,
         last_search_found=last_search_found,
     )
 
 
-def _store(rows: list[AiredEpisodeRow], wanted_by_ep: dict[int, WantedItem] | None = None) -> MagicMock:
-    """Build a store serving *rows* as the cached catalog and *wanted_by_ep* as the queue."""
+def _store(rows: list[AiredEpisodeRow], wanted: list[WantedItem] | None = None) -> MagicMock:
+    """Build a store serving *rows* as the cached catalog and *wanted* as the queue."""
     store = MagicMock()
     store.aired.list_for_followed.return_value = list(rows)
-    by_ep = wanted_by_ep or {}
-    store.wanted.find.side_effect = lambda *, followed_id, kind, season, episode: by_ep.get(episode)
+    store.wanted.list_for_followed.return_value = list(wanted or [])
     return store
 
 
@@ -79,16 +79,16 @@ def test_states_matrix_over_the_five_states() -> None:
     ownership.owns.side_effect = lambda ref, *, kind, season, episode: episode == 1
     store = _store(
         [_cached(1, 1), _cached(1, 2), _cached(1, 3), _cached(1, 4), _cached(1, 5)],
-        {
+        [
             # Taken by the pipeline.
-            2: _wanted(1, 2, "grabbed", last_search_outcome="available", last_search_found=1),
+            _wanted(1, 2, "grabbed", last_search_outcome="available", last_search_found=1),
             # A takeable candidate is known but not claimed yet.
-            3: _wanted(1, 3, "available", last_search_outcome="available", last_search_found=2),
+            _wanted(1, 3, "available", last_search_outcome="available", last_search_found=2),
             # Searched, concluded, nothing takeable.
-            4: _wanted(1, 4, "pending", last_search_outcome="no_candidates", last_search_found=0),
+            _wanted(1, 4, "pending", last_search_outcome="no_candidates", last_search_found=0),
             # Enqueued but never searched — we know nothing.
-            5: _wanted(1, 5, "pending"),
-        },
+            _wanted(1, 5, "pending"),
+        ],
     )
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
@@ -113,7 +113,7 @@ def test_ownership_beats_a_stale_grabbed_row() -> None:
     """A grabbed row on an owned episode is a phantom (the Silo bug), not an acquisition."""
     ownership = MagicMock()
     ownership.owns.return_value = True
-    store = _store([_cached(1, 1)], {1: _wanted(1, 1, "grabbed", last_search_outcome="available", last_search_found=1)})
+    store = _store([_cached(1, 1)], [_wanted(1, 1, "grabbed", last_search_outcome="available", last_search_found=1)])
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
@@ -125,13 +125,56 @@ def test_an_inconclusive_search_reads_non_verifie() -> None:
     """Panne ≠ absence: a tracker outage must never read « rien à prendre »."""
     ownership = MagicMock()
     ownership.owns.return_value = False
-    store = _store([_cached(1, 1)], {1: _wanted(1, 1, "pending", last_search_outcome="trackers_unavailable")})
+    store = _store([_cached(1, 1)], [_wanted(1, 1, "pending", last_search_outcome="trackers_unavailable")])
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
     assert [e.state for e in result.seasons[0].episodes] == ["non_verifie"]
     # « Non vérifié » is not « en mouvement » — it must not inflate the queued count.
     assert result.seasons[0].queued == 0
+
+
+def test_a_closed_row_never_speaks_for_its_episode() -> None:
+    """A ``done`` row's concluded verdict is history — the episode reads « never searched »."""
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store(
+        [_cached(1, 1)],
+        [_wanted(1, 1, "done", last_search_outcome="no_candidates", last_search_found=0)],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    assert [e.state for e in result.seasons[0].episodes] == ["non_verifie"]
+
+
+def test_the_latest_open_row_governs_over_an_older_leftover() -> None:
+    """Two open rows for one episode: the highest id is the current intent."""
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store(
+        [_cached(1, 1)],
+        [
+            _wanted(1, 1, "pending", row_id=10, last_search_outcome="no_candidates", last_search_found=0),
+            _wanted(1, 1, "grabbed", row_id=11),
+        ],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    assert [e.state for e in result.seasons[0].episodes] == ["en_acquisition"]
+
+
+def test_rows_of_another_episode_never_leak() -> None:
+    """The bulk read is indexed per (season, episode) — no cross-episode contamination."""
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store([_cached(1, 1), _cached(1, 2)], [_wanted(1, 2, "grabbed")])
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    states = {e.episode: e.state for e in result.seasons[0].episodes}
+    assert states == {1: "non_verifie", 2: "en_acquisition"}
 
 
 def test_an_uncached_follow_is_honest_ignorance() -> None:
@@ -217,7 +260,7 @@ def test_an_unreadable_wanted_row_degrades_to_never_searched() -> None:
     ownership.owns.return_value = False
     store = MagicMock()
     store.aired.list_for_followed.return_value = [_cached(1, 1)]
-    store.wanted.find.side_effect = RuntimeError("database is locked")
+    store.wanted.list_for_followed.side_effect = RuntimeError("database is locked")
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
