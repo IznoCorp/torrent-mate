@@ -298,11 +298,20 @@ class _WantedSubStore:
 
         The §5 closure the lifecycle was missing: ``done`` existed in the status
         CHECK but had zero writers, so every grabbed row froze at ``grabbed`` and
-        a followed FILM could never be auto-removed once acquired. Called from
-        the acquisition subscriber when a dispatched torrent's hash is
-        correlated, this flips every OPEN row carrying *info_hash* to ``done``
-        and returns the closed rows so the caller can unfollow acquired movies
-        and emit the visible trace.
+        a followed FILM could never be auto-removed once acquired. This flips
+        every OPEN row carrying *info_hash* to ``done`` and returns the closed
+        rows so the caller can unfollow acquired movies and emit the visible
+        trace.
+
+        Caller status (stated plainly — the previous docstring claimed a
+        dispatch-time correlation that does not exist): nothing in the package
+        calls this today. The closure that actually runs is
+        :func:`~personalscraper.acquire.reconcile.reconcile_wanted`, which works
+        from library OWNERSHIP (:meth:`mark_done`) because a name+size
+        correlation can never match a renamed or aggregated TV-show folder. This
+        method is the by-hash counterpart, kept correct and tested for the
+        callers that will use it — it is not dead-code-by-accident, and the
+        distinction matters when reading a frozen row's history.
 
         The status filter is derived from
         :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` — the SINGLE
@@ -312,7 +321,16 @@ class _WantedSubStore:
         crash window between ``mark_grabbed`` and the next status write) and
         ``available`` (a row force-reset while retaining ``grabbed_hash``).
         Omitting them left rows the pipeline had already dispatched frozen
-        forever — nothing else closes them.
+        forever.
+
+        The SELECT runs INSIDE the write transaction, before the UPDATE. Outside
+        it, the read is unserialised: a concurrent writer could add, close or
+        re-status a matching row in the gap, and the returned list would then
+        describe a state that never existed — the caller would unfollow a film
+        on the strength of a row somebody else had already closed, or miss one
+        this call actually transitioned. ``BEGIN IMMEDIATE`` takes the writer
+        lock for both statements, so the returned rows are exactly the rows the
+        UPDATE touched.
 
         Args:
             info_hash: The dispatched torrent's info-hash (case-insensitive —
@@ -326,24 +344,23 @@ class _WantedSubStore:
         open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
         placeholders = ", ".join("?" for _ in open_statuses)
         self._conn.row_factory = sqlite3.Row
-        rows = self._conn.execute(
-            f"""
-            SELECT id, followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found
-            FROM wanted
-            WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)
-            """,  # noqa: S608 — placeholders are generated from an internal frozenset
-            (*open_statuses, info_hash),
-        ).fetchall()
-        if not rows:
-            return []
         with self._write_tx(self._conn):
-            self._conn.execute(
-                f"UPDATE wanted SET status = 'done' "  # noqa: S608 — same internal placeholders
-                f"WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)",
+            rows = self._conn.execute(
+                f"""
+                SELECT id, followed_id, media_ref_json, kind, season, episode,
+                       status, criteria_json, enqueued_at, last_search_at, attempts,
+                       grabbed_hash, last_search_outcome, last_search_found
+                FROM wanted
+                WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)
+                """,  # noqa: S608 — placeholders are generated from an internal frozenset
                 (*open_statuses, info_hash),
-            )
+            ).fetchall()
+            if rows:
+                self._conn.execute(
+                    f"UPDATE wanted SET status = 'done' "  # noqa: S608 — same internal placeholders
+                    f"WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)",
+                    (*open_statuses, info_hash),
+                )
         return [_row_to_wanted(r) for r in rows]
 
     def mark_done(self, wanted_id: int) -> bool:

@@ -135,6 +135,27 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
     and the follow keeps whatever the client sent — the 201 is never at risk
     (plan §7 « Fail-soft, jamais bloquant »).
 
+    KNOWN UNBOUNDED WORST CASE (PR #320 review, M6 — OPEN, not fixed here).
+    These provider calls are SYNCHRONOUS inside the request. The enrichment
+    makes at most two lookups (primary provider, then the fallback), but each
+    one runs the shared transport retry loop: ``max_attempts=4`` over a 10 s
+    (TMDB) / 15 s (TVDB) per-request timeout, plus exponential-jitter backoff.
+    Against a host that accepts the TCP connection and never answers, one
+    lookup can therefore burn ~60-75 s and a two-source enrichment ~2 minutes,
+    with the worker thread held for the whole time. The circuit breaker only
+    helps from the SECOND affected request onwards — it cannot shorten the one
+    that trips it.
+
+    TODO(acq-states): bound this path to attempts=1. It is deliberately NOT
+    done here: the retry policy is baked into each provider's ``policy()`` and
+    reaches ``HttpTransport`` through ``ProviderRegistry`` →
+    ``build_providers``, with no per-call or per-registry override seam. The
+    only local workaround would be to mutate ``client._transport._policy``
+    (private state, frozen dataclass, on objects the registry owns) from this
+    route — and on TVDB merely READING ``_transport`` fires a bootstrap login.
+    The honest fix is an ``attempts`` override plumbed through the registry
+    factory, which is a provider-tree change, not a route change.
+
     Args:
         request: The incoming FastAPI request (carries config + settings).
         body: The create request, source of the client-supplied values.

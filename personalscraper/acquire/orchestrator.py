@@ -417,6 +417,24 @@ class GrabOrchestrator:
         ``search_api_error`` bucket, so this extraction leaves grab's
         behaviour and reason strings byte-identical.
 
+        REACHABILITY of that clause from the SEARCH stage (PR #320 review,
+        m15 — OPEN): defense-in-depth only, today.
+        :meth:`TrackerRegistry.search_candidates` swallows every per-tracker
+        exception — including :exc:`TrackerAuthError`, which is an
+        :exc:`ApiError` subclass — and reports the failure by NAME in
+        ``SearchOutcome.errored_names``, with no error type attached. So a
+        broken passkey on one tracker surfaces here as
+        ``trackers_unavailable`` (all trackers errored) or is simply absent
+        from the results (some succeeded), never as ``tracker_auth``. The
+        clause below still catches an auth failure raised OUTSIDE that
+        per-tracker loop, which is why it stays.
+
+        Surfacing it properly means teaching ``SearchOutcome`` to carry the
+        per-tracker error TYPE, not just the name — a reshape of a type shared
+        by the whole tracker layer, deliberately NOT attempted in a review fix.
+        ``SEARCH_OUTCOMES`` is unchanged: the taxonomy is right, only one of
+        its inputs cannot currently be observed.
+
         Args:
             item: The claimed ``WantedItem`` to search for.
             profile: The effective :class:`QualityProfile` for the hard-filter
@@ -504,6 +522,15 @@ class GrabOrchestrator:
         ``found`` is ``None`` on every path where the search did NOT conclude
         (panne ≠ absence): zero would claim « I looked, there is nothing »,
         which is false during an outage — the founding lie this feature removes.
+
+        One row of that table is currently UNREACHABLE from the search stage:
+        ``TrackerAuthError`` → ``tracker_auth``. The registry swallows
+        per-tracker exceptions and reports only tracker NAMES, so a broken
+        passkey arrives here as ``trackers_unavailable`` (or is silently absent
+        from the results). The mapping is kept — it is correct, and the clause
+        that feeds it still guards auth failures raised outside that loop — but
+        it must not be read as « a broken passkey abandons the item today ».
+        See :meth:`_search_chain` for what surfacing it would cost.
 
         Args:
             item: The wanted item to search for (read-only).
