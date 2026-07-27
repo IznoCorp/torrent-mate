@@ -23,6 +23,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.55.0] — 2026-07-27
+
+### Added
+
+- **Five veridical acquisition states** (`personalscraper/web/acquisition/states.py`):
+  one derivation, five episode states (`en_mediatheque`, `a_recuperer`,
+  `en_acquisition`, `en_attente`, `non_verifie`) and seven follow states
+  (adding `disabled`, `verification_en_cours`, `a_jour`). Every acquisition
+  surface — followed cards, the completeness matrix, episode chips — reads
+  its state from this single module.
+- **Search/grab split** (`personalscraper/acquire/service.py`):
+  `AcquisitionService.run_search` runs the search pass (search→filter→rank,
+  persists verdict; never touches the torrent client);
+  `AcquisitionService.run` runs the grab pass (takes `list_available()` only,
+  re-searches each item, adds the torrent). The split is what makes « À
+  récupérer » a visible state — before it, the operator could never see what
+  was available but not yet taken.
+- **`search` CLI command** (`personalscraper search`): runs the search pass
+  over `list_pending()`, states availability without downloading.
+- **Scheduled search + grab crons** (launchd): detect 03:00 → search 03:10 /
+  15:10 → grab 03:20 / 15:20 — three timed passes scoped by status so new
+  episodes are queued before the search pass lists them.
+- **Follow priming on creation**: `POST /api/acquisition/followed` spawns a
+  detached prime runner (`follow detect --series N` → `search --followed-id N`
+  → `grab --followed-id N`) so a freshly followed series is detected +
+  searched + grabbed immediately rather than waiting for the next cron tick.
+- **Server-side metadata enrichment** on `POST /api/acquisition/followed`:
+  when the client supplies no poster/overview/year, the server queries the
+  provider (TVDB/TMDB) and backfills the card columns. Fail-soft — a provider
+  outage never blocks the follow creation.
+- **« Récupérer maintenant » per-follow trigger** (`POST
+/api/acquisition/followed/{id}/grab`): spawns `grab --followed-id N` alone —
+  no catalog poll, no search, just claim what a previous search already marked
+  `available`.
+- **Coherence-guard extension**: `scripts/check-acquisition-coherence.py` now
+  checks all five states (`en_mediatheque` / `a_recuperer` /
+  `en_acquisition` / `en_attente` / `non_verifie`) against the library × the
+  wanted queue × the torrent client, exiting with the anomaly count.
+
+### Changed
+
+- **`grab` CLI now walks `list_available()` only** (post-split): the pending
+  backlog is invisible to the grab pass — it takes only items a previous
+  search already concluded takeable.
+- **No more attempts cap**: `MAX_ATTEMPTS` retired. `attempts` counts
+  cadence-paced searches; capping the grab pass on it would abandon a
+  known-available item after one flaky add. The 30-day cutoff bounds infinite
+  retries instead.
+- **`not_found` grab disposition** (no candidates / all filtered / wrong
+  episode): reverts honestly to `'pending'` with the new verdict recorded — the
+  torrent vanished between the two passes, so the row stays queued rather than
+  freezing on « À récupérer » or adding something else.
+- **RETRYABLE at grab keeps status `'available'`** with the verdict untouched:
+  the search pass's `available` conclusion still stands (the grab's own
+  re-search did not conclude), so status and verdict stay in sync.
+- **`panne ≠ absence`**: inconclusive search outcomes (`trackers_unavailable`,
+  `circuit_open`, `search_api_error`, `no_seeders`) persist `found=NULL`, never
+  `0`. The derivation reads them as `non_verifie` — reporting an outage as
+  « rien de prenable » would claim knowledge we do not have.
+- **Acquisition guardrail test**: `tests/unit/test_global_guard_cannot_spawn_real_acquisition_runners.py`
+  — a `conftest` autouse fixture neutralizes every `_spawn_prime_runner` /
+  `subprocess.Popen` call, so a test can never accidentally hit the production
+  DBs or the trackers.
+
+### Removed
+
+- **`VERSION` file**: version is now exclusively in `pyproject.toml` +
+  `personalscraper/__init__.py:__version__`. The CI `version-bump` job +
+  `GET /api/version` boot-cached contract made the file redundant.
+
 ## [0.19.0] — 2026-06-01
 
 ### Changed
