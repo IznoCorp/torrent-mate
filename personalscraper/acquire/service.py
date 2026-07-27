@@ -1,4 +1,16 @@
-"""Acquisition service — batch grab loop + atomic-claim state machine (RP5b, phase 4b).
+"""Acquisition service — search pass + batch grab loop + atomic-claim state machine.
+
+Two passes over the wanted queue (acq-states phase 2 splits what used to be one
+atomic operation — see :mod:`personalscraper.acquire.orchestrator`):
+
+- :meth:`AcquisitionService.run_search` — the SEARCH pass. Claims each item,
+  asks the orchestrator for a :class:`~personalscraper.acquire.orchestrator.SearchVerdict`
+  and persists it (status + ``last_search_outcome`` + ``last_search_found``).
+  It **never touches the torrent client**, and it carries the cadence gates:
+  cadence is what spaces the re-verification of an unavailable episode.
+  ``found`` is a count only where the search concluded — an outage persists
+  ``NULL``, never ``0`` (panne ≠ absence).
+- :meth:`AcquisitionService.run` — the GRAB pass, described below.
 
 :meth:`AcquisitionService.run` iterates ``list_pending`` + ``list_stale_searching``,
 claims each item via the atomic :meth:`WantedSubStore.claim_for_search`
@@ -903,4 +915,12 @@ def resolve_effective_profile(store: "AcquireStore", item: WantedItem) -> Qualit
     return effective_quality(series_profile, criteria)
 
 
-__all__ = ["MAX_ATTEMPTS", "AcquisitionService", "GrabCore", "RunSummary", "resolve_effective_profile"]
+__all__ = [
+    "MAX_ATTEMPTS",
+    "SEARCH_OUTCOME_STATUS",
+    "AcquisitionService",
+    "GrabCore",
+    "RunSummary",
+    "SearchRunSummary",
+    "resolve_effective_profile",
+]
