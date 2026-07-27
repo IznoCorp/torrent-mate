@@ -1,12 +1,12 @@
-"""Unit tests for create-follow server-side metadata enrichment (acq-states phase 7.1 — failing-first).
+"""Unit tests for create-follow server-side metadata enrichment (acq-states phase 7.1).
 
 Covers the four scenarios of the §7.1 contract, at the provider-registry boundary
 so the assertions pin *behaviour*, not a particular internal function signature.
 
-INTENTIONALLY FAILING — the server does not enrich metadata yet;
-``_write_follow_metadata`` early-returns when the client supplies nothing
-(poster_url=overview=year=None), and ``create_follow`` never queries a provider.
-Phases 7.2 / 7.3 will make these pass.
+Phase 7.2 / 7.3 implemented the enrichment: ``_write_follow_metadata`` queries the
+provider when the client supplies nothing (poster_url=overview=year=None), and
+``create_follow`` calls it on both the new-follow and reactivation branches. These
+tests were written failing-first and now verify the shipped behaviour.
 
 Reuses the spawn-neutralizing pattern from ``test_create_follow_priming.py``
 (the autouse fixture is MANDATORY — without it every POST detaches a real
@@ -307,9 +307,9 @@ class TestCreateFollowMetadata:
         follow_id: int = data["id"]
         assert follow_id > 0
 
-        # The DB row must carry server-fetched metadata.  FAILS TODAY:
-        # _write_follow_metadata early-returns on three Nones, so
-        # poster_url / overview / year stay NULL.
+        # The DB row must carry server-fetched metadata (previously failed:
+        # _write_follow_metadata early-returned on three Nones, so
+        # poster_url / overview / year stayed NULL — fixed in phase 7.2).
         row = _read_follow_row(tmp_path / "acquire.db", follow_id)
         assert row is not None
         assert row["poster_url"] == _PROVIDER_POSTER, (
@@ -363,14 +363,13 @@ class TestCreateFollowMetadata:
         assert row["overview"] is None, "Metadata must be NULL when provider fails"
         assert row["year"] is None, "Metadata must be NULL when provider fails"
 
-        # FAILS TODAY: no provider call happens → no warning is logged.
-        # The enrichment path doesn't exist yet, so nothing catches + logs
-        # the exception.
+        # The enrichment path was added in phase 7.2 and now catches + logs
+        # the exception — previously no provider call happened, so nothing
+        # was logged.
         warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
         assert len(warnings) > 0, (
             "A provider outage must be logged at WARNING level or above "
-            "(fail-soft: the follow succeeds, the failure is loud). "
-            "FAILS TODAY: no provider call → no warning logged."
+            "(fail-soft: the follow succeeds, the failure is loud)."
         )
 
     def test_client_supplied_candidate_wins_over_provider(
@@ -413,8 +412,8 @@ class TestCreateFollowMetadata:
         assert row["year"] == _CLIENT_YEAR, f"Client year must win; got {row['year']!r}"
 
         # The provider boundary MUST NOT be called — the client supplied the
-        # candidate.  PASSES today: create_follow does not call the provider
-        # at all.  Must still pass after 7.2 adds the enrichment path.
+        # candidate.  Phase 7.2 added the enrichment path, but it must still
+        # skip the provider when the client already supplied the metadata.
         assert mock_provider_boundary.call_count == 0, (
             "Provider boundary must NOT be called when the client supplies a candidate"
         )
@@ -473,8 +472,9 @@ class TestCreateFollowMetadata:
         assert resp.status_code == 201, resp.text
         assert resp.json()["id"] == follow_id, "Reactivated — must reuse the same row"
 
-        # FAILS TODAY: the reactivation branch calls _write_follow_metadata
-        # with the body (no poster_url/overview/year), which early-returns.
+        # Previously the reactivation branch called _write_follow_metadata
+        # with the body (no poster_url/overview/year), which early-returned
+        # — phase 7.3 added the provider query to the reactivation path.
         row = _read_follow_row(acquire_db, follow_id)
         assert row is not None
         assert row["poster_url"] == _PROVIDER_POSTER, f"Reactivation must backfill poster; got {row['poster_url']!r}"
