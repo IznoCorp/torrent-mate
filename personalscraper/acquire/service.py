@@ -62,7 +62,7 @@ from personalscraper.logger import get_logger
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.domain import FollowedSeries, WantedItem
-    from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome
+    from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, SearchVerdict
     from personalscraper.conf.models.config import Config
     from personalscraper.core.event_bus import EventBus
 
@@ -70,6 +70,33 @@ log = get_logger("acquire.service")
 
 # Per-item outcome tag (maps onto a RunSummary counter in run()).
 _ItemOutcome = Literal["grabbed", "retried", "abandoned", "skipped"]
+
+# Per-item outcome tag of the SEARCH pass (maps onto a SearchRunSummary counter).
+_SearchItemOutcome = Literal["available", "waiting", "unverified", "abandoned", "skipped"]
+
+# Verdict of the pre-claim cadence gates, shared by both passes (see
+# :meth:`AcquisitionService._apply_cadence_gates`).
+_GateVerdict = Literal["proceed", "abandoned", "skipped"]
+
+#: Status the service applies per named search outcome. MUST cover
+#: ``orchestrator.SEARCH_OUTCOMES`` EXACTLY — the set-equality test fails when a
+#: new outcome ships without a mapping, so a « forgotten exit path » cannot
+#: silently reopen the founding defect (an item reading « En attente » because
+#: nobody wrote down what the last search actually concluded).
+#:
+#: Every INCONCLUSIVE outcome maps to ``'pending'``: an outage is not knowledge,
+#: so the item goes back in the queue rather than claiming a conclusion.
+SEARCH_OUTCOME_STATUS: dict[str, str] = {
+    "available": "available",
+    "no_candidates": "pending",
+    "no_matching_episode": "pending",
+    "all_filtered": "pending",
+    "trackers_unavailable": "pending",
+    "circuit_open": "pending",
+    "search_api_error": "pending",
+    "no_seeders": "pending",
+    "tracker_auth": "abandoned",
+}
 
 # Attempts cap (DESIGN §6.2): a retryable item is abandoned once its claim count
 # reaches this floor, so a permanently-flaky source never loops forever.
@@ -97,6 +124,37 @@ class RunSummary:
 
     grabbed: int = 0
     retried: int = 0
+    abandoned: int = 0
+    skipped: int = 0
+
+
+@dataclass(frozen=True)
+class SearchRunSummary:
+    """Counts for one :meth:`AcquisitionService.run_search` call.
+
+    The buckets keep « nothing is takeable » and « I could not tell » apart —
+    the whole point of the search pass. Collapsing them would reintroduce the
+    lie the feature removes (panne ≠ absence).
+
+    Attributes:
+        available: Items the search concluded takeable → status ``'available'``
+            (the grab pass's queue).
+        waiting: Items the search concluded on with nothing takeable YET → stay
+            ``'pending'`` with a ``found=0`` verdict recorded.
+        unverified: Items whose search did NOT conclude (outage / open circuit /
+            dead swarm) → stay ``'pending'`` with ``found=NULL``. Never counted
+            as waiting: we do not know that there is nothing.
+        abandoned: Items abandoned — a terminal verdict (broken passkey), the
+            cadence cutoff aging the item out, or a corrupt-criteria-JSON row
+            isolated out of the batch (DESIGN §6.2).
+        skipped: Items not searched without a status change — cadence-gated, the
+            atomic claim lost to a concurrent process, or a DB lock left the row
+            for the stale-searching sweep.
+    """
+
+    available: int = 0
+    waiting: int = 0
+    unverified: int = 0
     abandoned: int = 0
     skipped: int = 0
 
@@ -183,40 +241,9 @@ class AcquisitionService:
             A :class:`RunSummary` of outcome counts.
         """
         now = int(time.time())
-        stale_threshold = now - _STALE_THRESHOLD_S
-
-        pending = self._store.wanted.list_pending()
-        stale = self._store.wanted.list_stale_searching(older_than=stale_threshold)
-
-        # Merge pending + stale, de-duplicated by id (a stale row is not pending).
-        seen_ids: set[int] = set()
-        queue: list[WantedItem] = []
-        for item in [*pending, *stale]:
-            if item.id is not None and item.id not in seen_ids:
-                seen_ids.add(item.id)
-                queue.append(item)
-
-        # Per-series scoping (OBJ3): keep only this series' items. The wanted
-        # queue is small, so an in-memory filter avoids a bespoke scoped store
-        # query. Applied before the limit so `limit` caps the series, not the
-        # whole queue.
-        if followed_id is not None:
-            queue = [item for item in queue if item.followed_id == followed_id]
-
-        if limit is not None:
-            queue = queue[:limit]
-
-        # Build the cadence resolution map ONCE per run (DESIGN §7): the global
-        # cadence comes from config; each distinct non-None followed_id is looked
-        # up once so per-item resolution below is a dict hit, not a store read.
-        # Items with followed_id=None fall back to the global default.
+        queue = self._build_queue(now=now, limit=limit, followed_id=followed_id)
         global_cadence = cadence_from_config(self._config.acquire.cadence)
-        follow_map: dict[int, FollowedSeries] = {}
-        for item in queue:
-            if item.followed_id is not None and item.followed_id not in follow_map:
-                fs = self._store.follow.get(item.followed_id)
-                if fs is not None:
-                    follow_map[item.followed_id] = fs
+        follow_map = self._load_follow_map(queue)
 
         grabbed = retried = abandoned = skipped = 0
 
@@ -224,19 +251,7 @@ class AcquisitionService:
             assert item.id is not None  # noqa: S101 — ensured by the SELECTs above
             wanted_id = item.id
 
-            # Resolve the effective cadence for this item: a per-series override
-            # (FollowedSeries.cadence_json) wins over the global default.
-            fs = follow_map.get(item.followed_id) if item.followed_id is not None else None
-            override = None
-            if fs is not None and fs.cadence_json is not None:
-                override = cadence_from_json(fs.cadence_json)
-                if override is None:
-                    log.warning(
-                        "acquire.service.cadence_override_dropped",
-                        followed_id=fs.id,
-                        title=fs.title,
-                    )  # malformed per-series cadence_json → fell back to the global default
-            cadence = effective_cadence(override, global_cadence)
+            cadence = self._cadence_for(item, follow_map, global_cadence)
 
             # Per-item error isolation (DESIGN §6.2): ONE item's store/decode
             # failure must never abort the batch — the run_complete summary MUST
@@ -281,6 +296,374 @@ class AcquisitionService:
         )
         return RunSummary(grabbed=grabbed, retried=retried, abandoned=abandoned, skipped=skipped)
 
+    def run_search(self, *, limit: int | None = None, followed_id: int | None = None) -> SearchRunSummary:
+        """Run the SEARCH pass over the pending + stale-searching queue.
+
+        States availability without downloading anything: for each item it
+        claims the row, asks the orchestrator for a :class:`SearchVerdict`, and
+        persists the verdict + the resulting status. **This pass never touches
+        the torrent client** — the service holds no client reference at all and
+        :meth:`GrabOrchestrator.search` adds nothing, so a deployment with
+        ``torrent_client=None`` runs the search pass normally. That separation
+        is the whole feature: while search and grab were one atomic call,
+        « À récupérer » existed for milliseconds inside a single function and
+        the operator could never see what was available but not yet taken.
+
+        The cadence gates (tier interval + 30-day cutoff, DESIGN §7) belong to
+        THIS pass — cadence is what spaces the re-verification of an episode the
+        trackers do not have yet. The grab pass takes a known-available item at
+        its next tick regardless of cadence.
+
+        Verdict mapping (contract, per disposition):
+
+        - ``available``  → status ``'available'`` + verdict ``(outcome, found)``
+        - ``not_found``  → status ``'pending'``   + verdict ``(outcome, 0)``
+        - ``retryable``  → status ``'pending'``   + verdict ``(outcome, NULL)``
+        - ``terminal``   → status ``'abandoned'`` + verdict ``(outcome, NULL)``
+
+        ``found`` is a COUNT only where the search actually concluded. ``0``
+        means « I looked, there is nothing »; on an outage that statement is
+        false, so those paths persist ``NULL`` (panne ≠ absence). Writing ``0``
+        by convenience would move the founding lie one level down instead of
+        removing it.
+
+        Per-item failures are isolated exactly like :meth:`run` (DESIGN §6.2):
+        a DB lock leaves the row for the stale-searching sweep (counted
+        ``skipped``), corrupt criteria JSON abandons just that row.
+
+        Args:
+            limit: Maximum number of items to search this pass; ``None`` = all
+                pending + stale items.
+            followed_id: When set, restrict the pass to wanted items belonging
+                to that followed series. Applied BEFORE ``limit`` so the cap
+                counts only the targeted series' items.
+
+        Returns:
+            A :class:`SearchRunSummary` of outcome counts.
+        """
+        now = int(time.time())
+        queue = self._build_queue(now=now, limit=limit, followed_id=followed_id)
+        global_cadence = cadence_from_config(self._config.acquire.cadence)
+        follow_map = self._load_follow_map(queue)
+
+        available = waiting = unverified = abandoned = skipped = 0
+
+        for item in queue:
+            assert item.id is not None  # noqa: S101 — ensured by the SELECTs above
+            wanted_id = item.id
+
+            cadence = self._cadence_for(item, follow_map, global_cadence)
+
+            # Per-item error isolation (DESIGN §6.2), identical to run(): ONE
+            # item's store/decode failure must never abort the pass — the
+            # search_run_complete summary MUST still fire.
+            try:
+                outcome_tag = self._search_item(item, now, cadence=cadence)
+            except sqlite3.OperationalError as exc:
+                # DB lock (RETRYABLE, §6.2): leave the row for the stale-searching
+                # sweep to recover (do NOT abort the pass). Count as skipped.
+                log.warning("acquire.service.item_db_locked", wanted_id=wanted_id, error=str(exc))
+                skipped += 1
+                continue
+            except json.JSONDecodeError as exc:
+                # Corrupt criteria_json / quality_profile_json: one bad row must
+                # not kill the batch. Abandon it (guarded) and move on.
+                log.warning("acquire.service.item_bad_criteria_json", wanted_id=wanted_id, error=str(exc))
+                try:
+                    self._store.wanted.set_status(wanted_id, "abandoned")
+                except sqlite3.OperationalError as set_exc:
+                    # Even the abandon write lost the lock — leave it for the sweep.
+                    log.warning("acquire.service.item_db_locked", wanted_id=wanted_id, error=str(set_exc))
+                abandoned += 1
+                continue
+
+            if outcome_tag == "available":
+                available += 1
+            elif outcome_tag == "waiting":
+                waiting += 1
+            elif outcome_tag == "unverified":
+                unverified += 1
+            elif outcome_tag == "abandoned":
+                abandoned += 1
+            else:  # "skipped"
+                skipped += 1
+
+        log.info(
+            "acquire.service.search_run_complete",
+            available=available,
+            waiting=waiting,
+            unverified=unverified,
+            abandoned=abandoned,
+            skipped=skipped,
+        )
+        return SearchRunSummary(
+            available=available,
+            waiting=waiting,
+            unverified=unverified,
+            abandoned=abandoned,
+            skipped=skipped,
+        )
+
+    # ------------------------------------------------------------------
+    # Shared queue / cadence plumbing (both passes)
+    # ------------------------------------------------------------------
+
+    def _build_queue(self, *, now: int, limit: int | None, followed_id: int | None) -> list[WantedItem]:
+        """Return the pending + stale-searching queue for one pass.
+
+        Shared by :meth:`run` and :meth:`run_search` so both passes walk the
+        SAME rows in the SAME order with the SAME scoping semantics.
+
+        Args:
+            now: Unix epoch seconds (the stale-searching threshold's clock).
+            limit: Maximum number of items to return; ``None`` = no cap.
+            followed_id: When set, keep only items of that followed series.
+                Applied BEFORE ``limit`` so the cap counts the series' items.
+
+        Returns:
+            The queued :class:`WantedItem` list (possibly empty), de-duplicated
+            by id, pending rows first.
+        """
+        stale_threshold = now - _STALE_THRESHOLD_S
+
+        pending = self._store.wanted.list_pending()
+        stale = self._store.wanted.list_stale_searching(older_than=stale_threshold)
+
+        # Merge pending + stale, de-duplicated by id (a stale row is not pending).
+        seen_ids: set[int] = set()
+        queue: list[WantedItem] = []
+        for item in [*pending, *stale]:
+            if item.id is not None and item.id not in seen_ids:
+                seen_ids.add(item.id)
+                queue.append(item)
+
+        # Per-series scoping (OBJ3): keep only this series' items. The wanted
+        # queue is small, so an in-memory filter avoids a bespoke scoped store
+        # query. Applied before the limit so `limit` caps the series, not the
+        # whole queue.
+        if followed_id is not None:
+            queue = [item for item in queue if item.followed_id == followed_id]
+
+        if limit is not None:
+            queue = queue[:limit]
+        return queue
+
+    def _load_follow_map(self, queue: list[WantedItem]) -> dict[int, FollowedSeries]:
+        """Load each queued item's followed series ONCE (DESIGN §7).
+
+        Each distinct non-``None`` ``followed_id`` is looked up once, so the
+        per-item cadence resolution in :meth:`_cadence_for` is a dict hit rather
+        than a store read.
+
+        Args:
+            queue: The queue returned by :meth:`_build_queue`.
+
+        Returns:
+            A ``followed_id → FollowedSeries`` map (missing rows are absent).
+        """
+        follow_map: dict[int, FollowedSeries] = {}
+        for item in queue:
+            if item.followed_id is not None and item.followed_id not in follow_map:
+                fs = self._store.follow.get(item.followed_id)
+                if fs is not None:
+                    follow_map[item.followed_id] = fs
+        return follow_map
+
+    def _cadence_for(
+        self,
+        item: WantedItem,
+        follow_map: dict[int, FollowedSeries],
+        global_cadence: Cadence,
+    ) -> Cadence:
+        """Resolve the effective cadence for one item (series override > global).
+
+        Args:
+            item: The queued item.
+            follow_map: The map built by :meth:`_load_follow_map`.
+            global_cadence: The config-level default cadence.
+
+        Returns:
+            The effective :class:`Cadence` for this item.
+        """
+        fs = follow_map.get(item.followed_id) if item.followed_id is not None else None
+        override = None
+        if fs is not None and fs.cadence_json is not None:
+            override = cadence_from_json(fs.cadence_json)
+            if override is None:
+                log.warning(
+                    "acquire.service.cadence_override_dropped",
+                    followed_id=fs.id,
+                    title=fs.title,
+                )  # malformed per-series cadence_json → fell back to the global default
+        return effective_cadence(override, global_cadence)
+
+    def _apply_cadence_gates(self, item: WantedItem, now: int, *, cadence: Cadence) -> _GateVerdict:
+        """Run the pre-claim gates for one item (DESIGN §7) — shared by both passes.
+
+        Recovers a stale 'searching' row back to 'pending' (its claim would
+        otherwise fail), then applies the two gates, both keyed on the item's
+        age from ``enqueued_at`` against the resolved ``cadence``:
+
+        - CUTOFF: past the cadence cutoff → abandon (emit-after-persist,
+          mirroring the attempts-cap abandon) → ``"abandoned"``, NO claim.
+        - CADENCE: not yet due for its tier interval → stays 'pending' and is
+          re-listed next pass → ``"skipped"``, NO claim, NO attempts increment.
+
+        Args:
+            item: The queued item (``item.id`` non-None).
+            now: Unix epoch seconds — the cadence reference clock.
+            cadence: Effective cadence policy for this item.
+
+        Returns:
+            ``"proceed"`` when the item may be claimed, else the outcome tag the
+            caller returns as-is.
+
+        Raises:
+            sqlite3.OperationalError: On a DB lock during a status write (the
+                callers' per-item isolation handles it).
+        """
+        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in the callers
+        wanted_id = item.id
+
+        # A stale 'searching' row is not 'pending', so its claim would fail.
+        # Recover it back to 'pending' first, then re-claim atomically — the
+        # re-claim re-stamps attempts/last_search_at and re-serialises.
+        if item.status == "searching":
+            self._store.wanted.set_status(wanted_id, "pending")
+
+        # --- CUTOFF CHECK (DESIGN §7) ---
+        # Past the cadence cutoff → abandon. Emit-after-persist: set_status first,
+        # then emit, symmetrical to the attempts-cap abandon in _abandon_at_cap.
+        # Distinct reason ('cutoff_reached' vs 'attempts_cap') so consumers can
+        # tell an age-out from a flaky-source give-up. No claim.
+        if is_past_cutoff(cadence, now=now, enqueued_at=item.enqueued_at):
+            self._store.wanted.set_status(wanted_id, "abandoned")
+            self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason="cutoff_reached"))
+            log.info("acquire.service.cutoff_abandoned", wanted_id=wanted_id)
+            return "abandoned"
+
+        # --- CADENCE CHECK (DESIGN §7) ---
+        # Not yet due for its tier interval → stays 'pending' and is re-listed
+        # next run. No claim, no attempts increment.
+        if not is_due_by_cadence(cadence, now=now, enqueued_at=item.enqueued_at, last_search_at=item.last_search_at):
+            log.debug("acquire.service.cadence_not_due", wanted_id=wanted_id)
+            return "skipped"
+
+        return "proceed"
+
+    def _search_item(self, item: WantedItem, now: int, *, cadence: Cadence) -> _SearchItemOutcome:
+        """Gate, claim and search ONE queued item, persisting its verdict.
+
+        Extracted so :meth:`run_search` can wrap each item in error isolation
+        (DESIGN §6.2) without an over-broad try around the whole loop body.
+
+        The torrent client is never referenced on this path — the orchestrator's
+        :meth:`~personalscraper.acquire.orchestrator.GrabOrchestrator.search`
+        runs the search→filter→rank chain and returns a pure verdict.
+
+        Args:
+            item: The queued :class:`WantedItem` (``item.id`` is non-None).
+            now: Unix epoch seconds (stamps the atomic claim; also the cadence
+                reference clock).
+            cadence: Effective cadence policy for this item.
+
+        Returns:
+            A one-word outcome tag mapped onto a :class:`SearchRunSummary`
+            counter by :meth:`run_search`.
+
+        Raises:
+            sqlite3.OperationalError: On a DB lock (RETRYABLE — :meth:`run_search`
+                isolates it and leaves the row for the stale-searching sweep).
+            json.JSONDecodeError: On corrupt criteria/profile JSON
+                (:meth:`run_search` isolates it and abandons the row).
+        """
+        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in run_search()
+        wanted_id = item.id
+
+        gate = self._apply_cadence_gates(item, now, cadence=cadence)
+        if gate != "proceed":
+            return gate
+
+        won = self._store.wanted.claim_for_search(wanted_id, now)
+        if not won:
+            # Lost the atomic claim (concurrent winner) — skip, do NOT proceed.
+            log.debug("acquire.service.claim_lost", wanted_id=wanted_id)
+            return "skipped"
+
+        # Re-fetch so the profile is resolved from the post-claim row (mirrors
+        # _process_item) and a row deleted between listing and claim is skipped.
+        current = self._store.wanted.get(wanted_id)
+        if current is None:
+            return "skipped"
+
+        profile = self._resolve_profile(current)
+        verdict = self._orchestrator.search(current, profile)
+        return self._apply_search_verdict(current, verdict)
+
+    def _apply_search_verdict(self, item: WantedItem, verdict: SearchVerdict) -> _SearchItemOutcome:
+        """Persist ONE :class:`SearchVerdict` — verdict first, then status.
+
+        Write order is deliberate. Recording the verdict BEFORE the status
+        transition means a crash in between leaves the row 'searching' with a
+        fresh verdict: the stale sweep re-searches it and overwrites. The
+        reverse order would leave a row displaying a NEW status alongside the
+        PREVIOUS search's verdict — the exact « status says one thing, the
+        evidence says another » incoherence this feature removes.
+
+        ``found`` is normalised from the disposition rather than trusted
+        verbatim, so an inconclusive path can never persist ``0``
+        (panne ≠ absence) even if a future orchestrator path passes one.
+
+        Args:
+            item: The claimed item (``item.id`` non-None).
+            verdict: The orchestrator's verdict for this item.
+
+        Returns:
+            The outcome tag for the :class:`SearchRunSummary` bucket.
+
+        Raises:
+            sqlite3.OperationalError: On a DB lock (isolated by
+                :meth:`run_search`).
+        """
+        assert item.id is not None  # noqa: S101 — caller claimed it by id
+        wanted_id = item.id
+
+        status = SEARCH_OUTCOME_STATUS.get(verdict.outcome)
+        if status is None:
+            # Unreachable while the set-equality test holds; if it ever fires,
+            # keep the item queued rather than inventing a conclusion.
+            log.warning("acquire.service.unmapped_search_outcome", wanted_id=wanted_id, outcome=verdict.outcome)
+            status = "pending"
+
+        if verdict.disposition == "available":
+            found = verdict.found
+        elif verdict.disposition == "not_found":
+            found = 0  # concluded: « I looked, nothing takeable yet »
+        else:
+            found = None  # NOT concluded (outage / circuit / dead swarm / auth)
+
+        self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, found)
+
+        if status == "abandoned":
+            # Terminal verdict (broken passkey): the search pass emits nothing of
+            # its own, so the service emits WantedAbandoned here — an abandon the
+            # operator never hears about is exactly the silent failure the
+            # constitution forbids. Emit-after-persist, as everywhere else.
+            self._store.wanted.set_status(wanted_id, "abandoned")
+            self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason=verdict.outcome))
+            log.warning("acquire.service.search_abandoned", wanted_id=wanted_id, outcome=verdict.outcome)
+            return "abandoned"
+
+        if status == "available":
+            self._store.wanted.set_status(wanted_id, "available")
+            log.info("acquire.service.search_available", wanted_id=wanted_id, found=found)
+            return "available"
+
+        self._store.wanted.set_status(wanted_id, "pending")
+        # not_found concluded « nothing yet » (waiting); everything else did not
+        # conclude at all (unverified) — never merge the two.
+        return "waiting" if verdict.disposition == "not_found" else "unverified"
+
     def _process_item(self, item: WantedItem, now: int, *, cadence: Cadence) -> _ItemOutcome:
         """Claim, grab and persist the result for ONE queued item.
 
@@ -316,29 +699,9 @@ class AcquisitionService:
         assert item.id is not None  # noqa: S101 — ensured by the SELECTs in run()
         wanted_id = item.id
 
-        # A stale 'searching' row is not 'pending', so its claim would fail.
-        # Recover it back to 'pending' first, then re-claim atomically — the
-        # re-claim re-stamps attempts/last_search_at and re-serialises.
-        if item.status == "searching":
-            self._store.wanted.set_status(wanted_id, "pending")
-
-        # --- CUTOFF CHECK (DESIGN §7) ---
-        # Past the cadence cutoff → abandon. Emit-after-persist: set_status first,
-        # then emit, symmetrical to the attempts-cap abandon in _abandon_at_cap.
-        # Distinct reason ('cutoff_reached' vs 'attempts_cap') so consumers can
-        # tell an age-out from a flaky-source give-up. No claim.
-        if is_past_cutoff(cadence, now=now, enqueued_at=item.enqueued_at):
-            self._store.wanted.set_status(wanted_id, "abandoned")
-            self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason="cutoff_reached"))
-            log.info("acquire.service.cutoff_abandoned", wanted_id=wanted_id)
-            return "abandoned"
-
-        # --- CADENCE CHECK (DESIGN §7) ---
-        # Not yet due for its tier interval → stays 'pending' and is re-listed
-        # next run. No claim, no attempts increment.
-        if not is_due_by_cadence(cadence, now=now, enqueued_at=item.enqueued_at, last_search_at=item.last_search_at):
-            log.debug("acquire.service.cadence_not_due", wanted_id=wanted_id)
-            return "skipped"
+        gate = self._apply_cadence_gates(item, now, cadence=cadence)
+        if gate != "proceed":
+            return gate
 
         won = self._store.wanted.claim_for_search(wanted_id, now)
         if not won:

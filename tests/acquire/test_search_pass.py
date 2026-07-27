@@ -11,19 +11,50 @@ SearchRunSummary.  The plan is phase-02-search-grab-split.md §2.1.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from collections.abc import Iterator
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService
-from personalscraper.acquire.store import ConcreteAcquireStore
+from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
 
 # ---------------------------------------------------------------------------
 # Reuse the house patterns from test_service.py.
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
+    """Yield a store on a temp acquire.db and close it afterwards."""
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    s = build_acquire_store(cfg)
+    try:
+        yield s
+    finally:
+        s.close()
+
+
+# Pinned service clock: 1h after the items' enqueued_at (1_700_000_000). With
+# the default Hot/Warm/Cold/30d cadence this puts every _pending_item in the Hot
+# tier (age 1h < 72h) and well within the 30d cutoff, so a fresh row
+# (last_search_at is None) is DUE immediately. Without the pin the wall clock is
+# years past the cutoff and every item would age out before being searched.
+_PINNED_NOW = 1_700_003_600  # enqueued_at + 3600s
+
+
+@pytest.fixture(autouse=True)
+def _pin_service_clock() -> Iterator[None]:
+    """Pin ``service.time.time`` so the fixture rows stay due."""
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        yield
 
 
 def _pending_item(tvdb_id: int = 99) -> WantedItem:
@@ -58,8 +89,6 @@ def _takeable_result(
 def _service(store: ConcreteAcquireStore, orchestrator: GrabOrchestrator) -> AcquisitionService:
     """Build a service with a (mock) event_bus — mirrors test_service._service."""
     config = MagicMock()
-    from personalscraper.conf.models.acquire import AcquireConfig
-
     config.acquire = AcquireConfig()
     return AcquisitionService(
         store=store,  # type: ignore[arg-type]
