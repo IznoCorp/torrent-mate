@@ -29,7 +29,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Expected tables after the full migration chain (001 → 004) is applied.
-_LATEST_VERSION = 7
+_LATEST_VERSION = 8
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -102,7 +102,7 @@ class TestAcquireMigrations:
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
-        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,)]
+        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,)]
 
     def test_unique_index_followed_media_ref_exists(self, tmp_path: Path) -> None:
         """After applying the full chain, the UNIQUE index ux_followed_media_ref exists (004)."""
@@ -334,3 +334,230 @@ class TestMigration004Dedup:
         ).fetchall()
         assert len(rows) == 1
         assert _user_version(conn) == _LATEST_VERSION
+
+
+# ---------------------------------------------------------------------------
+# Helpers for migration 008
+# ---------------------------------------------------------------------------
+
+
+def _apply_up_to_007(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """Apply migrations 001–007 only (schema BEFORE the 008 wanted rebuild).
+
+    Copies the pre-008 ``*.sql`` scripts into an isolated temp dir so that
+    ``apply_migrations`` sees exactly the 001–007 chain — leaving the DB at
+    ``user_version=7`` with the original CHECK constraint and no verdict columns.
+    This lets the test seed wanted rows before exercising the 008 rebuild.
+
+    Args:
+        conn: Open connection to the DB being migrated.
+        tmp_path: Pytest temp dir used to stage the pre-008 migration subset.
+    """
+    subset = tmp_path / "migrations_pre_008"
+    subset.mkdir()
+    for name in (
+        "001_init.sql",
+        "002_cross_seed.sql",
+        "003_watch_state.sql",
+        "004_followed_unique.sql",
+        "005_followed_metadata.sql",
+        "006_followed_kind.sql",
+        "007_aired_episode.sql",
+    ):
+        (subset / name).write_text((MIGRATIONS_DIR / name).read_text(encoding="utf-8"), encoding="utf-8")
+    apply_migrations(conn, subset)
+
+
+# ---------------------------------------------------------------------------
+# Migration 008: available status + verdict columns on wanted (table rebuild)
+# ---------------------------------------------------------------------------
+
+
+class TestMigration008:
+    """008 adds 'available' status + last_search_outcome / last_search_found to wanted."""
+
+    # ── (a) fresh DB → new columns + 'available' accepted ─────────────────
+
+    def test_fresh_db_has_new_columns(self, tmp_path: Path) -> None:
+        """After applying the full chain, wanted has last_search_outcome and last_search_found."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        # Verify the two new columns exist on the wanted table.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" in cols
+        assert "last_search_found" in cols
+
+    def test_fresh_db_accepts_available_status(self, tmp_path: Path) -> None:
+        """After migration, INSERT with status='available' succeeds."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 'available', 1)"
+        )
+        conn.commit()
+        row = conn.execute("SELECT status FROM wanted WHERE id = 1").fetchone()
+        assert row[0] == "available"
+
+    # ── (b) idempotence ───────────────────────────────────────────────────
+
+    def test_idempotent_second_call(self, tmp_path: Path) -> None:
+        """Calling apply_migrations twice leaves wanted unchanged on second call."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        version_after_first = _user_version(conn)
+
+        # Insert a row so we can verify it survives a second apply untouched.
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 'available', 1)"
+        )
+        conn.commit()
+
+        apply_migrations(conn, MIGRATIONS_DIR)
+        assert _user_version(conn) == version_after_first
+
+        # The row we inserted must still be there — the second apply didn't
+        # re-execute the rebuild (user_version was already 8).
+        count = conn.execute("SELECT COUNT(*) FROM wanted").fetchone()[0]
+        assert count == 1
+
+    # ── (c) data preservation ─────────────────────────────────────────────
+
+    def test_data_preservation_all_statuses(self, tmp_path: Path) -> None:
+        """Rows covering every status survive 008 with all values intact, new cols NULL."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+
+        # Insert a row for every pre-008 status with non-default values.
+        conn.executescript(
+            """
+            INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode,
+                                status, criteria_json, enqueued_at, last_search_at,
+                                attempts, grabbed_hash)
+            VALUES
+              (1, NULL, '{}', 'episode', 1, 1,
+               'pending',   '{"lang":"fr"}', 100, 200, 0, NULL),
+              (2, NULL, '{}', 'episode', 1, 2,
+               'searching', '{"lang":"fr"}', 110, 210, 1, NULL),
+              (3, NULL, '{}', 'episode', 1, 3,
+               'grabbed',   '{"lang":"en"}', 120, 220, 1, 'deadbeef01'),
+              (4, NULL, '{}', 'episode', 1, 4,
+               'done',      '{"lang":"en"}', 130, 230, 1, 'deadbeef02'),
+              (5, NULL, '{}', 'episode', 1, 5,
+               'abandoned', '{"lang":"fr"}', 140, 240, 3, NULL);
+            """
+        )
+        conn.commit()
+
+        # Apply 008 (rebuilds wanted).
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        # Every row must survive with every column value intact.
+        rows = conn.execute(
+            "SELECT id, followed_id, media_ref_json, kind, season, episode, "
+            "status, criteria_json, enqueued_at, last_search_at, attempts, "
+            "grabbed_hash, last_search_outcome, last_search_found "
+            "FROM wanted ORDER BY id"
+        ).fetchall()
+
+        assert len(rows) == 5
+
+        # Row 1: pending
+        assert rows[0] == (1, None, "{}", "episode", 1, 1, "pending", '{"lang":"fr"}', 100, 200, 0, None, None, None)
+        # Row 2: searching
+        assert rows[1] == (2, None, "{}", "episode", 1, 2, "searching", '{"lang":"fr"}', 110, 210, 1, None, None, None)
+        # Row 3: grabbed (with hash)
+        assert rows[2] == (
+            3,
+            None,
+            "{}",
+            "episode",
+            1,
+            3,
+            "grabbed",
+            '{"lang":"en"}',
+            120,
+            220,
+            1,
+            "deadbeef01",
+            None,
+            None,
+        )
+        # Row 4: done (with hash)
+        assert rows[3] == (
+            4,
+            None,
+            "{}",
+            "episode",
+            1,
+            4,
+            "done",
+            '{"lang":"en"}',
+            130,
+            230,
+            1,
+            "deadbeef02",
+            None,
+            None,
+        )
+        # Row 5: abandoned
+        assert rows[4] == (5, None, "{}", "episode", 1, 5, "abandoned", '{"lang":"fr"}', 140, 240, 3, None, None, None)
+
+    # ── (d) partial index preservation ────────────────────────────────────
+
+    def test_idx_wanted_pending_is_partial(self, tmp_path: Path) -> None:
+        """After 008 rebuild, idx_wanted_pending exists and is still partial."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        row = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'idx_wanted_pending'").fetchone()
+        assert row is not None, "idx_wanted_pending must exist after rebuild"
+        assert "WHERE" in row[0], "idx_wanted_pending must be a partial index (contain WHERE)"
+
+    # ── (e) FK integrity ──────────────────────────────────────────────────
+
+    def test_foreign_key_check_clean(self, tmp_path: Path) -> None:
+        """After 008, PRAGMA foreign_key_check returns no violations."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        assert len(violations) == 0, f"foreign_key_check found violations: {violations}"
+
+    # ── (f) CHECK constraint: 'available' OK, bogus rejected ──────────────
+
+    def test_insert_available_succeeds(self, tmp_path: Path) -> None:
+        """INSERT with status='available' succeeds (new status in CHECK)."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 1, 1, 'available', 1)"
+        )
+        conn.commit()
+        assert conn.execute("SELECT COUNT(*) FROM wanted WHERE status = 'available'").fetchone()[0] == 1
+
+    def test_insert_bogus_rejected(self, tmp_path: Path) -> None:
+        """INSERT with status='bogus' raises IntegrityError (CHECK constraint)."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO wanted (followed_id, media_ref_json, kind, status, enqueued_at) "
+                "VALUES (NULL, '{}', 'episode', 'bogus', 1)"
+            )
+            conn.commit()
