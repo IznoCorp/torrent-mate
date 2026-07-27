@@ -9,6 +9,7 @@ from the {movies_dir}/ directory.
 """
 
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -109,6 +110,70 @@ def _indent(elem: ET.Element, level: int = 0) -> None:
             elem.tail = indent
 
 
+def _strip_title_year(title: str, date: str) -> str:
+    """Strip a trailing ``(YYYY)`` from a title when it matches the release year.
+
+    Providers sometimes bake the disambiguating year into the title
+    (``INVINCIBLE (2021)``); Kodi/Plex want ``<title>`` bare. Shared title guard
+    for the movie and tvshow generators (SCRAPER-05).
+
+    Args:
+        title: Raw title as returned by the provider.
+        date: Release / first-air date (``YYYY-MM-DD`` or empty); only the first
+            four characters are consulted.
+
+    Returns:
+        The title with a matching trailing ``(YYYY)`` removed, else unchanged.
+    """
+    year_str = date[:4] if date else ""
+    if year_str and title.endswith(f" ({year_str})"):
+        return title[: -len(f" ({year_str})")]
+    return title
+
+
+def _clean_id(raw: Any) -> str:
+    """Coerce a provider id to a clean string, mapping placeholders to ``""``.
+
+    A missing id surfaces as ``None``, ``0``, ``"0"`` or ``"None"``; written to a
+    ``<uniqueid>`` those poison Kodi's cache, so they collapse to ``""`` (which
+    :func:`_write_uniqueids` omits). The single id guard shared by all three
+    generators (SCRAPER-05).
+
+    Args:
+        raw: Raw id value from a provider payload (any type).
+
+    Returns:
+        ``str(raw)`` for real ids, or ``""`` for the placeholder set.
+    """
+    return str(raw) if raw not in (None, 0, "0", "", "None") else ""
+
+
+def _write_uniqueids(root: ET.Element, ids: Sequence[tuple[str, str]], canonical_family: str) -> None:
+    """Write ordered ``<uniqueid>`` rows, skipping blanks and flagging one default.
+
+    The single ``<uniqueid>`` writer shared by all three generators (SCRAPER-05),
+    generalising the episode's ordered/default logic. Blank values are skipped
+    (a blank ``<uniqueid>`` is junk Kodi still tries to resolve); the first
+    written row whose family equals ``canonical_family`` gets ``default="true"``.
+
+    Args:
+        root: Parent element to append the ``<uniqueid>`` rows to.
+        ids: Ordered ``(family, value)`` pairs, already cleaned via
+            :func:`_clean_id` so a blank value means "absent".
+        canonical_family: Family whose row carries ``default="true"``; a blank or
+            absent value flags nothing.
+    """
+    default_applied = False
+    for family, value in ids:
+        if not value:
+            continue
+        element = _sub(root, "uniqueid", value)
+        element.set("type", family)
+        if not default_applied and family == canonical_family:
+            element.set("default", "true")
+            default_applied = True
+
+
 class NFOGenerator:
     """Generate Kodi-compatible .nfo XML files (MediaElch format).
 
@@ -162,12 +227,8 @@ class NFOGenerator:
         # disambiguation. Kodi/Plex expect ``<title>`` bare with ``<year>``
         # separate, so strip a trailing ``(YYYY)`` when it matches the
         # release year. Mirrors the same defensive logic applied to TV shows.
-        raw_movie_title = movie_data.get("title", "")
         release_date = movie_data.get("release_date") or ""
-        year_str = release_date[:4] if release_date else ""
-        movie_title = raw_movie_title
-        if year_str and movie_title.endswith(f" ({year_str})"):
-            movie_title = movie_title[: -len(f" ({year_str})")]
+        movie_title = _strip_title_year(movie_data.get("title", ""), release_date)
         _sub(root, "title", movie_title)
         # Multi-source ratings (phase 6) : forward optional ``notations``
         # + ``canonical_source`` keys so callers that resolved
@@ -191,21 +252,21 @@ class NFOGenerator:
         self._add_inline_images(root, movie_data)
 
         # --- Classification ---
-        _sub(root, "mpaa", self._extract_certification_fr(movie_data))
+        _sub(root, "mpaa", self._extract_fr_rating(movie_data))
         _sub(root, "playcount", "0")
         _sub(root, "lastplayed", "")
 
-        # --- IDs ---
+        # --- IDs (IMDb canonical, TMDb secondary) ---
+        # Shared id guard (SCRAPER-05): _clean_id maps placeholders to "" and
+        # _write_uniqueids omits blanks — the movie path previously emitted an
+        # empty <uniqueid default type=imdb> placeholder.
         external_ids = movie_data.get("external_ids", {})
-        imdb_id = external_ids.get("imdb_id", "")
-        tmdb_id = str(movie_data.get("id", ""))
+        imdb_id = _clean_id(external_ids.get("imdb_id", ""))
+        tmdb_id = _clean_id(movie_data.get("id", ""))
 
         _sub(root, "id", imdb_id)
-        uniqueid_imdb = _sub(root, "uniqueid", imdb_id)
-        uniqueid_imdb.set("default", "true")
-        uniqueid_imdb.set("type", "imdb")
-        uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-        uniqueid_tmdb.set("type", "tmdb")
+        canonical_family = "imdb" if imdb_id else ("tmdb" if tmdb_id else "")
+        _write_uniqueids(root, [("imdb", imdb_id), ("tmdb", tmdb_id)], canonical_family)
 
         # --- Genres ---
         for genre in movie_data.get("genres", []):
@@ -290,19 +351,12 @@ class NFOGenerator:
         # expect ``<title>`` to be the bare title and ``<year>`` to carry the
         # year separately, so strip a trailing ``(YYYY)`` when it matches the
         # year we're about to write below.
-        raw_title = show_data.get("name", show_data.get("title", ""))
         first_aired = show_data.get("first_air_date") or show_data.get("firstAired") or ""
-        year_str = first_aired[:4] if first_aired else ""
-        title = raw_title
-        if year_str and title.endswith(f" ({year_str})"):
-            title = title[: -len(f" ({year_str})")]
-        raw_original_title = show_data.get(
-            "original_name",
-            show_data.get("originalName", ""),
+        title = _strip_title_year(show_data.get("name", show_data.get("title", "")), first_aired)
+        original_title = _strip_title_year(
+            show_data.get("original_name", show_data.get("originalName", "")),
+            first_aired,
         )
-        original_title = raw_original_title
-        if year_str and original_title.endswith(f" ({year_str})"):
-            original_title = original_title[: -len(f" ({year_str})")]
         _sub(root, "title", title)
         _sub(root, "showtitle", "")
         _sub(root, "originaltitle", original_title)
@@ -318,24 +372,18 @@ class NFOGenerator:
         # TMDB stays as a non-default fallback for downstream tools that
         # only know how to read TMDB.
         external_ids = show_data.get("external_ids") or {}
-        imdb_id = external_ids.get("imdb_id") or ""
-        raw_tmdb_id = show_data.get("id")
-        raw_tvdb_id = external_ids.get("tvdb_id")
-        tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
-        tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
+        imdb_id = _clean_id(external_ids.get("imdb_id"))
+        tmdb_id = _clean_id(show_data.get("id"))
+        tvdb_id = _clean_id(external_ids.get("tvdb_id"))
 
-        tvdb_is_default = bool(tvdb_id)
-        if tvdb_id:
-            uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
-            uniqueid_tvdb.set("default", "true")
-            uniqueid_tvdb.set("type", "tvdb")
-        if tmdb_id:
-            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-            if not tvdb_is_default:
-                uniqueid_tmdb.set("default", "true")
-            uniqueid_tmdb.set("type", "tmdb")
-        uniqueid_imdb = _sub(root, "uniqueid", imdb_id)
-        uniqueid_imdb.set("type", "imdb")
+        # TVDB default when present else TMDB; IMDb informational, never default.
+        # Shared guard (SCRAPER-05) omits a blank IMDb row (was an empty stub).
+        canonical_family = "tvdb" if tvdb_id else ("tmdb" if tmdb_id else "")
+        _write_uniqueids(
+            root,
+            [("tvdb", tvdb_id), ("tmdb", tmdb_id), ("imdb", imdb_id)],
+            canonical_family,
+        )
         # ``<id>`` mirrors the default uniqueid: TVDB when present, TMDB
         # otherwise. Consumers that only read ``<id>`` (e.g. legacy Kodi
         # add-ons) get the same id Kodi itself would resolve via uniqueid.
@@ -359,7 +407,7 @@ class NFOGenerator:
         _sub(root, "plot", show_data.get("overview", ""))
 
         # --- Classification ---
-        _sub(root, "mpaa", self._extract_content_rating_fr(show_data))
+        _sub(root, "mpaa", self._extract_fr_rating(show_data, tv=True))
 
         # --- Dates ---
         premiered = show_data.get("first_air_date", "")
@@ -401,12 +449,12 @@ class NFOGenerator:
             _sub(root, "tag", keyword.get("name", ""))
 
         # --- Inline images ---
-        self._add_inline_images_tv(root, show_data)
+        self._add_inline_images(root, show_data, tv=True)
 
         # --- Actors (aggregate_credits for TMDB TV) ---
         credits_data = show_data.get("aggregate_credits", show_data.get("credits", {}))
         for actor in credits_data.get("cast", []):
-            self._add_actor_tv(root, actor)
+            self._add_actor(root, actor, tv=True)
 
         # --- Generator ---
         generator = ET.SubElement(root, "generator")
@@ -449,31 +497,19 @@ class NFOGenerator:
         # default (TVDB-when-present) is preserved when the caller has
         # not declared a canonical provider, keeping legacy NFO outputs
         # unchanged.
-        raw_tvdb_id = episode_data.get("tvdb_id")
-        raw_tmdb_id = episode_data.get("id", episode_data.get("tmdb_id"))
-        raw_imdb_id = episode_data.get("imdb_id")
-        tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
-        tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
-        imdb_id = str(raw_imdb_id) if raw_imdb_id not in (None, 0, "0", "", "None") else ""
+        tvdb_id = _clean_id(episode_data.get("tvdb_id"))
+        tmdb_id = _clean_id(episode_data.get("id", episode_data.get("tmdb_id")))
+        imdb_id = _clean_id(episode_data.get("imdb_id"))
 
         canonical_family = (episode_data.get("canonical_provider") or "").strip().lower()
         if canonical_family not in ("tvdb", "tmdb"):
             canonical_family = "tvdb" if tvdb_id else ("tmdb" if tmdb_id else "")
 
-        ordered = (
-            ("tvdb", tvdb_id),
-            ("tmdb", tmdb_id),
-            ("imdb", imdb_id),
+        _write_uniqueids(
+            root,
+            [("tvdb", tvdb_id), ("tmdb", tmdb_id), ("imdb", imdb_id)],
+            canonical_family,
         )
-        default_applied = False
-        for family, value in ordered:
-            if not value:
-                continue
-            element = _sub(root, "uniqueid", value)
-            element.set("type", family)
-            if not default_applied and family == canonical_family:
-                element.set("default", "true")
-                default_applied = True
 
         # --- Ratings (episodes use "tmdb" not "themoviedb") ---
         self._add_ratings(
@@ -688,68 +724,52 @@ class NFOGenerator:
             _sub(rating, "value", str(entry.score))
             _sub(rating, "votes", str(entry.votes_count))
 
-    def _add_inline_images(self, root: ET.Element, data: dict[str, Any]) -> None:
-        """Add inline <thumb> and <fanart> elements.
+    def _add_inline_images(self, root: ET.Element, data: dict[str, Any], *, tv: bool = False) -> None:
+        """Add inline ``<thumb>`` (posters) and ``<fanart>`` (backdrops).
+
+        Movies use TMDB preview buckets (``w342``/``w780``) and tag every poster
+        ``aspect="poster"``. TV shows (``tv=True``) mirror MediaElch: original-size
+        previews, only the first poster ``aspect="poster"`` and the rest
+        ``aspect="0"`` with the source language.
 
         Args:
             root: Parent XML element.
-            data: API data with images.posters and images.backdrops.
+            data: API data with ``images.posters`` and ``images.backdrops``.
+            tv: Select the TV-show rendering (original-size, ranked posters).
         """
         images = data.get("images", {})
 
-        # Posters as <thumb aspect="poster">
-        for img in images.get("posters", []):
+        for i, img in enumerate(images.get("posters", [])):
             path = img.get("file_path", "")
-            thumb = _sub(root, "thumb", _image_url(path))
-            thumb.set("aspect", "poster")
-            thumb.set("preview", _image_url(path, POSTER_PREVIEW_SIZE))
-
-        # Backdrops as <fanart><thumb>
-        backdrops = images.get("backdrops", [])
-        if backdrops:
-            fanart = ET.SubElement(root, "fanart")
-            for img in backdrops:
-                path = img.get("file_path", "")
-                thumb = _sub(fanart, "thumb", _image_url(path))
-                thumb.set("preview", _image_url(path, BACKDROP_PREVIEW_SIZE))
-
-    def _add_inline_images_tv(self, root: ET.Element, data: dict[str, Any]) -> None:
-        """Add inline <thumb> and <fanart> elements for TV shows.
-
-        MediaElch uses original-size URLs for TV show image previews
-        (unlike movies which use w342/w780 preview sizes).
-
-        Args:
-            root: Parent XML element.
-            data: API data with images.posters and images.backdrops.
-        """
-        images = data.get("images", {})
-
-        # Posters: first one gets aspect="poster", rest get aspect="0" with language
-        posters = images.get("posters", [])
-        for i, img in enumerate(posters):
-            path = img.get("file_path", "")
-            url = _image_url(path)
-            thumb = _sub(root, "thumb", url)
-            if i == 0:
-                thumb.set("aspect", "poster")
-                thumb.set("preview", url)
-            else:
-                lang = img.get("iso_639_1", "")
-                if lang:
-                    thumb.set("language", lang)
-                thumb.set("aspect", "0")
-                thumb.set("preview", url)
-
-        # Backdrops as <fanart><thumb> with original-size previews
-        backdrops = images.get("backdrops", [])
-        if backdrops:
-            fanart = ET.SubElement(root, "fanart")
-            for img in backdrops:
-                path = img.get("file_path", "")
+            if tv:
                 url = _image_url(path)
-                thumb = _sub(fanart, "thumb", url)
-                thumb.set("preview", url)
+                thumb = _sub(root, "thumb", url)
+                if i == 0:
+                    thumb.set("aspect", "poster")
+                    thumb.set("preview", url)
+                else:
+                    lang = img.get("iso_639_1", "")
+                    if lang:
+                        thumb.set("language", lang)
+                    thumb.set("aspect", "0")
+                    thumb.set("preview", url)
+            else:
+                thumb = _sub(root, "thumb", _image_url(path))
+                thumb.set("aspect", "poster")
+                thumb.set("preview", _image_url(path, POSTER_PREVIEW_SIZE))
+
+        backdrops = images.get("backdrops", [])
+        if backdrops:
+            fanart = ET.SubElement(root, "fanart")
+            for img in backdrops:
+                path = img.get("file_path", "")
+                if tv:
+                    url = _image_url(path)
+                    thumb = _sub(fanart, "thumb", url)
+                    thumb.set("preview", url)
+                else:
+                    thumb = _sub(fanart, "thumb", _image_url(path))
+                    thumb.set("preview", _image_url(path, BACKDROP_PREVIEW_SIZE))
 
     def _add_streamdetails(self, root: ET.Element, stream_info: dict[str, Any]) -> None:
         """Add <fileinfo><streamdetails> element.
@@ -783,35 +803,24 @@ class NFOGenerator:
             subtitle = ET.SubElement(sd, "subtitle")
             _sub(subtitle, "language", track.get("language", ""))
 
-    def _add_actor(self, root: ET.Element, actor: dict[str, Any]) -> None:
-        """Add an <actor> element for movie credits.
+    def _add_actor(self, root: ET.Element, actor: dict[str, Any], *, tv: bool = False) -> None:
+        """Add an ``<actor>`` element for movie or TV credits.
 
         Args:
             root: Parent XML element.
-            actor: Actor dict from TMDB credits.cast.
+            actor: Actor dict from TMDB ``credits.cast`` (movies) or
+                ``aggregate_credits.cast`` (TV shows).
+            tv: When True, read the character from aggregate-credits ``roles[]``
+                (fallback ``character``); else read ``character`` (movie credits).
         """
         actor_elem = ET.SubElement(root, "actor")
         _sub(actor_elem, "name", actor.get("name", ""))
-        _sub(actor_elem, "role", actor.get("character", ""))
-        _sub(actor_elem, "order", str(actor.get("order", 0)))
-        profile = actor.get("profile_path", "")
-        thumb_url = f"{IMAGE_BASE}/{ACTOR_THUMB_SIZE}{profile}" if profile else ""
-        _sub(actor_elem, "thumb", thumb_url)
-
-    def _add_actor_tv(self, root: ET.Element, actor: dict[str, Any]) -> None:
-        """Add an <actor> element for TV show aggregate credits.
-
-        Handles aggregate_credits format where roles[] replaces character.
-
-        Args:
-            root: Parent XML element.
-            actor: Actor dict from TMDB aggregate_credits.cast.
-        """
-        actor_elem = ET.SubElement(root, "actor")
-        _sub(actor_elem, "name", actor.get("name", ""))
-        # aggregate_credits uses roles[] instead of character
-        roles = actor.get("roles", [])
-        character = roles[0].get("character", "") if roles else actor.get("character", "")
+        if tv:
+            # aggregate_credits uses roles[] instead of character
+            roles = actor.get("roles", [])
+            character = roles[0].get("character", "") if roles else actor.get("character", "")
+        else:
+            character = actor.get("character", "")
         _sub(actor_elem, "role", character)
         _sub(actor_elem, "order", str(actor.get("order", 0)))
         profile = actor.get("profile_path", "")
@@ -819,35 +828,29 @@ class NFOGenerator:
         _sub(actor_elem, "thumb", thumb_url)
 
     @staticmethod
-    def _extract_certification_fr(movie_data: dict[str, Any]) -> str:
-        """Extract French theatrical certification from release_dates.
+    def _extract_fr_rating(data: dict[str, Any], *, tv: bool = False) -> str:
+        """Extract the French classification from a movie or TV payload.
 
-        Looks for iso_3166_1=="FR" with type==3 (theatrical release).
+        Movies read the theatrical certification from ``release_dates.results``
+        (``iso_3166_1 == "FR"``, ``type == 3``); TV shows (``tv=True``) read
+        ``content_ratings.results`` (``iso_3166_1 == "FR"``). Both return ``""``
+        when no FR entry exists.
 
         Args:
-            movie_data: TMDB movie details dict.
+            data: TMDB movie or TV show details dict.
+            tv: Select the TV-show ``content_ratings`` lookup.
 
         Returns:
-            Certification string, or empty string if not found.
+            The classification string, or ``""`` when not found.
         """
-        for release in movie_data.get("release_dates", {}).get("results", []):
+        if tv:
+            for rating in data.get("content_ratings", {}).get("results", []):
+                if rating.get("iso_3166_1") == "FR":
+                    return cast(str, rating.get("rating", ""))
+            return ""
+        for release in data.get("release_dates", {}).get("results", []):
             if release.get("iso_3166_1") == "FR":
                 for rd in release.get("release_dates", []):
                     if rd.get("type") == 3:
                         return cast(str, rd.get("certification", ""))
-        return ""
-
-    @staticmethod
-    def _extract_content_rating_fr(show_data: dict[str, Any]) -> str:
-        """Extract French content rating for TV shows.
-
-        Args:
-            show_data: TMDB TV show details dict.
-
-        Returns:
-            Rating string, or empty string if not found.
-        """
-        for rating in show_data.get("content_ratings", {}).get("results", []):
-            if rating.get("iso_3166_1") == "FR":
-                return cast(str, rating.get("rating", ""))
         return ""

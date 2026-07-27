@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.cli_state import state
@@ -74,7 +74,7 @@ def cross_seed(
     config = ctx.obj.config
     assert config is not None  # guaranteed by the callback in cli.py
     console = state["console"]
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
 
     # --sweep and --hash are mutually exclusive; at least one is required.
     if sweep and info_hash is not None:

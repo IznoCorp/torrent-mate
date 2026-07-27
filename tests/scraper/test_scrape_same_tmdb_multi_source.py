@@ -196,7 +196,7 @@ class TestScrapeSameTmdbMultiSource:
         Flow under test (movie_service.py ~936-1021):
           1. ``Gourou (2025)`` resolves to clean name ``Gourou (2026)`` which
              ALREADY exists → ``_merge_dirs`` folds A.mkv into ``Gourou (2026)``
-             alongside B.mkv (event ``movie_folder_merged``).
+             alongside B.mkv (event ``media_folder_merged``).
           2. ``_find_video_file`` (30.1) picks the newest = B.mkv as canonical and
              renames it to ``Gourou.mkv`` (event ``movie_video_renamed``).
           3. The orphan-cleanup loop (30.2) unlinks A.mkv
@@ -216,7 +216,7 @@ class TestScrapeSameTmdbMultiSource:
         ):
             # Scrape the OLDER folder — its clean name is "Gourou (2026)" which
             # already exists, forcing the merge-into-existing dedup path. The
-            # scraper events (movie_folder_merged / movie_video_renamed /
+            # scraper events (media_folder_merged / movie_video_renamed /
             # movie_video_orphan_removed) are emitted at INFO via the "scraper"
             # logger, so capture at INFO under that logger name.
             with caplog.at_level(logging.INFO, logger="scraper"):
@@ -242,7 +242,7 @@ class TestScrapeSameTmdbMultiSource:
         # stdlib record whose ``.msg`` is the event dict (captured deterministically
         # by caplog, independent of logger caching / xdist distribution).
         events = {r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)}
-        assert "movie_folder_merged" in events, f"missing movie_folder_merged in {sorted(events)}"
+        assert "media_folder_merged" in events, f"missing media_folder_merged in {sorted(events)}"
         assert "movie_video_renamed" in events, f"missing movie_video_renamed in {sorted(events)}"
         assert "movie_video_orphan_removed" in events, f"missing movie_video_orphan_removed in {sorted(events)}"
         assert "movie_video_orphan_remove_failed" not in events, "orphan removal must not fail"

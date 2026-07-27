@@ -22,7 +22,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from personalscraper import cli as _cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 from personalscraper.core.tags import SEED_PURE
@@ -55,7 +55,7 @@ def seed_mark(
         typer.Exit: Exit code 1 when no torrent client is configured.
     """
     config = ctx.obj.config
-    settings = _cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_mark_no_client", info_hash=info_hash)
@@ -85,7 +85,7 @@ def seed_unmark(
         typer.Exit: Exit code 1 when no torrent client is configured.
     """
     config = ctx.obj.config
-    settings = _cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_unmark_no_client", info_hash=info_hash)
@@ -112,7 +112,7 @@ def seed_list(ctx: typer.Context) -> None:
         typer.Exit: Exit code 1 when no torrent client is configured.
     """
     config = ctx.obj.config
-    settings = _cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
         if app_context.torrent_client is None:
             log.error("seed_list_no_client")

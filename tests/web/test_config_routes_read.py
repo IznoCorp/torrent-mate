@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from personalscraper.web.routes.config import router as config_router
+from tests.web._web_harness import build_router_app
 
 #: Absolute path to the config.example template directory (repo root).
 _CONFIG_EXAMPLE_DIR = Path(__file__).resolve().parent.parent.parent / "config.example"
@@ -33,9 +34,7 @@ def _build_app() -> FastAPI:
     Returns:
         A ``FastAPI`` instance with ``/api/config/*`` routes available.
     """
-    app = FastAPI()
-    app.include_router(config_router)
-    return app
+    return build_router_app(config_router)
 
 
 def _copy_config_example(dest_dir: Path) -> Path:

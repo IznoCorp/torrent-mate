@@ -12,16 +12,13 @@ dispatch, shared by:
   Fait" while the pipeline ``verify`` still blocked its dispatch (unrenamed
   video/episodes). That divergence is exactly what §méthode rule 6 forbids.
 
-Definition of complete (identical to what ``verify`` + ``get_dispatchable`` enforce):
-
-1. The pipeline ``verify`` step (DISPATCH-stage checks, ``dry_run=True``, ``fix=False``)
-   returns status ``valid``/``fixed`` — the real gate that authorizes dispatch. It
-   checks the NFO, poster naming, TV episode renaming into ``Saison NN/`` + per-episode
-   NFOs, etc. (ERROR-severity checks block; WARNING-severity ones — landscape,
-   ``<streamdetails>`` — legitimately do not).
-2. For a **movie**, the video file is renamed to the canonical ``Title.<ext>`` — a
-   dimension ``verify`` does not enforce but the library convention requires
-   (``Obsession.mkv``, never the raw release name).
+Definition of complete = the pipeline ``verify`` step (DISPATCH-stage checks,
+``dry_run=True``, ``fix=False``) returns status ``valid``/``fixed`` — the real gate
+that authorizes dispatch. Since VERIFY-MAINTENANCE-04 the movie video-rename gate
+(``Obsession.mkv``, never the raw release name) is itself a registered catalog check
+(``movie_video_renamed``), so ``verify`` now enforces it directly — there is no
+separate bolt-on layered on top here. ERROR-severity checks block; WARNING-severity
+ones (landscape, ``<streamdetails>``) legitimately do not.
 """
 
 from __future__ import annotations
@@ -29,78 +26,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.naming_patterns import PATTERNS
-from personalscraper.scraper.classifier import _parse_folder_name
-
 if TYPE_CHECKING:
     from personalscraper.verify.verifier import Verifier
-
-#: Video extensions counted as the main media file (mirrors check-media-complete).
-VIDEO_EXTS = {".mkv", ".mp4", ".avi", ".m4v", ".mov", ".ts", ".wmv"}
-
-
-def main_video(folder: Path) -> Path | None:
-    """Return the largest non-trailer video file directly in *folder*, or ``None``.
-
-    Args:
-        folder: A movie folder in staging.
-
-    Returns:
-        The largest top-level video file that is not a trailer / AppleDouble, or
-        ``None`` when the folder holds no such video.
-    """
-    best: Path | None = None
-    best_size = -1
-    try:
-        entries = list(folder.iterdir())
-    except OSError:
-        return None
-    for f in entries:
-        if not f.is_file() or f.suffix.lower() not in VIDEO_EXTS:
-            continue
-        if "trailer" in f.stem.lower() or f.name.startswith("._"):
-            continue
-        try:
-            size = f.stat().st_size
-        except OSError:
-            continue
-        if size > best_size:
-            best, best_size = f, size
-    return best
-
-
-def video_rename_gap(folder: Path) -> str | None:
-    """Return a message when a movie's video is NOT canonically renamed, else ``None``.
-
-    Canonical = ``patterns.format('movie_video', Title=<parsed folder title>)`` — i.e.
-    the folder title with the year stripped (``Obsession (2026)`` → ``Obsession.mkv``).
-    A raw release name (with resolution/codec tokens) fails this.
-
-    Args:
-        folder: A movie folder in staging.
-
-    Returns:
-        A human-readable English gap description, or ``None`` when the video is
-        correctly named.
-    """
-    video = main_video(folder)
-    if video is None:
-        return "no video file found"
-    title, _year = _parse_folder_name(folder.name)
-    expected = PATTERNS.format("movie_video", Title=title)
-    if video.stem != expected:
-        return f"video not renamed: '{video.name}' (expected '{expected}{video.suffix}')"
-    return None
 
 
 def dispatch_completeness(verifier: Verifier, media_dir: Path, media_kind: str) -> tuple[str, list[str]]:
     """Return ``(status, errors)`` — the single verdict on whether *media_dir* dispatches.
 
     Runs the real pipeline ``verify`` (via *verifier*, which the caller builds once with
-    ``dry_run=True, fix=False`` so this is pure/read-only) and, for a movie, adds the
-    canonical video-rename check. ``status`` is ``"valid"``/``"fixed"`` when the item is
-    dispatchable and ``"blocked"`` when it is not; ``errors`` are the concrete verify
-    messages (+ the movie video-rename gap) — empty iff dispatchable.
+    ``dry_run=True, fix=False`` so this is pure/read-only). ``status`` is
+    ``"valid"``/``"fixed"`` when the item is dispatchable and ``"blocked"`` when it is
+    not; ``errors`` are the concrete verify messages — empty iff dispatchable. The
+    movie video-rename gap surfaces here through the ``movie_video_renamed`` catalog
+    check (VERIFY-MAINTENANCE-04), no longer as a separate step.
 
     Args:
         verifier: A :class:`~personalscraper.verify.verifier.Verifier` built with
@@ -121,11 +59,6 @@ def dispatch_completeness(verifier: Verifier, media_dir: Path, media_kind: str) 
     if result.status not in ("valid", "fixed") and not errors:
         # Blocked with no ERROR-severity message (defensive): surface the status.
         errors.append(f"verify status={result.status}")
-
-    if media_kind == "movie":
-        gap = video_rename_gap(media_dir)
-        if gap is not None:
-            errors.append(gap)
 
     if errors:
         return "blocked", errors

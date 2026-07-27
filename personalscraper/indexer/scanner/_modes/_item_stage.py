@@ -310,11 +310,19 @@ def _detect_issues(
 # ---------------------------------------------------------------------------
 
 
-from personalscraper.core.artwork_naming import artwork_flags as _artwork_flags  # noqa: E402
+from personalscraper.core.artwork_naming import artwork_inventory as _artwork_inventory  # noqa: E402
 
 
 def _artwork_inventory_movie(movie_dir: Path, title: str) -> ArtworkInventory:
     """Build the artwork inventory for a movie directory.
+
+    Detection is delegated to the canonical owner
+    (:func:`personalscraper.core.artwork_naming.artwork_inventory`) and converted
+    via :meth:`ArtworkInventory.from_presence`, so this full/item-stage scan mode
+    and the enrich scan mode write an identical ``artwork_json`` (INDEXER-03). The
+    full 8-kind inventory is built (previously ``characterart`` was omitted for
+    movies — an artefact of the old split; §9/INDEXER-03 makes both modes write
+    the same 8 kinds).
 
     Args:
         movie_dir: Path to the movie directory.
@@ -324,20 +332,17 @@ def _artwork_inventory_movie(movie_dir: Path, title: str) -> ArtworkInventory:
     Returns:
         Populated :class:`ArtworkInventory` for the movie.
     """
-    flags = _artwork_flags(movie_dir)
-    return ArtworkInventory(
-        poster=flags["poster"],
-        fanart=flags["fanart"],
-        landscape=flags["landscape"],
-        banner=flags["banner"],
-        clearlogo=flags["clearlogo"],
-        clearart=flags["clearart"],
-        discart=flags["discart"],
-    )
+    return ArtworkInventory.from_presence(_artwork_inventory(movie_dir))
 
 
 def _artwork_inventory_tvshow(show_dir: Path) -> ArtworkInventory:
     """Build the artwork inventory for a TV show directory.
+
+    Delegates to the canonical owner and converts via
+    :meth:`ArtworkInventory.from_presence` — the same path as
+    :func:`_artwork_inventory_movie`, so both media types and both scan modes
+    write an identical ``artwork_json`` (INDEXER-03; previously ``discart`` was
+    omitted for shows — an artefact of the old split now removed).
 
     Args:
         show_dir: Path to the TV show directory.
@@ -345,16 +350,7 @@ def _artwork_inventory_tvshow(show_dir: Path) -> ArtworkInventory:
     Returns:
         Populated :class:`ArtworkInventory` for the show.
     """
-    flags = _artwork_flags(show_dir)
-    return ArtworkInventory(
-        poster=flags["poster"],
-        fanart=flags["fanart"],
-        landscape=flags["landscape"],
-        banner=flags["banner"],
-        clearlogo=flags["clearlogo"],
-        clearart=flags["clearart"],
-        characterart=flags["characterart"],
-    )
+    return ArtworkInventory.from_presence(_artwork_inventory(show_dir))
 
 
 # ---------------------------------------------------------------------------

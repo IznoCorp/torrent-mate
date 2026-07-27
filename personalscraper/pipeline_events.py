@@ -30,10 +30,64 @@ converting ``pipeline.py`` to a package and moving these classes inside
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from personalscraper.core.event_bus import Event
 from personalscraper.models import PipelineReport, StepReport
+
+
+class StepItemStatus(StrEnum):
+    """Normalized status vocabulary for :class:`ItemProgressed` events.
+
+    Covers every observed ``status`` literal emitted across all 9 pipeline
+    steps.  New emission sites that introduce a status NOT listed here MUST
+    add it to this enum so the inventory stays the single source of truth.
+
+    Emission-site inventory (verified 2026-07-16):
+
+    * ``started`` — every step (ingest, sort, clean, scrape, cleanup,
+      enforce, verify, trailers, dispatch)
+    * ``skipped`` — ingest (already_ingested, ratio_below_threshold,
+      seed_pure, found_in_staging, already_exists, insufficient_space),
+      trailers (skip_flag/disabled), scrape (skipped_already_done /
+      skipped_no_category), dispatch (skipped action), clean (cat_status),
+      cleanup, sorter, enforce
+    * ``failed`` — ingest (content_missing, transfer_failed,
+      torrent_ingest_failed), trailers (state_locked, state_write_failed,
+      crashed), scrape (error action)
+    * ``copied`` — ingest (successful copy/move transfer)
+    * ``queued_for_decision`` — scrape (enqueued item)
+    * ``matched`` — scrape (scraped / artwork_recovered)
+    * ``skipped_low_confidence`` — scrape (below_threshold, not enqueued)
+    * ``error`` — dispatch (unknown action), sorter (SortResult.status),
+      clean (cat_status)
+    * ``moved`` — sorter (SortResult.status), dispatch (r.action)
+    * ``fixed`` — enforce (sanitize, structure, coherence)
+    * ``ok`` — verify (valid / fixed VerifyResult)
+    * ``blocked`` — verify (blocked VerifyResult)
+    * ``cleaned`` — clean (cat_status)
+    * ``replaced`` — dispatch (r.action for movie replace)
+    * ``merged`` — dispatch (r.action for TV merge)
+    * ``removed`` — cleanup (terminal_status)
+    """
+
+    STARTED = "started"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+    COPIED = "copied"
+    QUEUED_FOR_DECISION = "queued_for_decision"
+    MATCHED = "matched"
+    SKIPPED_LOW_CONFIDENCE = "skipped_low_confidence"
+    ERROR = "error"
+    MOVED = "moved"
+    FIXED = "fixed"
+    OK = "ok"
+    BLOCKED = "blocked"
+    CLEANED = "cleaned"
+    REPLACED = "replaced"
+    MERGED = "merged"
+    REMOVED = "removed"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -160,5 +214,6 @@ __all__ = [
     "PipelineStarted",
     "StepCompleted",
     "StepErrored",
+    "StepItemStatus",
     "StepStarted",
 ]

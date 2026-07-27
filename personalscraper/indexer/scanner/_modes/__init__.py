@@ -17,12 +17,13 @@ from .enrich import (
     _enrich_one_file,
     _inventory_artwork,
     _purge_non_video_stream_rows,
+    _refresh_trailer_found,
     _resolve_item_root_dir,
     _scan_disk_enrich,
     os,
 )
 from .full import _scan_disk_full
-from .incremental import _scan_disk_incremental, _walk_dir_incremental
+from .incremental import _scan_disk_incremental
 from .quick import _run_paranoia_branch, _scan_disk_quick
 from .verify import _scan_disk_verify
 
@@ -36,6 +37,7 @@ __all__ = [
     "_flush_insert_buffer",
     "_inventory_artwork",
     "_purge_non_video_stream_rows",
+    "_refresh_trailer_found",
     "_resolve_item_root_dir",
     "_run_paranoia_branch",
     "_scan_disk_enrich",
@@ -44,5 +46,4 @@ __all__ = [
     "_scan_disk_incremental",
     "_scan_disk_quick",
     "_scan_disk_verify",
-    "_walk_dir_incremental",
 ]

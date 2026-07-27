@@ -67,6 +67,24 @@ class TrackerRegistry:
         self._priority_by_media_type: dict[str, list[str]] = priority_by_media_type or {}
         self._ranking = ranking
 
+    @property
+    def ranking(self) -> RankingConfig:
+        """Return the :class:`RankingConfig` applied to merged results.
+
+        Read-only accessor over the private ``_ranking`` field. Exposed so the
+        ``grab --dry-run`` preview can run the SAME hard-filter → dedup → rank
+        tail the real grab runs (F4): the preview reaches the registry (the
+        ``GrabOrchestrator`` is ``None`` when no torrent client is configured,
+        so its ``_ranking`` is out of reach) and needs the identical ranking
+        source. This is the very object the composition root passes to both this
+        registry and the orchestrator (``config.ranking``), so preview and run
+        can never diverge on ranking.
+
+        Returns:
+            The ranking configuration for this registry.
+        """
+        return self._ranking
+
     def _priority_for(self, media_type: str | None) -> list[str]:
         """Return the tracker order to use for the given ``media_type``.
 

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.scraper.movie_service import (
+from personalscraper.scraper._db_restore import (
     AmbiguousNfo,
     CopyFailed,
     NoDb,

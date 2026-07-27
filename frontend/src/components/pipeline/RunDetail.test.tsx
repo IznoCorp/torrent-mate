@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RunDetail } from "@/components/pipeline/RunDetail";
 
-import type { RunDetail as RunDetailType } from "@/api/client";
+import type { RunDetail as RunDetailType } from "@/api/pipeline";
 import { ApiError } from "@/api/client";
 
 // ---------------------------------------------------------------------------
@@ -44,9 +44,9 @@ function makeDetail(overrides: Partial<RunDetailType> = {}): RunDetailType {
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/pipeline", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/pipeline")>("@/api/pipeline");
   return {
     ...actual,
     getPipelineRunDetail: vi.fn(),
@@ -55,7 +55,7 @@ vi.mock("@/api/client", async () => {
 
 /** Cached import ref for the mocked getPipelineRunDetail. */
 async function mockGetDetail() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/pipeline");
   return mod.getPipelineRunDetail as ReturnType<typeof vi.fn>;
 }
 

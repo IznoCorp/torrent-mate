@@ -28,7 +28,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.api.metadata._contracts import MovieDetailsProvider, TvDetailsProvider
+from personalscraper.api.metadata._contracts import MovieDetailsProvider
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
 from personalscraper.api.metadata.registry._events import (
@@ -38,7 +38,6 @@ from personalscraper.api.metadata.registry._events import (
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.movie_service import MovieServiceMixin
-from personalscraper.scraper.tv_service_episodes import match_tvshow_candidates
 
 
 class _RecordingBus:
@@ -196,73 +195,3 @@ def test_movie_chain_exhausted_on_all_unclassified_raises() -> None:
     # can surface the ACC-13 fail-soft shape.
     assert exc_info.value.last_exception is not None
     assert isinstance(exc_info.value.last_exception, KeyError)
-
-
-# ---------------------------------------------------------------------------
-# TV chain — symmetric with movies
-# ---------------------------------------------------------------------------
-
-
-def test_tv_chain_continues_on_unclassified_exception() -> None:
-    """A TVDB ValueError must roll forward to TMDB in match_tvshow_candidates."""
-    tvdb = _make_provider("tvdb")
-    tmdb = _make_provider("tmdb")
-    bus = _RecordingBus()
-    registry = _make_registry({TvDetailsProvider: [tvdb, tmdb]}, bus)
-
-    winning_match = MatchResult(
-        api_id=12345,
-        api_title="Breaking Bad",
-        api_year=2008,
-        confidence=0.9,
-        source="tmdb",
-    )
-
-    def _match_single(provider: Any, title: str, year: int | None, *, local_seasons: set[int]) -> MatchResult | None:
-        if provider.provider_name == "tvdb":
-            raise ValueError("malformed TVDB payload")
-        return winning_match
-
-    result = ScrapeResult(media_path=Path("/tmp/show"), media_type="tvshow")
-    with patch("personalscraper.scraper.scraper.match_tvshow_single", side_effect=_match_single):
-        returned = match_tvshow_candidates(registry, "Breaking Bad", 2008, set(), result)
-
-    assert returned is winning_match
-    assert result.error is None
-
-    fallback_events = [e for e in bus.emitted if isinstance(e, ProviderFallbackTriggered)]
-    assert len(fallback_events) == 1
-    event = fallback_events[0]
-    assert event.from_provider == "tvdb"
-    assert event.reason == "other"
-    assert event.exc_type == "ValueError"
-    assert event.capability == "TvDetailsProvider"
-
-
-def test_tv_chain_exhausted_on_all_unclassified_raises() -> None:
-    """All TV providers raising unclassified → ProviderExhausted with reason='other'."""
-    tvdb = _make_provider("tvdb")
-    tmdb = _make_provider("tmdb")
-    bus = _RecordingBus()
-    registry = _make_registry({TvDetailsProvider: [tvdb, tmdb]}, bus)
-
-    def _always_raise(provider: Any, title: str, year: int | None, *, local_seasons: set[int]) -> MatchResult | None:
-        raise RuntimeError(f"unclassified from {provider.provider_name}")
-
-    result = ScrapeResult(media_path=Path("/tmp/show"), media_type="tvshow")
-    with (
-        patch("personalscraper.scraper.scraper.match_tvshow_single", side_effect=_always_raise),
-        pytest.raises(ProviderExhausted) as exc_info,
-    ):
-        match_tvshow_candidates(registry, "Breaking Bad", 2008, set(), result)
-
-    fallback_events = [e for e in bus.emitted if isinstance(e, ProviderFallbackTriggered)]
-    assert {e.from_provider for e in fallback_events} == {"tvdb", "tmdb"}
-    assert all(e.reason == "other" for e in fallback_events)
-
-    exhausted_events = [e for e in bus.emitted if isinstance(e, ProviderExhaustedEvent)]
-    assert len(exhausted_events) == 1
-    reasons = {a.reason for a in exhausted_events[0].attempted}
-    assert reasons == {"other"}
-
-    assert isinstance(exc_info.value.last_exception, RuntimeError)

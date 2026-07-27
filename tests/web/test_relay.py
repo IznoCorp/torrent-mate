@@ -37,13 +37,13 @@ from starlette.websockets import WebSocketDisconnect
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import event_to_envelope
 from personalscraper.indexer.events import BackfillCompleted
-from personalscraper.web.app import create_app
 from personalscraper.web.auth.passwords import hash_password
 from personalscraper.web.ws.relay import (
     ConnectionRegistry,
     read_stream_loop,
     replay_events,
 )
+from tests.web._web_harness import make_web_app
 
 # ── Test constants ────────────────────────────────────────────────────────────
 TEST_USER = "testuser"
@@ -144,7 +144,7 @@ def _build_app(test_config) -> tuple[Any, Any]:
         web_password_hash=TEST_HASH,
         web_jwt_secret=TEST_SECRET,
     )
-    return create_app(cfg, settings), cfg
+    return make_web_app(cfg, settings), cfg
 
 
 def _patch_redis_pool(pool_factory: Callable[[], Any]) -> Any:

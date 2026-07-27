@@ -32,7 +32,7 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import type { StagesResponse } from "@/api/client";
+import type { StagesResponse } from "@/api/pipeline";
 import { ErrorState } from "@/components/ds/ErrorState";
 import {
   StageStation,

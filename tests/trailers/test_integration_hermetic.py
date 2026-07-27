@@ -22,11 +22,10 @@ from xml.etree import ElementTree as ET
 
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
-from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.placement import trailer_exists, trailer_path_for, trailer_path_for_season
 from personalscraper.trailers.scanner import ScanItem
-from personalscraper.trailers.state import TrailerStatus
 
 # Canonical path to the pre-built minimal mp4 fixture used as a fake download.
 _SAMPLE_TRAILER = Path(__file__).parent / "fixtures" / "sample-trailer.mp4"
@@ -102,7 +101,8 @@ class TestHermeticMovieTrailer:
     Verifies:
     - Trailer file lands at {movie_dir}/{name}-trailer.mp4 (flat convention).
     - trailer_exists() returns True for the placed file.
-    - State entry has status=DOWNLOADED, youtube_url matches the fake URL.
+    - P6.4 single-truth: success writes NO presence state (ledger cleared); the
+      YouTube URL propagates into the NFO <trailer> tag instead.
     """
 
     def test_movie_trailer_placed_at_flat_path(self, tmp_path: Path) -> None:
@@ -152,18 +152,18 @@ class TestHermeticMovieTrailer:
         # Assert: counters.
         assert counts["downloaded"] == 1, f"Expected 1 downloaded, got {counts}"
 
-        # Assert: state entry persisted with correct fields.
-        state = orch._state_store.get("movie:tmdb:550")
-        assert state is not None, "State entry not written"
-        assert state.status == TrailerStatus.DOWNLOADED
-        assert state.youtube_url == _FAKE_YT_URL
+        # P6.4 single-truth: a successful download writes NO presence state — the
+        # trailer file on disk (asserted above) is the truth and the derived index
+        # carries presence; the ledger is cleared.
+        assert orch._state_store.get("movie:tmdb:550") is None
 
-    def test_youtube_url_stored_in_state_for_nfo_propagation(self, tmp_path: Path) -> None:
-        """Successful download propagates YouTube URL into NFO <trailer> tag.
+    def test_youtube_url_propagated_into_nfo_trailer_tag(self, tmp_path: Path) -> None:
+        """Successful download propagates the YouTube URL into the NFO <trailer> tag.
 
-        The state entry persists the YouTube URL; simultaneously the orchestrator
-        calls write_trailer_url_to_nfo to populate the <trailer> element in the
-        NFO file so that Plex / Kodi have a remote-trailer fallback.
+        P6.4 single-truth: the state JSON is a download-attempt ledger, not a
+        presence/URL registry — a successful download clears the ledger. The
+        YouTube URL is propagated into the NFO ``<trailer>`` element (the
+        Plex / Kodi remote-trailer fallback), which is what this pins.
         """
         movie_dir = tmp_path / "Inception (2010)"
         movie_dir.mkdir()
@@ -198,15 +198,13 @@ class TestHermeticMovieTrailer:
         ):
             orch.run()
 
-        # Assert: state entry carries youtube_url and trailer_path.
-        state = orch._state_store.get("movie:tmdb:27205")
-        assert state is not None, "State entry not written"
-        assert state.youtube_url == _FAKE_YT_URL, (
-            f"Expected youtube_url={_FAKE_YT_URL!r} in state, got {state.youtube_url!r}"
-        )
-        assert state.trailer_path is not None, "trailer_path not set in state"
-        expected_trailer = trailer_path_for(movie_dir, "Inception (2010)", ext="mp4")
-        assert state.trailer_path == str(expected_trailer)
+        # P6.4 single-truth: the YouTube URL is propagated into the NFO <trailer>
+        # tag (Plex/Kodi remote-trailer fallback), NOT the state JSON — which is a
+        # download-attempt ledger cleared on success.
+        trailer_elem = ET.parse(nfo_path).getroot().find("trailer")
+        assert trailer_elem is not None, "NFO <trailer> element missing"
+        assert trailer_elem.text == _FAKE_YT_URL, f"Expected NFO <trailer>={_FAKE_YT_URL!r}, got {trailer_elem.text!r}"
+        assert orch._state_store.get("movie:tmdb:27205") is None, "success must clear the ledger (no presence state)"
 
         # Assert: NFO <trailer> tag was populated with the YouTube URL.
         tree = ET.parse(nfo_path)
@@ -320,12 +318,10 @@ class TestHermeticSeasonTrailer:
         assert seasonal_trailer.exists(), f"Trailer not found at seasonal path: {seasonal_trailer}"
         assert trailer_exists(seasonal_trailer, min_size_bytes=_MIN_SIZE)
 
-        # Assert: state entry for season item is keyed correctly by the composite key,
-        # season_number is populated in the persisted TrailerState entry.
-        season_state = orch._state_store.get("tv:tmdb:1396:season:1")
-        assert season_state is not None, "State entry for season not written"
-        assert season_state.status == TrailerStatus.DOWNLOADED
-        assert season_state.season_number == 1, f"Expected season_number=1 in state, got {season_state.season_number!r}"
+        # P6.4 single-truth: success writes no presence state. Correct season
+        # routing is proven by the seasonal trailer FILE placement asserted above
+        # (trailer_path_for_season(show_dir, 1)); the ledger is cleared.
+        assert orch._state_store.get("tv:tmdb:1396:season:1") is None
 
 
 class TestHermeticLibraryAwareIdempotence:
@@ -335,8 +331,8 @@ class TestHermeticLibraryAwareIdempotence:
     file (size >= min_file_size_bytes). A new episode of the same show appears
     in staging. With library_check.tv_shows=True (default), the orchestrator
     must:
-      - Mark the state entry with status=ALREADY_PRESENT_ON_DISK,
-        trailer_path=<library path>.
+      - Increment already_present_on_disk (P6.4 single-truth: write NO presence
+        state — presence is the filesystem + derived index).
       - NOT call TrailerFinder.find or YtdlpDownloader.download.
     """
 
@@ -396,11 +392,9 @@ class TestHermeticLibraryAwareIdempotence:
         assert counts["already_present_on_disk"] == 1, f"Expected 1 already_present_on_disk, got {counts}"
         assert counts["downloaded"] == 0
 
-        # Assert: state entry written with ALREADY_PRESENT_ON_DISK status and library path.
-        state = orch._state_store.get("tv:tmdb:1396")
-        assert state is not None, "State entry not written for library-aware recheck"
-        assert state.status == TrailerStatus.ALREADY_PRESENT_ON_DISK
-        assert state.trailer_path == str(lib_trailer)
+        # P6.4 single-truth: the recheck writes no presence claim — presence is the
+        # filesystem (lib_trailer exists) + the derived index; the ledger stays clear.
+        assert orch._state_store.get("tv:tmdb:1396") is None
 
     def test_new_show_without_library_match_proceeds_to_download(self, tmp_path: Path) -> None:
         """When no library match exists, the orchestrator falls through to download.

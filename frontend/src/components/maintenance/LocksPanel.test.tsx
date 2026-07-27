@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LocksPanel } from "@/components/maintenance/LocksPanel";
 
-import type { LocksResponse } from "@/api/client";
+import type { LocksResponse } from "@/api/maintenance";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -66,9 +66,9 @@ function makeLocksResponse(
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
   return {
     ...actual,
     getLocks: vi.fn(),
@@ -76,7 +76,7 @@ vi.mock("@/api/client", async () => {
 });
 
 async function mockGetLocks() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.getLocks as ReturnType<typeof vi.fn>;
 }
 
@@ -204,11 +204,7 @@ describe("LocksPanel", () => {
               prefix: "_tmp_dispatch_",
               age_s: 300,
             },
-            {
-              path: "/tmp/_tmp_ingest_xyz",
-              prefix: "_tmp_ingest_",
-              age_s: 600,
-            },
+            { path: "/tmp/.ingest_tmp_xyz", prefix: ".ingest_tmp_", age_s: 600 },
           ],
         },
       }),
@@ -221,7 +217,7 @@ describe("LocksPanel", () => {
     // Expand the orphans list.
     fireEvent.click(toggle);
     expect(screen.getByText(/_tmp_dispatch_abc/)).toBeInTheDocument();
-    expect(screen.getByText(/_tmp_ingest_xyz/)).toBeInTheDocument();
+    expect(screen.getByText(/\.ingest_tmp_xyz/)).toBeInTheDocument();
     expect(screen.getByText("— 5 min")).toBeInTheDocument();
     expect(screen.getByText("— 10 min")).toBeInTheDocument();
   });

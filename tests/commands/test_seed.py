@@ -64,7 +64,7 @@ def _invoke_seed(app, args: list[str], torrent_client=None):
 
     with (
         patch("personalscraper.commands.seed.per_step_boundary") as mock_boundary,
-        patch("personalscraper.commands.seed._cli_compat.get_settings", return_value=MagicMock()),
+        patch("personalscraper.commands.seed.cli_helpers.get_settings", return_value=MagicMock()),
     ):
         mock_boundary.return_value.__enter__ = MagicMock(return_value=mock_app_context)
         mock_boundary.return_value.__exit__ = MagicMock(return_value=False)

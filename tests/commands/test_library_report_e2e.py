@@ -135,7 +135,7 @@ def test_report_aggregates_indexer_totals(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-report"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["total_items"] == 3, f"Expected 3 items, got {data.get('total_items')}"
     assert data["total_size_gb"] > 0, f"Expected non-zero size: {data}"
 
@@ -177,7 +177,7 @@ def test_report_handles_missing_supplementary_json(tmp_path, test_config) -> Non
         result = run_cli(["--format", "json", "library-report"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["total_items"] == 1
     # Validation/recommendation sections should be zero/empty.
     assert data["validation_valid"] == 0
@@ -210,7 +210,7 @@ def test_report_format_json(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-report"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     # Check that JSON contains expected top-level fields.
     assert "generated_at" in data
     assert "total_items" in data
@@ -276,6 +276,7 @@ def test_report_json_schema_valid(tmp_path, test_config) -> None:
             "items_per_disk",
             "items_per_category",
         ],
+        source_attr="stdout",
     )
     assert isinstance(data["total_items"], int)
 

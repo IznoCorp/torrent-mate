@@ -729,7 +729,7 @@ class TestQuickMode:
             return real_scandir(path)
 
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_tracking_scandir):
+            with patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=_tracking_scandir):
                 result = scan([updated_disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
@@ -768,7 +768,7 @@ class TestQuickMode:
             return real_scandir(path)
 
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_tracking_scandir):
+            with patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=_tracking_scandir):
                 result = scan([disk], ScanMode.quick, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
@@ -1018,14 +1018,16 @@ class TestVerifyDirMtimeReliable:
                 {attr: getattr(st, attr) for attr in dir(st) if not attr.startswith("__")} | {"st_mtime_ns": 12345678},
             )()
 
-        with patch("personalscraper.indexer.scanner.os.stat", side_effect=_frozen_stat):
+        with patch("personalscraper.indexer.scanner._walker.os.stat", side_effect=_frozen_stat):
             result = _verify_dir_mtime_reliable()
 
         assert result is False, "Expected False when mtime unchanged after child write"
 
     def test_returns_false_on_exception(self) -> None:
         """An OSError during the check causes _verify_dir_mtime_reliable to return False."""
-        with patch("personalscraper.indexer.scanner.tempfile.TemporaryDirectory", side_effect=OSError("no tmp")):
+        with patch(
+            "personalscraper.indexer.scanner._walker.tempfile.TemporaryDirectory", side_effect=OSError("no tmp")
+        ):
             result = _verify_dir_mtime_reliable()
         assert result is False
 
@@ -1812,7 +1814,7 @@ class TestParallelScan:
             return real_scandir(path_str)
 
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_patched_scandir):
+            with patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=_patched_scandir):
                 with caplog.at_level(logging.WARNING):
                     result = scan(
                         [disk1, disk2],
@@ -1904,7 +1906,7 @@ class TestParallelScan:
         disk1 = _insert_disk_on_conn(conn, mount1)
         disk2 = _insert_disk_on_conn(conn, mount2)
 
-        original_finalize = scanner_module._finalize_disk_after_walk
+        original_finalize = scanner_module._scan_orchestrator._finalize_disk_after_walk
         finalize_connection_ids: list[int] = []
 
         def _record_finalize_conn(*args: Any, **kwargs: Any) -> Any:
@@ -1912,7 +1914,10 @@ class TestParallelScan:
             return original_finalize(*args, **kwargs)
 
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner._finalize_disk_after_walk", side_effect=_record_finalize_conn):
+            with patch(
+                "personalscraper.indexer.scanner._scan_orchestrator._finalize_disk_after_walk",
+                side_effect=_record_finalize_conn,
+            ):
                 result = scan(
                     [disk1, disk2],
                     ScanMode.full,
@@ -2057,14 +2062,15 @@ class TestParallelScan:
 # Sub-phase 4.4 — Mount-flag detection
 # ---------------------------------------------------------------------------
 
-# _check_mount_flags now delegates the ``mount`` shell-out to the shared
-# FsProbe module.  ``scanner/__init__.py`` imports ``_run_mount`` into its own
-# namespace (``from ..._fs_probe import _run_mount``), so the patch must target
-# the *name as looked up there* — ``scanner._run_mount`` — not the definition
-# site in ``_fs_probe``.  The patched callable returns the raw ``mount`` stdout
-# string directly (FsProbe's contract), replacing the old subprocess.run mock.
-_MOUNT_CHECK_PATCH = "personalscraper.indexer.scanner._run_mount"
-_PLATFORM_PATCH = "personalscraper.indexer.scanner.platform.system"
+# _check_mount_flags lives in ``scanner/_scan_orchestrator.py`` and delegates the
+# ``mount`` shell-out to the shared FsProbe module.  ``_scan_orchestrator``
+# imports ``_run_mount`` into its own namespace (``from ..._fs_probe import
+# _run_mount``), so the patch must target the *name as looked up there* —
+# ``scanner._scan_orchestrator._run_mount`` — not the definition site in
+# ``_fs_probe``.  The patched callable returns the raw ``mount`` stdout string
+# directly (FsProbe's contract), replacing the old subprocess.run mock.
+_MOUNT_CHECK_PATCH = "personalscraper.indexer.scanner._scan_orchestrator._run_mount"
+_PLATFORM_PATCH = "personalscraper.indexer.scanner._scan_orchestrator.platform.system"
 
 
 def _make_disk_row(mount_path: str) -> DiskRow:
@@ -2752,7 +2758,7 @@ class TestScanUnexpectedExceptionReraise:
             raise _bomb
 
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_crashing_scandir):
+            with patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=_crashing_scandir):
                 with pytest.raises(RuntimeError, match="injected walk-loop crash"):
                     scan(
                         [disk],

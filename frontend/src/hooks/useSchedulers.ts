@@ -8,7 +8,7 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
-import { getSchedulers, type SchedulersResponse } from "@/api/client";
+import { getSchedulers, type SchedulersResponse } from "@/api/maintenance";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 
 /**

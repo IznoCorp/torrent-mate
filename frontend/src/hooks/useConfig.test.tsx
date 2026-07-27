@@ -3,7 +3,8 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, putConfigFile } from "@/api/client";
+import { ApiError } from "@/api/client";
+import { putConfigFile } from "@/api/config";
 import { configKeys } from "@/hooks/useConfigKeys";
 import {
   useConfigFiles,

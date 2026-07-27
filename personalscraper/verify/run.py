@@ -4,6 +4,8 @@ Instantiates the Verifier, processes movies and TV shows, and
 converts VerifyResult lists to StepReport.
 """
 
+from dataclasses import asdict
+
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
@@ -13,6 +15,8 @@ from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.pipeline_protocol import record
+from personalscraper.reports.verify import VerifyDetails, VerifyIssue
 from personalscraper.verify.events import VerifyItemDone
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
@@ -105,6 +109,7 @@ def run_verify(
         if tvshows_dir.exists():
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
 
+    report = StepReport(name="verify")
     for r in all_results:
         # Structured machine-telemetry log — one line per item regardless of
         # whether the caller subscribed to the EventBus. This is the primary
@@ -128,75 +133,95 @@ def run_verify(
                 checks_total=r.checks_total,
             )
         )
-        # Legacy ItemProgressed events — kept for backwards compat with
-        # existing pipeline-lifecycle subscribers (StepStarted / StepCompleted
-        # consumers expect started + terminal per item).
+        # ItemProgressed lifecycle: ``started`` then the terminal transition.
+        # The terminal ``record`` call also drives the report counters (replaces
+        # the former report-conversion aggregation).
         event_bus.emit(ItemProgressed(step="verify", item=r.media_path.name, status="started"))
-        if r.status in ("valid", "fixed"):
-            event_bus.emit(
-                ItemProgressed(
-                    step="verify",
-                    item=r.media_path.name,
-                    status="ok",
-                    details={"status": r.status, "category": r.category or ""},
-                )
-            )
-        elif r.status == "blocked":
-            event_bus.emit(
-                ItemProgressed(
-                    step="verify",
-                    item=r.media_path.name,
-                    status="blocked",
-                    details={"errors": list(r.errors)},
-                )
-            )
+        _record_verify_terminal(report, event_bus, r)
+
+    # Typed details payload (STEP_REPORT_CONTRACT: VerifyDetails). Flattened to a
+    # JSON-safe dict here so the report is self-consistent on the standalone CLI
+    # path too (the pipeline re-validates it in ``Pipeline._with_details_payload``).
+    report.details_payload = asdict(_build_verify_details(all_results))
 
     dispatchable = Verifier.get_dispatchable(all_results)
-    report = _to_step_report(all_results)
 
     return report, dispatchable
 
 
-def _to_step_report(results: list[VerifyResult]) -> StepReport:
-    """Convert VerifyResult list to StepReport.
+def _build_verify_details(results: list[VerifyResult]) -> VerifyDetails:
+    """Build the typed :class:`VerifyDetails` payload from verify results.
+
+    Partitions by status: ``valid`` → ``verified`` (names), ``fixed`` →
+    ``fixed`` (names), ``blocked`` → one :class:`VerifyIssue` per error
+    (``code="blocked"``, ``message`` = the error string).
 
     Args:
-        results: List of verify results.
+        results: Per-item verify results from the Verifier.
 
     Returns:
-        StepReport with aggregated counts.
+        A :class:`VerifyDetails` grouping items by verification outcome.
     """
-    valid = sum(1 for r in results if r.status == "valid")
-    fixed = sum(1 for r in results if r.status == "fixed")
-    blocked = sum(1 for r in results if r.status == "blocked")
-    warnings: list[str] = []
-    details: list[str] = []
-
+    details = VerifyDetails()
     for r in results:
         name = r.media_path.name
-        cat = f" [{r.category}]" if r.category else ""
         if r.status == "valid":
-            details.append(f"[valid] {name}{cat}")
+            details.verified.append(name)
         elif r.status == "fixed":
-            fixes = ", ".join(r.fixes_applied)
-            details.append(f"[fixed] {name}{cat} — {fixes}")
+            details.fixed.append(name)
         elif r.status == "blocked":
-            errs = "; ".join(r.errors)
-            details.append(f"[blocked] {name} — {errs}")
-            warnings.append(f"{name}: {errs}")
+            for err in r.errors:
+                details.issues.append(VerifyIssue(path=name, code="blocked", message=err))
+    return details
 
-    return StepReport(
-        name="verify",
-        success_count=valid + fixed,
-        # A blocked item is NOT a pipeline error — it is content awaiting manual
-        # attention (e.g. an episode the provider can't match). It is already
-        # excluded from ``dispatchable`` (get_dispatchable keeps only valid/fixed)
-        # and surfaced in ``warnings``, so it is counted as a SKIP, not an error.
-        # Counting it as an error made every run exit non-zero while any item sat
-        # blocked, which in turn made the Watcher log spurious watcher_run_failed
-        # on every tick.
-        skip_count=blocked,
-        error_count=0,
-        warnings=warnings,
-        details=details,
-    )
+
+def _record_verify_terminal(report: StepReport, bus: EventBus, r: VerifyResult) -> None:
+    """Record one verify result's terminal ``ItemProgressed`` + report counter.
+
+    Preserves the exact counter/detail/warning + event-payload semantics of the
+    former report-conversion helper + event loop:
+
+    * ``valid`` / ``fixed`` → ``success_count``; ``ok`` event with
+      ``{status, category}``; detail ``[valid] <name>[cat]`` or
+      ``[fixed] <name>[cat] — <fixes>``.
+    * ``blocked`` → ``skip_count`` (NOT an error — content awaiting manual
+      attention, already excluded from ``dispatchable`` and surfaced in
+      ``warnings``); ``blocked`` event with ``{errors}``; detail
+      ``[blocked] <name> — <errs>`` + warning ``<name>: <errs>``.
+
+    ``error_count`` is never incremented (verify has no error terminal).
+
+    Args:
+        report: Verify step report mutated in place.
+        bus: Required in-process EventBus.
+        r: One verify result.
+    """
+    name = r.media_path.name
+    cat = f" [{r.category}]" if r.category else ""
+    if r.status in ("valid", "fixed"):
+        if r.status == "valid":
+            detail = f"[valid] {name}{cat}"
+        else:
+            fixes = ", ".join(r.fixes_applied)
+            detail = f"[fixed] {name}{cat} — {fixes}"
+        record(
+            report,
+            bus,
+            step="verify",
+            item=name,
+            status="ok",
+            detail=detail,
+            event_details={"status": r.status, "category": r.category or ""},
+        )
+    elif r.status == "blocked":
+        errs = "; ".join(r.errors)
+        record(
+            report,
+            bus,
+            step="verify",
+            item=name,
+            status="blocked",
+            detail=f"[blocked] {name} — {errs}",
+            warning=f"{name}: {errs}",
+            event_details={"errors": list(r.errors)},
+        )

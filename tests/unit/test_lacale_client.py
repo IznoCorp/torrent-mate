@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.transport._auth import ApiKeyAuth
 
@@ -192,13 +193,16 @@ class TestLaCaleCategoriesAgainstLiveSamples:
 
 
 class TestLaCaleParseTitle:
-    """LaCaleClient._parse_title() against live title samples."""
+    """Shared ``parse_title_quality`` against live LaCale title samples.
+
+    LaCale (like c411/torr9) feeds the shared
+    :func:`personalscraper.api.tracker._quality.parse_title_quality` — the
+    per-client ``_parse_title`` static method was extracted into that module.
+    """
 
     def test_full_quality_title(self) -> None:
         """Live title with resolution+codec+source+audio markers extracts all four."""
-        out = LaCaleClient._parse_title(
-            "Inception.2010.MULTi.TRUEFRENCH.HDR.2160p.UHD.BluRay.DTS-HD.MA.5.1.H265-XANTAR"
-        )
+        out = parse_title_quality("Inception.2010.MULTi.TRUEFRENCH.HDR.2160p.UHD.BluRay.DTS-HD.MA.5.1.H265-XANTAR")
         assert out["resolution"] == "2160p"
         assert out["codec"] == "H265"
         assert out["source"] is not None
@@ -207,7 +211,7 @@ class TestLaCaleParseTitle:
 
     def test_minimal_title_returns_nones(self) -> None:
         """A title without recognizable quality markers yields None fields."""
-        out = LaCaleClient._parse_title("Random.title.no.metadata")
+        out = parse_title_quality("Random.title.no.metadata")
         assert out["resolution"] is None
         assert out["codec"] is None
         assert out["source"] is None
@@ -215,12 +219,12 @@ class TestLaCaleParseTitle:
         assert out["format"] is None
 
     def test_no_freeleech_keys_in_output(self) -> None:
-        """Phase 18 revisit: _parse_title no longer returns freeleech flags."""
-        out = LaCaleClient._parse_title("[FreeLeech] Movie.1080p.x264")
+        """Phase 18 revisit: the parser no longer returns freeleech flags."""
+        out = parse_title_quality("[FreeLeech] Movie.1080p.x264")
         assert "is_freeleech" not in out
         assert "is_silverleech" not in out
 
     def test_format_extension_optional(self) -> None:
         """Live LaCale titles do NOT carry a file extension — format is None."""
-        out = LaCaleClient._parse_title("Inception.2010.MULTi.VFF.1080p.HDLight.DTS.5.1.x264-PATOMiEL")
+        out = parse_title_quality("Inception.2010.MULTi.VFF.1080p.HDLight.DTS.5.1.x264-PATOMiEL")
         assert out["format"] is None

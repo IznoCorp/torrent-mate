@@ -5,23 +5,58 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.conf import resolver
-from personalscraper.core.delete_permit import ALLOW
 from personalscraper.dispatch import _transfer
-from personalscraper.dispatch._movie import _disk_root_for, _is_skipped_for_illegal_names
+from personalscraper.dispatch._identity import merge_identity_conflict
+from personalscraper.dispatch._item import (
+    DispatchSpec,
+    _dispatch_item,
+    canonical_name_from_destination,
+    merge_transfer,
+)
 from personalscraper.dispatch._types import DispatchResult
-from personalscraper.dispatch.disk_scanner import get_disk_status
-from personalscraper.dispatch.events import ItemDispatched
-from personalscraper.dispatch.media_index import IndexEntry
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
-from personalscraper.indexer.outbox._disk import disk_id_for_path
-from personalscraper.indexer.outbox._publish import publish_event
+from personalscraper.indexer.destructive_journal import OP_OVERWRITE
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.dispatch.dispatcher import Dispatcher
 
 log = get_logger("dispatcher.tv")
+
+
+def _tv_journal_detail(source_dir: Path) -> str:
+    """Return the destructive-journal detail for a TV merge-overwrite.
+
+    A TV merge journals only when it genuinely supersedes an existing episode —
+    a same-filename rsync overwrite, or a re-scrape-rename purge (same
+    ``(season, episode)`` key under a different filename). The detail names the
+    show folder whose episode(s) were superseded (**F1**, DESIGN §6/§7).
+
+    Args:
+        source_dir: The staging show folder that supersedes on-disk episode(s).
+
+    Returns:
+        The French journal detail string.
+    """
+    return f"MERGE série — épisode(s) écrasé(s) par « {source_dir.name} »"
+
+
+#: TV specialisation of the shared dispatch template: merge into an existing
+#: on-disk show (backup/restore), gated by the §7 provider-ID identity guard so
+#: a same-named but DIFFERENT series is never overwritten (``tvshow.nfo``, TVDB
+#: primary; fail-open + logged when unverifiable). Journals a supersede of an
+#: existing episode as one ``overwrite`` row (F1). An add-only merge destroys
+#: nothing and journals nothing (see ``merge_transfer``).
+_TV_SPEC = DispatchSpec(
+    media_type="tvshow",
+    existing_action="merged",
+    transfer_fn=merge_transfer,
+    identity_guard=merge_identity_conflict,
+    canonical_name_rule=canonical_name_from_destination,
+    journal_op=OP_OVERWRITE,
+    journal_detail=_tv_journal_detail,
+    bus_source="dispatch.tv",
+)
 
 
 def dispatch_tvshow(
@@ -31,6 +66,14 @@ def dispatch_tvshow(
 ) -> DispatchResult:
     """Dispatch a TV show: merge if exists, move to best disk if new.
 
+    Thin wrapper over :func:`personalscraper.dispatch._item._dispatch_item`
+    parameterised by :data:`_TV_SPEC` (merge strategy, §7 provider-ID identity
+    guard, ``overwrite`` journal on a genuine episode supersede). The shared scaffold —
+    existing-copy detection, free-space + illegal-name gating, the §7.3
+    seed-obligation permit consult, the transfer, the destructive journal, the
+    index/outbox write-through and the ``ItemDispatched`` emit — lives in the
+    template.
+
     Args:
         dispatcher: Dispatcher instance for config, index, and helper access.
         show_dir: Source TV show directory.
@@ -39,166 +82,7 @@ def dispatch_tvshow(
     Returns:
         DispatchResult with operation details.
     """
-    result = DispatchResult(source=show_dir)
-
-    disk_statuses = [get_disk_status(c) for c in dispatcher._disk_configs]
-    free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
-    item_size_gb = _transfer.dir_size_gb(show_dir)
-
-    # Check index for existing copy, validated against filesystem to avoid
-    # duplicating when the user has moved the folder between disks manually.
-    existing = dispatcher._resolve_existing_on_filesystem(show_dir.name, "tvshow", media_dir=show_dir)
-
-    if existing:
-        dest = Path(existing.path)
-        result.disk = existing.disk
-        result.destination = dest
-
-        # Check if disk has enough space for the merge
-        threshold = max(
-            dispatcher.config.thresholds.min_free_space_disk_gb,
-            item_size_gb * 1.5,
-        )
-        disk_free = free_space_by_id.get(existing.disk, 0.0)
-        if disk_free < threshold:
-            result.action = "skipped"
-            result.reason = f"Disk {existing.disk} full, cannot merge"
-            return result
-
-        # Resolve the destination disk's capability (NTFS-safe default), then
-        # gate illegal filenames against THAT capability's regex (None on POSIX
-        # filesystems → no restriction → not skipped). Resolving before the
-        # dry-run branch keeps dry-run a faithful preview of the real run.
-        cap = dispatcher._disk_capabilities.get(existing.disk, NTFS_MACFUSE)
-        if _is_skipped_for_illegal_names(result, show_dir, cap):
-            return result
-
-        if dispatcher.dry_run:
-            result.action = "merged"
-            result.reason = f"[DRY RUN] Would merge on {existing.disk}"
-            return result
-        # Three-state seedtime-aware policy (DESIGN §7.3): the merge overwrites
-        # OLD on-disk episodes. If a live seed obligation on the existing show is
-        # unmet, the new real media still wins (O3) — but the breach is recorded,
-        # never silent. Relocate-not-delete is deferred to O2/O3, so we proceed
-        # either way.
-        #
-        # F2: the consult is fail-open (DESIGN §7.3 / §9). A permit whose
-        # may_delete raises must NOT crash the dispatch — treat the error as
-        # ALLOW (the merge proceeds, real media wins) and do NOT mark_breach on
-        # an errored consult (a breach is only recorded on a positive VETO).
-        try:
-            decision = dispatcher._permit.may_delete(dest)
-        except Exception as exc:
-            log.warning("dispatch.permit_error", path=str(dest), error=str(exc), action="merge")
-            decision = ALLOW
-        if decision is not ALLOW:
-            log.warning("acquire.hnr_risk", path=str(dest), reason=str(decision), action="merge")
-            dispatcher._recorder.mark_breach(dest)
-        # Write-before-move (DESIGN §7.2): record the obligation for the NEWLY
-        # dispatched media BEFORE the FS move, so a crash mid-move never loses
-        # the safety constraint. Fail-soft (never raises).
-        dispatcher._recorder.record_dispatch(staging_source=show_dir, dispatched_dest=dest)
-        success = merge(show_dir, dest, capability=cap)
-        result.action = "merged" if success else "error"
-    else:
-        # Move to best disk via resolver
-        target_disk = resolver.pick_disk_for(
-            dispatcher.config,
-            category_id,
-            free_space_by_id,
-            dispatcher.config.thresholds.min_free_space_disk_gb,
-            item_size_gb,
-        )
-        if not target_disk:
-            result.action = "skipped"
-            result.reason = f"No disk with enough space for category '{category_id}'"
-            return result
-
-        dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / show_dir.name
-        result.disk = target_disk.id
-        result.destination = dest
-
-        # Resolve the target disk's capability (NTFS-safe default), then gate
-        # illegal filenames against THAT capability's regex (None on POSIX
-        # filesystems → no restriction → not skipped). Resolving before the
-        # dry-run branch keeps dry-run a faithful preview of the real run.
-        cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
-        if _is_skipped_for_illegal_names(result, show_dir, cap):
-            return result
-
-        if dispatcher.dry_run:
-            result.action = "moved"
-            result.reason = f"[DRY RUN] Would move to {target_disk.id}"
-            return result
-        # Write-before-move (DESIGN §7.2): the new show may itself be a live
-        # seed, so record its obligation BEFORE the FS move. No permit consult
-        # here — there is no pre-existing library content to delete (only the
-        # staging copy is removed after the move, and ingest copies seeding
-        # torrents, so that copy is not the qBit-seeding payload).
-        dispatcher._recorder.record_dispatch(staging_source=show_dir, dispatched_dest=dest)
-        success = dispatcher._move_new(show_dir, dest, capability=cap)
-        result.action = "moved" if success else "error"
-
-    if result.action in ("merged", "moved") and result.destination:
-        # When merging into an existing on-disk folder, the destination's
-        # name carries the canonical casing (NTFS is case-insensitive, so
-        # rsync resolves to the pre-existing folder). Recording the
-        # staging-side casing here would silently overwrite the indexer
-        # title with the new spelling on every dispatch and cause the
-        # next case-mismatch scan to keep flagging it. Use the
-        # destination's basename as the canonical title for merges /
-        # replacements; ``moved`` actions write a brand-new folder so
-        # the staging name is correct in that branch.
-        canonical_name = result.destination.name if result.action == "merged" else show_dir.name
-        dispatcher.index.add(
-            IndexEntry(
-                name=canonical_name,
-                disk=result.disk or "",
-                category=category_id,
-                path=str(result.destination),
-                media_type="tvshow",
-            )
-        )
-
-    # Best-effort outbox publish for the indexer (DESIGN §9.1).
-    if result.action in ("merged", "moved") and result.destination is not None:
-        _db_path = dispatcher.config.indexer.db_path
-        assert _db_path is not None, "indexer.db_path must be resolved"
-        resolved = disk_id_for_path(result.destination, _db_path)
-        if resolved is not None:
-            disk_id, rel_path = resolved
-            size_bytes, max_mtime = _transfer.dir_stats(result.destination)
-            publish_event(
-                disk_id,
-                op="move",
-                payload={
-                    "src_rel_path": "",
-                    "dst_rel_path": rel_path,
-                    "filename": result.destination.name,
-                    "size_bytes": size_bytes,
-                    "mtime_ns": max_mtime,
-                },
-                db_path=_db_path,
-                source="dispatch",
-            )
-
-    # Bus emit (Sub-phase 4.3) — only on real completed transfers. Dry-run
-    # is excluded by the same reasoning as dispatch_movie: ItemDispatched is
-    # the record of completed transfers; dry-run never completes one.
-    if not dispatcher.dry_run and result.action in ("moved", "merged") and result.destination is not None:
-        target_disk_path = _disk_root_for(dispatcher, result.disk)
-        dispatcher._event_bus.emit(
-            ItemDispatched(
-                source="dispatch.tv",
-                item=show_dir.name,
-                target_disk=target_disk_path,
-                category_id=category_id,
-                action=result.action,  # type: ignore[arg-type]  # narrowed by guard above
-            ),
-        )
-
-    return result
+    return _dispatch_item(dispatcher, show_dir, category_id, _TV_SPEC)
 
 
 def merge(

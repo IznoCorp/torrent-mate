@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Executable completeness gate for a scraped media item (staging).
 
-A staging item is COMPLETE (scraped + dispatchable) only when BOTH hold:
-
-1. The pipeline's ``verify`` step passes it (status ``valid``/``fixed``) — this is the
-   real gate that decides dispatch. It checks the NFO, poster/landscape naming, and
-   (TV) the episode renaming + episode NFOs. The web UI "Identifié / Vérification: Fait"
-   read-model is looser and does NOT reflect this — never trust it.
-2. The movie's video file is RENAMED to the canonical ``Title.<ext>`` (``verify`` does
-   not enforce movie video renaming, but the brief requires it: the library convention
-   is ``Cube.mkv``, never the raw release name).
+A staging item is COMPLETE (scraped + dispatchable) when the pipeline's ``verify`` step
+passes it (status ``valid``/``fixed``) — the real gate that decides dispatch. It checks
+the NFO, poster/landscape naming, the movie video-rename to the canonical ``Title.<ext>``
+(``Cube.mkv``, never the raw release name — enforced by the ``movie_video_renamed``
+catalog check since VERIFY-MAINTENANCE-04), and (TV) the episode renaming + episode NFOs.
+The web UI "Identifié / Vérification: Fait" read-model is looser and does NOT reflect this
+— never trust it.
 
 This is the executable definition of "scraped" for product-intent.md §méthode: no
 "scraping/dispatch OK" claim is valid without this green on EVERY affected item — never a
@@ -31,7 +29,6 @@ from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.media_types import FileType
 from personalscraper.naming_patterns import PATTERNS
-from personalscraper.verify.completeness import video_rename_gap
 from personalscraper.verify.verifier import Verifier
 
 
@@ -62,10 +59,6 @@ def _check(only: list[str]) -> int:
             gaps.extend(f"verify: {e}" for e in (r.errors or []))
             if not r.errors:
                 gaps.append(f"verify status={r.status}")
-        if kind == "movie":
-            vg = video_rename_gap(r.media_path)
-            if vg is not None:
-                gaps.append(vg)
 
         if gaps:
             incomplete += 1

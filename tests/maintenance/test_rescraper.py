@@ -1980,6 +1980,8 @@ class TestInjectDbExternalIds:
         }
         _inject_db_external_ids(show, self._EIDS)
         xml = NFOGenerator().generate_tvshow_nfo(show)
-        assert '<uniqueid default="true" type="tvdb">459609</uniqueid>' in xml
+        # Attribute order follows the shared _write_uniqueids writer
+        # (SCRAPER-05): type first, then the default flag.
+        assert '<uniqueid type="tvdb" default="true">459609</uniqueid>' in xml
         assert 'type="tmdb">285084</uniqueid>' in xml
         assert 'type="imdb">tt35629774</uniqueid>' in xml

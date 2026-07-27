@@ -44,7 +44,7 @@ import {
   type ValidateRequest,
   type ValidateResponse,
   type RestartResponse,
-} from "@/api/client";
+} from "@/api/config";
 import { configKeys } from "@/hooks/useConfigKeys";
 
 // ---------------------------------------------------------------------------

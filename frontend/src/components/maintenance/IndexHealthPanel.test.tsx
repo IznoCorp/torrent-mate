@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IndexHealthPanel } from "@/components/maintenance/IndexHealthPanel";
 
-import type { IndexHealthResponse } from "@/api/client";
+import type { IndexHealthResponse } from "@/api/maintenance";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -43,9 +43,9 @@ function makeHealth(
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
   return {
     ...actual,
     getIndexHealth: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock("@/api/client", async () => {
 });
 
 async function mockGetIndexHealth() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.getIndexHealth as ReturnType<typeof vi.fn>;
 }
 

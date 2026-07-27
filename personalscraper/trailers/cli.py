@@ -24,22 +24,34 @@ Flags specific to ``download`` and ``purge`` only::
 from __future__ import annotations
 
 import subprocess
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from personalscraper import cli_helpers
 from personalscraper.cli_helpers import _build_app_context
+from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
+from personalscraper.trailers.purge_fs import (
+    _heal_index_gaps,
+    _HealTarget,
+    _media_dir_has_content,
+    _staging_root,
+)
 from personalscraper.trailers.scanner import ScanItem, Scanner
 from personalscraper.trailers.state import TrailerStateLocked, TrailerStateStore
+
+if TYPE_CHECKING:
+    from personalscraper.indexer.schema import MediaItemKind
 
 
 @contextmanager
@@ -60,13 +72,7 @@ def _trailers_boundary(config: Any):  # type: ignore[no-untyped-def]
         The freshly-built :class:`AppContext` carrying ``config``,
         ``settings``, and a fresh :class:`EventBus`.
     """
-    # Deferred import to break the circular dependency: ``personalscraper.cli``
-    # mounts ``trailers.cli`` via ``add_typer`` at module-load time, so a
-    # top-level ``from personalscraper import cli`` would fail while ``cli``
-    # is still initialising.
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
-
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     app_context = _build_app_context(config, settings)
     token = current_correlation_id.set(str(uuid4()))
     try:
@@ -563,7 +569,11 @@ def _audit_impl(
     import sqlite3  # noqa: PLC0415 — deferred to avoid top-level import cost
 
     from personalscraper.indexer.db import open_db  # noqa: PLC0415
-    from personalscraper.trailers.placement import trailer_path_for, trailer_path_for_season  # noqa: PLC0415
+    from personalscraper.trailers.placement import (  # noqa: PLC0415
+        find_existing_trailer,
+        trailer_path_for,
+        trailer_path_for_season,
+    )
 
     config = ctx.obj.config
     console = Console()
@@ -578,13 +588,15 @@ def _audit_impl(
 
         scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
 
-        # verify operates on the permanent library (scan_library); open the indexer DB
-        # so the scanner can query items without trailer_found attribute.
+        # Audit is a filesystem probe over the WHOLE library (constitution P26:
+        # the filesystem is the single truth for trailer existence). We enumerate
+        # ALL dispatched items (scan_library_all — no trailer_found predicate) and
+        # probe the disk ourselves so the audit can SHOW what exists, not only
+        # what is missing (F6 / §8).
         db_path = config.indexer.db_path
         conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
         try:
-            # verify operates on the permanent library (scan_library)
-            items = scanner.scan_library(
+            items = scanner.scan_library_all(
                 conn=conn,
                 disk_filter=disk,
                 category_filter=category,
@@ -595,28 +607,37 @@ def _audit_impl(
         items = _filter_since(items, since_dt)
         items = _apply_level_filter(items, resolved_level, resolved_season)
 
+        existing: list[tuple[str, str]] = []  # (title, trailer_path_str)
         issues: list[tuple[str, str, str]] = []  # (title, trailer_path_str, issue_category)
         ffprobe_error = False
 
         for item in items:
             media_name = item.path.name
+            # Locate the trailer on disk (the FS truth). Show/movie-level items
+            # scan every known extension; season-level items probe the single
+            # seasonal placement slot.
             if item.season_number is not None:
-                trailer_p = trailer_path_for_season(item.path, item.season_number, "mp4")
+                seasonal_p = trailer_path_for_season(item.path, item.season_number, "mp4")
+                found: Path | None = seasonal_p if seasonal_p.exists() else None
+                trailer_p = seasonal_p
             else:
-                trailer_p = trailer_path_for(item.path, media_name, media_type=item.media_type)
+                found = find_existing_trailer(item.path, media_name, media_type=item.media_type)
+                trailer_p = (
+                    found if found is not None else trailer_path_for(item.path, media_name, media_type=item.media_type)
+                )
 
-            if not trailer_p.exists():
+            if found is None:
                 issues.append((item.title, str(trailer_p), "missing"))
                 continue
 
-            actual_size = trailer_p.stat().st_size
+            actual_size = found.stat().st_size
             if actual_size < min_size:
-                issues.append((item.title, str(trailer_p), "undersized"))
+                issues.append((item.title, str(found), "undersized"))
                 continue
 
-            ext = trailer_p.suffix.lstrip(".").lower()
+            ext = found.suffix.lstrip(".").lower()
             if ext not in allowed_exts:
-                issues.append((item.title, str(trailer_p), "wrong_extension"))
+                issues.append((item.title, str(found), "wrong_extension"))
                 continue
 
             if deep:
@@ -625,7 +646,7 @@ def _audit_impl(
                 # the full ffprobe JSON output and is intentionally out of scope.
                 log.debug(
                     "trailers_verify_deep_probe",
-                    trailer_path=str(trailer_p),
+                    trailer_path=str(found),
                 )
                 try:
                     result = subprocess.run(
@@ -637,7 +658,7 @@ def _audit_impl(
                             "format=duration",
                             "-of",
                             "default=noprint_wrappers=1:nokey=1",
-                            str(trailer_p),
+                            str(found),
                         ],
                         capture_output=True,
                         text=True,
@@ -651,14 +672,30 @@ def _audit_impl(
                     except ValueError:
                         duration_val = 0.0
                     if result.returncode != 0 or duration_val <= 0.0:
-                        issues.append((item.title, str(trailer_p), "unplayable"))
+                        issues.append((item.title, str(found), "unplayable"))
+                        continue
                 except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
-                    log.error("trailers_verify_ffprobe_error", trailer_path=str(trailer_p), error=str(exc))
+                    log.error("trailers_verify_ffprobe_error", trailer_path=str(found), error=str(exc))
                     ffprobe_error = True
+                    continue
+
+            # Passed every applicable check — a healthy, present trailer (F6).
+            existing.append((item.title, str(found)))
 
         if ffprobe_error:
             console.print("[red]ffprobe error: one or more probes failed (exit 4).[/red]")
             raise typer.Exit(code=4)
+
+        # F6 / §8: always SHOW what exists on disk, not only what is missing.
+        if existing:
+            existing_table = Table(title=f"Existing trailers ({len(existing)})", show_header=True)
+            existing_table.add_column("Title")
+            existing_table.add_column("Path")
+            for title, path in existing:
+                existing_table.add_row(title, path)
+            console.print(existing_table)
+        else:
+            console.print("[dim]No existing trailers found.[/dim]")
 
         if issues:
             table = Table(title=f"Trailer issues ({len(issues)} found)", show_header=True)
@@ -670,7 +707,7 @@ def _audit_impl(
             console.print(table)
             raise typer.Exit(code=2)
 
-        console.print(f"[green]All {len(items)} trailers verified OK.[/green]")
+        console.print(f"[green]All {len(existing)} trailers verified OK.[/green]")
 
 
 @app.command("audit")
@@ -727,6 +764,240 @@ def audit(
 
 
 # ---------------------------------------------------------------------------
+# purge — filesystem-truth orphan detection (P6.4 single-truth)
+# ---------------------------------------------------------------------------
+
+
+def _normalize_path(p: Path) -> str:
+    """Return an NFC-normalized string form of *p* for stable set membership.
+
+    macOS (macFUSE/HFS+) yields NFD path components from ``iterdir`` while the
+    indexer stores NFC, so a naive ``==`` between a walked path and an indexer
+    item path silently misses. NFC-normalizing BOTH sides makes the cross-
+    reference reliable (project NFC/NFD dedup gotcha).
+
+    Args:
+        p: The path to normalize.
+
+    Returns:
+        The NFC-normalized ``str(p)``.
+    """
+    return unicodedata.normalize("NFC", str(p))
+
+
+def _disk_paths_for(config: Any, disk: str | None) -> list[Path]:
+    """Return the on-disk root paths for a ``--disk`` id (empty when unknown).
+
+    Args:
+        config: Loaded pipeline Config.
+        disk: The disk id to resolve, or None.
+
+    Returns:
+        A list of matching disk root paths (usually one), or empty.
+    """
+    if disk is None:
+        return []
+    paths: list[Path] = []
+    try:
+        for d in config.disks:
+            if d.id == disk:
+                paths.append(Path(str(d.path)))
+    except (AttributeError, TypeError):
+        pass
+    return paths
+
+
+def _live_item_dirs(
+    config: Any,
+    app_context: Any,
+    disk: str | None,
+    *,
+    seasons_enabled: bool,
+    min_size: int,
+) -> set[str] | None:
+    """Return the NFC set of current library item directories (indexer truth).
+
+    Mirrors the audit FS probe: enumerates every dispatched item via
+    :meth:`Scanner.scan_library_all` and returns their media directories,
+    NFC-normalized. This is the cross-reference the FS orphan walk uses to
+    decide whether a trailer's media is still in the library.
+
+    Returns ``None`` — NOT an empty set — when the index is unavailable
+    (no resolved ``db_path``, or the open/scan fails). ``None`` tells the
+    caller to SKIP the FS walk entirely so an unreadable index can never make
+    every on-disk trailer look orphaned (a destructive false-positive).
+
+    Args:
+        config: Loaded pipeline Config.
+        app_context: The AppContext (supplies the shared ``event_bus``).
+        disk: Optional ``--disk`` id forwarded to the library scan.
+        seasons_enabled: Whether season-level items are enumerated.
+        min_size: Minimum trailer size forwarded to the scanner constructor.
+
+    Returns:
+        NFC-normalized set of live item directories, or ``None`` when the
+        index is unavailable.
+    """
+    import sqlite3  # noqa: PLC0415 — deferred to avoid top-level import cost
+
+    from personalscraper.indexer.db import open_db  # noqa: PLC0415
+
+    db_path = getattr(getattr(config, "indexer", None), "db_path", None)
+    if not isinstance(db_path, (str, Path)):
+        return None
+
+    scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
+    try:
+        conn = open_db(Path(db_path), event_bus=app_context.event_bus)
+    except (sqlite3.Error, OSError):
+        log.warning("trailers_purge_index_unavailable", db_path=str(db_path))
+        return None
+    try:
+        items = scanner.scan_library_all(conn=conn, disk_filter=disk, category_filter=None)
+    except (sqlite3.Error, OSError):
+        log.warning("trailers_purge_index_scan_failed", db_path=str(db_path))
+        return None
+    finally:
+        conn.close()
+    return {_normalize_path(item.path) for item in items}
+
+
+def _trailers_in_media_dir(media_dir: Path) -> list[Path]:
+    """Return every trailer file physically present under a media directory.
+
+    Covers all placement conventions (see ``trailers.placement``): flat movie
+    ``*-trailer.<ext>``, TV show ``Trailers/*.<ext>`` and season
+    ``Saison NN/Trailers/*.<ext>``.
+
+    Args:
+        media_dir: The media directory to probe.
+
+    Returns:
+        Trailer files found inside ``media_dir`` (possibly empty).
+    """
+    from personalscraper.trailers.placement import (  # noqa: PLC0415
+        _KNOWN_TRAILER_EXTENSIONS,
+    )
+
+    found: list[Path] = []
+    # Flat movie-style trailers next to the media file.
+    for ext in _KNOWN_TRAILER_EXTENSIONS:
+        found.extend(p for p in media_dir.glob(f"*-trailer.{ext}") if p.is_file())
+    # Show-level Trailers/ subfolder and per-season Saison NN/Trailers/ subfolders.
+    subfolders = [media_dir / "Trailers"]
+    try:
+        subfolders.extend(sd / "Trailers" for sd in media_dir.glob("Saison *") if sd.is_dir())
+    except OSError:
+        pass
+    for sub in subfolders:
+        if sub.is_dir():
+            for ext in _KNOWN_TRAILER_EXTENSIONS:
+                found.extend(p for p in sub.glob(f"*.{ext}") if p.is_file())
+    return found
+
+
+def _discover_fs_orphan_trailers(
+    config: Any,
+    app_context: Any,
+    *,
+    disk: str | None,
+    seasons_enabled: bool,
+    min_size: int,
+) -> tuple[list[Path], list[_HealTarget]]:
+    """Classify on-disk trailers into true orphans vs index gaps (P6.4 FS-truth).
+
+    Since P6.4 a successful download CLEARS its ledger entry, so the ledger can
+    no longer be the source of orphan detection. This walks the storage disks
+    (scanner-parity iteration so each dir resolves to a correct
+    ``(disk_cfg, category_id, kind)``) plus the staging root, and for every
+    media directory decides:
+
+    * in the index (``live_dirs``) → the trailer is legitimate, skip;
+    * absent from the index BUT holding real media
+      (:func:`_media_dir_has_content`) → NOT an orphan; the media is present but
+      unindexed, so the dir is returned as an index gap to re-index;
+    * absent from the index AND holding no media video → its trailers are true
+      orphans (the media is genuinely gone) and returned for deletion.
+
+    Deletion is therefore driven by filesystem truth, never by index membership
+    alone — a present but non-dispatched media dir (MediaElch-managed,
+    scanned-not-yet-dispatched, or predating dispatch tracking) never loses its
+    trailer. Staging is walked for orphan deletion only (it is not a library
+    disk and cannot be re-indexed).
+
+    Safety: when the index is unavailable (:func:`_live_item_dirs` returns
+    ``None``) the whole walk is skipped — neither deletion nor healing runs.
+
+    Args:
+        config: Loaded pipeline Config.
+        app_context: The AppContext (supplies the shared ``event_bus``).
+        disk: Optional ``--disk`` id restricting the walk.
+        seasons_enabled: Whether season-level items are enumerated.
+        min_size: Minimum trailer size forwarded to the scanner constructor.
+
+    Returns:
+        A ``(orphan_trailers, index_gaps)`` tuple, both possibly empty.
+    """
+    live_dirs = _live_item_dirs(config, app_context, disk, seasons_enabled=seasons_enabled, min_size=min_size)
+    if live_dirs is None:
+        # Index unavailable — do NOT purge or heal on FS alone (would flag everything).
+        log.warning("trailers_purge_fs_skipped_index_unavailable")
+        return [], []
+
+    orphans: list[Path] = []
+    gaps: list[_HealTarget] = []
+
+    # 1. Storage disks — scanner-parity iteration (disk.categories → folder_name)
+    #    so each gap carries the correct (disk_cfg, category_id, kind) for healing.
+    for disk_cfg in getattr(config, "disks", []):
+        if disk is not None and getattr(disk_cfg, "id", None) != disk:
+            continue
+        disk_path = Path(str(disk_cfg.path))
+        if not disk_path.exists():
+            continue
+        for category_id in getattr(disk_cfg, "categories", []):
+            if category_id in NON_VIDEO_CATEGORY_IDS:
+                continue  # audiobooks etc. never hold movie/show trailers
+            category_dir = disk_path / config.category(category_id).folder_name
+            if not category_dir.is_dir():
+                continue
+            kind: MediaItemKind = "show" if category_id in TV_CATEGORY_IDS else "movie"
+            try:
+                media_dirs = [m for m in category_dir.iterdir() if m.is_dir() and not m.name.startswith(".")]
+            except OSError:
+                continue
+            for media_dir in media_dirs:
+                if _normalize_path(media_dir) in live_dirs:
+                    continue  # indexed library item — its trailers are legitimate
+                if _media_dir_has_content(media_dir):
+                    gaps.append(_HealTarget(disk_cfg, category_id, kind, media_dir))
+                    continue  # present media, missing from index — heal, keep trailer
+                orphans.extend(_trailers_in_media_dir(media_dir))  # no media → true orphan
+
+    # 2. Staging root (disk=None only) — deletion by FS truth, no heal (not a disk).
+    if disk is None:
+        staging = _staging_root(config)
+        if staging is not None:
+            try:
+                categories = [c for c in staging.iterdir() if c.is_dir()]
+            except OSError:
+                categories = []
+            for category in categories:
+                try:
+                    media_dirs = [m for m in category.iterdir() if m.is_dir()]
+                except OSError:
+                    continue
+                for media_dir in media_dirs:
+                    if _normalize_path(media_dir) in live_dirs:
+                        continue
+                    if _media_dir_has_content(media_dir):
+                        continue  # staging media present — keep its trailer
+                    orphans.extend(_trailers_in_media_dir(media_dir))
+
+    return orphans, gaps
+
+
+# ---------------------------------------------------------------------------
 # purge
 # ---------------------------------------------------------------------------
 
@@ -756,7 +1027,12 @@ def purge(
         help="Target a specific season number (1-indexed). Implies --level=season.",
     ),
 ) -> None:
-    """Remove orphan trailers whose media parent is absent.
+    """Remove orphan trailers whose media video is gone; heal index gaps.
+
+    A trailer is orphan only when its media directory holds no real media video
+    (FS truth) — present media, even if absent from the index, is never touched.
+    A present-but-unindexed media dir is instead re-indexed (via the scanner's
+    single-dir stage), so ``purge`` writes to ``library.db`` on a real run.
 
     When --include-state is set, after the filesystem purge completes call
     state_store.purge_orphans() and log the count in the CLI output.
@@ -773,43 +1049,69 @@ def purge(
     config = ctx.obj.config
     console = Console()
 
-    with _trailers_boundary(config):
+    with _trailers_boundary(config) as app_context:
         seasons_enabled = _seasons_enabled_from_config(config)
         _resolve_level_and_season(level, season, seasons_enabled)  # validate args eagerly
         _parse_since(since)  # validate date format eagerly
+        min_size = _min_file_size(config)
 
         state_file = Path(str(config.trailers.state_file))
         state_store = TrailerStateStore(state_file=state_file)
 
-        entries = state_store.all_entries()
+        # Orphan trailers come from the FILESYSTEM (P6.4 single-truth): a
+        # successful download no longer records a ledger row, so the ledger
+        # cannot be the source of orphan detection. The FS walk cross-references
+        # on-disk trailer files against the indexer item set (mirrors the audit
+        # FS probe). Legacy ledger entries are still honoured as HINTS (union)
+        # so pre-P6.4 rows aren't lost. Keyed by NFC path to dedupe FS vs ledger.
+        orphan_by_path: dict[str, Path] = {}
 
-        # Identify orphan entries: those whose media_path no longer exists on disk
-        orphan_trailer_paths: list[Path] = []
-        for _key, entry_state in entries.items():
+        # 1. FS truth (primary) — finds orphans regardless of ledger state, and
+        #    surfaces present-but-unindexed media dirs as index gaps to re-index.
+        fs_orphans, index_gaps = _discover_fs_orphan_trailers(
+            config,
+            app_context,
+            disk=disk,
+            seasons_enabled=seasons_enabled,
+            min_size=min_size,
+        )
+        for trailer_p in fs_orphans:
+            orphan_by_path[_normalize_path(trailer_p)] = trailer_p
+
+        # 2. Legacy ledger hints — entries whose media_path is gone but whose
+        #    trailer_path still exists on disk (pre-P6.4 DOWNLOADED rows).
+        for _key, entry_state in state_store.all_entries().items():
             media_path_str = getattr(entry_state, "media_path", None)
             if media_path_str and not Path(str(media_path_str)).exists():
                 trailer_path_str = getattr(entry_state, "trailer_path", None)
                 if trailer_path_str:
                     trailer_p = Path(str(trailer_path_str))
                     if trailer_p.exists():
-                        orphan_trailer_paths.append(trailer_p)
+                        orphan_by_path.setdefault(_normalize_path(trailer_p), trailer_p)
 
-        # Apply --disk filter
-        if disk is not None:
-            disk_paths: list[Path] = []
-            try:
-                for d in config.disks:
-                    if d.id == disk:
-                        disk_paths.append(Path(str(d.path)))
-            except (AttributeError, TypeError):
-                pass
-            if disk_paths:
-                orphan_trailer_paths = [
-                    p for p in orphan_trailer_paths if any(str(p).startswith(str(dp)) for dp in disk_paths)
-                ]
+        orphan_trailer_paths = list(orphan_by_path.values())
+
+        # Apply --disk filter uniformly (FS roots are already disk-scoped; this
+        # also scopes the ledger hints, whose paths can live anywhere).
+        disk_paths = _disk_paths_for(config, disk)
+        if disk_paths:
+            orphan_trailer_paths = [
+                p for p in orphan_trailer_paths if any(str(p).startswith(str(dp)) for dp in disk_paths)
+            ]
 
         if dry_run:
             console.print(f"[yellow]DRY-RUN:[/yellow] Would purge {len(orphan_trailer_paths)} orphan trailer(s).")
+            # §8 (rien en silence): show WHICH trailers, not just a count.
+            # ``soft_wrap`` keeps long paths on one line (no width-dependent crop).
+            for trailer_p in orphan_trailer_paths:
+                console.print(f"  - {trailer_p}", soft_wrap=True)
+            if index_gaps:
+                console.print(
+                    f"[yellow]DRY-RUN:[/yellow] Would re-index {len(index_gaps)} present media dir(s) "
+                    "missing from the index."
+                )
+                for target in index_gaps:
+                    console.print(f"  ~ {target.media_dir}", soft_wrap=True)
             if include_state:
                 console.print("[yellow]DRY-RUN:[/yellow] Would also wipe orphan state entries (--include-state).")
             return
@@ -824,6 +1126,11 @@ def purge(
                 log.warning("trailers_purge_delete_failed", path=str(trailer_p), error=str(exc))
 
         console.print(f"[green]Purged {deleted} orphan trailer(s).[/green]")
+
+        # Heal the index for present-but-unindexed media dirs (writes to library.db).
+        healed = _heal_index_gaps(config, app_context, index_gaps)
+        if healed:
+            console.print(f"[green]Re-indexed {healed} present media dir(s) that were missing from the index.[/green]")
 
         if include_state:
             try:

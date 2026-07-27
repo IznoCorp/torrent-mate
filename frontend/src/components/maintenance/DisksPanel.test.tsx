@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DisksPanel } from "@/components/maintenance/DisksPanel";
 
-import type { DisksResponse } from "@/api/client";
+import type { DisksResponse } from "@/api/maintenance";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -42,9 +42,9 @@ function makeDisksResponse(
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
   return {
     ...actual,
     getDisks: vi.fn(),
@@ -52,7 +52,7 @@ vi.mock("@/api/client", async () => {
 });
 
 async function mockGetDisks() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.getDisks as ReturnType<typeof vi.fn>;
 }
 

@@ -1,6 +1,5 @@
 """Tests for the dispatch step runner."""
 
-import shutil
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -9,17 +8,32 @@ from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.run import (
-    _cleanup_staging_orphans,
     _drain_dispatch_outbox,
     _enrich_after_dispatch,
-    _to_step_report,
+    _record_dispatch_terminal,
+    _sweep_dispatch_orphans,
     run_dispatch,
 )
+from personalscraper.models import StepReport
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
-class TestToStepReport:
-    """Tests for _to_step_report conversion."""
+def _report_from(results: list[DispatchResult]) -> StepReport:
+    """Build a dispatch StepReport by recording each result's terminal transition.
+
+    Mirrors the per-item terminal loop in ``run_dispatch`` — the replacement for
+    the former report-conversion helper — so the counter/detail semantics are pinned
+    here without a live pipeline run.
+    """
+    report = StepReport(name="dispatch")
+    bus = EventBus()
+    for r in results:
+        _record_dispatch_terminal(report, bus, r)
+    return report
+
+
+class TestRecordDispatchTerminal:
+    """Counter/detail semantics of the per-item terminal reporter."""
 
     def test_counts(self) -> None:
         """Should count replaced/merged/moved as success."""
@@ -30,7 +44,7 @@ class TestToStepReport:
             DispatchResult(source=Path("d"), action="skipped", reason="no space"),
             DispatchResult(source=Path("e"), action="error", reason="rsync failed"),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.success_count == 3
         assert report.skip_count == 1
         assert report.error_count == 1
@@ -42,7 +56,7 @@ class TestToStepReport:
             DispatchResult(source=Path("a"), action="skipped", reason=None),
             DispatchResult(source=Path("b"), action="error", reason=None),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.skip_count == 1
         assert report.error_count == 1
 
@@ -52,7 +66,7 @@ class TestToStepReport:
             DispatchResult(source=Path("a"), action="error", reason="fail"),
             DispatchResult(source=Path("b"), action="moved", disk="Disk1"),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.error_count == 1
         assert report.success_count == 1
 
@@ -62,106 +76,70 @@ class TestToStepReport:
             DispatchResult(source=Path("a"), action="unknown_action"),
             DispatchResult(source=Path("b"), action="moved", disk="Disk1"),
         ]
-        report = _to_step_report(results)
+        report = _report_from(results)
         assert report.success_count == 1
         assert report.skip_count == 0
         assert report.error_count == 0
 
 
-class TestCleanupStagingOrphans:
-    """Tests for _cleanup_staging_orphans — safe, tmp_path only."""
+class TestSweepDispatchOrphans:
+    """Tests for the run.py ``_sweep_dispatch_orphans`` adapter — tmp_path only.
 
-    def test_missing_category_dir_is_noop(self, tmp_path: Path) -> None:
-        """When a category dir does not exist, it is skipped (no error)."""
-        settings = MagicMock()
+    The sweep LOGIC (walk depths, dry-run policies, OSError guards) is pinned in
+    tests/dispatch/test_crash_recovery.py; these assert the dispatch-step
+    adapter's wiring: staging is always swept in recover mode, storage disks are
+    added, and ``recover_orphans=False`` (the full-run path) is a no-op.
+    """
+
+    def _config(self) -> MagicMock:
+        """A config MagicMock with an empty disk list and canonical staging."""
         config = MagicMock()
+        config.disks = []
         config.staging_dirs = CANONICAL_STAGING_DIRS
+        return config
 
-        cleaned = _cleanup_staging_orphans(settings, config, tmp_path)
-        assert cleaned == 0
-
-    def test_non_dir_items_skipped(self, tmp_path: Path) -> None:
-        """Files inside a category dir are skipped (only dirs are scanned)."""
-        movies_dir = tmp_path / "001-MOVIES"
-        movies_dir.mkdir()
-        (movies_dir / "readme.txt").write_text("not a dir")
-
-        settings = MagicMock()
-        config = MagicMock()
-        config.staging_dirs = CANONICAL_STAGING_DIRS
-
-        cleaned = _cleanup_staging_orphans(settings, config, tmp_path)
+    def test_missing_staging_is_noop(self, tmp_path: Path) -> None:
+        """An empty staging root yields zero cleaned, no error."""
+        cleaned = _sweep_dispatch_orphans(self._config(), tmp_path, dry_run=False, recover_orphans=True)
         assert cleaned == 0
 
     def test_tmp_dispatch_orphan_cleaned(self, tmp_path: Path) -> None:
-        """_tmp_dispatch_* dirs inside category dirs are removed."""
-        movies_dir = tmp_path / "001-MOVIES"
-        movies_dir.mkdir()
-        orphan = movies_dir / "_tmp_dispatch_Movie (2024)"
-        orphan.mkdir()
+        """_tmp_dispatch_* dirs inside a staging category are removed."""
+        orphan = tmp_path / "001-MOVIES" / "_tmp_dispatch_Movie (2024)"
+        orphan.mkdir(parents=True)
 
-        settings = MagicMock()
-        config = MagicMock()
-        config.staging_dirs = CANONICAL_STAGING_DIRS
-
-        cleaned = _cleanup_staging_orphans(settings, config, tmp_path)
+        cleaned = _sweep_dispatch_orphans(self._config(), tmp_path, dry_run=False, recover_orphans=True)
         assert cleaned == 1
         assert not orphan.exists()
 
     def test_merge_backup_orphan_cleaned(self, tmp_path: Path) -> None:
         """.merge_backup/ dirs inside media dirs are removed."""
-        movies_dir = tmp_path / "001-MOVIES"
-        movies_dir.mkdir()
-        media = movies_dir / "Some Movie (2024)"
-        media.mkdir()
+        media = tmp_path / "001-MOVIES" / "Some Movie (2024)"
         backup = media / ".merge_backup"
-        backup.mkdir()
+        backup.mkdir(parents=True)
 
-        settings = MagicMock()
-        config = MagicMock()
-        config.staging_dirs = CANONICAL_STAGING_DIRS
-
-        cleaned = _cleanup_staging_orphans(settings, config, tmp_path)
+        cleaned = _sweep_dispatch_orphans(self._config(), tmp_path, dry_run=False, recover_orphans=True)
         assert cleaned == 1
         assert not backup.exists()
+        assert media.exists()
 
-    def test_tmp_orphan_rmtree_oserror_caught(self, tmp_path: Path) -> None:
-        """OSError during rmtree of _tmp_dispatch_ is caught, not raised."""
-        movies_dir = tmp_path / "001-MOVIES"
-        movies_dir.mkdir()
-        orphan = movies_dir / "_tmp_dispatch_Broken"
-        orphan.mkdir()
+    def test_recover_orphans_false_is_noop(self, tmp_path: Path) -> None:
+        """The full-run path (recover_orphans=False) never sweeps — boot owns it."""
+        orphan = tmp_path / "001-MOVIES" / "_tmp_dispatch_Movie (2024)"
+        orphan.mkdir(parents=True)
 
-        settings = MagicMock()
-        config = MagicMock()
-        config.staging_dirs = CANONICAL_STAGING_DIRS
+        cleaned = _sweep_dispatch_orphans(self._config(), tmp_path, dry_run=False, recover_orphans=False)
+        assert cleaned == 0
+        assert orphan.exists()  # untouched — boot's sweep is the single owner
 
-        with patch.object(shutil, "rmtree", side_effect=OSError("device busy")):
-            cleaned = _cleanup_staging_orphans(settings, config, tmp_path)
+    def test_dry_run_staging_is_skipped(self, tmp_path: Path) -> None:
+        """Staging carries SKIP policy, so a dry-run leaves it untouched."""
+        orphan = tmp_path / "001-MOVIES" / "_tmp_dispatch_Movie (2024)"
+        orphan.mkdir(parents=True)
 
-        assert cleaned == 0  # failed cleanup counts zero
-        assert orphan.exists()  # orphan still exists
-
-    def test_backup_rmtree_oserror_caught(self, tmp_path: Path) -> None:
-        """OSError during rmtree of .merge_backup/ is caught, not raised."""
-        movies_dir = tmp_path / "001-MOVIES"
-        movies_dir.mkdir()
-        media = movies_dir / "Some Movie (2024)"
-        media.mkdir()
-        backup = media / ".merge_backup"
-        backup.mkdir()
-
-        settings = MagicMock()
-        config = MagicMock()
-        config.staging_dirs = CANONICAL_STAGING_DIRS
-
-        # First call cleans _tmp_dispatch_ (succeeds, but none found),
-        # second call tries to clean .merge_backup/ (fails).
-        with patch.object(shutil, "rmtree", side_effect=[0, OSError("busy")]):
-            _cleanup_staging_orphans(settings, config, tmp_path)
-
-        # The first call does nothing (no tmp_dispatch), the second fails.
-        assert backup.exists()
+        cleaned = _sweep_dispatch_orphans(self._config(), tmp_path, dry_run=True, recover_orphans=True)
+        assert cleaned == 0
+        assert orphan.exists()
 
 
 class TestRunDispatch:
@@ -259,7 +237,10 @@ class TestRunDispatch:
             report, _ = run_dispatch(settings, config=config, dry_run=False, verified=[], event_bus=EventBus())
 
         assert report.name == "dispatch"
-        assert any("Cleaned" in d and "staging orphan" in d for d in report.details)
+        # Honest French label (§2/§8): the sweep covers staging + disks, so the
+        # detail says "orphelin(s) de dispatch nettoyé(s)", not the former
+        # (inaccurate) "staging orphan(s)" that mislabelled disk orphans.
+        assert any("orphelin" in d and "nettoyé" in d for d in report.details)
 
     def test_outbox_drain_called_after_dispatch(self, tmp_path: Path) -> None:
         """After non-dry-run dispatch, _drain_dispatch_outbox is called."""
@@ -316,23 +297,6 @@ class TestRunDispatch:
 
         mock_drain.assert_not_called()
         mock_enrich.assert_not_called()
-
-    def test_backup_rmtree_oserror_caught(self, tmp_path: Path) -> None:
-        """OSError during .merge_backup/ rmtree is caught, not raised."""
-        movies_dir = tmp_path / "001-MOVIES"
-        movies_dir.mkdir()
-        media = movies_dir / "Some Movie (2024)"
-        media.mkdir()
-        backup = media / ".merge_backup"
-        backup.mkdir()
-
-        settings = MagicMock()
-        config = MagicMock()
-        config.staging_dirs = CANONICAL_STAGING_DIRS
-
-        with patch.object(shutil, "rmtree", side_effect=OSError("busy")):
-            cleaned = _cleanup_staging_orphans(settings, config, tmp_path)
-        assert cleaned == 0
 
 
 # ---------------------------------------------------------------------------
@@ -469,7 +433,7 @@ class TestEnrichAfterDispatch:
         config.indexer.db_path = db_path
 
         with patch(
-            "personalscraper.indexer.scanner.scan",
+            "personalscraper.indexer.scanner.scan_with",
             return_value=MagicMock(files_visited=42, status="ok"),
         ):
             _enrich_after_dispatch(

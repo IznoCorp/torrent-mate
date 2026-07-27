@@ -106,19 +106,19 @@ class TestValidNfoFastPath:
     """Cover the valid-NFO branches at lines 277-286."""
 
     def test_artwork_recovered_when_missing_and_recovery_succeeds(self, scraper: Scraper, tmp_path: Path) -> None:
-        """Missing poster triggers ``_recover_movie_artwork`` and sets the action."""
+        """Missing poster triggers ``recover_artwork`` and sets the action."""
         movie_dir = tmp_path / "The Matrix (1999)"
         movie_dir.mkdir()
         (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
 
         # Simulate that artwork is missing and recovery sets the action.
-        def _fake_recover(nfo_path, mdir, result):
+        def _fake_recover(nfo_path, mdir, result, **kwargs):
             result.action = "artwork_recovered"
             result.artwork_downloaded = ["poster.jpg"]
 
         with (
             patch.object(scraper, "_check_missing_movie_artwork", return_value=["poster.jpg"]),
-            patch.object(scraper, "_recover_movie_artwork", side_effect=_fake_recover),
+            patch("personalscraper.scraper.movie_service.recover_artwork", side_effect=_fake_recover),
             patch.object(scraper, "_repair_movie_dir", return_value=False),
         ):
             result = scraper.scrape_movie(movie_dir)
@@ -143,12 +143,12 @@ class TestValidNfoFastPath:
         movie_dir.mkdir()
         (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
 
-        def _fake_recover(nfo_path, mdir, result):
+        def _fake_recover(nfo_path, mdir, result, **kwargs):
             result.action = "artwork_recovered"
 
         with (
             patch.object(scraper, "_check_missing_movie_artwork", return_value=["poster.jpg"]),
-            patch.object(scraper, "_recover_movie_artwork", side_effect=_fake_recover),
+            patch("personalscraper.scraper.movie_service.recover_artwork", side_effect=_fake_recover),
             patch.object(scraper, "_repair_movie_dir", return_value=True),
         ):
             result = scraper.scrape_movie(movie_dir)
@@ -274,7 +274,7 @@ class TestFolderRenameBranches:
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
-                "personalscraper.scraper.movie_service._merge_dirs",
+                "personalscraper.scraper.rename_service._merge_dirs",
                 return_value=(1, 0),
             ) as mock_merge,
         ):
@@ -298,7 +298,7 @@ class TestFolderRenameBranches:
             patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
             patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
             patch(
-                "personalscraper.scraper.movie_service._merge_dirs",
+                "personalscraper.scraper.rename_service._merge_dirs",
                 return_value=(1, 2),  # 1 moved, 2 failed
             ),
         ):

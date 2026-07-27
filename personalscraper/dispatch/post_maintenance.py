@@ -17,6 +17,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
+    from personalscraper.dispatch._types import DispatchResult
 
 _log = get_logger("dispatch.post_maintenance")
 
@@ -460,3 +461,51 @@ def run_post_dispatch_maintenance(
         relinked=relink_counts.get("linked", 0),
         seasons_fixed=fixed_seasons,
     )
+
+
+def maybe_run_post_dispatch_maintenance(
+    config: Config,
+    results: list[DispatchResult],
+    *,
+    dry_run: bool,
+    no_post_maintenance: bool = False,
+) -> None:
+    """Resolve the post-dispatch maintenance policy from *results*, then run it.
+
+    Single owner of the trigger/guard logic that was duplicated in the full-run
+    :class:`~personalscraper.pipeline_steps.DispatchStep` and the standalone
+    ``personalscraper dispatch`` CLI command (PIPELINE-CORE-01 — the two copies
+    had drifted). Both entry points call THIS with the raw ``run_dispatch``
+    results and their flag state, so enablement resolution, touched-disk /
+    destination collection, and the dry-run guard stay byte-identical across the
+    two paths.
+
+    Enablement resolves ``flag > config > default(true)``: the operator opt-out
+    ``no_post_maintenance`` wins, otherwise
+    ``config.indexer.post_dispatch_maintenance.enabled`` decides. Maintenance is
+    triggered only when dispatch actually touched a disk and the run is not a
+    preview; a disabled-but-touched run still calls
+    :func:`run_post_dispatch_maintenance` with ``enabled=False`` (a logged
+    no-op), preserving the standalone command's historical call shape that its
+    e2e regressions assert.
+
+    Args:
+        config: Validated application Config.
+        results: Raw per-item dispatch results from :func:`run_dispatch`.
+        dry_run: When True the maintenance is skipped entirely — a preview must
+            never mutate the index.
+        no_post_maintenance: Operator opt-out flag (``--no-post-maintenance`` /
+            ``ctx.extras['no_post_maintenance']``). Defaults to False.
+    """
+    maintenance_enabled = not no_post_maintenance
+    if maintenance_enabled:
+        maintenance_enabled = config.indexer.post_dispatch_maintenance.enabled
+
+    touched_disks = collect_touched_disks(results)
+    if touched_disks and not dry_run:
+        run_post_dispatch_maintenance(
+            config,
+            touched_disks,
+            destinations=collect_touched_destinations(results),
+            enabled=maintenance_enabled,
+        )

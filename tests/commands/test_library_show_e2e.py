@@ -159,7 +159,7 @@ def test_show_format_json_emits_structured_dict(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-show", "1"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     for key in ("item", "files", "attributes", "deleted_history"):
         assert key in data, f"Missing key '{key}' in JSON payload: {list(data)}"
     # The item section is a dict, not a list.
@@ -223,6 +223,7 @@ def test_show_json_schema_valid(tmp_path, test_config) -> None:
     data = assert_json_schema(
         result,
         required_keys=["item", "item_id", "files", "attributes", "deleted_history"],
+        source_attr="stdout",
     )
     assert isinstance(data["item"], dict)
     assert data["item"]["title"] == "Test Movie"

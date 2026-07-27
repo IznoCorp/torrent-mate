@@ -75,7 +75,7 @@ def library_index(
     """
     from uuid import uuid4  # noqa: PLC0415
 
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper import cli_helpers  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
@@ -88,7 +88,7 @@ def library_index(
     # ``Config`` from ``config_path``.
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
-        settings = cli_compat.get_settings()
+        settings = cli_helpers.get_settings()
         app_context = _build_app_context(loaded_config, settings)
         event_bus = app_context.event_bus
     else:
@@ -306,7 +306,7 @@ def library_scan(
     """
     from uuid import uuid4  # noqa: PLC0415
 
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper import cli_helpers  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
@@ -319,7 +319,7 @@ def library_scan(
     # still loads its own ``Config`` from ``config_path``.
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
-        settings = cli_compat.get_settings()
+        settings = cli_helpers.get_settings()
         app_context = _build_app_context(loaded_config, settings)
         event_bus = app_context.event_bus
     else:
@@ -388,7 +388,7 @@ def library_backfill_ids(
     """
     import os as _os  # noqa: PLC0415
 
-    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper import cli_helpers  # noqa: PLC0415
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
@@ -410,7 +410,7 @@ def library_backfill_ids(
     # the four typed-client extractions (TMDB/TVDB/IMDb/RT) that previously
     # lived here are gone, and the registry handles chain/fan_out semantics
     # internally per DESIGN §6.
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     app_context = _build_app_context(cfg, settings)
     registry = app_context.provider_registry if not dry_run else None
 

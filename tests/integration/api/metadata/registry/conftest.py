@@ -2,8 +2,8 @@
 
 Provides helpers for building a real ProviderRegistry with HTTP mocked
 via ``responses``, and for building a registry with monkeypatched
-providers when needed capabilities (IDCrossRef, RatingProvider) are not
-available on TMDB/TVDB.
+providers when needed capabilities (RatingProvider) are not available on
+TMDB/TVDB.
 """
 
 from __future__ import annotations
@@ -23,6 +23,11 @@ from personalscraper.api.metadata._base import (
 )
 from personalscraper.api.transport._policy import CircuitPolicy
 from personalscraper.conf.models.providers import ProvidersConfig
+
+# The EventBus double is behaviourally identical across tiers → shared module.
+from tests._doubles.registry import MockEventBus
+
+__all__ = ["MockEventBus"]
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -224,38 +229,6 @@ class FakeArtwork:
         self.closed = True
 
 
-class FakeIDCrossRefProvider:
-    """Fake provider implementing IDCrossRef + other capabilities."""
-
-    def __init__(self, *, name: str, xref_table: dict[str, dict[str, str]] | None = None):
-        self.name = name
-        self.circuit = _make_fake_circuit("CLOSED")
-        self._xref = xref_table or {}
-        self.closed = False
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        return dict(self._xref.get(provider_id, {}))
-
-    def get_artwork_urls(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> list[ArtworkItem]:
-        return [ArtworkItem(url=f"https://art.example.com/{media_id}.jpg", type="poster")]
-
-    def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]:
-        return ["test", "keywords"]
-
-    def close(self) -> None:
-        self.closed = True
-
-
-class MockEventBus:
-    """In-memory EventBus stub that records emitted events."""
-
-    def __init__(self) -> None:
-        self.emitted: list[object] = []
-
-    def emit(self, event: object) -> None:
-        self.emitted.append(event)
-
-
 # ---------------------------------------------------------------------------
 # Repeated mock helpers (for retry-heavy circuit breaker tests)
 # ---------------------------------------------------------------------------
@@ -294,7 +267,7 @@ def add_tvdb_search_503_repeated(n: int = 20) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Registry builder with monkeypatched providers (for IDCrossRef/RatingProvider)
+# Registry builder with monkeypatched providers (for RatingProvider)
 # ---------------------------------------------------------------------------
 
 

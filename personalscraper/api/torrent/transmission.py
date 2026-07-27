@@ -222,16 +222,30 @@ class TransmissionClient(
         paused: bool = False,
         limits: TorrentLimits | None = None,
     ) -> str:
-        """Add a torrent to Transmission (D1/D5/D7/D8).
+        """Add a torrent to Transmission (D1/D5/D7/D8/F-A).
 
-        Labels encode category + tags per D5: ``labels = [category, *tags]`` so
-        the read side (``_torrent_item``) recovers ``category = labels[0]`` and
-        ``tags = labels[1:]``. This flat-labels scheme can only round-trip when
-        a category is present: ``category=None`` with a non-empty ``tags`` is
-        unrepresentable (the read side would promote the first tag to category),
-        so it is rejected with ``ValueError`` rather than silently mangling the
-        labels (no-silent-failure norm; review #6). ``category=None`` with no
-        tags is fine (empty labels).
+        Labels encode category + tags per D5/F-A via :func:`_labels`:
+        ``[category, *tags]`` when a category is set; the no-category sentinel
+        ``["", *tags]`` when ``category is None`` and ``tags`` is non-empty;
+        ``[]`` when both are empty. The read side (:func:`_split_labels`, used
+        by :func:`_torrent_item`) inverts this exactly: ``labels[0] == ""`` →
+        ``category=None`` with ``labels[1:]`` as tags.
+
+        FINAL — open item #8 (the ``""`` sentinel is the settled representation,
+        NOT an alternative left unchosen): category-less torrents WITH tags are
+        added via the sentinel that :meth:`add_tags` already writes and
+        :func:`_split_labels` already decodes. The sentinel does NOT lie about a
+        category — ``_split_labels`` maps a leading ``""`` back to
+        ``category=None``, and EVERY consumer of a torrent's category/tags reads
+        that DECODED value (the ingest ``SEED_PURE`` skip, the sort
+        ``SEED_PURE`` guard, the cross-seed ``SEED_PURE`` skip, the web staging
+        category filter) — none reads raw ``labels[0]``. So ``add`` emits the
+        sentinel directly instead of raising; the former
+        ``UnsupportedCapabilityError`` for tags-without-category is REJECTED and
+        removed, because it was the ONLY writer refusing a shape the rest of the
+        client already round-trips (an inconsistency, not a real Transmission
+        limitation). Rebuilding the sentinel here would desync from
+        :func:`_labels`, so this path delegates to it.
 
         Duplicate adds are idempotent (torrent-duplicate → return info_hash, no
         exception). Passing limits raises UnsupportedCapabilityError (D8 — no
@@ -239,9 +253,11 @@ class TransmissionClient(
 
         Args:
             source: TorrentSource — magnet or file bytes.
-            category: Category (becomes labels[0]).
-            tags: Tags (appended after category in labels). Requires a non-None
-                ``category`` when non-empty (D5 round-trip constraint).
+            category: Category (becomes ``labels[0]``). ``None`` → no category;
+                combined with non-empty ``tags`` the ``""`` sentinel leads the
+                labels (F-A).
+            tags: Tags. Appended after the category, or behind the ``""``
+                sentinel when ``category is None``.
             paused: Add in paused state if True.
             limits: Must be None; raises if set (D8).
 
@@ -249,23 +265,15 @@ class TransmissionClient(
             info_hash of the added (or already-present) torrent.
 
         Raises:
-            UnsupportedCapabilityError: limits is not None.
-            ValueError: ``category`` is None while ``tags`` is non-empty
-                (unrepresentable in Transmission's flat-labels round-trip, D5).
+            UnsupportedCapabilityError: ``limits`` is not None — Transmission has
+                no per-torrent transfer-limit RPC (D8). This is the ONLY
+                capability gap of the adder; tags-without-category is fully
+                supported via the ``""`` sentinel (F-A) and never raises.
         """
         if limits is not None:
             raise UnsupportedCapabilityError(
                 "TransmissionClient does not support transfer limits. "
                 "Gate via isinstance(client, TorrentLimiter) before passing limits."
-            )
-        if category is None and tags:
-            # D5 flat-labels (labels=[category, *tags]) cannot round-trip tags
-            # without a category: _torrent_item would read the first tag back as
-            # the category. Reject rather than silently lose/relabel (review #6).
-            raise ValueError(
-                "TransmissionClient.add requires a non-None category when tags are "
-                "provided: labels=[category, *tags] cannot round-trip tags without "
-                "a leading category (the first tag would be read back as the category)."
             )
         torrent_arg: str | bytes
         if source.magnet is not None:

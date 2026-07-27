@@ -581,3 +581,46 @@ class TestScanLibrary:
         assert "Fight Club" in titles
         assert "Inception" not in titles
         assert len(items) == 1
+
+
+class TestScanLibraryAll:
+    """Tests for Scanner.scan_library_all() -- the FS-probe audit universe."""
+
+    _seed_movie = TestScanLibrary._seed_movie
+
+    def test_scan_library_all_includes_item_with_existing_trailer_on_disk(self, tmp_path: Path) -> None:
+        """scan_library_all keeps an item whose trailer already exists on disk.
+
+        This is the F6 seam: unlike ``scan_library`` (which drops items with a
+        trailer so only download candidates remain), the audit enumeration must
+        surface existing trailers too.
+        """
+        conn = _open_seeded_db()
+        movie_dir = self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+        (movie_dir / "Fight Club (1999)-trailer.mp4").write_bytes(b"x" * 200000)
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        # scan_library drops it (download candidate view)...
+        assert scanner.scan_library(conn) == []
+        # ...but scan_library_all keeps it (audit view).
+        all_items = scanner.scan_library_all(conn)
+        assert [i.title for i in all_items] == ["Fight Club"]
+
+    def test_scan_library_all_includes_item_with_trailer_found_attribute(self, tmp_path: Path) -> None:
+        """scan_library_all ignores the derived ``trailer_found`` attribute entirely."""
+        conn = _open_seeded_db()
+        self._seed_movie(conn, tmp_path, item_id=1, title="Inception", with_trailer_attr=True)
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        assert scanner.scan_library(conn) == []  # excluded by the -trailer_found query
+        all_items = scanner.scan_library_all(conn)
+        assert [i.title for i in all_items] == ["Inception"]
+
+    def test_scan_library_all_category_filter(self, tmp_path: Path) -> None:
+        """scan_library_all honours the category filter like scan_library does."""
+        conn = _open_seeded_db()
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        assert scanner.scan_library_all(conn, category_filter="animation") == []
+        assert len(scanner.scan_library_all(conn, category_filter="movies")) == 1

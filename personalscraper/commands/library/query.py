@@ -7,48 +7,18 @@ from typing import Optional
 
 import typer
 
-from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import handle_cli_errors
-from personalscraper.core.event_bus import EventBus
-
-
-def _resolve_event_bus(ctx: typer.Context) -> EventBus:
-    """Resolve the :class:`EventBus` to forward to an indexer query command.
-
-    When the global Typer context carries a loaded :class:`Config`, build an
-    :class:`AppContext` and return its bus. When the config is unavailable
-    (``init-config`` boundary in tests), construct a fresh unobserved bus at
-    this CLI boundary so the required-bus contract holds locally on the
-    indexer command — no silent bypass through optional kwargs.
-
-    Read-only query commands (``library-status`` / ``library-search`` /
-    ``library-show``) do not need a ``correlation_id`` binding — they emit
-    at most one ``DiskFullWarning`` from the pre-open guard — so the
-    :class:`AppContext` is built directly via ``_build_app_context``
-    rather than via ``per_step_boundary``.
-
-    Args:
-        ctx: The active Typer context.
-
-    Returns:
-        An :class:`EventBus` (either the AppContext bus or a fresh one).
-    """
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
-
-    loaded_config = ctx.obj.config if ctx.obj is not None else None
-    if loaded_config is None:
-        return EventBus()
-    settings = cli_compat.get_settings()
-    app_context = _build_app_context(loaded_config, settings)
-    return app_context.event_bus
+from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 
 
 @app.command("library-status")
 @handle_cli_errors
+@boundary(needs="config", staging=False)
 def library_status(
     ctx: typer.Context,
     config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Show the latest completed indexer scan run summary.
 
@@ -70,7 +40,7 @@ def library_status(
     effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
     rc = library_status_command(
         effective_config,
-        event_bus=_resolve_event_bus(ctx),
+        event_bus=bundle.event_bus,
         output_format=state["format"],
     )
     raise typer.Exit(rc)
@@ -78,11 +48,14 @@ def library_status(
 
 @app.command("library-search")
 @handle_cli_errors
+@boundary(needs="config", staging=False)
 def library_search(
     ctx: typer.Context,
     query: str = typer.Argument(..., help="Query string, e.g. 'year:2024 disk:Disk1 -nfo:valid'"),
     limit: int = typer.Option(50, "--limit", help="Maximum number of results to return"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Search indexed media items with the flex-attr query language.
 
@@ -98,9 +71,7 @@ def library_search(
     from personalscraper.indexer.cli import library_search_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc, rows = library_search_command(
-        query, limit=limit, config_path=effective_config, event_bus=_resolve_event_bus(ctx)
-    )
+    rc, rows = library_search_command(query, limit=limit, config_path=effective_config, event_bus=bundle.event_bus)
     emit(
         {"rows": rows, "count": len(rows), "query": query, "limit": limit},
         rich_renderer=lambda: _print_search_table(rows),
@@ -128,10 +99,13 @@ def _print_search_table(rows: list[dict[str, object]]) -> None:
 
 @app.command("library-show")
 @handle_cli_errors
+@boundary(needs="config", staging=False)
 def library_show(
     ctx: typer.Context,
     item_id: int = typer.Argument(..., help="media_item.id to display"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Pretty-print all stored data for a single media item.
 
@@ -145,7 +119,7 @@ def library_show(
     from personalscraper.indexer.cli import library_show_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc, payload = library_show_command(item_id, config_path=effective_config, event_bus=_resolve_event_bus(ctx))
+    rc, payload = library_show_command(item_id, config_path=effective_config, event_bus=bundle.event_bus)
     emit(payload, rich_renderer=lambda: _print_show_sections(payload))
     if rc != 0:
         raise typer.Exit(rc)

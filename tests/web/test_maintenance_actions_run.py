@@ -20,11 +20,12 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.web._web_harness import mount_guarded
+
 from .test_maintenance_panels import (
     _build_app,
     _build_authenticated_client,
     _login,
-    _mount_guarded,
 )
 
 NOW = int(time.time())
@@ -117,7 +118,7 @@ def _authenticated_client_with_history(test_config, tmp_path: Path, db_path: Pat
         tmp_path,
         indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
     )
-    _mount_guarded(app, pipeline_router)
+    mount_guarded(app, pipeline_router)
     client = TestClient(app, base_url="https://testserver")
     _login(client)
     return client
@@ -656,7 +657,7 @@ class TestActionRun:
         """
         from personalscraper.web.routes.maintenance import _spawn_runner
 
-        with patch("personalscraper.web.routes.maintenance.subprocess.Popen") as mock_popen:
+        with patch("personalscraper.web.maintenance.service.subprocess.Popen") as mock_popen:
             _spawn_runner("abc123def456abc123def456ab", WRITE_ACTION_ID, CANONICAL_BUDGET, dry_run=False)
 
         call_kwargs = mock_popen.call_args[1]
@@ -667,7 +668,7 @@ class TestActionRun:
         assert env["PERSONALSCRAPER_RUN_UID"] == "abc123def456abc123def456ab"
 
         # Also verify the dry_run=True path.
-        with patch("personalscraper.web.routes.maintenance.subprocess.Popen") as mock_popen:
+        with patch("personalscraper.web.maintenance.service.subprocess.Popen") as mock_popen:
             _spawn_runner("xyz9876543210xyz9876543210", DESTRUCTIVE_ACTION_ID, CANONICAL_CLEAN_EMPTY, dry_run=True)
 
         call_kwargs = mock_popen.call_args[1]

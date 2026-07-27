@@ -359,7 +359,7 @@ def test_relink_apply_then_reconcile_zero_orphans(tmp_path, test_config) -> None
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r2 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r2.exit_code == 0, r2.output
-    payload = json_from_result(r2)
+    payload = json_from_result(r2, source_attr="stdout")
     assert payload["files_without_release"] == 0, (
         f"Cross-command closure broken: {payload['files_without_release']} files still without release after relink"
     )

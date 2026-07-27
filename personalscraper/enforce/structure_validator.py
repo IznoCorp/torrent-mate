@@ -11,10 +11,12 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.text_utils import sanitize_filename
 
 log = get_logger("enforce.structure")
@@ -54,6 +56,8 @@ def validate_structure(
     settings: Settings,
     config: Config,
     dry_run: bool = False,
+    *,
+    bus: EventBus,
 ) -> list[StructureResult]:
     """Validate and fix directory structure for all staging items.
 
@@ -61,11 +65,17 @@ def validate_structure(
     ``{tvshows_dir}/``, running the appropriate validation logic for each.
     Fixes are applied in-place unless *dry_run* is ``True``.
 
+    F8 real lifecycle: an ``ItemProgressed(status="started")`` is emitted on
+    *bus* for each media directory BEFORE its validation/repair runs. The
+    terminal ``ItemProgressed`` + report counters are recorded by
+    ``run_enforce`` from the returned results.
+
     Args:
         settings: Pipeline configuration (reserved for future use).
         config: Application config used to resolve staging_dir and category folder names.
         dry_run: When ``True``, report planned fixes without modifying
             the filesystem.
+        bus: Required in-process EventBus for the per-item ``started`` events.
 
     Returns:
         One :class:`StructureResult` per media directory scanned.
@@ -77,12 +87,14 @@ def validate_structure(
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
+                bus.emit(ItemProgressed(step="enforce", item=folder.name, status="started"))
                 results.append(_validate_movie(folder, dry_run))
 
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
+                bus.emit(ItemProgressed(step="enforce", item=folder.name, status="started"))
                 results.append(_validate_tvshow(folder, dry_run))
 
     return results

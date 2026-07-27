@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
@@ -198,3 +198,48 @@ def test_unowned_pending_row_stays_pending(store: ConcreteAcquireStore) -> None:
     assert summary.requeued_missing == 0
     row = store.wanted.get(wanted_id)
     assert row is not None and row.status == "pending"
+
+
+class _OwnsAllOwnership:
+    """Ownership stub that owns every work (movie + episode)."""
+
+    def owns(self, media_ref: MediaRef, *, kind: str, season: int | None = None, episode: int | None = None) -> bool:
+        return True
+
+
+def test_closed_movie_followed_ids_surfaces_only_transitioned_movies(store: ConcreteAcquireStore) -> None:
+    """Reconcile surfaces the followed_id of movie rows it closes — for D2-A retirement.
+
+    ACQUIRE-02: the post-dispatch reconcile subscriber reads this to retire the
+    follow + emit FilmAcquired. Only ``kind == "movie"`` rows carrying a
+    followed_id appear; episodes never do (a series continues).
+    """
+    followed_id = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tmdb_id=555), title="Ferrari", added_at=1_750_000_000, kind="movie")
+    )
+    movie_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tmdb_id=555),
+            kind="movie",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            followed_id=followed_id,
+        )
+    )
+    store.wanted.mark_grabbed(movie_id, "aa11bb22")
+    episode_id = _grabbed(store, season=3, episode=1, info_hash="cc33dd44")
+
+    summary = reconcile_wanted(store, _OwnsAllOwnership(), {"aa11bb22", "cc33dd44"})
+
+    assert summary.closed_owned == 2  # both rows close
+    assert summary.closed_movie_followed_ids == (followed_id,)  # only the movie, and only its follow
+    assert store.wanted.get(episode_id).status == "done"  # type: ignore[union-attr]
+
+
+def test_closed_movie_followed_ids_empty_when_nothing_transitions(store: ConcreteAcquireStore) -> None:
+    """No owned rows → the movie-followed-id tuple is empty (idempotent second pass)."""
+    _grabbed(store, season=1, episode=1, info_hash="ee55ff66")
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), {"ee55ff66"})
+
+    assert summary.closed_movie_followed_ids == ()

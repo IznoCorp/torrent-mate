@@ -16,7 +16,7 @@ name for this client. It is an *internal HTTP backend* shared by the
 :class:`~personalscraper.api.metadata.rotten_tomatoes.RottenTomatoesClient`
 façades. The scraper layer must not call OMDb directly — it goes
 through the IMDb / RT façades, which expose the business semantics
-(``get_rating``, ``validate_id``, ``get_cross_refs``) while sharing a
+(``get_rating``, ``validate_id``) while sharing a
 single underlying HTTP client (one rate-limit budget, one circuit
 breaker). ``OMDBClient`` is preserved as a backward-compatible alias
 for existing import sites; new code should import ``OMDbAdapter``.

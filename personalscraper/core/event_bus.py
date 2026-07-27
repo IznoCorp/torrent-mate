@@ -194,7 +194,7 @@ def event_to_dict(value: Any) -> Any:
 
 
 # Local alias matches the convention used elsewhere in the codebase
-# (e.g. ``personalscraper.trailers.state``, ``personalscraper.scraper.json_ttl_cache``).
+# (e.g. ``personalscraper.trailers.state``, ``personalscraper.core.json_ttl_cache``).
 # We re-alias rather than ``from datetime import UTC`` so the module remains
 # import-clean on Python 3.10 (per ``pyproject.toml`` ``requires-python = ">=3.10"``);
 # the ``datetime.UTC`` alias only became importable in Python 3.11.

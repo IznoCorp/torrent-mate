@@ -150,6 +150,61 @@ class StepReport:
             if _dc.is_dataclass(self.details_payload) and not isinstance(self.details_payload, type):
                 self.details_payload = _dc.asdict(self.details_payload)
 
+    def merge(self, other: "StepReport") -> "StepReport":
+        """Merge two ``StepReport`` instances into a new one.
+
+        Integer counters (``success_count``, ``skip_count``, ``error_count``,
+        and the ``counts`` dict values) are summed.  List fields (``details``,
+        ``warnings``, ``failed_items``, ``unmatched_paths``) are concatenated
+        with ``self`` first, then ``other``.  Dict fields (``renames``,
+        ``details_payload``) are shallow-combined; ``other`` wins on key
+        conflicts.  ``status`` keeps ``other``'s value when set, falling back to
+        ``self``.
+
+        Args:
+            other: Another ``StepReport`` to merge with this one.
+
+        Returns:
+            A new ``StepReport`` with combined counters, lists, and dicts.
+
+        Raises:
+            ValueError: If ``self.name != other.name``.
+        """
+        if self.name != other.name:
+            raise ValueError(f"Cannot merge StepReports with different names: {self.name!r} != {other.name!r}")
+
+        # Combine counts dicts (sum shared keys).
+        merged_counts: dict[str, int] = dict(self.counts)
+        for k, v in other.counts.items():
+            if k in merged_counts:
+                merged_counts[k] += v
+            else:
+                merged_counts[k] = v
+
+        # Combine details_payload dicts (other wins on key conflicts, None-safe).
+        merged_payload: dict[str, Any] | None = None
+        if self.details_payload is not None or other.details_payload is not None:
+            merged_payload = {}
+            if self.details_payload is not None:
+                merged_payload.update(self.details_payload)
+            if other.details_payload is not None:
+                merged_payload.update(other.details_payload)
+
+        return StepReport(
+            name=self.name,
+            success_count=self.success_count + other.success_count,
+            skip_count=self.skip_count + other.skip_count,
+            error_count=self.error_count + other.error_count,
+            warnings=self.warnings + other.warnings,
+            details=self.details + other.details,
+            status=other.status if other.status is not None else self.status,
+            counts=merged_counts,
+            failed_items=self.failed_items + other.failed_items,
+            renames={**self.renames, **other.renames},
+            unmatched_paths=self.unmatched_paths + other.unmatched_paths,
+            details_payload=merged_payload,
+        )
+
 
 @dataclass
 class PipelineReport:

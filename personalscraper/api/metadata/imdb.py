@@ -3,23 +3,18 @@
 The scraper layer never talks to OMDb directly (DESIGN §4). It
 composes :class:`IMDbClient` and
 :class:`~personalscraper.api.metadata.rotten_tomatoes.RottenTomatoesClient`,
-which expose the business semantics — ``validate_id``, ``get_rating``,
-``get_cross_refs`` — while sharing one :class:`OMDbAdapter` instance so
-the rate-limit and circuit-breaker budgets stay consolidated.
+which expose the business semantics — ``validate_id``, ``get_rating`` —
+while sharing one :class:`OMDbAdapter` instance so the rate-limit and
+circuit-breaker budgets stay consolidated.
 
-This façade composes three atomic capability protocols from
+This façade composes two atomic capability protocols from
 :mod:`personalscraper.api.metadata._contracts` :
-:class:`~personalscraper.api.metadata._contracts.IDValidator`,
-:class:`~personalscraper.api.metadata._contracts.RatingProvider`,
-:class:`~personalscraper.api.metadata._contracts.IDCrossRef`.
+:class:`~personalscraper.api.metadata._contracts.IDValidator` and
+:class:`~personalscraper.api.metadata._contracts.RatingProvider`.
 
-OMDb does not surface TVDB / TMDB identifiers when queried by IMDb ID,
-so :meth:`IMDbClient.get_cross_refs` always returns an empty mapping.
-Cross-reference enrichment happens in phase 5 via the TVDB ↔ TMDB
-loop. Keeping the capability on the façade preserves the symmetric
-contract — every façade declares the same shape and the consumer
-treats an empty result as "no cross-refs from this provider", which is
-already the standard convention (DESIGN §4 helpers).
+Cross-provider ID resolution (TVDB ↔ TMDB ↔ IMDb) is owned by the
+external-ids flow (``scraper._xref`` + the indexer backfill), not by a
+capability Protocol on this façade.
 """
 
 from __future__ import annotations
@@ -29,7 +24,7 @@ from typing import TYPE_CHECKING, ClassVar
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import MediaDetails, Notations
-from personalscraper.api.metadata._contracts import IDCrossRef, IDValidator, RatingProvider
+from personalscraper.api.metadata._contracts import IDValidator, RatingProvider
 from personalscraper.api.metadata.omdb import OmdbQuotaExhausted
 
 if TYPE_CHECKING:
@@ -53,13 +48,13 @@ def _normalize_title(value: str) -> str:
     return " ".join(value.lower().split())
 
 
-class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
+class IMDbClient(IDValidator, RatingProvider):
     """IMDb business façade — validates IMDb IDs, fetches IMDb ratings.
 
-    Composes :class:`IDValidator`, :class:`RatingProvider`,
-    :class:`IDCrossRef` (DESIGN §4). All methods delegate to a shared
-    :class:`OMDbAdapter` instance — the OMDb HTTP backend is the
-    *only* path to IMDb data (no separate IMDb API key is required).
+    Composes :class:`IDValidator` and :class:`RatingProvider` (DESIGN §4).
+    All methods delegate to a shared :class:`OMDbAdapter` instance — the
+    OMDb HTTP backend is the *only* path to IMDb data (no separate IMDb
+    API key is required).
 
     Attributes:
         provider_name: Lowercase provider identifier, ``"imdb"``.
@@ -160,26 +155,6 @@ class IMDbClient(IDValidator, RatingProvider, IDCrossRef):
             return None
         imdb_only = [n for n in notations if n.source == "imdb"]
         return imdb_only or None
-
-    # -- IDCrossRef capability ----------------------------------------------
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        """Return cross-provider IDs reachable from an IMDb starting point.
-
-        Always returns ``{}`` — OMDb does not expose TVDB / TMDB IDs
-        when queried by IMDb ID. The capability is preserved on the
-        façade for contract symmetry (every metadata façade exposes
-        :class:`IDCrossRef`) ; consumers iterate cross-refs and
-        treat empty dicts as "this provider has nothing to add"
-        (DESIGN §4 helpers).
-
-        Args:
-            provider_id: IMDb identifier, ignored.
-
-        Returns:
-            Empty dict.
-        """
-        return {}
 
     # -- Extra helper: full payload access ----------------------------------
 

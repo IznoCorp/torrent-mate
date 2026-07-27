@@ -1,13 +1,14 @@
 """Cross-family helpers for consuming capability protocols.
 
-Two collection primitives that iterate a heterogeneous provider list
-and filter by capability via :func:`isinstance` against the
+A collection primitive that iterates a heterogeneous provider list
+and filters by capability via :func:`isinstance` against the
 ``@runtime_checkable`` protocols introduced in sub-phase 1.2 and 1.5 :
 
 - :func:`gather_ratings` — bundle ratings from every
   :class:`~personalscraper.api.metadata._contracts.RatingProvider`.
-- :func:`gather_cross_refs` — bundle cross-provider IDs from every
-  :class:`~personalscraper.api.metadata._contracts.IDCrossRef`.
+
+Cross-provider ID resolution is owned by the external-ids flow
+(``scraper._xref`` + the indexer backfill), not by a helper here.
 
 Plus :exc:`ProviderFeatureUnavailable` — a typed business exception
 raised by a client that *declares* a capability but cannot fulfil it
@@ -23,7 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from personalscraper.api.metadata._base import Notations
-from personalscraper.api.metadata._contracts import IDCrossRef, RatingProvider
+from personalscraper.api.metadata._contracts import RatingProvider
 
 
 class ProviderFeatureUnavailable(Exception):
@@ -87,50 +88,7 @@ def gather_ratings(providers: list[Any], provider_id: str) -> list[Notations]:
     return results
 
 
-def gather_cross_refs(
-    providers: list[Any],
-    canonical_id: str,
-) -> dict[str, dict[str, str]]:
-    """Collect cross-provider IDs from every ``IDCrossRef``-capable entry.
-
-    Filters the heterogeneous ``providers`` list with
-    :func:`isinstance` against :class:`IDCrossRef`, calls
-    :meth:`IDCrossRef.get_cross_refs` on each match, and indexes the
-    results by the provider's ``provider_name`` attribute.
-
-    Providers returning an empty ``dict`` are skipped. Providers that
-    raise :exc:`ProviderFeatureUnavailable` are caught and ignored so
-    one mis-configured provider cannot break the aggregation.
-
-    Args:
-        providers: Heterogeneous list of provider client instances.
-        canonical_id: The canonical ID (typically the TVDB ID for TV
-            shows, the TMDB ID for movies) passed to every
-            :meth:`get_cross_refs` call.
-
-    Returns:
-        Mapping ``{provider_name: {provider_target: id_value}}``.
-        Empty dict when no provider answers.
-    """
-    results: dict[str, dict[str, str]] = {}
-    for provider in providers:
-        if not isinstance(provider, IDCrossRef):
-            continue
-        try:
-            cross_refs = provider.get_cross_refs(canonical_id)
-        except ProviderFeatureUnavailable:
-            continue
-        if cross_refs:
-            # ``IDCrossRef`` does not declare ``provider_name`` (that lives on
-            # ``HasName``), but every concrete client composes both — use
-            # ``getattr`` so structurally-typed providers without a name still
-            # get indexed under a stable fallback rather than crashing.
-            results[getattr(provider, "provider_name", "<unknown>")] = cross_refs
-    return results
-
-
 __all__ = [
     "ProviderFeatureUnavailable",
     "gather_ratings",
-    "gather_cross_refs",
 ]

@@ -19,8 +19,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from personalscraper.core.completeness import media_completeness
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_archive_filename
 from personalscraper.naming_patterns import SEASON_DIR_RE
+from personalscraper.nfo_utils import parse_title_year
 from personalscraper.verify.checks.base import CheckResult, CheckStage, Severity
 from personalscraper.verify.checks.registry import register_check
 
@@ -245,6 +247,54 @@ class EpisodeRenamed:
                 passed=len(unrenamed) == 0,
                 severity=Severity.ERROR,
                 message=f"Unrenamed episodes: {', '.join(f.name for f in unrenamed[:3])}" if unrenamed else "",
+            )
+        ]
+
+
+@register_check
+class MovieVideoRenamed:
+    """Check that a movie's main video carries the canonical ``{Title}`` stem (movie-only).
+
+    VERIFY-MAINTENANCE-04 / §9: the movie-video-rename gate used to live OUTSIDE
+    the check catalog as the ``verify.completeness.video_rename_gap`` bolt-on, run
+    as an extra step by the web read-model and ``check-media-complete``. It is now
+    a first-class DISPATCH-stage catalog check consuming the single on-disk
+    read-model (:func:`personalscraper.core.completeness.media_completeness`), so
+    ``verify``, the web read-model and the completeness script all block a
+    not-yet-renamed movie video through ONE definition. The TV analog is
+    :class:`EpisodeRenamed`.
+    """
+
+    name = "movie_video_renamed"
+    group = "structure"
+    stages = frozenset({CheckStage.DISPATCH})
+    media_types = frozenset({"movie"})
+    default_severity = Severity.ERROR
+    description = "Movie video must be renamed to the canonical {Title} stem"
+
+    def run(self, ctx: "CheckContext") -> list[CheckResult]:
+        """Return ``[CheckResult]`` for the ``movie_video_renamed`` check.
+
+        Consumes ``media_completeness(...).has_renamed_video`` (``True`` when the
+        largest top-level non-trailer video carries the canonical ``{Title}`` stem;
+        ``False`` when it is present-but-misnamed or absent — for a movie the value
+        is never ``None``).
+
+        Args:
+            ctx: Shared check context.
+
+        Returns:
+            Single-element list with the ``movie_video_renamed`` result.
+        """
+        renamed = media_completeness(ctx.media_dir, "movie").has_renamed_video
+        passed = renamed is True
+        title = parse_title_year(ctx.media_dir.name)[0]
+        return [
+            CheckResult(
+                name="movie_video_renamed",
+                passed=passed,
+                severity=Severity.ERROR,
+                message="" if passed else f"Movie video not renamed to canonical '{title}' stem",
             )
         ]
 

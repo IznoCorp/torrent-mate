@@ -52,13 +52,13 @@ const dismissDecisionMock = vi.mocked(dismissDecision);
 // Mock: run-detail poll (getPipelineRunDetail) — preserve the real ApiError.
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/pipeline", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/pipeline")>("@/api/pipeline");
   return { ...actual, getPipelineRunDetail: vi.fn() };
 });
 
-import { getPipelineRunDetail } from "@/api/client";
+import { getPipelineRunDetail } from "@/api/pipeline";
 const getPipelineRunDetailMock = vi.mocked(getPipelineRunDetail);
 
 // ---------------------------------------------------------------------------

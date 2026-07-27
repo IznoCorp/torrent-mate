@@ -34,9 +34,9 @@ vi.mock("@/api/acquisition", async () => {
   };
 });
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/pipeline", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/pipeline")>("@/api/pipeline");
   return { ...actual, setWatcher: vi.fn() };
 });
 

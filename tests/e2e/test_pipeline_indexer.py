@@ -48,7 +48,7 @@ _MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "ind
 
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
-_PATCH_SCAN = "personalscraper.indexer.scanner.scan"
+_PATCH_SCAN = "personalscraper.indexer.scanner.scan_with"
 
 _N_ITEMS = 50
 

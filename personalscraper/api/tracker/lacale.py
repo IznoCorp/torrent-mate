@@ -21,7 +21,6 @@ LaCale particularities (live-confirmed):
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
@@ -32,6 +31,7 @@ from personalscraper.api.tracker._contracts import (
     CategoryListable,
     TorrentSearchable,
 )
+from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
@@ -49,21 +49,6 @@ if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("api.tracker.lacale")
-
-
-_TITLE_PATTERNS: dict[str, re.Pattern[str]] = {
-    "resolution": re.compile(r"\b(2160p|1080p|720p|480p|4k|uhd)\b", re.IGNORECASE),
-    "codec": re.compile(r"\b(x265|x264|h\.?265|h\.?264|hevc|av1|xvid|divx)\b", re.IGNORECASE),
-    "source": re.compile(
-        r"\b(uhd[. ]bluray|bluray|brrip|web[- ]?dl|webrip|hdtv|dvdrip)\b",
-        re.IGNORECASE,
-    ),
-    "audio": re.compile(
-        r"\b(truehd|atmos|dts[- ]?hd|dts|ddp?5\.1|aac|ac3|flac|mp3)\b",
-        re.IGNORECASE,
-    ),
-    "format": re.compile(r"\.(mkv|mp4|avi|m4v|wmv|mov)$", re.IGNORECASE),
-}
 
 
 class LaCaleClient(TorrentSearchable, CategoryListable):
@@ -218,7 +203,7 @@ class LaCaleClient(TorrentSearchable, CategoryListable):
     def _parse_item(self, item: dict[str, Any]) -> TrackerResult:
         """Map one LaCale JSON item to a TrackerResult."""
         title = str(item.get("title", ""))
-        parsed = self._parse_title(title)
+        parsed = parse_title_quality(title)
 
         size_raw = item.get("size", 0)
         size = ByteSize.parse(int(size_raw)) if isinstance(size_raw, int | float | str) else ByteSize.parse(0)
@@ -245,24 +230,6 @@ class LaCaleClient(TorrentSearchable, CategoryListable):
             resolution=parsed.get("resolution"),
             audio=parsed.get("audio"),
         )
-
-    @staticmethod
-    def _parse_title(title: str) -> dict[str, str | None]:
-        """Extract quality fields from a torrent title.
-
-        Args:
-            title: Raw torrent title.
-
-        Returns:
-            Dict with keys: resolution, codec, source, audio, format. Values
-            are None when no pattern matches. Freeleech/silverleech flags are
-            NOT included — LaCale exposes no signal for them in search responses.
-        """
-        out: dict[str, str | None] = {}
-        for field, pattern in _TITLE_PATTERNS.items():
-            match = pattern.search(title)
-            out[field] = match.group(1) if match else None
-        return out
 
 
 def _parse_iso(value: Any) -> datetime | None:

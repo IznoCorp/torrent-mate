@@ -86,8 +86,10 @@ class SeasonInfo:
     (rejecting a candidate whose catalog does not cover the locally
     present seasons) and season-poster selection.
 
-    Episode-level details still come from
-    :class:`SeasonDetails` via :meth:`MetadataClient.get_season`.
+    Episode-level details still come from :class:`SeasonDetails` via the
+    provider-specific season fetchers (``get_tv_season`` / ``get_series_episodes``)
+    or the :class:`~personalscraper.api.metadata._contracts.EpisodeFetcher`
+    capability (``get_episodes``).
 
     Attributes:
         season_number: Season number (1-based; 0 for specials).
@@ -282,8 +284,13 @@ class MetadataClient:
     is constructed, even when a subclass overrides ``__init__`` without
     calling ``super().__init__()``.
 
-    Subclasses override capability methods they support; the base class
-    raises ``NotImplementedError`` for unsupported ones.
+    Capabilities are composed structurally through the atomic
+    ``@runtime_checkable`` protocols in ``_contracts.py``: a client
+    exposes a capability method (``get_artwork_urls``, ``get_keywords``,
+    …) **only** when it actually implements it. The base class ships no
+    stub methods, so ``isinstance(client, ArtworkProvider)`` is honest —
+    a provider lacking a capability is simply absent from that
+    capability's chain (registry eligibility, DESIGN §6).
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = []
@@ -316,23 +323,3 @@ class MetadataClient:
     def __init__(self, transport: "HttpTransport", language: str = "fr-FR") -> None:
         self._transport = transport
         self._language = language
-
-    # -- Optional capability methods (override in subclasses) -----------------
-
-    def get_artwork_urls(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> list[ArtworkItem]:
-        raise NotImplementedError(f"{self.provider_name} does not support artwork URLs")
-
-    def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]:
-        raise NotImplementedError(f"{self.provider_name} does not support keywords")
-
-    def get_videos(self, media_id: str, media_type: MediaType, language: str) -> list[Video]:
-        raise NotImplementedError(f"{self.provider_name} does not support videos")
-
-    def get_season(self, tv_id: str, season: int) -> SeasonDetails:
-        raise NotImplementedError(f"{self.provider_name} does not support season details")
-
-    def get_notations(self, media_id: str, media_type: MediaType) -> list[Notations] | None:
-        raise NotImplementedError(f"{self.provider_name} does not support notations")
-
-    def get_recommendations(self, media_id: str, media_type: MediaType) -> list[Recommendation]:
-        raise NotImplementedError(f"{self.provider_name} does not support recommendations")

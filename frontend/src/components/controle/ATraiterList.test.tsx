@@ -10,7 +10,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StagingMediaItem, StagingMediaResponse } from "@/api/client";
+import type { StagingMediaItem, StagingMediaResponse } from "@/api/staging";
 
 const stagingMock = vi.fn();
 

@@ -20,7 +20,6 @@ from fastapi.testclient import TestClient
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.web.app import create_app
 from personalscraper.web.auth.passwords import hash_password
 from personalscraper.web.routes.config import RESTART_IMPACT, restart_required_for
 
@@ -118,7 +117,9 @@ class TestConfigRoutesAuthGuard:
     so that the config router registration in ``app.py`` is actually exercised.
     """
 
-    def test_schema_unauthenticated_returns_401(self, test_config: Config, tmp_path: Path, config_dir: Path) -> None:
+    def test_schema_unauthenticated_returns_401(
+        self, test_config: Config, tmp_path: Path, config_dir: Path, make_web_client
+    ) -> None:
         """``GET /api/config/schema`` without session → 401."""
         web_cfg = test_config.web.model_copy(update={"username": TEST_USERNAME})
         cfg = test_config.model_copy(update={"web": web_cfg})
@@ -128,13 +129,14 @@ class TestConfigRoutesAuthGuard:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = create_app(cfg, settings)
-        client = TestClient(app)
+        client = make_web_client(cfg, settings)
 
         resp = client.get("/api/config/schema")
         assert resp.status_code == 401
 
-    def test_schema_authenticated_returns_200(self, test_config: Config, tmp_path: Path, config_dir: Path) -> None:
+    def test_schema_authenticated_returns_200(
+        self, test_config: Config, tmp_path: Path, config_dir: Path, make_web_client
+    ) -> None:
         """``GET /api/config/schema`` with authenticated client → 200."""
         web_cfg = test_config.web.model_copy(update={"username": TEST_USERNAME})
         cfg = test_config.model_copy(update={"web": web_cfg})
@@ -144,8 +146,7 @@ class TestConfigRoutesAuthGuard:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = create_app(cfg, settings)
-        client = TestClient(app, base_url="https://testserver")
+        client = make_web_client(cfg, settings, https=True)
         _login(client)
 
         resp = client.get("/api/config/schema")
@@ -156,7 +157,7 @@ class TestConfigRoutesAuthGuard:
         assert "restart_impact" in data
 
     def test_put_file_without_x_requested_with_returns_400(
-        self, test_config: Config, tmp_path: Path, config_dir: Path
+        self, test_config: Config, tmp_path: Path, config_dir: Path, make_web_client
     ) -> None:
         """``PUT /api/config/files/paths.json5`` without X-Requested-With → 400.
 
@@ -171,8 +172,7 @@ class TestConfigRoutesAuthGuard:
             web_password_hash=TEST_HASH,
             web_jwt_secret=TEST_SECRET,
         )
-        app = create_app(cfg, settings)
-        client = TestClient(app, base_url="https://testserver")
+        client = make_web_client(cfg, settings, https=True)
         _login(client)
 
         # Only send the JSON body — deliberately omit X-Requested-With.

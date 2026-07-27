@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_archive_filename, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
+
+if TYPE_CHECKING:
+    from personalscraper.scraper._shared import ScrapeResult
 
 log = get_logger("scraper")
 
@@ -104,6 +109,87 @@ def _rename_dir_case_safe(source: Path, target: Path) -> Path:
             pass
     source.rename(target)
     return target
+
+
+def apply_canonical_dir_rename(
+    current: Path,
+    canonical_name: str,
+    *,
+    dry_run: bool,
+    result: "ScrapeResult",
+) -> Path:
+    """Rename a media directory to its canonical name (case-safe, NFC-aware).
+
+    The ONE folder rename/merge/case-safe block shared by the movie and TV
+    write-back (SCRAPER-04), folded out of the two hand-synchronised copies in
+    ``movie_service`` / ``tv_service_write``. Compares ``current.name`` against
+    *canonical_name* under NFC normalisation (macOS stores filenames in NFD,
+    Python strings are typically NFC — a naive compare treats them as different
+    and triggers a rename-into-self merge that empties the folder), then applies
+    one of:
+
+    * **no change** — names already match → returns *current* unchanged.
+    * **dry-run** — logs the intended action and returns *current*.
+    * **target absent** — a plain case-safe rename.
+    * **target present, same dir** — a case-only rename on a case-insensitive
+      filesystem (``Flow (2024)`` vs ``FLOW (2024)`` alias the same inode) →
+      two-step case-safe rename, NEVER a merge (a merge would walk the source,
+      see each dest as "already existing", unlink it against itself and destroy
+      the only copy of the video).
+    * **target present, distinct dir** — merge *current* into it (source wins),
+      recording a warning on partial failure.
+
+    On an :class:`OSError` the message is recorded on ``result.error`` and
+    *current* is returned unchanged — the caller MUST check ``result.error`` and
+    abort. On a successful move ``result.media_path`` is set to the new path.
+
+    Args:
+        current: The media directory as it currently exists on disk.
+        canonical_name: The desired canonical folder name (already sanitised).
+        dry_run: When True, only log the intended action (no filesystem change).
+        result: The :class:`ScrapeResult` to update (``media_path`` on success,
+            ``error`` on OS failure, ``warnings`` on partial merge).
+
+    Returns:
+        The resulting directory path — the new path on a successful rename/merge,
+        else *current* (no-op, dry-run, or error).
+    """
+    if unicodedata.normalize("NFC", current.name) == unicodedata.normalize("NFC", canonical_name):
+        return current
+
+    new_path = current.parent / canonical_name
+    if dry_run:
+        action = "merge into" if new_path.exists() else "rename"
+        log.info("media_folder_would_rename", action=action, source=current.name, dest=canonical_name)
+        return current
+
+    try:
+        if new_path.exists():
+            # Case-only rename trap (macOS case-insensitive FS): the target
+            # ALIASES the source, so merging would unlink each item against
+            # itself. Same-dir → two-step case-safe rename, never a merge.
+            try:
+                is_same_dir = current.samefile(new_path)
+            except OSError:
+                is_same_dir = False
+            if is_same_dir:
+                _rename_dir_case_safe(current, new_path)
+                log.info("media_folder_renamed", source=current.name, dest=canonical_name)
+            else:
+                moved, merge_failed = _merge_dirs(current, new_path)
+                log.info("media_folder_merged", source=current.name, dest=canonical_name, items=moved)
+                if merge_failed:
+                    result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
+        else:
+            _rename_dir_case_safe(current, new_path)
+            log.info("media_folder_renamed", source=current.name, dest=canonical_name)
+    except OSError as exc:
+        result.error = f"Rename/merge failed: {exc}"
+        log.error("media_folder_rename_failed", source=current.name, dest=canonical_name, error=str(exc))
+        return current
+
+    result.media_path = new_path
+    return new_path
 
 
 def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> int:

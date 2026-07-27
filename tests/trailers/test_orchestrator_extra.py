@@ -65,7 +65,7 @@ class TestCookieErrorBranch:
         Args:
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.ytdlp_downloader import CookieError
+        from personalscraper.trailers.discovery.ytdlp_downloader import CookieError
 
         cfg = _make_config(tmp_path)
         with patch(
@@ -190,7 +190,7 @@ class TestDiskUsageOSError:
         Args:
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         cfg = _make_config(tmp_path)
         orch = TrailersOrchestrator(
@@ -239,7 +239,7 @@ class TestNfoWriteFailureWarning:
         Args:
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         cfg = _make_config(tmp_path)
         orch = TrailersOrchestrator(
@@ -395,7 +395,7 @@ class TestBuildFinderYoutubeKeyMissing:
         with (
             patch("personalscraper.config.get_settings", return_value=fake_settings),
             patch(
-                "personalscraper.scraper.youtube_search.youtube_api_key_from_env",
+                "personalscraper.trailers.discovery.youtube_search.youtube_api_key_from_env",
                 return_value=None,
             ),
         ):

@@ -8,7 +8,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { type ReactElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,6 +16,9 @@ import {
   useAllDecisions,
   useDecisionDetail,
   useDecisions,
+  useDismissDecision,
+  useResolveDecision,
+  useSearchDecision,
 } from "@/hooks/useDecisions";
 import { decisionsKeys } from "@/api/decisions";
 import { ApiError } from "@/api/client";
@@ -420,5 +423,104 @@ describe("useAllDecisions", () => {
     expect(result.current.errored.has("superseded")).toBe(true);
     expect(result.current.counts.pending).toBe(1);
     expect(result.current.errored.has("pending")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — shared decision mutations (FRONTEND-DATA-06)
+// ---------------------------------------------------------------------------
+
+/** A fresh QueryClient (retries off) plus a wrapper bound to it. */
+function createClientWrapper(): {
+  client: QueryClient;
+  wrapper: (props: { children: ReactNode }) => ReactElement;
+} {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  const wrapper = ({ children }: { children: ReactNode }): ReactElement => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  return { client, wrapper };
+}
+
+describe("shared decision mutations", () => {
+  it("useResolveDecision fires the UNION invalidation set + onResolved", async () => {
+    fetchMock.mockResolvedValue(buildResponse(202, { run_uid: "r1" }));
+    const { client, wrapper } = createClientWrapper();
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const onResolved = vi.fn();
+
+    const { result } = renderHook(() => useResolveDecision({ onResolved }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        id: 1,
+        body: { provider: "tmdb", provider_id: 5, via: "pick" },
+      });
+    });
+
+    const keys = spy.mock.calls.map((call) =>
+      JSON.stringify(call[0]?.queryKey),
+    );
+    // The union: decisions + pipeline history + Flow Board + staging grid.
+    expect(keys).toContain(JSON.stringify(["decisions"]));
+    expect(keys).toContain(JSON.stringify(["pipeline", "history"]));
+    expect(keys).toContain(JSON.stringify(["pipeline", "stages"]));
+    expect(keys).toContain(JSON.stringify(["staging", "media"]));
+    expect(onResolved).toHaveBeenCalledWith(
+      { run_uid: "r1" },
+      { id: 1, body: { provider: "tmdb", provider_id: 5, via: "pick" } },
+    );
+  });
+
+  it("useDismissDecision invalidates the decisions namespace only", async () => {
+    fetchMock.mockResolvedValue(buildResponse(200, DETAIL));
+    const { client, wrapper } = createClientWrapper();
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const onDismissed = vi.fn();
+
+    const { result } = renderHook(() => useDismissDecision({ onDismissed }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync(7);
+    });
+
+    const keys = spy.mock.calls.map((call) =>
+      JSON.stringify(call[0]?.queryKey),
+    );
+    expect(keys).toContain(JSON.stringify(["decisions"]));
+    // Dismiss is narrow — it must NOT invalidate the resolve-only keys.
+    expect(keys).not.toContain(JSON.stringify(["pipeline", "stages"]));
+    expect(keys).not.toContain(JSON.stringify(["staging", "media"]));
+    expect(onDismissed).toHaveBeenCalled();
+  });
+
+  it("useSearchDecision performs no invalidation (ephemeral results)", async () => {
+    fetchMock.mockResolvedValue(buildResponse(200, { candidates: [] }));
+    const { client, wrapper } = createClientWrapper();
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const onResults = vi.fn();
+
+    const { result } = renderHook(() => useSearchDecision({ onResults }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        id: 2,
+        body: { title: "Blade Runner", year: null },
+      });
+    });
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(onResults).toHaveBeenCalled();
   });
 });

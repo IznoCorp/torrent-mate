@@ -18,33 +18,15 @@
  *
  * Backed entirely by existing endpoints (no new backend): the candidates,
  * ``poster_url``/``overview``/``score`` and the live search all already exist.
+ * All deck state, mutations, keyboard shortcuts and flip animation live in
+ * {@link useResolutionDeck}; this component is pure presentation over it.
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactElement,
-  type SyntheticEvent,
-} from "react";
-import { toast } from "sonner";
+import { type ReactElement } from "react";
 
-import {
-  decisionsKeys,
-  dismissDecision,
-  resolveDecision,
-  searchDecisionCandidates,
-  type DecisionCandidate,
-  type ResolveRequest,
-} from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
-import { ApiError } from "@/api/client";
-import { frenchErrorDetail } from "@/components/decisions/errors";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { Kbd } from "@/components/ds/Kbd";
@@ -52,17 +34,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDecisionDetail, useDecisions } from "@/hooks/useDecisions";
-import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
-import { stagingMediaKeys } from "@/hooks/useStagingMedia";
+import { useResolutionDeck } from "@/hooks/useResolutionDeck";
 import { cn } from "@/lib/utils";
-
-/** Whether the current focus is a text field (so shortcuts don't hijack typing). */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName.toLowerCase();
-  return tag === "input" || tag === "textarea" || target.isContentEditable;
-}
 
 /** Props for {@link ResolutionDeck}. */
 export interface ResolutionDeckProps {
@@ -86,280 +59,36 @@ export interface ResolutionDeckProps {
 export function ResolutionDeck({
   initialDecisionId,
 }: ResolutionDeckProps = {}): ReactElement {
-  const queryClient = useQueryClient();
-  const pendingQuery = useDecisions({ status: "pending", page_size: 200 });
-  const queue = useMemo(
-    () => pendingQuery.data?.items ?? [],
-    [pendingQuery.data],
-  );
-
-  // Locally-processed ids drop out of the deck immediately (optimistic), while
-  // the pending query re-syncs in the background.
-  const [processed, setProcessed] = useState<ReadonlySet<number>>(
-    () => new Set(),
-  );
-  const visible = useMemo(
-    () => queue.filter((d) => !processed.has(d.id)),
-    [queue, processed],
-  );
-
-  const [cursor, setCursor] = useState(0);
-  const clampedCursor =
-    visible.length === 0 ? 0 : Math.min(cursor, visible.length - 1);
-  const current = visible[clampedCursor];
-  const currentId = current?.id;
-
-  // C18: jump to a requested decision once it appears in the loaded queue, and
-  // only once per id — so navigating away within the deck afterwards is not
-  // yanked back.
-  const appliedInitialRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (initialDecisionId == null) return;
-    if (appliedInitialRef.current === initialDecisionId) return;
-    const idx = visible.findIndex((d) => d.id === initialDecisionId);
-    if (idx >= 0) {
-      setCursor(idx);
-      appliedInitialRef.current = initialDecisionId;
-    }
-  }, [initialDecisionId, visible]);
-
-  const detailQuery = useDecisionDetail(currentId ?? 0);
-  const baseCandidates = useMemo<readonly DecisionCandidate[]>(
-    () => detailQuery.data?.candidates ?? [],
-    [detailQuery.data],
-  );
-
-  const [overrides, setOverrides] = useState<readonly DecisionCandidate[]>([]);
-  const candidates = useMemo(
-    () => [...baseCandidates, ...overrides],
-    [baseCandidates, overrides],
-  );
-  const [selected, setSelected] = useState(0);
-
-  const [searchTitle, setSearchTitle] = useState("");
-  const [searchYear, setSearchYear] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
-  // A focusable deck container so releasing the search input hands keyboard
-  // control back to the deck (C7). A running count of skipped decisions (C9).
-  const deckRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [skipped, setSkipped] = useState(0);
-  // The decision id mid resolve-flip (C8) — its view fades out before the
-  // next decision slides in; a rafale of validations finalises it at once.
-  const [flippingId, setFlippingId] = useState<number | null>(null);
-  const flipRef = useRef<{ id: number; timer: number } | null>(null);
-
-  // Reset per-decision state whenever the current decision changes.
-  useEffect(() => {
-    setOverrides([]);
-    setSelected(0);
-    setSearchTitle(current?.extracted_title ?? "");
-    setSearchYear(
-      current?.extracted_year != null ? String(current.extracted_year) : "",
-    );
-  }, [currentId, current?.extracted_title, current?.extracted_year]);
-
-  const markProcessed = useCallback(
-    (id: number) => {
-      setProcessed((prev) => new Set(prev).add(id));
-      void queryClient.invalidateQueries({ queryKey: decisionsKeys.all });
-    },
-    [queryClient],
-  );
-
-  const resolveMut = useMutation({
-    mutationFn: (vars: { id: number; body: ResolveRequest }) =>
-      resolveDecision(vars.id, vars.body),
-    onSuccess: (_data, vars) => {
-      toast.success(
-        "Décision validée — le média poursuit son pipeline (scraping → trailers → vérification → dispatch)",
-      );
-      // §4 — the runner spawns a continuation run through the single trigger
-      // authority; refresh the Flow Board + staging grid so the operator SEES the
-      // media advance and leave staging now, not only on the next WS tick / poll.
-      void queryClient.invalidateQueries({
-        queryKey: pipelineStagesKeys.stages,
-      });
-      void queryClient.invalidateQueries({ queryKey: stagingMediaKeys.all });
-      // C8: fade the resolved decision out (~400 ms) before the next slides in.
-      // A rafale of validations finalises any in-flight flip immediately so the
-      // flow never slows down — only the last one gets to play out in full.
-      if (flipRef.current) {
-        clearTimeout(flipRef.current.timer);
-        markProcessed(flipRef.current.id);
-      }
-      setFlippingId(vars.id);
-      const timer = window.setTimeout(() => {
-        flipRef.current = null;
-        setFlippingId(null);
-        markProcessed(vars.id);
-      }, 400);
-      flipRef.current = { id: vars.id, timer };
-    },
-    onError: (err: unknown) => {
-      // A 409 during a pipeline run is EXPECTED (global lock) — say so in
-      // French instead of surfacing « Pipeline lock held » as a breakage
-      // (revue mobile 2026-07-15, Lucky).
-      toast.error(
-        err instanceof ApiError
-          ? frenchErrorDetail(err)
-          : err instanceof Error
-            ? err.message
-            : "Échec de la validation",
-      );
-    },
-  });
-
-  const dismissMut = useMutation({
-    mutationFn: (id: number) => dismissDecision(id),
-    onSuccess: (_data, id) => {
-      toast.success("Décision ignorée — dossier laissé tel quel");
-      markProcessed(id);
-    },
-    onError: (err: unknown) => {
-      toast.error(
-        err instanceof ApiError
-          ? frenchErrorDetail(err)
-          : err instanceof Error
-            ? err.message
-            : "Échec de l'action",
-      );
-    },
-  });
-
-  const searchMut = useMutation({
-    mutationFn: (vars: { id: number; title: string; year: number | null }) =>
-      searchDecisionCandidates(vars.id, {
-        title: vars.title,
-        ...(vars.year != null ? { year: vars.year } : {}),
-      }),
-    onSuccess: (data) => {
-      setOverrides(data.candidates);
-      // Preselect the first fresh result and RELEASE the search input so the
-      // arrow/enter shortcuts work immediately (C7: the search sits on the
-      // nominal path from an enqueued non-identified item, so a trapped focus
-      // would strand the whole keyboard flow).
-      setSelected(data.candidates.length > 0 ? baseCandidates.length : 0);
-      searchRef.current?.blur();
-      deckRef.current?.focus();
-      toast.success(`${String(data.candidates.length)} résultat(s) trouvé(s)`);
-    },
-    onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Recherche échouée");
-    },
-  });
-
-  const handleResolve = useCallback(() => {
-    if (current == null) return;
-    const candidate = candidates[selected];
-    if (candidate == null) return;
-    const via: ResolveRequest["via"] =
-      selected >= baseCandidates.length ? "search_override" : "pick";
-    resolveMut.mutate({
-      id: current.id,
-      body: {
-        provider: candidate.provider,
-        provider_id: candidate.provider_id,
-        via,
-      },
-    });
-  }, [current, candidates, selected, baseCandidates.length, resolveMut]);
-
-  const handleDismiss = useCallback(() => {
-    if (current != null) dismissMut.mutate(current.id);
-  }, [current, dismissMut]);
-
-  const handleSkip = useCallback(() => {
-    const len = visible.length;
-    if (len <= 1) return;
-    // C9: wrap to the head of the queue instead of stalling on the last card,
-    // count the pass, and say so — so a skip is never a silent dead end.
-    setSkipped((n) => n + 1);
-    const next = clampedCursor + 1;
-    if (next >= len) {
-      toast.info("Retour au début de la file");
-      setCursor(0);
-    } else {
-      setCursor(next);
-    }
-  }, [visible.length, clampedCursor]);
-
-  const handleSearchSubmit = useCallback(
-    (e: SyntheticEvent) => {
-      e.preventDefault();
-      if (current == null || searchTitle.trim() === "") return;
-      const yearNum = Number.parseInt(searchYear, 10);
-      searchMut.mutate({
-        id: current.id,
-        title: searchTitle.trim(),
-        year: Number.isFinite(yearNum) ? yearNum : null,
-      });
-    },
-    [current, searchTitle, searchYear, searchMut],
-  );
-
-  // Global keyboard shortcuts (ignored while typing in a field).
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (current == null) return;
-      if (isTypingTarget(e.target)) return;
-      switch (e.key) {
-        case "ArrowLeft":
-          e.preventDefault();
-          setSelected((s) => Math.max(0, s - 1));
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          setSelected((s) => Math.min(candidates.length - 1, s + 1));
-          break;
-        case "Enter":
-          e.preventDefault();
-          handleResolve();
-          break;
-        case "d":
-          e.preventDefault();
-          handleDismiss();
-          break;
-        case "n":
-          e.preventDefault();
-          handleSkip();
-          break;
-        case "s":
-          e.preventDefault();
-          searchRef.current?.focus();
-          break;
-        default:
-          break;
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [current, candidates.length, handleResolve, handleDismiss, handleSkip]);
-
-  // C10: keep the selected candidate scrolled into view as the arrows move it,
-  // so keyboard navigation never selects an off-screen card (crucial on mobile
-  // where only a couple of cards fit). ``nearest`` avoids gratuitous scrolling.
-  useEffect(() => {
-    const node = gridRef.current?.querySelector<HTMLElement>(
-      `[data-candidate-idx="${String(selected)}"]`,
-    );
-    // Guard: scrollIntoView is unimplemented in jsdom (and absent on old hosts).
-    if (typeof node?.scrollIntoView === "function") {
-      node.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
-  }, [selected, candidates.length]);
-
-  // Clear any pending resolve-flip timer on unmount (C8).
-  useEffect(() => {
-    return () => {
-      if (flipRef.current) clearTimeout(flipRef.current.timer);
-    };
-  }, []);
+  const {
+    isLoading,
+    isError,
+    error,
+    refetch,
+    current,
+    visibleCount,
+    skipped,
+    candidates,
+    selected,
+    setSelected,
+    searchTitle,
+    setSearchTitle,
+    searchYear,
+    setSearchYear,
+    isSearching,
+    searchRef,
+    deckRef,
+    gridRef,
+    handleResolve,
+    handleDismiss,
+    handleSkip,
+    handleSearchSubmit,
+    busy,
+    isFlipping,
+    liveStatus,
+  } = useResolutionDeck(initialDecisionId);
 
   // ── Loading / error / empty ────────────────────────────────────────────
-  if (pendingQuery.isLoading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-8 w-64" />
@@ -372,16 +101,12 @@ export function ResolutionDeck({
     );
   }
 
-  if (pendingQuery.isError) {
+  if (isError) {
     return (
       <ErrorState
         title="Impossible de charger les décisions"
-        {...(pendingQuery.error instanceof Error
-          ? { message: pendingQuery.error.message }
-          : {})}
-        onRetry={() => {
-          void pendingQuery.refetch();
-        }}
+        {...(error instanceof Error ? { message: error.message } : {})}
+        onRetry={refetch}
       />
     );
   }
@@ -395,21 +120,6 @@ export function ResolutionDeck({
       />
     );
   }
-
-  const busy = resolveMut.isPending || dismissMut.isPending;
-  const isFlipping = flippingId === current.id;
-  const selectedCandidate = candidates[selected];
-  // C10: an off-screen, polite live region announcing the current selection so
-  // keyboard-only / screen-reader users track the arrow moves without sight of
-  // the grid.
-  const liveStatus =
-    selectedCandidate != null
-      ? `Sélection ${String(selected + 1)} sur ${String(candidates.length)} : ${selectedCandidate.title}${
-          selectedCandidate.year != null
-            ? ` (${String(selectedCandidate.year)})`
-            : ""
-        }`
-      : "Aucun candidat sélectionné";
 
   // ── Deck ───────────────────────────────────────────────────────────────
   return (
@@ -455,7 +165,7 @@ export function ResolutionDeck({
             </div>
             <span className="font-mono text-xs text-muted-foreground">
               {current.media_kind === "movie" ? "Film" : "Série"} ·{" "}
-              {String(visible.length)} restante(s)
+              {String(visibleCount)} restante(s)
               {skipped > 0 && ` · ${String(skipped)} passée(s)`}
             </span>
           </div>
@@ -527,11 +237,7 @@ export function ResolutionDeck({
               placeholder="2024"
             />
           </div>
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={searchMut.isPending}
-          >
+          <Button type="submit" variant="outline" disabled={isSearching}>
             Chercher
           </Button>
         </form>

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 
-import type { StagingStageStep } from "@/api/client";
+import type { StagingStageStep } from "@/api/staging";
 import { cn } from "@/lib/utils";
 
 /** Per-stage tone dot + French state label for the timeline rows. */

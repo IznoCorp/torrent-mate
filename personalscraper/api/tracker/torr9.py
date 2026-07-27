@@ -44,6 +44,7 @@ from personalscraper.api.tracker._contracts import (
     TorrentDetailsProvider,
     TorrentSearchable,
 )
+from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.transport._auth import BearerAuth, NoAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
@@ -544,6 +545,12 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
         tmdb_raw = item.get("tmdb_id")
         tmdb_id = int(tmdb_raw) if isinstance(tmdb_raw, int | float) and int(tmdb_raw) > 0 else None
 
+        # Quality tokens: torr9's structured payload carries no quality fields —
+        # they live in the release title, so extract them with the SAME shared
+        # parser lacale/c411 use (TORRENT-TRACKERS-03: torr9 previously left
+        # these None, silently dropping ranking signal).
+        title_quality = parse_title_quality(title)
+
         # Swarm health: the SEARCH and DETAIL payloads both carry real
         # seeders/leechers; the LISTING payload omits them (→ 0). int() runs
         # inside wrap_parser_drift, so a bad type surfaces as shape drift. The
@@ -562,10 +569,10 @@ class Torr9Client(TorrentSearchable, CategoryListable, FreeleechAware, TorrentDe
             is_freeleech=bool(item.get("is_freeleech", False)),
             is_silverleech=False,  # torr9 has no partial-freeleech concept.
             upload_date=upload_date,
-            format=None,  # Quality fields are in title and tags; not parsed here.
-            codec=None,  # Future: extract from title using _parse_title() if needed.
-            source=None,
-            resolution=None,
-            audio=None,
+            format=title_quality.get("format"),
+            codec=title_quality.get("codec"),
+            source=title_quality.get("source"),
+            resolution=title_quality.get("resolution"),
+            audio=title_quality.get("audio"),
             tmdb_id=tmdb_id,
         )

@@ -87,7 +87,7 @@ class TestTrailersOrchestratorBasic:
             orchestrator: Orchestrator fixture.
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -223,8 +223,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
-        from personalscraper.trailers.state import TrailerStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
         alt_url = "https://youtube.com/watch?v=ALT_GOOD"
@@ -242,7 +241,7 @@ class TestTrailersOrchestratorFallback:
             patch.object(orchestrator._finder, "find", return_value=tmdb_url),
             patch.object(orchestrator._downloader, "download", download_mock),
             patch.object(orchestrator._finder._youtube_search, "search", return_value=alt_url),
-            patch("personalscraper.trailers.orchestrator._set_state_for_item") as mock_state,
+            patch("personalscraper.trailers.orchestrator._clear_state_for_item") as mock_clear,
         ):
             counts = orchestrator.run()
 
@@ -256,14 +255,10 @@ class TestTrailersOrchestratorFallback:
         assert counts.get("downloaded", 0) == 1
         assert counts.get("ytdlp_error", 0) == 0
 
-        # State written with DOWNLOADED + source=youtube + youtube_url=alt_url
-        assert mock_state.call_count == 1
-        state_arg = mock_state.call_args[0][2]
-        assert state_arg.status == TrailerStatus.DOWNLOADED
-        assert state_arg.source == "youtube"
-        assert state_arg.youtube_url == alt_url
-        # DESIGN §State: one logical item-attempt even though two URLs were tried.
-        assert state_arg.attempts == 1
+        # P6.4 single-truth: success writes NO presence state — it CLEARS the
+        # ledger (once, for this item). The fallback alt URL (not the dead TMDB
+        # URL) is the one that succeeded, proven by download_mock.call_args_list[1].
+        assert mock_clear.call_count == 1
 
     def test_ytdlp_failure_fallback_also_fails_keeps_terminal_state(self, orchestrator: "TrailersOrchestrator") -> None:
         """AC-2: Both downloads fail -> download x2, ytdlp_error==1, terminal state.
@@ -274,7 +269,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
         from personalscraper.trailers.state import TrailerStatus
 
         tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
@@ -310,7 +305,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
         from personalscraper.trailers.state import TrailerStatus
 
         tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
@@ -343,7 +338,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         tmdb_url = "https://youtube.com/watch?v=SAME"
         fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
@@ -367,7 +362,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         orchestrator._config.trailers.fallback_youtube_search = False
 
@@ -398,7 +393,7 @@ class TestTrailersOrchestratorFallback:
         from unittest.mock import MagicMock, patch
 
         from personalscraper.api._contracts import CircuitOpenError
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
         fail_result = DownloadResult(status=DownloadStatus.YTDLP_ERROR, output_path=None, error_message="dead")
@@ -430,8 +425,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
-        from personalscraper.trailers.state import TrailerStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
         alt_url = "https://youtube.com/watch?v=ALT_GOOD"
@@ -445,7 +439,7 @@ class TestTrailersOrchestratorFallback:
             patch.object(orchestrator._finder, "find", return_value=tmdb_url),
             patch.object(orchestrator._downloader, "download", download_mock),
             patch.object(orchestrator._finder._youtube_search, "search", return_value=alt_url),
-            patch("personalscraper.trailers.orchestrator._set_state_for_item") as mock_state,
+            patch("personalscraper.trailers.orchestrator._clear_state_for_item") as mock_clear,
         ):
             counts = orchestrator.run()
 
@@ -454,10 +448,10 @@ class TestTrailersOrchestratorFallback:
         assert counts.get("downloaded", 0) == 1
         assert counts.get("http_error", 0) == 0
 
-        state_arg = mock_state.call_args[0][2]
-        assert state_arg.status == TrailerStatus.DOWNLOADED
-        # Discriminating: the persisted URL is the fallback alt, not the dead TMDB URL.
-        assert state_arg.youtube_url == alt_url
+        # P6.4 single-truth: success clears the ledger (no presence state). The
+        # fallback alt URL (not the dead TMDB URL) is the one that succeeded —
+        # proven by download_mock.call_args_list[1] targeting alt_url.
+        assert mock_clear.call_count == 1
 
     def test_bot_detected_does_not_trigger_fallback(self, orchestrator: "TrailersOrchestrator") -> None:
         """AC-7 companion: BOT_DETECTED is EXCLUDED from the fallback.
@@ -469,7 +463,7 @@ class TestTrailersOrchestratorFallback:
         """
         from unittest.mock import MagicMock, patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         tmdb_url = "https://youtube.com/watch?v=TMDB_DEAD"
         bot_result = DownloadResult(status=DownloadStatus.BOT_DETECTED, output_path=None, error_message="bot")
@@ -603,7 +597,7 @@ class TestLibraryAwareRecheck:
         When library_check.tv_shows is True and the library scan returns a
         LibraryScanItem whose path contains a valid trailer, the orchestrator must:
         - increment already_present_on_disk
-        - write a state entry with status=ALREADY_PRESENT_ON_DISK
+        - write NO presence-claim state (P6.4 single-truth: presence is the FS)
         - NOT call finder.find() nor downloader.download()
 
         Args:
@@ -653,11 +647,10 @@ class TestLibraryAwareRecheck:
         mock_find.assert_not_called()
         mock_dl.assert_not_called()
 
-        # State entry must be written with ALREADY_PRESENT_ON_DISK
-        state = orch._state_store.get("tv:tmdb:1396")
-        assert state is not None
-        assert state.status == TrailerStatus.ALREADY_PRESENT_ON_DISK
-        assert state.trailer_path == str(lib_trailer)
+        # P6.4 single-truth: the library-aware recheck no longer persists an
+        # ALREADY_PRESENT_ON_DISK presence claim — presence is the filesystem
+        # (lib_trailer exists) + the derived index. No state entry is written.
+        assert orch._state_store.get("tv:tmdb:1396") is None
 
     def test_library_aware_recheck_falls_through_when_library_item_absent(self, tmp_path: Path) -> None:
         """When the library scan returns no matching item, fall through to staging SOT.
@@ -667,7 +660,7 @@ class TestLibraryAwareRecheck:
         Args:
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.tv_shows = True
@@ -936,7 +929,7 @@ class TestTrailersOrchestratorEdgeCases:
         """counts[bot_detected] is incremented when downloader returns BOT_DETECTED."""
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -964,7 +957,7 @@ class TestTrailersOrchestratorEdgeCases:
         """
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -1002,7 +995,7 @@ class TestTrailersOrchestratorEdgeCases:
         """
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -1049,7 +1042,7 @@ class TestTrailersOrchestratorNfoPropagation:
         """A successful download propagates the trailer URL into <trailer>."""
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         item = self._scan_item_with_nfo(tmp_path)
         url = "https://youtube.com/watch?v=Z"
@@ -1073,7 +1066,7 @@ class TestTrailersOrchestratorNfoPropagation:
         """BOT_DETECTED must NOT touch the NFO (no successful download yet)."""
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         item = self._scan_item_with_nfo(tmp_path)
         original_nfo = item.nfo_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
@@ -1100,7 +1093,7 @@ class TestTrailersOrchestratorNfoPropagation:
         """
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         item = self._scan_item_with_nfo(tmp_path)
         original_nfo = item.nfo_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
@@ -1125,7 +1118,7 @@ class TestTrailersOrchestratorNfoPropagation:
         """A SUCCESS with item.nfo_path=None must not call write_trailer_url_to_nfo."""
         from unittest.mock import patch
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
 
         media_dir = tmp_path / "Fight Club (1999)"
         media_dir.mkdir()
@@ -1205,10 +1198,10 @@ class TestCircuitOpenCounter:
 
         from personalscraper.api._contracts import CircuitOpenError
         from personalscraper.core.circuit import CircuitBreaker
-        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-        from personalscraper.scraper.trailer_finder import TrailerFinder
-        from personalscraper.scraper.trailers_cache import TrailersCache
-        from personalscraper.scraper.youtube_search import YoutubeSearch
+        from personalscraper.core.json_ttl_cache import JsonTTLCache
+        from personalscraper.trailers.discovery.trailer_finder import TrailerFinder
+        from personalscraper.trailers.discovery.trailers_cache import TrailersCache
+        from personalscraper.trailers.discovery.youtube_search import YoutubeSearch
 
         cfg = _make_config(tmp_path)
         orch = TrailersOrchestrator(
@@ -1282,7 +1275,7 @@ class TestYtdlpRetryRoundTrip:
         """
         from datetime import datetime, timedelta, timezone
 
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
         from personalscraper.trailers.state import TrailerState, TrailerStatus, make_state_key
 
         cfg = _make_config(tmp_path)
@@ -1422,7 +1415,7 @@ class TestPerItemLockContention:
                 events through stdlib when ``wrap_for_formatter`` is active, so
                 ``caplog`` is the reliable capture mechanism on CI).
         """
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.discovery.ytdlp_downloader import DownloadResult, DownloadStatus
         from personalscraper.trailers.state import TrailerStateLocked
 
         # Build two scan items: the first will trigger lock contention, the

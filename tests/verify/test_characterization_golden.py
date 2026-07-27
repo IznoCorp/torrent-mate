@@ -24,6 +24,7 @@ from typing import Any
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.coherence_checker import check_coherence
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.verify.checker import MediaChecker
@@ -140,4 +141,4 @@ def test_library_from_index(tmp_path: Path) -> None:
 def test_coherence(test_config: Config, tmp_path: Path) -> None:
     """Capture or assert ``check_coherence`` over the staging-layout corpus."""
     cfg = _corpus.build_staging_corpus(tmp_path / "stg", test_config)  # Config with paths.staging_dir at tmp
-    _check("coherence", lambda: check_coherence(_settings_stub(), cfg))
+    _check("coherence", lambda: check_coherence(_settings_stub(), cfg, bus=EventBus()))

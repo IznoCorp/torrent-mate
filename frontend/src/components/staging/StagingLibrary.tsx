@@ -15,7 +15,7 @@ import { Film } from "lucide-react";
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import type { StagingMediaItem, StagingMediaParams } from "@/api/client";
+import type { StagingMediaItem, StagingMediaParams } from "@/api/staging";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { MediaCard } from "@/components/ds/MediaCard";

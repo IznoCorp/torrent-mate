@@ -31,6 +31,11 @@ def _make_mixin(**kwargs: Any) -> TvServiceMixin:
     """Build a ``TvServiceMixin`` with the minimum attributes the methods touch."""
     mixin = _ScrapeTvMixin.__new__(_ScrapeTvMixin)
     mixin.dry_run = kwargs.get("dry_run", False)
+    mixin._registry = kwargs.get("registry", MagicMock())
+    # OMDb rating façades unwired (default): the confirmed-write external-ids
+    # pass then skips id re-validation + rating fetch silently (fail-soft).
+    mixin._imdb = None
+    mixin._rotten_tomatoes = None
     mixin._tvdb = kwargs.get("tvdb", MagicMock())
     mixin._tmdb = kwargs.get("tmdb", MagicMock())
     mixin._nfo = kwargs.get("nfo", MagicMock())
@@ -46,7 +51,6 @@ def _make_mixin(**kwargs: Any) -> TvServiceMixin:
     mixin._strip_trailing_year = MagicMock(side_effect=lambda s: s)
     mixin._verify_existing_scrape = MagicMock(return_value=kwargs.get("verify_return", (True, "")))
     mixin._check_missing_tvshow_artwork = MagicMock(return_value=[])
-    mixin._recover_tvshow_artwork = MagicMock()
     mixin._repair_tvshow_dir = MagicMock(return_value=False)
     return mixin
 

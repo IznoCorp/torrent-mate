@@ -29,7 +29,6 @@ class ProvidersConfig(BaseModel):
     VideoProvider: dict[str, PositiveInt] = Field(default_factory=dict)
     RecommendationProvider: dict[str, PositiveInt] = Field(default_factory=dict)
     IDValidator: dict[str, PositiveInt] = Field(default_factory=dict)
-    IDCrossRef: dict[str, PositiveInt] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _no_duplicate_priorities(self) -> ProvidersConfig:

@@ -12,7 +12,6 @@ NFO-only write that left episodes unrenamed and ``verify`` blocking dispatch.
 
 from __future__ import annotations
 
-import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -29,9 +28,9 @@ from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.rename_service import (
     _cleanup_empty_release_dirs,
     _cleanup_stale_files,
-    _merge_dirs,
-    _rename_dir_case_safe,
+    apply_canonical_dir_rename,
 )
+from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -59,6 +58,8 @@ class TvServiceWriteMixin:
     dry_run: bool
     config: "Config | None"
     _registry: "ProviderRegistry"
+    _imdb: Any
+    _rotten_tomatoes: Any
     _scraper_language: str
     _scraper_fallback_language: str
     _nfo: "NFOGenerator"
@@ -66,9 +67,9 @@ class TvServiceWriteMixin:
     _classify_item: "Callable[..., str | None]"
     _resolve_title: "Callable[..., str]"
     _strip_trailing_year: "Callable[[str], str]"
-    _build_episode_map: Any
-    _xref_enrichment: Any
-    _match_seasons: Any
+    _build_episode_map: "Callable[..., dict[tuple[int, int], dict[str, Any]]]"
+    _xref_enrichment: "Callable[..., None]"
+    _match_seasons: "Callable[..., tuple[int, list[str]]]"
 
     def _write_confirmed_show(
         self,
@@ -111,54 +112,37 @@ class TvServiceWriteMixin:
         Returns:
             The populated :class:`ScrapeResult` (``action="scraped"`` on success).
         """
-        # Rename folder to canonical name
+        # Canonical folder name — the SAME ``movie_dir`` pattern the movie
+        # write-back uses, with an explicit no-year branch. (SCRAPER-04: this
+        # side used to pass ``Year=""`` into the pattern and produce ``Title ()``
+        # when the year was unknown; the movie side hand-rolled an f-string that
+        # bypassed the pattern entirely — the inverted use both now avoid by
+        # going through ``format`` with a real no-year path.)
         old_dir_name = show_dir.name  # Save before potential rename
-        canonical = self.patterns.format(
-            "movie_dir",
-            Title=resolved_title,
-            Year=match.api_year or year or "",
+        api_year = match.api_year or year
+        canonical = (
+            self.patterns.format("movie_dir", Title=resolved_title, Year=api_year)
+            if api_year
+            else sanitize_filename(resolved_title)
         )
-        # NFC-compare: macOS stores filenames in NFD, Python strings are typically
-        # NFC; a naive string compare treats them as different and triggers a
-        # rename-into-self merge that empties the folder. See
+
+        # Rename the folder to its canonical name via the shared rename block
+        # (rename_service — NFC-aware, case-safe, merge-on-collision). NFC guard
+        # + case-only-rename trap live in that helper; see
         # ``verify_tvshow_scrape_drift`` for the matching normalization on the
         # read side.
-        if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
-            new_dir = show_dir.parent / canonical
-            if not self.dry_run:
-                try:
-                    if new_dir.exists():
-                        try:
-                            is_same_dir = show_dir.samefile(new_dir)
-                        except OSError:
-                            is_same_dir = False
-                        if is_same_dir:
-                            _rename_dir_case_safe(show_dir, new_dir)
-                            log.info("show_folder_renamed", title=title, dest=canonical)
-                        else:
-                            moved, merge_failed = _merge_dirs(show_dir, new_dir)
-                            log.info("show_folder_merged", title=title, dest=canonical, items=moved)
-                            if merge_failed:
-                                result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
-                    else:
-                        _rename_dir_case_safe(show_dir, new_dir)
-                        log.info("show_folder_renamed", title=title, dest=canonical)
-                    show_dir = new_dir
-                    result.media_path = new_dir
-                except OSError as exc:
-                    result.error = f"Rename/merge failed: {exc}"
-                    log.error("show_folder_rename_failed", title=title, dest=canonical, error=str(exc))
-                    return result
-                # Non-critical: clean stale files from before rename.
-                # TV show artwork uses fixed names (poster.jpg, tvshow.nfo),
-                # so this is a no-op for standard shows. Kept as safety net.
-                try:
-                    _cleanup_stale_files(show_dir, old_dir_name, canonical)
-                except OSError as exc:
-                    log.warning("stale_cleanup_failed", directory=show_dir.name, error=str(exc))
-            else:
-                action = "merge into" if new_dir.exists() else "rename"
-                log.info("show_folder_would_rename", action=action, title=title, dest=canonical)
+        renamed = apply_canonical_dir_rename(show_dir, canonical, dry_run=self.dry_run, result=result)
+        if result.error is not None:
+            return result
+        if renamed != show_dir:
+            show_dir = renamed
+            # Non-critical: clean stale files from before the rename. TV show
+            # artwork uses fixed names (poster.jpg, tvshow.nfo), so this is a
+            # no-op for standard shows — kept as a safety net.
+            try:
+                _cleanup_stale_files(show_dir, old_dir_name, canonical)
+            except OSError as exc:
+                log.warning("stale_cleanup_failed", directory=show_dir.name, error=str(exc))
 
         # Classify item — must run before NFO write so the
         # category_id can be embedded in the NFO by nfo_generator.
@@ -178,6 +162,15 @@ class TvServiceWriteMixin:
             # Config is present but no category matched — skip this item
             result.action = "skipped_no_category"
             return result
+
+        # Q5=B external-ids pass (provider-ids DESIGN §5 steps 2-4): re-validate
+        # the non-canonical provider ids (TMDb xref + IMDb) against the confirmed
+        # identity and fold the IMDb / Rotten-Tomatoes ratings into the show NFO.
+        # Runs on the write shared by the automatic scrape and the operator-forced
+        # resolve, so both paths emit an identical tvshow.nfo (forced==auto). It
+        # sits AFTER classification (which reads the raw ``show_data``) and BEFORE
+        # the NFO write, and touches only the id / rating fields the writer keys on.
+        self._apply_external_ids(show_data, match, year)
 
         # Generate tvshow.nfo
         try:
@@ -292,6 +285,79 @@ class TvServiceWriteMixin:
         result.episodes_renamed = total_renamed
         result.action = "scraped"
         return result
+
+    def _apply_external_ids(
+        self,
+        show_data: dict[str, Any],
+        match: "MatchResult",
+        year: int | None,
+    ) -> None:
+        """Fold the Q5=B external-ids pass result into ``show_data`` in place.
+
+        The canonical family is ``match.source`` (TVDB-primary, TMDB-fallback —
+        never re-validated or dropped). The non-canonical families (the TMDb
+        cross-ref and the IMDb id) are re-validated against the confirmed
+        identity: an active façade rejection clears the offending id so the NFO
+        no longer emits a stale ``<uniqueid>``; an unwired façade (OMDb absent)
+        keeps the id unvalidated. Any resolved IMDb / RT ratings are merged with
+        the canonical TMDb rating into ``notations`` so the show NFO renders a
+        multi-source ``<ratings>`` block (DESIGN §5).
+
+        Args:
+            show_data: Legacy show payload consumed by the NFO generator (mutated:
+                ``external_ids`` / ``id`` + optional ``notations`` /
+                ``canonical_source``).
+            match: The confirmed show match (canonical source / title / year).
+            year: Parsed show year, used when the match omits one.
+        """
+        from personalscraper.api.metadata._base import Notations  # noqa: PLC0415
+        from personalscraper.scraper._xref import run_external_ids_pass  # noqa: PLC0415
+
+        external = dict(show_data.get("external_ids") or {})
+        ids: dict[str, str] = {}
+        tvdb_id = str(external.get("tvdb_id") or "")
+        if tvdb_id:
+            ids["tvdb"] = tvdb_id
+        tmdb_id = str(show_data.get("id") or "")
+        if tmdb_id:
+            ids["tmdb"] = tmdb_id
+        imdb_id = str(external.get("imdb_id") or "")
+        if imdb_id:
+            ids["imdb"] = imdb_id
+
+        vote_average = show_data.get("vote_average") or 0
+        base_notation = (
+            Notations(
+                provider="tmdb",
+                source="tmdb",
+                score=float(vote_average),
+                votes_count=int(show_data.get("vote_count") or 0),
+            )
+            if vote_average
+            else None
+        )
+
+        effective_ids, notations = run_external_ids_pass(
+            canonical_provider=match.source,
+            ids=ids,
+            expected_title=match.api_title,
+            expected_year=match.api_year or year,
+            registry=self._registry,
+            imdb_client=self._imdb,
+            rt_client=self._rotten_tomatoes,
+            base_notation=base_notation,
+        )
+
+        if "tvdb" in ids:
+            external["tvdb_id"] = effective_ids.get("tvdb", "")
+        if "imdb" in ids:
+            external["imdb_id"] = effective_ids.get("imdb", "")
+        show_data["external_ids"] = external
+        if "tmdb" in ids:
+            show_data["id"] = effective_ids.get("tmdb", "")
+        if notations:
+            show_data["notations"] = notations
+            show_data["canonical_source"] = "themoviedb"
 
     def _forced_series_lookup(
         self,

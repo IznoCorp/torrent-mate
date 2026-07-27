@@ -3,11 +3,8 @@ import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 
-import {
-  enqueueStagingDecision,
-  getPipelineHistory,
-  type StagingMediaItem,
-} from "@/api/client";
+import { getPipelineHistory } from "@/api/pipeline";
+import { enqueueStagingDecision, type StagingMediaItem } from "@/api/staging";
 import { decisionsKeys } from "@/api/decisions";
 import { pipelineStagesKeys } from "@/hooks/usePipelineStages";
 import { stagingMediaKeys } from "@/hooks/useStagingMedia";

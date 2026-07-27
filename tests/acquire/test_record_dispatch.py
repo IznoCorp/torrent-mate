@@ -581,17 +581,19 @@ def test_record_dispatch_fail_soft_on_store_write_error(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# P0-B.3 — the §5 wanted closure at dispatch time
+# ACQUIRE-02 — record_dispatch no longer touches wanted rows / follows
+# The §5 wanted closure + D2-A film retirement moved to the post-dispatch
+# reconcile subscriber: tests/subscribers/test_post_dispatch_reconcile.py.
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_record_dispatch_closes_grabbed_wanted_row(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """A dispatch correlating to a grabbed torrent closes its wanted row ``done``.
+def test_record_dispatch_never_closes_wanted_row(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """record_dispatch persists the obligation but NEVER closes the wanted row.
 
-    Red-on-old: ``mark_done_by_hash`` existed with ZERO production callers, so
-    every grabbed row froze forever (the 14 stuck production rows of session 3).
-    The closure happens on the correlation match itself — even when the
-    tracker/economy resolution later misses (no obligation written).
+    The §5 wanted closure moved to the post-dispatch reconcile subscriber
+    (ACQUIRE-02); the delete-permit recorder is now obligation-only, so a
+    grabbed row it correlates to stays ``grabbed`` — the subscriber's ownership
+    pass closes it after the enrich scan.
     """
     from personalscraper.acquire.domain import WantedItem
     from personalscraper.core.identity import MediaRef
@@ -606,24 +608,23 @@ def test_record_dispatch_closes_grabbed_wanted_row(store: ConcreteAcquireStore, 
             episode=1,
         )
     )
-    store.wanted.mark_grabbed(wanted_id, "ABC123DEF456")  # stored uppercase — match is case-insensitive
+    store.wanted.mark_grabbed(wanted_id, "ABC123DEF456")
 
     staging = tmp_path / "staging" / "Silo.S03E01.mkv"
     staging.parent.mkdir()
     staging.write_bytes(b"x" * 2048)
     dest = tmp_path / "library" / "Silo.S03E01.mkv"
 
-    # NO matching tracker tag: the obligation branch misses, the closure still fires.
-    item = _torrent_item(name="Silo.S03E01.mkv", size_bytes=2048, tags=[], info_hash="abc123def456")
+    item = _torrent_item(name="Silo.S03E01.mkv", size_bytes=2048, tags=["lacale"], info_hash="abc123def456")
     client = _client([item], is_seeding=True)
 
     auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
-    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+    events = auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
+    assert events == []  # the recorder announces nothing itself
     row = store.wanted.get(wanted_id)
     assert row is not None
-    assert row.status == "done"
-    assert _read_rows(tmp_path / "acquire.db") == []  # tracker unresolved → no obligation
+    assert row.status == "grabbed"  # untouched — the subscriber closes it, not the recorder
 
 
 def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteAcquireStore, tmp_path: Path) -> None:
@@ -655,124 +656,6 @@ def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteA
     row = store.wanted.get(wanted_id)
     assert row is not None
     assert row.status == "grabbed"
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# D2-A — a followed FILM leaves the follow list at dispatch (not the cron)
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-def test_record_dispatch_retires_acquired_film(
-    store: ConcreteAcquireStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Dispatching a followed film's content retires it AND returns a FilmAcquired.
-
-    Red-on-old: the dispatch closure flipped the ``grabbed`` wanted row to
-    ``done`` but left ``followed_series.active = 1`` — the film only left the
-    list at the next nightly ``follow detect`` sweep. D2-A retires it HERE, the
-    moment the media lands, with a ``film_unfollowed`` trace (§8) and returns a
-    ``FilmAcquired`` event (D2-A+) for the dispatch layer to emit on the feed.
-    """
-    from personalscraper.acquire.domain import FollowedSeries, WantedItem
-    from personalscraper.acquire.events import FilmAcquired
-    from personalscraper.core.identity import MediaRef
-
-    followed_id = store.follow.add(
-        FollowedSeries(
-            media_ref=MediaRef(tmdb_id=1_000_1),
-            title="Ferrari",
-            added_at=1_750_000_000,
-            kind="movie",
-        )
-    )
-    wanted_id = store.wanted.add(
-        WantedItem(
-            media_ref=MediaRef(tmdb_id=1_000_1),
-            kind="movie",
-            status="pending",
-            enqueued_at=1_750_000_000,
-            followed_id=followed_id,
-        )
-    )
-    store.wanted.mark_grabbed(wanted_id, "cafef00dbaadf00d")
-
-    staging = tmp_path / "staging" / "Ferrari.2023.mkv"
-    staging.parent.mkdir()
-    staging.write_bytes(b"x" * 8192)
-    dest = tmp_path / "library" / "Ferrari (2023)" / "Ferrari.2023.mkv"
-
-    item = _torrent_item(name="Ferrari.2023.mkv", size_bytes=8192, tags=[], info_hash="cafef00dbaadf00d")
-    client = _client([item], is_seeding=True)
-
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
-    events = auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
-
-    wanted = store.wanted.get(wanted_id)
-    assert wanted is not None
-    assert wanted.status == "done"
-
-    follow = store.follow.get(followed_id)
-    assert follow is not None
-    assert follow.active is False  # ← the D2-A closure; old code left this True
-
-    assert "acquire.record_dispatch.film_unfollowed" in caplog.text
-
-    # D2-A+ — the FilmAcquired event is RETURNED (old code returned None); the
-    # dispatch layer emits it once the move succeeds → operator feed toast.
-    assert len(events) == 1
-    assert isinstance(events[0], FilmAcquired)
-    assert events[0].followed_id == followed_id
-    assert events[0].title == "Ferrari"
-    assert events[0].media_ref.tmdb_id == 1_000_1
-
-
-def test_record_dispatch_does_not_retire_series(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """A dispatched EPISODE closes its row but never retires the series follow.
-
-    The series continues — only ``kind == "movie"`` rows trigger the D2-A
-    unfollow. Guards against a regression that would silently unfollow a running
-    show when one of its episodes lands.
-    """
-    from personalscraper.acquire.domain import FollowedSeries, WantedItem
-    from personalscraper.core.identity import MediaRef
-
-    followed_id = store.follow.add(
-        FollowedSeries(
-            media_ref=MediaRef(tvdb_id=403245),
-            title="Silo",
-            added_at=1_750_000_000,
-            kind="show",
-        )
-    )
-    wanted_id = store.wanted.add(
-        WantedItem(
-            media_ref=MediaRef(tvdb_id=403245),
-            kind="episode",
-            status="pending",
-            enqueued_at=1_750_000_000,
-            season=3,
-            episode=5,
-            followed_id=followed_id,
-        )
-    )
-    store.wanted.mark_grabbed(wanted_id, "0badcafe0badcafe")
-
-    staging = tmp_path / "staging" / "Silo.S03E05.mkv"
-    staging.parent.mkdir()
-    staging.write_bytes(b"x" * 2048)
-    dest = tmp_path / "library" / "Silo.S03E05.mkv"
-
-    item = _torrent_item(name="Silo.S03E05.mkv", size_bytes=2048, tags=[], info_hash="0badcafe0badcafe")
-    client = _client([item], is_seeding=True)
-
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
-    events = auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
-
-    assert store.wanted.get(wanted_id).status == "done"  # type: ignore[union-attr]
-    follow = store.follow.get(followed_id)
-    assert follow is not None
-    assert follow.active is True  # the show stays followed
-    assert events == []  # no film retired → no FilmAcquired to emit
 
 
 # ═══════════════════════════════════════════════════════════════════════════

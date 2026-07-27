@@ -177,7 +177,7 @@ class _WatchPatches:
         mock_build: Patched ``_build_app_context`` mock.
         mock_tracker_cls: Patched ``IngestTracker`` mock.
         mock_is_lock_held: Patched ``is_lock_held`` mock.
-        mock_get_settings: Patched ``cli_compat.get_settings`` mock.
+        mock_get_settings: Patched ``cli_helpers.get_settings`` mock.
         mock_signal: Patched ``signal.signal`` mock.
         fake_app: The fake AppContext returned by ``_build_app_context``.
     """
@@ -225,7 +225,7 @@ class _WatchPatches:
             patch("personalscraper.commands.watch._build_app_context", self.mock_build),
             patch("personalscraper.commands.watch.IngestTracker", self.mock_tracker_cls),
             patch("personalscraper.commands.watch.is_lock_held", self.mock_is_lock_held),
-            patch("personalscraper.commands.watch.cli_compat.get_settings", self.mock_get_settings),
+            patch("personalscraper.commands.watch.cli_helpers.get_settings", self.mock_get_settings),
             patch("personalscraper.commands.watch.signal.signal", self.mock_signal),
         ]
         for p in self._patches:

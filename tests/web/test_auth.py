@@ -11,7 +11,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
-from personalscraper.web.app import create_app
 from personalscraper.web.auth.passwords import hash_password
 from personalscraper.web.auth.tokens import create_session_token
 
@@ -23,7 +22,7 @@ TEST_SECRET = "auth-integration-test-secret"
 
 
 @pytest.fixture
-def auth_client(test_config):
+def auth_client(test_config, make_web_client):
     """Create a TestClient with known credentials and ``https`` base_url.
 
     Injects a pre-computed scrypt hash and a known JWT secret into the
@@ -34,6 +33,7 @@ def auth_client(test_config):
 
     Args:
         test_config: Synthetic ``Config`` fixture.
+        make_web_client: Shared full-app ``TestClient`` factory.
 
     Returns:
         A ``TestClient`` with ``base_url="https://testserver"`` wired to an
@@ -46,12 +46,11 @@ def auth_client(test_config):
         web_password_hash=TEST_HASH,
         web_jwt_secret=TEST_SECRET,
     )
-    app = create_app(cfg, settings)
-    return TestClient(app, base_url="https://testserver")
+    return make_web_client(cfg, settings, https=True)
 
 
 @pytest.fixture
-def auth_client_no_hash(test_config):
+def auth_client_no_hash(test_config, make_web_client):
     """Create a TestClient with **empty** ``web_password_hash``.
 
     Used to verify that login always returns 401 when no password has been
@@ -59,6 +58,7 @@ def auth_client_no_hash(test_config):
 
     Args:
         test_config: Synthetic ``Config`` fixture.
+        make_web_client: Shared full-app ``TestClient`` factory.
 
     Returns:
         A ``TestClient`` with ``base_url="https://testserver"`` and no
@@ -71,12 +71,11 @@ def auth_client_no_hash(test_config):
         web_password_hash="",
         web_jwt_secret=TEST_SECRET,
     )
-    app = create_app(cfg, settings)
-    return TestClient(app, base_url="https://testserver")
+    return make_web_client(cfg, settings, https=True)
 
 
 @pytest.fixture
-def auth_client_no_secret(test_config):
+def auth_client_no_secret(test_config, make_web_client):
     """Create a TestClient with a valid password hash but **empty** ``web_jwt_secret``.
 
     Used to verify the empty-JWT-secret failure mode is a clean 401 (login) /
@@ -85,6 +84,7 @@ def auth_client_no_secret(test_config):
 
     Args:
         test_config: Synthetic ``Config`` fixture.
+        make_web_client: Shared full-app ``TestClient`` factory.
 
     Returns:
         A ``TestClient`` with ``base_url="https://testserver"`` and no JWT secret.
@@ -96,8 +96,7 @@ def auth_client_no_secret(test_config):
         web_password_hash=TEST_HASH,
         web_jwt_secret="",
     )
-    app = create_app(cfg, settings)
-    return TestClient(app, base_url="https://testserver")
+    return make_web_client(cfg, settings, https=True)
 
 
 class TestLoginSuccess:

@@ -80,6 +80,17 @@ version = {attr = "personalscraper.__version__"}
 [tool.setuptools.packages.find]
 include = ["personalscraper*"]
 
+[tool.setuptools.package-data]
+# SQL migration scripts are loaded at runtime by core/sqlite apply_migrations and
+# MUST ship in the wheel (indexer: 15 files, acquire: 7 files = 22 total). Without
+# this, a wheel/pip install of the package boots with an empty DB and no schema.
+"personalscraper.indexer.migrations" = ["*.sql"]
+"personalscraper.acquire.migrations" = ["*.sql"]
+# The web UI SPA (Vite build output) is served by web/static.py. Ship whatever is
+# present under web/static/: the .gitkeep placeholder in a source checkout, or the
+# real built bundle (index.html + assets/**) after `cd frontend && npm run build`.
+"personalscraper.web" = ["static/*", "static/**/*", "static/.gitkeep"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "scripts"]

@@ -11,6 +11,7 @@ import re
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
+from personalscraper.core.artwork_naming import artwork_status
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.verify.checks.base import CheckResult, CheckStage, Severity
 from personalscraper.verify.checks.registry import register_check
@@ -48,19 +49,28 @@ class PosterPresent:
     def run(self, ctx: "CheckContext") -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False if poster absent.
 
+        Presence is resolved by the ONE canonical detector
+        (:func:`personalscraper.core.artwork_naming.artwork_status`), so this
+        dispatch gate recognises every legitimate poster spelling — the bare Kodi
+        ``poster.jpg``/``folder.jpg``, the scraper's ``{Title}-poster.jpg`` and the
+        MediaElch folder-prefixed form — and agrees with the rescraper's own
+        canonical detection (F5 / DESIGN §9: the gate and the repair loop must not
+        contradict each other on the same directory). The error message still
+        names the strict spelling the scraper *writes*, so the operator sees the
+        expected filename.
+
         Args:
             ctx: Shared check context.
 
         Returns:
             Single-element list with the ``poster_present`` result.
         """
+        exists = artwork_status(ctx.media_dir, ctx.media_type).poster
         if ctx.media_type == "movie":
             parsed_title = _parsed_movie_title(ctx)
             poster_name = ctx.patterns.format("movie_poster", Title=parsed_title)
-            exists = (ctx.media_dir / poster_name).exists()
             message = f"Poster not found: {poster_name}" if not exists else ""
         else:
-            exists = (ctx.media_dir / ctx.patterns.tvshow_poster).exists()
             message = "poster.jpg not found" if not exists else ""
         return [
             CheckResult(
@@ -116,19 +126,24 @@ class ArtworkLandscape:
     def run(self, ctx: "CheckContext") -> list[CheckResult]:
         """Return ``[CheckResult]`` — passed=False if landscape absent.
 
+        Presence is resolved by the ONE canonical detector
+        (:func:`personalscraper.core.artwork_naming.artwork_status`), the same
+        union the poster gate and the rescraper consult (F5 / DESIGN §9), so a
+        landscape spelled ``{Folder}-landscape.jpg`` (MediaElch) or bare
+        ``landscape.jpg`` is recognised regardless of media type.
+
         Args:
             ctx: Shared check context.
 
         Returns:
             Single-element list with the ``artwork_landscape`` result.
         """
+        exists = artwork_status(ctx.media_dir, ctx.media_type).landscape
         if ctx.media_type == "movie":
             parsed_title = _parsed_movie_title(ctx)
             landscape_name = ctx.patterns.format("movie_landscape", Title=parsed_title)
-            exists = (ctx.media_dir / landscape_name).exists()
             message = f"Landscape not found: {landscape_name}" if not exists else ""
         else:
-            exists = (ctx.media_dir / ctx.patterns.tvshow_landscape).exists()
             message = "landscape.jpg not found" if not exists else ""
         return [
             CheckResult(

@@ -94,6 +94,13 @@
     {
       "fixable": false,
       "message": "",
+      "name": "movie_video_renamed",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
       "name": "no_archive_files",
       "passed": true,
       "severity": "error"
@@ -160,6 +167,13 @@
       "fixable": true,
       "message": "",
       "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "movie_video_renamed",
       "passed": true,
       "severity": "error"
     },
@@ -266,6 +280,13 @@
     {
       "fixable": false,
       "message": "",
+      "name": "movie_video_renamed",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
       "name": "no_archive_files",
       "passed": true,
       "severity": "error"
@@ -366,6 +387,13 @@
     {
       "fixable": false,
       "message": "",
+      "name": "movie_video_renamed",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
       "name": "no_archive_files",
       "passed": true,
       "severity": "error"
@@ -460,6 +488,13 @@
       "fixable": true,
       "message": "",
       "name": "ntfs_safe_names",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "fixable": false,
+      "message": "",
+      "name": "movie_video_renamed",
       "passed": true,
       "severity": "error"
     },

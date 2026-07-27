@@ -128,23 +128,33 @@ class TestMetadataClient:
             class _Empty(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
                 provider_name: ClassVar[str] = ""
 
-    def test_default_get_notations_raises(self) -> None:
-        """Default get_notations raises NotImplementedError with provider name."""
-        client = TMDBFakeClient(None)  # type: ignore[arg-type]
-        with pytest.raises(NotImplementedError, match="tmdbfake does not support notations"):
-            client.get_notations("123", "movie")
+    def test_base_ships_no_capability_stubs(self) -> None:
+        """The base class ships no capability stubs (API-TRANSPORT-01).
 
-    def test_default_get_recommendations_raises(self) -> None:
-        """Default get_recommendations raises NotImplementedError."""
-        client = TMDBFakeClient(None)  # type: ignore[arg-type]
-        with pytest.raises(NotImplementedError, match="tmdbfake does not support recommendations"):
-            client.get_recommendations("123", "movie")
+        Previously ``MetadataClient`` shipped six ``NotImplementedError``-raising
+        stubs (``get_artwork_urls``, ``get_keywords``, ``get_videos``,
+        ``get_season``, ``get_notations``, ``get_recommendations``). Those made
+        every subclass *structurally* satisfy the optional capability protocols
+        even when it implemented nothing, so ``isinstance`` was a lie and the
+        registry could only discover absence by catching a runtime raise.
 
-    def test_default_get_artwork_urls_raises(self) -> None:
-        """Default get_artwork_urls raises NotImplementedError."""
+        With the stubs gone, a subclass that implements no optional capability
+        neither exposes the method nor satisfies the capability Protocol —
+        registry eligibility trusts ``isinstance`` directly (a provider lacking
+        a capability is simply absent from that chain, DESIGN §6).
+        """
         client = TMDBFakeClient(None)  # type: ignore[arg-type]
-        with pytest.raises(NotImplementedError, match="tmdbfake does not support artwork"):
-            client.get_artwork_urls("123")
+        for method in (
+            "get_artwork_urls",
+            "get_keywords",
+            "get_videos",
+            "get_season",
+            "get_notations",
+            "get_recommendations",
+        ):
+            assert not hasattr(client, method), f"base must not ship a {method} stub"
+        for protocol in (ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider):
+            assert not isinstance(client, protocol), f"bare client must not satisfy {protocol.__name__}"
 
     def test_override_capability(self) -> None:
         """Subclass can override a capability method and return typed result."""

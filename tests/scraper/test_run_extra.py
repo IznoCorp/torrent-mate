@@ -1,13 +1,13 @@
 """Additional coverage tests for ``personalscraper.scraper.run``.
 
-Targets the residual gaps in :func:`run_scrape`, :func:`_to_step_report`,
+Targets the residual gaps in :func:`run_scrape`, :func:`_build_scrape_report`,
 :func:`_has_unscraped_items`, and :func:`_needs_repair`:
 
 * ``_has_unscraped_items``: missing dirs, NFO-complete with missing
   artwork (poster + landscape), TV drift detection, return False path.
 * ``_needs_repair``: non-existent dir, hidden subdirs, root-level NFO
   residuals.
-* ``_to_step_report``: ``artwork_recovered`` and ``repaired`` action
+* ``_build_scrape_report``: ``artwork_recovered`` and ``repaired`` action
   branches.
 * ``run_scrape``: OSError fallback in repair-check, branches when one of
   the staging dirs is missing.
@@ -25,9 +25,9 @@ from personalscraper.naming_patterns import PATTERNS
 from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.run import (
+    _build_scrape_report,
     _has_unscraped_items,
     _needs_repair,
-    _to_step_report,
     run_scrape,
 )
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -173,7 +173,7 @@ class TestNeedsRepairExtras:
 
 
 # ---------------------------------------------------------------------------
-# _to_step_report
+# _build_scrape_report
 # ---------------------------------------------------------------------------
 
 
@@ -190,7 +190,7 @@ class TestToStepReportExtraActions:
                 artwork_downloaded=["poster.jpg"],
             )
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.success_count == 1
         assert any("recovered" in d and "1 artwork" in d for d in report.details)
 
@@ -203,7 +203,7 @@ class TestToStepReportExtraActions:
                 action="artwork_recovered",
             )
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.success_count == 1
         assert any("recovered" in d for d in report.details)
 
@@ -216,7 +216,7 @@ class TestToStepReportExtraActions:
                 action="repaired",
             )
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.success_count == 1
         assert any("repaired" in d for d in report.details)
 
@@ -312,7 +312,7 @@ class TestRunScrapeMissingDirBranches:
         MockScraper.return_value.process_tvshows.assert_not_called()
 
 
-def test_to_step_report_unknown_skipped_action() -> None:
+def test_build_scrape_report_unknown_skipped_action() -> None:
     """A non-low-confidence ``skipped_*`` action increments skip_count only.
 
     Exercises the catch-all ``elif r.action.startswith("skipped")`` branch.
@@ -324,7 +324,7 @@ def test_to_step_report_unknown_skipped_action() -> None:
             action="skipped_no_category",
         )
     ]
-    report = _to_step_report(results)
+    report = _build_scrape_report(results)
     assert report.skip_count == 1
     assert any("skipped" in d for d in report.details)
     # ``unmatched`` counter stays at zero — only ``skipped_low_confidence``
@@ -691,9 +691,9 @@ class TestDecisionEnqueue:
 class TestQueuedForDecisionReporting:
     """Tests for ``queued_for_decision`` counting and event emission."""
 
-    # -- _to_step_report ---------------------------------------------------
+    # -- _build_scrape_report ---------------------------------------------------
 
-    def test_to_step_report_counts_queued_for_decision(self) -> None:
+    def test_build_scrape_report_counts_queued_for_decision(self) -> None:
         """``queued_for_decision`` items counted in ``counts["queued_for_decision"]``.
 
         Paths also appear in ``unmatched_paths`` for operator visibility.
@@ -712,7 +712,7 @@ class TestQueuedForDecisionReporting:
                 decision_trigger="mid_band",
             ),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.counts.get("queued_for_decision") == 1
         assert "queued_for_decision" not in report.counts.get("unmatched", {})
         # Not counted as success: queued items are pending operator review.
@@ -722,7 +722,7 @@ class TestQueuedForDecisionReporting:
         assert "Mid Movie" in report.unmatched_paths
         assert any("queued_for_decision" in d for d in report.details)
 
-    def test_to_step_report_additive_skipped_low_confidence(self) -> None:
+    def test_build_scrape_report_additive_skipped_low_confidence(self) -> None:
         """``skipped_low_confidence`` with candidates also counted in ``queued_for_decision``.
 
         The item stays counted as both ``unmatched`` (existing behaviour) and
@@ -743,7 +743,7 @@ class TestQueuedForDecisionReporting:
                 decision_trigger="below_threshold",
             ),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.counts.get("unmatched") == 1  # existing counter
         assert report.counts.get("queued_for_decision") == 1  # additive
         assert report.skip_count == 1
@@ -751,7 +751,7 @@ class TestQueuedForDecisionReporting:
         # Path appears exactly once in unmatched_paths.
         assert report.unmatched_paths == ["Low Movie"]
 
-    def test_to_step_report_mixed_items(self) -> None:
+    def test_build_scrape_report_mixed_items(self) -> None:
         """Mix of queued, skipped_low_confidence+candidates, and clean items.
 
         Design: docs/reference/scraping.md#three-triggers
@@ -797,7 +797,7 @@ class TestQueuedForDecisionReporting:
                 # No decision_candidates — not enqueued.
             ),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.counts.get("queued_for_decision") == 2  # Mid A + Low B
         assert report.counts.get("unmatched") == 2  # Low B + Low No Candidates D
         assert report.success_count == 1  # Clean C

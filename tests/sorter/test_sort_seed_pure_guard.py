@@ -139,6 +139,7 @@ class TestSorterProcessSkipNames:
                 ingest,
                 dest_root=dest_root,
                 skip_names=frozenset({"Seed.Movie.2024"}),
+                bus=EventBus(),
             )
 
         by_name = {r.source.name: r for r in results}

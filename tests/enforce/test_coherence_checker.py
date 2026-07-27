@@ -2,6 +2,7 @@
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.coherence_checker import check_coherence
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -51,7 +52,7 @@ def test_tvshow_in_movies_warns(tmp_path, settings, test_config_at_tmp):
     movie.mkdir(parents=True)
     (movie / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
 
-    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False, bus=EventBus())
     warns = [w for r in results for w in r.warnings if "wrong category" in w.lower()]
     assert len(warns) >= 1
 
@@ -62,7 +63,7 @@ def test_nfo_missing_both_ids_warns(tmp_path, settings, test_config_at_tmp):
     movie.mkdir(parents=True)
     (movie / "Film.nfo").write_text("<movie><title>Film</title></movie>")
 
-    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False, bus=EventBus())
     warns = [w for r in results for w in r.warnings if "missing" in w.lower() and "id" in w.lower()]
     assert len(warns) >= 1
 
@@ -75,7 +76,7 @@ def test_clean_items_no_warnings(tmp_path, settings, test_config_at_tmp):
         '<movie><uniqueid type="tmdb">123</uniqueid><uniqueid type="imdb">tt123</uniqueid></movie>'
     )
 
-    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False, bus=EventBus())
     warns = [w for r in results for w in r.warnings]
     assert len(warns) == 0
 
@@ -103,7 +104,7 @@ def test_coherence_checker_skips_apple_double_in_movie_dir(tmp_path, settings, t
         encoding="utf-8",
     )
 
-    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False, bus=EventBus())
     missing_id_warns = [w for r in results for w in r.warnings if "missing" in w.lower() and "id" in w.lower()]
 
     assert missing_id_warns == [], f"expected no missing-ID warnings, got {missing_id_warns}"
@@ -120,7 +121,7 @@ def test_genre_emission_in_series_warns(tmp_path, settings, test_config_at_tmp):
     show.mkdir(parents=True)
     (show / "tvshow.nfo").write_text('<tvshow><genre>Émission</genre><uniqueid type="tmdb">312697</uniqueid></tvshow>')
 
-    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False, bus=EventBus())
 
     # Verify genre_coherence check was performed without error
     assert any("genre_coherence" in r.checks for r in results)

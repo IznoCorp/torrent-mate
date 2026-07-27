@@ -17,7 +17,6 @@ from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._helpers import ProviderFeatureUnavailable
 from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.api.metadata._contracts import (
-    IDCrossRef,
     IDValidator,
     RatingProvider,
 )
@@ -56,7 +55,7 @@ def _rt_notation(score: float = 94.0) -> Notations:
 
 
 def test_imdb_client_composes_expected_capabilities() -> None:
-    """``IMDbClient`` satisfies :class:`IDValidator`, :class:`RatingProvider`, :class:`IDCrossRef`.
+    """``IMDbClient`` satisfies :class:`IDValidator` and :class:`RatingProvider`.
 
     Structural-subtyping check via :func:`isinstance` (the capability
     protocols are ``@runtime_checkable``). The composition is asserted
@@ -65,7 +64,6 @@ def test_imdb_client_composes_expected_capabilities() -> None:
     client = IMDbClient(backend=MagicMock())
     assert isinstance(client, IDValidator)
     assert isinstance(client, RatingProvider)
-    assert isinstance(client, IDCrossRef)
 
 
 # ---------------------------------------------------------------------------
@@ -216,21 +214,6 @@ def test_imdb_client_validate_id_propagates_omdb_quota_exhausted() -> None:
 
     with pytest.raises(OmdbQuotaExhausted):
         client.validate_id("tt0468569", "Some Title", 2020)
-
-
-# ---------------------------------------------------------------------------
-# get_cross_refs
-# ---------------------------------------------------------------------------
-
-
-def test_imdb_client_get_cross_refs_returns_empty_dict() -> None:
-    """OMDb cannot resolve cross-refs from IMDb input — façade returns ``{}``.
-
-    Documented limitation : the contract is preserved for symmetry
-    with the other façades, but the value is always empty.
-    """
-    client = IMDbClient(backend=MagicMock())
-    assert client.get_cross_refs("tt0468569") == {}
 
 
 # ---------------------------------------------------------------------------

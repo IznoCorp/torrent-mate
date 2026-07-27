@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SchedulersPanel } from "@/components/dashboard/SchedulersPanel";
 
-import type { SchedulersResponse, SchedulerItem } from "@/api/client";
+import type { SchedulersResponse, SchedulerItem } from "@/api/maintenance";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -32,9 +32,9 @@ function makeResponse(schedulers: SchedulerItem[]): SchedulersResponse {
 // Mock the client module
 // ---------------------------------------------------------------------------
 
-vi.mock("@/api/client", async () => {
+vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/client")>("@/api/client");
+    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
   return {
     ...actual,
     getSchedulers: vi.fn(),
@@ -42,7 +42,7 @@ vi.mock("@/api/client", async () => {
 });
 
 async function mockGetSchedulers() {
-  const mod = await import("@/api/client");
+  const mod = await import("@/api/maintenance");
   return mod.getSchedulers as ReturnType<typeof vi.fn>;
 }
 

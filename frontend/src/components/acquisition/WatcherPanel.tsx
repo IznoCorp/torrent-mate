@@ -10,7 +10,8 @@ import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { acqKeys, triggerDetect } from "@/api/acquisition";
-import { ApiError, setWatcher } from "@/api/client";
+import { ApiError } from "@/api/client";
+import { setWatcher } from "@/api/pipeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

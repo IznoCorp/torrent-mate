@@ -69,7 +69,6 @@ from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api.torrent._contracts import TorrentTagger
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker._ranking import rank
@@ -235,6 +234,49 @@ def filter_to_episode(
     # S9 does not match S19; 0* absorbs the zero-padding difference.
     pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
     return [r for r in results if pattern.search(r.title)]
+
+
+def rank_candidates(
+    results: "list[TrackerResult]",
+    profile: "QualityProfile",
+    media_ref: "MediaRef | None",
+    ranking: "RankingConfig",
+) -> "tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]":
+    """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
+
+    Shared by :meth:`GrabOrchestrator.grab` (the real acquisition path) and the
+    ``grab --dry-run`` preview so both consume the SAME ranked result — F4: a
+    preview that ranks differently from the run is a lie (a lying preview once
+    surfaced a 3D SBS release as "top"), which the operator's dry-run-first rule
+    exists to prevent. It returns BOTH intermediate lists so callers can
+    distinguish the two empty cases the grab failure taxonomy separates:
+
+    - empty ``representatives`` ⇒ every candidate failed the hard profile
+      (``all_filtered``);
+    - non-empty ``representatives`` but empty ``ranked`` ⇒ nothing met
+      ``ranking.min_seeders`` (``no_seeders``).
+
+    ``dedup([])`` is ``[]``, so ``not representatives`` is exactly
+    ``not apply_hard_filters(...)`` — the orchestrator's original
+    ``if not survivors`` guard is preserved bit-for-bit.
+
+    Args:
+        results: Candidate results from the search (already narrowed to the
+            exact episode for TV items — see :func:`filter_to_episode`).
+        profile: Effective quality profile for the hard-filter stage.
+        media_ref: The wanted item's provider IDs (TMDB-identity filter seam);
+            ``None`` for a manual CLI grab with no wanted item.
+        ranking: Ranking configuration for the soft-score sort.
+
+    Returns:
+        ``(representatives, ranked)`` — the deduped post-hard-filter survivors
+        and the scored, sub-``min_seeders``-dropped, descending
+        ``(result, score)`` list (highest score first).
+    """
+    survivors = apply_hard_filters(results, profile, media_ref)
+    representatives = dedup(survivors)
+    ranked = rank(representatives, ranking)
+    return representatives, ranked
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -415,14 +457,16 @@ class GrabOrchestrator:
             if not results:
                 return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
 
-        # --- Hard-filter (BEFORE dedup — DESIGN §15 stage order) ---
-        survivors = apply_hard_filters(results, profile, media_ref)
-        if not survivors:
+        # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
+        # Delegated to the module-level :func:`rank_candidates` seam so the
+        # search pass, the grab pass AND the ``grab --dry-run`` preview all
+        # consume the SAME ranked result (solidify F4 — a preview that ranks
+        # differently from the run is a lie). Empty ``representatives`` ⇔ empty
+        # hard-filter survivors (``dedup([])`` is ``[]``), so the two guards
+        # below keep the all_filtered / no_seeders taxonomy bit-for-bit.
+        representatives, ranked = rank_candidates(results, profile, media_ref, self._ranking)
+        if not representatives:
             return _SearchChainResult(exit_path="all_filtered", ranked=[], top=None)
-
-        # --- Dedup → rank ---
-        representatives = dedup(survivors)
-        ranked = rank(representatives, self._ranking)
         if not ranked:
             return _SearchChainResult(exit_path="no_seeders", ranked=[], top=None)
 
@@ -571,10 +615,14 @@ class GrabOrchestrator:
             return self._retryable(media_ref, "no_torrent_client", chosen=top)
 
         # --- Resolve source then add (taxonomy: §6.2 catch order) ---
-        # category stays None — Transmission uses labels[0] for category, so
-        # passing tags=(...) alongside would clobber it; tags are applied via
-        # a separate add_tags() call on clients that implement TorrentTagger.
-        category: str | None = None
+        # No torrent-client category (labels[0]) — the grab tags the release
+        # with its source tracker only. The provider tag is carried ATOMICALLY
+        # by add(): qBittorrent sets native tags inline, Transmission encodes
+        # the category-less tag behind the "" sentinel (labels=["", provider],
+        # F-A). Both round-trip to (category=None, tags=[provider]). Resolved
+        # open item #8: add() now emits the sentinel, so the former two-step
+        # (add then a separate add_tags) is gone — no category is forced to
+        # dodge a gap, and a torrent is never added-but-untagged.
         try:
             # Read transports FRESH (not a boot snapshot): by here the top
             # result's tracker has already run its search() in THIS grab, so a
@@ -583,20 +631,7 @@ class GrabOrchestrator:
             # plain-attribute for lacale/c411). A transient boot login blip can
             # no longer strand a recovered tracker behind a stale snapshot.
             source = resolve_source(top, self._tracker_registry.transports())
-            info_hash = self._torrent_client.add(source, category=category)
-            if isinstance(self._torrent_client, TorrentTagger):
-                try:
-                    self._torrent_client.add_tags(info_hash, [top.provider])
-                except ApiError as exc:
-                    # Tagging is best-effort: the torrent is already added.
-                    # Log a warning and continue — do NOT surface as add_failed.
-                    log.warning(
-                        "acquire.grab.tag_failed",
-                        hash=info_hash,
-                        provider=top.provider,
-                        error=str(exc),
-                        error_type=type(exc).__name__,
-                    )
+            info_hash = self._torrent_client.add(source, category=None, tags=[top.provider])
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.
             return self._retryable(media_ref, "circuit_open", chosen=top)
@@ -639,7 +674,7 @@ class GrabOrchestrator:
             disposition="success",
             info_hash=info_hash,
             chosen=top,
-            category=category,
+            category=None,
             tags=(top.provider,),
             found=len(result.ranked),
         )
@@ -723,4 +758,5 @@ __all__ = [
     "SearchVerdict",
     "SEARCH_OUTCOMES",
     "INCONCLUSIVE_OUTCOMES",
+    "rank_candidates",
 ]

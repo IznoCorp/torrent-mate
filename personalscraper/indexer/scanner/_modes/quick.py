@@ -3,26 +3,23 @@
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 import time
 from pathlib import Path
 
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
 from personalscraper.indexer.fingerprint import round_mtime_ns
-from personalscraper.indexer.merkle import (
-    DiskBulkChangeDetected,
-    compute_merkle_delta,
-    compute_merkle_root,
+from personalscraper.indexer.scanner._merkle_gate import (
+    guard_bulk_change,
+    merkle_short_circuit,
+    recompute_disk_merkle_after_walk,
 )
-from personalscraper.indexer.repos import disk_repo
-from personalscraper.indexer.scanner._db_writes import (
-    _upsert_path_row,
-)
+from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
 from personalscraper.indexer.scanner._walker import (
-    _build_disk_fingerprints,
-    _sample_fresh_fingerprints,
-    _walk_dir_quick,
+    DirMtimeSkipVisitor,
+    WalkBudget,
+    WalkCheckpoint,
+    walk,
 )
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
@@ -30,9 +27,24 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.scan")
 
 __all__ = [
+    "QuickVisitor",
     "_run_paranoia_branch",
     "_scan_disk_quick",
 ]
+
+
+class QuickVisitor(DirMtimeSkipVisitor):
+    """Quick-mode visitor over :func:`~personalscraper.indexer.scanner._walker.walk`.
+
+    Records files exactly like :class:`SkeletonVisitor` (tier-1 fields, no oshash
+    recompute in quick mode) via the inherited
+    :meth:`~personalscraper.indexer.scanner._walker.SkeletonVisitor.visit_file`,
+    and inherits the dir-mtime subtree short-circuit from
+    :class:`~personalscraper.indexer.scanner._walker.DirMtimeSkipVisitor` — an
+    unchanged directory (stored ``dir_mtime_ns`` equals the live value, both
+    bucketed by the disk capability) is skipped entirely, zero file reads in that
+    subtree, exactly like the legacy ``_walk_dir_quick``.
+    """
 
 
 def _run_paranoia_branch(
@@ -203,12 +215,13 @@ def _scan_disk_quick(
        ``disk.merkle_root``, the disk has not changed since the last scan —
        skip all filesystem access for this disk.
 
-    2. **Dir-mtime walk** (on Merkle miss): walk the disk using
-       :func:`_walk_dir_quick`, which skips unchanged subtrees by comparing
-       the stored ``path.dir_mtime_ns`` to the current filesystem value.
+    2. **Dir-mtime walk** (on Merkle miss): drive the shared
+       :func:`~personalscraper.indexer.scanner._walker.walk` skeleton with a
+       :class:`QuickVisitor`, which skips unchanged subtrees by comparing the
+       stored ``path.dir_mtime_ns`` to the current filesystem value.
 
     On Merkle miss (stored root differs from DB-computed root), a bulk-change
-    check is performed by sampling fresh tier-1 fingerprints from ``os.scandir``
+    check is performed by sampling fresh tier-1 fingerprints from the filesystem
     and computing the Merkle delta against stored.  If the delta exceeds
     *merkle_delta_freeze_threshold* and *confirm_bulk_change* is ``False``,
     the disk is skipped (no walk performed) and
@@ -230,13 +243,14 @@ def _scan_disk_quick(
         dir_mtime_reliable: Whether the dir-mtime skip optimisation is enabled
             for this scan session (from :func:`_verify_dir_mtime_reliable`).
         resume_from: Single-element list holding the opaque path string of the last
-            checkpoint (or ``None``).  Forwarded to :func:`_walk_dir_quick`.
-        files_since_checkpoint: Single-element mutable counter forwarded to
-            :func:`_walk_dir_quick`.
+            checkpoint (or ``None``).  Forwarded to the walk skeleton's
+            :class:`~personalscraper.indexer.scanner._walker.WalkCheckpoint`.
+        files_since_checkpoint: Single-element mutable counter forwarded to the
+            walk skeleton's checkpoint context.
         budget_exhausted: Single-element flag; set to ``True`` when the time budget
-            is exceeded inside :func:`_walk_dir_quick`.
+            is exceeded inside the walk.
         started_at_monotonic: :func:`time.monotonic` timestamp forwarded to the
-            walk helper.
+            walk skeleton's budget context.
         budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
         scan_run_id: PK of the active ``scan_run`` row.
         checkpoint_every: How many files to process between checkpoint writes.
@@ -262,26 +276,12 @@ def _scan_disk_quick(
             ``False``.  The caller should skip this disk and surface an
             actionable message to the user.
     """
-    # --- Merkle short-circuit ---
-    # Build FS-aware fingerprints (mtime bucketed by the disk capability) so the
-    # root gate, the dir-mtime walk, and the bulk-change delta are all bucketed
-    # consistently; for NTFS this is the identity transform → byte-identical.
-    fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
-    current_root = compute_merkle_root(fingerprints)
-
-    if disk.merkle_root is not None and current_root == disk.merkle_root:
-        # DB-computed root matches stored root → disk unchanged, skip walk.
-        log.info("indexer.scan.merkle_match", disk_uuid=disk.uuid, label=disk.label, merkle_root=current_root)
-        disks_skipped[0] += 1
+    # --- Merkle short-circuit (shared single-impl) ---
+    # Returns the DB-side fingerprints on a miss (walk needed) or None on a match
+    # (disk unchanged → skip; disks_skipped already bumped inside the helper).
+    fingerprints = merkle_short_circuit(conn, disk, disks_skipped, capability)
+    if fingerprints is None:
         return
-
-    log.info(
-        "indexer.scan.merkle_miss",
-        disk_uuid=disk.uuid,
-        label=disk.label,
-        stored_root=disk.merkle_root,
-        computed_root=current_root,
-    )
 
     # --- Paranoia branch (DESIGN §17.1) ---
     # On Merkle miss, query recent outbox events and force a re-stat for any
@@ -298,44 +298,44 @@ def _scan_disk_quick(
     if paranoia_window_seconds > 0:
         _run_paranoia_branch(conn, disk, mount, paranoia_window_seconds, capability)
 
-    # --- Bulk-change guard (quick-mode only, on Merkle miss) ---
-    # Sample fresh tier-1 fingerprints by doing a shallow scandir for all
-    # media_file paths already known to the DB and comparing size/mtime_ns.
-    # A high delta (many files changed at once) suggests a bulk restore or
-    # disk swap rather than organic drift — freeze unless confirmed by caller.
-    if not confirm_bulk_change and disk.merkle_root is not None:
-        # Sample fresh FS-side fingerprints with the SAME capability so the
-        # delta is bucketed-vs-bucketed — sub-bucket jitter on a coarse FS
-        # cannot inflate the delta and trip a spurious freeze of a healthy disk.
-        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount, capability)
-        delta = compute_merkle_delta(fingerprints, fresh_fps)
-        if delta > merkle_delta_freeze_threshold:
-            log.warning(
-                "indexer.merkle.delta_freeze",
-                disk_uuid=disk.uuid,
-                label=disk.label,
-                delta=delta,
-                threshold=merkle_delta_freeze_threshold,
-            )
-            raise DiskBulkChangeDetected(delta=delta, disk_uuid=disk.uuid)
-
-    # --- Dir-mtime walk ---
-    _walk_dir_quick(
+    # --- Bulk-change guard (quick-mode only, on Merkle miss; shared single-impl) ---
+    # A high delta (many files changed at once) suggests a bulk restore or disk
+    # swap rather than organic drift — freeze unless confirmed by the caller.
+    guard_bulk_change(
         conn,
         disk,
         mount,
+        fingerprints,
+        confirm_bulk_change=confirm_bulk_change,
+        merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+        capability=capability,
+    )
+
+    # --- Dir-mtime walk ---
+    visitor = QuickVisitor(
+        conn,
+        disk,
+        generation,
         files_visited,
         dirs_visited,
-        generation,
         dir_mtime_reliable,
-        resume_from,
-        files_since_checkpoint,
-        budget_exhausted,
-        started_at_monotonic,
-        budget_seconds,
-        scan_run_id,
-        checkpoint_every,
         capability,
+    )
+    walk(
+        mount,
+        visitor,
+        budget=WalkBudget(
+            budget_seconds=budget_seconds,
+            started_at_monotonic=started_at_monotonic,
+            budget_exhausted=budget_exhausted if budget_exhausted is not None else [False],
+        ),
+        shutdown=is_shutdown_requested,
+        checkpoint=WalkCheckpoint(
+            scan_run_id=scan_run_id,
+            checkpoint_every=checkpoint_every,
+            files_since_checkpoint=files_since_checkpoint if files_since_checkpoint is not None else [0],
+            resume_from=resume_from if resume_from is not None else [None],
+        ),
     )
 
     # Skip post-walk bookkeeping if the budget was exhausted during the walk —
@@ -344,17 +344,6 @@ def _scan_disk_quick(
     if budget_exhausted is not None and budget_exhausted[0]:
         return
 
-    # Write-through the path row for the disk root itself.
-    try:
-        root_st = os.stat(mount, follow_symlinks=False)
-        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-    except OSError:
-        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
-
-    # Recompute and persist the updated Merkle root so the next quick scan
-    # can short-circuit if the FS state is unchanged (FS-aware bucketing so the
-    # stored root matches what the next scan's short-circuit recomputes).
-    updated_fingerprints = _build_disk_fingerprints(conn, disk.id, capability)
-    new_root = compute_merkle_root(updated_fingerprints)
-    disk_repo.update_merkle_root(conn, disk.id, new_root)
-    log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)
+    # Write-through the disk-root path row and recompute + persist the Merkle
+    # root so the next quick scan can short-circuit (shared single-impl).
+    recompute_disk_merkle_after_walk(conn, disk, mount, capability)

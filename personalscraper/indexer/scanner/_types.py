@@ -4,6 +4,7 @@ Provides:
 - :class:`IndexerConfigError` — raised for invalid configuration.
 - :class:`IndexerScanActiveError` — raised when a concurrent scan is detected.
 - :class:`ScanMode` — enum of the four scan modes.
+- :class:`ScanRequest` — frozen bundle of every input consumed by :func:`scan`.
 - :class:`ScanRunResult` — lightweight result returned by :func:`scan`.
 """
 
@@ -11,6 +12,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import sqlite3
+    from pathlib import Path
+
+    from personalscraper.conf.models.config import Config
+    from personalscraper.core.event_bus import EventBus
+    from personalscraper.indexer.breaker import DiskCircuitBreaker
+    from personalscraper.indexer.schema import DiskRow
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -102,3 +113,82 @@ class ScanRunResult:
     disks_skipped: int = 0
     budget_exhausted: bool = field(default=False)
     error: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# ScanRequest
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, kw_only=True)
+class ScanRequest:
+    """Immutable, keyword-only bundle of every parameter consumed by :func:`scan`.
+
+    Collapses the historical ~22-argument ``scan()`` signature into a single
+    frozen value object so the scan orchestrator and the per-mode visitors
+    receive ONE object instead of a long positional argument list. Construct it
+    directly and pass it to
+    :func:`personalscraper.indexer.scanner.scan_with`; the legacy
+    :func:`personalscraper.indexer.scanner.scan` keeps its positional/keyword
+    signature and builds a :class:`ScanRequest` internally for backward
+    compatibility, so behaviour is byte-identical whichever entry point a caller
+    uses.
+
+    Frozen so a request cannot be mutated after construction — the values are a
+    snapshot of the scan's inputs. ``event_bus`` is REQUIRED (no default),
+    mirroring the required-bus contract enforced directly on ``scan()``.
+
+    See :func:`personalscraper.indexer.scanner.scan` for the exhaustive
+    per-field semantics; the one-line summaries below mirror that docstring.
+
+    Attributes:
+        disks: Disks to scan; unmounted/mismatched disks are skipped, not fatal.
+        mode: The :class:`ScanMode` governing the per-disk walk strategy.
+        generation: Monotonic generation counter stamped on visited rows.
+        conn: Open autocommit :class:`sqlite3.Connection` (or caller transaction).
+        event_bus: Required :class:`EventBus`; exactly one
+            ``LibraryScanCompleted`` is emitted per scan.
+        disk_filter: Single-disk label scope (``--disk``); ``None`` = all disks.
+        drop_indexes: Drop/recreate secondary indexes around full-mode bulk inserts.
+        budget_seconds: Wall-clock ceiling in seconds; ``None`` = unlimited.
+        db_path: SQLite file path; enables crash-resume + parallel per-disk conns.
+        checkpoint_every_n_files: Files processed between checkpoint writes.
+        disk_breaker: Per-disk circuit breaker; ``None`` = module-level singleton.
+        confirm_bulk_change: Bypass the quick-mode Merkle delta freeze guard.
+        merkle_delta_freeze_threshold: Quick-mode freeze threshold (0.0–1.0).
+        quick_enrich: Faster/less-complete mediainfo parse in enrich mode.
+        backfill_streams: Targeted stream-column backfill in enrich mode.
+        max_workers: Max concurrent per-disk worker threads.
+        read_rate_mb_per_sec: Shared read-rate ceiling in MB/s; ``None`` = no throttle.
+        staging_dir: Staging dir probed for Spotlight in addition to disk mounts.
+        spotlight_enabled: Whether the Spotlight change detector may attach.
+        paranoia_window_seconds: Quick-mode paranoia look-back window (seconds).
+        no_enqueue: Verify mode walks every file but never enqueues repairs.
+        fs_type_overrides: Stable-label → canonical ``fs_type`` override map.
+        config: Fully-loaded :class:`Config`; full-mode item stage (pass 1) runs
+            exactly once when provided, is skipped when ``None``.
+    """
+
+    disks: list[DiskRow]
+    mode: ScanMode
+    generation: int
+    conn: sqlite3.Connection
+    event_bus: EventBus
+    disk_filter: str | None = None
+    drop_indexes: bool = False
+    budget_seconds: float | None = None
+    db_path: Path | None = None
+    checkpoint_every_n_files: int = 100
+    disk_breaker: DiskCircuitBreaker | None = None
+    confirm_bulk_change: bool = False
+    merkle_delta_freeze_threshold: float = 0.50
+    quick_enrich: bool = False
+    backfill_streams: bool = False
+    max_workers: int = 4
+    read_rate_mb_per_sec: float | None = None
+    staging_dir: str | None = None
+    spotlight_enabled: bool = False
+    paranoia_window_seconds: int = 86400
+    no_enqueue: bool = False
+    fs_type_overrides: dict[str, str] | None = None
+    config: Config | None = None

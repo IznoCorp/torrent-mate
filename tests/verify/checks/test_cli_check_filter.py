@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 
 import personalscraper.verify.checks  # noqa: F401 — trigger plugin registration
+from personalscraper.core.event_bus import EventBus
 from personalscraper.verify.checks.base import CheckStage, Severity
 from personalscraper.verify.checks.registry import CheckRegistry, registry
 
@@ -154,7 +155,7 @@ def test_check_coherence_only_restricts_results(test_config, tmp_path) -> None:
 
     cfg = _corpus.build_staging_corpus(Path(tmp_path) / "flt_stg", test_config)
     only = frozenset({"sort_process_coherence"})
-    results = check_coherence(make_typed_settings_stub(), cfg, only=only)
+    results = check_coherence(make_typed_settings_stub(), cfg, only=only, bus=EventBus())
     assert results, "corpus produced no coherence results — fail-on-empty guard"
     for r in results:
         assert set(r.checks) <= only, f"{r.path.name} ran extra checks: {r.checks}"

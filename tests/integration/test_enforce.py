@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
 from personalscraper.enforce.structure_validator import validate_structure
 
@@ -33,7 +34,7 @@ def test_enforce_creates_missing_season_dir(staging_tree: Path, integration_conf
 
     # Run structure validation — this triggers orphan-episode relocation.
     settings = MagicMock()
-    validate_structure(settings, integration_config, dry_run=False)
+    validate_structure(settings, integration_config, dry_run=False, bus=EventBus())
 
     season_dir = show_dir / "Saison 01"
     assert season_dir.exists(), "Saison 01/ should be created by enforce"

@@ -7,15 +7,16 @@ from typing import Optional
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
+from personalscraper.cli_helpers import CommandContext, _resolve_category, boundary, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.core.event_bus import EventBus
 
 
 @app.command("library-verify")
 @handle_cli_errors
+@boundary(needs="app", lock=False, journal=False, staging=False)
 def library_verify(
     ctx: typer.Context,
     disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
@@ -33,6 +34,8 @@ def library_verify(
         ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Re-stat every indexed file and mark mismatches for repair.
 
@@ -55,38 +58,28 @@ def library_verify(
         personalscraper library-verify --budget 300
         personalscraper library-verify --no-enqueue
     """
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    loaded_config = ctx.obj.config if ctx.obj is not None else None
-    if loaded_config is not None:
-        settings = cli_compat.get_settings()
-        with per_step_boundary(loaded_config, settings) as app_context:
-            rc = library_verify_command(
-                disk=disk,
-                budget_seconds=float(budget) if budget is not None else None,
-                no_enqueue=no_enqueue,
-                config_path=effective_config,
-                event_bus=app_context.event_bus,
-            )
-    else:
-        # init-config path: ``ctx.obj.config`` was never populated. Construct
-        # a fresh unobserved bus here at the CLI boundary so the contract
-        # (event_bus required at the indexer command surface) holds locally.
-        rc = library_verify_command(
-            disk=disk,
-            budget_seconds=float(budget) if budget is not None else None,
-            no_enqueue=no_enqueue,
-            config_path=effective_config,
-            event_bus=EventBus(),
-        )
+    # The boundary's "app" tier builds the AppContext (via per_step_boundary,
+    # binding correlation_id) exactly as the pre-boundary path did; only its bus
+    # flows into the indexer command.
+    app_context = bundle.app_context
+    assert app_context is not None
+    rc = library_verify_command(
+        disk=disk,
+        budget_seconds=float(budget) if budget is not None else None,
+        no_enqueue=no_enqueue,
+        config_path=effective_config,
+        event_bus=app_context.event_bus,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 
 
 @app.command("library-repair")
 @handle_cli_errors
+@boundary(needs="app", lock=False, journal=False, staging=False)
 def library_repair(
     ctx: typer.Context,
     budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
@@ -99,6 +92,8 @@ def library_repair(
         ),
     ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    *,
+    bundle: CommandContext,
 ) -> None:
     """Drain the repair queue within a time budget.
 
@@ -113,29 +108,17 @@ def library_repair(
         personalscraper library-repair --budget 120
         personalscraper library-repair --dry-run
     """
-    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    loaded_config = ctx.obj.config if ctx.obj is not None else None
-    if loaded_config is not None:
-        settings = cli_compat.get_settings()
-        with per_step_boundary(loaded_config, settings) as app_context:
-            rc = library_repair_command(
-                budget_seconds=float(budget),
-                dry_run=dry_run,
-                config_path=effective_config,
-                event_bus=app_context.event_bus,
-            )
-    else:
-        # init-config boundary (no loaded config). Fresh unobserved bus
-        # keeps the required-bus contract local to this CLI entry point.
-        rc = library_repair_command(
-            budget_seconds=float(budget),
-            dry_run=dry_run,
-            config_path=effective_config,
-            event_bus=EventBus(),
-        )
+    app_context = bundle.app_context
+    assert app_context is not None
+    rc = library_repair_command(
+        budget_seconds=float(budget),
+        dry_run=dry_run,
+        config_path=effective_config,
+        event_bus=app_context.event_bus,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -213,9 +196,9 @@ def library_clean(
     # maintenance runner re-queues on this code (web/run_queue.py, §6), so it
     # must stay distinguishable from a real error (exit 1).
     if apply:
-        if not cli_compat.acquire_pipeline_lock(
+        if not cli_helpers.acquire_pipeline_lock(
             config.paths.data_dir / "pipeline.lock",
-            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+            cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             console.print("[red]Another instance is running. Exiting.[/red]")
             raise typer.Exit(3)
@@ -290,7 +273,7 @@ def library_clean(
     # the ``cleaned`` flag flips to True the instant we hand control to
     # ``_run_and_report``, so an exception after that point re-raises instead of
     # being mistaken for an authority-build failure.
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     cleaned = False
     try:
         try:
@@ -312,7 +295,7 @@ def library_clean(
             _run_and_report(AllowAllPermit())
     finally:
         if apply:
-            cli_compat.release_lock()
+            cli_helpers.release_lock()
 
 
 @app.command()
@@ -391,9 +374,9 @@ def library_validate(
         raise typer.Exit(1)
 
     if fix and apply:
-        if not cli_compat.acquire_pipeline_lock(
+        if not cli_helpers.acquire_pipeline_lock(
             config.paths.data_dir / "pipeline.lock",
-            cli_compat.scrape_locks_dir_for(config.paths.data_dir),
+            cli_helpers.scrape_locks_dir_for(config.paths.data_dir),
         ):
             # Exit 3 = lock busy (the maintenance runner re-queues on this code).
             console.print("[red]Another instance is running. Exiting.[/red]")
@@ -481,4 +464,4 @@ def library_validate(
             )
     finally:
         if fix and apply:
-            cli_compat.release_lock()
+            cli_helpers.release_lock()

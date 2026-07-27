@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from personalscraper.reports._validate import StepReportContractError, validate_details_payload
 from personalscraper.reports.clean import CleanDetails
 from personalscraper.reports.cleanup import CleanupDetails
 from personalscraper.reports.dispatch import DispatchDetails
@@ -26,6 +27,8 @@ STEP_REPORT_CONTRACT: dict[str, type] = {
 
 __all__ = [
     "STEP_REPORT_CONTRACT",
+    "StepReportContractError",
+    "validate_details_payload",
     "CleanDetails",
     "CleanupDetails",
     "DispatchDetails",

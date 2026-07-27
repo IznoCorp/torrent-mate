@@ -17,11 +17,39 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.trailers import TrailersDetails
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
 
 logger = get_logger(__name__)
+
+
+def _build_trailers_details(
+    item_results: list[tuple[str, str, str | None]],
+    failed_items: list[tuple[str, str, str]],
+) -> TrailersDetails:
+    """Build the typed :class:`TrailersDetails` payload from orchestrator output.
+
+    Partitions the per-item results by terminal status: ``downloaded`` →
+    ``downloaded``, ``bot_detected`` → ``bot_detected``,
+    ``already_present``/``skipped`` → ``skipped_existing``. ``failed`` is drawn
+    from ``failed_items`` excluding bot-detections (already surfaced in their own
+    list) so an item is never double-counted.
+
+    Args:
+        item_results: ``(path, status, reason)`` triples from the orchestrator.
+        failed_items: ``(item_id, reason, detail)`` triples from the orchestrator.
+
+    Returns:
+        A :class:`TrailersDetails` grouping items by trailer outcome.
+    """
+    return TrailersDetails(
+        downloaded=[path for path, status, _ in item_results if status == "downloaded"],
+        bot_detected=[path for path, status, _ in item_results if status == "bot_detected"],
+        skipped_existing=[path for path, status, _ in item_results if status in ("already_present", "skipped")],
+        failed=[(item_id, reason) for item_id, reason, _ in failed_items if reason != "bot_detected"],
+    )
 
 
 def run_trailers(
@@ -148,6 +176,9 @@ def run_trailers(
         else:
             step_status = "success"
 
+        # Typed details payload (STEP_REPORT_CONTRACT: TrailersDetails).
+        trailers_details = _build_trailers_details(item_results, failed_items)
+
         report = StepReport(
             name="trailers",
             success_count=success_count,
@@ -156,6 +187,7 @@ def run_trailers(
             status=step_status,
             counts=counts,
             failed_items=failed_items,  # type: ignore[arg-type]  # coerced via StepReport.__post_init__
+            details_payload=trailers_details,  # type: ignore[arg-type]  # coerced to dict via StepReport.__post_init__
         )
         logger.info(
             "trailers_step_complete",

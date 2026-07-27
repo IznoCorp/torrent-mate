@@ -4,7 +4,7 @@
 
 **Feature**: Acquisitions — états véridiques (disponibilité tracker) + amorce du suivi + poster serveur
 **Type**: feat
-**Version bump**: 0.54.1 → 0.55.0 (minor)
+**Version bump**: 0.54.1 → 0.56.0 (minor — re-bumped past `origin/main` 0.55.1 when solidify #316 was merged in)
 **Branch**: feat/acq-states
 **Ticket**: #319 — claimed (session locale, heartbeat actif)
 **PR merge**: auto

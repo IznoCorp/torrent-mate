@@ -33,10 +33,10 @@ from types import FrameType
 from fastapi import HTTPException
 
 from personalscraper.conf.loader import load_config
-from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
+from personalscraper.web._runner_engine import reserve_run_row
 from personalscraper.web.run_queue import wait_in_visible_queue
 
 log = get_logger(__name__)
@@ -87,50 +87,41 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
     """
     run_uid = uuid.uuid4().hex
     options_json = _canonical_options(trigger_reason, dry_run)
-    conn = sqlite3.connect(str(db_path), isolation_level=None)
-    try:
-        apply_pragmas(conn)
-        conn.row_factory = sqlite3.Row
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            rows = conn.execute(
-                "SELECT run_uid, pid FROM pipeline_run "
-                "WHERE kind='maintenance' AND command=? AND outcome='running' AND options_json=?",
-                (PIPELINE_QUEUE_COMMAND, options_json),
-            ).fetchall()
-            for row in rows:
-                pid_db = row["pid"]
-                if pid_db is None:
-                    continue
-                try:
-                    os.kill(pid_db, 0)
-                except ProcessLookupError:
-                    continue
-                except PermissionError:
-                    raise HTTPException(status_code=409, detail=_DUPLICATE_QUEUE_DETAIL)
+
+    def _guard(conn: sqlite3.Connection) -> None:
+        """409 when an identical queued launch (same options, live pid) is waiting."""
+        rows = conn.execute(
+            "SELECT run_uid, pid FROM pipeline_run "
+            "WHERE kind='maintenance' AND command=? AND outcome='running' AND options_json=?",
+            (PIPELINE_QUEUE_COMMAND, options_json),
+        ).fetchall()
+        for row in rows:
+            pid_db = row["pid"]
+            if pid_db is None:
+                continue
+            try:
+                os.kill(pid_db, 0)
+            except ProcessLookupError:
+                continue
+            except PermissionError:
                 raise HTTPException(status_code=409, detail=_DUPLICATE_QUEUE_DETAIL)
-            conn.execute(
-                "INSERT INTO pipeline_run "
-                "(run_uid, trigger, dry_run, started_at, outcome, steps_json, pid, kind, command, options_json) "
-                "VALUES (?, 'web', ?, ?, 'running', '[]', ?, 'maintenance', ?, ?)",
-                (run_uid, 1 if dry_run else 0, time.time(), os.getpid(), PIPELINE_QUEUE_COMMAND, options_json),
-            )
-            conn.execute("COMMIT")
-        except HTTPException:
-            _safe_rollback(conn)
-            raise
-        except sqlite3.OperationalError as exc:
-            _safe_rollback(conn)
-            log.warning("pipeline_queue_reserve_db_error", error=str(exc))
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Impossible de vérifier qu'aucun lancement n'est déjà en file "
-                    "(erreur de lecture de la base) — réessayez."
-                ),
-            ) from exc
-    finally:
-        conn.close()
+            raise HTTPException(status_code=409, detail=_DUPLICATE_QUEUE_DETAIL)
+
+    # The atomic BEGIN IMMEDIATE + INSERT skeleton is owned by the engine; this
+    # module supplies only the duplicate-queue guard.
+    reserve_run_row(
+        db_path,
+        run_uid=run_uid,
+        kind="maintenance",
+        command=PIPELINE_QUEUE_COMMAND,
+        options_json=options_json,
+        dry_run=dry_run,
+        guard=_guard,
+        fail_closed=True,
+        fail_closed_detail=(
+            "Impossible de vérifier qu'aucun lancement n'est déjà en file (erreur de lecture de la base) — réessayez."
+        ),
+    )
 
     env = {
         **os.environ,
@@ -151,18 +142,6 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
     PipelineRunWriter(db_path).update_pid(run_uid, proc.pid)
     log.info("pipeline_queue_reserved", run_uid=run_uid, trigger_reason=trigger_reason, dry_run=dry_run)
     return run_uid
-
-
-def _safe_rollback(conn: sqlite3.Connection) -> None:
-    """Roll back *conn* best-effort, ignoring "no transaction active" errors.
-
-    Args:
-        conn: The connection to roll back.
-    """
-    try:
-        conn.execute("ROLLBACK")
-    except sqlite3.OperationalError:
-        pass
 
 
 def main() -> None:

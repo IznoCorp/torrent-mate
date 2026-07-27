@@ -79,7 +79,7 @@ class TestE2ESorter:
         """Movie directory goes into {movies_dir}/Title (Year)/."""
         _create_movie_dir(staging, "Movie.Title.2024.1080p.BluRay.x264-GROUP")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 1
         r = results[0]
         assert r.status == "moved"
@@ -92,7 +92,7 @@ class TestE2ESorter:
         """TV show episode file goes into {tvshows_dir}/Show Name/."""
         _create_episode_file(staging, "The.Boys.S05E01.MULTi.1080p.mkv")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 1
         r = results[0]
         assert r.status == "moved"
@@ -108,7 +108,7 @@ class TestE2ESorter:
         (pack / "ep1.mkv").write_text("video")
         (pack / "ep2.mkv").write_text("video")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert len(results) == 1
         assert results[0].media_type == "tvshow"
         assert "002-TVSHOWS" in str(results[0].destination)
@@ -117,7 +117,7 @@ class TestE2ESorter:
         """Ebook goes into {ebooks_dir}/."""
         (staging / "book.epub").write_text("ebook")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert results[0].media_type == "ebook"
         assert "003-EBOOKS" in str(results[0].destination)
 
@@ -125,7 +125,7 @@ class TestE2ESorter:
         """Audio goes into {audio_dir}/."""
         (staging / "audiobook.mp3").write_text("audio")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert results[0].media_type == "audio"
         assert "004-AUDIO" in str(results[0].destination)
 
@@ -135,7 +135,7 @@ class TestE2ESorter:
         _create_episode_file(staging, "Show.S01E01.mkv")
         (staging / "book.epub").write_text("ebook")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         types = {r.media_type for r in results}
         assert "movie" in types
         assert "tvshow" in types
@@ -149,7 +149,7 @@ class TestE2ESorter:
         (existing / "S05E01.mkv").write_text("ep1")
         _create_episode_file(staging, "The.Boys.S05E02.MULTi.1080p.mkv")
         sorter = Sorter(config=config, dry_run=False)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         r = results[0]
         assert r.status == "moved"
         # Should go into existing "The Boys" folder, not create a new one
@@ -160,7 +160,7 @@ class TestE2ESorter:
         _create_movie_dir(staging, "Movie.2024.1080p")
         _create_episode_file(staging, "Show.S01E01.mkv")
         sorter = Sorter(config=config, dry_run=True)
-        results = sorter.process(staging)
+        results = sorter.process(staging, bus=EventBus())
         assert all(r.status == "dry-run" for r in results)
         # Original items should still exist
         assert (staging / "Movie.2024.1080p").exists()

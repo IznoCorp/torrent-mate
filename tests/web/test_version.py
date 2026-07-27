@@ -16,7 +16,6 @@ from fastapi.testclient import TestClient
 
 import personalscraper
 from personalscraper.config import Settings
-from personalscraper.web.app import create_app
 from personalscraper.web.auth.passwords import hash_password
 from personalscraper.web.routes import version as version_module
 from personalscraper.web.routes.version import _read_build_commit
@@ -29,7 +28,7 @@ TEST_SECRET = "version-integration-test-secret"
 
 
 @pytest.fixture
-def version_client(test_config) -> TestClient:
+def version_client(test_config, make_web_client) -> TestClient:
     """Create a TestClient able to authenticate, for body assertions on /api/version.
 
     Injects a known scrypt hash + JWT secret and uses ``https`` base_url so the
@@ -37,6 +36,7 @@ def version_client(test_config) -> TestClient:
 
     Args:
         test_config: Synthetic ``Config`` fixture.
+        make_web_client: Shared full-app ``TestClient`` factory.
 
     Returns:
         A ``TestClient`` with ``base_url="https://testserver"``.
@@ -48,8 +48,7 @@ def version_client(test_config) -> TestClient:
         web_password_hash=TEST_HASH,
         web_jwt_secret=TEST_SECRET,
     )
-    app = create_app(cfg, settings)
-    return TestClient(app, base_url="https://testserver")
+    return make_web_client(cfg, settings, https=True)
 
 
 def _login(client: TestClient) -> None:

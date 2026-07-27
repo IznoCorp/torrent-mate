@@ -279,15 +279,7 @@ class CrossSeedService:
                         reason="fetch_failed",
                         error=str(exc),
                     )
-                    result.rejected.append((_candidate_id(candidate), tracker, "fetch_failed"))
-                    self._event_bus.emit(
-                        CrossSeedRejected(
-                            info_hash=_candidate_id(candidate),
-                            tracker=tracker,
-                            reason="fetch_failed",
-                            source_hash=info_hash,
-                        )
-                    )
+                    self._reject(result, _candidate_id(candidate), tracker, "fetch_failed", info_hash)
                     continue
 
                 # Cross-seed only works with .torrent file bytes (not magnets).
@@ -298,15 +290,7 @@ class CrossSeedService:
                         tracker=tracker,
                         reason="magnet_not_supported",
                     )
-                    result.rejected.append((_candidate_id(candidate), tracker, "magnet_not_supported"))
-                    self._event_bus.emit(
-                        CrossSeedRejected(
-                            info_hash=_candidate_id(candidate),
-                            tracker=tracker,
-                            reason="magnet_not_supported",
-                            source_hash=info_hash,
-                        )
-                    )
+                    self._reject(result, _candidate_id(candidate), tracker, "magnet_not_supported", info_hash)
                     continue
 
                 # Parse candidate layout.
@@ -320,15 +304,7 @@ class CrossSeedService:
                         reason="parse_failed",
                         error=str(exc),
                     )
-                    result.rejected.append((_candidate_id(candidate), tracker, "parse_failed"))
-                    self._event_bus.emit(
-                        CrossSeedRejected(
-                            info_hash=_candidate_id(candidate),
-                            tracker=tracker,
-                            reason="parse_failed",
-                            source_hash=info_hash,
-                        )
-                    )
+                    self._reject(result, _candidate_id(candidate), tracker, "parse_failed", info_hash)
                     continue
 
                 # Self-candidate guard: compute the candidate's v1 info-hash
@@ -358,15 +334,7 @@ class CrossSeedService:
                             tracker=tracker,
                             reason="self_candidate",
                         )
-                        result.rejected.append((_candidate_id(candidate), tracker, "self_candidate"))
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=_candidate_id(candidate),
-                                tracker=tracker,
-                                reason="self_candidate",
-                                source_hash=info_hash,
-                            )
-                        )
+                        self._reject(result, _candidate_id(candidate), tracker, "self_candidate", info_hash)
                         continue
 
                 # Structural match — strict full-match only (D4).
@@ -378,15 +346,7 @@ class CrossSeedService:
                         tracker=tracker,
                         reason=verdict.value,
                     )
-                    result.rejected.append((_candidate_id(candidate), tracker, verdict.value))
-                    self._event_bus.emit(
-                        CrossSeedRejected(
-                            info_hash=_candidate_id(candidate),
-                            tracker=tracker,
-                            reason=verdict.value,
-                            source_hash=info_hash,
-                        )
-                    )
+                    self._reject(result, _candidate_id(candidate), tracker, verdict.value, info_hash)
                     continue
 
                 # MATCH → inject → verify → resume + tag + obligation.
@@ -406,15 +366,7 @@ class CrossSeedService:
                         error=str(exc),
                         exc_info=True,
                     )
-                    result.rejected.append((_candidate_id(candidate), tracker, "inject_failed"))
-                    self._event_bus.emit(
-                        CrossSeedRejected(
-                            info_hash=_candidate_id(candidate),
-                            tracker=tracker,
-                            reason="inject_failed",
-                            source_hash=info_hash,
-                        )
-                    )
+                    self._reject(result, _candidate_id(candidate), tracker, "inject_failed", info_hash)
                     continue
 
                 verify_failure = self._verify_injection(injected_hash)
@@ -460,15 +412,7 @@ class CrossSeedService:
                                     error=str(del_exc),
                                     exc_info=True,
                                 )
-                        result.rejected.append((injected_hash, tracker, "obligation_write_failed"))
-                        self._event_bus.emit(
-                            CrossSeedRejected(
-                                info_hash=injected_hash,
-                                tracker=tracker,
-                                reason="obligation_write_failed",
-                                source_hash=info_hash,
-                            )
-                        )
+                        self._reject(result, injected_hash, tracker, "obligation_write_failed", info_hash)
                         continue
 
                     try:
@@ -549,18 +493,38 @@ class CrossSeedService:
                         tracker=tracker,
                         reason=verify_failure,
                     )
-                    result.rejected.append((injected_hash, tracker, verify_failure))
-                    self._event_bus.emit(
-                        CrossSeedRejected(
-                            info_hash=injected_hash,
-                            tracker=tracker,
-                            reason=verify_failure,
-                            source_hash=info_hash,
-                        )
-                    )
+                    self._reject(result, injected_hash, tracker, verify_failure, info_hash)
                     # Continue to next candidate in this tracker.
 
         return result
+
+    def _reject(self, result: CrossSeedResult, rejected_id: str, tracker: str, reason: str, source_hash: str) -> None:
+        """Record a per-candidate rejection AND emit its ``CrossSeedRejected`` event.
+
+        The single owner of the reject bookkeeping that ``check`` repeated 8×
+        verbatim (ACQUIRE-05): append the ``(id, tracker, reason)`` tuple to
+        ``result.rejected`` and emit the matching event (emit-after-record). The
+        per-site ``logger`` call stays inline — its level and extra fields vary
+        by rejection cause; only the record+emit pair was identical.
+
+        Args:
+            result: The in-progress :class:`CrossSeedResult` to append to.
+            rejected_id: The rejected torrent's id — ``_candidate_id(candidate)``
+                for a pre-injection reject, or the ``injected_hash`` for a
+                post-injection one (obligation-write / verify failure).
+            tracker: The target tracker the candidate came from.
+            reason: The rejection reason string (also the event ``reason``).
+            source_hash: The source torrent's info-hash (the event ``source_hash``).
+        """
+        result.rejected.append((rejected_id, tracker, reason))
+        self._event_bus.emit(
+            CrossSeedRejected(
+                info_hash=rejected_id,
+                tracker=tracker,
+                reason=reason,
+                source_hash=source_hash,
+            )
+        )
 
     def sweep(self) -> SweepResult:
         """Throttled back-catalog sweep over all completed torrents (X2 — D6).

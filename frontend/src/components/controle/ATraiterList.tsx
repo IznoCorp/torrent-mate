@@ -17,7 +17,7 @@ import { AlertCircle } from "lucide-react";
 import { type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
-import type { StagingMediaItem, StagingMediaResponse } from "@/api/client";
+import type { StagingMediaItem, StagingMediaResponse } from "@/api/staging";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { matchBadge } from "@/components/staging/meta";

@@ -6,9 +6,16 @@ no real disk/network access.
 
 from __future__ import annotations
 
+import importlib
 from unittest.mock import patch
 
 from tests.commands._e2e_helpers import assert_no_python_traceback, run_cli
+
+# The migrated verify/enforce commands take the lock + resolve settings via the
+# ``cli_helpers.boundary`` decorator (thin command handles the pre-lock
+# --list-checks / --check validation); patch that module's namespace, not
+# ``personalscraper.cli.*``.
+_BOUNDARY_MOD = importlib.import_module("personalscraper.cli_helpers.boundary")
 
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 
@@ -30,9 +37,9 @@ def test_verify_list_checks_exits_zero(test_config) -> None:
 # ── --check bogus_name ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_check_bogus_name_exits_nonzero(
     mock_run,
@@ -57,9 +64,9 @@ def test_verify_check_bogus_name_exits_nonzero(
 # ── --check valid name (happy path) ──
 
 
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch.object(_BOUNDARY_MOD, "get_settings")
+@patch.object(_BOUNDARY_MOD, "release_lock")
+@patch.object(_BOUNDARY_MOD, "acquire_pipeline_lock", return_value=True)
 @patch("personalscraper.verify.run.run_verify")
 def test_verify_check_known_name_forwards_only(
     mock_run,

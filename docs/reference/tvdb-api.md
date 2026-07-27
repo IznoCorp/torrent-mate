@@ -1439,8 +1439,7 @@ cross-reference, or search by name.
 
 > **Pipeline ID-family discipline**: TVDB is the primary scrape source for TV; TMDB is
 > info + fallback; IMDB is info only. The cross-provider ID flow lives in
-> `personalscraper/scraper/_xref.py` — `TVDBClient` itself does not compose `IDValidator`
-> or `IDCrossRef`.
+> `personalscraper/scraper/_xref.py` — `TVDBClient` itself does not compose `IDValidator`.
 
 ---
 
@@ -1790,8 +1789,8 @@ Module defaults: `_DEFAULT_CIRCUIT = CircuitPolicy(failure_threshold=5, cooldown
 | `get_keywords(media_id, media_type)`         | Not supported by TVDB v4                     | `raise NotImplementedError` |
 | `get_notations(media_id, media_type)`        | Not supported (score is popularity rank)     | `raise NotImplementedError` |
 
-It does **not** compose `KeywordProvider` (no keywords endpoint), `IDValidator`, or
-`IDCrossRef` (cross-provider ID validation flows through
+It does **not** compose `KeywordProvider` (no keywords endpoint) or `IDValidator`
+(cross-provider ID validation flows through
 `personalscraper/scraper/_xref.py`).
 
 ### Response unwrapping

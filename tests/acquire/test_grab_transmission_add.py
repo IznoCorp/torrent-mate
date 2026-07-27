@@ -1,21 +1,23 @@
-"""Tests verifying grab() adds torrent then tags separately (Phase 2.2).
+"""Tests verifying grab() adds the torrent with its provider tag in ONE call.
 
-Motivation: Transmission rejects ``add(tags=(...))`` with ValueError because
-its ``labels[0]`` slot is reserved for the category; tags must be written via
-a separate ``add_tags()`` call AFTER the torrent is added.  The new production
-code calls ``add(category=None)`` (no tags) then, if the client implements
-``TorrentTagger``, calls ``add_tags(info_hash, [provider])``.
+Open item #8 (FINAL): Transmission's ``add()`` now emits the category-less
+``""`` sentinel (``labels=["", *tags]``), so a category-less torrent carrying
+tags is representable in a single ``add_torrent`` call. The grab orchestrator
+therefore adds the torrent and its source-tracker tag ATOMICALLY —
+``add(category=None, tags=[provider])`` — instead of the former two-step
+(``add(category=None)`` then a best-effort ``add_tags``). Both clients apply
+category+tags inline in their single add call, so a torrent is never
+added-but-untagged.
 
 Load-bearing tests:
 
-- ``test_grab_adds_then_tags_provider_on_tagger_client``: fake Transmission-like
-  client (TorrentAdder + TorrentTagger) — grab() succeeds; ``add()`` called
-  with NO tags kwarg; ``add_tags()`` called with the provider label.
-  Mutation-proof: the OLD call ``add(..., tags=(provider,))`` raises
-  ``ValueError`` on this fake → test FAILS on mutation, passes on restore.
-- ``test_grab_tag_failure_is_swallowed_success``: ``add()`` succeeds but
-  ``add_tags()`` raises ``ApiError`` → outcome is SUCCESS (not retryable
-  add_failed); demonstrates the inner swallow contract.
+- ``test_grab_adds_with_provider_tag_atomically``: fake Transmission-like client
+  (TorrentAdder + TorrentTagger) — grab() succeeds; ``add()`` called ONCE with
+  ``category=None`` and ``tags=[provider]``; ``add_tags()`` is NOT called
+  (mutation-proof against a re-introduced two-step).
+- ``test_grab_add_failure_is_retryable``: ``add()`` raises ``ApiError`` (the tag
+  is part of the atomic add, so a tag/label failure fails the add) → outcome is
+  RETRYABLE ``add_failed``, not a silent success.
 """
 
 from __future__ import annotations
@@ -57,14 +59,15 @@ class _EventSpy:
 class _FakeTransmissionClient(TorrentAdder, TorrentTagger):
     """Minimal fake Transmission-like client implementing TorrentAdder + TorrentTagger.
 
-    Mirrors the real Transmission constraint: ``add()`` with non-empty
-    ``tags`` raises ``ValueError`` (labels[0] is reserved for category).
-    ``add()`` with no tags (or empty tags) succeeds and returns INFO_HASH.
-    ``add_tags()`` records calls for assertion.
+    Mirrors the real (post open-item-#8) Transmission adder: ``add()`` accepts
+    ``category=None`` together with ``tags`` — the client encodes the tags
+    behind the ``""`` sentinel internally — and returns INFO_HASH.
+    ``add_tags()`` records calls so a re-introduced two-step is detectable
+    (the orchestrator must NOT call it anymore).
     """
 
-    def __init__(self, add_tags_side_effect: Exception | None = None) -> None:
-        self._add_tags_side_effect = add_tags_side_effect
+    def __init__(self, add_side_effect: Exception | None = None) -> None:
+        self._add_side_effect = add_side_effect
         self.add_calls: list[dict] = []
         self.add_tags_calls: list[tuple[str, Sequence[str]]] = []
 
@@ -77,12 +80,12 @@ class _FakeTransmissionClient(TorrentAdder, TorrentTagger):
         paused: bool = False,
         limits=None,
     ) -> str:
-        """Add a torrent — raise ValueError if tags is non-empty (Transmission constraint).
+        """Record the add call and return INFO_HASH (or raise a configured side-effect).
 
         Args:
             source: Torrent source (ignored in fake).
-            category: Category label (Transmission labels[0]).
-            tags: Must be empty; non-empty raises ValueError.
+            category: Category label (Transmission labels[0]); None → sentinel.
+            tags: Tags carried atomically with the add.
             paused: Ignored.
             limits: Ignored.
 
@@ -90,26 +93,21 @@ class _FakeTransmissionClient(TorrentAdder, TorrentTagger):
             INFO_HASH constant.
 
         Raises:
-            ValueError: If tags is non-empty (mirrors Transmission behavior).
+            Exception: If ``add_side_effect`` was set at construction.
         """
-        if tags:
-            raise ValueError(f"Transmission add() does not accept tags={tags!r}; use add_tags() after add().")
+        if self._add_side_effect is not None:
+            raise self._add_side_effect
         self.add_calls.append({"category": category, "tags": list(tags)})
         return INFO_HASH
 
     def add_tags(self, info_hash: str, tags: Sequence[str]) -> None:
-        """Record the call; optionally raise a configured side-effect.
+        """Record the call (must NOT be reached by the atomic-add orchestrator).
 
         Args:
             info_hash: The torrent's info hash.
             tags: Tags to add.
-
-        Raises:
-            Exception: If ``add_tags_side_effect`` was set at construction.
         """
         self.add_tags_calls.append((info_hash, list(tags)))
-        if self._add_tags_side_effect is not None:
-            raise self._add_tags_side_effect
 
     def remove_tags(self, info_hash: str, tags: Sequence[str]) -> None:
         """No-op stub (TorrentTagger protocol requirement).
@@ -181,24 +179,25 @@ def _make_orchestrator(torrent_client) -> tuple[GrabOrchestrator, _EventSpy]:
 
 
 # ---------------------------------------------------------------------------
-# Mutation-proof: add-then-tag flow
+# Atomic single-call add-with-tag flow
 # ---------------------------------------------------------------------------
 
 
-def test_grab_adds_then_tags_provider_on_tagger_client() -> None:
-    """grab() calls add(category=None) then add_tags([provider]) on a TorrentTagger client.
+def test_grab_adds_with_provider_tag_atomically() -> None:
+    """grab() calls add(category=None, tags=[provider]) ONCE and never add_tags().
 
-    Mutation-proof: the OLD production line ``add(..., tags=(provider,))``
-    raises ``ValueError`` on the fake Transmission client, making this test
-    FAIL on mutation and PASS only after the fix restores the correct sequence.
+    Mutation-proof: re-introducing the two-step (``add(category=None)`` then
+    ``add_tags``) would make ``add_tags_calls`` non-empty and drop the tag from
+    the ``add`` call, failing the assertions below.
 
     Verified contract:
-    - ``add()`` is called exactly once with no tags (empty sequence).
-    - ``add_tags()`` is called with (INFO_HASH, [TOP_PROVIDER]).
+    - ``add()`` is called exactly once with ``category=None`` and
+      ``tags=[TOP_PROVIDER]``.
+    - ``add_tags()`` is NOT called (the tag rides the atomic add).
     - Outcome disposition is ``success``.
     """
     fake_client = _FakeTransmissionClient()
-    orchestrator, spy = _make_orchestrator(fake_client)
+    orchestrator, _spy = _make_orchestrator(fake_client)
 
     with patch(_RESOLVE) as mock_resolve:
         mock_resolve.return_value = MagicMock(spec=TorrentSource)
@@ -207,44 +206,32 @@ def test_grab_adds_then_tags_provider_on_tagger_client() -> None:
     # Success — torrent was added.
     assert outcome.disposition == "success"
 
-    # add() called once with empty tags (Transmission-safe).
+    # add() called once carrying the provider tag with no category.
     assert len(fake_client.add_calls) == 1
-    assert fake_client.add_calls[0]["tags"] == []
     assert fake_client.add_calls[0]["category"] is None
+    assert fake_client.add_calls[0]["tags"] == [TOP_PROVIDER]
 
-    # add_tags() called with the provider label on the correct hash.
-    assert len(fake_client.add_tags_calls) == 1
-    assert fake_client.add_tags_calls[0] == (INFO_HASH, [TOP_PROVIDER])
+    # The former two-step is dead — no separate add_tags() call.
+    assert fake_client.add_tags_calls == []
 
 
-def test_grab_tag_failure_is_swallowed_success() -> None:
-    """add() succeeds but add_tags() raises ApiError → outcome is SUCCESS.
+def test_grab_add_failure_is_retryable() -> None:
+    """add() raising ApiError → RETRYABLE add_failed (tag is part of the atomic add).
 
-    The inner ``try/except ApiError`` around ``add_tags()`` swallows the
-    tagging failure and logs a warning; the overall grab is still a success.
-    The torrent was added — the tag failure must NOT promote to retryable
-    ``add_failed``.
-
-    Chain guarantee (sub-phase 3.1): the real TransmissionClient / QBitClient
-    translate raw library exceptions (TransmissionError / qbittorrentapi.APIError)
-    into ApiError at the client boundary, so this swallow type is always correct
-    against real clients.  The client-level translation is tested by the regression
-    suite in tests/api/torrent/test_tagger.py.
+    With tagging folded into the atomic add, a tag/label write failure fails the
+    add itself. That surfaces as the taxonomy's retryable ``add_failed`` (the
+    idempotent re-grab retries next run) — NOT a silent success.
     """
     fake_client = _FakeTransmissionClient(
-        add_tags_side_effect=ApiError(provider="transmission", http_status=500, message="rpc error")
+        add_side_effect=ApiError(provider="transmission", http_status=500, message="rpc error")
     )
-    orchestrator, spy = _make_orchestrator(fake_client)
+    orchestrator, _spy = _make_orchestrator(fake_client)
 
     with patch(_RESOLVE) as mock_resolve:
         mock_resolve.return_value = MagicMock(spec=TorrentSource)
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
-    # Still a success — add() completed; tag failure is a warning, not a hard error.
-    assert outcome.disposition == "success"
-
-    # add() was called (torrent in client).
-    assert len(fake_client.add_calls) == 1
-
-    # add_tags() was attempted (and raised, but swallowed).
-    assert len(fake_client.add_tags_calls) == 1
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "add_failed"
+    # No add_tags fallback exists anymore.
+    assert fake_client.add_tags_calls == []

@@ -68,7 +68,10 @@ class TestDispatchProgress:
         run_dispatch(MagicMock(), config=_base_config(), dry_run=True, verified=[], event_bus=bus)
 
         statuses = [e.status for e in collector.received]
-        assert statuses.count("started") == 5
+        # ``started`` is now emitted from INSIDE ``Dispatcher.process`` (F8 real
+        # lifecycle); the dispatcher is mocked here, so only run_dispatch's
+        # terminal events are observed. The started-before-work contract is
+        # pinned in tests/event_bus/test_real_started_lifecycle.py.
         assert "moved" in statuses
         assert "merged" in statuses
         assert "replaced" in statuses

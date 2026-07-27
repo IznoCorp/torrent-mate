@@ -53,15 +53,9 @@ def config_migrate_category_command(
         load_config,
         resolve_config_path,
     )
-    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-    from personalscraper.indexer.db import (  # noqa: PLC0415
-        IndexerCorruptError,
-        IndexerDiskFullError,
-        IndexerInvalidPathError,
-        IndexerLockError,
-        IndexerMigrationError,
-        apply_migrations,
-        open_db,
+    from personalscraper.indexer.commands._ceremony import (  # noqa: PLC0415
+        IndexerCeremonyError,
+        open_indexer_db,
     )
 
     log.info(
@@ -89,53 +83,28 @@ def config_migrate_category_command(
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
-    migrations_dir = Path(_migrations_pkg.__file__).parent
-
-    from contextlib import closing  # noqa: PLC0415
 
     try:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus)
-    except (
-        IndexerLockError,
-        IndexerCorruptError,
-        IndexerDiskFullError,
-        IndexerInvalidPathError,
-        IndexerMigrationError,
-    ) as exc:
-        typer.echo(str(exc), err=True)
+        with open_indexer_db(db_path, event_bus=event_bus) as conn:
+            # --- Execute the migration in a transaction ---
+            conn.execute("BEGIN")
+            try:
+                cur = conn.execute(
+                    "UPDATE media_item SET category_id = ? WHERE category_id = ?",
+                    (to_category, from_category),
+                )
+                updated = cur.rowcount
+                conn.execute("COMMIT")
+            except Exception as exc:  # noqa: BLE001
+                conn.execute("ROLLBACK")
+                typer.echo(f"migration failed: {exc}", err=True)
+                return 1
+
+            if updated == 0:
+                typer.echo(f"no rows matched category_id='{from_category}' (already migrated or no such rows)")
+            else:
+                typer.echo(f"updated {updated} media_item row(s): '{from_category}' → '{to_category}'")
+
+            return 0
+    except IndexerCeremonyError:
         return 1
-
-    with closing(conn):
-        try:
-            apply_migrations(conn, migrations_dir)
-        except (
-            IndexerLockError,
-            IndexerCorruptError,
-            IndexerDiskFullError,
-            IndexerInvalidPathError,
-            IndexerMigrationError,
-        ) as exc:
-            typer.echo(str(exc), err=True)
-            return 1
-
-        # --- Execute the migration in a transaction ---
-        conn.execute("BEGIN")
-        try:
-            cur = conn.execute(
-                "UPDATE media_item SET category_id = ? WHERE category_id = ?",
-                (to_category, from_category),
-            )
-            updated = cur.rowcount
-            conn.execute("COMMIT")
-        except Exception as exc:  # noqa: BLE001
-            conn.execute("ROLLBACK")
-            typer.echo(f"migration failed: {exc}", err=True)
-            return 1
-
-        if updated == 0:
-            typer.echo(f"no rows matched category_id='{from_category}' (already migrated or no such rows)")
-        else:
-            typer.echo(f"updated {updated} media_item row(s): '{from_category}' → '{to_category}'")
-
-        return 0

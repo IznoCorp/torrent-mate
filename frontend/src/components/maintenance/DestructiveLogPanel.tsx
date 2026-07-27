@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ScrollText } from "lucide-react";
 import { type ReactElement } from "react";
 
-import { getDestructiveLog } from "@/api/client";
+import { getDestructiveLog } from "@/api/maintenance";
 import type { components } from "@/api/schema";
 import { formatDatetime } from "@/components/acquisition/meta";
 import { EmptyState } from "@/components/ds/EmptyState";

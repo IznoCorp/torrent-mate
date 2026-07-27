@@ -113,21 +113,20 @@ def test_fan_out_always_emits_completed(build_registry_fakes):
 def test_locked_unresolved_emits_event(build_registry_fakes):
     """LockedCapabilityUnresolved fires when locked() returns None."""
     bus = MockEventBus()
-    # "tmdb" is a FakeSearchable (no ArtworkProvider), listed in IDCrossRef so
-    # locked-orphan validation passes, but cross_ref fails at runtime because
-    # FakeSearchable doesn't implement IDCrossRef → locked() returns None.
+    # "tvdb" implements ArtworkProvider but its circuit is OPEN, so it is
+    # circuit-ineligible and no other provider can serve the capability
+    # (cross-provider translation was removed, API-TRANSPORT-03) → None.
     registry = build_registry_fakes(
-        fakes={"tmdb": FakeSearchable(provider_name="tmdb"), "tvdb": FakeArtwork(provider_name="tvdb")},
+        fakes={"tvdb": FakeArtwork(provider_name="tvdb", circuit_state=CircuitState.OPEN)},
         providers_config=ProvidersConfig(
-            Searchable={"tmdb": 1, "tvdb": 2},
+            Searchable={"tvdb": 1},
             ArtworkProvider={"tvdb": 1},
-            IDCrossRef={"tmdb": 1},
         ),
         event_bus=bus,
     )
     match = ProviderMatch(
-        provider=RegistryProviderName("tmdb"),
-        id="tmdb-123",
+        provider=RegistryProviderName("tvdb"),
+        id="tvdb-123",
         media_type=MediaType.MOVIE,
     )
     result = registry.locked(ArtworkProvider, match)
@@ -239,63 +238,3 @@ def test_provider_exhausted_event_fires_from_chain_iteration(
     # Non-empty item dict — the diagnostic context is preserved.
     assert event.item == item_context
     assert event.item["title"] == "Test"
-
-
-def test_cross_ref_emits_provider_fallback_on_api_error(
-    build_registry_fakes,
-) -> None:
-    """Regression for I10: cross_ref() emits ProviderFallbackTriggered on failure.
-
-    When an ApiError or CircuitOpenError occurs, for parity with chain emit
-    pattern, subscribers must be able to correlate xref failures via the bus.
-    """
-    from types import SimpleNamespace
-
-    from personalscraper.api._contracts import ApiError
-    from personalscraper.api.metadata._contracts import IDCrossRef
-    from personalscraper.api.metadata.registry import ProviderMatch, RegistryProviderName
-
-    class RaisingCrossRef(IDCrossRef):
-        """Fake IDCrossRef that raises ApiError on get_cross_refs."""
-
-        provider_name: str = "raisy"
-
-        def __init__(self) -> None:
-            self.circuit = SimpleNamespace(
-                state=CircuitState.CLOSED,
-                can_proceed=lambda: True,
-            )
-            self.closed = False
-
-        def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-            raise ApiError("raisy", 503, message="network failure")
-
-        def close(self) -> None:
-            self.closed = True
-
-    bus = MockEventBus()
-    registry = build_registry_fakes(
-        fakes={"raisy": RaisingCrossRef()},
-        providers_config=ProvidersConfig(
-            IDCrossRef={"raisy": 1},
-        ),
-        event_bus=bus,
-    )
-    match = ProviderMatch(
-        provider=RegistryProviderName("raisy"),
-        id="raisy-123",
-        media_type=MediaType.MOVIE,
-    )
-    result = registry.cross_ref(match, target="other_provider")
-
-    assert result is None
-    fallback_events = [e for e in bus.emitted if isinstance(e, ProviderFallbackTriggered)]
-    assert len(fallback_events) == 1, (
-        f"expected one ProviderFallbackTriggered; got {len(fallback_events)} "
-        f"(all events: {[type(e).__name__ for e in bus.emitted]})"
-    )
-    ev = fallback_events[0]
-    assert ev.capability == "IDCrossRef"
-    assert ev.reason == "network"
-    assert ev.from_provider == "raisy"
-    assert ev.exc_type == "ApiError"

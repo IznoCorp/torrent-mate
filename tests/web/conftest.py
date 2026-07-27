@@ -1,9 +1,12 @@
 """Shared fixtures for web backend tests (tm-shell feature).
 
-Provides a ``web_app`` fixture (FastAPI TestClient) wired to the synthetic
-``test_config`` from ``tests/fixtures/config.py``.  Tests that need a
-different WebConfig (e.g. Redis unreachable) build their own app inline via
-``create_app``.
+Provides a ``web_app`` fixture (FastAPI ``TestClient``) wired to the synthetic
+``test_config`` from ``tests/fixtures/config.py``, plus a ``make_web_client``
+factory fixture for tests that need a custom ``Config``/``Settings`` or the
+``https`` base-url.  The actual app + ``TestClient`` construction lives in the
+shared :mod:`tests.web._web_harness` builders (phase 12 tests-arch
+consolidation) so no per-file re-implementation of the app-building dance is
+needed.
 """
 
 from __future__ import annotations
@@ -13,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
-from personalscraper.web.app import create_app
+from tests.web._web_harness import web_client
 
 
 @pytest.fixture(autouse=True)
@@ -33,6 +36,34 @@ def _reset_login_rate_limiter():
 
 
 @pytest.fixture
+def make_web_client(test_config):
+    """Return a factory that builds a full-app ``TestClient`` (create_app family).
+
+    The single canonical builder for the full application: it defaults the
+    ``Config`` to the synthetic ``test_config`` and the ``Settings`` to
+    ``Settings(_env_file=None)`` (never reads the real ``.env``), and exposes the
+    ``https`` / custom-``config`` / custom-``settings`` axes that the ~10 former
+    per-file web-harness setups varied on.
+
+    Args:
+        test_config: Synthetic ``Config`` fixture from ``tests/fixtures/config.py``.
+
+    Returns:
+        A callable ``make(config=None, settings=None, *, https=False)`` returning
+        a ``TestClient`` wrapping ``create_app``.
+    """
+
+    def _make(config=None, settings: Settings | None = None, *, https: bool = False) -> TestClient:
+        return web_client(
+            config if config is not None else test_config,
+            settings,
+            https=https,
+        )
+
+    return _make
+
+
+@pytest.fixture
 def web_app(test_config):
     """Create a TestClient wrapping ``create_app`` with test config + default settings.
 
@@ -46,9 +77,7 @@ def web_app(test_config):
     Returns:
         A ``TestClient`` instance ready for request assertions.
     """
-    settings = Settings(_env_file=None)  # type: ignore[call-arg]
-    app = create_app(test_config, settings)
-    return TestClient(app)
+    return web_client(test_config)
 
 
 @pytest.fixture
@@ -66,9 +95,7 @@ def web_app_https(test_config):
     Returns:
         A ``TestClient`` instance with ``base_url="https://testserver"``.
     """
-    settings = Settings(_env_file=None)  # type: ignore[call-arg]
-    app = create_app(test_config, settings)
-    return TestClient(app, base_url="https://testserver")
+    return web_client(test_config, https=True)
 
 
 @pytest.fixture

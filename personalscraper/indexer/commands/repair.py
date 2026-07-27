@@ -48,15 +48,9 @@ def library_repair_command(
         load_config,
         resolve_config_path,
     )
-    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-    from personalscraper.indexer.db import (  # noqa: PLC0415
-        IndexerCorruptError,
-        IndexerDiskFullError,
-        IndexerInvalidPathError,
-        IndexerLockError,
-        IndexerMigrationError,
-        apply_migrations,
-        open_db,
+    from personalscraper.indexer.commands._ceremony import (  # noqa: PLC0415
+        IndexerCeremonyError,
+        open_indexer_db,
     )
     from personalscraper.indexer.repair import drain, repair_processor  # noqa: PLC0415
 
@@ -71,85 +65,60 @@ def library_repair_command(
 
     db_path = cfg.indexer.db_path
     assert db_path is not None, "indexer.db_path must be resolved"
-    migrations_dir = Path(_migrations_pkg.__file__).parent
-
-    from contextlib import closing  # noqa: PLC0415
 
     try:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus)
-    except (
-        IndexerLockError,
-        IndexerCorruptError,
-        IndexerDiskFullError,
-        IndexerInvalidPathError,
-        IndexerMigrationError,
-    ) as exc:
-        typer.echo(str(exc), err=True)
-        return 1
+        with open_indexer_db(db_path, event_bus=event_bus) as conn:
+            if dry_run:
+                # Read-only preview: count pending rows without draining any.
+                from personalscraper.indexer.repair import get_queue_health  # noqa: PLC0415
 
-    with closing(conn):
-        try:
-            apply_migrations(conn, migrations_dir)
-        except (
-            IndexerLockError,
-            IndexerCorruptError,
-            IndexerDiskFullError,
-            IndexerInvalidPathError,
-            IndexerMigrationError,
-        ) as exc:
-            typer.echo(str(exc), err=True)
-            return 1
+                oldest, depth = get_queue_health(conn)
+                summary = {
+                    "dry_run": True,
+                    "repair_would_drain": depth,
+                    "oldest_pending_age_seconds": oldest,
+                    "budget_seconds": budget_seconds,
+                }
+                log.info("indexer.cli.repair_would_drain", pending_depth=depth, budget_seconds=budget_seconds)
+                typer.echo(json.dumps(summary))
+                return 0
 
-        if dry_run:
-            # Read-only preview: count pending rows without draining any.
-            from personalscraper.indexer.repair import get_queue_health  # noqa: PLC0415
+            stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)
 
-            oldest, depth = get_queue_health(conn)
+            # Tombstone retention: purge deleted_item rows older than the
+            # configured retention window (DESIGN §8.x).  library-repair is
+            # the natural maintenance home for this — drift writes new rows
+            # whenever a soft-delete is finalised; without periodic purge
+            # the tombstone table grows monotonically.
+            from personalscraper.indexer.drift import purge_old_tombstones  # noqa: PLC0415
+
+            retention_days = int(cfg.indexer.log.deleted_item_retention_days)
+            try:
+                tombstones_purged = purge_old_tombstones(conn, retention_days=retention_days)
+                conn.commit()
+            except sqlite3.Error as exc:
+                log.warning(
+                    "indexer.repair.tombstone_purge_failed",
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    retention_days=retention_days,
+                    exc_info=True,
+                )
+                tombstones_purged = 0
+
             summary = {
-                "dry_run": True,
-                "repair_would_drain": depth,
-                "oldest_pending_age_seconds": oldest,
-                "budget_seconds": budget_seconds,
+                "processed": stats.processed,
+                "succeeded": stats.succeeded,
+                "failed": stats.failed,
+                "budget_exhausted": stats.budget_exhausted,
+                "pending_depth": stats.pending_depth,
+                "tombstones_purged": tombstones_purged,
+                "retention_days": retention_days,
             }
-            log.info("indexer.cli.repair_would_drain", pending_depth=depth, budget_seconds=budget_seconds)
             typer.echo(json.dumps(summary))
             return 0
-
-        stats = drain(conn, budget_seconds=budget_seconds, processor=repair_processor)
-
-        # Tombstone retention: purge deleted_item rows older than the
-        # configured retention window (DESIGN §8.x).  library-repair is
-        # the natural maintenance home for this — drift writes new rows
-        # whenever a soft-delete is finalised; without periodic purge
-        # the tombstone table grows monotonically.
-        from personalscraper.indexer.drift import purge_old_tombstones  # noqa: PLC0415
-
-        retention_days = int(cfg.indexer.log.deleted_item_retention_days)
-        try:
-            tombstones_purged = purge_old_tombstones(conn, retention_days=retention_days)
-            conn.commit()
-        except sqlite3.Error as exc:
-            log.warning(
-                "indexer.repair.tombstone_purge_failed",
-                error=str(exc),
-                error_type=type(exc).__name__,
-                retention_days=retention_days,
-                exc_info=True,
-            )
-            tombstones_purged = 0
-
-        summary = {
-            "processed": stats.processed,
-            "succeeded": stats.succeeded,
-            "failed": stats.failed,
-            "budget_exhausted": stats.budget_exhausted,
-            "pending_depth": stats.pending_depth,
-            "tombstones_purged": tombstones_purged,
-            "retention_days": retention_days,
-        }
-        typer.echo(json.dumps(summary))
-        return 0
+    except IndexerCeremonyError:
+        return 1
 
 
 # ---------------------------------------------------------------------------

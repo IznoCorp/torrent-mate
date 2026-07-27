@@ -310,11 +310,10 @@ Bloc `providers`, indexé par nom de Protocole de capacité → `dict[provider, 
 | `EpisodeFetcher`         | `{tvdb:1, tmdb:2}`                                      |
 | `RatingProvider`         | `{}` (ajouter imdb/rotten_tomatoes avec `OMDB_API_KEY`) |
 | `ArtworkProvider`        | `{tmdb:1, tvdb:2}`                                      |
-| `KeywordProvider`        | `{}` (nécessite un pont IDCrossRef)                     |
+| `KeywordProvider`        | `{}` (tvdb ne l'implémente pas ; capacité verrouillée, aucune traduction inter-provider) |
 | `VideoProvider`          | `{tmdb:1, tvdb:2}`                                      |
 | `RecommendationProvider` | `{}` (seul trakt)                                       |
 | `IDValidator`            | `{}` (seul imdb/OMDb)                                   |
-| `IDCrossRef`             | `{}` (seul imdb/OMDb)                                   |
 
 ---
 

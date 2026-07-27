@@ -67,9 +67,11 @@ _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 # Patch target for scanner.scan called from library_index_command.
-# scan is imported lazily inside library_index_command so we patch the
+# scan_with is imported lazily inside library_index_command so we patch the
 # canonical location (the scanner module) rather than the importer module.
-_PATCH_SCAN = "personalscraper.indexer.scanner.scan"
+# The command builds a ScanRequest and calls scan_with(request), so the seam
+# is scan_with and its sole positional arg is the ScanRequest.
+_PATCH_SCAN = "personalscraper.indexer.scanner.scan_with"
 
 # Patch target for query.execute (Phase 8.2 stub until full implementation).
 _PATCH_QUERY_EXECUTE = "personalscraper.indexer.query.execute"
@@ -174,7 +176,7 @@ class TestLibraryIndexNoBudget:
             result = runner.invoke(app, ["library-index", "--mode", "enrich", "--no-budget"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        assert mock_scan.call_args.kwargs["budget_seconds"] is None
+        assert mock_scan.call_args.args[0].budget_seconds is None
 
     def test_no_budget_overrides_explicit_budget(self, tmp_path: Path) -> None:
         """``--no-budget`` wins when ``--budget N`` is also supplied."""
@@ -189,7 +191,7 @@ class TestLibraryIndexNoBudget:
             result = runner.invoke(app, ["library-index", "--mode", "enrich", "--budget", "60", "--no-budget"])
 
         assert result.exit_code == 0
-        assert mock_scan.call_args.kwargs["budget_seconds"] is None
+        assert mock_scan.call_args.args[0].budget_seconds is None
 
 
 class TestLibraryIndexQuickMode:
@@ -212,15 +214,15 @@ class TestLibraryIndexQuickMode:
             result = runner.invoke(app, ["library-index", "--mode", "quick"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        call_kwargs = mock_scan.call_args.kwargs
-        assert call_kwargs["db_path"] == cfg.indexer.db_path
-        assert call_kwargs["max_workers"] == cfg.indexer.scan.max_workers_total
-        assert call_kwargs["checkpoint_every_n_files"] == cfg.indexer.scan.checkpoint_every_n_files
-        assert call_kwargs["drop_indexes"] == cfg.indexer.scan.drop_indexes_during_full_scan
-        assert call_kwargs["budget_seconds"] == cfg.indexer.scan.budget_seconds
-        assert call_kwargs["read_rate_mb_per_sec"] == cfg.indexer.scan.read_rate_mb_per_sec
-        assert call_kwargs["staging_dir"] == str(cfg.paths.staging_dir)
-        assert call_kwargs["spotlight_enabled"] == cfg.indexer.spotlight.use_when_available
+        request = mock_scan.call_args.args[0]
+        assert request.db_path == cfg.indexer.db_path
+        assert request.max_workers == cfg.indexer.scan.max_workers_total
+        assert request.checkpoint_every_n_files == cfg.indexer.scan.checkpoint_every_n_files
+        assert request.drop_indexes == cfg.indexer.scan.drop_indexes_during_full_scan
+        assert request.budget_seconds == cfg.indexer.scan.budget_seconds
+        assert request.read_rate_mb_per_sec == cfg.indexer.scan.read_rate_mb_per_sec
+        assert request.staging_dir == str(cfg.paths.staging_dir)
+        assert request.spotlight_enabled == cfg.indexer.spotlight.use_when_available
         summary = json.loads(result.stdout.strip())
         assert summary["mode"] == "quick"
         assert summary["files_walked"] == 10
@@ -294,8 +296,8 @@ class TestLibraryIndexDiskFilter:
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
         # Verify scan was called with disk_filter='Disk1'
         mock_scan.assert_called_once()
-        call_kwargs = mock_scan.call_args.kwargs
-        assert call_kwargs.get("disk_filter") == "Disk1"
+        request = mock_scan.call_args.args[0]
+        assert request.disk_filter == "Disk1"
 
 
 # ---------------------------------------------------------------------------
@@ -409,9 +411,9 @@ class TestLibraryIndexDryRun:
         conn = _make_conn(db_path)
         conn.close()
 
-        def _scan_that_inserts(*args: Any, **kwargs: Any) -> ScanRunResult:
+        def _scan_that_inserts(request: Any) -> ScanRunResult:
             """Insert a sentinel scan_run row via the live connection."""
-            _conn: sqlite3.Connection = kwargs["conn"]
+            _conn: sqlite3.Connection = request.conn
             now = int(time.time())
             _conn.execute(
                 "INSERT INTO scan_run (generation, mode, disk_filter, started_at, "
@@ -699,10 +701,10 @@ class TestLibraryVerify:
             status="ok",
         )
 
-        captured_kwargs: dict = {}
+        captured_requests: list = []
 
-        def _capture_scan(*args: Any, **kwargs: Any) -> ScanRunResult:
-            captured_kwargs.update(kwargs)
+        def _capture_scan(request: Any) -> ScanRunResult:
+            captured_requests.append(request)
             return fake_result
 
         with (
@@ -713,9 +715,10 @@ class TestLibraryVerify:
             result = runner.invoke(app, ["library-verify", "--no-enqueue", "--disk", "Disk2"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        # The no_enqueue kwarg must have reached scan().
-        assert captured_kwargs.get("no_enqueue") is True, (
-            f"no_enqueue not forwarded to scan(); captured kwargs: {captured_kwargs}"
+        # The no_enqueue flag must have reached scan_with() via the ScanRequest.
+        assert captured_requests, "scan_with was not called"
+        assert captured_requests[0].no_enqueue is True, (
+            f"no_enqueue not forwarded to scan(); request: {captured_requests[0]}"
         )
         # The JSON summary must include no_enqueue=True.
         summary = json.loads(result.stdout.strip())
@@ -792,8 +795,8 @@ class TestLibraryIndexConfirmBulkChange:
             )
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        call_kwargs = mock_scan.call_args.kwargs
-        assert call_kwargs.get("confirm_bulk_change") is True
+        request = mock_scan.call_args.args[0]
+        assert request.confirm_bulk_change is True
 
 
 # ---------------------------------------------------------------------------

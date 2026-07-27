@@ -159,12 +159,16 @@ def _detect_needs(
     needs_nfo = not nfo_valid
 
     # Artwork check — flag missing poster regardless of NFO state
-    # (ID resolution is handled separately by _resolve_tmdb_id). Canonical
-    # detection (core.artwork_naming): the old exact-name checks re-downloaded
-    # artwork that existed under another legitimate spelling.
-    from personalscraper.core.artwork_naming import has_poster  # noqa: PLC0415
+    # (ID resolution is handled separately by _resolve_tmdb_id). Presence comes
+    # from the ONE canonical detector (core.artwork_naming.artwork_status), the
+    # same union verify's PosterPresent gate consults — so the repair loop and
+    # the dispatch gate agree on whether a poster is on disk (F5 / DESIGN §9).
+    # The trigger keys on the (blocking) poster, mirroring verify's ERROR-level
+    # poster check; a folder.jpg-postered item is thus NOT re-fetched by
+    # `rescrape --only artwork`.
+    from personalscraper.core.artwork_naming import artwork_status  # noqa: PLC0415
 
-    needs_artwork = not has_poster(media_dir)
+    needs_artwork = not artwork_status(media_dir, media_type).poster
 
     # Episode check (TV shows only)
     needs_episodes = False

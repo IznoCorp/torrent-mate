@@ -8,9 +8,9 @@ to the :class:`RatingProvider` capability protocol.
 
 The façade *only* composes :class:`RatingProvider` (DESIGN §4) —
 unlike :class:`~personalscraper.api.metadata.imdb.IMDbClient`, OMDb
-gives us no Rotten-Tomatoes-side identifier to validate or cross-ref,
-so no :class:`IDValidator` and no :class:`IDCrossRef` are implemented
-here. Consumers detect this via :func:`isinstance` (the helpers in
+gives us no Rotten-Tomatoes-side identifier to validate, so no
+:class:`IDValidator` is implemented here. Consumers detect this via
+:func:`isinstance` (the helpers in
 :mod:`personalscraper.api._helpers` already filter on capability).
 
 When OMDb returns a payload that does not contain a Rotten Tomatoes

@@ -38,6 +38,10 @@ _ORDER: dict[tuple[CheckStage, str], list[str]] = {
         "category",
         "no_duplicate_videos",
         "ntfs_safe_names",
+        # VERIFY-MAINTENANCE-04: the movie-video-rename gate, formerly the
+        # verify.completeness.video_rename_gap bolt-on, is now a catalog check.
+        # Ordered last to mirror its historical "after the verify checks" position.
+        "movie_video_renamed",
     ],
     (CheckStage.DISPATCH, "tvshow"): [
         "video_present",

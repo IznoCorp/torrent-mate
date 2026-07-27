@@ -474,6 +474,44 @@ def test_follow_set_active_flips_flag(store: ConcreteAcquireStore) -> None:
     assert any(s.id == row_id for s in active_list), "Reactivated row must appear in list_active()"
 
 
+def test_follow_merge_metadata_is_additive(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """merge_metadata writes poster_url/overview/year additively — the web write path (ACQUIRE-09).
+
+    Owns the write the web layer used to do with a raw ``UPDATE
+    followed_series`` (single-writer discipline). ``None`` means « not known
+    right now », never « clear »: the acq-states server-side enrichment resolves
+    each field independently and a provider that cannot answer must not erase a
+    value a previous add path already stored (the reactivate path re-runs the
+    enrichment on a row that may already carry a poster).
+    """
+    import sqlite3
+
+    row_id = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tvdb_id=88888), title="Card Show", added_at=1_700_000_000)
+    )
+
+    def _cols() -> sqlite3.Row:
+        with sqlite3.connect(str(tmp_path / "acquire.db")) as conn:
+            conn.row_factory = sqlite3.Row
+            return conn.execute(
+                "SELECT poster_url, overview, year FROM followed_series WHERE id = ?", (row_id,)
+            ).fetchone()
+
+    store.follow.merge_metadata(row_id, poster_url="https://x/p.jpg", overview="A synopsis.", year=2023)
+    row = _cols()
+    assert row["poster_url"] == "https://x/p.jpg"
+    assert row["overview"] == "A synopsis."
+    assert row["year"] == 2023
+
+    # A None LEAVES its column intact — an unresolved field never erases a
+    # stored one; a supplied field still overwrites.
+    store.follow.merge_metadata(row_id, poster_url=None, overview="replaced", year=None)
+    row = _cols()
+    assert row["poster_url"] == "https://x/p.jpg", "A None poster must not erase the stored poster"
+    assert row["overview"] == "replaced"
+    assert row["year"] == 2023, "A None year must not erase the stored year"
+
+
 def test_follow_add_same_ref_twice_no_duplicate_reactivates(store: ConcreteAcquireStore) -> None:
     """RACE/IDEMPOTENCY: two adds of the same media_ref → ONE active row, same id, no IntegrityError.
 

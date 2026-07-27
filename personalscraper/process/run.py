@@ -9,6 +9,7 @@ Each sub-step can be called independently for error isolation.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,8 @@ from personalscraper.core.media_types import FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
+from personalscraper.reports.clean import CleanDetails
+from personalscraper.reports.cleanup import CleanupDetails
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.registry import ProviderRegistry
@@ -118,6 +121,54 @@ def _revert_unmatched_recleans(
     return reverted
 
 
+def revert_unmatched_recleans(
+    config: Config,
+    clean_report: StepReport,
+    scrape_report: StepReport,
+    *,
+    dry_run: bool = False,
+) -> int:
+    """Revert reclean renames the scraper failed to match, from the two reports.
+
+    Single shared owner of the "reclean → scrape-miss → revert" seam, invoked by
+    BOTH the CLI :func:`run_process` path and ``Pipeline.run`` (F3 parity —
+    ``solidify`` P1.6). Reads the reclean rename map from ``clean_report.renames``
+    (``new_name → old_name``, produced by ``reclean_folders``) and the scraper's
+    unmatched folder set from ``scrape_report.unmatched_paths``, resolves the
+    movie/tvshow category directories from ``config``, and reverts the folders
+    that are in both. A no-op when reclean renamed nothing.
+
+    The rename record threads across the clean → scrape boundary via the two
+    :class:`StepReport` fields alone (no ``AppContext``), so the function is
+    reachable from the engine's ``process/`` layer under the boundary rule.
+
+    Args:
+        config: Loaded Config used to resolve the movie/tvshow staging dirs.
+        clean_report: The ``clean`` step report carrying ``renames``.
+        scrape_report: The ``scrape`` step report carrying ``unmatched_paths``.
+        dry_run: If True, log intended reversions without performing them.
+
+    Returns:
+        Number of folders reverted (or that would be reverted in dry-run).
+    """
+    # Guard before resolving any paths so a run with no reclean renames does no
+    # filesystem work — byte-identical to the previous inline ``run_process`` guard.
+    if not clean_report.renames:
+        return 0
+
+    staging = config.paths.staging_dir
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    # Read the typed unmatched_paths field directly (no detail-string parsing).
+    unmatched_names: set[str] = set(scrape_report.unmatched_paths)
+    return _revert_unmatched_recleans(
+        category_dirs=[movies_dir, tvshows_dir],
+        unmatched_names=unmatched_names,
+        rename_map=clean_report.renames,
+        dry_run=dry_run,
+    )
+
+
 def run_clean(
     settings: Settings,
     config: Config,
@@ -200,6 +251,13 @@ def run_clean(
             cat_status = "skipped"
         event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status=cat_status))
 
+    # Typed details payload (STEP_REPORT_CONTRACT: CleanDetails). ``renamed`` is
+    # the reclean new_name→old_name map (the step's genuinely structured output).
+    # ``removed_dirs``/``removed_files`` have no per-name source at this layer
+    # (extract/strip/dedup expose counts + detail strings only, not name lists),
+    # so they stay honestly empty rather than parsed back out of detail strings.
+    clean_report.details_payload = asdict(CleanDetails(renamed=dict(clean_report.renames)))
+
     log.info(
         "process_clean_complete",
         recleaned=clean_report.success_count,
@@ -262,6 +320,11 @@ def run_cleanup(
                 details={"removed": cat_report.success_count},
             )
         )
+
+    # Typed details payload (STEP_REPORT_CONTRACT: CleanupDetails). ``removed``
+    # is the set of removed empty-dir rel-paths (the per-category cleanup detail
+    # lines); ``cleanup_empty_dirs`` has no error terminal, so ``errors`` is empty.
+    cleanup_report.details_payload = asdict(CleanupDetails(removed=list(cleanup_report.details), errors=[]))
 
     log.info("process_cleanup_complete", removed=cleanup_report.success_count)
     return cleanup_report
@@ -327,19 +390,10 @@ def run_process(
         )
 
     # Revert reclean renames for folders the scraper could not match so that
-    # they keep their original torrent name and remain rescrape-eligible.
-    if clean_report.renames:
-        staging = config.paths.staging_dir
-        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
-        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
-        # Read the typed unmatched_paths field directly (no detail-string parsing).
-        unmatched_names: set[str] = set(scrape_report.unmatched_paths)
-        _revert_unmatched_recleans(
-            category_dirs=[movies_dir, tvshows_dir],
-            unmatched_names=unmatched_names,
-            rename_map=clean_report.renames,
-            dry_run=dry_run,
-        )
+    # they keep their original torrent name and remain rescrape-eligible. The
+    # single shared owner (also called by ``Pipeline.run`` for F3 parity)
+    # threads the reclean map + unmatched set from the two StepReports.
+    revert_unmatched_recleans(config, clean_report, scrape_report, dry_run=dry_run)
 
     try:
         cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config, event_bus=event_bus)

@@ -18,7 +18,7 @@ import {
   getActions,
   type ActionsResponse,
   type MaintenanceAction,
-} from "@/api/client";
+} from "@/api/maintenance";
 import { ActionForm } from "@/components/maintenance/ActionForm";
 import { Badge } from "@/components/ui/badge";
 import {

@@ -92,7 +92,7 @@ def test_repair_empty_queue_exits_clean(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-repair"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["processed"] == 0
     assert data["succeeded"] == 0
     assert data["failed"] == 0
@@ -112,7 +112,7 @@ def test_repair_drains_pending_rows(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-repair"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["processed"] >= 3, f"Expected >=3 processed, got {data}"
     assert data["pending_depth"] == 0, f"Queue not drained: {data}"
 
@@ -127,7 +127,7 @@ def test_repair_respects_budget(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-repair", "--budget", "0"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     # Budget=0 means the deadline=now — the first budget check should fire.
     # Either the budget is exhausted OR all 200 rows happened to be in a
     # single batch (limit=100 per batch).  In the latter case all rows are
@@ -147,7 +147,7 @@ def test_repair_dry_run_no_writes(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-repair", "--dry-run"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["dry_run"] is True
     assert data["repair_would_drain"] == 5, f"Dry-run should see 5 pending rows, got {data}"
 
@@ -182,14 +182,14 @@ def test_repair_drains_path_missing_then_loop_closed(tmp_path, test_config) -> N
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r1.exit_code == 0, r1.output
-    d1 = json_from_result(r1)
+    d1 = json_from_result(r1, source_attr="stdout")
     assert d1["enqueued_repairs"] >= 1, f"No repairs enqueued: {d1}"
 
     # Drain with repair.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r2 = run_cli(["--format", "json", "library-repair"])
     assert r2.exit_code == 0, r2.output
-    d2 = json_from_result(r2)
+    d2 = json_from_result(r2, source_attr="stdout")
     assert d2["succeeded"] >= 1, f"Repair did not succeed: {d2}"
     assert d2["pending_depth"] == 0, f"Queue not empty: {d2}"
 
@@ -197,7 +197,7 @@ def test_repair_drains_path_missing_then_loop_closed(tmp_path, test_config) -> N
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r3 = run_cli(["--format", "json", "library-reconcile"])
     assert r3.exit_code == 0, r3.output
-    d3 = json_from_result(r3)
+    d3 = json_from_result(r3, source_attr="stdout")
     assert d3["path_missing_count"] == 0, (
         f"CLOSURE-OF-LOOP BROKEN: path_missing_count={d3['path_missing_count']} after repair: {d3}"
     )
@@ -218,14 +218,14 @@ def test_repair_idempotent_after_drain(tmp_path, test_config) -> None:
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r1 = run_cli(["--format", "json", "library-repair"])
     assert r1.exit_code == 0, r1.output
-    d1 = json_from_result(r1)
+    d1 = json_from_result(r1, source_attr="stdout")
     assert d1["processed"] == 0
 
     # Second run — same result.
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r2 = run_cli(["--format", "json", "library-repair"])
     assert r2.exit_code == 0, r2.output
-    d2 = json_from_result(r2)
+    d2 = json_from_result(r2, source_attr="stdout")
     assert d2["processed"] == 0
     assert d2 == d1, f"Output changed between idempotent runs: {d1} vs {d2}"
 
@@ -278,6 +278,7 @@ def test_repair_json_schema_valid(tmp_path, test_config) -> None:
     assert_json_schema(
         result,
         required_keys=["processed", "succeeded", "failed", "pending_depth", "budget_exhausted"],
+        source_attr="stdout",
     )
 
 

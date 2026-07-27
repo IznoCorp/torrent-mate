@@ -8,12 +8,40 @@ exercised.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 from unittest.mock import MagicMock
 
 from personalscraper.api.metadata._base import Notations
 from personalscraper.naming_patterns import PATTERNS, NamingPatterns
+from personalscraper.scraper._xref import family_to_client, resolve_external_ids
 from personalscraper.scraper.movie_service import MovieServiceMixin
+
+
+def _resolve(
+    mixin: MovieServiceMixin,
+    *,
+    canonical_provider: str,
+    movie_ids: dict[str, str],
+    expected_title: str,
+    expected_year: int | None,
+) -> tuple[dict[str, str], list[Notations]]:
+    """Drive the shared ``resolve_external_ids`` the way the movie service wires it.
+
+    P4.2 collapsed the per-service ``_resolve_external_ids`` /
+    ``_family_to_client`` delegates into the single ``_xref`` free
+    functions (ACC-03). This helper reproduces the movie-side wiring so
+    the existing behavioural assertions keep exercising the shared body.
+    """
+    return resolve_external_ids(
+        canonical_provider=canonical_provider,
+        ids=movie_ids,
+        expected_title=expected_title,
+        expected_year=expected_year,
+        family_to_client=partial(family_to_client, registry=mixin._registry, imdb_client=mixin._imdb),
+        imdb_client=mixin._imdb,
+        rt_client=mixin._rotten_tomatoes,
+    )
 
 
 def _imdb_notation() -> Notations:
@@ -34,6 +62,7 @@ def _make_mixin(
 ) -> MovieServiceMixin:
     mixin = MovieServiceMixin.__new__(MovieServiceMixin)
     mixin.dry_run = False
+    mixin._registry = MagicMock()  # type: ignore[assignment]
     mixin._tvdb = tvdb if tvdb is not None else MagicMock()  # type: ignore[attr-defined]
     mixin._tmdb = tmdb if tmdb is not None else MagicMock()  # type: ignore[assignment]
     mixin._imdb = imdb if imdb is not None else MagicMock()  # type: ignore[attr-defined]
@@ -54,7 +83,8 @@ def test_movie_resolve_external_ids_keeps_canonical_revalidates_others() -> None
     rt.get_rating.return_value = [_rt_notation()]
     mixin = _make_mixin(imdb=imdb, rt=rt)
 
-    external_ids, ratings = mixin._resolve_external_ids(
+    external_ids, ratings = _resolve(
+        mixin,
         canonical_provider="tmdb",
         movie_ids={"tmdb": "603", "imdb": "tt0133093"},
         expected_title="The Matrix",
@@ -75,7 +105,8 @@ def test_movie_resolve_external_ids_drops_imdb_on_revalidation_reject() -> None:
     rt.get_rating.return_value = [_rt_notation()]
     mixin = _make_mixin(imdb=imdb, rt=rt)
 
-    external_ids, ratings = mixin._resolve_external_ids(
+    external_ids, ratings = _resolve(
+        mixin,
         canonical_provider="tmdb",
         movie_ids={"tmdb": "603", "imdb": "tt9999999"},
         expected_title="The Matrix",
@@ -94,7 +125,8 @@ def test_movie_resolve_external_ids_swallows_validate_exception() -> None:
     imdb.validate_id.side_effect = RuntimeError("network down")
     mixin = _make_mixin(imdb=imdb)
 
-    external_ids, _ = mixin._resolve_external_ids(
+    external_ids, _ = _resolve(
+        mixin,
         canonical_provider="tmdb",
         movie_ids={"tmdb": "603", "imdb": "tt0133093"},
         expected_title="The Matrix",
@@ -109,7 +141,8 @@ def test_movie_resolve_external_ids_no_imdb_no_rating_call() -> None:
     rt = MagicMock()
     mixin = _make_mixin(rt=rt)
 
-    _, ratings = mixin._resolve_external_ids(
+    _, ratings = _resolve(
+        mixin,
         canonical_provider="tmdb",
         movie_ids={"tmdb": "603"},
         expected_title="The Matrix",

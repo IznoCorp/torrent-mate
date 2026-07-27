@@ -9,9 +9,14 @@ import qbittorrentapi
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentItem
-from personalscraper.api.torrent.qbittorrent import (
+from personalscraper.api.torrent._errors import (
     QBitAuthLockoutError,
+    TorrentAuthError,
+    TorrentUnreachableError,
+)
+from personalscraper.api.torrent.qbittorrent import (
     QBitClient,
+    _map_qbit_api_error,
     _torrent_item,
     build_client,
 )
@@ -398,3 +403,135 @@ class TestQBitClient:
             client.login()
         assert exc_info.value.http_status == 403
         assert exc_info.value.provider == "qbittorrent"
+
+
+class TestQBitNeutralErrorTranslation:
+    """The ingest-boundary read methods translate qbittorrentapi exceptions.
+
+    ``get_completed`` / ``get_all_hashes`` / ``is_seeding`` / ``get_content_path``
+    map the provider library's transport/auth exceptions onto the family-neutral
+    :mod:`personalscraper.api.torrent._errors` hierarchy so the ingest step never
+    imports ``qbittorrentapi`` (PIPELINE-CORE-06 / TORRENT-TRACKERS-08). The
+    neutral errors subclass :class:`ApiError`, so ``http_status`` still carries
+    the auth/connection distinction.
+    """
+
+    def _client(self) -> QBitClient:
+        c = QBitClient("localhost", 8081, "admin", "pass")
+        c._client = MagicMock()
+        return c
+
+    def test_get_completed_login_failed_maps_to_auth_error_401(self) -> None:
+        """LoginFailed on the listing call → TorrentAuthError(401)."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.LoginFailed("bad creds")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentAuthError, match="login failed") as exc_info:
+            client.get_completed()
+        assert exc_info.value.http_status == 401
+
+    def test_get_completed_forbidden_maps_to_auth_error_403(self) -> None:
+        """Forbidden403Error on the listing call → TorrentAuthError(403), IP-ban wording."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.Forbidden403Error("ip banned")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentAuthError, match="banned") as exc_info:
+            client.get_completed()
+        assert exc_info.value.http_status == 403
+
+    def test_get_completed_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on the listing call → TorrentUnreachableError(0)."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError, match="unreachable") as exc_info:
+            client.get_completed()
+        assert exc_info.value.http_status == 0
+
+    def test_get_all_hashes_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_all_hashes → TorrentUnreachableError."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        with pytest.raises(TorrentUnreachableError):
+            client.get_all_hashes()
+
+    def test_get_content_path_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on get_content_path → TorrentUnreachableError."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        torrent = TorrentItem(hash="abc", name="t", size_bytes=1, progress=1.0, state="uploading")
+        with pytest.raises(TorrentUnreachableError):
+            client.get_content_path(torrent)
+
+    def test_is_seeding_connection_error_maps_to_unreachable(self) -> None:
+        """APIConnectionError on is_seeding → TorrentUnreachableError."""
+        client = self._client()
+        client._client.torrents_info.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        torrent = TorrentItem(hash="abc", name="t", size_bytes=1, progress=1.0, state="uploading")
+        with pytest.raises(TorrentUnreachableError):
+            client.is_seeding(torrent)
+
+
+class TestQBitProviderErrorMap:
+    """One consolidated ``_map_qbit_api_error`` table for the mutation methods.
+
+    ``list_files`` / ``properties`` / ``resume`` / ``delete`` / ``add`` /
+    ``inject`` previously each duplicated the same except-chain (TORRENT-TRACKERS-01,
+    audit ×6). They now route through this single helper; the dispatch must stay
+    behaviour-preserving.
+    """
+
+    def _client(self) -> QBitClient:
+        c = QBitClient("localhost", 8081, "admin", "pass")
+        c._client = MagicMock()
+        return c
+
+    def test_map_not_found_with_id(self) -> None:
+        """A NotFound404 with an id maps to a 404 naming the hash (list_files/properties)."""
+        err = _map_qbit_api_error("list_files", qbittorrentapi.NotFound404Error("x"), not_found_id="deadbeef")
+        assert err.http_status == 404
+        assert "deadbeef" in err.message
+
+    def test_map_not_found_without_id_falls_to_connection(self) -> None:
+        """resume/delete pass no id → a 404 is an APIConnectionError subclass → 0."""
+        err = _map_qbit_api_error("resume", qbittorrentapi.NotFound404Error("x"))
+        assert err.http_status == 0
+        assert "connection error" in err.message
+
+    def test_map_forbidden(self) -> None:
+        """Forbidden403Error → 403 with the op-scoped message."""
+        err = _map_qbit_api_error("resume", qbittorrentapi.Forbidden403Error("ban"))
+        assert err.http_status == 403
+        assert "resume forbidden" in err.message
+
+    def test_map_unauthorized_and_login_failed(self) -> None:
+        """Both Unauthorized401Error and LoginFailed → 401."""
+        assert _map_qbit_api_error("delete", qbittorrentapi.Unauthorized401Error("x")).http_status == 401
+        assert _map_qbit_api_error("delete", qbittorrentapi.LoginFailed("x")).http_status == 401
+
+    def test_map_corrupt_payload_and_torrent_file(self) -> None:
+        """415 → corrupt payload; TorrentFileError family → 0 (unreadable .torrent)."""
+        assert _map_qbit_api_error("add", qbittorrentapi.UnsupportedMediaType415Error("x")).http_status == 415
+        tf = _map_qbit_api_error("add", qbittorrentapi.TorrentFileNotFoundError("x"))
+        assert tf.http_status == 0
+        assert "could not read torrent file" in tf.message
+
+    def test_map_connection_and_generic(self) -> None:
+        """APIConnectionError → 0; a bare/generic APIError → 502."""
+        assert _map_qbit_api_error("properties", qbittorrentapi.APIConnectionError("x")).http_status == 0
+        assert _map_qbit_api_error("properties", qbittorrentapi.APIError("x")).http_status == 502
+
+    def test_list_files_not_found_maps_to_404(self) -> None:
+        """list_files routes a NotFound404 through the helper with its info_hash → 404."""
+        client = self._client()
+        client._client.torrents_files.side_effect = qbittorrentapi.NotFound404Error("x")  # type: ignore[attr-defined]
+        with pytest.raises(ApiError, match="not found") as ei:
+            client.list_files("deadbeef")
+        assert ei.value.http_status == 404
+
+    def test_add_bare_connection_error_propagates_uncaught(self) -> None:
+        """add() deliberately does NOT map a bare APIConnectionError (historical behaviour)."""
+        client = self._client()
+        client._client.torrents_add.side_effect = qbittorrentapi.APIConnectionError("refused")  # type: ignore[attr-defined]
+        from personalscraper.api.torrent._base import TorrentSource
+
+        src = TorrentSource.from_magnet("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567")
+        with pytest.raises(qbittorrentapi.APIConnectionError):
+            client.add(src)

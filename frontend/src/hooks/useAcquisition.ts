@@ -20,6 +20,7 @@ import {
   getWanted,
   searchMedia,
   updateFollow,
+  type AcquisitionStatusResponse,
   type CreateFollowRequest,
   type FollowedParams,
   type MediaSearchParams,
@@ -28,6 +29,7 @@ import {
   type WantedParams,
   type WantedResponse,
 } from "@/api/acquisition";
+import { useRunToCompletion } from "@/hooks/useRunToCompletion";
 
 // ---------------------------------------------------------------------------
 // Read hooks
@@ -198,13 +200,17 @@ export function useCompleteness(id: number, enabled: boolean) {
  *   The tracked run entry (or ``undefined`` while unknown).
  */
 export function useTrackedAcquisitionRun(runUid: string | null) {
-  const query = useQuery({
-    queryKey: [...acqKeys.status(), "tracked", runUid],
+  // The shared launch-202 → poll → terminal machine. Terminal is per-run:
+  // this surface polls the acquisition status list and watches the tracked
+  // run's ``ended_at`` (not a pipeline-run ``outcome``).
+  const query = useRunToCompletion<AcquisitionStatusResponse>({
+    queryKey: acqKeys.trackedRun(runUid),
     queryFn: getAcquisitionStatus,
     enabled: runUid != null,
-    refetchInterval: (q) => {
-      const run = q.state.data?.recent_runs.find((r) => r.run_uid === runUid);
-      return run?.ended_at != null ? false : 2000;
+    intervalMs: 2000,
+    isTerminal: (data) => {
+      const run = data?.recent_runs.find((r) => r.run_uid === runUid);
+      return run?.ended_at != null;
     },
   });
   return runUid == null

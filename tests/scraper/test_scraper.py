@@ -848,7 +848,7 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Unknown Show (2024)"
         show_dir.mkdir()
 
-        with patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(None, [])):
+        with patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(None, [])):
             result = scraper.scrape_tvshow(show_dir)
 
         assert result.action == "skipped_low_confidence"
@@ -891,7 +891,7 @@ class TestScrapeTvshow:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -936,7 +936,7 @@ class TestScrapeTvshow:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tvdb"), "get_series", return_value=tvdb_series_data),
             patch.object(scraper._registry.get("tvdb"), "get_remote_ids", return_value={}),  # No tmdb_id
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
@@ -982,7 +982,7 @@ class TestScrapeTvshow:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tvdb"), "get_series", return_value=tvdb_series_data),
             patch.object(scraper._registry.get("tvdb"), "get_remote_ids", return_value={"tmdb_id": "777"}),
             patch.object(
@@ -1162,7 +1162,7 @@ class TestScrapeTvshowExtra:
         show_dir.mkdir()
 
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
             side_effect=ConnectionError("TVDB unreachable"),
         ):
             result = scraper.scrape_tvshow(show_dir)
@@ -1827,7 +1827,7 @@ class TestMediaPathUpdatedAfterRename:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -2002,7 +2002,7 @@ class TestClassifierIntegration:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -2588,7 +2588,7 @@ class TestShowArtworkFailedNarrowedExceptions:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(
                 scraper._artwork,
@@ -2660,7 +2660,7 @@ class TestShowArtworkFailedNarrowedExceptions:
         }
 
         with (
-            patch("personalscraper.scraper.confidence.match_tvshow_detailed", return_value=(match, [])),
+            patch("personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed", return_value=(match, [])),
             patch.object(scraper._registry.get("tmdb"), "get_tv", return_value=show_data),
             patch.object(
                 scraper._artwork,
@@ -2684,12 +2684,12 @@ class TestShowArtworkFailedNarrowedExceptions:
 
 
 # ---------------------------------------------------------------------------
-# _to_step_report — unmatched counter (10.1)
+# _build_scrape_report — unmatched counter (10.1)
 # ---------------------------------------------------------------------------
 
 
 class TestToStepReportUnmatched:
-    """Tests for unmatched counter surfacing in _to_step_report.
+    """Tests for unmatched counter surfacing in _build_scrape_report.
 
     Items with action ``skipped_low_confidence`` must be counted in both
     ``skip_count`` (backward compat) and ``counts["unmatched"]`` (new
@@ -2710,13 +2710,13 @@ class TestToStepReportUnmatched:
 
     def test_no_unmatched_produces_no_counts_entry(self, tmp_path: Path) -> None:
         """When no skipped_low_confidence results exist, counts is empty."""
-        from personalscraper.scraper.run import _to_step_report
+        from personalscraper.scraper.run import _build_scrape_report
 
         results = [
             self._make_result("scraped", tmp_path / "Movie A (2020)"),
             self._make_result("skipped_already_done", tmp_path / "Movie B (2021)"),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
 
         assert report.success_count == 1
         assert report.skip_count == 1
@@ -2725,13 +2725,13 @@ class TestToStepReportUnmatched:
 
     def test_one_unmatched_increments_counter(self, tmp_path: Path) -> None:
         """Single skipped_low_confidence item → unmatched=1 in counts."""
-        from personalscraper.scraper.run import _to_step_report
+        from personalscraper.scraper.run import _build_scrape_report
 
         results = [
             self._make_result("scraped", tmp_path / "The Matrix (1999)"),
             self._make_result("skipped_low_confidence", tmp_path / "The Butterfly Effect (2004)"),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
 
         assert report.success_count == 1
         # skipped_low_confidence is still counted in skip_count for backward compat
@@ -2740,7 +2740,7 @@ class TestToStepReportUnmatched:
 
     def test_multiple_unmatched_all_counted(self, tmp_path: Path) -> None:
         """Multiple skipped_low_confidence items accumulate in unmatched."""
-        from personalscraper.scraper.run import _to_step_report
+        from personalscraper.scraper.run import _build_scrape_report
 
         results = [
             self._make_result("skipped_low_confidence", tmp_path / "Film A (2000)"),
@@ -2748,7 +2748,7 @@ class TestToStepReportUnmatched:
             self._make_result("error", tmp_path / "Film C (2002)"),
         ]
         results[2].error = "API timeout"
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
 
         assert report.skip_count == 2
         assert report.error_count == 1
@@ -2756,10 +2756,10 @@ class TestToStepReportUnmatched:
 
     def test_unmatched_detail_label_is_unmatched(self, tmp_path: Path) -> None:
         """Detail line for skipped_low_confidence uses [unmatched] prefix."""
-        from personalscraper.scraper.run import _to_step_report
+        from personalscraper.scraper.run import _build_scrape_report
 
         item_path = tmp_path / "The Butterfly Effect (2004)"
         results = [self._make_result("skipped_low_confidence", item_path)]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
 
         assert any("[unmatched]" in d for d in report.details), f"Expected [unmatched] detail, got: {report.details}"

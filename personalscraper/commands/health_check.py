@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from personalscraper import cli as cli_compat
+from personalscraper import cli_helpers
 from personalscraper.cli_app import app, command_with_telemetry
 from personalscraper.logger import LOGS_DIR, get_logger
 
@@ -163,7 +163,7 @@ def _send_alert(config_obj: object, anomalies: list[str]) -> None:
     from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
     from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
 
-    settings = cli_compat.get_settings()
+    settings = cli_helpers.get_settings()
     if not TelegramNotifier.is_configured(settings):
         log.warning("health_check_telegram_unconfigured")
         return

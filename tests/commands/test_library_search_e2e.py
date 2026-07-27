@@ -66,7 +66,7 @@ def test_search_empty_db_returns_no_results(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-search", "year:2020"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["rows"] == []
     assert data["count"] == 0
 
@@ -94,7 +94,7 @@ def test_search_simple_field_filter_matches(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-search", "year:2020"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["count"] == 2, f"Expected 2 matches for year:2020, got {data['count']}"
     titles = {r["title"] for r in data["rows"]}
     assert titles == {"Movie 2020", "Show 2020"}
@@ -123,7 +123,7 @@ def test_search_negation_filter_excludes(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-search", "--", "-nfo:valid"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["count"] == 2, f"Expected 2 non-valid items, got {data['count']}"
     titles = {r["title"] for r in data["rows"]}
     assert "Valid NFO" not in titles
@@ -149,7 +149,7 @@ def test_search_limit_caps_results(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-search", "--limit", "3", "year:2020"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["count"] == 3, f"Expected 3 rows with --limit 3, got {data['count']}"
     assert data["limit"] == 3
 
@@ -214,7 +214,7 @@ def test_search_json_schema_valid(tmp_path, test_config) -> None:
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         result = run_cli(["--format", "json", "library-search", "year:2020"])
     assert result.exit_code == 0
-    data = assert_json_schema(result, required_keys=["rows", "count", "query", "limit"])
+    data = assert_json_schema(result, required_keys=["rows", "count", "query", "limit"], source_attr="stdout")
     assert isinstance(data["rows"], list)
     assert data["count"] == 1
     assert data["query"] == "year:2020"

@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StagingMediaItem } from "@/api/client";
+import type { StagingMediaItem } from "@/api/staging";
 import { StagingMediaDetail } from "@/components/staging/StagingMediaDetail";
 
 // ---- mocks ----

@@ -86,8 +86,8 @@ vi.mock("@/hooks/useSchedulers", () => ({
   useSchedulers: () => useSchedulersMock(),
 }));
 
-vi.mock("@/api/client", async () => {
-  const actual = await vi.importActual("@/api/client");
+vi.mock("@/api/pipeline", async () => {
+  const actual = await vi.importActual("@/api/pipeline");
   return {
     ...(actual as object),
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return

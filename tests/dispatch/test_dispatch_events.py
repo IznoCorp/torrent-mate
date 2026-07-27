@@ -69,7 +69,7 @@ def test_dispatch_movie_emits_item_dispatched_moved(test_config, tmp_path: Path)
     disk_root = tmp_path / "drive_a"
     with (
         patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status,
         patch(
             "personalscraper.dispatch.dispatcher.Dispatcher._move_new",
@@ -120,7 +120,7 @@ def test_dispatch_movie_emits_item_dispatched_replaced(test_config, tmp_path: Pa
 
     with (
         patch(
-            "personalscraper.dispatch._movie.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status,
         patch(
             "personalscraper.dispatch._movie.replace",
@@ -168,7 +168,7 @@ def test_dispatch_tv_emits_item_dispatched_merged(test_config, tmp_path: Path) -
 
     with (
         patch(
-            "personalscraper.dispatch._tv.get_disk_status",
+            "personalscraper.dispatch._item.get_disk_status",
         ) as mock_status,
         patch(
             "personalscraper.dispatch._tv.merge",
@@ -202,7 +202,7 @@ def test_dispatch_dry_run_does_not_emit(test_config, tmp_path: Path) -> None:
     (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
 
     with patch(
-        "personalscraper.dispatch._movie.get_disk_status",
+        "personalscraper.dispatch._item.get_disk_status",
     ) as mock_status:
         from personalscraper.dispatch.disk_scanner import DiskStatus
 

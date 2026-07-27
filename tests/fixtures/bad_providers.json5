@@ -1,4 +1,4 @@
-// Synthetic broken providers config — triggers all 6 ConfigIssue families
+// Synthetic broken providers config — triggers all 5 ConfigIssue families
 // simultaneously when validated against a Settings object that only has
 // fake TMDB+TVDB keys.
 //
@@ -11,11 +11,9 @@
 // Family 5 — locked_capability_orphan: tvdb is listed under KeywordProvider
 //            but TVDBClient does NOT implement KeywordProvider, and it is the
 //            only provider in that section.
-// Family 6 — idcrossref_cycle: IDCrossRef config has tmdb → tvdb → tmdb,
-//            forming a detection cycle without terminal node.
 //
 // Used by: tests/unit/api/metadata/registry/test_registry_validation.py
-//          test_all_six_issue_families_in_one_error (ACC-05b)
+//          test_all_five_issue_families_in_one_error (ACC-05b)
 {
   Searchable: { nobody: 1, tvdb: 2, tmdb: 3 },
   MovieDetailsProvider: {},
@@ -27,5 +25,4 @@
   VideoProvider: { tmdb: 1 },
   RecommendationProvider: { imdb: 1 },
   IDValidator: { tmdb: 1 },
-  IDCrossRef: { tmdb: 1, tvdb: 2 },
 }

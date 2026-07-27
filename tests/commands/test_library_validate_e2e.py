@@ -78,7 +78,11 @@ def _seed_movie_fs(
     movie_dir.mkdir(parents=True, exist_ok=True)
 
     if with_video:
-        (movie_dir / "movie.mkv").write_bytes(b"f" * (1024 * 1024))  # 1 MB dummy
+        # Canonical ``{Title}.mkv`` stem — a "complete movie directory" must pass
+        # the movie_video_renamed catalog check (VERIFY-MAINTENANCE-04); a raw
+        # ``movie.mkv`` name would (correctly) be flagged as an unrenamed video.
+        title = dirname.split(" (")[0]
+        (movie_dir / f"{title}.mkv").write_bytes(b"f" * (1024 * 1024))  # 1 MB dummy
 
     if with_nfo:
         title = dirname.split(" (")[0]

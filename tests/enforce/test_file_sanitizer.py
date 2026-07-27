@@ -2,6 +2,7 @@
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.file_sanitizer import sanitize_files
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -32,7 +33,7 @@ def test_renames_colon_file(tmp_path, settings, config):
     colon_file = movies / "Avatar : De feu-poster.jpg"
     colon_file.write_bytes(b"\x00")
 
-    results = sanitize_files(settings, config, dry_run=False)
+    results = sanitize_files(settings, config, dry_run=False, bus=EventBus())
     renamed = [r for r in results if r.action == "renamed"]
     assert len(renamed) == 1
     assert renamed[0].old_name == "Avatar : De feu-poster.jpg"
@@ -47,7 +48,7 @@ def test_deletes_duplicate_when_sanitized_exists(tmp_path, settings, config):
     (movies / "Avatar De feu-poster.jpg").write_bytes(b"good")
     (movies / "Avatar : De feu-poster.jpg").write_bytes(b"legacy")
 
-    results = sanitize_files(settings, config, dry_run=False)
+    results = sanitize_files(settings, config, dry_run=False, bus=EventBus())
     deleted = [r for r in results if r.action == "deleted_duplicate"]
     assert len(deleted) == 1
     assert not (movies / "Avatar : De feu-poster.jpg").exists()
@@ -62,7 +63,7 @@ def test_renames_directory_with_colon(tmp_path, settings, config):
     bad_dir.mkdir()
     (bad_dir / "movie.nfo").write_text("<movie/>")
 
-    results = sanitize_files(settings, config, dry_run=False)
+    results = sanitize_files(settings, config, dry_run=False, bus=EventBus())
     renamed_dirs = [r for r in results if r.action == "renamed" and "Spirale" in (r.old_name or "")]
     assert len(renamed_dirs) == 1
     assert (movies / "Spirale L'Héritage de Saw (2021)").exists()
@@ -77,7 +78,7 @@ def test_deletes_ds_store(tmp_path, settings, config):
     actors.mkdir()
     (actors / ".DS_Store").write_bytes(b"\x00")
 
-    results = sanitize_files(settings, config, dry_run=False)
+    results = sanitize_files(settings, config, dry_run=False, bus=EventBus())
     ds = [r for r in results if r.action == "deleted_ds_store"]
     assert len(ds) == 2
 
@@ -88,7 +89,7 @@ def test_deletes_resource_forks(tmp_path, settings, config):
     movies.mkdir(parents=True)
     (movies / "._Film.mkv").write_bytes(b"\x00")
 
-    results = sanitize_files(settings, config, dry_run=False)
+    results = sanitize_files(settings, config, dry_run=False, bus=EventBus())
     deleted = [r for r in results if r.action == "deleted_resource_fork"]
     assert len(deleted) == 1
 
@@ -100,7 +101,7 @@ def test_dry_run_no_changes(tmp_path, settings, config):
     colon_file = movies / "Film : Title-poster.jpg"
     colon_file.write_bytes(b"\x00")
 
-    results = sanitize_files(settings, config, dry_run=True)
+    results = sanitize_files(settings, config, dry_run=True, bus=EventBus())
     assert len(results) > 0
     assert colon_file.exists()
 
@@ -111,7 +112,7 @@ def test_idempotent_second_run(tmp_path, settings, config):
     movies.mkdir(parents=True)
     (movies / "Film : Title-poster.jpg").write_bytes(b"\x00")
 
-    sanitize_files(settings, config, dry_run=False)
-    results2 = sanitize_files(settings, config, dry_run=False)
+    sanitize_files(settings, config, dry_run=False, bus=EventBus())
+    results2 = sanitize_files(settings, config, dry_run=False, bus=EventBus())
     actions = [r for r in results2 if r.action != "skipped"]
     assert len(actions) == 0

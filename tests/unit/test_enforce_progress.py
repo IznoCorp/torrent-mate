@@ -29,7 +29,13 @@ class TestEnforceProgress:
         assert report.name == "enforce"
 
     def test_emits_events_per_sanitize_result(self) -> None:
-        """Each sanitized item emits started + fixed events."""
+        """Each sanitized item emits a terminal ``fixed`` event from run_enforce.
+
+        ``started`` is emitted by ``sanitize_files`` itself now (F8 real
+        lifecycle); with the sub-component mocked here only the terminal event is
+        observed. The started-before-work contract is pinned in
+        tests/event_bus/test_real_started_lifecycle.py.
+        """
         bus = EventBus()
         collector = CollectingSubscriber(bus, ItemProgressed)
 
@@ -43,14 +49,16 @@ class TestEnforceProgress:
                 with patch("personalscraper.enforce.run.check_coherence", return_value=[]):
                     run_enforce(MagicMock(), _config(), dry_run=True, event_bus=bus)
 
-        started = [e for e in collector.received if e.status == "started"]
         fixed = [e for e in collector.received if e.status == "fixed"]
-        assert len(started) >= 1
         assert len(fixed) >= 1
-        assert started[0].step == "enforce"
+        assert fixed[0].step == "enforce"
 
     def test_emits_events_for_structure_results(self) -> None:
-        """Structure results emit started + fixed events."""
+        """A repaired structure result emits a terminal ``fixed`` event.
+
+        ``started`` moved into ``validate_structure`` (F8); a mocked
+        sub-component therefore produces only run_enforce's terminal event.
+        """
         bus = EventBus()
         collector = CollectingSubscriber(bus, ItemProgressed)
 
@@ -67,7 +75,7 @@ class TestEnforceProgress:
                     run_enforce(MagicMock(), _config(), dry_run=True, event_bus=bus)
 
         structure_events = [e for e in collector.received if e.item == "Inception (2010)"]
-        assert len(structure_events) >= 2
+        assert [e.status for e in structure_events] == ["fixed"]
 
     def test_sanitize_skip_emits_skipped(self) -> None:
         """A sanitize_result with action='skipped' emits a skipped event (no fixed)."""
@@ -112,6 +120,7 @@ class TestEnforceProgress:
 
         events_for_item = [e for e in collector.received if e.item == "Broken (2010)"]
         statuses = [e.status for e in events_for_item]
-        assert "started" in statuses
+        # ``started`` now originates in ``validate_structure`` (mocked here);
+        # run_enforce emits the terminal ``skipped`` for a non-repaired result.
         assert "skipped" in statuses
         assert "fixed" not in statuses

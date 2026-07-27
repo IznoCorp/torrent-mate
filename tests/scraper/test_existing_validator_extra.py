@@ -14,8 +14,9 @@ Targets the residual branch gaps:
     - ``_repair_season_dir`` OSError + dry-run branches
     - ``_check_missing_movie_artwork`` / ``_check_missing_tvshow_artwork``
     - ``_extract_tmdb_id_from_nfo`` parse error / non-numeric branches
-    - ``_recover_movie_artwork`` happy + exception paths
-    - ``_recover_tvshow_artwork`` happy + exception paths
+    - ``_writeback.recover_artwork`` (movie + tvshow) happy + exception paths,
+      exercised via the ``_recover`` shim (the mixin delegates were removed in
+      P4.6, SCRAPER-11)
     - ``_repair_movie_dir`` dry-run + OSError
     - ``_repair_tvshow_dir`` orchestrates inner methods (lines 872-898)
     - ``_repair_artwork`` (huge gap 550-615) — happy paths via TMDB and
@@ -33,6 +34,7 @@ import pytest
 from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
+from personalscraper.scraper._writeback import recover_artwork
 from personalscraper.scraper.existing_validator import (
     ExistingValidatorMixin,
     _build_root_moved_map,
@@ -81,6 +83,32 @@ def _make_validator(
     instance._artwork = artwork if artwork is not None else MagicMock()
     instance._generate_episode_nfos = MagicMock()
     return instance
+
+
+def _recover(
+    validator: ExistingValidatorMixin,
+    nfo: Path,
+    media_dir: Path,
+    result: ScrapeResult,
+    *,
+    kind: str,
+) -> None:
+    """Call the shared artwork-recovery helper with the validator's collaborators.
+
+    The per-mixin ``_recover_movie_artwork`` / ``_recover_tvshow_artwork``
+    delegates were removed (P4.6, SCRAPER-11); the scrape entry points now call
+    :func:`personalscraper.scraper._writeback.recover_artwork` directly. This
+    shim mirrors that call so the recovery behaviour stays covered here.
+    """
+    recover_artwork(
+        nfo,
+        media_dir,
+        result,
+        kind=kind,
+        registry=validator._registry,
+        artwork=validator._artwork,
+        patterns=validator.patterns,
+    )
 
 
 def _write_show_nfo(path: Path, *, tvdb_id: int | None = None, tmdb_id: int | None = None) -> None:
@@ -568,7 +596,7 @@ class TestRecoverArtwork:
         movie_dir = tmp_path / "Movie"
         movie_dir.mkdir()
         result = ScrapeResult(media_path=movie_dir, media_type="movie")
-        validator._recover_movie_artwork(nfo, movie_dir, result)
+        _recover(validator, nfo, movie_dir, result, kind="movie")
         assert result.action != "artwork_recovered"
         validator._tmdb.get_movie.assert_not_called()
 
@@ -582,7 +610,7 @@ class TestRecoverArtwork:
         movie_dir = tmp_path / "Movie"
         movie_dir.mkdir()
         result = ScrapeResult(media_path=movie_dir, media_type="movie")
-        validator._recover_movie_artwork(nfo, movie_dir, result)
+        _recover(validator, nfo, movie_dir, result, kind="movie")
         assert result.action == "artwork_recovered"
         assert "poster.jpg" in result.artwork_downloaded
 
@@ -595,7 +623,7 @@ class TestRecoverArtwork:
         movie_dir = tmp_path / "Movie"
         movie_dir.mkdir()
         result = ScrapeResult(media_path=movie_dir, media_type="movie")
-        validator._recover_movie_artwork(nfo, movie_dir, result)
+        _recover(validator, nfo, movie_dir, result, kind="movie")
         assert any("Artwork recovery failed" in w for w in result.warnings)
 
     def test_recover_tvshow_no_tmdb_id_returns_silently(self, tmp_path: Path) -> None:
@@ -606,7 +634,7 @@ class TestRecoverArtwork:
         show = tmp_path / "Show"
         show.mkdir()
         result = ScrapeResult(media_path=show, media_type="tvshow")
-        validator._recover_tvshow_artwork(nfo, show, result)
+        _recover(validator, nfo, show, result, kind="tvshow")
         assert result.action != "artwork_recovered"
 
     def test_recover_tvshow_success_sets_action(self, tmp_path: Path) -> None:
@@ -619,7 +647,7 @@ class TestRecoverArtwork:
         show = tmp_path / "Show"
         show.mkdir()
         result = ScrapeResult(media_path=show, media_type="tvshow")
-        validator._recover_tvshow_artwork(nfo, show, result)
+        _recover(validator, nfo, show, result, kind="tvshow")
         assert result.action == "artwork_recovered"
 
     def test_recover_tvshow_exception_appends_warning(self, tmp_path: Path) -> None:
@@ -631,7 +659,7 @@ class TestRecoverArtwork:
         show = tmp_path / "Show"
         show.mkdir()
         result = ScrapeResult(media_path=show, media_type="tvshow")
-        validator._recover_tvshow_artwork(nfo, show, result)
+        _recover(validator, nfo, show, result, kind="tvshow")
         assert any("Artwork recovery failed" in w for w in result.warnings)
 
     def test_recover_movie_artwork_skipped_when_tmdb_not_configured(
@@ -644,7 +672,8 @@ class TestRecoverArtwork:
         ``_recover_movie_artwork`` must NOT raise nor append a warning when
         ``registry.get("tmdb")`` raises :class:`UnknownProviderError` — it
         must short-circuit and emit a structured debug log
-        (``artwork_recovery_skipped_no_tmdb``). Without the I4 pre-check the
+        (``artwork_recovery_skipped_no_provider`` with ``family=tmdb``).
+        Without the I4 pre-check the
         broad ``except Exception`` swallowed the exception and surfaced it
         as a misleading "Artwork recovery failed: Unknown provider 'tmdb'"
         warning, hiding the true (config) cause from the operator.
@@ -661,13 +690,15 @@ class TestRecoverArtwork:
         result = ScrapeResult(media_path=movie_dir, media_type="movie")
 
         with caplog.at_level("DEBUG", logger="scraper"):
-            validator._recover_movie_artwork(nfo, movie_dir, result)
+            _recover(validator, nfo, movie_dir, result, kind="movie")
 
         # No exception escaped, action unchanged, no warning surfaced.
         assert result.action != "artwork_recovered"
         assert result.warnings == []
-        # Forensic anchor present.
-        assert any("artwork_recovery_skipped_no_tmdb" in rec.message for rec in caplog.records)
+        # Forensic anchor present (static event name + family kwarg).
+        assert any(
+            "artwork_recovery_skipped_no_provider" in rec.message and "tmdb" in rec.message for rec in caplog.records
+        )
 
 
 # ---------------------------------------------------------------------------

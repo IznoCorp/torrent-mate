@@ -64,9 +64,9 @@ _RUN_MOCKS = (
         "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
         return_value=False,
     ),
-    patch("personalscraper.cli.get_settings"),
-    patch("personalscraper.cli.release_lock"),
-    patch("personalscraper.cli.acquire_pipeline_lock", return_value=True),
+    patch("personalscraper.cli_helpers.get_settings"),
+    patch("personalscraper.cli_helpers.release_lock"),
+    patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
     patch("personalscraper.pipeline.Pipeline.run"),
 )
 
@@ -166,9 +166,9 @@ def test_run_headless(
     "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
     return_value=False,
 )
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=False)
+@patch("personalscraper.cli_helpers.get_settings")
+@patch("personalscraper.cli_helpers.release_lock")
+@patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=False)
 def test_run_lock_contention(
     mock_lock,
     mock_release,
@@ -331,9 +331,9 @@ def test_run_error_exit_nonzero_on_bad_report(
     "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
     return_value=False,
 )
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch("personalscraper.cli_helpers.get_settings")
+@patch("personalscraper.cli_helpers.release_lock")
+@patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True)
 def test_run_emits_pipeline_lifecycle_events(
     mock_lock,
     mock_release,
@@ -422,9 +422,9 @@ def test_run_emits_pipeline_lifecycle_events(
     "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
     return_value=False,
 )
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch("personalscraper.cli_helpers.get_settings")
+@patch("personalscraper.cli_helpers.release_lock")
+@patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True)
 def test_run_sigint_partial_completion(
     mock_lock,
     mock_release,
@@ -463,9 +463,9 @@ def test_run_sigint_partial_completion(
     "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
     return_value=False,
 )
-@patch("personalscraper.cli.get_settings")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_pipeline_lock", return_value=True)
+@patch("personalscraper.cli_helpers.get_settings")
+@patch("personalscraper.cli_helpers.release_lock")
+@patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True)
 def test_run_sigint_lock_released_on_exception(
     mock_lock,
     mock_release,

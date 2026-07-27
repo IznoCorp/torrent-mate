@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check format install-dev version update-ytdlp perf-rebaseline openapi
+.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -67,6 +67,15 @@ check: lint test-cov
 	python3 scripts/check-pragma-discipline.py
 	python3 scripts/audit-cli-coverage.py
 	$(MAKE) cli-coverage-check
+	@echo "Checking feature map freshness..."
+	python3 scripts/update_feature_map.py --check
+	@echo "Auditing design coverage..."
+	python3 scripts/audit_design_coverage.py --strict
+	@echo "Checking OpenAPI drift..."
+	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
+	@echo "Checking version bump..."
+	@if git rev-parse --verify origin/main >/dev/null 2>&1; then python3 scripts/check_version_bump.py --base origin/main; else echo "version-bump: skipped (origin/main unavailable)"; fi
+	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
 cli-coverage-check:
 	@echo "Running CLI coverage check..."
@@ -79,7 +88,7 @@ gate: check
 	@! rg -q "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
 	@! rg -q "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
 	@! rg -q "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
-	@! rg -l "TMDBError|TVDBError" personalscraper/ --include='*.py' 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
+	@! rg -l "TMDBError|TVDBError" -g '*.py' personalscraper/ 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
 	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
 	@echo "Gate: ALL CHECKS PASSED"
 
@@ -113,3 +122,14 @@ openapi:
 	@echo "Regenerating frontend TypeScript types..."
 	cd frontend && npm run gen-api
 	@echo "OpenAPI schema and TS types are up to date."
+
+check-frontend:
+	@echo "Running frontend typecheck..."
+	cd frontend && npm run typecheck
+	@echo "Running frontend lint..."
+	cd frontend && npm run lint
+	cd frontend && npm run lint:ds
+	@echo "Running frontend tests..."
+	cd frontend && npm run test -- --run
+	@echo "Running frontend build..."
+	cd frontend && npm run build

@@ -11,7 +11,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState, type ReactElement } from "react";
 
-import { getLocks, type LocksResponse } from "@/api/client";
+import { getLocks, type LocksResponse } from "@/api/maintenance";
 import type { components } from "@/api/schema";
 import { StatusDot } from "@/components/ds/StatusDot";
 import {

@@ -39,7 +39,13 @@ class TestSortProgress:
         assert report.name == "sort"
 
     def test_emits_progress_per_item(self) -> None:
-        """Each sorted item emits started + result events on the bus."""
+        """Each sorted item emits a terminal ``moved`` event from run_sort.
+
+        ``started`` is now emitted from INSIDE ``Sorter.process`` (F8 real
+        lifecycle); the sorter is mocked here so only run_sort's terminal event
+        is observed. The started-before-work contract is pinned in
+        tests/event_bus/test_real_started_lifecycle.py.
+        """
         from personalscraper.sorter.sorter import Sorter
 
         bus = EventBus()
@@ -64,11 +70,8 @@ class TestSortProgress:
                 )
 
         assert report.name == "sort"
-        started = [e for e in collector.received if e.status == "started"]
         moved = [e for e in collector.received if e.status == "moved"]
-        assert len(started) >= 1, "expected at least 1 started event"
         assert len(moved) >= 1, "expected at least 1 moved event"
-        assert started[0].step == "sort"
         assert moved[0].step == "sort"
 
     def test_step_survives_crashing_subscriber(self) -> None:

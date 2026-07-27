@@ -7,6 +7,7 @@ Tests that exercise the full pipeline with real filesystem operations or
 external-API fakes belong in ``tests/integration/test_full_pipeline.py``.
 """
 
+import dataclasses
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,9 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
+from personalscraper.reports import STEP_REPORT_CONTRACT
+from personalscraper.reports.ingest import IngestDetails
+from personalscraper.reports.scrape import ScrapeDetails
 
 
 @pytest.fixture
@@ -295,6 +299,71 @@ class TestPipelineOrchestration:
         ]
         assert report.steps["ingest"].success_count == 3
         assert report.steps["scrape"].success_count == 2
+
+    def test_full_run_attaches_contract_shaped_payload_for_every_step(
+        self,
+        orch_app,
+        orch_config,
+        orch_settings,
+    ):
+        """Every step a full run executes carries a contract-shaped details_payload.
+
+        Load-bearing STEP_REPORT_CONTRACT (CROSS-CUTTING-01): the run completes
+        without a ``StepReportContractError`` and each of the 9 step reports ends
+        up with a ``details_payload`` whose keys match its declared dataclass.
+        """
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
+            step_overrides={
+                "ingest": lambda *_a, **_kw: StepReport(name="ingest", success_count=1),
+                "sort": lambda *_a, **_kw: StepReport(name="sort", success_count=1),
+                "clean": lambda *_a, **_kw: StepReport(name="clean"),
+                "scrape": lambda *_a, **_kw: StepReport(name="scrape"),
+                "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
+                "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
+                "verify": _verify_with_items,
+                "trailers": lambda *_a, **_kw: StepReport(name="trailers", status="skipped"),
+                "dispatch": lambda *_a, **_kw: StepReport(name="dispatch", success_count=1),
+            },
+        )
+
+        for name, payload_type in STEP_REPORT_CONTRACT.items():
+            step = report.steps.get(name)
+            assert step is not None, f"step {name} did not run"
+            expected_keys = {f.name for f in dataclasses.fields(payload_type)}
+            assert step.details_payload is not None, f"step {name} has no details_payload"
+            assert set(step.details_payload) == expected_keys, name
+
+    def test_full_run_rejects_wrong_type_payload(
+        self,
+        orch_app,
+        orch_config,
+        orch_settings,
+    ):
+        """A step emitting a mistyped payload is rejected — it never ships.
+
+        The ``scrape`` override wires an ``IngestDetails`` payload onto the scrape
+        step (a copy-paste wiring bug). ``_with_details_payload`` raises inside
+        ``_run_step``; the step is recorded as a loud error and its payload is
+        replaced by the honest empty ``ScrapeDetails`` — the mistyped envelope is
+        never propagated downstream.
+        """
+        pipeline = Pipeline(orch_app)
+        report = pipeline.run(
+            step_overrides={
+                "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
+                "sort": lambda *_a, **_kw: StepReport(name="sort"),
+                "clean": lambda *_a, **_kw: StepReport(name="clean"),
+                "scrape": lambda *_a, **_kw: StepReport(name="scrape", details_payload=IngestDetails(copied=["x"])),
+                "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
+                "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
+                "verify": _verify_noop,
+            },
+        )
+
+        scrape_step = report.steps["scrape"]
+        assert scrape_step.error_count == 1
+        assert scrape_step.details_payload == dataclasses.asdict(ScrapeDetails())
 
     def test_dispatch_skipped_no_verified(
         self,

@@ -1,0 +1,23 @@
+{
+  "folder": "The Matrix (1999)",
+  "nfo": {
+    "title": "The Matrix",
+    "uniqueids": {
+      "imdb": {
+        "default": "true",
+        "id": "tt0133093"
+      },
+      "tmdb": {
+        "default": null,
+        "id": "603"
+      }
+    },
+    "year": "1999"
+  },
+  "tree": [
+    "The Matrix-landscape.jpg",
+    "The Matrix-poster.jpg",
+    "The Matrix.mkv",
+    "The Matrix.nfo"
+  ]
+}

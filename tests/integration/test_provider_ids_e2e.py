@@ -31,7 +31,6 @@ import pytest
 
 from personalscraper.api.metadata._base import Notations
 from personalscraper.api.metadata._contracts import (
-    IDCrossRef,
     IDValidator,
     MovieDetailsProvider,
     RatingProvider,
@@ -389,12 +388,11 @@ def test_e2e_backfill_cross_ref_fetch_failure_is_fail_soft(
 
 
 def test_e2e_metadata_facades_satisfy_capabilities() -> None:
-    """IMDb façade composes IDValidator + RatingProvider + IDCrossRef."""
+    """IMDb façade composes IDValidator + RatingProvider."""
     backend = MagicMock()
     facade = IMDbClient(backend=backend)
     assert isinstance(facade, IDValidator)
     assert isinstance(facade, RatingProvider)
-    assert isinstance(facade, IDCrossRef)
 
 
 def test_e2e_rt_facade_satisfies_rating_only() -> None:

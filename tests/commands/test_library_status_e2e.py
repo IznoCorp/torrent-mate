@@ -134,7 +134,7 @@ def test_status_format_json_emits_parseable_json(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-status"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
 
     assert "disks" in data, f"disks key missing: {data}"
     assert isinstance(data["disks"], list)
@@ -214,6 +214,7 @@ def test_status_json_schema_valid(tmp_path, test_config) -> None:
             "category_orphans",
             "healthy",
         ],
+        source_attr="stdout",
     )
     assert isinstance(data["disks"], list)
     assert data["latest_scan"] is not None

@@ -313,7 +313,7 @@ class TestLibraryRescrape:
                 return_value=rresult,
             ),
             patch("personalscraper.io_utils.write_json"),
-            patch("personalscraper.cli.acquire_pipeline_lock") as mock_acquire,
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock") as mock_acquire,
         ):
             result = runner.invoke(app, ["library-rescrape", "--dry-run"])
         assert result.exit_code == 0
@@ -344,8 +344,8 @@ class TestLibraryRescrape:
                 return_value=rresult,
             ),
             patch("personalscraper.io_utils.write_json"),
-            patch("personalscraper.cli.acquire_pipeline_lock", return_value=True) as mock_acquire,
-            patch("personalscraper.cli.release_lock") as mock_release,
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True) as mock_acquire,
+            patch("personalscraper.cli_helpers.release_lock") as mock_release,
         ):
             result = runner.invoke(app, ["library-rescrape"])
         assert result.exit_code == 0
@@ -354,7 +354,7 @@ class TestLibraryRescrape:
 
     def test_live_lock_blocked_exits_3(self) -> None:
         """A non dry-run invocation exits 3 when the lock is held (§6 contract)."""
-        with patch("personalscraper.cli.acquire_pipeline_lock", return_value=False):
+        with patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=False):
             result = runner.invoke(app, ["library-rescrape"])
         assert result.exit_code == 3
         assert "Another instance" in result.output
@@ -425,7 +425,10 @@ class TestLibraryReport:
         ):
             result = runner.invoke(app, ["--format", "json", "library-report"])
         assert result.exit_code == 0, result.output
-        raw = result.output.strip()
+        # Parse the machine-readable stdout channel: the boundary now records
+        # cli.invoke/complete telemetry on stderr, which the mixed ``.output``
+        # interleaves after the JSON.
+        raw = result.stdout.strip()
         start = raw.find("{")
         assert start != -1, f"No JSON in output: {raw!r}"
         data = json.loads(raw[start:])

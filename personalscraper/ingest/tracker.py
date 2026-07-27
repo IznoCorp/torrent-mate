@@ -2,7 +2,8 @@
 
 Persists torrent hashes to data_dir/ingested_torrents.json
 to avoid re-ingesting already-processed torrents. Uses atomic writes
-(write to .tmp then os.replace) to prevent corruption on crash.
+via :func:`personalscraper.io_utils.atomic_write_json` (temp file + fsync +
+rename + parent-dir fsync) to prevent corruption on crash.
 """
 
 import json

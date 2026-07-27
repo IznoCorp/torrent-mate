@@ -17,6 +17,7 @@ but the behavioral assertions are identical (ACC-13 equivalence proof).
 """
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -85,7 +86,23 @@ class TestLegacyFallbackSnapshot:
         per-capability emptiness when simulating circuit-open scenarios.
         """
         reg = MagicMock(spec=ProviderRegistry)
-        reg.get.side_effect = lambda name: {"tmdb": mock_tmdb, "tvdb": mock_tvdb}[name]
+
+        # Conform to the real ProviderRegistry.get contract: an unwired provider
+        # raises UnknownProviderError (not KeyError). The confirmed-write
+        # external-ids pass resolves the optional imdb / rotten_tomatoes façades
+        # through get() and relies on this to degrade fail-soft when they are
+        # absent (Scraper._optional_provider swallows UnknownProviderError).
+        def _reg_get(name: str) -> Any:
+            from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
+                UnknownProviderError,
+            )
+
+            try:
+                return {"tmdb": mock_tmdb, "tvdb": mock_tvdb}[name]
+            except KeyError as exc:
+                raise UnknownProviderError(name) from exc
+
+        reg.get.side_effect = _reg_get
 
         # Default chain behaviour: both providers eligible for any capability.
         # Tests that need an empty chain (== legacy "circuit OPEN") override
@@ -233,20 +250,19 @@ class TestLegacyFallbackSnapshot:
     # Test 6 — DESIGN §8.4 scenario 6
     # ------------------------------------------------------------------
 
-    def test_tvshows_tvdb_empty_search_no_fallback_currently(self, scraper, tvshows_dir):
-        """TVDB returns empty search results → "skipped_low_confidence" today.
+    def test_tvshows_all_providers_empty_search_skips(self, scraper, tvshows_dir):
+        """Every chain provider returns an empty match → "skipped_low_confidence".
 
-        When ``match_tvshow`` returns None (no confident match from TVDB,
-        e.g. empty search results), ``_lookup_series`` in
-        ``tv_service.py`` sets ``result.action = "skipped_low_confidence"``.
-        There is no cross-provider fallback at this level — the registry
-        chain rewrite (Phase 2) will add chain fallback to try TMDB when
-        TVDB comes back empty.
-
-        NOTE: This is a characterization of CURRENT behavior, not a
-        design target. The Phase 2 chain rewrite will change this outcome.
+        Post-P4.3, ``_lookup_series`` iterates ``registry.chain(TvDetailsProvider)``
+        via ``run_chain`` and consults TMDB when TVDB is empty (SCRAPER-02). When
+        *every* provider returns an empty match, ``run_chain`` returns ``None`` and
+        the below-threshold path sets ``result.action = "skipped_low_confidence"``
+        — the legacy fail-soft outcome for a show no provider can identify.
         """
-        with patch("personalscraper.scraper.scraper.match_tvshow_single", return_value=None):
+        with patch(
+            "personalscraper.scraper.tv_service_episodes.match_tvshow_single_detailed",
+            return_value=(None, []),
+        ):
             results = scraper.process_tvshows(tvshows_dir)
 
         assert len(results) == 1

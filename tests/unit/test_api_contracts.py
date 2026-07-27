@@ -20,7 +20,6 @@ import pytest
 from personalscraper.api._contracts import HasName, MediaType
 from personalscraper.api._helpers import (
     ProviderFeatureUnavailable,
-    gather_cross_refs,
     gather_ratings,
 )
 from personalscraper.api.metadata._base import (
@@ -35,7 +34,6 @@ from personalscraper.api.metadata._base import (
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
-    IDCrossRef,
     IDValidator,
     KeywordProvider,
     MovieDetailsProvider,
@@ -144,13 +142,6 @@ class _IDValidatorStub:
         return True
 
 
-class _IDCrossRefStub:
-    """Stub exposing only ``get_cross_refs``."""
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        return {}
-
-
 class _ArtworkProviderStub:
     """Stub exposing only ``get_artwork_urls``."""
 
@@ -205,7 +196,6 @@ class _BareProvider:
         (EpisodeFetcher, _EpisodeFetcherStub),
         (RatingProvider, _RatingProviderStub),
         (IDValidator, _IDValidatorStub),
-        (IDCrossRef, _IDCrossRefStub),
         (ArtworkProvider, _ArtworkProviderStub),
         (KeywordProvider, _KeywordProviderStub),
         (VideoProvider, _VideoProviderStub),
@@ -450,27 +440,6 @@ class _RatingProviderRaising:
         raise ProviderFeatureUnavailable("broken", "get_rating", "missing field")
 
 
-class _IDCrossRefWithName:
-    """Stub satisfying ``IDCrossRef`` + carrying ``provider_name``."""
-
-    provider_name = "tvdb"
-
-    def __init__(self, refs: dict[str, str]) -> None:
-        self._refs = refs
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        return self._refs
-
-
-class _IDCrossRefRaising:
-    """Stub satisfying ``IDCrossRef`` but raising ``ProviderFeatureUnavailable``."""
-
-    provider_name = "down"
-
-    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-        raise ProviderFeatureUnavailable("down", "get_cross_refs", "endpoint deprecated")
-
-
 def test_gather_ratings_filters_non_rating_providers() -> None:
     """``gather_ratings`` ignores providers without the capability.
 
@@ -481,7 +450,7 @@ def test_gather_ratings_filters_non_rating_providers() -> None:
     providers = [
         _RatingProviderWithName([notation]),
         _BareProvider(),
-        _IDCrossRefWithName({"tmdb": "42"}),
+        _ArtworkProviderStub(),
     ]
     result = gather_ratings(providers, provider_id="tt0000001")
     assert result == [notation]
@@ -508,35 +477,6 @@ def test_gather_ratings_swallows_provider_feature_unavailable() -> None:
         _RatingProviderWithName([notation]),
     ]
     assert gather_ratings(providers, provider_id="tt0000002") == [notation]
-
-
-def test_gather_cross_refs_returns_dict_by_provider_name() -> None:
-    """``gather_cross_refs`` indexes per provider name and skips non-capable entries."""
-    providers = [
-        _IDCrossRefWithName({"tmdb": "1", "imdb": "tt001"}),
-        _BareProvider(),
-        _RatingProviderWithName(None),
-    ]
-    result = gather_cross_refs(providers, canonical_id="121361")
-    assert result == {"tvdb": {"tmdb": "1", "imdb": "tt001"}}
-
-
-def test_gather_cross_refs_skips_empty_dicts_and_unavailable() -> None:
-    """Providers returning an empty dict or raising are silently skipped."""
-
-    class _EmptyCrossRef:
-        provider_name = "empty"
-
-        def get_cross_refs(self, provider_id: str) -> dict[str, str]:
-            return {}
-
-    providers = [
-        _EmptyCrossRef(),
-        _IDCrossRefRaising(),
-        _IDCrossRefWithName({"tmdb": "42"}),
-    ]
-    result = gather_cross_refs(providers, canonical_id="999")
-    assert result == {"tvdb": {"tmdb": "42"}}
 
 
 def test_provider_feature_unavailable_carries_provider_and_feature() -> None:

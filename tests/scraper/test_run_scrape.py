@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
-from personalscraper.scraper.run import _to_step_report, run_scrape
+from personalscraper.scraper.run import _build_scrape_report, run_scrape
 from personalscraper.scraper.scraper import ScrapeResult
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -19,11 +19,11 @@ from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 class TestToStepReport:
-    """Tests for _to_step_report conversion."""
+    """Tests for _build_scrape_report conversion."""
 
     def test_empty_results(self) -> None:
         """Should return zero counts for empty list."""
-        report = _to_step_report([])
+        report = _build_scrape_report([])
         assert report.name == "scrape"
         assert report.success_count == 0
         assert report.skip_count == 0
@@ -35,7 +35,7 @@ class TestToStepReport:
             ScrapeResult(media_path=Path("a"), media_type="movie", action="scraped", nfo_written=True),
             ScrapeResult(media_path=Path("b"), media_type="tvshow", action="scraped"),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.success_count == 2
 
     def test_counts_skipped(self) -> None:
@@ -44,7 +44,7 @@ class TestToStepReport:
             ScrapeResult(media_path=Path("a"), media_type="movie", action="skipped_already_done"),
             ScrapeResult(media_path=Path("b"), media_type="movie", action="skipped_low_confidence"),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.skip_count == 2
 
     def test_counts_errors(self) -> None:
@@ -57,7 +57,7 @@ class TestToStepReport:
                 error="API down",
             ),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert report.error_count == 1
         assert len(report.warnings) == 1
         assert "API down" in report.warnings[0]
@@ -72,7 +72,7 @@ class TestToStepReport:
                 artwork_downloaded=["poster.jpg", "landscape.jpg"],
             ),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert "2 artwork" in report.details[0]
 
     def test_details_include_episode_count(self) -> None:
@@ -85,7 +85,7 @@ class TestToStepReport:
                 episodes_renamed=8,
             ),
         ]
-        report = _to_step_report(results)
+        report = _build_scrape_report(results)
         assert "8 episodes" in report.details[0]
 
 

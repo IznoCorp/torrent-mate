@@ -97,7 +97,7 @@ class TvServiceNfoMixin:
         """
         warnings: list[str] = []
         show_title = show_data.get("name", "")
-        mpaa = NFOGenerator._extract_content_rating_fr(show_data)
+        mpaa = NFOGenerator._extract_fr_rating(show_data, tv=True)
         networks = show_data.get("networks", [])
         studio = networks[0].get("name", "") if networks else ""
 

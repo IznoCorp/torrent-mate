@@ -10,8 +10,6 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from personalscraper.conf.models.web import WebConfig
-from personalscraper.config import Settings
-from personalscraper.web.app import create_app
 
 
 class TestHealthRoute:
@@ -27,7 +25,7 @@ class TestHealthRoute:
         assert "redis" in data
         assert "db" in data
 
-    def test_redis_false_when_port_closed(self, test_config) -> None:
+    def test_redis_false_when_port_closed(self, test_config, make_web_client) -> None:
         """A closed port on localhost → instant connection refusal → redis: false.
 
         Uses ``redis://127.0.0.1:1/0`` (port 1 is reserved and closed on
@@ -36,9 +34,7 @@ class TestHealthRoute:
         """
         web_cfg = WebConfig(redis_url="redis://127.0.0.1:1/0")
         cfg = test_config.model_copy(update={"web": web_cfg})
-        settings = Settings(_env_file=None)  # type: ignore[call-arg]
-        app = create_app(cfg, settings)
-        client = TestClient(app)
+        client = make_web_client(cfg)
 
         response = client.get("/api/health")
 
@@ -63,15 +59,13 @@ class TestHealthRoute:
         assert response.status_code == 200
         assert response.json()["db"] is False
 
-    def test_db_true_when_library_db_exists(self, test_config) -> None:
+    def test_db_true_when_library_db_exists(self, test_config, make_web_client) -> None:
         """A library.db file on disk → db: true."""
         data_dir = test_config.paths.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
         (data_dir / "library.db").write_text("")
 
-        settings = Settings(_env_file=None)  # type: ignore[call-arg]
-        app = create_app(test_config, settings)
-        client = TestClient(app)
+        client = make_web_client(test_config)
 
         response = client.get("/api/health")
 

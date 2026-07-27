@@ -107,8 +107,8 @@ def e2e_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     # ``ProviderRegistry`` (built at the CLI boundary) does not fail
     # with ``empty_chain_section``. ``KeywordProvider`` stays empty to
     # avoid the ``locked_capability_orphan`` rule (tvdb is in chain but
-    # does not implement ``KeywordProvider`` and there is no IDCrossRef
-    # bridge configured here).
+    # does not implement ``KeywordProvider`` and no provider owning the
+    # match's id can serve it).
     (config_dir / "providers.json5").write_text(
         json5.dumps(
             {

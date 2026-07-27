@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 from personalscraper.api.metadata._contracts import (
     ArtworkProvider,
     EpisodeFetcher,
-    IDCrossRef,
     IDValidator,
     KeywordProvider,
     MovieDetailsProvider,
@@ -47,7 +46,7 @@ LOCKED_CAPABILITIES: frozenset[type] = frozenset(
         RecommendationProvider,
     }
 )
-DIRECT_CAPABILITIES: frozenset[type] = frozenset({IDValidator, IDCrossRef})
+DIRECT_CAPABILITIES: frozenset[type] = frozenset({IDValidator})
 
 ALL_CAPABILITIES: frozenset[type] = (
     CHAIN_CAPABILITIES | FAN_OUT_CAPABILITIES | LOCKED_CAPABILITIES | DIRECT_CAPABILITIES
@@ -65,7 +64,6 @@ CAPABILITY_KEYS: dict[str, type] = {
     "VideoProvider": VideoProvider,
     "RecommendationProvider": RecommendationProvider,
     "IDValidator": IDValidator,
-    "IDCrossRef": IDCrossRef,
 }
 
 

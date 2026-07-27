@@ -57,7 +57,7 @@ def test_reconcile_clean_db_finds_nothing(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-reconcile"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["total_findings"] == 0, f"Unexpected findings on clean DB: {data}"
     assert data["path_missing_count"] == 0
     assert len(data["merkle_drift"]) == 0
@@ -82,7 +82,7 @@ def test_reconcile_path_missing_finds_phantom_path(tmp_path, test_config) -> Non
         result = run_cli(["--format", "json", "library-reconcile"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["path_missing_count"] >= 1, (
         f"Expected >= 1 phantom path, got path_missing_count={data['path_missing_count']}: {data}"
     )
@@ -99,7 +99,7 @@ def test_reconcile_scope_filter_limits_detection(tmp_path, test_config) -> None:
         result = run_cli(["--format", "json", "library-reconcile", "--scope", "path_missing"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["path_missing_count"] >= 1
     # All other detectors should be zero (scope filtered).
     assert len(data["merkle_drift"]) == 0
@@ -120,7 +120,7 @@ def test_reconcile_release_orphans_finds_orphan_release(tmp_path, test_config) -
         result = run_cli(["--format", "json", "library-reconcile"])
 
     assert result.exit_code == 0, result.output
-    data = json_from_result(result)
+    data = json_from_result(result, source_attr="stdout")
     assert data["release_orphans_count"] >= 1, (
         f"Expected >= 1 orphan release, got {data['release_orphans_count']}: {data}"
     )
@@ -145,7 +145,7 @@ def test_reconcile_path_missing_enqueue_then_repair_closes_loop(tmp_path, test_c
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
     assert r1.exit_code == 0, r1.output
-    d1 = json_from_result(r1)
+    d1 = json_from_result(r1, source_attr="stdout")
     assert d1["path_missing_count"] >= 1, f"Pre-condition: expected phantom paths before repair, got {d1}"
     assert d1["enqueued_repairs"] >= 1, f"Expected repair enqueued, got enqueued_repairs={d1['enqueued_repairs']}"
 
@@ -153,7 +153,7 @@ def test_reconcile_path_missing_enqueue_then_repair_closes_loop(tmp_path, test_c
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r2 = run_cli(["--format", "json", "library-repair"])
     assert r2.exit_code == 0, r2.output
-    d2 = json_from_result(r2)
+    d2 = json_from_result(r2, source_attr="stdout")
     assert d2["succeeded"] >= 1, f"Repair should have succeeded at least 1 row, got {d2}"
     assert d2["pending_depth"] == 0, (
         f"Repair queue should be empty after drain, got pending_depth={d2.get('pending_depth')}"
@@ -163,7 +163,7 @@ def test_reconcile_path_missing_enqueue_then_repair_closes_loop(tmp_path, test_c
     with patch(_PATCH_LOAD_CONFIG, return_value=cfg):
         r3 = run_cli(["--format", "json", "library-reconcile"])
     assert r3.exit_code == 0, r3.output
-    d3 = json_from_result(r3)
+    d3 = json_from_result(r3, source_attr="stdout")
     assert d3["path_missing_count"] == 0, (
         f"CLOSURE-OF-LOOP BROKEN: detect_path_missing still found {d3['path_missing_count']} "
         f"phantom paths after repair drain.  This is the BD-D regression.  Full output: {d3}"
@@ -187,8 +187,8 @@ def test_reconcile_idempotent_when_clean(tmp_path, test_config) -> None:
 
     assert r1.exit_code == 0
     assert r2.exit_code == 0
-    d1 = json_from_result(r1)
-    d2 = json_from_result(r2)
+    d1 = json_from_result(r1, source_attr="stdout")
+    d2 = json_from_result(r2, source_attr="stdout")
     assert d1["total_findings"] == d2["total_findings"] == 0
     assert d1 == d2, f"Reconcile output changed between runs: {d1} vs {d2}"
 
@@ -203,8 +203,8 @@ def test_reconcile_enqueue_idempotent(tmp_path, test_config) -> None:
         r1 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
         r2 = run_cli(["--format", "json", "library-reconcile", "--enqueue-repairs"])
 
-    d1 = json_from_result(r1)
-    d2 = json_from_result(r2)
+    d1 = json_from_result(r1, source_attr="stdout")
+    d2 = json_from_result(r2, source_attr="stdout")
     # Second enqueue should find no new rows to insert (deduped).
     assert d2["enqueued_repairs"] == 0, f"Second enqueue should be a no-op, got {d2['enqueued_repairs']}"
     # The first run enqueued something.
@@ -260,6 +260,7 @@ def test_reconcile_json_schema_valid(tmp_path, test_config) -> None:
     assert_json_schema(
         result,
         required_keys=["merkle_drift", "total_findings", "path_missing_count"],
+        source_attr="stdout",
     )
 
 

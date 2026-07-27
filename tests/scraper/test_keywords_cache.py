@@ -294,7 +294,7 @@ class TestNonListKeywords:
         """A cache entry whose ``keywords`` is not a list returns ``[]`` (defensive)."""
         from datetime import datetime as _dt
 
-        from personalscraper.scraper.json_ttl_cache import UTC as _UTC
+        from personalscraper.core.json_ttl_cache import UTC as _UTC
 
         now_iso = _dt.now(_UTC).isoformat()
         # Write a JSON file directly with a malformed keywords field (string instead of list).
@@ -325,7 +325,7 @@ class TestCorruptBackupCopyFailure:
         cache._path.write_text("{not json", encoding="utf-8")
 
         with patch(
-            "personalscraper.scraper.keywords_cache.shutil.copy",
+            "personalscraper.core.json_ttl_cache.shutil.copy",
             side_effect=OSError(errno.EACCES, "denied"),
         ):
             with caplog.at_level("ERROR"):

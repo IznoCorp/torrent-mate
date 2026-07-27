@@ -133,12 +133,16 @@ class TraktClient(
         key = "show" if media_type == "tv" else "movie"
         return _parse_search_results(data, provider=self.provider_name, key=key)
 
-    def get_details(
+    def _get_details(
         self,
         media_id: str,
         media_type: MediaType = MediaType.MOVIE,
     ) -> MediaDetails:
-        """Fetch full details by Trakt ID, slug, or IMDb ID.
+        """Fetch full details by Trakt ID, slug, or IMDb ID (shared helper).
+
+        Private implementation shared by :meth:`get_movie` and
+        :meth:`get_tv` — the only public detail surface is the typed
+        capability pair (there is no legacy ``get_details``).
 
         Args:
             media_id: Trakt numeric ID, slug, or IMDb ID.
@@ -160,12 +164,7 @@ class TraktClient(
         return _parse_media_details(data, provider=self.provider_name, media_type=media_type)
 
     def get_movie(self, provider_id: int | str) -> MediaDetails:
-        """MovieDetailsProvider Protocol alias for :meth:`get_details`.
-
-        Adapter only — no caching. Callers picking the Protocol-style
-        ``get_movie(id)`` and the legacy ``get_details(id,
-        MediaType.MOVIE)`` for the same row issue two HTTP calls. Pick
-        one style per call site.
+        """Fetch full movie details — satisfies :class:`MovieDetailsProvider`.
 
         Args:
             provider_id: Trakt numeric ID, slug, or IMDb ID. Accepts
@@ -176,12 +175,10 @@ class TraktClient(
         Returns:
             Populated MediaDetails.
         """
-        return self.get_details(str(provider_id), MediaType.MOVIE)
+        return self._get_details(str(provider_id), MediaType.MOVIE)
 
     def get_tv(self, provider_id: int | str) -> MediaDetails:
-        """TvDetailsProvider Protocol alias for :meth:`get_details`.
-
-        Adapter only — see :meth:`get_movie` for the no-cache caveat.
+        """Fetch full TV show details — satisfies :class:`TvDetailsProvider`.
 
         Args:
             provider_id: Trakt numeric ID, slug, or IMDb ID. Accepts
@@ -192,7 +189,7 @@ class TraktClient(
         Returns:
             Populated MediaDetails.
         """
-        return self.get_details(str(provider_id), MediaType.TV)
+        return self._get_details(str(provider_id), MediaType.TV)
 
     def get_notations(
         self,
