@@ -104,8 +104,10 @@ _ItemOutcome = Literal["grabbed", "retried", "abandoned", "skipped"]
 # Per-item outcome tag of the SEARCH pass (maps onto a SearchRunSummary counter).
 _SearchItemOutcome = Literal["available", "waiting", "unverified", "abandoned", "skipped"]
 
-# Verdict of the pre-claim cadence gates, shared by both passes (see
-# :meth:`AcquisitionService._apply_cadence_gates`).
+# Verdict of the pre-claim gates. The cutoff gate
+# (:meth:`AcquisitionService._apply_cutoff_gate`) is shared by both passes; the
+# cadence gate on top of it (:meth:`AcquisitionService._apply_cadence_gates`)
+# belongs to the search pass alone.
 _GateVerdict = Literal["proceed", "abandoned", "skipped"]
 
 #: Status the service applies per named search outcome. MUST cover
