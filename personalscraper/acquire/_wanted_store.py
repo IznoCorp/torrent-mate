@@ -56,8 +56,9 @@ class _WantedSubStore:
                 """
                 INSERT INTO wanted
                   (followed_id, media_ref_json, kind, season, episode,
-                   status, criteria_json, enqueued_at, last_search_at, attempts)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   status, criteria_json, enqueued_at, last_search_at, attempts,
+                   last_search_outcome, last_search_found)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.followed_id,
@@ -70,6 +71,8 @@ class _WantedSubStore:
                     item.enqueued_at,
                     item.last_search_at,
                     item.attempts,
+                    item.last_search_outcome,
+                    item.last_search_found,
                 ),
             )
             row_id = cur.lastrowid
@@ -90,7 +93,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted WHERE id = ?
             """,
             (wanted_id,),
@@ -123,7 +126,8 @@ class _WantedSubStore:
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
-            "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash "
+            "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
+            "last_search_outcome, last_search_found "
             "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
             (status,),
         ).fetchall()
@@ -213,7 +217,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted
             WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)
             """,
@@ -303,6 +307,48 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+        """Persist the verdict of the search that just ran for this item.
+
+        Called once per search attempt, at EVERY exit path — including failures
+        and outages. A path that forgets to call this leaves the item reading
+        « Non vérifié » forever, a lie by omission of exactly the kind this
+        feature removes.
+
+        Status transitions are NOT this method's job — the orchestrator owns
+        the status column. This method ONLY records what happened.
+
+        Args:
+            wanted_id: The ``wanted`` row that was searched.
+            outcome: The named outcome (``no_candidates``, ``all_filtered``,
+                ``trackers_unavailable``, ``available``, …). The full set is
+                defined by the orchestrator's exit-path taxonomy (DESIGN §3.3).
+            found: Number of TAKEABLE candidates — survivors of the
+                exact-episode filter, the hard profile filters and the
+                ``min_seeders`` floor. ``None`` when the search did NOT
+                conclude (outage, open circuit, dead swarm): zero would
+                falsely claim « I looked, there is nothing ».
+        """
+        with self._write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE wanted SET last_search_outcome = ?, last_search_found = ? WHERE id = ?",
+                (outcome, found, wanted_id),
+            )
+
+    def list_available(self) -> list[WantedItem]:
+        """Items a search found takeable but the grab pass has not taken yet.
+
+        This is the ONLY queue the grab pass walks. Bounding grab to this
+        subset is what keeps its re-search cheap: it re-queries a handful of
+        known-available items, never the whole pending backlog
+        (NE-DOIT-PAS-8).
+
+        Returns:
+            The available items, ordered by id (same order as
+            :meth:`list_pending` — FIFO fairness).
+        """
+        return self._list_wanted_by_status("available", "id")
+
     def list_stale_searching(self, older_than: int) -> list[WantedItem]:
         """Return ``wanted`` rows stuck in 'searching' with ``last_search_at < older_than``.
 
@@ -321,7 +367,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted
             WHERE status = 'searching' AND last_search_at < ?
             ORDER BY id
@@ -358,7 +404,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash
+                   grabbed_hash, last_search_outcome, last_search_found
             FROM wanted
             WHERE followed_id IS ?
               AND kind = ?
