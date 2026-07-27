@@ -18,7 +18,7 @@ from typing import Literal
 from personalscraper.core.identity import MediaRef
 
 WantedKind = Literal["movie", "episode"]
-WantedStatus = Literal["pending", "searching", "grabbed", "done", "abandoned"]
+WantedStatus = Literal["pending", "searching", "available", "grabbed", "done", "abandoned"]
 FollowKind = Literal["movie", "show"]
 
 
@@ -109,6 +109,19 @@ class WantedItem:
             idempotence guard consults the persisted hash (not status alone),
             so a crash between ``add()`` and the status write does NOT
             double-emit ``GrabSucceeded`` on re-run. ``None`` until grabbed.
+        last_search_outcome: Named issue of the last search pass
+            (``no_candidates``, ``all_filtered``, ``trackers_unavailable``,
+            ``available``, …). ``None`` means never searched — the honest
+            default for pre-existing rows and freshly-enqueued items: we
+            genuinely do not know. Distinguishing ``None`` from a real outcome
+            is what prevents a tracker outage from reading as « À jour ».
+        last_search_found: Count of TAKEABLE candidates — survivors of the
+            exact-episode filter, the hard profile filters and the
+            ``min_seeders`` floor — at the time of the last concluded search.
+            ``None`` when the search did NOT conclude (outage, open circuit,
+            dead swarm): zero would falsely claim « I looked, there is
+            nothing », which is the lie of the Furious incident (DESIGN §1).
+            ``None`` is also the default for never-searched rows.
     """
 
     media_ref: MediaRef
@@ -123,6 +136,8 @@ class WantedItem:
     attempts: int = 0
     id: int | None = None
     grabbed_hash: str | None = None
+    last_search_outcome: str | None = None
+    last_search_found: int | None = None
 
     def __post_init__(self) -> None:
         """Validate kind and status values.
@@ -131,7 +146,7 @@ class WantedItem:
             ValueError: If kind or status is not a valid literal.
         """
         valid_kinds: tuple[str, ...] = ("movie", "episode")
-        valid_statuses: tuple[str, ...] = ("pending", "searching", "grabbed", "done", "abandoned")
+        valid_statuses: tuple[str, ...] = ("pending", "searching", "available", "grabbed", "done", "abandoned")
         if self.kind not in valid_kinds:
             raise ValueError(f"Invalid WantedItem.kind={self.kind!r}; must be one of {valid_kinds}")
         if self.status not in valid_statuses:
