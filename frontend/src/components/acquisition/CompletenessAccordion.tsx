@@ -20,7 +20,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompleteness } from "@/hooks/useAcquisition";
 
-import { EPISODE_STATE_LABEL, EPISODE_STATE_TONE } from "./meta";
+import {
+  EPISODE_STATE_HINT,
+  EPISODE_STATE_LABEL,
+  EPISODE_STATE_TONE,
+} from "./meta";
 
 /** Props for {@link CompletenessAccordion}. */
 export interface CompletenessAccordionProps {
@@ -43,11 +47,9 @@ function SeasonRow({ season }: { season: SeasonCompleteness }): ReactElement {
         {season.episodes.map((ep) => (
           <span
             key={ep.episode}
-            title={`E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state] ?? ep.state}${ep.title ? ` · ${ep.title}` : ""}`}
+            title={`E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state]}${ep.title ? ` · ${ep.title}` : ""} — ${EPISODE_STATE_HINT[ep.state]}`}
           >
-            <Badge tone={EPISODE_STATE_TONE[ep.state] ?? "neutral"}>
-              E{ep.episode}
-            </Badge>
+            <Badge tone={EPISODE_STATE_TONE[ep.state]}>E{ep.episode}</Badge>
           </span>
         ))}
       </div>
@@ -73,17 +75,15 @@ export function CompletenessAccordion({
   const { data, isLoading, isError } = useCompleteness(followedId, open);
 
   // P0-B.1: caption the aired-catalog provenance honestly — the dated detect
-  // cache ("Catalogue du JJ/MM/AAAA") vs a live synchronous provider poll.
+  // cache ("Catalogue du JJ/MM/AAAA"). The former "live" provenance died with
+  // the synchronous provider poll (acq-states phase 5): a web read never polls,
+  // so the only two provenances left are the dated cache and « unknown ».
   const catalogCaption =
-    data == null
-      ? null
-      : data.source === "cache" && data.catalog_refreshed_at != null
-        ? `Catalogue du ${new Date(
-            data.catalog_refreshed_at * 1000,
-          ).toLocaleDateString("fr-FR")}`
-        : data.source === "live"
-          ? "Catalogue interrogé en direct"
-          : null;
+    data?.source === "cache" && data.catalog_refreshed_at != null
+      ? `Catalogue du ${new Date(
+          data.catalog_refreshed_at * 1000,
+        ).toLocaleDateString("fr-FR")}`
+      : null;
 
   return (
     <Accordion className="rounded-md border border-border bg-card px-3">

@@ -115,13 +115,11 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   // Mirror the backend-derived status (C14) so the fixture matches the real
-  // response shape; an explicit `status` override still wins.
-  const status = !merged.active
-    ? "disabled"
-    : merged.wanted_pending > 0
-      ? "pending"
-      : "up_to_date";
-  return { status, ...merged };
+  // response shape; an explicit `status` override still wins. The status is NOT
+  // derived from `wanted_pending` any more (acq-states phase 4): a raw queue
+  // counter knows nothing about ownership or about the aired catalog.
+  const status = merged.active ? "a_recuperer" : "disabled";
+  return { status, priming_running: false, ...merged };
 }
 
 /** A single obligation item matching ObligationItem shape. */
@@ -319,6 +317,7 @@ describe("AcquisitionPage", () => {
             id: 1,
             title: "Top Chef",
             wanted_pending: 3,
+            status: "en_attente",
             media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
           }),
           makeFollowed({
@@ -352,14 +351,14 @@ describe("AcquisitionPage", () => {
       data: {
         items: [
           // Contradictory flags on purpose: the raw active/pending would read
-          // as "En cours", but the backend-derived status says up_to_date. The
+          // as "En attente", but the backend-derived status says a_jour. The
           // UI must trust `status` (no JSX derivation) → "À jour".
           makeFollowed({
             id: 1,
             title: "Top Chef",
             active: true,
             wanted_pending: 4,
-            status: "up_to_date",
+            status: "a_jour",
           }),
         ],
       },

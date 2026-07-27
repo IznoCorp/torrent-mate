@@ -29,7 +29,7 @@ vi.mock("@/hooks/useSchedulers", () => ({
 
 import { FollowedPanel } from "./FollowedPanel";
 
-/** A fully-typed followed item, with the P0-B counter fields nulled (no catalog). */
+/** A fully-typed followed item, with the five-state counters nulled (no catalog). */
 function makeItem(
   overrides: Partial<FollowedSeriesItem> = {},
 ): FollowedSeriesItem {
@@ -50,12 +50,15 @@ function makeItem(
     overview: null,
     poster_url: null,
     media_ref: { tvdb_id: 371572, tmdb_id: null, imdb_id: null },
-    status: "up_to_date",
+    status: "a_jour",
+    priming_running: false,
     aired_count: null,
     owned_count: null,
-    inflight_count: null,
-    queued_count: null,
-    missing_count: null,
+    a_recuperer_count: null,
+    en_acquisition_count: null,
+    en_attente_count: null,
+    non_verifie_count: null,
+    movie_facts: null,
     ...overrides,
   };
 }
@@ -80,21 +83,19 @@ afterEach(() => {
 });
 
 describe("FollowedPanel — compact rows (Phase 02)", () => {
-  it("renders the incomplete status badge as « Épisodes manquants »", () => {
-    renderPanel([makeItem({ status: "incomplete" })]);
+  it("renders the a_recuperer status badge as « À récupérer »", () => {
+    renderPanel([makeItem({ status: "a_recuperer" })]);
 
-    expect(screen.getByText("Épisodes manquants")).toBeInTheDocument();
+    expect(screen.getByText("À récupérer")).toBeInTheDocument();
   });
 
   it("renders completeness as NN/NN in font-mono tabular-nums", () => {
     renderPanel([
       makeItem({
-        status: "incomplete",
+        status: "a_recuperer",
         aired_count: 18,
         owned_count: 15,
-        inflight_count: 0,
-        queued_count: 0,
-        missing_count: 3,
+        a_recuperer_count: 3,
       }),
     ]);
 
@@ -112,10 +113,10 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
       makeItem({
         id: 1,
         title: "Silo",
-        status: "incomplete",
+        status: "a_recuperer",
         aired_count: 10,
         owned_count: 9,
-        missing_count: 1,
+        a_recuperer_count: 1,
       }),
       // aired_count null = no cached catalog → "—" for completeness.
       makeItem({ id: 2, title: "Top Chef" }),
@@ -177,30 +178,29 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
 });
 
 describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
-  it("libelle un film manquant « Manquant » (pas « Épisodes manquants »)", () => {
+  it("garde le libellé partagé pour un film à récupérer", () => {
     renderPanel([
-      makeItem({ kind: "movie", title: "Ferrari", status: "incomplete" }),
+      makeItem({ kind: "movie", title: "Ferrari", status: "a_recuperer" }),
     ]);
 
-    expect(screen.getByText("Manquant")).toBeInTheDocument();
-    expect(screen.queryByText("Épisodes manquants")).not.toBeInTheDocument();
+    expect(screen.getByText("À récupérer")).toBeInTheDocument();
   });
 
   it("libelle un film en médiathèque « Acquis » (pas « À jour »)", () => {
     renderPanel([
-      makeItem({ kind: "movie", title: "Ferrari", status: "up_to_date" }),
+      makeItem({ kind: "movie", title: "Ferrari", status: "a_jour" }),
     ]);
 
     expect(screen.getByText("Acquis")).toBeInTheDocument();
     expect(screen.queryByText("À jour")).not.toBeInTheDocument();
   });
 
-  it("garde les libellés série pour une série incomplète", () => {
-    renderPanel([makeItem({ kind: "show", status: "incomplete" })]);
+  it("garde les libellés série pour une série à jour", () => {
+    renderPanel([makeItem({ kind: "show", status: "a_jour" })]);
 
     // The movie override must not leak into series cards.
-    expect(screen.getByText("Épisodes manquants")).toBeInTheDocument();
-    expect(screen.queryByText("Manquant")).not.toBeInTheDocument();
+    expect(screen.getByText("À jour")).toBeInTheDocument();
+    expect(screen.queryByText("Acquis")).not.toBeInTheDocument();
   });
 });
 

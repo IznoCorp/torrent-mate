@@ -57,9 +57,9 @@ import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
   cadenceInterval,
   FOLLOW_KIND_LABEL,
-  FOLLOW_STATUS_LABEL,
-  FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
+  followStatusHint,
+  followStatusLabel,
   formatRunResult,
   GRAB_JOB_NAME,
   untilLabel,
@@ -306,10 +306,7 @@ export function FollowedPanel({
       <div className="flex flex-col gap-2">
         {activeItems.map((item) => {
           const isMovie = item.kind === "movie";
-          const statusLabel =
-            (isMovie ? FOLLOW_STATUS_LABEL_MOVIE[item.status] : undefined) ??
-            FOLLOW_STATUS_LABEL[item.status] ??
-            item.status;
+          const statusLabel = followStatusLabel(item.status, item.kind);
           const isSearching =
             triggerMutation.isPending && triggerMutation.variables === item.id;
 
@@ -333,12 +330,15 @@ export function FollowedPanel({
                     <span className="truncate text-sm font-medium">
                       {item.title}
                     </span>
-                    <Badge
-                      tone={FOLLOW_STATUS_TONE[item.status] ?? "neutral"}
-                      dot
-                    >
-                      {statusLabel}
-                    </Badge>
+                    {/* Status chip: pure mapping of the SERVER state — no
+                        client-side derivation. The wrapper's title spells the
+                        state out so « En attente » and « Non vérifié », which
+                        share a neutral tone, can never be confused (DOIT-1). */}
+                    <span title={followStatusHint(item.status, item.kind)}>
+                      <Badge tone={FOLLOW_STATUS_TONE[item.status]} dot>
+                        {statusLabel}
+                      </Badge>
+                    </span>
                     {/* Kind label — kept as a subtle hint for disambiguation. */}
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}

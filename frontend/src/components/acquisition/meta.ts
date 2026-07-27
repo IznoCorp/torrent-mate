@@ -8,7 +8,11 @@
  * epoch/format helpers.
  */
 
-import { type ObligationItem } from "@/api/acquisition";
+import {
+  type FollowedSeriesItem,
+  type ObligationItem,
+  type SeasonCompleteness,
+} from "@/api/acquisition";
 import type { BadgeTone } from "@/components/ui/badge";
 import {
   OUTCOME_LABEL,
@@ -131,43 +135,141 @@ export const TIER_LABEL: Record<string, string> = {
   cutoff: "abandonnée",
 };
 
+// ---------------------------------------------------------------------------
+// The five-state vocabulary (acq-states phase 8)
+// ---------------------------------------------------------------------------
+//
+// Vocabulary HOME. The shared ``@/lib/outcome-labels`` module owns the
+// CROSS-DOMAIN run-outcome / generic item-state vocabulary (success, killed,
+// pending, …), keyed by loose strings because a dozen unrelated surfaces feed
+// it. The acquisition five states are a different animal: they are a CLOSED
+// enum of the acquisition contract, and the whole point of phase 8 is that the
+// maps be exhaustive against that enum. Typing them here — where
+// ``FOLLOW_STATUS_LABEL`` / ``FOLLOW_STATUS_LABEL_MOVIE`` have lived since
+// systeme-hub unified them — keeps ONE map per state family (never a second
+// one) while giving `tsc` the exhaustiveness check that
+// ``Record<string, …>`` can never provide. Extend HERE; never re-declare a
+// follow/episode label anywhere else.
+// ---------------------------------------------------------------------------
+
 /**
- * Followed-series lifecycle status → badge tone (C14).
+ * A followed card's lifecycle status — read STRAIGHT from the generated OpenAPI
+ * contract, never re-typed by hand.
  *
- * Mirrors the backend-derived ``FollowedSeriesItem.status`` so the UI paints
- * without re-deriving business state in JSX.
+ * Because the maps below are ``Record<FollowStatus, …>``, a server-side change
+ * to the enum (a new state, a renamed one) breaks `npm run typecheck` instead
+ * of silently rendering a raw slug like ``a_recuperer`` to the operator.
  */
-export const FOLLOW_STATUS_TONE: Record<
-  string,
-  "success" | "warning" | "neutral" | "info"
-> = {
+export type FollowStatus = FollowedSeriesItem["status"];
+
+/** One aired episode's state — same contract-derived guarantee as {@link FollowStatus}. */
+export type EpisodeState = SeasonCompleteness["episodes"][number]["state"];
+
+/**
+ * Followed-card status → badge tone (phase-08 vocabulary table).
+ *
+ * The table's ``muted`` tone for ``disabled`` IS the DS ``neutral`` chip
+ * (``bg-muted`` / ``text-muted-foreground``) — the design system exposes no
+ * separate ``muted`` badge tone, so the two names denote the same paint.
+ */
+export const FOLLOW_STATUS_TONE: Record<FollowStatus, BadgeTone> = {
   disabled: "neutral",
-  pending: "warning",
-  acquiring: "info",
-  incomplete: "warning",
-  up_to_date: "success",
+  verification_en_cours: "info",
+  a_recuperer: "warning",
+  en_acquisition: "info",
+  en_attente: "neutral",
+  non_verifie: "neutral",
+  a_jour: "success",
 };
 
-/** Followed-series lifecycle status → French badge label (C14 / §5). */
-export const FOLLOW_STATUS_LABEL: Record<string, string> = {
-  disabled: "Désactivé",
-  pending: "En attente",
-  acquiring: "En cours d'acquisition",
-  incomplete: "Épisodes manquants",
-  up_to_date: "À jour",
+/** Followed-card status → French badge label, série wording (§5). */
+export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
+  disabled: "En pause",
+  verification_en_cours: "Vérification en cours",
+  a_recuperer: "À récupérer",
+  en_acquisition: "En cours d'acquisition",
+  en_attente: "En attente",
+  non_verifie: "Non vérifié",
+  a_jour: "À jour",
 };
 
 /**
- * Film-specific overrides for the two status labels that read as series-only
- * (D2-B). A film has no episodes, so « Épisodes manquants » / « À jour » are
- * wrong on a movie card — the status itself is now ownership-driven (real disk
- * presence), so a film reads « Acquis » once in the library and « Manquant »
- * when absent with nothing in flight. Presentational only; tones are shared.
+ * Film-specific label overrides (D2-B).
+ *
+ * A film has no episode catalog, so « À jour » reads wrong on a movie card: it
+ * is either acquired or it is not. Only the states whose série wording does not
+ * fit a single unit are overridden; every other state keeps the shared label.
+ * Presentational only — tones are shared with {@link FOLLOW_STATUS_TONE}.
  */
-export const FOLLOW_STATUS_LABEL_MOVIE: Record<string, string> = {
-  incomplete: "Manquant",
-  up_to_date: "Acquis",
+export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
+  a_jour: "Acquis",
 };
+
+/**
+ * Followed-card status → the sentence that disambiguates it (tooltip / title).
+ *
+ * « En attente » and « Non vérifié » share a neutral tone and must NEVER be
+ * confusable: one says « I searched the trackers and nothing was takeable »,
+ * the other « I have no verdict at all yet ». The label carries the
+ * distinction, this hint spells it out (DOIT-1: compréhensible sans être
+ * ingénieur).
+ */
+export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
+  disabled: "Suivi en pause — aucune recherche automatique n'est faite.",
+  verification_en_cours:
+    "Vérification en cours — le catalogue puis les trackers sont interrogés.",
+  a_recuperer:
+    "Une version conforme au profil est disponible — il reste à la récupérer.",
+  en_acquisition:
+    "Torrent pris — le pipeline le porte jusqu'à la médiathèque.",
+  en_attente:
+    "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
+  non_verifie:
+    "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
+  a_jour: "Tout ce qui est sorti est en médiathèque.",
+};
+
+/** Film wording of {@link FOLLOW_STATUS_HINT}, for the overridden states only. */
+export const FOLLOW_STATUS_HINT_MOVIE: Partial<Record<FollowStatus, string>> = {
+  a_jour: "Le film est en médiathèque.",
+};
+
+/**
+ * Return the French label of a card status for the right media kind.
+ *
+ * Zero derivation in JSX (phase-08 rule): the component passes the SERVER
+ * status and the media kind, and gets the operator-facing wording back.
+ *
+ * Args:
+ *   status: The server-derived card status.
+ *   kind: ``"movie"`` or ``"show"`` (anything else reads as a série).
+ *
+ * Returns:
+ *   The French label — film wording when one is defined for that state.
+ */
+export function followStatusLabel(status: FollowStatus, kind: string): string {
+  if (kind === "movie") {
+    return FOLLOW_STATUS_LABEL_MOVIE[status] ?? FOLLOW_STATUS_LABEL[status];
+  }
+  return FOLLOW_STATUS_LABEL[status];
+}
+
+/**
+ * Return the disambiguating sentence of a card status for the right media kind.
+ *
+ * Args:
+ *   status: The server-derived card status.
+ *   kind: ``"movie"`` or ``"show"``.
+ *
+ * Returns:
+ *   The French hint — film wording when one is defined for that state.
+ */
+export function followStatusHint(status: FollowStatus, kind: string): string {
+  if (kind === "movie") {
+    return FOLLOW_STATUS_HINT_MOVIE[status] ?? FOLLOW_STATUS_HINT[status];
+  }
+  return FOLLOW_STATUS_HINT[status];
+}
 
 /** Followed kind → French badge label (§5 film vs série). */
 export const FOLLOW_KIND_LABEL: Record<string, string> = {
@@ -235,23 +337,48 @@ export function formatRunResult(
   return parts.length > 0 ? parts.join(", ") : "rien de nouveau";
 }
 
-/** Per-episode §5 state → chip tone (completeness matrix). */
-export const EPISODE_STATE_TONE: Record<
-  string,
-  "success" | "warning" | "info" | "neutral"
-> = {
+/** Per-episode §5 state → chip tone (completeness matrix, phase-08 table). */
+export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   en_mediatheque: "success",
-  en_file: "warning",
-  en_cours: "info",
-  manquant: "neutral",
+  a_recuperer: "warning",
+  en_acquisition: "info",
+  en_attente: "neutral",
+  non_verifie: "neutral",
 };
 
-/** Per-episode §5 state → French label (completeness matrix). */
-export const EPISODE_STATE_LABEL: Record<string, string> = {
+/**
+ * Per-episode §5 state → French label (completeness matrix).
+ *
+ * ``en_mediatheque`` keeps the §5 wording « En médiathèque » on an EPISODE: the
+ * vocabulary table's « À jour » is the CARD reading of that state (a card
+ * aggregates to ``a_jour``), and an individual episode is never « à jour » — it
+ * is on the disks or it is not.
+ */
+export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
   en_mediatheque: "En médiathèque",
-  en_file: "En file",
-  en_cours: "En cours",
-  manquant: "Manquant",
+  a_recuperer: "À récupérer",
+  en_acquisition: "En cours d'acquisition",
+  en_attente: "En attente",
+  non_verifie: "Non vérifié",
+};
+
+/**
+ * Per-episode state → the sentence that disambiguates it (chip tooltip).
+ *
+ * Same anti-confusion contract as {@link FOLLOW_STATUS_HINT}: « En attente »
+ * (searched, nothing conforming) must never read like « Non vérifié » (no
+ * verdict yet).
+ */
+export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
+  en_mediatheque: "L'épisode est en médiathèque.",
+  a_recuperer:
+    "Une version conforme au profil est disponible — il reste à la récupérer.",
+  en_acquisition:
+    "Torrent pris — le pipeline le porte jusqu'à la médiathèque.",
+  en_attente:
+    "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
+  non_verifie:
+    "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
 };
 
 /** Live download state → Badge tone (A4). */

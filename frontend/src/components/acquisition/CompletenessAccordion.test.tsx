@@ -39,12 +39,12 @@ function makeCompleteness(
             title: "The Heirs of the Dragon",
             air_date: "2022-08-21",
           },
-          { episode: 2, state: "manquant", title: null, air_date: null },
+          { episode: 2, state: "en_attente", title: null, air_date: null },
         ],
       },
     ],
-    source: "live",
-    catalog_refreshed_at: null,
+    source: "cache",
+    catalog_refreshed_at: REFRESHED_AT,
     ...overrides,
   };
 }
@@ -91,13 +91,17 @@ describe("CompletenessAccordion catalog caption (P0-B.1)", () => {
     expect(screen.getByText("Saison 1")).toBeInTheDocument();
   });
 
-  it("captions the live provider poll when source is live", () => {
-    mockCompleteness(makeCompleteness({ source: "live" }));
+  it("captions nothing when the catalog provenance is unknown", () => {
+    // The "live" provenance died with the synchronous provider poll
+    // (acq-states phase 5): an unknown catalog claims NOTHING.
+    mockCompleteness(
+      makeCompleteness({ source: "unknown", catalog_refreshed_at: null }),
+    );
     renderOpen();
 
-    expect(
-      screen.getByText("Catalogue interrogé en direct"),
-    ).toBeInTheDocument();
     expect(screen.queryByText(/Catalogue du /)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Catalogue interrogé en direct"),
+    ).not.toBeInTheDocument();
   });
 });
