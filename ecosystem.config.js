@@ -148,9 +148,10 @@ module.exports = {
       },
     },
 
-    // ---- Follow → auto-acquisition (Follow D3) ----
-    // detect aired episodes for followed series → enqueue as wanted, then grab
-    // searches the trackers + adds the exact-episode top candidate to qBit.
+    // ---- Follow → auto-acquisition (three-pass: detect → search → grab) ----
+    // detect enqueues newly-aired episodes as wanted; search probes tracker
+    // availability for each wanted item; grab walks known-available items,
+    // selects the top-ranked candidate and adds it to qBit.
     {
       name: "personalscraper-follow-detect",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
@@ -159,6 +160,22 @@ module.exports = {
       cwd: "/Users/izno/deploy/torrentmate",
       autorestart: false,
       cron_restart: "0 3 * * *", // 03:00 daily — enqueue newly-aired episodes
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+      },
+    },
+
+    // the search pass states tracker availability between detect (03:00) and grab (03:20)
+    // — grab then only walks known-available items.
+    {
+      name: "personalscraper-search",
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
+      args: "search",
+      interpreter: "none",
+      cwd: "/Users/izno/deploy/torrentmate",
+      autorestart: false,
+      cron_restart: "10 3,15 * * *",
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
