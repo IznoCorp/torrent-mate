@@ -4360,9 +4360,52 @@
         ]
       }
     },
+    "/api/acquisition/followed/{followed_id}/grab": {
+      "post": {
+        "description": "Claim NOW what is already takeable for one follow (\u00ab R\u00e9cup\u00e9rer maintenant \u00bb).\n\nThe counterpart of :func:`trigger_followed_search`: it spawns the ``grab``\nrunner alone (``grab --followed-id N``), which takes the items the last\nsearch already marked ``available`` \u2014 no catalog poll, no tracker search.\nThat is exactly the action an operator wants on an \u00ab \u00c0 r\u00e9cup\u00e9rer \u00bb item:\nthe work is known, only the claiming is pending, and waiting for the 03:20\ncron is the wait \u00a76 forbids.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nReturns:\n    ``202`` with :class:`GrabTriggerResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The followed series does not exist.\n    409: A grab for this series is already running (the only permitted\n        refusal \u2014 a running prime does NOT block it).\n    500: The runner subprocess failed to spawn.",
+        "operationId": "trigger_followed_grab_api_acquisition_followed__followed_id__grab_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followed_id",
+            "required": true,
+            "schema": {
+              "title": "Followed Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrabTriggerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Followed Grab",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/followed/{followed_id}/search": {
       "post": {
-        "description": "Launch a targeted grab for one followed series (OBJ3 manual trigger).\n\nReserves a ``pipeline_run`` row, spawns the grab runner (which runs\n``grab --followed-id <id>`` over that series' pending wanted items), and\nreturns ``202`` with the ``run_uid`` so the UI can track the outcome.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nReturns:\n    ``202`` with :class:`GrabTriggerResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The followed series does not exist.\n    409: A grab for this series is already running.\n    500: The runner subprocess failed to spawn.",
+        "description": "Launch the FULL search chain for one followed series (\u00ab Rechercher \u00bb).\n\nSpawns the ``prime`` runner \u2014 ``follow detect --series N`` \u2192\n``search --followed-id N`` \u2192 ``grab --followed-id N`` \u2014 and returns ``202``\nwith the ``run_uid`` so the UI tracks the run to its numeric result.\n\nIt used to spawn a bare ``grab``, which was the right runner while a single\npass did everything. Since the five-state split, ``grab`` only claims items\nalready marked takeable: pressing \u00ab Rechercher \u00bb on a follow whose episodes\nread ``en_attente`` or ``non_verifie`` would have done strictly nothing and\nreported success \u2014 a silent no-op (NE-DOIT-PAS-1). Priming re-polls the\ncatalog, re-searches the trackers and grabs what it finds, which is what the\nbutton has always claimed to do (\u00a75 watcher semantics, on demand).\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nReturns:\n    ``202`` with :class:`GrabTriggerResponse` (``{\"run_uid\": \"...\"}``).\n\nRaises:\n    404: The followed series does not exist.\n    409: A priming run for this series is already in flight (the only\n        permitted refusal \u2014 a running grab does NOT block it).\n    500: The runner subprocess failed to spawn.",
         "operationId": "trigger_followed_search_api_acquisition_followed__followed_id__search_post",
         "parameters": [
           {

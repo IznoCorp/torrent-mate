@@ -192,6 +192,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/followed/{followed_id}/grab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Followed Grab
+         * @description Claim NOW what is already takeable for one follow (« Récupérer maintenant »).
+         *
+         *     The counterpart of :func:`trigger_followed_search`: it spawns the ``grab``
+         *     runner alone (``grab --followed-id N``), which takes the items the last
+         *     search already marked ``available`` — no catalog poll, no tracker search.
+         *     That is exactly the action an operator wants on an « À récupérer » item:
+         *     the work is known, only the claiming is pending, and waiting for the 03:20
+         *     cron is the wait §6 forbids.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *
+         *     Returns:
+         *         ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+         *
+         *     Raises:
+         *         404: The followed series does not exist.
+         *         409: A grab for this series is already running (the only permitted
+         *             refusal — a running prime does NOT block it).
+         *         500: The runner subprocess failed to spawn.
+         */
+        post: operations["trigger_followed_grab_api_acquisition_followed__followed_id__grab_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/followed/{followed_id}/search": {
         parameters: {
             query?: never;
@@ -203,11 +243,19 @@ export interface paths {
         put?: never;
         /**
          * Trigger Followed Search
-         * @description Launch a targeted grab for one followed series (OBJ3 manual trigger).
+         * @description Launch the FULL search chain for one followed series (« Rechercher »).
          *
-         *     Reserves a ``pipeline_run`` row, spawns the grab runner (which runs
-         *     ``grab --followed-id <id>`` over that series' pending wanted items), and
-         *     returns ``202`` with the ``run_uid`` so the UI can track the outcome.
+         *     Spawns the ``prime`` runner — ``follow detect --series N`` →
+         *     ``search --followed-id N`` → ``grab --followed-id N`` — and returns ``202``
+         *     with the ``run_uid`` so the UI tracks the run to its numeric result.
+         *
+         *     It used to spawn a bare ``grab``, which was the right runner while a single
+         *     pass did everything. Since the five-state split, ``grab`` only claims items
+         *     already marked takeable: pressing « Rechercher » on a follow whose episodes
+         *     read ``en_attente`` or ``non_verifie`` would have done strictly nothing and
+         *     reported success — a silent no-op (NE-DOIT-PAS-1). Priming re-polls the
+         *     catalog, re-searches the trackers and grabs what it finds, which is what the
+         *     button has always claimed to do (§5 watcher semantics, on demand).
          *
          *     Args:
          *         request: The incoming FastAPI request.
@@ -218,7 +266,8 @@ export interface paths {
          *
          *     Raises:
          *         404: The followed series does not exist.
-         *         409: A grab for this series is already running.
+         *         409: A priming run for this series is already in flight (the only
+         *             permitted refusal — a running grab does NOT block it).
          *         500: The runner subprocess failed to spawn.
          */
         post: operations["trigger_followed_search_api_acquisition_followed__followed_id__search_post"];
@@ -4624,6 +4673,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompletenessResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_followed_grab_api_acquisition_followed__followed_id__grab_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
                 };
             };
             /** @description Validation Error */

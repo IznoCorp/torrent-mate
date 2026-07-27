@@ -6,13 +6,21 @@
  * MediaCard grid — 72 px poster thumb, mono completeness, one ⋯ DropdownMenu.
  */
 
-import { Clock, MoreHorizontal, Power, Search, Trash2 } from "lucide-react";
+import {
+  Clock,
+  Download,
+  MoreHorizontal,
+  Power,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import {
   acqKeys,
+  triggerFollowedGrab,
   triggerFollowedSearch,
   type CreateFollowRequest,
   type FollowedSeriesItem,
@@ -56,6 +64,7 @@ import { useSchedulers } from "@/hooks/useSchedulers";
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
   cadenceInterval,
+  canGrabNow,
   FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_TONE,
   followCountsCaption,
@@ -112,37 +121,84 @@ export function FollowedPanel({
   // count / status reflect the freshly enqueued search without a manual reload.
   // §5: never a success toast on the 202 — track the launched grab to its
   // NUMERIC result and toast only once the run actually ends.
+  // « Récupérer maintenant » (§6): the operator must not wait for the 03:20
+  // cron when a takeable version is already known. The row shows « En file »
+  // until the launched run ends — a 202 is a queued state, never a promise of
+  // success (NE-DOIT-PAS-1). Declared before the run tracker below, which
+  // clears it when the run it belongs to ends.
+  const [queuedGrabs, setQueuedGrabs] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const markQueued = (id: number): void => {
+    setQueuedGrabs((prev) => new Set(prev).add(id));
+  };
+
   const [trackedRun, setTrackedRun] = useState<string | null>(null);
   const finishedRun = useTrackedAcquisitionRun(trackedRun);
   if (finishedRun?.ended_at != null && trackedRun != null) {
     if (finishedRun.outcome === "success") {
       const summary = formatRunResult(finishedRun.result);
-      toast.success(`Recherche terminée${summary ? ` — ${summary}` : ""}.`);
+      toast.success(`Exécution terminée${summary ? ` — ${summary}` : ""}.`);
     } else {
-      toast.error("La recherche a échoué — voir les exécutions récentes.");
+      toast.error("L'exécution a échoué — voir les exécutions récentes.");
     }
     setTrackedRun(null);
+    // The « En file » readouts end with the run that carried them.
+    setQueuedGrabs(new Set());
     void queryClient.invalidateQueries({ queryKey: acqKeys.all });
   }
 
   const triggerMutation = useMutation({
     mutationFn: (id: number) => triggerFollowedSearch(id),
     onSuccess: (res) => {
-      toast.info("Recherche lancée…");
+      // The button now runs the whole chain server-side (catalogue → trackers →
+      // récupération), so the wording says so instead of promising a "search".
+      toast.info(
+        "Vérification lancée — catalogue, trackers, puis récupération…",
+      );
       setTrackedRun(res.run_uid);
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          toast.error("Une recherche est déjà en cours pour cette série.");
+          // §6 / NE-DOIT-PAS-3: the duplicate of the SAME action is the one
+          // legitimate refusal — it is an information, never an error.
+          toast.info("Une vérification est déjà en cours pour ce titre.");
         } else if (err.status === 404) {
           toast.error("Série introuvable.");
         } else {
           toast.error(err.detail);
         }
       } else {
-        toast.error("Erreur lors du lancement de la recherche.");
+        toast.error("Erreur lors du lancement de la vérification.");
       }
+    },
+  });
+
+  const grabMutation = useMutation({
+    mutationFn: (id: number) => triggerFollowedGrab(id),
+    onSuccess: (res, id) => {
+      toast.info("Récupération mise en file…");
+      markQueued(id);
+      setTrackedRun(res.run_uid);
+    },
+    onError: (err: unknown, id: number) => {
+      if (err instanceof ApiError && err.status === 409) {
+        // Already running for this very item: the one permitted refusal. The
+        // operator's intent is satisfied, so it reads as « déjà en cours ».
+        toast.info("Récupération déjà en cours pour ce titre.");
+        markQueued(id);
+        return;
+      }
+      if (err instanceof ApiError && err.status === 404) {
+        toast.error("Titre introuvable.");
+        return;
+      }
+      toast.error(
+        err instanceof ApiError
+          ? err.detail
+          : "Erreur lors du lancement de la récupération.",
+      );
     },
   });
 
@@ -317,6 +373,9 @@ export function FollowedPanel({
           const waitingReason = followWaitingReason(item);
           const isSearching =
             triggerMutation.isPending && triggerMutation.variables === item.id;
+          const isGrabbing =
+            grabMutation.isPending && grabMutation.variables === item.id;
+          const isQueued = queuedGrabs.has(item.id);
 
           return (
             <div key={`f-${String(item.id)}`} className="flex flex-col">
@@ -371,6 +430,23 @@ export function FollowedPanel({
                         is not acquired belongs here, in French, mapped from the
                         same facts the chip was derived from. */}
                     {waitingReason != null && <span>{waitingReason}</span>}
+                    {/* « Récupérer maintenant » — offered exactly where the
+                        server says something is takeable. It sits on the
+                        wrapping metadata line so it never pushes the row past
+                        the viewport on a phone. */}
+                    {canGrabNow(item) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isGrabbing || isQueued}
+                        onClick={() => {
+                          grabMutation.mutate(item.id);
+                        }}
+                      >
+                        <Download className="size-4" aria-hidden="true" />
+                        {isQueued ? "En file" : "Récupérer maintenant"}
+                      </Button>
+                    )}
                   </div>
                 </div>
 

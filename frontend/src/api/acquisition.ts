@@ -354,10 +354,13 @@ export type GrabTriggerResponse = SuccessBody<
 >;
 
 /**
- * Launch a targeted grab for one followed series (OBJ3 manual trigger).
+ * Launch the FULL search chain for one followed series (« Rechercher »).
  *
  * Sends ``POST /api/acquisition/followed/{followed_id}/search`` with the
- * ``X-Requested-With`` header. Returns ``202`` with the launched ``run_uid``.
+ * ``X-Requested-With`` header. Server-side this now spawns the ``prime`` runner
+ * — detect → search → grab — because a bare grab only claims items already
+ * marked takeable and would do nothing at all on a follow that is waiting or
+ * unverified. Returns ``202`` with the launched ``run_uid``.
  *
  * Args:
  *   id: Rowid of the ``followed_series`` row.
@@ -366,10 +369,38 @@ export type GrabTriggerResponse = SuccessBody<
  *   The {@link GrabTriggerResponse} with the launched ``run_uid``.
  *
  * Raises:
- *   ApiError: 404 (unknown series) / 409 (a grab for this series is running).
+ *   ApiError: 404 (unknown series) / 409 (a search for this series is already
+ *     running — the only permitted refusal).
  */
 export function triggerFollowedSearch(id: number): Promise<GrabTriggerResponse> {
   return apiFetch("/api/acquisition/followed/{followed_id}/search", {
+    method: "post",
+    headers: XRW_HEADERS,
+    params: { path: { followed_id: id } },
+  });
+}
+
+/**
+ * Claim NOW what is already takeable for one follow (« Récupérer maintenant »).
+ *
+ * Sends ``POST /api/acquisition/followed/{followed_id}/grab`` with the
+ * ``X-Requested-With`` header. The counterpart of
+ * {@link triggerFollowedSearch}: no catalog poll, no tracker search — it grabs
+ * what the last search already marked available, which is exactly what an
+ * « À récupérer » item needs. Returns ``202`` with the launched ``run_uid``.
+ *
+ * Args:
+ *   id: Rowid of the ``followed_series`` row.
+ *
+ * Returns:
+ *   The {@link GrabTriggerResponse} with the launched ``run_uid``.
+ *
+ * Raises:
+ *   ApiError: 404 (unknown series) / 409 (a grab for this series is already
+ *     running — the only permitted refusal).
+ */
+export function triggerFollowedGrab(id: number): Promise<GrabTriggerResponse> {
+  return apiFetch("/api/acquisition/followed/{followed_id}/grab", {
     method: "post",
     headers: XRW_HEADERS,
     params: { path: { followed_id: id } },

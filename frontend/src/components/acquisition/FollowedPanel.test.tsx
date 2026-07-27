@@ -4,10 +4,40 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
+import { ApiError } from "@/api/client";
+
+// The « Récupérer maintenant » action posts through the API module directly
+// (no hook), so the endpoint itself is stubbed; everything else stays real.
+const { grabMock, toastMock } = vi.hoisted(() => ({
+  grabMock: vi.fn(),
+  toastMock: {
+    info: vi.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock("@/api/acquisition", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/acquisition")>();
+  return {
+    ...actual,
+    triggerFollowedGrab: (id: number): Promise<{ run_uid: string }> =>
+      grabMock(id) as Promise<{ run_uid: string }>,
+  };
+});
+
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 // Inert hook mocks: the panel's mutations/queries never fire in these render
 // tests — only the markup derived from the `data` prop is under test.
@@ -353,5 +383,72 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
   it("aucune section retirés quand tout est actif", () => {
     renderPanel([makeItem()]);
     expect(screen.queryByText(/Suivis retirés/)).not.toBeInTheDocument();
+  });
+});
+
+describe("FollowedPanel — « Récupérer maintenant » (phase 8 / §6)", () => {
+  it("n'offre l'action que là où quelque chose est réellement récupérable", () => {
+    renderPanel([
+      makeItem({ id: 1, title: "Silo", status: "a_recuperer" }),
+      makeItem({ id: 2, title: "Furious", status: "en_attente" }),
+      makeItem({ id: 3, title: "Top Chef", status: "a_jour" }),
+    ]);
+
+    expect(
+      screen.getAllByRole("button", { name: /Récupérer maintenant/ }),
+    ).toHaveLength(1);
+  });
+
+  it("passe en « En file » sur un 202, sans toast de succès (NE-DOIT-PAS-1)", async () => {
+    grabMock.mockResolvedValueOnce({ run_uid: "run-1" });
+    renderPanel([makeItem({ id: 4, title: "Silo", status: "a_recuperer" })]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /En file/ })).toBeDisabled();
+    });
+    expect(grabMock).toHaveBeenCalledWith(4);
+    expect(toastMock.success).not.toHaveBeenCalled();
+    expect(toastMock.error).not.toHaveBeenCalled();
+  });
+
+  it("traite le seul refus permis (409) comme « déjà en cours », pas une erreur", async () => {
+    grabMock.mockRejectedValueOnce(
+      new ApiError(409, "A matching acquisition run is already in flight"),
+    );
+    renderPanel([makeItem({ id: 5, title: "Silo", status: "a_recuperer" })]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /En file/ })).toBeInTheDocument();
+    });
+    // §6 / NE-DOIT-PAS-3: the duplicate of the same action is an information.
+    expect(toastMock.error).not.toHaveBeenCalled();
+    expect(toastMock.info).toHaveBeenCalledWith(
+      "Récupération déjà en cours pour ce titre.",
+    );
+  });
+
+  it("remonte bruyamment une vraie erreur (NE-DOIT-PAS-5)", async () => {
+    grabMock.mockRejectedValueOnce(new ApiError(500, "boom"));
+    renderPanel([makeItem({ id: 6, title: "Silo", status: "a_recuperer" })]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    );
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith("boom");
+    });
+    // A failed launch leaves the action available — nothing was queued.
+    expect(
+      screen.getByRole("button", { name: /Récupérer maintenant/ }),
+    ).toBeEnabled();
   });
 });

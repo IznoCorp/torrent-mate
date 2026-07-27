@@ -14,6 +14,7 @@ import sqlite3
 import subprocess
 import sys
 import uuid
+from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
 from typing import Literal, cast
@@ -287,31 +288,42 @@ def trigger_detect(request: Request) -> GrabTriggerResponse:
     return GrabTriggerResponse(run_uid=run_uid)
 
 
-@router.post(
-    "/followed/{followed_id}/search",
-    status_code=202,
-    response_model=GrabTriggerResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
-)
-def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerResponse:
-    """Launch a targeted grab for one followed series (OBJ3 manual trigger).
+#: The two per-follow manual actions, each with the ``pipeline_run.command`` it
+#: reserves and the canonical scope string its idempotence guard matches. They
+#: are DISTINCT actions on purpose (acq-states phase 8): « Rechercher » primes
+#: the whole chain (detect → search → grab) while « Récupérer maintenant » only
+#: claims what is already known to be takeable. A live one therefore never
+#: refuses the other — §6 allows exactly one refusal, the duplicate of the SAME
+#: action. The spawners are NOT held here: they are looked up by name at call
+#: time so a test (or a future decorator) monkeypatching the module attribute
+#: is actually honoured.
+_FOLLOWED_ACTIONS: dict[str, tuple[str, Callable[[int], str]]] = {
+    "prime": ("prime", prime_options_json),
+    "grab": ("grab", _grab_options_json),
+}
 
-    Reserves a ``pipeline_run`` row, spawns the grab runner (which runs
-    ``grab --followed-id <id>`` over that series' pending wanted items), and
-    returns ``202`` with the ``run_uid`` so the UI can track the outcome.
+
+def _launch_followed_action(request: Request, followed_id: int, action: str) -> GrabTriggerResponse:
+    """Reserve + spawn one of the per-follow manual actions.
+
+    Shared body of the two trigger routes so they can never drift apart on the
+    404 order, the idempotence guard, the pid bookkeeping or the fail-soft
+    finalize. Only the reserved command, the scope string and the spawner
+    differ — all three read from :data:`_FOLLOWED_ACTIONS`.
 
     Args:
         request: The incoming FastAPI request.
         followed_id: Rowid of the ``followed_series`` row.
+        action: ``"prime"`` or ``"grab"`` — the key in :data:`_FOLLOWED_ACTIONS`.
 
     Returns:
-        ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+        :class:`GrabTriggerResponse` carrying the launched ``run_uid``.
 
     Raises:
-        404: The followed series does not exist.
-        409: A grab for this series is already running.
-        500: The runner subprocess failed to spawn.
+        HTTPException: 404 (unknown follow), 409 (the SAME action is already in
+            flight for this follow), 500 (the runner failed to spawn).
     """
+    command, options_of = _FOLLOWED_ACTIONS[action]
     config = request.app.state.config
     db_path = cast(Path, config.indexer.db_path)
 
@@ -324,10 +336,11 @@ def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerRe
     if existing is None:
         raise HTTPException(status_code=404, detail="Followed series not found")
 
-    options_json = _grab_options_json(followed_id)
+    options_json = options_of(followed_id)
 
-    # 2. Reject a duplicate concurrent grab for the same series (409).
-    _guard_no_running_grab(db_path, options_json)
+    # 2. Reject the duplicate of the SAME action on the same follow (409) — and
+    #    ONLY that: a running grab must never refuse a prime, nor the reverse.
+    _guard_no_running_grab(db_path, options_json, command=command)
 
     # 3. Reserve the pipeline_run row with the web process pid (guaranteed alive
     #    until the runner claims its own pid), then spawn the runner.
@@ -339,26 +352,104 @@ def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerRe
         dry_run=False,
         pid=os.getpid(),
         kind="maintenance",
-        command="grab",
+        command=command,
         options_json=options_json,
         if_absent=True,
     )
 
     try:
-        pid = _spawn_grab_runner(run_uid, followed_id)
+        # Resolved at CALL time (never captured in the table above), so the
+        # spawner a test patches on this module is the one that runs.
+        spawn = _spawn_prime_runner if action == "prime" else _spawn_grab_runner
+        pid = spawn(run_uid, followed_id)
     except (OSError, ValueError) as exc:
         # Never leave the reserved row 'running' on a spawn failure (fail-soft).
         try:
             writer.finalize(run_uid, "error", error=str(exc))
         except sqlite3.Error:
-            logger.warning("grab_trigger_finalize_failed", run_uid=run_uid)
-        logger.error("grab_trigger_spawn_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
-        raise HTTPException(status_code=500, detail="Failed to spawn grab runner") from exc
+            logger.warning("followed_trigger_finalize_failed", run_uid=run_uid, command=command)
+        logger.error(
+            "followed_trigger_spawn_failed",
+            run_uid=run_uid,
+            command=command,
+            followed_id=followed_id,
+            error=str(exc),
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to spawn {command} runner") from exc
 
     if isinstance(pid, int):
         try:
             writer.update_pid(run_uid, pid)
         except sqlite3.Error:
-            logger.warning("grab_trigger_update_pid_failed", run_uid=run_uid)
+            logger.warning("followed_trigger_update_pid_failed", run_uid=run_uid, command=command)
 
     return GrabTriggerResponse(run_uid=run_uid)
+
+
+@router.post(
+    "/followed/{followed_id}/search",
+    status_code=202,
+    response_model=GrabTriggerResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerResponse:
+    """Launch the FULL search chain for one followed series (« Rechercher »).
+
+    Spawns the ``prime`` runner — ``follow detect --series N`` →
+    ``search --followed-id N`` → ``grab --followed-id N`` — and returns ``202``
+    with the ``run_uid`` so the UI tracks the run to its numeric result.
+
+    It used to spawn a bare ``grab``, which was the right runner while a single
+    pass did everything. Since the five-state split, ``grab`` only claims items
+    already marked takeable: pressing « Rechercher » on a follow whose episodes
+    read ``en_attente`` or ``non_verifie`` would have done strictly nothing and
+    reported success — a silent no-op (NE-DOIT-PAS-1). Priming re-polls the
+    catalog, re-searches the trackers and grabs what it finds, which is what the
+    button has always claimed to do (§5 watcher semantics, on demand).
+
+    Args:
+        request: The incoming FastAPI request.
+        followed_id: Rowid of the ``followed_series`` row.
+
+    Returns:
+        ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+
+    Raises:
+        404: The followed series does not exist.
+        409: A priming run for this series is already in flight (the only
+            permitted refusal — a running grab does NOT block it).
+        500: The runner subprocess failed to spawn.
+    """
+    return _launch_followed_action(request, followed_id, "prime")
+
+
+@router.post(
+    "/followed/{followed_id}/grab",
+    status_code=202,
+    response_model=GrabTriggerResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def trigger_followed_grab(request: Request, followed_id: int) -> GrabTriggerResponse:
+    """Claim NOW what is already takeable for one follow (« Récupérer maintenant »).
+
+    The counterpart of :func:`trigger_followed_search`: it spawns the ``grab``
+    runner alone (``grab --followed-id N``), which takes the items the last
+    search already marked ``available`` — no catalog poll, no tracker search.
+    That is exactly the action an operator wants on an « À récupérer » item:
+    the work is known, only the claiming is pending, and waiting for the 03:20
+    cron is the wait §6 forbids.
+
+    Args:
+        request: The incoming FastAPI request.
+        followed_id: Rowid of the ``followed_series`` row.
+
+    Returns:
+        ``202`` with :class:`GrabTriggerResponse` (``{"run_uid": "..."}``).
+
+    Raises:
+        404: The followed series does not exist.
+        409: A grab for this series is already running (the only permitted
+            refusal — a running prime does NOT block it).
+        500: The runner subprocess failed to spawn.
+    """
+    return _launch_followed_action(request, followed_id, "grab")

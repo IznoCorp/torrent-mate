@@ -357,6 +357,23 @@ export function followCountsCaption(item: FollowedSeriesItem): string | null {
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+/**
+ * Report whether « Récupérer maintenant » applies to this follow.
+ *
+ * Offered exactly where the SERVER says something is takeable right now
+ * (``a_recuperer``) — never derived from a queue counter. Elsewhere the action
+ * would have nothing to claim and would report success having done nothing.
+ *
+ * Args:
+ *   item: The followed item.
+ *
+ * Returns:
+ *   ``true`` when the grab-only action is meaningful for this follow.
+ */
+export function canGrabNow(item: FollowedSeriesItem): boolean {
+  return item.active && item.status === "a_recuperer";
+}
+
 /** Followed kind → French badge label (§5 film vs série). */
 export const FOLLOW_KIND_LABEL: Record<string, string> = {
   movie: "Film",

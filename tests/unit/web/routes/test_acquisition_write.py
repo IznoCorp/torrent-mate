@@ -24,6 +24,7 @@ from fastapi.testclient import TestClient
 
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.web.acquisition.runner import prime_options_json
 from personalscraper.web.app import create_app
 from personalscraper.web.auth.tokens import create_session_token
 
@@ -626,26 +627,59 @@ class TestDeleteFollow:
 
 
 # ---------------------------------------------------------------------------
-# Test cases — POST /api/acquisition/followed/{id}/search (OBJ3 manual grab)
+# Test cases — the two per-follow manual triggers (acq-states phase 8)
+#
+# POST /followed/{id}/search  → « Rechercher »          → command='prime'
+# POST /followed/{id}/grab    → « Récupérer maintenant » → command='grab'
 # ---------------------------------------------------------------------------
 
 
-class TestTriggerFollowedSearch:
-    """POST /api/acquisition/followed/{id}/search — per-series manual grab."""
+def _seed_follow_directly(tmp_path: Path, title: str = "Grab Me") -> int:
+    """Seed a follow straight into acquire.db and return its id.
 
-    def _create_follow(self, client: TestClient) -> int:
-        """Create a followed series via the API and return its id."""
-        resp = client.post(
-            "/api/acquisition/followed",
-            json={"tvdb_id": 555, "title": "Grab Me"},
-            cookies=_auth_cookies(),
-            headers=_xrw_headers(),
-        )
-        assert resp.status_code == 201, resp.text
-        return int(resp.json()["id"])
+    Deliberately NOT through ``POST /followed``: creating a follow enqueues its
+    amorce (phase 6), which leaves a LIVE ``prime`` row behind — the very row
+    the « Rechercher » idempotence guard refuses on. Seeding directly gives each
+    test a follow with no run in flight.
+    """
+    conn = sqlite3.connect(str(tmp_path / "acquire.db"))
+    apply_pragmas(conn)
+    fid = _seed_followed(conn, 1, title, active=True)
+    conn.commit()
+    conn.close()
+    return fid
+
+
+def _insert_live_run(tmp_path: Path, run_uid: str, command: str, options_json: str) -> None:
+    """Insert a live (``ended_at`` NULL, own pid) ``pipeline_run`` row."""
+    import time
+
+    conn = sqlite3.connect(str(tmp_path / "library.db"))
+    apply_pragmas(conn)
+    conn.execute(
+        "INSERT INTO pipeline_run "
+        "(run_uid, trigger, dry_run, started_at, ended_at, outcome, pid, kind, command, options_json) "
+        "VALUES (?, 'web', 0, ?, NULL, 'running', ?, 'maintenance', ?, ?)",
+        (run_uid, time.time(), os.getpid(), command, options_json),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _reserved_run(tmp_path: Path, run_uid: str) -> tuple[str, str]:
+    """Return ``(command, options_json)`` of the reserved ``pipeline_run`` row."""
+    conn = sqlite3.connect(str(tmp_path / "library.db"))
+    row = conn.execute("SELECT command, options_json FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
+    conn.close()
+    assert row is not None
+    return str(row[0]), str(row[1])
+
+
+class TestTriggerFollowedSearch:
+    """POST /api/acquisition/followed/{id}/search — « Rechercher » (full chain)."""
 
     def test_trigger_unknown_returns_404(self, client: TestClient) -> None:
-        """Triggering a grab for an unknown series → 404."""
+        """Triggering a search for an unknown series → 404."""
         resp = client.post(
             "/api/acquisition/followed/99999/search",
             cookies=_auth_cookies(),
@@ -653,51 +687,35 @@ class TestTriggerFollowedSearch:
         )
         assert resp.status_code == 404, resp.text
 
-    def test_trigger_spawns_and_returns_202(self, client: TestClient, tmp_path: Path) -> None:
-        """A valid trigger reserves a grab run, spawns the runner, returns 202."""
-        from unittest.mock import MagicMock, patch
+    def test_trigger_spawns_a_prime_run_and_returns_202(
+        self, client: TestClient, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """« Rechercher » reserves a PRIME run — a bare grab would be a silent no-op."""
+        spawned: list[tuple[str, int]] = []
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_prime_runner",
+            lambda run_uid, followed_id: (spawned.append((run_uid, followed_id)), 4242)[1],
+        )
+        followed_id = _seed_follow_directly(tmp_path)
 
-        followed_id = self._create_follow(client)
-        proc = MagicMock()
-        proc.pid = 4242
-        with patch(
-            "personalscraper.web.routes.acquisition_triggers.subprocess.Popen",
-            return_value=proc,
-        ) as popen:
-            resp = client.post(
-                f"/api/acquisition/followed/{followed_id}/search",
-                cookies=_auth_cookies(),
-                headers=_xrw_headers(),
-            )
+        resp = client.post(
+            f"/api/acquisition/followed/{followed_id}/search",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
         assert resp.status_code == 202, resp.text
         run_uid = resp.json()["run_uid"]
-        assert run_uid
-        popen.assert_called_once()
-        # A grab pipeline_run row was reserved for this series.
-        conn = sqlite3.connect(str(tmp_path / "library.db"))
-        row = conn.execute("SELECT command, options_json FROM pipeline_run WHERE run_uid = ?", (run_uid,)).fetchone()
-        conn.close()
-        assert row is not None
-        assert row[0] == "grab"
-        assert row[1] == f'{{"followed_id":{followed_id}}}'
+        assert spawned == [(run_uid, followed_id)]
+        # Post-split, the button must run detect → search → grab, not grab alone:
+        # on a follow whose episodes read en_attente/non_verifie, grab alone has
+        # nothing to claim and would report success having done nothing.
+        assert _reserved_run(tmp_path, run_uid) == ("prime", prime_options_json(followed_id))
 
-    def test_trigger_409_when_grab_already_running(self, client: TestClient, tmp_path: Path) -> None:
-        """A live grab for the same series makes a second trigger 409."""
-        import os
-        import time
-
-        followed_id = self._create_follow(client)
-        # Insert a live (ended_at NULL) grab run for THIS series with our own pid.
-        conn = sqlite3.connect(str(tmp_path / "library.db"))
-        apply_pragmas(conn)
-        conn.execute(
-            "INSERT INTO pipeline_run "
-            "(run_uid, trigger, dry_run, started_at, ended_at, outcome, pid, kind, command, options_json) "
-            "VALUES ('live-grab', 'web', 0, ?, NULL, 'running', ?, 'maintenance', 'grab', ?)",
-            (time.time(), os.getpid(), f'{{"followed_id":{followed_id}}}'),
-        )
-        conn.commit()
-        conn.close()
+    def test_trigger_409_only_on_a_live_prime_for_the_same_follow(self, client: TestClient, tmp_path: Path) -> None:
+        """The duplicate of the SAME action is the only permitted refusal (§6)."""
+        followed_id = _seed_follow_directly(tmp_path)
+        _insert_live_run(tmp_path, "live-prime", "prime", prime_options_json(followed_id))
 
         resp = client.post(
             f"/api/acquisition/followed/{followed_id}/search",
@@ -706,6 +724,19 @@ class TestTriggerFollowedSearch:
         )
         assert resp.status_code == 409, resp.text
 
+    def test_a_live_grab_never_refuses_a_search(self, client: TestClient, tmp_path: Path) -> None:
+        """A running « Récupérer maintenant » must not block « Rechercher » (§6)."""
+        followed_id = _seed_follow_directly(tmp_path)
+        _insert_live_run(tmp_path, "live-grab", "grab", f'{{"followed_id":{followed_id}}}')
+
+        resp = client.post(
+            f"/api/acquisition/followed/{followed_id}/search",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 202, resp.text
+
     def test_trigger_missing_xrw_returns_400(self, client: TestClient) -> None:
         """A trigger without the X-Requested-With header → 400."""
         resp = client.post(
@@ -713,3 +744,137 @@ class TestTriggerFollowedSearch:
             cookies=_auth_cookies(),
         )
         assert resp.status_code == 400, resp.text
+
+    def test_trigger_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
+        """The staging role refuses the write (403), like every mutating route."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = client.post(
+            "/api/acquisition/followed/1/search",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403, resp.text
+
+
+class TestTriggerFollowedGrab:
+    """POST /api/acquisition/followed/{id}/grab — « Récupérer maintenant »."""
+
+    def test_trigger_unknown_returns_404(self, client: TestClient) -> None:
+        """Grabbing an unknown series → 404."""
+        resp = client.post(
+            "/api/acquisition/followed/99999/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 404, resp.text
+
+    def test_trigger_spawns_a_grab_run_and_returns_202(
+        self, client: TestClient, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """« Récupérer maintenant » claims what is already takeable — grab alone."""
+        spawned: list[tuple[str, int]] = []
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_grab_runner",
+            lambda run_uid, followed_id: (spawned.append((run_uid, followed_id)), 4242)[1],
+        )
+        followed_id = _seed_follow_directly(tmp_path)
+
+        resp = client.post(
+            f"/api/acquisition/followed/{followed_id}/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 202, resp.text
+        run_uid = resp.json()["run_uid"]
+        assert spawned == [(run_uid, followed_id)]
+        assert _reserved_run(tmp_path, run_uid) == ("grab", f'{{"followed_id":{followed_id}}}')
+
+    def test_trigger_409_when_the_same_grab_is_already_running(self, client: TestClient, tmp_path: Path) -> None:
+        """A live grab for the same series is the only refusal (idempotence)."""
+        followed_id = _seed_follow_directly(tmp_path)
+        _insert_live_run(tmp_path, "live-grab", "grab", f'{{"followed_id":{followed_id}}}')
+
+        resp = client.post(
+            f"/api/acquisition/followed/{followed_id}/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 409, resp.text
+
+    def test_a_live_prime_never_refuses_a_grab(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A running amorce must not block « Récupérer maintenant » (§6)."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_grab_runner",
+            lambda run_uid, followed_id: 4242,
+        )
+        followed_id = _seed_follow_directly(tmp_path)
+        _insert_live_run(tmp_path, "live-prime", "prime", prime_options_json(followed_id))
+
+        resp = client.post(
+            f"/api/acquisition/followed/{followed_id}/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 202, resp.text
+
+    def test_trigger_missing_xrw_returns_400(self, client: TestClient) -> None:
+        """A grab trigger without the X-Requested-With header → 400."""
+        resp = client.post(
+            "/api/acquisition/followed/1/grab",
+            cookies=_auth_cookies(),
+        )
+        assert resp.status_code == 400, resp.text
+
+    def test_trigger_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
+        """The staging role refuses the write (403), like every mutating route."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = client.post(
+            "/api/acquisition/followed/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 403, resp.text
+
+
+class TestRunnerSpawnEnvContract:
+    """The env each spawner hands the runner (the canonical contract)."""
+
+    def test_prime_spawner_asks_for_the_three_step_chain(self, monkeypatch: Any) -> None:
+        """``prime`` must be requested explicitly — the runner defaults to grab."""
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.web.routes import acquisition_triggers
+
+        # Drop the autouse neutralization: THIS test is about the spawner
+        # itself, and it stays safe because Popen is mocked below.
+        monkeypatch.undo()
+
+        proc = MagicMock()
+        proc.pid = 4242
+        with patch.object(acquisition_triggers.subprocess, "Popen", return_value=proc) as popen:
+            pid = acquisition_triggers._spawn_prime_runner("uid-1", 7)
+
+        assert pid == 4242
+        env = popen.call_args.kwargs["env"]
+        assert env["PERSONALSCRAPER_ACQ_COMMAND"] == "prime"
+        assert env["PERSONALSCRAPER_RUN_UID"] == "uid-1"
+        assert env["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] == "7"
+
+    def test_grab_spawner_scopes_the_run_to_one_follow(self) -> None:
+        """``grab`` is the runner default, so only the scope is passed."""
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.web.routes import acquisition_triggers
+
+        proc = MagicMock()
+        proc.pid = 4343
+        with patch.object(acquisition_triggers.subprocess, "Popen", return_value=proc) as popen:
+            pid = acquisition_triggers._spawn_grab_runner("uid-2", 9)
+
+        assert pid == 4343
+        env = popen.call_args.kwargs["env"]
+        assert env.get("PERSONALSCRAPER_ACQ_COMMAND") in (None, "grab")
+        assert env["PERSONALSCRAPER_RUN_UID"] == "uid-2"
+        assert env["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] == "9"
