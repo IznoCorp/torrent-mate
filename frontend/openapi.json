@@ -1279,6 +1279,17 @@
       "FollowedSeriesItem": {
         "description": "A single followed series or film in the list response.",
         "properties": {
+          "a_recuperer_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Recuperer Count"
+          },
           "active": {
             "title": "Active",
             "type": "boolean"
@@ -1321,11 +1332,7 @@
             ],
             "title": "Cadence Tier"
           },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "inflight_count": {
+          "en_acquisition_count": {
             "anyOf": [
               {
                 "type": "integer"
@@ -1334,7 +1341,22 @@
                 "type": "null"
               }
             ],
-            "title": "Inflight Count"
+            "title": "En Acquisition Count"
+          },
+          "en_attente_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "En Attente Count"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
           },
           "kind": {
             "default": "show",
@@ -1344,16 +1366,15 @@
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
           },
-          "missing_count": {
+          "movie_facts": {
             "anyOf": [
               {
-                "type": "integer"
+                "$ref": "#/components/schemas/MovieFacts"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Missing Count"
+            ]
           },
           "next_search_at": {
             "anyOf": [
@@ -1365,6 +1386,17 @@
               }
             ],
             "title": "Next Search At"
+          },
+          "non_verifie_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Non Verifie Count"
           },
           "overview": {
             "anyOf": [
@@ -1411,17 +1443,6 @@
             ],
             "title": "Quality Profile"
           },
-          "queued_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Queued Count"
-          },
           "season_count": {
             "anyOf": [
               {
@@ -1434,13 +1455,15 @@
             "title": "Season Count"
           },
           "status": {
-            "description": "Lifecycle status \u2014 the \u00a75 truth table, never a raw wanted counter.\n\nSingle server-side source of truth so the UI maps status \u2192 tone/label\nwithout re-deriving business state in JSX. With a cached aired catalog\n(P0-B.2), every bucket is ownership-aware \u2014 a ``grabbed`` row whose\nepisode already sits in the library is a phantom and cannot pin the\nseries at \u00ab en cours d'acquisition \u00bb (the Silo bug):\n\n- ``disabled``: the follow is paused (not active).\n- ``acquiring``: at least one aired episode is unowned AND grabbed\n  (torrent spotted \u2192 pipeline finishing).\n- ``pending``: at least one aired episode is unowned AND queued.\n- ``incomplete``: aired episodes are missing with nothing queued for\n  them (the honest House-of-the-Dragon state).\n- ``up_to_date``: every aired episode is in the library.\n\nWithout a catalog (``aired_count is None`` \u2014 movies, or a series never\ndetected since the cache shipped), the raw counters drive the legacy\nderivation.\n\nReturns:\n    The derived lifecycle status.",
+            "description": "Lifecycle status \u2014 pure delegation to the single state derivation.\n\nThe whole business rule lives in\n:mod:`personalscraper.web.acquisition.states` so the card, the\ncompleteness matrix and the episode chips can never disagree; this\nproperty only routes shows to\n:func:`~personalscraper.web.acquisition.states.derive_follow_status`\n(per-state episode counts) and films to\n:func:`~personalscraper.web.acquisition.states.derive_movie_status`\n(their single unit's facts).\n\nThe legacy fallback onto the raw ``wanted_pending`` / ``wanted_grabbed``\ncounters is GONE: those counters know nothing about ownership or about\nthe aired catalog, and it is precisely their \u00ab no rows \u21d2 up_to_date \u00bb\nbranch that declared a freshly-followed series \u00ab \u00c0 jour \u00bb while three\naired episodes were missing (founding incident). They survive as data\nfields for display, never as a status source.\n\nReturns:\n    The derived lifecycle status.",
             "enum": [
               "disabled",
-              "pending",
-              "acquiring",
-              "incomplete",
-              "up_to_date"
+              "verification_en_cours",
+              "a_recuperer",
+              "en_acquisition",
+              "en_attente",
+              "non_verifie",
+              "a_jour"
             ],
             "readOnly": true,
             "title": "Status",
@@ -1999,6 +2022,51 @@
           "score"
         ],
         "title": "MediaSearchResult",
+        "type": "object"
+      },
+      "MovieFacts": {
+        "description": "The single unit's facts a followed FILM derives its card status from.\n\nA film has no aired catalog (``aired_count`` stays ``None`` on its card), so\ninstead of episode counts it carries the raw facts of its one ``wanted`` row\nplus library ownership \u2014 the exact arguments\n:func:`~personalscraper.web.acquisition.states.derive_episode_state` takes.\nExposing the facts rather than a pre-chewed label keeps the derivation in the\nsingle states module and lets the UI explain WHY a film reads as it does.\n\nAttributes:\n    owned: The library holds a live file for this film (disk presence by\n        provider id). Beats a stale ``grabbed`` row.\n    wanted_status: The film's ``wanted`` row status, or ``None`` when it has\n        no row (never enqueued, or the row could not be read).\n    last_search_outcome: Named outcome of its last search pass, or ``None``\n        when never searched.\n    last_search_found: Takeable candidates the last search reported, or\n        ``None`` when the search did not conclude.",
+        "properties": {
+          "last_search_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search Found"
+          },
+          "last_search_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search Outcome"
+          },
+          "owned": {
+            "default": false,
+            "title": "Owned",
+            "type": "boolean"
+          },
+          "wanted_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wanted Status"
+          }
+        },
+        "title": "MovieFacts",
         "type": "object"
       },
       "NfoStats": {

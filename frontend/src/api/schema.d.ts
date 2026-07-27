@@ -2675,6 +2675,8 @@ export interface components {
          * @description A single followed series or film in the list response.
          */
         FollowedSeriesItem: {
+            /** A Recuperer Count */
+            a_recuperer_count?: number | null;
             /** Active */
             active: boolean;
             /** Added At */
@@ -2687,20 +2689,23 @@ export interface components {
             } | null;
             /** Cadence Tier */
             cadence_tier?: string | null;
+            /** En Acquisition Count */
+            en_acquisition_count?: number | null;
+            /** En Attente Count */
+            en_attente_count?: number | null;
             /** Id */
             id: number;
-            /** Inflight Count */
-            inflight_count?: number | null;
             /**
              * Kind
              * @default show
              */
             kind: string;
             media_ref: components["schemas"]["MediaRefResponse"];
-            /** Missing Count */
-            missing_count?: number | null;
+            movie_facts?: components["schemas"]["MovieFacts"] | null;
             /** Next Search At */
             next_search_at?: number | null;
+            /** Non Verifie Count */
+            non_verifie_count?: number | null;
             /** Overview */
             overview?: string | null;
             /** Owned Count */
@@ -2711,37 +2716,33 @@ export interface components {
             quality_profile?: {
                 [key: string]: unknown;
             } | null;
-            /** Queued Count */
-            queued_count?: number | null;
             /** Season Count */
             season_count?: number | null;
             /**
              * Status
-             * @description Lifecycle status — the §5 truth table, never a raw wanted counter.
+             * @description Lifecycle status — pure delegation to the single state derivation.
              *
-             *     Single server-side source of truth so the UI maps status → tone/label
-             *     without re-deriving business state in JSX. With a cached aired catalog
-             *     (P0-B.2), every bucket is ownership-aware — a ``grabbed`` row whose
-             *     episode already sits in the library is a phantom and cannot pin the
-             *     series at « en cours d'acquisition » (the Silo bug):
+             *     The whole business rule lives in
+             *     :mod:`personalscraper.web.acquisition.states` so the card, the
+             *     completeness matrix and the episode chips can never disagree; this
+             *     property only routes shows to
+             *     :func:`~personalscraper.web.acquisition.states.derive_follow_status`
+             *     (per-state episode counts) and films to
+             *     :func:`~personalscraper.web.acquisition.states.derive_movie_status`
+             *     (their single unit's facts).
              *
-             *     - ``disabled``: the follow is paused (not active).
-             *     - ``acquiring``: at least one aired episode is unowned AND grabbed
-             *       (torrent spotted → pipeline finishing).
-             *     - ``pending``: at least one aired episode is unowned AND queued.
-             *     - ``incomplete``: aired episodes are missing with nothing queued for
-             *       them (the honest House-of-the-Dragon state).
-             *     - ``up_to_date``: every aired episode is in the library.
-             *
-             *     Without a catalog (``aired_count is None`` — movies, or a series never
-             *     detected since the cache shipped), the raw counters drive the legacy
-             *     derivation.
+             *     The legacy fallback onto the raw ``wanted_pending`` / ``wanted_grabbed``
+             *     counters is GONE: those counters know nothing about ownership or about
+             *     the aired catalog, and it is precisely their « no rows ⇒ up_to_date »
+             *     branch that declared a freshly-followed series « À jour » while three
+             *     aired episodes were missing (founding incident). They survive as data
+             *     fields for display, never as a status source.
              *
              *     Returns:
              *         The derived lifecycle status.
              * @enum {string}
              */
-            readonly status: "disabled" | "pending" | "acquiring" | "incomplete" | "up_to_date";
+            readonly status: "disabled" | "verification_en_cours" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "a_jour";
             /** Title */
             title: string;
             /**
@@ -3106,6 +3107,40 @@ export interface components {
             title: string;
             /** Year */
             year?: number | null;
+        };
+        /**
+         * MovieFacts
+         * @description The single unit's facts a followed FILM derives its card status from.
+         *
+         *     A film has no aired catalog (``aired_count`` stays ``None`` on its card), so
+         *     instead of episode counts it carries the raw facts of its one ``wanted`` row
+         *     plus library ownership — the exact arguments
+         *     :func:`~personalscraper.web.acquisition.states.derive_episode_state` takes.
+         *     Exposing the facts rather than a pre-chewed label keeps the derivation in the
+         *     single states module and lets the UI explain WHY a film reads as it does.
+         *
+         *     Attributes:
+         *         owned: The library holds a live file for this film (disk presence by
+         *             provider id). Beats a stale ``grabbed`` row.
+         *         wanted_status: The film's ``wanted`` row status, or ``None`` when it has
+         *             no row (never enqueued, or the row could not be read).
+         *         last_search_outcome: Named outcome of its last search pass, or ``None``
+         *             when never searched.
+         *         last_search_found: Takeable candidates the last search reported, or
+         *             ``None`` when the search did not conclude.
+         */
+        MovieFacts: {
+            /** Last Search Found */
+            last_search_found?: number | null;
+            /** Last Search Outcome */
+            last_search_outcome?: string | null;
+            /**
+             * Owned
+             * @default false
+             */
+            owned: boolean;
+            /** Wanted Status */
+            wanted_status?: string | null;
         };
         /**
          * NfoStats
