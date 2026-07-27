@@ -369,11 +369,18 @@ class _WantedSubStore:
         The ownership half of the B.3 reconciliation: when the library owns the
         episode/movie an open row was tracking, the row closes ``done``
         regardless of the info-hash path (which misses historical dispatches
-        and renamed content). Covers every OPEN status — ``grabbed`` (the
-        classic closure) and ``pending``/``searching`` (an owned work must
-        never be searched again: the resurrected-then-indexed shape, e.g. an
-        episode whose file predated its indexing). Never touches ``abandoned``
-        or ``done`` (idempotent).
+        and renamed content). Never touches ``abandoned`` or ``done``
+        (idempotent).
+
+        « Open » is derived from
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` — the SINGLE
+        source — and not from a hand-written tuple. The literal it replaced said
+        ``('pending', 'searching', 'grabbed')``: it predated the ``available``
+        state and was never updated, so an owned row sitting at ``available``
+        silently refused to close. Ownership is the strongest signal there is
+        (the file is ON DISK), and it was being ignored for one whole state —
+        the row stayed « À récupérer » and the grab pass would happily
+        re-download media the library already had.
 
         Args:
             wanted_id: Rowid of the ``wanted`` row.
@@ -381,10 +388,13 @@ class _WantedSubStore:
         Returns:
             ``True`` iff the row transitioned (was still open).
         """
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
         with self._write_tx(self._conn):
             cur = self._conn.execute(
-                "UPDATE wanted SET status = 'done' WHERE id = ? AND status IN ('pending', 'searching', 'grabbed')",
-                (wanted_id,),
+                f"UPDATE wanted SET status = 'done' "  # noqa: S608 — placeholders from an internal frozenset
+                f"WHERE id = ? AND status IN ({placeholders})",
+                (wanted_id, *open_statuses),
             )
             return cur.rowcount == 1
 

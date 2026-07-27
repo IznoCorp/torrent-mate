@@ -348,3 +348,78 @@ def test_unowned_hashless_pending_row_is_never_requeued(store: ConcreteAcquireSt
     assert summary.still_in_flight == 0
     row = store.wanted.get(wanted_id)
     assert row is not None and row.status == "pending"
+
+
+def test_owned_available_row_closes_done(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review cycle 2, M3): an owned « À récupérer » row closes.
+
+    The sweep walked grabbed + searching + pending only, so a row a search had
+    marked ``available`` for media the library ALREADY owns survived every
+    reconciliation — a standing order to re-download something already on disk.
+    Ownership outranks the queue in every state.
+    """
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=6,
+            episode=1,
+        )
+    )
+    store.wanted.record_search_outcome(wanted_id, "available", 4)
+    store.wanted.set_status(wanted_id, "available")
+
+    summary = reconcile_wanted(store, _StubOwnership({(6, 1)}), set())
+
+    assert summary.closed_owned == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "done"
+
+
+def test_unowned_available_row_stays_available(store: ConcreteAcquireStore) -> None:
+    """An unowned « À récupérer » row is left for the grab pass — never requeued."""
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=6,
+            episode=2,
+        )
+    )
+    store.wanted.record_search_outcome(wanted_id, "available", 4)
+    store.wanted.set_status(wanted_id, "available")
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+
+    assert summary.closed_owned == 0
+    assert summary.requeued_missing == 0
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "available", (
+        f"a hash-less available row must stay takeable; got {row.status!r}"
+    )
+
+
+def test_owned_movie_available_row_surfaces_its_follow(store: ConcreteAcquireStore) -> None:
+    """A followed FILM whose media landed while « À récupérer » is retired too."""
+    followed_id = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tmdb_id=777), title="Le Robot sauvage", added_at=1, kind="movie")
+    )
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tmdb_id=777),
+            kind="movie",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            followed_id=followed_id,
+        )
+    )
+    store.wanted.set_status(wanted_id, "available")
+
+    summary = reconcile_wanted(store, _OwnsAllOwnership(), set())
+
+    assert summary.closed_owned == 1
+    assert summary.closed_movie_followed_ids == (followed_id,)

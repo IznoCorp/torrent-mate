@@ -1389,3 +1389,55 @@ def test_watch_set_upsert_overwrites_previous_value(store):
     conn.row_factory = lambda cursor, row: row[0]
     count: int = conn.execute("SELECT COUNT(*) FROM watch_state WHERE key = 'last_successful_run_at'").fetchone()
     assert count == 1
+
+
+def test_mark_done_closes_an_available_row(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review cycle 2, M3): 'available' is OPEN and must close.
+
+    ``mark_done``'s status filter was the literal
+    ``('pending', 'searching', 'grabbed')`` — written before the ``available``
+    state existed and never updated. An owned row sitting at ``available``
+    therefore refused to close, even though ownership (the file is ON DISK) is
+    the strongest signal there is. The row stayed « À récupérer » and the grab
+    pass kept a standing order to re-download media the library already had.
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=91), kind="episode", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.record_search_outcome(wid, "available", 3)
+    store.wanted.set_status(wid, "available")
+
+    assert store.wanted.mark_done(wid) is True
+    row = store.wanted.get(wid)
+    assert row is not None and row.status == "done"
+
+
+def test_mark_done_covers_every_open_status_and_no_closed_one(store: ConcreteAcquireStore) -> None:
+    """The filter is derived from OPEN_WANTED_STATUSES — all four, and only those."""
+    from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
+
+    for offset, status in enumerate(sorted(OPEN_WANTED_STATUSES)):
+        wid = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=1000 + offset),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_700_000_100,
+            )
+        )
+        store.wanted.set_status(wid, status)  # type: ignore[arg-type]
+        assert store.wanted.mark_done(wid) is True, f"an owned {status!r} row must close"
+        assert store.wanted.mark_done(wid) is False, "closing twice must be a no-op (idempotent)"
+
+    for offset, status in enumerate(("done", "abandoned")):
+        wid = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=2000 + offset),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_700_000_100,
+            )
+        )
+        store.wanted.set_status(wid, status)  # type: ignore[arg-type]
+        assert store.wanted.mark_done(wid) is False, f"a closed {status!r} row must never be touched"

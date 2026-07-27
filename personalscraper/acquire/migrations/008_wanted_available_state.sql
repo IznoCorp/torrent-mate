@@ -34,12 +34,19 @@
 --     auto-commits on its own. So the destructive part (DROP + RENAME) is
 --     wrapped in an EXPLICIT `BEGIN … COMMIT`: a crash mid-rebuild then rolls
 --     back whole rather than leaving `wanted` dropped and `wanted_new` orphaned.
---   * `PRAGMA user_version = 8` runs AFTER that COMMIT, never before. The
---     applier skips any script whose version <= user_version, so bumping it
---     first meant a crash mid-rebuild left a DB claiming schema 8 while
---     carrying the old (or a half-swapped) one — and the migration would never
---     run again to repair it. Advancing it last makes a failed run simply
---     re-apply next boot.
+--   * `PRAGMA user_version = 8` is the LAST statement INSIDE the transaction.
+--     It writes the database header, which IS transactional, so it commits with
+--     the rebuild — atomically, and only on success. Both other placements are
+--     broken: before the BEGIN it auto-commits on its own, so a crash mid-rebuild
+--     leaves a DB claiming schema 8 while carrying schema 7 (the applier skips
+--     any script whose version <= user_version, so it never runs again to repair
+--     it); after the COMMIT it leaves a window where the rebuild is durable but
+--     the version is not, and the re-run then dies on the `schema_version`
+--     PRIMARY KEY — a permanent brick. Inside the transaction there is no window
+--     at all.
+--   * `INSERT OR IGNORE` on `schema_version` (belt-and-braces): the version row
+--     is a marker, not a constraint to trip over. A DB that somehow already
+--     carries it must still be able to complete the rebuild.
 --   * `PRAGMA foreign_keys` is a NO-OP inside a transaction, so both toggles sit
 --     OUTSIDE the BEGIN/COMMIT (OFF before, ON after).
 --
@@ -96,19 +103,22 @@ CREATE INDEX IF NOT EXISTS idx_wanted_pending
     ON wanted (status) WHERE status = 'pending';
 
 -- Step 5: record the migration inside the SAME transaction as the rebuild.
-INSERT INTO schema_version(version) VALUES (8);
+-- OR IGNORE: the marker row must never be the thing that blocks a rebuild.
+INSERT OR IGNORE INTO schema_version(version) VALUES (8);
+
+-- Step 6: publish the new schema version — still INSIDE the transaction, so the
+-- version and the schema it describes become durable in the same commit. There
+-- is no instant at which one is true and the other is not.
+PRAGMA user_version = 8;
 
 COMMIT;
 
--- ── Step 6: advisory FK probe ───────────────────────────────────────────
+-- ── Step 7: advisory FK probe ───────────────────────────────────────────
 -- Advisory ONLY: executescript discards result rows, so a violation reported
 -- here is neither seen nor acted upon. It is kept because it still surfaces in
 -- a manual `sqlite3 acquire.db < 008_…sql` replay. The real safety is that
 -- nothing references `wanted`, plus the all-or-nothing transaction above.
 PRAGMA foreign_key_check;
 
--- ── Step 7: publish the new schema version, then restore FK enforcement ──
--- Last, and only now: the rebuild is committed, so this can no longer strand a
--- DB that claims 8 while carrying 7.
-PRAGMA user_version = 8;
+-- ── Step 8: restore FK enforcement (no-op inside a tx, hence out here) ───
 PRAGMA foreign_keys = ON;

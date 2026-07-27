@@ -88,13 +88,23 @@ def reconcile_wanted(
     """
     checked = closed = requeued = in_flight = 0
     closed_movie_followed_ids: list[int] = []
-    # The three OPEN statuses ``mark_done`` can close. 'searching' is walked
-    # because a row can hold a ``grabbed_hash`` while still reading 'searching'
-    # (the §11(d) crash window between ``mark_grabbed`` and the next status
-    # write). ``reclaim_stale_searching`` deliberately refuses to revert that row
-    # — re-grabbing an already-added torrent would be worse — which leaves THIS
-    # sweep as the only thing that can ever close or requeue it.
-    for row in [*store.wanted.list_grabbed(), *store.wanted.list_searching(), *store.wanted.list_pending()]:
+    # EVERY open status (OPEN_WANTED_STATUSES), because ownership — the file is
+    # ON DISK — outranks whatever the queue thinks, whichever state the row is in:
+    #
+    #   * 'searching' — a row can hold a ``grabbed_hash`` while still reading
+    #     'searching' (the §11(d) crash window between ``mark_grabbed`` and the
+    #     next status write). ``reclaim_stale_searching`` deliberately refuses to
+    #     revert that row (re-grabbing an already-added torrent would be worse),
+    #     which leaves THIS sweep as the only thing that can close or requeue it.
+    #   * 'available' — an owned row marked « À récupérer » is a standing order to
+    #     re-download media the library already has. Skipping this status left
+    #     exactly that order in place.
+    for row in [
+        *store.wanted.list_grabbed(),
+        *store.wanted.list_searching(),
+        *store.wanted.list_available(),
+        *store.wanted.list_pending(),
+    ]:
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
         checked += 1
