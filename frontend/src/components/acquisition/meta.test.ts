@@ -9,6 +9,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import type { EpisodeCompleteness } from "@/api/acquisition";
+
 import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
@@ -18,6 +20,8 @@ import {
   FOLLOW_STATUS_TONE,
   followStatusHint,
   followStatusLabel,
+  searchOutcomeReason,
+  waitingGroups,
   type EpisodeState,
   type FollowStatus,
 } from "./meta";
@@ -125,6 +129,73 @@ describe("EPISODE state vocabulary", () => {
       expect(Object.keys(EPISODE_STATE_LABEL)).not.toContain(dead);
       expect(Object.keys(EPISODE_STATE_TONE)).not.toContain(dead);
     }
+  });
+});
+
+describe("searchOutcomeReason — le motif d'attente en français", () => {
+  it.each([
+    ["no_candidates", "aucun résultat"],
+    ["no_matching_episode", "pas d'épisode exact"],
+    ["all_filtered", "rien de conforme au profil"],
+  ])("traduit %s en « %s » pour un épisode en attente", (outcome, reason) => {
+    expect(searchOutcomeReason("en_attente", outcome)).toBe(reason);
+  });
+
+  it.each([
+    ["trackers_unavailable", "trackers injoignables"],
+    ["circuit_open", "recherche suspendue après trop d'échecs"],
+    ["search_api_error", "erreur de recherche côté tracker"],
+    ["no_seeders", "aucune source active"],
+  ])("explique un non vérifié par %s", (outcome, reason) => {
+    expect(searchOutcomeReason("non_verifie", outcome)).toBe(reason);
+  });
+
+  it("ne rend JAMAIS le jeton machine, même inconnu (NE-DOIT-PAS-4)", () => {
+    const reason = searchOutcomeReason("en_attente", "brand_new_verdict");
+    expect(reason).toBe("rien de prenable au dernier passage");
+    expect(reason).not.toContain("brand_new_verdict");
+  });
+
+  it("se tait quand l'unité n'attend pas ou n'a aucun verdict", () => {
+    expect(searchOutcomeReason("en_mediatheque", "no_candidates")).toBeNull();
+    expect(searchOutcomeReason("a_recuperer", "no_candidates")).toBeNull();
+    expect(searchOutcomeReason("en_acquisition", "all_filtered")).toBeNull();
+    expect(searchOutcomeReason("non_verifie", null)).toBeNull();
+    expect(searchOutcomeReason("en_attente", undefined)).toBeNull();
+  });
+});
+
+describe("waitingGroups — un motif, les épisodes qui le partagent", () => {
+  const ep = (
+    episode: number,
+    state: EpisodeState,
+    outcome: string | null,
+  ): EpisodeCompleteness => ({
+    episode,
+    state,
+    title: null,
+    air_date: null,
+    last_search_outcome: outcome,
+  });
+
+  it("regroupe les épisodes par motif, numéros triés", () => {
+    const groups = waitingGroups([
+      ep(3, "en_attente", "all_filtered"),
+      ep(1, "en_attente", "all_filtered"),
+      ep(2, "en_attente", "no_candidates"),
+      ep(4, "en_mediatheque", null),
+    ]);
+
+    expect(groups).toEqual([
+      { reason: "rien de conforme au profil", episodes: [1, 3] },
+      { reason: "aucun résultat", episodes: [2] },
+    ]);
+  });
+
+  it("ne dit rien quand rien n'attend", () => {
+    expect(
+      waitingGroups([ep(1, "en_mediatheque", null), ep(2, "a_recuperer", null)]),
+    ).toEqual([]);
   });
 });
 

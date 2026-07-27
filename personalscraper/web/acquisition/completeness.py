@@ -185,6 +185,10 @@ def compute_completeness(
                     last_search_outcome=last_search_outcome,
                     last_search_found=last_search_found,
                 ),
+                # The SAME verdict the state was derived from — exposed (never
+                # re-read from another row) so the UI can explain the wait in
+                # French. The two can therefore never contradict each other.
+                last_search_outcome=last_search_outcome,
             )
         )
 

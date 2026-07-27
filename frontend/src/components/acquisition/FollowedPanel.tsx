@@ -62,6 +62,7 @@ import {
   followFraction,
   followStatusHint,
   followStatusLabel,
+  followWaitingReason,
   formatRunResult,
   GRAB_JOB_NAME,
   untilLabel,
@@ -313,6 +314,7 @@ export function FollowedPanel({
           const statusLabel = followStatusLabel(item.status, item.kind);
           const fraction = followFraction(item);
           const countsCaption = followCountsCaption(item);
+          const waitingReason = followWaitingReason(item);
           const isSearching =
             triggerMutation.isPending && triggerMutation.variables === item.id;
 
@@ -365,6 +367,10 @@ export function FollowedPanel({
                         raw wanted_pending counter (NE-DOIT-PAS-2 without the
                         founding lie). */}
                     {countsCaption != null && <span>{countsCaption}</span>}
+                    {/* A film has no episode matrix: the reason its single unit
+                        is not acquired belongs here, in French, mapped from the
+                        same facts the chip was derived from. */}
+                    {waitingReason != null && <span>{waitingReason}</span>}
                   </div>
                 </div>
 

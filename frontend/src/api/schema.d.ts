@@ -2604,12 +2604,22 @@ export interface components {
          *             ``a_recuperer`` (a takeable candidate is known), ``en_attente``
          *             (searched, concluded, nothing takeable) or ``non_verifie`` (never
          *             searched, or the last search did not conclude — panne ≠ absence).
+         *         last_search_outcome: The named outcome of the GOVERNING ``wanted`` row's
+         *             last search pass (``no_candidates`` / ``all_filtered`` /
+         *             ``trackers_unavailable`` / …), or ``None`` when the episode was
+         *             never searched. It is the very fact ``state`` was derived from, and
+         *             it is exposed so the UI can say WHY an episode waits in French
+         *             (« rien de conforme au profil ») rather than leaving the operator
+         *             with a bare « En attente » (NE-DOIT-PAS-4). The raw token is a
+         *             machine value: it MUST be mapped before display, never printed.
          */
         EpisodeCompleteness: {
             /** Air Date */
             air_date?: string | null;
             /** Episode */
             episode: number;
+            /** Last Search Outcome */
+            last_search_outcome?: string | null;
             /**
              * State
              * @enum {string}

@@ -9,6 +9,7 @@
  */
 
 import {
+  type EpisodeCompleteness,
   type FollowedSeriesItem,
   type ObligationItem,
   type SeasonCompleteness,
@@ -465,6 +466,113 @@ export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
   non_verifie:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
 };
+
+/**
+ * Search outcome → the French reason an item is not acquired yet.
+ *
+ * The backend exposes the engine's machine verdict (``no_candidates``,
+ * ``all_filtered``, …) because it is the very fact the state was derived from.
+ * It is a MACHINE value: it is mapped here and never printed raw
+ * (NE-DOIT-PAS-4). The three concluding verdicts explain an « En attente »;
+ * the four inconclusive ones explain a « Non vérifié » — panne ≠ absence, and
+ * an operator staring at « Non vérifié » deserves to know the trackers were
+ * unreachable rather than assume nothing was found.
+ */
+export const SEARCH_OUTCOME_REASON: Record<string, string> = {
+  // Concluding verdicts → « En attente ».
+  no_candidates: "aucun résultat",
+  no_matching_episode: "pas d'épisode exact",
+  all_filtered: "rien de conforme au profil",
+  // Inconclusive verdicts → « Non vérifié » (the search never concluded).
+  trackers_unavailable: "trackers injoignables",
+  circuit_open: "recherche suspendue après trop d'échecs",
+  search_api_error: "erreur de recherche côté tracker",
+  no_seeders: "aucune source active",
+};
+
+/** Fallback for a verdict this build does not know — still French, still honest. */
+const UNKNOWN_OUTCOME_REASON = "rien de prenable au dernier passage";
+
+/**
+ * Return the French reason a unit is waiting, or ``null`` when there is none.
+ *
+ * Args:
+ *   state: The unit's five-state reading (card status or episode state).
+ *   outcome: The raw ``last_search_outcome`` served with it.
+ *
+ * Returns:
+ *   The French reason — never the machine token — or ``null`` when the unit is
+ *   not waiting, or when it has no verdict at all (never searched: the state's
+ *   own hint already says exactly that).
+ */
+export function searchOutcomeReason(
+  state: EpisodeState | FollowStatus,
+  outcome: string | null | undefined,
+): string | null {
+  if (state !== "en_attente" && state !== "non_verifie") return null;
+  if (outcome == null || outcome === "") return null;
+  return SEARCH_OUTCOME_REASON[outcome] ?? UNKNOWN_OUTCOME_REASON;
+}
+
+/** One waiting reason and the episodes of a season that share it. */
+export interface WaitingGroup {
+  /** The French reason (already mapped — never a machine token). */
+  readonly reason: string;
+  /** The episode numbers waiting for that reason, in ascending order. */
+  readonly episodes: readonly number[];
+}
+
+/**
+ * Group a season's waiting episodes by their French reason.
+ *
+ * A tooltip alone would be invisible on a phone (no hover), so the accordion
+ * prints these groups under the chips. Grouping keeps the line short when a
+ * whole season shares one verdict, which is the common case.
+ *
+ * Args:
+ *   episodes: The season's episodes, as served.
+ *
+ * Returns:
+ *   One group per distinct reason, in first-appearance order. Empty when
+ *   nothing is waiting or no verdict was recorded.
+ */
+export function waitingGroups(
+  episodes: readonly EpisodeCompleteness[],
+): WaitingGroup[] {
+  const byReason = new Map<string, number[]>();
+  for (const ep of episodes) {
+    const reason = searchOutcomeReason(ep.state, ep.last_search_outcome);
+    if (reason == null) continue;
+    const bucket = byReason.get(reason);
+    if (bucket) bucket.push(ep.episode);
+    else byReason.set(reason, [ep.episode]);
+  }
+  return [...byReason.entries()].map(([reason, eps]) => ({
+    reason,
+    episodes: [...eps].sort((a, b) => a - b),
+  }));
+}
+
+/**
+ * Return the French reason a followed FILM is waiting, or ``null``.
+ *
+ * A film has no episode matrix, so the reason its single unit is not acquired
+ * belongs on the card itself — read from the same ``movie_facts`` the server
+ * derived the card status from.
+ *
+ * Args:
+ *   item: The followed item (films only; a série always returns ``null``).
+ *
+ * Returns:
+ *   The French reason, or ``null``.
+ */
+export function followWaitingReason(item: FollowedSeriesItem): string | null {
+  if (item.kind !== "movie") return null;
+  return searchOutcomeReason(
+    item.status,
+    item.movie_facts?.last_search_outcome,
+  );
+}
 
 /** Live download state → Badge tone (A4). */
 export const DOWNLOAD_STATE_TONE: Record<

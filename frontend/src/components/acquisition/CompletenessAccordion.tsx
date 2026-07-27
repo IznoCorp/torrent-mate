@@ -24,6 +24,8 @@ import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
+  searchOutcomeReason,
+  waitingGroups,
 } from "./meta";
 
 /** Props for {@link CompletenessAccordion}. */
@@ -56,15 +58,29 @@ function SeasonRow({ season }: { season: SeasonCompleteness }): ReactElement {
         </span>
       </div>
       <div className="flex flex-wrap gap-1">
-        {season.episodes.map((ep) => (
-          <span
-            key={ep.episode}
-            title={`E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state]}${ep.title ? ` · ${ep.title}` : ""} — ${EPISODE_STATE_HINT[ep.state]}`}
-          >
-            <Badge tone={EPISODE_STATE_TONE[ep.state]}>E{ep.episode}</Badge>
-          </span>
-        ))}
+        {season.episodes.map((ep) => {
+          // The reason is appended to the chip tooltip, in French, mapped —
+          // the machine verdict never reaches the operator (NE-DOIT-PAS-4).
+          const reason = searchOutcomeReason(ep.state, ep.last_search_outcome);
+          return (
+            <span
+              key={ep.episode}
+              title={`E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state]}${ep.title ? ` · ${ep.title}` : ""} — ${EPISODE_STATE_HINT[ep.state]}${reason != null ? ` (${reason})` : ""}`}
+            >
+              <Badge tone={EPISODE_STATE_TONE[ep.state]}>E{ep.episode}</Badge>
+            </span>
+          );
+        })}
       </div>
+
+      {/* Why those episodes are not acquired, spelled out under the chips: a
+          phone has no hover, so a tooltip-only reason would be invisible where
+          the operator actually reads this panel. */}
+      {waitingGroups(season.episodes).map((group) => (
+        <p key={group.reason} className="text-xs text-muted-foreground">
+          E{group.episodes.map(String).join(", E")} — {group.reason}
+        </p>
+      ))}
     </div>
   );
 }

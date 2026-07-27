@@ -265,3 +265,44 @@ def test_an_unreadable_wanted_row_degrades_to_never_searched() -> None:
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
     assert [e.state for e in result.seasons[0].episodes] == ["non_verifie"]
+
+
+def test_waiting_episode_exposes_the_verdict_it_was_derived_from() -> None:
+    """An ``en_attente`` episode carries its outcome so the UI can say WHY (phase 8)."""
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store(
+        [_cached(1, 1), _cached(1, 2)],
+        [
+            _wanted(1, 1, "pending", last_search_outcome="all_filtered", last_search_found=0),
+            _wanted(1, 2, "pending", last_search_outcome="no_matching_episode", last_search_found=0),
+        ],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    episodes = {e.episode: e for e in result.seasons[0].episodes}
+    assert episodes[1].state == "en_attente"
+    assert episodes[1].last_search_outcome == "all_filtered"
+    assert episodes[2].last_search_outcome == "no_matching_episode"
+
+
+def test_exposed_outcome_comes_from_the_governing_row() -> None:
+    """The exposed verdict is the governing row's — never a closed row's stale one."""
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store(
+        [_cached(1, 1)],
+        [
+            # Closed row: history, and its verdict must not answer for the episode.
+            _wanted(1, 1, "done", row_id=10, last_search_outcome="all_filtered", last_search_found=0),
+            # Open row, higher id: the current intent, never searched.
+            _wanted(1, 1, "pending", row_id=11),
+        ],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    episode = result.seasons[0].episodes[0]
+    assert episode.state == "non_verifie"
+    assert episode.last_search_outcome is None

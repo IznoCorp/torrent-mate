@@ -211,6 +211,89 @@ describe("CompletenessAccordion — les cinq états par épisode (phase 8)", () 
   });
 });
 
+describe("CompletenessAccordion — le motif d'attente (phase 8)", () => {
+  it("dit en français pourquoi les épisodes attendent, sous les pastilles", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 3,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_attente",
+                title: null,
+                air_date: null,
+                last_search_outcome: "all_filtered",
+              },
+              {
+                episode: 2,
+                state: "en_attente",
+                title: null,
+                air_date: null,
+                last_search_outcome: "all_filtered",
+              },
+              {
+                episode: 3,
+                state: "en_attente",
+                title: null,
+                air_date: null,
+                last_search_outcome: "no_candidates",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    // Grouped by reason, visible WITHOUT hovering (a phone has no hover).
+    expect(
+      screen.getByText("E1, E2 — rien de conforme au profil"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("E3 — aucun résultat")).toBeInTheDocument();
+    // The machine verdict never reaches the operator.
+    expect(screen.queryByText(/all_filtered|no_candidates/)).toBeNull();
+  });
+
+  it("explique aussi un « Non vérifié » causé par une panne (panne ≠ absence)", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 1,
+            episodes: [
+              {
+                episode: 1,
+                state: "non_verifie",
+                title: null,
+                air_date: null,
+                last_search_outcome: "trackers_unavailable",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    expect(screen.getByText("E1 — trackers injoignables")).toBeInTheDocument();
+  });
+
+  it("n'ajoute aucune ligne quand rien n'attend", () => {
+    mockCompleteness(makeCompleteness());
+    renderOpen();
+
+    expect(screen.queryByText(/ — aucun résultat/)).toBeNull();
+  });
+});
+
 describe("CompletenessAccordion — catalogue inconnu (phase 8)", () => {
   it("dit qu'il ne sait pas encore, au lieu d'une matrice ou d'un « aucune saison »", () => {
     mockCompleteness(

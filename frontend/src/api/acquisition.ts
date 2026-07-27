@@ -112,6 +112,9 @@ export type CompletenessResponse = SuccessBody<
 /** One season of the §5 completeness matrix. */
 export type SeasonCompleteness = CompletenessResponse["seasons"][number];
 
+/** One aired episode of the §5 completeness matrix. */
+export type EpisodeCompleteness = SeasonCompleteness["episodes"][number];
+
 /** A recent acquisition run (with its §5 numeric result when recorded). */
 export type AcquisitionRecentRun =
   AcquisitionStatusResponse["recent_runs"][number];

@@ -286,6 +286,26 @@ describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
     expect(screen.getByText("À récupérer")).toBeInTheDocument();
   });
 
+  it("dit en français pourquoi un film attend, jamais le jeton machine", () => {
+    renderPanel([
+      makeItem({
+        kind: "movie",
+        title: "Ferrari",
+        status: "en_attente",
+        movie_facts: {
+          owned: false,
+          wanted_status: "pending",
+          last_search_outcome: "all_filtered",
+          last_search_found: 0,
+        },
+      }),
+    ]);
+
+    expect(screen.getByText("En attente")).toBeInTheDocument();
+    expect(screen.getByText("rien de conforme au profil")).toBeInTheDocument();
+    expect(screen.queryByText(/all_filtered/)).not.toBeInTheDocument();
+  });
+
   it("libelle un film en médiathèque « Acquis » (pas « À jour »)", () => {
     renderPanel([
       makeItem({ kind: "movie", title: "Ferrari", status: "a_jour" }),
