@@ -666,6 +666,126 @@ def test_wanted_list_pending_partial_index_path(store: ConcreteAcquireStore) -> 
     assert store.wanted.get(pid) == replace(pending, id=pid)
 
 
+# ---------------------------------------------------------------------------
+# acq-states — search verdict + available status
+# ---------------------------------------------------------------------------
+
+
+def test_wanted_round_trips_search_verdict_fields(store: ConcreteAcquireStore) -> None:
+    """The two new verdict fields round-trip through add() + get()."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=99),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_300,
+        season=1,
+        episode=6,
+        last_search_outcome="no_candidates",
+        last_search_found=0,
+    )
+    wid = store.wanted.add(item)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome == "no_candidates"
+    assert fetched.last_search_found == 0
+
+
+def test_wanted_verdict_defaults_to_none_for_new_item(store: ConcreteAcquireStore) -> None:
+    """A WantedItem without verdict fields stores and returns None (not 0)."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=100),
+        kind="movie",
+        status="pending",
+        enqueued_at=1_700_000_400,
+    )
+    wid = store.wanted.add(item)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome is None
+    assert fetched.last_search_found is None
+
+
+def test_record_search_outcome_persists_and_get_returns(store: ConcreteAcquireStore) -> None:
+    """record_search_outcome writes outcome+found; get() reads them back."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=101),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_500,
+        season=2,
+        episode=3,
+    )
+    wid = store.wanted.add(item)
+    store.wanted.record_search_outcome(wid, "all_filtered", 0)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome == "all_filtered"
+    assert fetched.last_search_found == 0
+
+
+def test_record_search_outcome_found_none_round_trips_none(store: ConcreteAcquireStore) -> None:
+    """found=None round-trips None (not 0): outage ≠ empty result."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=102),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_600,
+        season=1,
+        episode=1,
+    )
+    wid = store.wanted.add(item)
+    store.wanted.record_search_outcome(wid, "trackers_unavailable", None)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.last_search_outcome == "trackers_unavailable"
+    assert fetched.last_search_found is None
+
+
+def test_list_available_returns_only_available_rows(store: ConcreteAcquireStore) -> None:
+    """list_available returns only status='available' rows, FIFO order."""
+    pending = WantedItem(media_ref=MediaRef(tvdb_id=1), kind="movie", status="pending", enqueued_at=10)
+    avail1 = WantedItem(media_ref=MediaRef(tvdb_id=2), kind="movie", status="available", enqueued_at=20)
+    avail2 = WantedItem(
+        media_ref=MediaRef(tvdb_id=3), kind="episode", status="available", enqueued_at=30, season=1, episode=1
+    )
+    grabbed = WantedItem(
+        media_ref=MediaRef(tvdb_id=4), kind="episode", status="grabbed", enqueued_at=40, season=2, episode=5
+    )
+    store.wanted.add(pending)
+    aid1 = store.wanted.add(avail1)
+    aid2 = store.wanted.add(avail2)
+    store.wanted.add(grabbed)
+
+    available = store.wanted.list_available()
+    assert len(available) == 2
+    assert [w.id for w in available] == [aid1, aid2]  # FIFO order
+    assert all(w.status == "available" for w in available)
+
+
+def test_add_wanted_item_with_status_available_round_trips(store: ConcreteAcquireStore) -> None:
+    """A WantedItem constructed with status='available' round-trips correctly."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=103),
+        kind="episode",
+        status="available",
+        enqueued_at=1_700_000_700,
+        season=3,
+        episode=4,
+        last_search_outcome="available",
+        last_search_found=3,
+    )
+    wid = store.wanted.add(item)
+    fetched = store.wanted.get(wid)
+    assert fetched is not None
+    assert fetched.status == "available"
+    assert fetched.last_search_outcome == "available"
+    assert fetched.last_search_found == 3
+
+    # It also shows up in list_available.
+    available = store.wanted.list_available()
+    assert wid in [w.id for w in available]
+
+
 def test_seed_round_trip_and_marks(store: ConcreteAcquireStore) -> None:
     """A SeedObligation round-trips and find_by_dispatched_path resolves it."""
     obligation = SeedObligation(
