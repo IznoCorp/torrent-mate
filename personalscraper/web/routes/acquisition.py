@@ -263,6 +263,19 @@ def get_followed(
             # (prime_options_json / parse_prime_options in the runner module) so
             # a reader can never interpret a row differently from how the writer
             # built it.
+            #
+            # TODO(acq-states) (PR #320 review, m24 — OPEN, deliberately not
+            # indexed yet): this predicate is an unindexed scan of pipeline_run.
+            # No index covers (command, ended_at), so SQLite walks the whole
+            # table on every /followed render. Fine today — pipeline_run holds a
+            # few thousand rows and this is one scan per page load, not per card
+            # — and adding an index to a hot-write table has its own cost, so it
+            # is not worth paying blind. If the table grows (it is append-only
+            # and nothing prunes it), the shape to add is:
+            #   CREATE INDEX idx_pipeline_run_open_command
+            #     ON pipeline_run (command) WHERE ended_at IS NULL;
+            # a partial index — open runs are a handful at any instant, so it
+            # stays tiny however large the table gets.
             priming_follow_ids: set[int] = set()
             if indexer_db_path is not None and indexer_db_path.exists():
                 try:

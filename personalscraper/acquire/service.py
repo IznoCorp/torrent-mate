@@ -902,9 +902,28 @@ class AcquisitionService:
 
         DESIGN §15 / §11(d): the orchestrator does NOT emit ``GrabSucceeded`` —
         the service persists the info-hash via ``mark_grabbed`` FIRST, then emits
-        the event. A ``mark_grabbed`` crash therefore means NO emit happened: the
-        row stays 'searching', stale-recovery re-grabs (idempotent ``add``) and
-        emits exactly ONCE. Emit follows persistence.
+        the event. So a crash AFTER ``mark_grabbed`` cannot double-emit: the
+        persisted hash is on the row, and every later pass short-circuits on it.
+        Emit follows persistence.
+
+        WHAT THIS DOES NOT COVER (PR #320 review, M9 — OPEN): the window between
+        the orchestrator's ``add()`` returning and ``mark_grabbed`` committing.
+        In that window the torrent IS in the client and NOTHING records it — no
+        hash on the row, no seed obligation. The previous wording called the
+        recovery an « idempotent ``add`` » emitting « exactly ONCE »; that is not
+        what happens. A crash here leaves:
+
+        * an ORPHAN torrent in qBittorrent, downloading, with no ``wanted`` row
+          pointing at it and no seed obligation protecting it from the deletion
+          authority;
+        * a row that recovers to 'pending' and is re-SEARCHED from scratch — a
+          fresh search against today's trackers, NOT a replay of the same
+          decision. It may pick a different release, or none at all.
+
+        The window is small (one local SQLite write) and the failure is loud
+        rather than silent — the orphan is visible in the client — but it is a
+        real gap, not a guarantee. Closing it needs the hash reserved BEFORE the
+        add (a two-phase claim), which is a state-machine change.
 
         The ``'grabbed'`` verdict (with the re-search's takeable count) is
         recorded BEFORE ``mark_grabbed``: recording it after would open a window

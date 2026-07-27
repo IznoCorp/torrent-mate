@@ -211,6 +211,21 @@ def _build_provider_clients(request: Request) -> tuple[object, object]:
     boundary rule). Live search is an infrequent operator action, not a hot
     polling endpoint.
 
+    LEAK (PR #320 review, m23 — OPEN): the registry built here is never closed.
+    ``ProviderRegistry.close()`` releases each provider's ``requests.Session``
+    (and its connection pool); dropping the registry on the floor leaves that to
+    the garbage collector, which closes sockets late and non-deterministically.
+    Two request paths reach this (create-follow enrichment, media search), both
+    operator-driven and low-frequency, so the leak has never been observed —
+    that is why it is documented rather than papered over.
+
+    TODO(acq-states): close it. Not a one-liner: the returned clients are USED by
+    the caller after this function returns, so the registry has to outlive the
+    call — it needs a context manager (or a FastAPI dependency with a
+    ``yield``) wrapping the whole handler, not a ``finally`` here. Doing it
+    wrong closes the transport under the client and turns the leak into a
+    request failure.
+
     Args:
         request: The incoming FastAPI request.
 

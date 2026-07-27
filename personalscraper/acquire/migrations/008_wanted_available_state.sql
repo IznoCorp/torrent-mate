@@ -50,6 +50,27 @@
 --   * `PRAGMA foreign_keys` is a NO-OP inside a transaction, so both toggles sit
 --     OUTSIDE the BEGIN/COMMIT (OFF before, ON after).
 --
+-- DEPLOY WINDOW ON A SHARED acquire.db (PR #320 review, B1 — OPEN, read before
+-- deploying or rolling back; full write-up in
+-- docs/features/acq-states/DESIGN.md §4 D1-bis):
+--
+--   acquire.db is shared by the dev / prod / staging checkouts and the crons.
+--   This migration WIDENS the status CHECK, but the code that predates this PR
+--   does not accept 'available': WantedItem.__post_init__ (domain.py,
+--   valid_statuses) RAISES ValueError on any row carrying it. So a process still
+--   running the old code CRASHES when it reads one — not degrades, crashes.
+--
+--   The DB flips at boot; each process flips when it restarts. The first writer
+--   of an 'available' row after deploy is the 03:10 `search` cron, so the
+--   dangerous window runs from deploy to that cron: before it, no such row
+--   exists and the old code is fine.
+--
+--   A ROLLBACK re-opens the hole permanently. Putting prod back on `main` while
+--   'available' rows exist restores a code that crashes on them; redeploying the
+--   old version is NOT enough. Those rows must be brought back first:
+--       UPDATE wanted SET status = 'pending' WHERE status = 'available';
+--   This migration does not — and cannot — do that on its own.
+--
 -- The rebuild is FK-safe because:
 --   - wanted references followed_series (outgoing FK), but no other table
 --     references wanted (verified: 0 matches for REFERENCES wanted across

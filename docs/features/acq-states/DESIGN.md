@@ -214,6 +214,32 @@ identifiée ici pour ne pas être découverte en cours de route.
 Rejeté : table de disponibilité dédiée — clé dupliquée et nettoyage à prévoir, sans bénéfice
 tant que chaque épisode diffusé non possédé a sa ligne `wanted` (garanti par l'amorce D2).
 
+#### D1-bis — Fenêtre de déploiement sur `acquire.db` partagée (revue PR #320, B1 — OUVERT)
+
+`acquire.db` est **partagée** par les trois checkouts (dev, prod, staging) et par les crons.
+La migration 008 étend la contrainte `CHECK`, mais **le code d'avant cette PR n'accepte pas
+`available`** : `WantedItem.__post_init__` (`domain.py`, `valid_statuses`) lève `ValueError`
+sur toute ligne portant ce statut. Conséquences concrètes :
+
+- **Le déploiement n'est pas atomique.** La base bascule au boot (migration appliquée par la
+  première ouverture), le code bascule quand chaque processus redémarre. Tout processus encore
+  sur l'ancien code qui **lit** une ligne `available` **plante** — ce n'est pas une dégradation,
+  c'est une exception à la lecture.
+- **Premier écrivain après déploiement : le cron `search` de 03:10.** C'est lui qui crée les
+  premières lignes `available`. La fenêtre dangereuse va donc du déploiement au 03:10 suivant :
+  tant qu'aucune ligne `available` n'existe, l'ancien code fonctionne normalement.
+- **Un rollback rouvre la faille, définitivement.** Revenir prod sur `main` alors que des lignes
+  `available` existent déjà remet en service un code qui plante dessus. Il ne suffit pas de
+  redéployer l'ancienne version : il faut d'abord ramener ces lignes à `pending`
+  (`UPDATE wanted SET status='pending' WHERE status='available'`), ce que la migration 008 ne
+  fait pas et ne peut pas faire toute seule.
+
+Non traité dans cette PR : rendre l'ancien code tolérant demanderait de patcher `main`
+**avant** ce merge (un `valid_statuses` permissif déployé en premier), c'est-à-dire un
+déploiement en deux temps. Décision opérateur requise ; en attendant, la contrainte
+opérationnelle est : **déployer les trois checkouts avant le 03:10 suivant, et ne pas
+rollback sans le `UPDATE` ci-dessus.**
+
 ### D2 — Amorce à la création : 201 + run visible (arbitrage opérateur)
 
 `POST /api/acquisition/followed` répond **201 immédiatement**, puis enfile **un run d'amorce**
