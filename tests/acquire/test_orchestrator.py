@@ -789,6 +789,32 @@ def test_search_never_resolves_a_source_even_when_available() -> None:
     _assert_no_side_effects(spy, torrent_client)
 
 
+def test_grab_folds_a_search_time_auth_error_into_search_api_error() -> None:
+    """BEHAVIOUR PRESERVATION: grab keeps its historical search-stage classification.
+
+    Before the chain was extracted, a single ``except ApiError`` swallowed a
+    SEARCH-stage ``TrackerAuthError`` into the retryable ``search_api_error``
+    bucket. ``search()`` now needs that path as its own TERMINAL verdict, so the
+    shared chain surfaces it separately — and ``grab`` must fold it back, or the
+    split would silently change WHEN an item gets abandoned. Grab's terminal
+    ``tracker_auth`` stays the resolve/add-stage one
+    (``test_tracker_auth_error_terminal_no_add_call``).
+    """
+    orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
+    registry.search_candidates.side_effect = TrackerAuthError(provider="lacale", http_status=401, message="nope")
+
+    outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "search_api_error"
+    failed = [e for e in spy.events if isinstance(e, GrabFailed)]
+    assert len(failed) == 1
+    assert failed[0].reason == "search_api_error"
+    assert not [e for e in spy.events if isinstance(e, WantedAbandoned)]
+    assert torrent_client is not None
+    torrent_client.add.assert_not_called()
+
+
 def test_search_covers_every_declared_outcome() -> None:
     """The nine cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
 
