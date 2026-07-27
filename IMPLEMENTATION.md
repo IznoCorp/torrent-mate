@@ -52,7 +52,7 @@ borné parce que le grab ne parcourt que les items déjà connus disponibles.
 
 | #   | Phase                                    | File                                                                                         | Status |
 | --- | ---------------------------------------- | -------------------------------------------------------------------------------------------- | ------ |
-| 1   | Socle de persistance (migration + store) | [phase-01-persistence.md](docs/features/acq-states/plan/phase-01-persistence.md)             | [ ]    |
+| 1   | Socle de persistance (migration + store) | [phase-01-persistence.md](docs/features/acq-states/plan/phase-01-persistence.md)             | [x]    |
 | 2   | Séparation search / grab dans le moteur  | [phase-02-search-grab-split.md](docs/features/acq-states/plan/phase-02-search-grab-split.md) | [ ]    |
 | 3   | Commande `search` + ordonnancement       | [phase-03-search-command.md](docs/features/acq-states/plan/phase-03-search-command.md)       | [ ]    |
 | 4   | Dérivation serveur des 5 états           | [phase-04-state-derivation.md](docs/features/acq-states/plan/phase-04-state-derivation.md)   | [ ]    |
