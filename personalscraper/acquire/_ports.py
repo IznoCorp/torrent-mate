@@ -101,6 +101,19 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model)."""
         ...
 
+    def list_available(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='available'`` — the grab pass queue."""
+        ...
+
+    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+        """Persist the verdict of the last search on *wanted_id*.
+
+        Called at EVERY exit path of the search pass. ``found`` is ``None``
+        when the search did NOT conclude (outage / dead swarm / open circuit):
+        zero would falsely claim « I looked, there is nothing ».
+        """
+        ...
+
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item; return ``True`` iff this call won."""
         ...
