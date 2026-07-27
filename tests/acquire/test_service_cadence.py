@@ -1,4 +1,13 @@
-"""Tests for cadence-aware AcquisitionService._process_item (criterion 7).
+"""Tests for the cadence-aware gates of both AcquisitionService passes (criterion 7).
+
+Since the acq-states search/grab split the two gates live in different places:
+
+- the CUTOFF (30 days) is applied by BOTH passes before claiming — it ages an
+  item out of the queue whatever it is waiting for;
+- the CADENCE tier interval belongs to ``run_search`` ALONE. It spaces the
+  re-verification of an episode the trackers do not have yet; an item a search
+  already concluded takeable is grabbed at the next tick regardless of its tier
+  (re-gating it there would strand a known-available item for hours).
 
 The clock is pinned by patching ``personalscraper.acquire.service.time.time``
 (the service computes ``now = int(time.time())``); patching the builtin ``int``
@@ -8,6 +17,7 @@ correct seam (matches the precedent in ``test_service.py`` §11d).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -53,6 +63,20 @@ def _pending_item(enqueued_at: int, last_search_at: int | None = None, followed_
     )
 
 
+def _available_item(enqueued_at: int, last_search_at: int | None = None, followed_id: int = 1) -> WantedItem:
+    """Build an ``available`` episode WantedItem — the GRAB pass's input.
+
+    Same row as :func:`_pending_item` one status apart, so a gate assertion can
+    be compared between the two passes without any other variable moving.
+    """
+    return replace(
+        _pending_item(enqueued_at, last_search_at, followed_id),
+        status="available",
+        last_search_outcome="available",
+        last_search_found=3,
+    )
+
+
 def _make_config() -> MagicMock:
     """Return a minimal config stub with the canonical cadence (Hot/Warm/Cold/30d)."""
     from personalscraper.conf.models.acquire import AcquireConfig
@@ -65,13 +89,25 @@ def _make_config() -> MagicMock:
 def _make_service(
     pending: list[WantedItem],
     stale: list[WantedItem] | None = None,
+    available: list[WantedItem] | None = None,
 ) -> tuple[AcquisitionService, MagicMock, MagicMock, MagicMock]:
-    """Build a minimal AcquisitionService with a stubbed store, orchestrator, bus, config."""
+    """Build a minimal AcquisitionService with a stubbed store, orchestrator, bus, config.
+
+    Args:
+        pending: Rows ``list_pending()`` returns — the SEARCH pass's queue.
+        stale: Rows ``list_stale_searching()`` returns (both passes sweep them).
+        available: Rows ``list_available()`` returns — the GRAB pass's queue.
+
+    Returns:
+        The service and its stubbed ``(store, orchestrator, bus)``.
+    """
     store = MagicMock()
     store.wanted.list_pending.return_value = pending
+    store.wanted.list_available.return_value = available or []
     store.wanted.list_stale_searching.return_value = stale or []
     store.wanted.claim_for_search.return_value = True
-    store.wanted.get.return_value = pending[0] if pending else None
+    store.wanted.claim_for_grab.return_value = True
+    store.wanted.get.return_value = (available or pending or [None])[0]
     store.follow.get.return_value = None  # no FollowedSeries override → global cadence
 
     orchestrator = MagicMock()
@@ -84,53 +120,63 @@ def _make_service(
     return svc, store, orchestrator, bus
 
 
-def test_not_due_item_is_skipped_no_claim() -> None:
-    """A not-yet-due item (last_search_at 30min ago, Hot interval=2h) → skipped, no claim."""
-    item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 1800)
-    svc, store, orchestrator, bus = _make_service([item])
+def test_grab_pass_ignores_cadence_and_claims_via_claim_for_grab() -> None:
+    """A not-yet-due AVAILABLE item is still claimed — by claim_for_grab (no cadence gate).
+
+    Was ``test_not_due_item_is_skipped_no_claim``: the cadence skip moved to
+    ``run_search`` (covered below), and its counterpart here is the guarantee
+    that the grab pass does NOT re-apply it. Also pins WHICH claim the pass
+    uses: ``claim_for_grab`` matches ``status='available'``, so calling
+    ``claim_for_search`` instead would silently no-op on every available row.
+    """
+    item = _available_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 1800)
+    svc, store, orchestrator, _bus = _make_service([], available=[item])
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
+    store.wanted.claim_for_grab.assert_called_once_with(10, NOW)
     store.wanted.claim_for_search.assert_not_called()
-    orchestrator.grab.assert_not_called()
-    # A not-due item stays pending — the skip path must never write status (F-D).
-    store.wanted.set_status.assert_not_called()
-    assert summary.skipped == 1
-    assert summary.grabbed == 0
+    orchestrator.grab.assert_called_once()
+    assert summary.grabbed == 1
+    assert summary.skipped == 0
 
 
-def test_due_item_proceeds_to_claim() -> None:
-    """A due item (last_search_at=None, Hot tier) → claim called, grab proceeds."""
-    item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=None)
-    svc, store, orchestrator, bus = _make_service([item])
-    store.wanted.get.return_value = WantedItem(
-        id=10,
-        media_ref=MediaRef(tvdb_id=99),
-        kind="episode",
-        status="searching",
-        enqueued_at=ENQUEUED_RECENT,
-        followed_id=1,
-        season=1,
-        episode=1,
-        attempts=1,
-    )
+def test_grab_pass_recovers_a_stale_searching_row_via_claim_for_search() -> None:
+    """A stale 'searching' row is reset to 'pending', then claimed by claim_for_search.
+
+    Was ``test_due_item_proceeds_to_claim``: « a due item proceeds to claim »
+    now splits by queue. The available queue is covered above; this pins the
+    OTHER claim path — the sweep resets the orphan to 'pending' (the only status
+    ``claim_for_search`` matches), so the row is recovered instead of skipped
+    forever.
+    """
+    stale = replace(_pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 7200), status="searching")
+    svc, store, orchestrator, _bus = _make_service([], stale=[stale])
+    store.wanted.get.return_value = replace(stale, status="searching", attempts=1)
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
-    store.wanted.claim_for_search.assert_called_once()
+    store.wanted.set_status.assert_any_call(10, "pending")
+    store.wanted.claim_for_search.assert_called_once_with(10, NOW)
+    store.wanted.claim_for_grab.assert_not_called()
     assert summary.grabbed == 1
 
 
 def test_cutoff_item_abandoned_no_claim() -> None:
-    """Past-cutoff item → set_status('abandoned') called, WantedAbandoned emitted, no claim."""
-    item = _pending_item(enqueued_at=ENQUEUED_CUTOFF, last_search_at=None)
-    svc, store, orchestrator, bus = _make_service([item])
+    """Past-cutoff available item → set_status('abandoned'), WantedAbandoned emitted, no claim.
+
+    The cutoff is the one gate the GRAB pass keeps: it bounds infinite retries
+    on an item the client keeps refusing.
+    """
+    item = _available_item(enqueued_at=ENQUEUED_CUTOFF, last_search_at=None)
+    svc, store, orchestrator, bus = _make_service([], available=[item])
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
+    store.wanted.claim_for_grab.assert_not_called()
     store.wanted.claim_for_search.assert_not_called()
     store.wanted.set_status.assert_called_once_with(10, "abandoned")
     bus.emit.assert_called_once()
@@ -142,8 +188,8 @@ def test_cutoff_item_abandoned_no_claim() -> None:
 
 def test_cutoff_abandoned_before_grab() -> None:
     """Cutoff abandon happens BEFORE any grab attempt — orchestrator.grab not called."""
-    item = _pending_item(enqueued_at=ENQUEUED_CUTOFF)
-    svc, store, orchestrator, bus = _make_service([item])
+    item = _available_item(enqueued_at=ENQUEUED_CUTOFF)
+    svc, store, orchestrator, bus = _make_service([], available=[item])
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         svc.run()
@@ -173,14 +219,14 @@ def test_per_series_cadence_override_abandons() -> None:
         id=1,
     )
     # 3h old → past the 2h per-series cutoff, but far under the global 30d cutoff.
-    item = _pending_item(enqueued_at=NOW - 3 * 3600, last_search_at=None)
-    svc, store, orchestrator, bus = _make_service([item])
+    item = _available_item(enqueued_at=NOW - 3 * 3600, last_search_at=None)
+    svc, store, orchestrator, bus = _make_service([], available=[item])
     store.follow.get.return_value = series
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
-    store.wanted.claim_for_search.assert_not_called()
+    store.wanted.claim_for_grab.assert_not_called()
     store.wanted.set_status.assert_called_once_with(10, "abandoned")
     bus.emit.assert_called_once()
     emitted = bus.emit.call_args[0][0]
@@ -210,9 +256,9 @@ def test_malformed_per_series_cadence_logs_series_and_uses_default(
         cadence_json='{"broken',  # malformed → cadence_from_json returns None
         id=1,
     )
-    # RECENT item (Hot tier), never searched → due under the global default.
-    item = _pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=None)
-    svc, store, orchestrator, bus = _make_service([item])
+    # RECENT item (Hot tier) → far inside the global default's 30d cutoff.
+    item = _available_item(enqueued_at=ENQUEUED_RECENT, last_search_at=None)
+    svc, store, orchestrator, bus = _make_service([], available=[item])
     store.follow.get.return_value = series
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
@@ -222,7 +268,7 @@ def test_malformed_per_series_cadence_logs_series_and_uses_default(
     assert "acquire.service.cadence_override_dropped" in caplog.text
 
     # Fail-soft to the global default: the item proceeds (claim + grab), not abandoned.
-    store.wanted.claim_for_search.assert_called_once()
+    store.wanted.claim_for_grab.assert_called_once()
     assert summary.grabbed == 1
     assert summary.abandoned == 0
 
