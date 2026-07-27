@@ -36,6 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
@@ -93,32 +94,69 @@ _WATCHER_TRIGGERS = ("completion", "safety_net", "manual")
 def _write_follow_metadata(
     acquire_db_path: Path | None,
     followed_id: int,
-    body: CreateFollowRequest,
+    metadata: FollowMetadata,
 ) -> None:
-    """Persist the card metadata captured from the add-by-search candidate (OBJ3).
+    """Persist the card metadata of a follow (OBJ3 + acq-states §7).
 
-    A no-op when nothing was supplied. Fail-soft: a DB error is logged and
-    swallowed — the follow itself already succeeded, the metadata is a nicety.
+    A no-op when nothing is known — which, since the server enriches, now means
+    the client sent nothing AND no provider could answer.  Fail-soft: a DB error
+    is logged and swallowed — the follow itself already succeeded, the metadata
+    is a nicety.
 
     Args:
         acquire_db_path: Absolute path to ``acquire.db``, or ``None``.
         followed_id: The row to update.
-        body: The create request carrying optional ``poster_url``/``overview``/``year``.
+        metadata: The resolved card metadata (client candidate + provider).
     """
-    if acquire_db_path is None:
-        return
-    if body.poster_url is None and body.overview is None and body.year is None:
+    if acquire_db_path is None or metadata.is_empty:
         return
     try:
         with closing(sqlite3.connect(str(acquire_db_path))) as conn:
             apply_pragmas(conn)
+            # COALESCE(?, col): a field the enrichment could not resolve must
+            # not erase a value a previous add path already stored.
             conn.execute(
-                "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
-                (body.poster_url, body.overview, body.year, followed_id),
+                "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
+                "overview = COALESCE(?, overview), year = COALESCE(?, year) WHERE id = ?",
+                (metadata.poster_url, metadata.overview, metadata.year, followed_id),
             )
             conn.commit()
     except sqlite3.Error:
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
+
+
+def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_ref: MediaRef) -> FollowMetadata:
+    """Resolve the card metadata for a create/reactivate, enriching what is missing.
+
+    The client candidate wins; the providers are only consulted for the fields
+    it left out, so a POST carrying a full candidate makes ZERO provider calls.
+    Fail-soft end to end: a registry that cannot be built is logged at WARNING
+    and the follow keeps whatever the client sent — the 201 is never at risk
+    (plan §7 « Fail-soft, jamais bloquant »).
+
+    Args:
+        request: The incoming FastAPI request (carries config + settings).
+        body: The create request, source of the client-supplied values.
+        media_ref: The follow's provider IDs.
+
+    Returns:
+        The resolved :class:`FollowMetadata`.
+    """
+    known = FollowMetadata(poster_url=body.poster_url, overview=body.overview, year=body.year)
+    if known.is_complete:
+        return known
+    try:
+        tmdb_client, tvdb_client = _build_provider_clients(request)
+    except Exception as exc:  # noqa: BLE001 — incl. the HTTPException(502) the builder raises
+        logger.warning("acquisition_follow_enrich_registry_failed", error=str(exc))
+        return known
+    return enrich_follow_metadata(
+        media_ref,
+        body.kind,
+        tmdb_client=tmdb_client,
+        tvdb_client=tvdb_client,
+        existing=known,
+    )
 
 
 # ── /api/acquisition/followed ──────────────────────────────────────────
@@ -981,16 +1019,19 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # series-shaped and no movie wanted row is ever produced).
             store.follow.set_active(existing.id, True)
             store.follow.set_kind(existing.id, body.kind)
-            _write_follow_metadata(config.acquire.db_path, existing.id, body)
+            # Reactivation backfills too: a follow paused before the server
+            # enriched anything must not stay posterless just because it is old.
+            metadata = _resolve_follow_metadata(request, body, media_ref)
+            _write_follow_metadata(config.acquire.db_path, existing.id, metadata)
             # Reactivating re-primes: the catalog and the queue are as stale as
             # they were the day the follow was paused (plan §6 idempotence).
             prime_outcome = enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
             item = _item_from_followed(reactivated)
-            item.poster_url = body.poster_url
-            item.overview = body.overview
-            item.year = body.year
+            item.poster_url = metadata.poster_url
+            item.overview = metadata.overview
+            item.year = metadata.year
             if prime_outcome in ("spawned", "already_running"):
                 item.priming_running = True
             return item
@@ -1007,16 +1048,19 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
-        # Persist + echo the card metadata captured from the search candidate.
-        _write_follow_metadata(config.acquire.db_path, new_id, body)
+        # Persist + echo the card metadata: the search candidate when the client
+        # supplied one, otherwise fetched from the provider by ID (§7 RC3 — the
+        # by-ID add form sends no poster, and the card stayed blank forever).
+        metadata = _resolve_follow_metadata(request, body, media_ref)
+        _write_follow_metadata(config.acquire.db_path, new_id, metadata)
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00
         # cron (the founding incident: a grab over an empty queue, rc=0).
         prime_outcome = enqueue_prime_run(config.indexer.db_path, new_id)
         item = _item_from_followed(created)
-        item.poster_url = body.poster_url
-        item.overview = body.overview
-        item.year = body.year
+        item.poster_url = metadata.poster_url
+        item.overview = metadata.overview
+        item.year = metadata.year
         if prime_outcome in ("spawned", "already_running"):
             item.priming_running = True
         return item

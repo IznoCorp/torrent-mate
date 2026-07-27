@@ -158,6 +158,23 @@ def _deactivate_follow(db_path: Path, follow_id: int) -> None:
     conn.close()
 
 
+def _blank_follow_metadata(db_path: Path, follow_id: int) -> None:
+    """NULL out the three card columns — makes a row look pre-enrichment.
+
+    Reproduces a legacy row: a follow added before the server enriched anything
+    (the Furious incident), so the reactivation branch has something real to
+    backfill.
+    """
+    conn = sqlite3.connect(str(db_path))
+    apply_pragmas(conn)
+    conn.execute(
+        "UPDATE followed_series SET poster_url = NULL, overview = NULL, year = NULL WHERE id = ?",
+        (follow_id,),
+    )
+    conn.commit()
+    conn.close()
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -431,13 +448,16 @@ class TestCreateFollowMetadata:
         assert resp.status_code == 201, resp.text
         follow_id: int = resp.json()["id"]
 
-        # Sanity: the follow was created without metadata (current behaviour).
+        # Step 2: Deactivate it — simulates the operator having unfollowed —
+        # and blank the card columns so the row looks like a legacy follow
+        # created before the server enriched anything.  Without this, the
+        # creation path (which now enriches) would have already filled them and
+        # the reactivation branch would never be exercised.
+        _deactivate_follow(acquire_db, follow_id)
+        _blank_follow_metadata(acquire_db, follow_id)
         row = _read_follow_row(acquire_db, follow_id)
         assert row is not None
-        assert row["poster_url"] is None, "Sanity: first POST must leave poster NULL"
-
-        # Step 2: Deactivate it — simulates the operator having unfollowed.
-        _deactivate_follow(acquire_db, follow_id)
+        assert row["poster_url"] is None, "Sanity: the row must start posterless"
 
         # Reset the mock call count.  (The first POST didn't call the provider
         # either, but we want a clean baseline for the reactivation assertion.)
