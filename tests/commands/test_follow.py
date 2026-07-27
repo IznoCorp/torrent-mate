@@ -968,9 +968,7 @@ class _LockProbingTvdbClient:
         return _BackfillDetails(_BACKFILL_YEAR, _BACKFILL_OVERVIEW, _BACKFILL_POSTER)
 
 
-def test_backfill_never_holds_a_write_lock_across_provider_calls(
-    tmp_path: Path, monkeypatch, test_config
-) -> None:
+def test_backfill_never_holds_a_write_lock_across_provider_calls(tmp_path: Path, monkeypatch, test_config) -> None:
     """Regression (PR #320 review, m10): no writer lock is held during provider I/O.
 
     The old form issued raw ``UPDATE``s on the scan connection and committed

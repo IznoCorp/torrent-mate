@@ -461,9 +461,7 @@ class TestVerificationEnCours:
             f"Without a catalog, closed prime → non_verifie, got {items[0]['status']!r}"
         )
 
-    def test_dead_pid_prime_run_does_not_pin_verification_en_cours(
-        self, client: TestClient, tmp_path: Path
-    ) -> None:
+    def test_dead_pid_prime_run_does_not_pin_verification_en_cours(self, client: TestClient, tmp_path: Path) -> None:
         """Regression (PR #320 review, F-M5): a crashed prime must not pin the card.
 
         The batched priming query filtered on ``ended_at IS NULL`` alone, which
@@ -506,16 +504,11 @@ class TestVerificationEnCours:
         items: list[dict[str, Any]] = resp.json()["items"]
         assert len(items) == 1
         assert items[0]["status"] != "verification_en_cours", (
-            "A dead-pid prime row is a stale row, not a live verification; "
-            f"got {items[0]['status']!r}"
+            f"A dead-pid prime row is a stale row, not a live verification; got {items[0]['status']!r}"
         )
-        assert items[0]["status"] == "non_verifie", (
-            f"The derived status must take over, got {items[0]['status']!r}"
-        )
+        assert items[0]["status"] == "non_verifie", f"The derived status must take over, got {items[0]['status']!r}"
 
-    def test_pid_null_prime_run_does_not_pin_verification_en_cours(
-        self, client: TestClient, tmp_path: Path
-    ) -> None:
+    def test_pid_null_prime_run_does_not_pin_verification_en_cours(self, client: TestClient, tmp_path: Path) -> None:
         """A prime row whose runner never claimed a pid is stale, not live."""
         conn = sqlite3.connect(str(tmp_path / "acquire.db"))
         apply_pragmas(conn)
