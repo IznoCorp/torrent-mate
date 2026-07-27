@@ -97,6 +97,8 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
         attempts=row["attempts"],
         id=row["id"],
         grabbed_hash=row["grabbed_hash"],
+        last_search_outcome=row["last_search_outcome"],
+        last_search_found=row["last_search_found"],
     )
 
 
