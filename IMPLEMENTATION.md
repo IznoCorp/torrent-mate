@@ -10,7 +10,7 @@
 **PR merge**: auto
 **PR**: _(created after last phase)_
 **Design**: docs/features/acq-states/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: `docs/features/acq-states/plan/INDEX.md`
 
 ## Contexte
 
@@ -42,7 +42,16 @@ les 3 épisodes sont en médiathèque. Cette feature corrige les causes, pas le 
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                    | File                                                                                               | Status |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Socle de persistance (migration + store) | [phase-01-persistence.md](docs/features/acq-states/plan/phase-01-persistence.md)                   | [ ]    |
+| 2   | Le moteur enregistre son verdict         | [phase-02-orchestrator-verdict.md](docs/features/acq-states/plan/phase-02-orchestrator-verdict.md) | [ ]    |
+| 3   | Dérivation serveur des 5 états           | [phase-03-state-derivation.md](docs/features/acq-states/plan/phase-03-state-derivation.md)         | [ ]    |
+| 4   | Fin des sources divergentes              | [phase-04-single-source.md](docs/features/acq-states/plan/phase-04-single-source.md)               | [ ]    |
+| 5   | Amorce à la création du suivi            | [phase-05-follow-priming.md](docs/features/acq-states/plan/phase-05-follow-priming.md)             | [ ]    |
+| 6   | Enrichissement serveur des métadonnées   | [phase-06-server-metadata.md](docs/features/acq-states/plan/phase-06-server-metadata.md)           | [ ]    |
+| 7   | UI — les 5 états en français             | [phase-07-ui-states.md](docs/features/acq-states/plan/phase-07-ui-states.md)                       | [ ]    |
+| 8   | Garde-fous et acceptation                | [phase-08-guardrails-acc.md](docs/features/acq-states/plan/phase-08-guardrails-acc.md)             | [ ]    |
 
 ## Review cycles
 
@@ -50,4 +59,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start phase 1.
