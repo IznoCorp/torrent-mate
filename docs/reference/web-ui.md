@@ -1168,19 +1168,22 @@ and invalidates matching TanStack Query caches without a page reload.
 
 ### API surface
 
-| Method | Path                             | Auth    | Staging | XRW |
-| ------ | -------------------------------- | ------- | ------- | --- |
-| GET    | `/api/acquisition/followed`      | session | allowed | no  |
-| GET    | `/api/acquisition/wanted`        | session | allowed | no  |
-| GET    | `/api/acquisition/obligations`   | session | allowed | no  |
-| GET    | `/api/acquisition/status`        | session | allowed | no  |
-| POST   | `/api/acquisition/followed`      | session | 403     | yes |
-| PATCH  | `/api/acquisition/followed/{id}` | session | 403     | yes |
-| DELETE | `/api/acquisition/followed/{id}` | session | 403     | yes |
+| Method | Path                                    | Auth    | Staging | XRW |
+| ------ | --------------------------------------- | ------- | ------- | --- |
+| GET    | `/api/acquisition/followed`             | session | allowed | no  |
+| GET    | `/api/acquisition/wanted`               | session | allowed | no  |
+| GET    | `/api/acquisition/obligations`          | session | allowed | no  |
+| GET    | `/api/acquisition/status`               | session | allowed | no  |
+| POST   | `/api/acquisition/followed`             | session | 403     | yes |
+| PATCH  | `/api/acquisition/followed/{id}`        | session | 403     | yes |
+| DELETE | `/api/acquisition/followed/{id}`        | session | 403     | yes |
+| POST   | `/api/acquisition/detect`               | session | 403     | yes |
+| POST   | `/api/acquisition/followed/{id}/search` | session | 403     | yes |
+| POST   | `/api/acquisition/followed/{id}/grab`   | session | 403     | yes |
 
 All routes are mounted under the single `guarded_api` router (auth perimeter
-§6). The four GET routes are staging-allowed (no `require_not_staging`). The
-three mutating routes carry `require_not_staging` (staging → 403) and
+§6). The four GET routes are staging-allowed (no `require_not_staging`). Every
+mutating route carries `require_not_staging` (staging → 403) and
 `require_x_requested_with` (missing XRW → 400) as per-route dependencies.
 
 The watcher toggle reuses `POST /api/pipeline/watcher` (S2) — S7 does NOT
@@ -1312,12 +1315,25 @@ stage filter (P0-A.1), so per-stage lists partition the staging set.
 ### OBJ3 — per-series trigger + cadence readout
 
 - `POST /api/acquisition/followed/{id}/search` → `GrabTriggerResponse` (202 +
-  `run_uid`). Reserves a tracked `pipeline_run` (`kind='maintenance'`,
-  `command='grab'`) and spawns a detached runner (`web/acquisition/runner.py`)
-  that runs `grab --followed-id N`. The runner holds **no** `pipeline.lock` (grab
-  claims each wanted item atomically, like the scheduled grab cron) and finalizes
-  the run row on every exit path. `require_not_staging` + `require_x_requested_with`
-  - a per-series 409 guard.
+  `run_uid`) — the « Rechercher » button. Reserves a tracked `pipeline_run`
+  (`kind='maintenance'`, `command='prime'`) and spawns a detached runner
+  (`web/acquisition/runner.py`) that chains `follow detect --series N` →
+  `search --followed-id N` → `grab --followed-id N`. It spawned a bare `grab`
+  until acq-states phase 8: post-split, `grab` only claims items a previous
+  search already marked takeable, so on a follow reading `en_attente` /
+  `non_verifie` the button did nothing and reported success.
+- `POST /api/acquisition/followed/{id}/grab` → `GrabTriggerResponse` (202 +
+  `run_uid`) — the « Récupérer maintenant » button (acq-states phase 8).
+  Reserves `command='grab'` and spawns `grab --followed-id N` alone: no catalog
+  poll, no tracker search, just claim what is already available. Offered by the
+  UI exactly where the server status reads `a_recuperer`.
+- Both triggers share one reserve → guard → spawn → pid body
+  (`_launch_followed_action`), hold **no** `pipeline.lock` (grab claims each
+  wanted item atomically, like the scheduled grab cron), finalize the run row on
+  every exit path, and carry `require_not_staging` + `require_x_requested_with`.
+  Their 409 guard is **per action AND per series** (§6): a live grab never
+  refuses a search, a live prime never refuses a grab — the only permitted
+  refusal is the duplicate of the same action on the same follow.
 - `GET /api/acquisition/followed` — `FollowedSeriesItem` additionally exposes
   `next_search_at` (soonest next-due epoch across the series' pending wanted
   items) and `cadence_tier` (`hot`/`warm`/`cold`/`cutoff`), derived from the
