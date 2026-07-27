@@ -490,18 +490,30 @@ describe("AcquisitionPage", () => {
     expect(screen.queryByText(/aucune série suivie/i)).not.toBeInTheDocument();
   });
 
-  it("shows wanted_pending badge when count is above zero", () => {
+  it("shows the five-state counts, never the raw wanted_pending counter", () => {
     mockAllEmpty();
     useFollowedMock.mockReturnValue({
       isLoading: false,
       isError: false,
-      data: { items: [makeFollowed({ wanted_pending: 3 })] },
+      data: {
+        items: [
+          makeFollowed({
+            wanted_pending: 3,
+            status: "a_recuperer",
+            aired_count: 8,
+            owned_count: 6,
+            a_recuperer_count: 2,
+          }),
+        ],
+      },
       error: null,
     });
     renderPage();
 
-    // The follow card shows the pending count as a "N en attente" badge.
-    expect(screen.getByText("3 en attente")).toBeInTheDocument();
+    // What is owed comes from the SAME derivation as the chip (phase 8): the
+    // raw queue counter knew nothing about ownership and could contradict it.
+    expect(screen.getByText("2 à récupérer")).toBeInTheDocument();
+    expect(screen.queryByText("3 en attente")).not.toBeInTheDocument();
   });
 
   it("shows a next-search caption coloured by cadence tier (OBJ3)", () => {

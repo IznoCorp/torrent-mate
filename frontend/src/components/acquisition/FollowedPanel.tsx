@@ -58,6 +58,8 @@ import {
   cadenceInterval,
   FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_TONE,
+  followCountsCaption,
+  followFraction,
   followStatusHint,
   followStatusLabel,
   formatRunResult,
@@ -306,7 +308,11 @@ export function FollowedPanel({
       <div className="flex flex-col gap-2">
         {activeItems.map((item) => {
           const isMovie = item.kind === "movie";
+          // Every readout below is a pure mapping of SERVER facts computed
+          // outside the JSX — no business derivation in the markup.
           const statusLabel = followStatusLabel(item.status, item.kind);
+          const fraction = followFraction(item);
+          const countsCaption = followCountsCaption(item);
           const isSearching =
             triggerMutation.isPending && triggerMutation.variables === item.id;
 
@@ -345,24 +351,20 @@ export function FollowedPanel({
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                    {/* Completeness: NN/NN in font-mono tabular-nums.
-                        "—" when aired_count is null (no catalog). */}
-                    <span className="font-mono tabular-nums">
-                      {item.aired_count != null
-                        ? `${String(item.owned_count ?? 0)}/${String(item.aired_count)}`
-                        : "—"}
-                    </span>
+                    {/* Completeness: NN/NN in font-mono tabular-nums, "—" when
+                        a série has no catalog, nothing at all for a film. */}
+                    {fraction != null && (
+                      <span className="font-mono tabular-nums">{fraction}</span>
+                    )}
                     {/* Next due. */}
                     {item.next_search_at != null && (
                       <span>{untilLabel(item.next_search_at, Date.now())}</span>
                     )}
-                    {/* Wanted pending count — operator needs to know something
-                        is queued even in the compact row. */}
-                    {item.wanted_pending > 0 && (
-                      <Badge tone="warning">
-                        {String(item.wanted_pending)} en attente
-                      </Badge>
-                    )}
+                    {/* What is still moving / still owed, per the SAME
+                        server-side five-state counts the chip reads — never the
+                        raw wanted_pending counter (NE-DOIT-PAS-2 without the
+                        founding lie). */}
+                    {countsCaption != null && <span>{countsCaption}</span>}
                   </div>
                 </div>
 

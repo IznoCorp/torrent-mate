@@ -177,7 +177,107 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
   });
 });
 
+describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
+  it.each([
+    ["a_jour", "À jour"],
+    ["a_recuperer", "À récupérer"],
+    ["en_acquisition", "En cours d'acquisition"],
+    ["en_attente", "En attente"],
+    ["non_verifie", "Non vérifié"],
+    ["verification_en_cours", "Vérification en cours"],
+  ])("affiche %s comme « %s »", (status, label) => {
+    renderPanel([makeItem({ status: status as FollowedSeriesItem["status"] })]);
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("affiche « En pause » pour un suivi désactivé (section repliée)", () => {
+    // A disabled follow lives in the retired section, which carries no chip —
+    // the vocabulary still owns the label, exercised through the map.
+    renderPanel([makeItem({ active: false, status: "disabled" })]);
+
+    expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
+  });
+
+  it("explique l'état en infobulle (En attente ≠ Non vérifié)", () => {
+    renderPanel([
+      makeItem({ id: 1, title: "Silo", status: "en_attente" }),
+      makeItem({ id: 2, title: "Furious", status: "non_verifie" }),
+    ]);
+
+    const attente = screen.getByText("En attente").closest("[title]");
+    const nonVerifie = screen.getByText("Non vérifié").closest("[title]");
+    expect(attente?.getAttribute("title")).toMatch(/rien de conforme/);
+    expect(nonVerifie?.getAttribute("title")).toMatch(/[Pp]as encore vérifié/);
+    expect(attente?.getAttribute("title")).not.toBe(
+      nonVerifie?.getAttribute("title"),
+    );
+  });
+
+  it("affiche les compteurs par état, jamais le compteur wanted_pending brut", () => {
+    renderPanel([
+      makeItem({
+        status: "a_recuperer",
+        aired_count: 18,
+        owned_count: 12,
+        a_recuperer_count: 3,
+        en_acquisition_count: 1,
+        en_attente_count: 1,
+        non_verifie_count: 1,
+        // The lying counter: 9 rows queued while only 6 episodes are not owned.
+        wanted_pending: 9,
+      }),
+    ]);
+
+    expect(
+      screen.getByText(
+        "3 à récupérer · 1 en cours d'acquisition · 1 en attente · 1 non vérifié",
+      ),
+    ).toBeInTheDocument();
+    // The raw wanted_pending chip is gone — it knew nothing about ownership.
+    expect(screen.queryByText("9 en attente")).not.toBeInTheDocument();
+  });
+
+  it("n'affiche aucun compteur quand tout est en médiathèque", () => {
+    renderPanel([
+      makeItem({
+        status: "a_jour",
+        aired_count: 10,
+        owned_count: 10,
+        a_recuperer_count: 0,
+        en_acquisition_count: 0,
+        en_attente_count: 0,
+        non_verifie_count: 0,
+      }),
+    ]);
+
+    expect(screen.getByText("10/10")).toBeInTheDocument();
+    expect(screen.queryByText(/à récupérer/)).not.toBeInTheDocument();
+  });
+});
+
 describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
+  it("n'affiche aucune fraction pour un film (son état EST la pastille)", () => {
+    renderPanel([
+      makeItem({
+        kind: "movie",
+        title: "Ferrari",
+        status: "a_jour",
+        movie_facts: {
+          owned: true,
+          wanted_status: null,
+          last_search_outcome: null,
+          last_search_found: null,
+        },
+      }),
+    ]);
+
+    expect(screen.getByText("Acquis")).toBeInTheDocument();
+    // No "1/1", and no "—" either: a film is not a completeness fraction.
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+    expect(screen.queryByText("1/1")).not.toBeInTheDocument();
+  });
+
   it("garde le libellé partagé pour un film à récupérer", () => {
     renderPanel([
       makeItem({ kind: "movie", title: "Ferrari", status: "a_recuperer" }),

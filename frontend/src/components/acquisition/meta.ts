@@ -271,6 +271,91 @@ export function followStatusHint(status: FollowStatus, kind: string): string {
   return FOLLOW_STATUS_HINT[status];
 }
 
+/**
+ * Per-state count noun, singular / plural (card caption wording).
+ *
+ * ``en_mediatheque`` is absent on purpose: owned episodes are already the
+ * numerator of the ``NN/NN`` fraction, and repeating them would inflate the
+ * caption with the only number that is never actionable.
+ */
+const COUNT_NOUN: Record<
+  Exclude<EpisodeState, "en_mediatheque">,
+  { readonly one: string; readonly many: string }
+> = {
+  a_recuperer: { one: "à récupérer", many: "à récupérer" },
+  en_acquisition: {
+    one: "en cours d'acquisition",
+    many: "en cours d'acquisition",
+  },
+  en_attente: { one: "en attente", many: "en attente" },
+  non_verifie: { one: "non vérifié", many: "non vérifiés" },
+};
+
+/** The caption's bucket order — most actionable first, as the card status is. */
+const COUNT_ORDER: readonly Exclude<EpisodeState, "en_mediatheque">[] = [
+  "a_recuperer",
+  "en_acquisition",
+  "en_attente",
+  "non_verifie",
+];
+
+/**
+ * Render a followed SHOW's library fraction, or ``null`` when it has none.
+ *
+ * A film is a catalog of exactly ONE unit: a fraction (« 1/1 ») says nothing
+ * its status chip does not already say, and « 0/1 » would read as a
+ * completeness failure rather than as « pas encore acquis ». So films get no
+ * fraction at all — their card readout IS the status chip (+ the waiting
+ * reason when they wait).
+ *
+ * Args:
+ *   item: The followed item.
+ *
+ * Returns:
+ *   ``"15/18"``, ``"—"`` when a série has no cached catalog (honest ignorance,
+ *   matching its ``non_verifie`` status), or ``null`` for a film.
+ */
+export function followFraction(item: FollowedSeriesItem): string | null {
+  if (item.kind === "movie") return null;
+  if (item.aired_count == null) return "—";
+  return `${String(item.owned_count ?? 0)}/${String(item.aired_count)}`;
+}
+
+/**
+ * Render the non-zero five-state episode counts as a French caption.
+ *
+ * This is what makes the queue and the wait VISIBLE on the compact row
+ * (NE-DOIT-PAS-2), and it replaces the raw ``wanted_pending`` chip: that
+ * counter knows nothing about ownership or about the aired catalog, and
+ * printing « 3 en attente » next to an « À jour » chip is exactly the founding
+ * incident's lie. Every number here comes from the SAME server-side derivation
+ * the status chip comes from, so the two can never contradict each other.
+ *
+ * Args:
+ *   item: The followed item (its per-state counts).
+ *
+ * Returns:
+ *   E.g. ``"3 à récupérer · 1 non vérifié"``, or ``null`` when every bucket is
+ *   empty / unknown (a fully-owned série, or a follow with no catalog).
+ */
+export function followCountsCaption(item: FollowedSeriesItem): string | null {
+  const counts: Record<Exclude<EpisodeState, "en_mediatheque">, number | null> =
+    {
+      a_recuperer: item.a_recuperer_count ?? null,
+      en_acquisition: item.en_acquisition_count ?? null,
+      en_attente: item.en_attente_count ?? null,
+      non_verifie: item.non_verifie_count ?? null,
+    };
+  const parts = COUNT_ORDER.filter((state) => (counts[state] ?? 0) > 0).map(
+    (state) => {
+      const n = counts[state] ?? 0;
+      const noun = n > 1 ? COUNT_NOUN[state].many : COUNT_NOUN[state].one;
+      return `${String(n)} ${noun}`;
+    },
+  );
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 /** Followed kind → French badge label (§5 film vs série). */
 export const FOLLOW_KIND_LABEL: Record<string, string> = {
   movie: "Film",
