@@ -143,6 +143,7 @@ def get_followed(
         compute_follow_truth,
         compute_movie_truth,
     )
+    from personalscraper.web.models.acquisition import MovieFacts  # noqa: PLC0415
 
     db_path = request.app.state.config.acquire.db_path
     if db_path is None or not Path(db_path).exists():
@@ -219,12 +220,14 @@ def get_followed(
                     effective = effective_cadence(cadence_from_json(row["cadence_json"]), global_cadence)
                     next_due, cadence_tier = _cadence_readout(timings_by_series.get(row["id"], []), effective, now)
 
-                # §5 truth table (P0-B.2): ownership (real disk presence by
-                # provider ID) × wanted — the card status derives from these
-                # facts, never from a raw wanted counter. Shows cross the aired
-                # catalog; films (D2-B) are a catalog of one, so the same
-                # ownership-aware fields drive the movie card status too.
+                # Five-state facts (acq-states phase 4): ownership (real disk
+                # presence by provider ID) × the wanted queue × the last search
+                # verdict — the card status derives from these facts, never from
+                # a raw wanted counter. Shows cross the aired catalog into
+                # per-state counts; films (D2-B) are a catalog of one and carry
+                # their single unit's facts instead.
                 truth = FollowTruth()
+                movie_facts: MovieFacts | None = None
                 kind = cast("str", _row_col(row, "kind")) or "show"
                 try:
                     core_ref: MediaRef | None = MediaRef(
@@ -236,8 +239,8 @@ def get_followed(
                     if ownership_checker is None:
                         ownership_checker = IndexerOwnershipChecker(Path(indexer_db_path))
                     if kind == "movie":
-                        truth = compute_movie_truth(
-                            ownership_checker, media_ref=core_ref, grabbed=grabbed, pending=pending
+                        movie_facts = compute_movie_truth(
+                            conn, ownership_checker, followed_id=row["id"], media_ref=core_ref
                         )
                     else:
                         truth = compute_follow_truth(conn, ownership_checker, followed_id=row["id"], media_ref=core_ref)
@@ -262,9 +265,11 @@ def get_followed(
                         cadence_tier=cadence_tier,
                         aired_count=truth.aired_count,
                         owned_count=truth.owned_count,
-                        inflight_count=truth.inflight_count,
-                        queued_count=truth.queued_count,
-                        missing_count=truth.missing_count,
+                        a_recuperer_count=truth.a_recuperer_count,
+                        en_acquisition_count=truth.en_acquisition_count,
+                        en_attente_count=truth.en_attente_count,
+                        non_verifie_count=truth.non_verifie_count,
+                        movie_facts=movie_facts,
                     )
                 )
             return FollowedResponse(items=items)
