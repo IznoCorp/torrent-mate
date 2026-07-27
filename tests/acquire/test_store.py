@@ -786,6 +786,77 @@ def test_add_wanted_item_with_status_available_round_trips(store: ConcreteAcquir
     assert wid in [w.id for w in available]
 
 
+def test_claim_for_grab_claims_an_available_row_and_stamps_it(store: ConcreteAcquireStore) -> None:
+    """claim_for_grab wins on an 'available' row and stamps attempts + last_search_at."""
+    wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=201),
+            kind="movie",
+            status="available",
+            enqueued_at=1_700_000_000,
+            last_search_outcome="available",
+            last_search_found=4,
+        )
+    )
+
+    assert store.wanted.claim_for_grab(wid, 1_700_000_900) is True
+
+    claimed = store.wanted.get(wid)
+    assert claimed is not None
+    assert claimed.status == "searching"
+    assert claimed.attempts == 1
+    assert claimed.last_search_at == 1_700_000_900
+    # The claim never touches the search pass's verdict.
+    assert claimed.last_search_outcome == "available"
+    assert claimed.last_search_found == 4
+
+
+def test_claim_for_grab_refuses_a_pending_row(store: ConcreteAcquireStore) -> None:
+    """A 'pending' row is the SEARCH pass's — claim_for_grab must not take it.
+
+    Without the ``status='available'`` guard the grab pass would reach into the
+    pending backlog and re-search the whole queue (NE-DOIT-PAS-8).
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=202), kind="movie", status="pending", enqueued_at=1_700_000_000)
+    )
+
+    assert store.wanted.claim_for_grab(wid, 1_700_000_900) is False
+
+    untouched = store.wanted.get(wid)
+    assert untouched is not None
+    assert untouched.status == "pending"
+    assert untouched.attempts == 0, "a lost claim must not stamp attempts"
+    assert untouched.last_search_at is None
+
+
+def test_claim_for_grab_second_concurrent_claim_loses(tmp_path: Path) -> None:
+    """Two handles racing on one 'available' row → exactly one True (atomic claim).
+
+    Same serialisation guarantee as ``claim_for_search``: ``BEGIN IMMEDIATE`` +
+    ``WHERE status='available'`` means the loser sees 'searching' (rowcount==0)
+    and must skip, so one item is never grabbed twice.
+    """
+    cfg = AcquireConfig(db_path=tmp_path / "acquire_grab_race.db")
+    store1 = build_acquire_store(cfg)
+    store2 = build_acquire_store(cfg)
+    try:
+        wid = store1.wanted.add(
+            WantedItem(media_ref=MediaRef(tvdb_id=203), kind="movie", status="available", enqueued_at=1_700_000_000)
+        )
+        result1 = store1.wanted.claim_for_grab(wid, 1_700_000_900)
+        result2 = store2.wanted.claim_for_grab(wid, 1_700_000_900)
+
+        assert [result1, result2].count(True) == 1, f"exactly one claim must win; got {result1=}, {result2=}"
+        item = store1.wanted.get(wid)
+        assert item is not None
+        assert item.status == "searching"
+        assert item.attempts == 1, "the loser is a no-op — attempts stamped exactly once"
+    finally:
+        store1.close()
+        store2.close()
+
+
 def test_seed_round_trip_and_marks(store: ConcreteAcquireStore) -> None:
     """A SeedObligation round-trips and find_by_dispatched_path resolves it."""
     obligation = SeedObligation(

@@ -118,6 +118,15 @@ class WantedSubStore(Protocol):
         """Atomically claim a pending item; return ``True`` iff this call won."""
         ...
 
+    def claim_for_grab(self, wanted_id: int, now: int) -> bool:
+        """Atomically claim an ``available`` item; return ``True`` iff this call won.
+
+        The grab pass's counterpart to :meth:`claim_for_search`: it matches
+        ``status='available'`` only, so the two passes never steal each other's
+        rows.
+        """
+        ...
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` + ``info_hash`` for the idempotence guard."""
         ...

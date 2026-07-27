@@ -172,6 +172,39 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def claim_for_grab(self, wanted_id: int, now: int) -> bool:
+        """Atomically claim an AVAILABLE item for grabbing.
+
+        Mirrors :meth:`claim_for_search` exactly, one guard apart: the ``WHERE``
+        matches ``status='available'`` instead of ``'pending'``. That is what
+        keeps the two passes from stealing each other's rows — the search pass
+        only ever claims a queued item, the grab pass only ever claims an item a
+        search already concluded takeable. One ``UPDATE`` inside a single
+        ``BEGIN IMMEDIATE`` transaction is the SINGLE serialisation point for
+        concurrent grabbers; ``attempts + 1`` and ``last_search_at = now`` are
+        stamped atomically (``attempts`` counts every tracker interaction).
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            now: Unix epoch seconds (stamps ``last_search_at``).
+
+        Returns:
+            ``True`` if this caller won the claim; ``False`` otherwise (a
+            concurrent winner, or a row that is no longer 'available').
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'searching',
+                    attempts = attempts + 1,
+                    last_search_at = ?
+                WHERE id = ? AND status = 'available'
+                """,
+                (now, wanted_id),
+            )
+            return cur.rowcount == 1
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` AND the ``info_hash`` (idempotence guard).
 
