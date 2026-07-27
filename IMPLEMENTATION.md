@@ -1,49 +1,53 @@
-# Implementation Progress — systeme-hub
+# Implementation Progress — acq-states
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Design overhaul V5 — Système + Config + passe visuelle transversale
+**Feature**: Acquisitions — états véridiques (disponibilité tracker) + amorce du suivi + poster serveur
 **Type**: feat
-**Branch**: feat/systeme-hub (off main @ 33472fc7 — V4 0.53.0)
-**Ticket**: #309 (epic #304, dernière vague) — claimed; board moves broken (kanban-mate#187)
-**PR**: https://github.com/IznoCorp/torrent-mate/pull/317
-**Merge**: squash (**auto** — operator directive 2026-07-17)
-**Design**: `docs/features/systeme-hub/DESIGN.md` ← shared spec §3.2 + §3.3 + §4 + §1.1
-**Version bump**: 0.53.0 → 0.54.0 (minor)
+**Version bump**: 0.54.1 → 0.55.0 (minor)
+**Branch**: feat/acq-states
+**Ticket**: #319 — claimed (session locale, heartbeat actif)
+**PR merge**: auto
+**PR**: _(created after last phase)_
+**Design**: docs/features/acq-states/DESIGN.md
+**Master plan**: _(to be defined after /implement:plan)_
 
-## Status: ALL PHASES DONE — feature-pr (push + PR + CI + review + AUTO merge)
+## Contexte
 
-**Master plan**: `docs/features/systeme-hub/plan/INDEX.md`
+Incident fondateur : la série _Furious_ (TVDB 468000), ajoutée le 2026-07-27, affichait
+« À jour » avec 3 épisodes diffusés absents de la médiathèque, et sans poster.
+
+Trois causes racines établies avec preuves (détail dans le DESIGN) :
+
+- **RC1** — `POST /followed` n'amorce ni catalogue ni file `wanted` ; seul le cron `detect`
+  de 03:00 le fait → le « Rechercher » manuel est un succès silencieux.
+- **RC2** — la carte et le panneau de détail lisent **deux sources divergentes** : cache vide
+  → « À jour » côté carte, repli `poll_aired` live → 3 épisodes `manquant` côté détail.
+- **RC3** — aucun enrichissement serveur du poster ; il ne vient que du candidat de recherche
+  envoyé par le client, donc jamais par le formulaire d'ajout par ID.
+
+L'incident lui-même a été résolu manuellement le 2026-07-27 (`detect` + `grab` + pipeline 264) :
+les 3 épisodes sont en médiathèque. Cette feature corrige les causes, pas le symptôme.
+
+## Décisions opérateur (2026-07-27)
+
+| Sujet             | Décision                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| Modèle d'états    | 5 états — À jour / En attente / À récupérer / En cours d'acquisition / **Non vérifié** |
+| « Disponible »    | = **candidat réellement prenable** (survit aux filtres éliminatoires)                  |
+| Persistance       | colonnes sur `wanted` (`last_search_outcome`, `last_search_found`)                     |
+| Amorce            | 201 immédiat + run d'amorce **visible** via l'autorité de déclenchement existante      |
+| Fichier `VERSION` | **supprimé** — mort et désynchronisé (0.48.0 vs 0.54.1 réel)                           |
+| Merge             | auto                                                                                   |
 
 ## Phases
 
-| #   | Phase                                    | File                                                                                    | Status |
-| --- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------ |
-| 1   | Outcome-labels foundation                | [phase-01-outcome-labels.md](docs/features/systeme-hub/plan/phase-01-outcome-labels.md) | [x]    |
-| 2   | /systeme hub (4 tabs, routes, redirects) | [phase-02-systeme-page.md](docs/features/systeme-hub/plan/phase-02-systeme-page.md)     | [x]    |
-| 3   | Config polish (G2 + Secrets + FR)        | [phase-03-config-polish.md](docs/features/systeme-hub/plan/phase-03-config-polish.md)   | [x]    |
-| 4   | Visual pass + final gate                 | [phase-04-visual-gate.md](docs/features/systeme-hub/plan/phase-04-visual-gate.md)       | [x]    |
-| 5   | PR fixes cycle 1                         | [phase-05-pr-fixes-cycle-1.md](docs/features/systeme-hub/plan/phase-05-pr-fixes-cycle-1.md) | [x]    |
+_(filled by /implement:plan)_
 
 ## Review cycles
 
-### Cycle 1
+_(filled by implement:pr-review — max 3 cycles)_
 
-- 4 agents on PR #317 @ 77003a6c. Code: 2 findings >=80 (button-in-button FileList; RunDetail
-  cross-link lands on État instead of ?tab=maintenance, test locks the stale target). Silent-failures:
-  F1 HIGH « Jamais exécuté » for an executed-but-unmapped outcome canonized in the shared module;
-  F2 « — » erases unknown tokens; F3 /registry LegacyRedirect builds a double-? URL and the test
-  certifies the broken param forwarding; F5 auto-select re-adds ?file= behind Secrets. Tests (live
-  mutation probes): redirects + deep-link guard proven RED; RunDetail divergent-label revert is a
-  PROVEN SURVIVING MUTANT; circuit-badge labels lost in suite migration; restart hint + FR secrets
-  shipped with zero tests. Comments: Config/nav/RunDetail/CompactHealth stale docblocks + 6 active
-  claims in web-ui.md/maintenance.md now false. Backend extraction verified byte-identical, clean.
-- Fix phase: phase-05-pr-fixes-cycle-1.md (3 sub-phases). Open items recorded there (F6/F7
-  pre-existing quiet-error styling, stale &run= sanctioned pattern).
+## Next action
 
-## Scope guardrails (epic close-out)
-
-- /systeme (4 tabs) + /config (G2/Secrets/FR) + lib/outcome-labels.ts migration (5 maps) + redirects
-  /registry + /maintenance → /systeme?tab=etat (V3 ?run= teleport preserved).
-- ZERO backend change. Every V1–V4 acquis un-regressed.
-- Maintenance invariants intact (runner lock lifetime, staging guards, journal §7/§8).
+Run `/implement:plan` to generate the phase plan from the design doc.
