@@ -88,7 +88,13 @@ def reconcile_wanted(
     """
     checked = closed = requeued = in_flight = 0
     closed_movie_followed_ids: list[int] = []
-    for row in [*store.wanted.list_grabbed(), *store.wanted.list_pending()]:
+    # The three OPEN statuses ``mark_done`` can close. 'searching' is walked
+    # because a row can hold a ``grabbed_hash`` while still reading 'searching'
+    # (the §11(d) crash window between ``mark_grabbed`` and the next status
+    # write). ``reclaim_stale_searching`` deliberately refuses to revert that row
+    # — re-grabbing an already-added torrent would be worse — which leaves THIS
+    # sweep as the only thing that can ever close or requeue it.
+    for row in [*store.wanted.list_grabbed(), *store.wanted.list_searching(), *store.wanted.list_pending()]:
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
         checked += 1
@@ -121,13 +127,16 @@ def reconcile_wanted(
                 )
             continue
 
-        if row.status != "grabbed":
-            # An unowned pending row simply stays queued — the hash logic
-            # below only applies to grabbed rows.
+        row_hash = (row.grabbed_hash or "").lower()
+        if not row_hash:
+            # An unowned row that never carried a grab simply stays queued — the
+            # vanished-torrent logic below only applies to rows holding a hash.
+            # Keyed on the HASH, not on ``status == 'grabbed'``: the hash is what
+            # says « a torrent was added for this row », and it outlives the
+            # status (crash window, legacy rows).
             continue
 
-        row_hash = (row.grabbed_hash or "").lower()
-        if client_hashes is not None and row_hash and row_hash not in client_hashes:
+        if client_hashes is not None and row_hash not in client_hashes:
             if store.wanted.requeue_missing(row.id):
                 requeued += 1
                 log.warning(

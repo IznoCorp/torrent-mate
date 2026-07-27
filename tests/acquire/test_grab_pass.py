@@ -308,3 +308,141 @@ def test_grab_pass_never_walks_pending_even_when_available_is_empty(
     assert summary.retried == 0
     assert summary.abandoned == 0
     assert summary.skipped == 0
+
+
+# ---------------------------------------------------------------------------
+# PR #320 review cycle 1 — stale-'searching' recovery must be ATOMIC (F-B2)
+# and a failed grab must not invent availability (F-M4).
+# ---------------------------------------------------------------------------
+
+
+def _stale_searching_row(store: ConcreteAcquireStore, tvdb_id: int = 99) -> tuple[int, WantedItem]:
+    """Claim a row and back-date its claim so the sweep sees it as stale.
+
+    Returns:
+        The rowid and the SNAPSHOT the pass would have listed — the in-memory
+        object a concurrent mutation is free to invalidate.
+    """
+    rowid = store.wanted.add(_pending_item(tvdb_id=tvdb_id))
+    store.wanted.claim_for_search(rowid, _PINNED_NOW - 7200)  # 2h ago > 1h threshold
+    snapshot = store.wanted.get(rowid)
+    assert snapshot is not None
+    assert snapshot.status == "searching"
+    return rowid, snapshot
+
+
+def test_stale_recovery_never_reverts_a_grab_completed_since_the_queue_snapshot(
+    store: ConcreteAcquireStore,
+) -> None:
+    """Regression (review F-B2): the recovery must not clobber a completed grab.
+
+    The queue is listed once at the top of the pass. The old get-then-set
+    recovery trusted that snapshot's ``status`` and wrote ``'pending'``
+    unconditionally seconds later — so a grab a concurrent runner completed in
+    between had its ``'grabbed'`` status DELETED while its torrent kept
+    downloading, and the item was handed back to the queue as if nothing had
+    been added.
+    """
+    rowid, snapshot = _stale_searching_row(store)
+    # A concurrent runner finishes the grab AFTER the snapshot was taken.
+    store.wanted.mark_grabbed(rowid, "livehash")
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    service = _service(store, orch)
+    with patch.object(store.wanted, "list_stale_searching", return_value=[snapshot]):
+        summary = service.run()
+
+    row = store.wanted.get(rowid)
+    assert row is not None
+    assert row.status == "grabbed", f"a completed grab must survive the sweep; got {row.status!r}"
+    assert row.grabbed_hash == "livehash"
+    assert orch.grab.call_count == 0, "the row was already grabbed — it must never be re-grabbed"
+    assert summary.skipped == 1
+
+
+def test_stale_recovery_never_double_claims_a_row_another_pass_re_took(
+    store: ConcreteAcquireStore,
+) -> None:
+    """Regression (review F-B2): two passes must not both claim the same stale row.
+
+    Both passes list the stale rows. With a get-then-set recovery, the second
+    pass forced the row back to ``'pending'`` even though the first had just
+    re-claimed it, and then won ``claim_for_search`` on its own write — two
+    tracker searches (and two potential adds) for one item.
+    """
+    rowid, snapshot = _stale_searching_row(store)
+
+    # Runner A recovers it and re-claims it (its claim is now FRESH).
+    assert store.wanted.reclaim_stale_searching(rowid, _PINNED_NOW - 3600) is True
+    assert store.wanted.claim_for_search(rowid, _PINNED_NOW) is True
+    attempts_after_a = store.wanted.get(rowid)
+    assert attempts_after_a is not None
+    assert attempts_after_a.attempts == 2
+
+    # Runner B still holds the pass-start snapshot.
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="h", found=1)
+    service = _service(store, orch)
+    with patch.object(store.wanted, "list_stale_searching", return_value=[snapshot]):
+        summary = service.run()
+
+    assert orch.grab.call_count == 0, "runner B must not steal a row runner A just re-claimed"
+    assert summary.skipped == 1
+    row = store.wanted.get(rowid)
+    assert row is not None
+    assert row.status == "searching", f"runner A's claim must stand; got {row.status!r}"
+    assert row.attempts == 2, f"runner B must not stamp a second claim; got attempts={row.attempts}"
+
+
+def test_grab_retryable_does_not_promote_a_verdictless_row_to_available(
+    store: ConcreteAcquireStore,
+) -> None:
+    """Regression (review F-M4): a failed grab must not invent « À récupérer ».
+
+    A stale 'searching' row recovered by the sweep has NO ``available``
+    verdict — its last search never concluded (or never ran). Forcing
+    ``status='available'`` on the retryable path made the UI announce a takeable
+    item on the strength of an outage, and the search pass (which walks only
+    'pending') would never re-verify it.
+    """
+    rowid, _snapshot = _stale_searching_row(store)
+    before = store.wanted.get(rowid)
+    assert before is not None and before.last_search_outcome is None
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="retryable", reason="circuit_open", found=None)
+
+    service = _service(store, orch)
+    summary = service.run()
+
+    assert orch.grab.call_count == 1
+    row = store.wanted.get(rowid)
+    assert row is not None
+    assert row.status == "pending", f"a verdict-less row must fall back to 'pending'; got {row.status!r}"
+    assert row.last_search_outcome is None, "the retryable path must not fabricate a verdict"
+    assert summary.retried == 1
+
+
+def test_claim_stamps_a_fresh_clock_not_the_pass_start(store: ConcreteAcquireStore) -> None:
+    """Regression (review F-M13): claims stamp claim-time, not pass-start time.
+
+    ``last_search_at`` is the staleness clock every other runner reads. A long
+    pass stamping its START time makes its own in-flight rows read as stale to a
+    concurrent sweep, which then reclaims work that is actively running.
+    """
+    rowid = _available_item(store, tvdb_id=99, found=2)
+
+    # The pass starts here; the per-item claim happens 10 minutes later.
+    clock = iter([float(_PINNED_NOW), float(_PINNED_NOW + 600), float(_PINNED_NOW + 600)])
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="h", found=2)
+    service = _service(store, orch)
+    with patch("personalscraper.acquire.service.time.time", side_effect=lambda: next(clock)):
+        service.run()
+
+    row = store.wanted.get(rowid)
+    assert row is not None
+    assert row.last_search_at == _PINNED_NOW + 600, (
+        f"the claim must stamp its own clock, not the pass start; got {row.last_search_at}"
+    )

@@ -243,3 +243,108 @@ def test_closed_movie_followed_ids_empty_when_nothing_transitions(store: Concret
     summary = reconcile_wanted(store, _StubOwnership(set()), {"ee55ff66"})
 
     assert summary.closed_movie_followed_ids == ()
+
+
+# ---------------------------------------------------------------------------
+# PR #320 review cycle 1 — the §11(d) crash window must stay reachable (F-B2)
+# ---------------------------------------------------------------------------
+
+
+def _crash_window(store: ConcreteAcquireStore, *, season: int, episode: int, info_hash: str) -> int:
+    """Insert a row in the §11(d) crash window: hash persisted, status 'searching'.
+
+    ``mark_grabbed`` wrote the info-hash, then the process died before the next
+    status write, leaving the row at 'searching'.
+    """
+    wanted_id = _grabbed(store, season=season, episode=episode, info_hash=info_hash)
+    store.wanted.set_status(wanted_id, "searching")
+    return wanted_id
+
+
+def test_owned_crash_window_row_closes_done(store: ConcreteAcquireStore) -> None:
+    """A 'searching' row holding a hash closes when the library owns the episode.
+
+    ``reclaim_stale_searching`` refuses to revert this row (re-grabbing an
+    already-added torrent would be worse), so reconciliation is the ONLY thing
+    that can close it — which means the sweep has to WALK the 'searching'
+    status. It used to walk only grabbed + pending, so the row was frozen with
+    nobody able to touch it.
+    """
+    wanted_id = _crash_window(store, season=3, episode=7, info_hash="c0ffee01")
+
+    summary = reconcile_wanted(store, _StubOwnership({(3, 7)}), {"c0ffee01"})
+
+    assert summary.closed_owned == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "done"
+
+
+def test_vanished_crash_window_row_requeues_pending(store: ConcreteAcquireStore) -> None:
+    """A 'searching' row whose torrent vanished and is unowned goes back to pending.
+
+    The vanished-torrent branch keys on the HASH, not on ``status == 'grabbed'``
+    — the hash is what says « a torrent was added for this row », and it
+    outlives the status.
+    """
+    wanted_id = _crash_window(store, season=3, episode=8, info_hash="c0ffee02")
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+
+    assert summary.requeued_missing == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "pending"
+    assert row.grabbed_hash is None
+
+
+def test_crash_window_row_still_in_client_stays_searching(store: ConcreteAcquireStore) -> None:
+    """The torrent is still downloading → the row is in flight, never touched."""
+    wanted_id = _crash_window(store, season=3, episode=9, info_hash="c0ffee03")
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), {"c0ffee03"})
+
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "searching"
+    assert row.grabbed_hash == "c0ffee03"
+
+
+def test_legacy_pending_row_with_a_stale_hash_is_requeued(store: ConcreteAcquireStore) -> None:
+    """Rows the OLD blind recovery left at 'pending' + hash are repaired, not stranded.
+
+    The pre-fix get-then-set recovery forced hash-carrying rows to 'pending'.
+    The grab pass then skipped them forever on its hash guard, and the requeue
+    was guarded on ``status='grabbed'`` so nothing cleared the stale hash. The
+    OPEN-status guard repairs them on the next sweep.
+    """
+    wanted_id = _grabbed(store, season=4, episode=1, info_hash="c0ffee04")
+    store.wanted.set_status(wanted_id, "pending")  # the legacy shape
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+
+    assert summary.requeued_missing == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "pending"
+    assert row.grabbed_hash is None
+
+
+def test_unowned_hashless_pending_row_is_never_requeued(store: ConcreteAcquireStore) -> None:
+    """A plain queued row (no hash) is untouched — the hash key must not over-reach."""
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="episode",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=5,
+            episode=1,
+        )
+    )
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+
+    assert summary.requeued_missing == 0
+    assert summary.still_in_flight == 0
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "pending"

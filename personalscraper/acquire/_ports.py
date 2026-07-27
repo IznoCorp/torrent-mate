@@ -101,6 +101,14 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model)."""
         ...
 
+    def list_searching(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='searching'`` — NO age threshold.
+
+        Reconciliation input: a row can hold a ``grabbed_hash`` while reading
+        'searching' (§11(d) crash window), and that row is closable ONLY here.
+        """
+        ...
+
     def list_available(self) -> list[WantedItem]:
         """Return all ``wanted`` rows with ``status='available'`` — the grab pass queue."""
         ...
@@ -127,12 +135,27 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def reclaim_stale_searching(self, wanted_id: int, older_than: int) -> bool:
+        """Atomically recover a stale hash-less 'searching' row to 'pending'.
+
+        Rowcount-gated exactly like :meth:`claim_for_search`: a row already
+        re-claimed, already grabbed, or carrying a ``grabbed_hash`` (the
+        §11(d) crash window) is NEVER reverted. Returns ``True`` iff this call
+        recovered it.
+        """
+        ...
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` + ``info_hash`` for the idempotence guard."""
         ...
 
     def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:
-        """Close ``grabbed`` rows carrying *info_hash* (dispatch-time §5 closure)."""
+        """Close every OPEN row carrying *info_hash* (§5 dispatch closure).
+
+        The open-status filter derives from ``OPEN_WANTED_STATUSES``, so a row
+        left 'searching' or 'available' while holding the hash of a torrent the
+        pipeline already dispatched still closes.
+        """
         ...
 
     def mark_done(self, wanted_id: int) -> bool:
@@ -140,7 +163,11 @@ class WantedSubStore(Protocol):
         ...
 
     def requeue_missing(self, wanted_id: int) -> bool:
-        """Requeue a ``grabbed`` row whose torrent vanished (and is unowned)."""
+        """Requeue an OPEN hash-carrying row whose torrent vanished (and is unowned).
+
+        Guarded on ``grabbed_hash IS NOT NULL`` + the OPEN statuses, so the
+        §11(d) crash window ('searching' + hash) is requeueable too.
+        """
         ...
 
     def resurrect(self, wanted_id: int, now: int) -> bool:

@@ -33,9 +33,11 @@ disposition onto a wanted status:
 - ``"not_found"`` → verdict ``(reason, 0)`` + back to ``'pending'``: the honest
   revert when the torrent vanished between the two passes — never an
   add-anyway, never a row frozen on « À récupérer ».
-- ``"retryable"`` → back to ``'available'`` with the verdict UNTOUCHED — the
-  search pass's ``available`` verdict still stands (the grab's own re-search
-  did not conclude), so status and verdict stay in sync.
+- ``"retryable"`` → the verdict is left UNTOUCHED (the grab's own re-search did
+  not conclude) and the status FOLLOWS it: back to ``'available'`` when the
+  recorded verdict is ``available``, otherwise back to ``'pending'``. A row
+  whose last search never concluded must not be promoted to « À récupérer » by
+  a failed grab — status and verdict stay in sync either way.
 - ``"terminal"``  → ``'abandoned'`` + verdict ``(reason, NULL)``.
 
 The grab pass carries NO cadence gate — cadence spaces the re-verification of
@@ -574,11 +576,15 @@ class AcquisitionService:
 
         Args:
             item: The queued item (``item.id`` non-None).
-            now: Unix epoch seconds — the cadence reference clock.
+            now: Unix epoch seconds — the cadence reference clock (also the
+                staleness reference for the atomic recovery, so both passes use
+                the SAME snapshot the queue was built from).
             cadence: Effective cadence policy for this item.
 
         Returns:
-            ``"proceed"`` when the item may be claimed, else ``"abandoned"``.
+            ``"proceed"`` when the item may be claimed, ``"abandoned"`` past the
+            cutoff, or ``"skipped"`` when a stale 'searching' row could not be
+            recovered (it is no longer stale, or it holds a grabbed hash).
 
         Raises:
             sqlite3.OperationalError: On a DB lock during a status write (the
@@ -588,10 +594,18 @@ class AcquisitionService:
         wanted_id = item.id
 
         # A stale 'searching' row is not 'pending', so its claim would fail.
-        # Recover it back to 'pending' first, then re-claim atomically — the
-        # re-claim re-stamps attempts/last_search_at and re-serialises.
-        if item.status == "searching":
-            self._store.wanted.set_status(wanted_id, "pending")
+        # Recover it ATOMICALLY first (one rowcount-gated UPDATE, same shape as
+        # the claims), then re-claim — the re-claim re-stamps attempts /
+        # last_search_at and re-serialises. The row read here was listed at the
+        # top of the pass, so a get-then-set recovery would blindly overwrite
+        # whatever a concurrent runner did in between: it reverted COMPLETED
+        # grabs back to 'pending' (losing the 'grabbed' status) and handed the
+        # same item to two passes at once. Losing the recovery = skip.
+        if item.status == "searching" and not self._store.wanted.reclaim_stale_searching(
+            wanted_id, now - _STALE_THRESHOLD_S
+        ):
+            log.debug("acquire.service.stale_recovery_lost", wanted_id=wanted_id)
+            return "skipped"
 
         # --- CUTOFF CHECK (DESIGN §7) ---
         # Past the cadence cutoff → abandon. Emit-after-persist: set_status
@@ -681,7 +695,13 @@ class AcquisitionService:
         if gate != "proceed":
             return gate
 
-        won = self._store.wanted.claim_for_search(wanted_id, now)
+        # The claim stamps `last_search_at`, which is the STALENESS clock other
+        # runners read — so it must be the time of the claim, not of the pass
+        # start. A long pass stamping its start clock makes its own in-flight
+        # rows read as stale to a concurrent sweep, which then reclaims them.
+        # (The gates above deliberately keep `now`: cadence and cutoff want one
+        # consistent snapshot for the whole pass.)
+        won = self._store.wanted.claim_for_search(wanted_id, int(time.time()))
         if not won:
             # Lost the atomic claim (concurrent winner) — skip, do NOT proceed.
             log.debug("acquire.service.claim_lost", wanted_id=wanted_id)
@@ -805,10 +825,15 @@ class AcquisitionService:
         # row was just recovered to 'pending' by the gate and claims through
         # claim_for_search (which matches 'pending'). Using the wrong one would
         # silently no-op and skip every row of that queue.
+        #
+        # Both stamp a FRESH clock (never the pass-start `now`): `last_search_at`
+        # is the staleness reference other runners read, so a long pass stamping
+        # its start clock would make its own in-flight rows look stale.
+        claim_now = int(time.time())
         if item.status == "searching":
-            won = self._store.wanted.claim_for_search(wanted_id, now)
+            won = self._store.wanted.claim_for_search(wanted_id, claim_now)
         else:
-            won = self._store.wanted.claim_for_grab(wanted_id, now)
+            won = self._store.wanted.claim_for_grab(wanted_id, claim_now)
         if not won:
             # Lost the atomic claim (concurrent winner) — skip, do NOT proceed.
             log.debug("acquire.service.claim_lost", wanted_id=wanted_id)
@@ -854,11 +879,22 @@ class AcquisitionService:
             self._store.wanted.set_status(wanted_id, "pending")
             return "retried"
         # "retryable" — the grab's own search did NOT conclude (circuit, API
-        # error, add failure). The item stays 'available' and the SEARCH pass's
-        # verdict stands untouched: overwriting it would replace a real
-        # conclusion with an outage, and moving the status would desynchronise
-        # it from that verdict.
-        self._store.wanted.set_status(wanted_id, "available")
+        # error, add failure). The SEARCH pass's verdict stands untouched:
+        # overwriting it would replace a real conclusion with an outage.
+        #
+        # The status follows that verdict rather than being forced to
+        # 'available'. Only a row whose recorded verdict IS 'available' goes
+        # back to « À récupérer » — that is the state its own evidence claims.
+        # A row that reached this pass WITHOUT that verdict (the stale
+        # 'searching' sweep recovers rows whose last search never concluded, or
+        # never ran at all) would otherwise be PROMOTED to 'available' by a
+        # failed grab: the UI would announce a takeable item on the strength of
+        # an outage, and the search pass — which only walks 'pending' — would
+        # never re-verify it. Back to 'pending' is the honest place for it.
+        if current.last_search_outcome == "available":
+            self._store.wanted.set_status(wanted_id, "available")
+        else:
+            self._store.wanted.set_status(wanted_id, "pending")
         return "retried"
 
     def _persist_success(self, item: WantedItem, outcome: GrabOutcome) -> _ItemOutcome:

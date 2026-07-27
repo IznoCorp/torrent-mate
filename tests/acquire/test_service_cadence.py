@@ -143,25 +143,54 @@ def test_grab_pass_ignores_cadence_and_claims_via_claim_for_grab() -> None:
 
 
 def test_grab_pass_recovers_a_stale_searching_row_via_claim_for_search() -> None:
-    """A stale 'searching' row is reset to 'pending', then claimed by claim_for_search.
+    """A stale 'searching' row is reclaimed ATOMICALLY, then claimed by claim_for_search.
 
     Was ``test_due_item_proceeds_to_claim``: « a due item proceeds to claim »
     now splits by queue. The available queue is covered above; this pins the
-    OTHER claim path — the sweep resets the orphan to 'pending' (the only status
-    ``claim_for_search`` matches), so the row is recovered instead of skipped
-    forever.
+    OTHER claim path — the sweep recovers the orphan to 'pending' (the only
+    status ``claim_for_search`` matches), so the row is recovered instead of
+    skipped forever.
+
+    The recovery goes through ``reclaim_stale_searching`` (one rowcount-gated
+    UPDATE) rather than a blind ``set_status``: the row was listed at the top of
+    the pass, so an unguarded write reverts whatever a concurrent runner did in
+    between (PR #320 review, F-B2).
     """
     stale = replace(_pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 7200), status="searching")
     svc, store, orchestrator, _bus = _make_service([], stale=[stale])
+    store.wanted.reclaim_stale_searching.return_value = True
     store.wanted.get.return_value = replace(stale, status="searching", attempts=1)
 
     with patch("personalscraper.acquire.service.time.time", return_value=NOW):
         summary = svc.run()
 
-    store.wanted.set_status.assert_any_call(10, "pending")
+    store.wanted.reclaim_stale_searching.assert_called_once_with(10, NOW - 3600)
+    store.wanted.set_status.assert_not_called()
     store.wanted.claim_for_search.assert_called_once_with(10, NOW)
     store.wanted.claim_for_grab.assert_not_called()
     assert summary.grabbed == 1
+
+
+def test_grab_pass_skips_a_stale_row_whose_recovery_is_lost() -> None:
+    """Losing the atomic recovery skips the row — never a blind overwrite.
+
+    A concurrent runner grabbed the row (or re-claimed it) between the pass's
+    listing and this item's turn: ``reclaim_stale_searching`` returns ``False``
+    and the item is skipped, with NO claim and NO status write of our own
+    (PR #320 review, F-B2).
+    """
+    stale = replace(_pending_item(enqueued_at=ENQUEUED_RECENT, last_search_at=NOW - 7200), status="searching")
+    svc, store, orchestrator, _bus = _make_service([], stale=[stale])
+    store.wanted.reclaim_stale_searching.return_value = False
+
+    with patch("personalscraper.acquire.service.time.time", return_value=NOW):
+        summary = svc.run()
+
+    store.wanted.claim_for_search.assert_not_called()
+    store.wanted.claim_for_grab.assert_not_called()
+    store.wanted.set_status.assert_not_called()
+    orchestrator.grab.assert_not_called()
+    assert summary.skipped == 1
 
 
 def test_cutoff_item_abandoned_no_claim() -> None:

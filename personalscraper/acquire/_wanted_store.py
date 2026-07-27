@@ -16,7 +16,12 @@ from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_wanted,
 )
-from personalscraper.acquire.domain import WantedItem, WantedKind, WantedStatus
+from personalscraper.acquire.domain import (
+    OPEN_WANTED_STATUSES,
+    WantedItem,
+    WantedKind,
+    WantedStatus,
+)
 from personalscraper.logger import get_logger
 
 log = get_logger("acquire.wanted_store")
@@ -141,6 +146,23 @@ class _WantedSubStore:
         """Return all ``wanted`` rows with ``status='grabbed'`` (downloads read-model, A4)."""
         return self._list_wanted_by_status("grabbed", "last_search_at DESC, id")
 
+    def list_searching(self) -> list[WantedItem]:
+        """Return all ``wanted`` rows with ``status='searching'`` (reconciliation input).
+
+        Unlike :meth:`list_stale_searching` this applies NO age threshold: the
+        reconciliation sweep judges a row on library ownership and torrent-client
+        truth, not on how long it has been claimed. It exists because a row can
+        legitimately sit at 'searching' while holding a ``grabbed_hash`` — the
+        §11(d) crash window between ``mark_grabbed`` and the next status write.
+        :meth:`reclaim_stale_searching` refuses to revert that row (it would
+        re-grab a torrent already added), so reconciliation is the ONLY path that
+        can close it and it has to be able to see it.
+
+        Returns:
+            The 'searching' rows ordered by id (FIFO, like the other queues).
+        """
+        return self._list_wanted_by_status("searching", "id")
+
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item for searching.
 
@@ -205,6 +227,51 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def reclaim_stale_searching(self, wanted_id: int, older_than: int) -> bool:
+        """Atomically recover ONE stale 'searching' row back to 'pending'.
+
+        Mirrors :meth:`claim_for_search`'s shape — a single rowcount-gated
+        ``UPDATE`` inside one ``BEGIN IMMEDIATE`` transaction — because the
+        recovery has exactly the same TOCTOU exposure the claim had. The
+        previous get-then-set form read ``status`` from a row listed at the top
+        of the pass and blindly wrote ``'pending'`` seconds later: by then the
+        row could already have been grabbed by a concurrent runner, and the
+        write silently reverted a COMPLETED grab (dropping its ``grabbed``
+        status) or handed the same item to two passes at once.
+
+        The ``grabbed_hash IS NULL`` guard is the second half of that safety:
+        a 'searching' row that already carries a hash is the §11(d) crash
+        window (``mark_grabbed`` persisted the hash, the process died before the
+        next write). Such a row is NEVER reverted — reverting it would re-grab
+        an already-added torrent. It belongs to the reconciliation path
+        (:meth:`mark_done_by_hash` / :meth:`mark_done`), which closes it on the
+        dispatch correlation.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            older_than: Unix epoch seconds threshold (exclusive) — the row only
+                recovers when ``last_search_at`` predates it, the SAME staleness
+                predicate :meth:`list_stale_searching` applies.
+
+        Returns:
+            ``True`` iff this call recovered the row; ``False`` when it is no
+            longer a hash-less stale 'searching' row (concurrent winner, a
+            completed grab, or a fresher claim).
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'pending'
+                WHERE id = ?
+                  AND status = 'searching'
+                  AND last_search_at < ?
+                  AND grabbed_hash IS NULL
+                """,
+                (wanted_id, older_than),
+            )
+            return cur.rowcount == 1
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` AND the ``info_hash`` (idempotence guard).
 
@@ -227,15 +294,25 @@ class _WantedSubStore:
             )
 
     def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:
-        """Close ``grabbed`` rows whose torrent was DISPATCHED — return what closed.
+        """Close every OPEN row carrying *info_hash* — return what closed.
 
         The §5 closure the lifecycle was missing: ``done`` existed in the status
         CHECK but had zero writers, so every grabbed row froze at ``grabbed`` and
         a followed FILM could never be auto-removed once acquired. Called from
-        the dispatch-time correlation (the same info-hash match that writes the
-        seed obligation), this flips every ``grabbed`` row carrying *info_hash*
-        to ``done`` and returns the closed rows so the caller can unfollow
-        acquired movies and emit the visible trace.
+        the acquisition subscriber when a dispatched torrent's hash is
+        correlated, this flips every OPEN row carrying *info_hash* to ``done``
+        and returns the closed rows so the caller can unfollow acquired movies
+        and emit the visible trace.
+
+        The status filter is derived from
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` — the SINGLE
+        source of « which statuses are still open » — rather than a literal
+        tuple that silently drifts each time a state ships. Two open states
+        besides ``grabbed`` genuinely carry a hash: ``searching`` (the §11(d)
+        crash window between ``mark_grabbed`` and the next status write) and
+        ``available`` (a row force-reset while retaining ``grabbed_hash``).
+        Omitting them left rows the pipeline had already dispatched frozen
+        forever — nothing else closes them.
 
         Args:
             info_hash: The dispatched torrent's info-hash (case-insensitive —
@@ -245,23 +322,27 @@ class _WantedSubStore:
             The rows that were transitioned (possibly empty), read back BEFORE
             the update so ``followed_id``/``kind`` are available to the caller.
         """
+        # Sorted for a stable, deterministic SQL string (and stable test asserts).
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
-            """
+            f"""
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
                    grabbed_hash, last_search_outcome, last_search_found
             FROM wanted
-            WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)
-            """,
-            (info_hash,),
+            WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)
+            """,  # noqa: S608 — placeholders are generated from an internal frozenset
+            (*open_statuses, info_hash),
         ).fetchall()
         if not rows:
             return []
         with self._write_tx(self._conn):
             self._conn.execute(
-                "UPDATE wanted SET status = 'done' WHERE status = 'grabbed' AND lower(grabbed_hash) = lower(?)",
-                (info_hash,),
+                f"UPDATE wanted SET status = 'done' "  # noqa: S608 — same internal placeholders
+                f"WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)",
+                (*open_statuses, info_hash),
             )
         return [_row_to_wanted(r) for r in rows]
 
@@ -291,12 +372,22 @@ class _WantedSubStore:
             return cur.rowcount == 1
 
     def requeue_missing(self, wanted_id: int) -> bool:
-        """Requeue a ``grabbed`` row whose torrent vanished from the client.
+        """Requeue an OPEN row carrying a hash whose torrent vanished from the client.
 
         The torrent is gone and the library does not own the work (the caller
         checked both): the grab never really landed, so the row goes back to
         ``pending`` (hash cleared) and the normal cadence/cutoff pacing takes
-        over again. Guarded on ``status='grabbed'`` (idempotent).
+        over again.
+
+        Guarded on ``grabbed_hash IS NOT NULL`` (there is nothing to requeue
+        otherwise, and the guard makes a second call a no-op — idempotent) plus
+        the OPEN statuses, derived from
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` rather than
+        the ``'grabbed'`` literal it used to carry. A hash-carrying row is not
+        always 'grabbed': the §11(d) crash window leaves it at 'searching', and
+        rows predating the atomic stale-recovery fix sit at 'pending' with a
+        stale hash. Both were unreachable — the vanished torrent could never be
+        requeued and the row never progressed again.
 
         Args:
             wanted_id: Rowid of the ``wanted`` row.
@@ -304,10 +395,13 @@ class _WantedSubStore:
         Returns:
             ``True`` iff the row transitioned.
         """
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
         with self._write_tx(self._conn):
             cur = self._conn.execute(
-                "UPDATE wanted SET status = 'pending', grabbed_hash = NULL WHERE id = ? AND status = 'grabbed'",
-                (wanted_id,),
+                f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL "  # noqa: S608 — internal placeholders
+                f"WHERE id = ? AND status IN ({placeholders}) AND grabbed_hash IS NOT NULL",
+                (wanted_id, *open_statuses),
             )
             return cur.rowcount == 1
 

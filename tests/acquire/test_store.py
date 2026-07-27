@@ -626,6 +626,138 @@ def test_wanted_mark_done_by_hash_closes_grabbed_rows(store: ConcreteAcquireStor
     assert store.wanted.mark_done_by_hash("feedface") == []
 
 
+def test_wanted_mark_done_by_hash_closes_an_available_row(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review, m3): 'available' is an OPEN status and must close.
+
+    The IN clause used to be the literal ``('grabbed',)``, so a row force-reset
+    to 'available' while retaining its ``grabbed_hash`` — the shape the grab
+    pass's retryable path produced — was invisible to the §5 dispatch closure
+    and froze forever: nothing else closes it. Building the filter from
+    ``OPEN_WANTED_STATUSES`` (the single source) removes the drift by
+    construction.
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tmdb_id=1184918), kind="movie", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "ABCDEF0123456789")
+    # Force-reset to 'available' while KEEPING the hash (the retryable shape).
+    store.wanted.set_status(wid, "available")
+
+    closed = store.wanted.mark_done_by_hash("abcdef0123456789")
+
+    assert [w.id for w in closed] == [wid]
+    done = store.wanted.get(wid)
+    assert done is not None and done.status == "done"
+
+
+def test_wanted_mark_done_by_hash_closes_a_searching_row(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review, F-B2): the §11(d) crash window must be closable.
+
+    ``reclaim_stale_searching`` deliberately REFUSES to revert a 'searching'
+    row that already carries a ``grabbed_hash``: the torrent was added, only the
+    status write was lost. That leaves ``mark_done_by_hash`` as the ONLY path
+    that can close it, so its status filter has to include 'searching' — else
+    the row is stuck open with nobody able to touch it.
+    """
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=77), kind="episode", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "cafebabe")
+    # The crash window: hash persisted, status rolled back to 'searching'.
+    store.wanted.set_status(wid, "searching")
+
+    closed = store.wanted.mark_done_by_hash("cafebabe")
+
+    assert [w.id for w in closed] == [wid]
+    done = store.wanted.get(wid)
+    assert done is not None and done.status == "done"
+
+
+def test_wanted_mark_done_by_hash_never_closes_terminal_rows(store: ConcreteAcquireStore) -> None:
+    """The widened filter still stops at the CLOSED statuses (done / abandoned)."""
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=78), kind="episode", status="pending", enqueued_at=1_700_000_100)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_200)
+    store.wanted.mark_grabbed(wid, "deadbeef")
+    store.wanted.set_status(wid, "abandoned")
+
+    assert store.wanted.mark_done_by_hash("deadbeef") == []
+    row = store.wanted.get(wid)
+    assert row is not None and row.status == "abandoned"
+
+
+def test_reclaim_stale_searching_recovers_only_a_stale_hashless_row(store: ConcreteAcquireStore) -> None:
+    """The atomic recovery is rowcount-gated on stale AND hash-less AND 'searching'."""
+    wid = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=1), kind="episode", status="pending", enqueued_at=1_700_000_000)
+    )
+    store.wanted.claim_for_search(wid, 1_700_000_100)
+
+    # Not stale yet (last_search_at == threshold is NOT < threshold).
+    assert store.wanted.reclaim_stale_searching(wid, 1_700_000_100) is False
+    still = store.wanted.get(wid)
+    assert still is not None and still.status == "searching"
+
+    # Stale → recovered exactly once; the second call finds nothing to recover.
+    assert store.wanted.reclaim_stale_searching(wid, 1_700_000_200) is True
+    recovered = store.wanted.get(wid)
+    assert recovered is not None and recovered.status == "pending"
+    assert store.wanted.reclaim_stale_searching(wid, 1_700_000_200) is False
+
+
+def test_reclaim_stale_searching_never_reverts_a_completed_grab(store: ConcreteAcquireStore) -> None:
+    """Regression (PR #320 review, F-B2): the recovery must not clobber a grab.
+
+    The get-then-set form read ``status='searching'`` at the top of the pass and
+    wrote ``'pending'`` seconds later — by which time a concurrent runner could
+    have completed the grab. The write then DELETED that grab's status while its
+    torrent kept downloading. The atomic form refuses both shapes: a row already
+    'grabbed', and a 'searching' row that still holds its hash (the §11(d)
+    crash window).
+    """
+    grabbed = store.wanted.add(
+        WantedItem(media_ref=MediaRef(tvdb_id=2), kind="episode", status="pending", enqueued_at=1_700_000_000)
+    )
+    store.wanted.claim_for_search(grabbed, 1_700_000_100)
+    store.wanted.mark_grabbed(grabbed, "beefcafe")
+
+    assert store.wanted.reclaim_stale_searching(grabbed, 1_700_000_999) is False
+    row = store.wanted.get(grabbed)
+    assert row is not None
+    assert row.status == "grabbed", f"a completed grab must never be reverted; got {row.status!r}"
+    assert row.grabbed_hash == "beefcafe"
+
+    # Same refusal for the crash window: 'searching' but hash already persisted.
+    store.wanted.set_status(grabbed, "searching")
+    assert store.wanted.reclaim_stale_searching(grabbed, 1_700_000_999) is False
+    crash_window = store.wanted.get(grabbed)
+    assert crash_window is not None and crash_window.status == "searching"
+    assert crash_window.grabbed_hash == "beefcafe"
+
+
+def test_reclaim_stale_searching_second_concurrent_caller_loses(tmp_path: Path) -> None:
+    """Two stores racing the SAME stale row: exactly one recovery wins."""
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    store_a = build_acquire_store(cfg)
+    store_b = build_acquire_store(cfg)
+    try:
+        wid = store_a.wanted.add(
+            WantedItem(media_ref=MediaRef(tvdb_id=3), kind="episode", status="pending", enqueued_at=1_700_000_000)
+        )
+        store_a.wanted.claim_for_search(wid, 1_700_000_100)
+
+        first = store_a.wanted.reclaim_stale_searching(wid, 1_700_000_200)
+        second = store_b.wanted.reclaim_stale_searching(wid, 1_700_000_200)
+
+        assert [first, second] == [True, False], "exactly one caller may win the recovery"
+    finally:
+        store_a.close()
+        store_b.close()
+
+
 def test_wanted_list_grabbed_returns_only_grabbed_rows(store: ConcreteAcquireStore) -> None:
     """list_grabbed (A4 downloads read-model) returns grabbed rows with their hash.
 
