@@ -1,12 +1,23 @@
-"""Failing-first tests: the card and the completeness panel must never disagree.
+"""The card and the completeness panel must never disagree.
 
-These tests intentionally FAIL until sub-phase 5.2 removes the divergent
-``poll_aired`` fallback and the local ``_episode_state`` re-derivation from
-``completeness.py``. The failures prove the divergence exists today: the card
-reads the five-state truth (phase 4) while the completeness panel still uses
-a live provider poll and the old three-value vocabulary.
+Written failing-first in sub-phase 5.1: they pinned the divergence that
+sub-phase 5.2 then removed — the ``poll_aired`` fallback and the local
+``_episode_state`` re-derivation in ``completeness.py``, which made the card
+read the five-state truth (phase 4) while the panel ran a live provider poll
+through the old three-value vocabulary.
 
-Design: ``docs/features/acq-states/plan/phase-05-single-source.md`` §5.1.
+Two mechanisms keep the removal from creeping back, one per re-introduction
+shape:
+
+* ``poll_aired`` is patched at its DEFINITION site
+  (``personalscraper.acquire.airing``) rather than on the completeness module,
+  which no longer holds that name. A lazy re-import inside the function would
+  therefore still be recorded by the mock.
+* :func:`test_completeness_never_calls_a_provider` additionally asserts the
+  completeness module exposes no ``poll_aired`` attribute, which catches a
+  module-level re-import (a name bound before the patch applies).
+
+Design: ``docs/features/acq-states/plan/phase-05-single-source.md`` §5.1–5.2.
 """
 
 from __future__ import annotations
@@ -18,11 +29,16 @@ import pytest
 
 from personalscraper.acquire.domain import AiredEpisode, FollowedSeries
 from personalscraper.core.identity import MediaRef
+from personalscraper.web.acquisition import completeness as completeness_module
 from personalscraper.web.acquisition.completeness import compute_completeness
 from personalscraper.web.acquisition.states import (
     derive_episode_state,
     derive_follow_status,
 )
+
+#: Patch target: the airing poller's DEFINITION site. The web read path no
+#: longer imports it, so patching the completeness module would raise.
+_POLL_AIRED = "personalscraper.acquire.airing.poll_aired"
 
 _REF = MediaRef(tvdb_id=81189)
 
@@ -98,9 +114,8 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
         "The card MUST read non_verifie when the catalog is absent — the founding incident's direct fix."
     )
 
-    # A registry whose poll_aired would return 3 aired episodes — the
-    # patch records every call so we can assert ZERO after 5.2.
-    registry = MagicMock()
+    # A poller that would return 3 aired episodes — the patch records every
+    # call so we can assert ZERO.
     three_episodes = [_ep(1, 1), _ep(1, 2), _ep(1, 3)]
 
     # Store with EMPTY cache: no detect pass has run yet.
@@ -111,23 +126,15 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     ownership = MagicMock()
     ownership.owns.return_value = False
 
-    with patch(
-        "personalscraper.web.acquisition.completeness.poll_aired",
-        return_value=three_episodes,
-    ) as poll_mock:
-        result = compute_completeness(
-            followed,
-            registry=registry,
-            ownership=ownership,
-            store=store,
-        )
+    with patch(_POLL_AIRED, return_value=three_episodes) as poll_mock:
+        result = compute_completeness(followed, ownership=ownership, store=store)
 
     # ── Post-5.2 invariant: NO provider call from a web-read path ──────────
-    # TODAY this FAILS — the uncached path calls poll_aired live.
+    # Before 5.2 this failed — the uncached path polled live.
     poll_mock.assert_not_called()
 
     # ── Post-5.2 invariant: no fabricated all-missing matrix ───────────────
-    # TODAY this FAILS — the live poll produces 3 episodes all "manquant".
+    # Before 5.2 this failed — the live poll produced 3 "manquant" episodes.
     assert result.seasons == [], (
         "An uncached follow MUST NOT fabricate an all-missing matrix from a "
         "live poll. The honest reading is empty seasons, matching the card's "
@@ -191,10 +198,9 @@ def test_card_and_completeness_agree_on_cached_facts(
 
     The panel's ``EpisodeCompleteness.state`` must be the five-state value
     that ``states.derive_episode_state`` returns for the same ownership,
-    wanted status and search verdict. Today the panel uses a local
+    wanted status and search verdict. Before 5.2 the panel used a local
     ``_episode_state`` with the old three-value vocabulary (``en_file`` /
-    ``en_cours`` / ``manquant``) — this test FAILS until 5.2 replaces it
-    with the single derivation.
+    ``en_cours`` / ``manquant``), so this failed for every case but "owned".
     """
     followed = _follow()
 
@@ -214,13 +220,8 @@ def test_card_and_completeness_agree_on_cached_facts(
     ownership = MagicMock()
     ownership.owns.return_value = owned
 
-    with patch("personalscraper.web.acquisition.completeness.poll_aired") as poll_mock:
-        result = compute_completeness(
-            followed,
-            registry=MagicMock(),
-            ownership=ownership,
-            store=store,
-        )
+    with patch(_POLL_AIRED) as poll_mock:
+        result = compute_completeness(followed, ownership=ownership, store=store)
 
     # Cached path must NOT poll a provider.
     poll_mock.assert_not_called()
@@ -244,8 +245,6 @@ def test_card_and_completeness_agree_on_cached_facts(
     )
 
     # The invariant: panel state == card's derivation for the same facts.
-    # TODAY this FAILS for every case except "owned" — the panel still uses
-    # the old 3-value _episode_state (en_file / en_cours / manquant).
     assert ep.state == expected_5state, (
         f"Episode S{season:02d}E{episode:02d}: panel said {ep.state!r}, "
         f"card derivation says {expected_5state!r}. The panel MUST use "
@@ -259,50 +258,43 @@ def test_card_and_completeness_agree_on_cached_facts(
 
 
 def test_completeness_never_calls_a_provider() -> None:
-    """Any input (cached, uncached, movie): the registry records zero calls.
+    """Any input (cached, uncached, movie): the airing poller records zero calls.
 
-    TODAY the uncached path calls ``poll_aired`` live — this test FAILS.
-    After 5.2 ALL paths are read-only from the cached catalog (or honest
-    ``non_verifie`` when no catalog exists); no web-read path ever calls
-    a provider.
+    Before 5.2 the uncached path polled live. Now ALL paths are read-only from
+    the cached catalog (or honest ignorance when no catalog exists); no
+    web-read path ever calls a provider.
     """
     ownership = MagicMock()
     ownership.owns.return_value = False
 
-    with patch("personalscraper.web.acquisition.completeness.poll_aired") as poll_mock:
-        # ── Cached show: already does not poll today ──
+    with patch(_POLL_AIRED) as poll_mock:
+        # ── Cached show ──
         store_cached = _store_with_cache([_cached_row(1, 1)])
         store_cached.wanted.find.return_value = None
-        compute_completeness(
-            _follow(),
-            registry=MagicMock(),
-            ownership=ownership,
-            store=store_cached,
-        )
+        compute_completeness(_follow(), ownership=ownership, store=store_cached)
 
-        # ── Movie: already does not poll today ──
+        # ── Movie ──
         store_movie = MagicMock()
         store_movie.wanted.find.return_value = None
-        compute_completeness(
-            _follow(kind="movie"),
-            registry=MagicMock(),
-            ownership=ownership,
-            store=store_movie,
-        )
+        compute_completeness(_follow(kind="movie"), ownership=ownership, store=store_movie)
 
-        # ── Uncached show: TODAY calls poll_aired live ──
+        # ── Uncached show: the case that polled live before 5.2 ──
         store_uncached = MagicMock()
         store_uncached.aired.list_for_followed.return_value = []
         store_uncached.wanted.find.return_value = None
-        compute_completeness(
-            _follow(),
-            registry=MagicMock(),
-            ownership=ownership,
-            store=store_uncached,
-        )
+        compute_completeness(_follow(), ownership=ownership, store=store_uncached)
 
-    # TODAY this FAILS — the third case above called poll_aired.
+    # Catches a LAZY re-import (a call resolved through the patched module).
     poll_mock.assert_not_called()
+
+    # Catches a MODULE-LEVEL re-import: a name bound at import time would be
+    # unaffected by the patch above, so the absence of the attribute is what
+    # keeps the fallback from creeping back in that shape.
+    assert not hasattr(completeness_module, "poll_aired"), (
+        "The completeness read-model must not import the airing poller at all: "
+        "a module-level binding escapes the patch above, which is exactly how "
+        "the divergent live fallback could return unnoticed."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -322,11 +314,11 @@ def test_provider_catalog_empty_stays_distinct() -> None:
     — it must surface an honest "unknown catalog" without fabricating an
     all-missing matrix. The card reads ``non_verifie``; the panel must agree.
 
-    TODAY the empty cache triggers a live poll: if the poll returns nothing,
-    ``provider_catalog_empty=True`` is set (wrong — that's a web-read-time
-    guess, not a DETECT confirmation). If the poll returns episodes, a
-    fabricated all-missing matrix is rendered (wrong — the panel lies about
-    what is missing when it has not verified ownership).
+    Before 5.2 the empty cache triggered a live poll: a poll returning nothing
+    set ``provider_catalog_empty=True`` (wrong — a web-read-time guess, not a
+    DETECT confirmation), and a poll returning episodes rendered a fabricated
+    all-missing matrix (wrong — the panel claimed what was missing without
+    having verified ownership).
     """
     followed = _follow()
     store = MagicMock()
@@ -335,16 +327,8 @@ def test_provider_catalog_empty_stays_distinct() -> None:
     ownership = MagicMock()
     ownership.owns.return_value = False
 
-    with patch(
-        "personalscraper.web.acquisition.completeness.poll_aired",
-        return_value=[],  # poll returns nothing → provider_catalog_empty=True TODAY
-    ) as poll_mock:
-        result = compute_completeness(
-            followed,
-            registry=MagicMock(),
-            ownership=ownership,
-            store=store,
-        )
+    with patch(_POLL_AIRED, return_value=[]) as poll_mock:
+        result = compute_completeness(followed, ownership=ownership, store=store)
 
     # ── Post-5.2 invariant 1: NO live poll from a web-read path ────────────
     poll_mock.assert_not_called()
