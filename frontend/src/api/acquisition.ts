@@ -429,8 +429,9 @@ export function triggerDetect(): Promise<GrabTriggerResponse> {
 /**
  * Fetch the §5 completeness matrix for one followed series.
  *
- * Sends ``GET /api/acquisition/followed/{followed_id}/completeness`` — aired
- * (provider catalog) × en_mediatheque × en_file/en_cours, per season/episode.
+ * Sends ``GET /api/acquisition/followed/{followed_id}/completeness`` — the aired
+ * catalog read through the five states (en_mediatheque / a_recuperer /
+ * en_acquisition / en_attente / non_verifie), per season and per episode.
  *
  * Args:
  *   id: Rowid of the ``followed_series`` row.
