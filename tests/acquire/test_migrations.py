@@ -561,3 +561,68 @@ class TestMigration008:
                 "VALUES (NULL, '{}', 'episode', 'bogus', 1)"
             )
             conn.commit()
+
+    # ── (f) atomicity: user_version advances only on success ──────────────
+
+    def test_failed_rebuild_leaves_user_version_at_7(self, tmp_path: Path) -> None:
+        """Regression (PR #320 review, F-M7): a failed 008 must not claim schema 8.
+
+        ``PRAGMA user_version = 8`` used to be the FIRST statement, and
+        ``executescript`` is not one transaction — so it auto-committed on its
+        own. A crash anywhere in the rebuild therefore left a DB advertising
+        schema 8 while carrying schema 7 (or a half-swapped one), and the
+        applier — which skips any script whose version <= user_version — would
+        never run it again to repair the damage.
+
+        Forced failure: pre-create a conflicting ``wanted_new`` table so
+        ``CREATE TABLE wanted_new`` raises. The script is executed directly
+        (not through ``apply_migrations``) because the applier restores its
+        pre-migration snapshot on failure, which would mask what the script
+        itself left behind.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        conn.execute("CREATE TABLE wanted_new (boom INTEGER)")
+        conn.commit()
+        assert _user_version(conn) == 7
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        with pytest.raises(sqlite3.OperationalError):
+            conn.executescript(sql_text)
+        conn.execute("ROLLBACK")  # the failed script left its transaction open
+
+        assert _user_version(conn) == 7, (
+            "a failed rebuild must NOT advertise schema 8 — the applier would never re-run it"
+        )
+        # And the original table is intact: the destructive part never ran.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" not in cols
+        assert conn.execute("SELECT COUNT(*) FROM schema_version WHERE version = 8").fetchone()[0] == 0
+
+    def test_destructive_rebuild_is_one_transaction(self, tmp_path: Path) -> None:
+        """The DROP/RENAME and the schema_version row commit together, or not at all.
+
+        Proven behaviourally: the rebuild fails at its LAST statement (a
+        duplicate ``schema_version`` row — the column is a PRIMARY KEY), and the
+        table swap that preceded it must be gone too.
+        """
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+        # Make the final INSERT collide so the tail of the transaction fails.
+        conn.execute("INSERT INTO schema_version(version) VALUES (8)")
+        conn.commit()
+
+        sql_text = (MIGRATIONS_DIR / "008_wanted_available_state.sql").read_text(encoding="utf-8")
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.executescript(sql_text)
+        conn.execute("ROLLBACK")
+
+        assert _user_version(conn) == 7
+        # The swap rolled back with the rest: old schema, no orphan wanted_new.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "last_search_outcome" not in cols, "the rebuild must roll back whole"
+        names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
+        assert "wanted" in names
+        assert "wanted_new" not in names, "a rolled-back rebuild must leave no orphan table"

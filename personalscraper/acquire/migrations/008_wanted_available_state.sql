@@ -26,20 +26,36 @@
 -- pre-existing rows (we genuinely do not know their verdict history).
 --
 -- SQLite cannot ALTER a CHECK constraint, hence the full table rebuild.
+--
+-- STATEMENT ORDER IS LOAD-BEARING — do not reorder:
+--
+--   * `executescript` is NOT one transaction. It COMMITs whatever is pending,
+--     then runs the script; outside an explicit BEGIN each statement
+--     auto-commits on its own. So the destructive part (DROP + RENAME) is
+--     wrapped in an EXPLICIT `BEGIN … COMMIT`: a crash mid-rebuild then rolls
+--     back whole rather than leaving `wanted` dropped and `wanted_new` orphaned.
+--   * `PRAGMA user_version = 8` runs AFTER that COMMIT, never before. The
+--     applier skips any script whose version <= user_version, so bumping it
+--     first meant a crash mid-rebuild left a DB claiming schema 8 while
+--     carrying the old (or a half-swapped) one — and the migration would never
+--     run again to repair it. Advancing it last makes a failed run simply
+--     re-apply next boot.
+--   * `PRAGMA foreign_keys` is a NO-OP inside a transaction, so both toggles sit
+--     OUTSIDE the BEGIN/COMMIT (OFF before, ON after).
+--
 -- The rebuild is FK-safe because:
 --   - wanted references followed_series (outgoing FK), but no other table
 --     references wanted (verified: 0 matches for REFERENCES wanted across
 --     all *.sql files in acquire/migrations/).
---   - The apply_migrations runner (core/sqlite/_migrate.py) wraps each script
---     in a single conn.executescript() call = one implicit transaction.
---   - PRAGMA foreign_keys=OFF is set defensively at the start and restored
---     after a PRAGMA foreign_key_check confirms zero violations.
-PRAGMA user_version = 8;
+--   - FK enforcement is disabled for the swap and restored at the end.
 
--- ── Step 0: disable FK enforcement for the rebuild ──────────────────────
+-- ── Step 0: disable FK enforcement for the rebuild (outside any tx) ──────
 PRAGMA foreign_keys = OFF;
 
--- ── Step 1: create the replacement table with the full new schema ────────
+-- ── The destructive rebuild, all-or-nothing ─────────────────────────────
+BEGIN TRANSACTION;
+
+-- Step 1: create the replacement table with the full new schema.
 CREATE TABLE wanted_new (
     id              INTEGER PRIMARY KEY,
     followed_id     INTEGER REFERENCES followed_series(id) ON DELETE SET NULL,
@@ -59,7 +75,7 @@ CREATE TABLE wanted_new (
     last_search_found   INTEGER -- NEW — takeable count, NULL = inconclusive
 );
 
--- ── Step 2: copy every row, new columns default to NULL ──────────────────
+-- Step 2: copy every row, new columns default to NULL.
 INSERT INTO wanted_new (
     id, followed_id, media_ref_json, kind, season, episode,
     status, criteria_json, enqueued_at, last_search_at, attempts,
@@ -71,20 +87,28 @@ SELECT
     grabbed_hash
 FROM wanted;
 
--- ── Step 3: swap the tables ──────────────────────────────────────────────
+-- Step 3: swap the tables.
 DROP TABLE wanted;
 ALTER TABLE wanted_new RENAME TO wanted;
 
--- ── Step 4: recreate the partial index EXACTLY as in 001_init.sql ────────
+-- Step 4: recreate the partial index EXACTLY as in 001_init.sql.
 CREATE INDEX IF NOT EXISTS idx_wanted_pending
     ON wanted (status) WHERE status = 'pending';
 
--- ── Step 5: verify FK integrity before re-enabling enforcement ───────────
--- foreign_key_check returns one row per violation; empty = clean.
+-- Step 5: record the migration inside the SAME transaction as the rebuild.
+INSERT INTO schema_version(version) VALUES (8);
+
+COMMIT;
+
+-- ── Step 6: advisory FK probe ───────────────────────────────────────────
+-- Advisory ONLY: executescript discards result rows, so a violation reported
+-- here is neither seen nor acted upon. It is kept because it still surfaces in
+-- a manual `sqlite3 acquire.db < 008_…sql` replay. The real safety is that
+-- nothing references `wanted`, plus the all-or-nothing transaction above.
 PRAGMA foreign_key_check;
 
--- ── Step 6: restore FK enforcement ───────────────────────────────────────
+-- ── Step 7: publish the new schema version, then restore FK enforcement ──
+-- Last, and only now: the rebuild is committed, so this can no longer strand a
+-- DB that claims 8 while carrying 7.
+PRAGMA user_version = 8;
 PRAGMA foreign_keys = ON;
-
--- ── Step 7: record the migration ─────────────────────────────────────────
-INSERT INTO schema_version(version) VALUES (8);
