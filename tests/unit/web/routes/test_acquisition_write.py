@@ -862,11 +862,15 @@ class TestRunnerSpawnEnvContract:
         assert env["PERSONALSCRAPER_RUN_UID"] == "uid-1"
         assert env["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] == "7"
 
-    def test_grab_spawner_scopes_the_run_to_one_follow(self) -> None:
+    def test_grab_spawner_scopes_the_run_to_one_follow(self, monkeypatch: Any) -> None:
         """``grab`` is the runner default, so only the scope is passed."""
         from unittest.mock import MagicMock, patch
 
         from personalscraper.web.routes import acquisition_triggers
+
+        # Undo the global anti-spawn guard — this test calls the real
+        # _spawn_grab_runner (safe because subprocess.Popen is mocked below).
+        monkeypatch.undo()
 
         proc = MagicMock()
         proc.pid = 4343

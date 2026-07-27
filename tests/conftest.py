@@ -398,6 +398,53 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _no_real_acquisition_spawns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent any test from spawning real acquisition runners by default.
+
+    ``_spawn_prime_runner`` and ``_spawn_grab_runner`` (in
+    ``personalscraper.web.routes.acquisition_triggers``) detach subprocesses
+    that load the OPERATOR's config — not a synthetic test one — and chain
+    detect → search → grab against the production databases and trackers.
+    No test may trigger that without explicitly overriding this guard.
+
+    Tests that legitimately exercise the spawn path (e.g. the trigger-route
+    tests in ``test_acquisition_write.py``, the priming tests in
+    ``test_create_follow_priming.py``, and the metadata tests in
+    ``test_create_follow_metadata.py``) monkeypatch their own stub over this
+    default — their local autouse fixtures declare the same attribute and
+    run after this one, so their override wins.
+
+    A test that hits this guard by accident (e.g. a read test whose route
+    unexpectedly triggers a spawn) fails loudly with a clear message rather
+    than silently detaching a real runner against production data.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture for attribute replacement.
+    """
+
+    def _fail_prime(run_uid: str, followed_id: int) -> int:
+        raise AssertionError(
+            f"test attempted to spawn a real prime runner (followed_id={followed_id}) — "
+            f"patch _spawn_prime_runner explicitly"
+        )
+
+    def _fail_grab(run_uid: str, followed_id: int) -> int:
+        raise AssertionError(
+            f"test attempted to spawn a real grab runner (followed_id={followed_id}) — "
+            f"patch _spawn_grab_runner explicitly"
+        )
+
+    monkeypatch.setattr(
+        "personalscraper.web.routes.acquisition_triggers._spawn_prime_runner",
+        _fail_prime,
+    )
+    monkeypatch.setattr(
+        "personalscraper.web.routes.acquisition_triggers._spawn_grab_runner",
+        _fail_grab,
+    )
+
+
+@pytest.fixture(autouse=True)
 def _fresh_web_torrent_session() -> None:
     """Drop the web layer's process-wide cached torrent client between tests.
 
