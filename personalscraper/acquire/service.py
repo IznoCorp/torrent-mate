@@ -12,29 +12,47 @@ atomic operation — see :mod:`personalscraper.acquire.orchestrator`):
   ``NULL``, never ``0`` (panne ≠ absence).
 - :meth:`AcquisitionService.run` — the GRAB pass, described below.
 
-:meth:`AcquisitionService.run` iterates ``list_pending`` + ``list_stale_searching``,
-claims each item via the atomic :meth:`WantedSubStore.claim_for_search`
-(``BEGIN IMMEDIATE`` UPDATE — the single serialisation point), resolves the
-effective :class:`~personalscraper.acquire.desired.QualityProfile`, delegates to
+:meth:`AcquisitionService.run` iterates ``list_available`` +
+``list_stale_searching`` — **never** ``list_pending``. It consumes only the
+items a search already concluded takeable; bounding it there is what keeps the
+operator's « always re-search at grab time » choice cheap (a handful of
+known-available items instead of the whole backlog — NE-DOIT-PAS-8). It claims
+each item atomically (``BEGIN IMMEDIATE`` UPDATE — the single serialisation
+point) via :meth:`WantedSubStore.claim_for_grab` for an 'available' row, or via
+:meth:`WantedSubStore.claim_for_search` for a stale 'searching' row the sweep
+recovered to 'pending'. It then resolves the effective
+:class:`~personalscraper.acquire.desired.QualityProfile`, delegates to
 :meth:`GrabOrchestrator.grab`, and maps the returned :class:`GrabOutcome`
 disposition onto a wanted status:
 
-- ``"success"``   → :meth:`WantedSubStore.mark_grabbed` (persists status + the
-  info-hash for the idempotence guard), THEN emit ``GrabSucceeded``
-  (emit-after-persist — DESIGN §15 / §11(d): a ``mark_grabbed`` crash means NO
-  emit happened, so the stale-recovery re-grab emits exactly once).
-- ``"retryable"`` → reset ``searching → pending`` (re-listed next run) UNLESS
-  ``attempts >= MAX_ATTEMPTS`` → abandon + emit ``WantedAbandoned('attempts_cap')``
-  (no infinite loop).
-- ``"terminal"``  → set ``searching → abandoned``.
+- ``"success"``   → the ``'grabbed'`` verdict then
+  :meth:`WantedSubStore.mark_grabbed` (persists status + the info-hash for the
+  idempotence guard), THEN emit ``GrabSucceeded`` (emit-after-persist —
+  DESIGN §15 / §11(d): a ``mark_grabbed`` crash means NO emit happened, so the
+  stale-recovery re-grab emits exactly once).
+- ``"not_found"`` → verdict ``(reason, 0)`` + back to ``'pending'``: the honest
+  revert when the torrent vanished between the two passes — never an
+  add-anyway, never a row frozen on « À récupérer ».
+- ``"retryable"`` → back to ``'available'`` with the verdict UNTOUCHED — the
+  search pass's ``available`` verdict still stands (the grab's own re-search
+  did not conclude), so status and verdict stay in sync.
+- ``"terminal"``  → ``'abandoned'`` + verdict ``(reason, NULL)``.
+
+The grab pass carries NO cadence gate — cadence spaces the re-verification of
+an UNAVAILABLE episode, which is the search pass's job; an already-available
+item is taken at the next tick regardless of its tier. It does keep the 30-day
+cutoff, applied BEFORE the claim, which bounds infinite retries on a
+permanently-failing add. There is no attempts cap: ``attempts`` is the search
+pass's cadence-paced counter, and capping the grab pass on it would abandon a
+perfectly available item on its first flaky add.
 
 The orchestrator emits the FAILURE events (``GrabFailed`` / ``WantedAbandoned``)
 itself; ``GrabSucceeded`` is emitted by the SERVICE after ``mark_grabbed``
 persists (DESIGN §15 / §11(d)). The service owns the status transitions, the
-success emit, and the attempts-cap ``WantedAbandoned`` the orchestrator cannot
-know about. Per-item store/decode failures are isolated (DESIGN §6.2) so ONE
-bad row never aborts the batch — a DB lock leaves the row for the stale-searching
-sweep; corrupt criteria JSON abandons just that row.
+success emit, and the cutoff ``WantedAbandoned`` the orchestrator cannot know
+about (it never sees the queue). Per-item store/decode failures are isolated
+(DESIGN §6.2) so ONE bad row never aborts the batch — a DB lock leaves the row
+for the stale-searching sweep; corrupt criteria JSON abandons just that row.
 
 ``GrabCore`` is a frozen sub-handle (service + orchestrator) attached to
 ``AcquireContext`` via ONE new field; it is constructed inside
@@ -110,10 +128,6 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
     "tracker_auth": "abandoned",
 }
 
-# Attempts cap (DESIGN §6.2): a retryable item is abandoned once its claim count
-# reaches this floor, so a permanently-flaky source never loops forever.
-MAX_ATTEMPTS = 5
-
 # Stale-searching threshold: items stuck in 'searching' longer than this are
 # eligible for recovery (a process killed mid-grab before any status write).
 _STALE_THRESHOLD_S = 3600  # 1 hour
@@ -125,9 +139,13 @@ class RunSummary:
 
     Attributes:
         grabbed: Items successfully grabbed (orchestrator ``success``).
-        retried: Items reset to 'pending' (orchestrator ``retryable``, below cap).
-        abandoned: Items abandoned (orchestrator ``terminal``, attempts cap, OR a
-            corrupt-criteria-JSON row isolated out of the batch — DESIGN §6.2).
+        retried: Items left queued for another attempt — ``retryable`` (kept
+            'available', verdict untouched) or ``not_found`` (reverted to
+            'pending' with the new verdict). Both mean « not taken this pass,
+            still wanted ».
+        abandoned: Items abandoned (orchestrator ``terminal``, the cadence
+            cutoff aging the item out, OR a corrupt-criteria-JSON row isolated
+            out of the batch — DESIGN §6.2).
         skipped: Items not grabbed without a status change — the atomic claim was
             lost to a concurrent process, the row was already grabbed (hash-guard
             short-circuit), or a DB lock left it for the stale-searching sweep
@@ -195,16 +213,17 @@ class GrabCore:
 
 
 class AcquisitionService:
-    """Batch grab loop over the wanted queue (RP5b).
+    """Search pass + batch grab loop over the wanted queue (RP5b).
 
     Attributes:
         _store: Acquire store (queue reads + ``wanted`` status writes only).
-        _orchestrator: Single-item grab chain.
-        _event_bus: Bus for the attempts-cap ``WantedAbandoned`` the
-            orchestrator cannot emit (it never sees the cap). Required, per the
+        _orchestrator: Single-item search + grab chains.
+        _event_bus: Bus for the ``WantedAbandoned`` events the orchestrator
+            cannot emit (it never sees the queue, so it knows nothing of the
+            cadence cutoff or of a terminal search verdict). Required, per the
             project's no-optional-event_bus contract (fire-and-forget).
         _config: Typed JSON5 configuration; ``config.acquire.cadence`` is the
-            global cadence policy resolved once per :meth:`run`.
+            global cadence policy resolved once per pass.
     """
 
     def __init__(
@@ -232,17 +251,26 @@ class AcquisitionService:
         self._config = config
 
     def run(self, *, limit: int | None = None, followed_id: int | None = None) -> RunSummary:
-        """Process the pending + stale-searching wanted queue.
+        """Run the GRAB pass over the available + stale-searching queue.
 
-        For each item: atomically claim it; if the claim is lost (concurrent
-        process or no longer 'pending'/recoverable), skip. Otherwise resolve the
-        effective profile, delegate to the orchestrator, and map the disposition
-        onto a status. A grabbed row is never re-claimed on a later run (it is
-        no longer 'pending' and not stale) — the idempotence hash-guard.
+        Takes the items a search already concluded takeable — and ONLY those.
+        The pending backlog is invisible to this pass: bounding grab to
+        ``list_available()`` is what makes the operator's « always re-search at
+        grab time » choice affordable, since it re-queries a handful of
+        known-available items instead of the whole queue (NE-DOIT-PAS-8).
+
+        For each item: age it out if it is past the cadence cutoff (the only
+        gate left here — there is NO cadence gate, an available item is taken at
+        the next tick regardless of its tier), then atomically claim it. If the
+        claim is lost (concurrent process, or the row is no longer
+        'available'/recoverable), skip. Otherwise resolve the effective profile,
+        delegate to the orchestrator, and map the disposition onto a status. A
+        grabbed row is never re-claimed on a later run (it is no longer
+        'available' and not stale) — the idempotence hash-guard.
 
         Args:
             limit: Maximum number of items to attempt this run; ``None`` = all
-                pending + stale items.
+                available + stale items.
             followed_id: When set, restrict the run to wanted items belonging to
                 that followed series (webui-overhaul OBJ3 per-series manual
                 trigger). Items with a different — or ``None`` — ``followed_id``
@@ -253,7 +281,12 @@ class AcquisitionService:
             A :class:`RunSummary` of outcome counts.
         """
         now = int(time.time())
-        queue = self._build_queue(now=now, limit=limit, followed_id=followed_id)
+        queue = self._build_queue(
+            self._store.wanted.list_available(),
+            now=now,
+            limit=limit,
+            followed_id=followed_id,
+        )
         global_cadence = cadence_from_config(self._config.acquire.cadence)
         follow_map = self._load_follow_map(queue)
 
@@ -354,7 +387,12 @@ class AcquisitionService:
             A :class:`SearchRunSummary` of outcome counts.
         """
         now = int(time.time())
-        queue = self._build_queue(now=now, limit=limit, followed_id=followed_id)
+        queue = self._build_queue(
+            self._store.wanted.list_pending(),
+            now=now,
+            limit=limit,
+            followed_id=followed_id,
+        )
         global_cadence = cadence_from_config(self._config.acquire.cadence)
         follow_map = self._load_follow_map(queue)
 
@@ -420,13 +458,26 @@ class AcquisitionService:
     # Shared queue / cadence plumbing (both passes)
     # ------------------------------------------------------------------
 
-    def _build_queue(self, *, now: int, limit: int | None, followed_id: int | None) -> list[WantedItem]:
-        """Return the pending + stale-searching queue for one pass.
+    def _build_queue(
+        self,
+        head: list[WantedItem],
+        *,
+        now: int,
+        limit: int | None,
+        followed_id: int | None,
+    ) -> list[WantedItem]:
+        """Return ``head`` + the stale-searching sweep as one pass queue.
 
-        Shared by :meth:`run` and :meth:`run_search` so both passes walk the
-        SAME rows in the SAME order with the SAME scoping semantics.
+        Shared by :meth:`run` and :meth:`run_search` so both passes apply the
+        SAME ordering, de-duplication and scoping semantics. Only the head
+        differs, and that difference IS the split: the search pass passes
+        ``list_pending()`` (items whose availability is unknown), the grab pass
+        passes ``list_available()`` (items a search already concluded takeable).
+        Both then pick up the stale-'searching' rows, which belong to whichever
+        pass runs next — a process killed mid-claim leaves no orphan.
 
         Args:
+            head: The pass's own queue (``list_pending`` or ``list_available``).
             now: Unix epoch seconds (the stale-searching threshold's clock).
             limit: Maximum number of items to return; ``None`` = no cap.
             followed_id: When set, keep only items of that followed series.
@@ -434,17 +485,17 @@ class AcquisitionService:
 
         Returns:
             The queued :class:`WantedItem` list (possibly empty), de-duplicated
-            by id, pending rows first.
+            by id, ``head`` rows first.
         """
         stale_threshold = now - _STALE_THRESHOLD_S
 
-        pending = self._store.wanted.list_pending()
         stale = self._store.wanted.list_stale_searching(older_than=stale_threshold)
 
-        # Merge pending + stale, de-duplicated by id (a stale row is not pending).
+        # Merge head + stale, de-duplicated by id (a stale row is in neither
+        # list_pending nor list_available, but the guard keeps the merge total).
         seen_ids: set[int] = set()
         queue: list[WantedItem] = []
-        for item in [*pending, *stale]:
+        for item in [*head, *stale]:
             if item.id is not None and item.id not in seen_ids:
                 seen_ids.add(item.id)
                 queue.append(item)
@@ -509,15 +560,60 @@ class AcquisitionService:
                 )  # malformed per-series cadence_json → fell back to the global default
         return effective_cadence(override, global_cadence)
 
+    def _apply_cutoff_gate(self, item: WantedItem, now: int, *, cadence: Cadence) -> _GateVerdict:
+        """Recover a stale claim, then age the item out past the cutoff (BOTH passes).
+
+        This is the gate the GRAB pass keeps. It recovers a stale 'searching'
+        row back to 'pending' (its claim would otherwise fail), then abandons
+        the item if it is past the cadence cutoff, keyed on its age from
+        ``enqueued_at``. Aging at grab time is what bounds infinite retries on a
+        permanently-failing add — without it an item the trackers keep offering
+        but the client keeps refusing would be re-grabbed forever.
+
+        Args:
+            item: The queued item (``item.id`` non-None).
+            now: Unix epoch seconds — the cadence reference clock.
+            cadence: Effective cadence policy for this item.
+
+        Returns:
+            ``"proceed"`` when the item may be claimed, else ``"abandoned"``.
+
+        Raises:
+            sqlite3.OperationalError: On a DB lock during a status write (the
+                callers' per-item isolation handles it).
+        """
+        assert item.id is not None  # noqa: S101 — ensured by the SELECTs in the callers
+        wanted_id = item.id
+
+        # A stale 'searching' row is not 'pending', so its claim would fail.
+        # Recover it back to 'pending' first, then re-claim atomically — the
+        # re-claim re-stamps attempts/last_search_at and re-serialises.
+        if item.status == "searching":
+            self._store.wanted.set_status(wanted_id, "pending")
+
+        # --- CUTOFF CHECK (DESIGN §7) ---
+        # Past the cadence cutoff → abandon. Emit-after-persist: set_status
+        # first, then emit, as everywhere else. The reason ('cutoff_reached') is
+        # distinct so consumers can tell an age-out from a terminal verdict. No
+        # claim.
+        if is_past_cutoff(cadence, now=now, enqueued_at=item.enqueued_at):
+            self._store.wanted.set_status(wanted_id, "abandoned")
+            self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason="cutoff_reached"))
+            log.info("acquire.service.cutoff_abandoned", wanted_id=wanted_id)
+            return "abandoned"
+
+        return "proceed"
+
     def _apply_cadence_gates(self, item: WantedItem, now: int, *, cadence: Cadence) -> _GateVerdict:
-        """Run the pre-claim gates for one item (DESIGN §7) — shared by both passes.
+        """Run the pre-claim gates of the SEARCH pass (DESIGN §7).
 
-        Recovers a stale 'searching' row back to 'pending' (its claim would
-        otherwise fail), then applies the two gates, both keyed on the item's
-        age from ``enqueued_at`` against the resolved ``cadence``:
+        The cutoff gate (shared, see :meth:`_apply_cutoff_gate`) followed by the
+        cadence gate, which belongs to this pass ALONE: cadence is what spaces
+        the re-verification of an episode the trackers do not have yet. The grab
+        pass never calls this — an item already known available is taken at the
+        next tick whatever its tier says.
 
-        - CUTOFF: past the cadence cutoff → abandon (emit-after-persist,
-          mirroring the attempts-cap abandon) → ``"abandoned"``, NO claim.
+        - CUTOFF: past the cadence cutoff → abandon → ``"abandoned"``, NO claim.
         - CADENCE: not yet due for its tier interval → stays 'pending' and is
           re-listed next pass → ``"skipped"``, NO claim, NO attempts increment.
 
@@ -537,22 +633,9 @@ class AcquisitionService:
         assert item.id is not None  # noqa: S101 — ensured by the SELECTs in the callers
         wanted_id = item.id
 
-        # A stale 'searching' row is not 'pending', so its claim would fail.
-        # Recover it back to 'pending' first, then re-claim atomically — the
-        # re-claim re-stamps attempts/last_search_at and re-serialises.
-        if item.status == "searching":
-            self._store.wanted.set_status(wanted_id, "pending")
-
-        # --- CUTOFF CHECK (DESIGN §7) ---
-        # Past the cadence cutoff → abandon. Emit-after-persist: set_status first,
-        # then emit, symmetrical to the attempts-cap abandon in _abandon_at_cap.
-        # Distinct reason ('cutoff_reached' vs 'attempts_cap') so consumers can
-        # tell an age-out from a flaky-source give-up. No claim.
-        if is_past_cutoff(cadence, now=now, enqueued_at=item.enqueued_at):
-            self._store.wanted.set_status(wanted_id, "abandoned")
-            self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason="cutoff_reached"))
-            log.info("acquire.service.cutoff_abandoned", wanted_id=wanted_id)
-            return "abandoned"
+        gate = self._apply_cutoff_gate(item, now, cadence=cadence)
+        if gate != "proceed":
+            return gate
 
         # --- CADENCE CHECK (DESIGN §7) ---
         # Not yet due for its tier interval → stays 'pending' and is re-listed
@@ -682,21 +765,21 @@ class AcquisitionService:
         Extracted so :meth:`run` can wrap each item in error isolation
         (DESIGN §6.2) without an over-broad try around the whole loop body.
 
-        Before claiming, two cadence gates run (DESIGN §7) — both keyed on the
-        item's age from ``enqueued_at`` against the resolved ``cadence``:
-
-        - CUTOFF: past the cadence cutoff → abandon (emit-after-persist, mirroring
-          the attempts-cap abandon) and return ``"abandoned"`` — NO claim.
-        - CADENCE: not yet due for its tier interval → stay 'pending' (re-listed
-          next run), return ``"skipped"`` — NO claim, NO attempts increment.
+        Before claiming, ONE gate runs (:meth:`_apply_cutoff_gate`): past the
+        cadence cutoff → abandon and return ``"abandoned"``, NO claim. There is
+        deliberately NO cadence gate here (it belongs to the search pass) and NO
+        attempts cap (``attempts`` counts cadence-paced searches; capping the
+        grab pass on it would abandon a known-available item after one flaky
+        add).
 
         Args:
             item: The queued :class:`WantedItem` (``item.id`` is non-None — the
                 SELECTs in :meth:`run` populate it).
-            now: Unix epoch seconds (stamps the atomic claim; also the cadence
+            now: Unix epoch seconds (stamps the atomic claim; also the cutoff
                 reference clock).
             cadence: Effective cadence policy for this item (resolved in
-                :meth:`run` — series override over the global default).
+                :meth:`run` — series override over the global default); only its
+                cutoff is consulted on this path.
 
         Returns:
             A one-word outcome tag mapped onto a :class:`RunSummary` counter by
@@ -711,28 +794,37 @@ class AcquisitionService:
         assert item.id is not None  # noqa: S101 — ensured by the SELECTs in run()
         wanted_id = item.id
 
-        gate = self._apply_cadence_gates(item, now, cadence=cadence)
+        gate = self._apply_cutoff_gate(item, now, cadence=cadence)
         if gate != "proceed":
             return gate
 
-        won = self._store.wanted.claim_for_search(wanted_id, now)
+        # Two claim paths, one per queue: an 'available' row is the grab pass's
+        # own (claim_for_grab matches 'available'), while a stale 'searching'
+        # row was just recovered to 'pending' by the gate and claims through
+        # claim_for_search (which matches 'pending'). Using the wrong one would
+        # silently no-op and skip every row of that queue.
+        if item.status == "searching":
+            won = self._store.wanted.claim_for_search(wanted_id, now)
+        else:
+            won = self._store.wanted.claim_for_grab(wanted_id, now)
         if not won:
             # Lost the atomic claim (concurrent winner) — skip, do NOT proceed.
             log.debug("acquire.service.claim_lost", wanted_id=wanted_id)
             return "skipped"
 
-        # Re-fetch to read the post-claim attempts count.
+        # Re-fetch so the profile is resolved from the post-claim row.
         current = self._store.wanted.get(wanted_id)
         if current is None:
             return "skipped"
 
         # Hash-guard consultation (DESIGN §7 / §11(d)): if the row already
         # carries a persisted info-hash it was grabbed before (e.g. force-reset
-        # to 'pending' while retaining grabbed_hash, or re-listed by an
+        # to 'available' while retaining grabbed_hash, or re-listed by an
         # external producer). Short-circuit — NO re-grab, NO re-emit. The
-        # primary defence is that ``claim_for_search`` only matches a 'pending'
-        # row, so a 'grabbed' row is normally never re-claimed; this consults
-        # the persisted hash as the belt-and-suspenders guard.
+        # primary defence is that the claim only matches an 'available' (or
+        # recovered 'pending') row, so a 'grabbed' row is normally never
+        # re-claimed; this consults the persisted hash as the belt-and-suspenders
+        # guard.
         if current.status == "grabbed" or current.grabbed_hash is not None:
             log.info("acquire.service.already_grabbed_skipped", wanted_id=wanted_id)
             return "skipped"
@@ -743,20 +835,28 @@ class AcquisitionService:
         if outcome.disposition == "success":
             return self._persist_success(current, outcome)
         if outcome.disposition == "terminal":
+            # The orchestrator already emitted WantedAbandoned on this path, so
+            # the service only persists: verdict first, then the status (same
+            # order as the search pass — a crash in between leaves a row the
+            # stale sweep re-processes, never a status contradicting its verdict).
+            self._store.wanted.record_search_outcome(wanted_id, outcome.reason or "terminal", None)
             self._store.wanted.set_status(wanted_id, "abandoned")
             return "abandoned"
         if outcome.disposition == "not_found":
-            # Clean search, nothing usable YET (B.4): stay pending under
-            # cadence pacing. The attempts cap does NOT apply — it exists for
-            # flaky-infrastructure loops, not for "the release is not out yet";
-            # only the cadence cutoff ages a not-found item out.
+            # The torrent vanished between the two passes: the grab's own
+            # re-search concluded with nothing takeable. Revert honestly to
+            # 'pending' with the new verdict (found=0 — this search DID
+            # conclude) rather than adding something else or freezing the row on
+            # « À récupérer ».
+            self._store.wanted.record_search_outcome(wanted_id, outcome.reason or "no_candidates", 0)
             self._store.wanted.set_status(wanted_id, "pending")
             return "retried"
-        # "retryable"
-        if current.attempts >= MAX_ATTEMPTS:
-            self._abandon_at_cap(current)
-            return "abandoned"
-        self._store.wanted.set_status(wanted_id, "pending")
+        # "retryable" — the grab's own search did NOT conclude (circuit, API
+        # error, add failure). The item stays 'available' and the SEARCH pass's
+        # verdict stands untouched: overwriting it would replace a real
+        # conclusion with an outage, and moving the status would desynchronise
+        # it from that verdict.
+        self._store.wanted.set_status(wanted_id, "available")
         return "retried"
 
     def _persist_success(self, item: WantedItem, outcome: GrabOutcome) -> _ItemOutcome:
@@ -768,18 +868,25 @@ class AcquisitionService:
         row stays 'searching', stale-recovery re-grabs (idempotent ``add``) and
         emits exactly ONCE. Emit follows persistence.
 
+        The ``'grabbed'`` verdict (with the re-search's takeable count) is
+        recorded BEFORE ``mark_grabbed``: recording it after would open a window
+        where the row reads 'grabbed' while its verdict still describes the
+        previous search, and a lock on that second write would strand a grabbed
+        row that no sweep re-visits (``list_stale_searching`` only sees
+        'searching').
+
         Args:
             item: The claimed item (``item.id`` non-None).
             outcome: The success :class:`GrabOutcome` carrying the
                 ``GrabSucceeded`` payload (``info_hash`` / ``category`` /
-                ``tags``).
+                ``tags``) and the ``found`` count of its re-search.
 
         Returns:
             The ``"grabbed"`` outcome tag.
 
         Raises:
-            sqlite3.OperationalError: If ``mark_grabbed`` loses the DB lock — the
-                emit is then skipped (no double-emit on the eventual re-grab).
+            sqlite3.OperationalError: If a persist loses the DB lock — the emit
+                is then skipped (no double-emit on the eventual re-grab).
         """
         assert item.id is not None  # noqa: S101 — caller fetched it by id
         info_hash = outcome.info_hash or ""
@@ -791,6 +898,7 @@ class AcquisitionService:
             log.warning("acquire.service.success_without_hash", wanted_id=item.id)
         # Persist FIRST — if this raises (lock), the emit below is skipped and the
         # re-grab on the next run emits exactly once.
+        self._store.wanted.record_search_outcome(item.id, "grabbed", outcome.found)
         self._store.wanted.mark_grabbed(item.id, info_hash)
         # Seed obligation at GRAB time (2026-07-15): the dispatch-time
         # name+size correlation can never match a renamed/aggregated TV show
@@ -857,21 +965,6 @@ class AcquisitionService:
             min_ratio=economy.min_ratio,
         )
 
-    def _abandon_at_cap(self, item: WantedItem) -> None:
-        """Abandon an item that hit the attempts cap and emit ``WantedAbandoned``.
-
-        The orchestrator never sees the cap (it grabs a single item without
-        queue context), so the service emits the distinct
-        ``WantedAbandoned('attempts_cap')`` event itself.
-
-        Args:
-            item: The over-cap item (``item.id`` is guaranteed non-None here).
-        """
-        assert item.id is not None  # noqa: S101 — caller fetched it by id
-        self._store.wanted.set_status(item.id, "abandoned")
-        log.warning("acquire.service.attempts_cap_abandoned", wanted_id=item.id, attempts=item.attempts)
-        self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason="attempts_cap"))
-
     def _resolve_profile(self, item: WantedItem) -> QualityProfile:
         """Resolve the effective :class:`QualityProfile` for one item.
 
@@ -916,7 +1009,6 @@ def resolve_effective_profile(store: "AcquireStore", item: WantedItem) -> Qualit
 
 
 __all__ = [
-    "MAX_ATTEMPTS",
     "SEARCH_OUTCOME_STATUS",
     "AcquisitionService",
     "GrabCore",
