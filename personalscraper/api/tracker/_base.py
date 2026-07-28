@@ -82,11 +82,15 @@ class TrackerResult:
             NOTE: this field is codec-only — it never contains language
             markers (VF/VOSTFR/VO). Language detection for the audio
             hard-filter must parse ``result.title`` instead.
-        tmdb_id: TMDB id when the tracker exposes it, else None. No tracker
-            wired today populates it (the one that did was removed with its
-            client), so the TMDB identity hard-filter that consumes it is a
-            no-op until a client maps an id — Torznab indexers do publish a
-            ``tmdbid`` attr, which the Torznab client does not read yet.
+        tmdb_id: TMDB id when the tracker exposes it, else None. The generic
+            Torznab client maps the ``tmdbid`` attr (2026-07-28), so c411 and
+            tr4ker both populate this whenever their indexer publishes it —
+            which restores the TMDB identity hard-filter (the anti-remake
+            guard) that lost its only producer when torr9 was removed. A
+            missing or non-numeric attr yields ``None``. The filter engages
+            ONLY when the result AND the wanted item's ``media_ref`` both
+            carry a TMDB id; either side ``None`` makes it a no-op, so an
+            un-tagged release is never dropped for lack of an id.
     """
 
     provider: str

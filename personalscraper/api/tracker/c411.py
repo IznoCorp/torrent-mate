@@ -34,9 +34,6 @@ from typing import ClassVar
 
 from personalscraper.api._contracts import ProviderName
 from personalscraper.api.tracker.torznab import TorznabClient, TorznabDescriptor
-from personalscraper.logger import get_logger
-
-log = get_logger("api.tracker.c411")
 
 #: C411's dialect of Torznab — the quirks listed in the module docstring,
 #: expressed as data. ``item_category_element=False`` (the category exists only
