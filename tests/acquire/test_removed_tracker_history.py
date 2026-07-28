@@ -7,18 +7,34 @@ to a tracker: it must keep vetoing a deletion until its seed time is served,
 even though nothing in the code knows that tracker's name any more.
 
 These tests pin that the whole read path stays **string-based and fail-soft**
-for an unknown tracker name (here the decommissioned ``"torr9"``, whose rows
-exist in the operator's production database):
+for an unknown tracker name (here the decommissioned ``"torr9"``):
 
-- the store round-trips ``source_tracker`` / ``tracker_name`` verbatim — no
-  enum coercion anywhere, so a removed member cannot raise ``ValueError``;
+- the store round-trips ``source_tracker`` / ``tracker_name`` / ``tracker``
+  verbatim — no enum coercion anywhere, so a removed member cannot raise
+  ``ValueError``;
 - :class:`DeleteAuthority` still VETOes an unmet historical obligation (the
   floors live ON the row, not in config) and still ALLOWs a served one;
 - the dispatch-time writer degrades to a logged ``tracker-unresolved`` MISS
   instead of crashing when a live torrent still carries the removed tracker's
   tag;
 - the grab-time writer skips silently when the tracker has no config entry;
-- ``ratio_state`` rows keyed on the removed tracker remain readable.
+- ``ratio_state`` and ``cross_seed_history`` rows keyed on the removed tracker
+  remain readable and inert.
+
+Where the surviving rows actually are (measured on the operator's
+``.data/acquire.db`` on 2026-07-28, so the tests target the real risk rather
+than an assumed one):
+
+- ``cross_seed_history`` — **6 torr9 rows** (alongside 6 c411). This is the
+  only table holding real torr9 data, and it was the one table these tests
+  originally missed.
+- ``seed_obligation`` — 14 rows, **all c411, zero torr9**.
+- ``ratio_state`` — empty.
+
+The obligation and ratio tests therefore pin the contract *prospectively*: no
+torr9 row exists in those tables today, but the guarantee they encode (a
+promise made to a tracker outlives that tracker's code) is what must hold the
+next time a tracker is decommissioned while holding live obligations.
 """
 
 from __future__ import annotations
@@ -188,6 +204,26 @@ def test_grab_obligation_writer_skips_the_removed_tracker(store: ConcreteAcquire
     service._record_seed_obligation("beef" * 10, _REMOVED)  # must not raise
 
     assert store.seed.find_active_by_hash("beef" * 10) is None
+
+
+def test_historical_cross_seed_row_stays_readable_and_inert(store: ConcreteAcquireStore) -> None:
+    """A ``cross_seed_history`` row from the removed tracker reads back and affects nobody.
+
+    This is the ONE table that actually holds torr9 rows in production (6 of
+    them). ``tracker`` is only ever a bound parameter in a ``WHERE`` / ``INSERT``
+    — never SELECTed back out and never coerced to ``ProviderName`` — so the row
+    stays readable under its own name, and a live tracker's dedup lookup for the
+    same source hash is unaffected by it.
+    """
+    source_hash = "cafe" * 10
+
+    store.cross_seed.record_search(source_hash, _REMOVED)
+
+    # Readable under the removed tracker's own name.
+    assert store.cross_seed.was_searched_recently(source_hash, _REMOVED, days=30) is True
+    # Inert for everyone else: the historical row must not make a live tracker
+    # look "already searched" and suppress a legitimate cross-seed search.
+    assert store.cross_seed.was_searched_recently(source_hash, "c411", days=30) is False
 
 
 def test_historical_ratio_state_row_stays_readable(store: ConcreteAcquireStore) -> None:
