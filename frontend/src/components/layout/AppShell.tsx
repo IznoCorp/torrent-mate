@@ -141,7 +141,7 @@ function AppShellInner(): ReactElement {
   ]);
 
   return (
-    <div className="flex min-h-screen bg-background font-sans text-foreground">
+    <div className="flex min-h-screen overflow-x-clip bg-background font-sans text-foreground">
       <Sidebar badges={badges} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
@@ -149,7 +149,7 @@ function AppShellInner(): ReactElement {
             setNavOpen(true);
           }}
         />
-        <main className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6 max-w-7xl mx-auto w-full">
+        <main className="min-w-0 overflow-x-clip flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6 max-w-7xl mx-auto w-full">
           <Outlet />
         </main>
       </div>

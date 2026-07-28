@@ -105,7 +105,7 @@ export function MediaSearchAdd(): ReactElement {
       {/* Full-width input on mobile (its own line), the kind filter + Chercher on
           a second row; a single inline row on sm+. */}
       <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <label
             htmlFor="acq-search"
             className="text-xs font-medium text-muted-foreground"
@@ -121,7 +121,11 @@ export function MediaSearchAdd(): ReactElement {
             placeholder="Titre (film ou série)"
           />
         </div>
-        <div className="flex items-center gap-2">
+        {/* `flex-wrap` so at 390 px the « Chercher » button drops below the
+            segmented kind filter instead of overflowing past the viewport
+            (it reached 430 px pre-fix); on sm+ the row has room and stays
+            inline. */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-1 items-center gap-1 rounded-md border border-border p-0.5 sm:flex-none">
             {(["all", "tv", "movie"] as const).map((k) => (
               <Button

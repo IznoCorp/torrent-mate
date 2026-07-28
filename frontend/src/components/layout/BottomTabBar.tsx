@@ -43,7 +43,12 @@ export function BottomTabBar({
             end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
+                // `min-w-0` lets each equal-width tab shrink below its content
+                // size, so the `truncate` label below actually clips instead of
+                // widening the tab (and, with it, the fixed bar) — the bar must
+                // never gain an inner overflowing child that reintroduces a
+                // horizontal scroll the shell clamp just removed (SHELL-1).
+                "flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground",
               )
             }
