@@ -19,6 +19,8 @@ Protocol-level invariants — true for every Torznab indexer, hence deliberately
   ``response_format='xml'``;
 - per-item metadata rides on repeated ``<torznab:attr name=… value=…/>``
   elements, flattened here into a ``{name: value}`` mapping;
+- the ``tmdbid`` attr, when the indexer publishes it, feeds
+  :attr:`TrackerResult.tmdb_id` and therefore the TMDB identity hard-filter;
 - there is no per-torrent detail endpoint — hence no
   :class:`~personalscraper.api.tracker._contracts.TorrentDetailsProvider`, and
   no :class:`~personalscraper.api.tracker._contracts.FreeleechAware` either:
@@ -79,6 +81,27 @@ def _attrs_to_dict(attrs: list[dict[str, Any]] | dict[str, Any] | None) -> dict[
         if isinstance(name, str) and isinstance(value, str):
             out[name] = value
     return out
+
+
+def _parse_optional_int(value: str | None) -> int | None:
+    """Parse a Torznab attr value as an int, tolerating absence and garbage.
+
+    Indexers publish ids as free-form strings: the attr may be missing entirely,
+    empty, or carry a non-numeric id (an ``imdbid``-style ``tt1375666`` landing
+    in the wrong attr). None of that may raise — the field is optional metadata.
+
+    Args:
+        value: Raw attr value, or ``None`` when the attr is absent.
+
+    Returns:
+        The parsed int, or ``None`` when absent / not an integer.
+    """
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_rfc2822(value: Any) -> datetime | None:
@@ -398,6 +421,11 @@ class TorznabClient(TorrentSearchable, CategoryListable):
             source=title_parsed.get("source"),
             resolution=title_parsed.get("resolution"),
             audio=title_parsed.get("audio"),
+            # Torznab indexers publish the TMDB id as a ``tmdbid`` attr. It feeds
+            # the TMDB identity hard-filter (the anti-remake guard: a 1984 result
+            # can never be grabbed for a 2021 wanted item). Absent or non-numeric
+            # → None, which makes the filter a no-op rather than a wrong drop.
+            tmdb_id=_parse_optional_int(attrs.get("tmdbid")),
         )
 
     def _item_category(self, item: dict[str, Any], attrs: dict[str, str]) -> str | None:

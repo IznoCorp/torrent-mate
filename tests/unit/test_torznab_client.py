@@ -275,6 +275,57 @@ class TestAttrFlattening:
         assert (result.is_freeleech, result.is_silverleech) == (freeleech, silverleech)
 
 
+class TestTmdbIdMapping:
+    """The ``tmdbid`` attr feeds ``TrackerResult.tmdb_id`` — the anti-remake guard's input."""
+
+    def test_numeric_attr_is_mapped(self) -> None:
+        """A numeric ``tmdbid`` attr lands on the result as an int."""
+        client = _client(OTHER_DESCRIPTOR)
+        client._transport.get.return_value = _rss(  # type: ignore[attr-defined]
+            _item(**{"torznab:attr": [{"@name": "tmdbid", "@value": "27205"}]})
+        )
+
+        assert client.search("x")[0].tmdb_id == 27205
+
+    def test_absent_attr_yields_none(self) -> None:
+        """No ``tmdbid`` attr → None, so the identity filter stays a no-op."""
+        client = _client(OTHER_DESCRIPTOR)
+        client._transport.get.return_value = _rss(_item())  # type: ignore[attr-defined]
+
+        assert client.search("x")[0].tmdb_id is None
+
+    @pytest.mark.parametrize("garbage", ["", "tt1375666", "27205.0", "not-a-number"])
+    def test_non_integer_attr_yields_none_not_a_crash(self, garbage: str) -> None:
+        """A non-numeric id (e.g. an imdb id in the wrong attr) degrades to None."""
+        client = _client(OTHER_DESCRIPTOR)
+        client._transport.get.return_value = _rss(  # type: ignore[attr-defined]
+            _item(**{"torznab:attr": [{"@name": "tmdbid", "@value": garbage}]})
+        )
+
+        assert client.search("x")[0].tmdb_id is None
+
+    def test_live_capture_carries_the_real_id(self) -> None:
+        """The captured Inception search publishes TMDB 27205 — on 16 of its 18 items.
+
+        The two id-less items are real: the indexer does not always fill
+        ``tmdbid``. They must map to ``None`` (filter no-op), never to a guess.
+        """
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _load_xml("search-inception.xml")  # type: ignore[attr-defined]
+
+        ids = [r.tmdb_id for r in client.search("Inception")]
+
+        assert ids.count(27205) == 16
+        assert ids.count(None) == 2
+
+    def test_live_tv_capture_carries_the_show_id(self) -> None:
+        """The captured tvsearch publishes the show's TMDB id (Breaking Bad = 1396)."""
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _load_xml("tvsearch.xml")  # type: ignore[attr-defined]
+
+        assert {r.tmdb_id for r in client.search("Breaking Bad", media_type="tv")} == {1396}
+
+
 class TestDialectQuirks:
     """The two quirk flags select the field source — exclusively."""
 

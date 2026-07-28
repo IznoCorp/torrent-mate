@@ -379,3 +379,77 @@ class TestTmdbIdentityFilter:
         assert "Dune 1984" not in survivor_titles
         assert "Dune 2021" in survivor_titles
         assert "Dune (no tmdb)" in survivor_titles
+
+
+class TestTmdbIdentityFilterEndToEndFromATracker:
+    """The identity filter is fed by a REAL tracker parse, not a hand-built result.
+
+    The filter was dormant between the removal of the tracker that used to set
+    ``tmdb_id`` and the Torznab client mapping the ``tmdbid`` attr: every result
+    carried ``None``, so the anti-remake guard could never engage. These tests
+    close that loop — the result comes out of ``TorznabClient._parse_item`` and
+    goes straight into ``apply_hard_filters``.
+    """
+
+    @staticmethod
+    def _tracker_results(*tmdbids: str | None) -> list[TrackerResult]:
+        """Parse a Torznab RSS document into results, one per given ``tmdbid``.
+
+        Args:
+            tmdbids: One value per item; ``None`` omits the attr entirely.
+
+        Returns:
+            The parsed :class:`TrackerResult` list, in document order.
+        """
+        from unittest.mock import MagicMock  # noqa: PLC0415
+
+        from personalscraper.api.tracker.c411 import C411Client  # noqa: PLC0415
+
+        items = []
+        for index, tmdbid in enumerate(tmdbids):
+            attrs = [{"@name": "seeders", "@value": "10"}]
+            if tmdbid is not None:
+                attrs.append({"@name": "tmdbid", "@value": tmdbid})
+            items.append(
+                {
+                    "title": f"Dune.{index}.1080p.BluRay.x265-GRP",
+                    "guid": f"hash{index}",
+                    "size": "1000",
+                    "torznab:attr": attrs,
+                }
+            )
+        client = C411Client(MagicMock())
+        client._transport.get.return_value = {"rss": {"channel": {"item": items}}}
+        return client.search("Dune")
+
+    def test_tracker_parsed_mismatch_is_dropped_again(self) -> None:
+        """A tracker result whose parsed tmdb_id contradicts the wanted item is DROPPED."""
+        results = self._tracker_results("1984")
+        assert results[0].tmdb_id == 1984  # the parse actually produced the id
+
+        survivors = apply_hard_filters(results, QualityProfile(), MediaRef(tmdb_id=2021))
+
+        assert survivors == []
+
+    def test_tracker_parsed_match_survives(self) -> None:
+        """A tracker result whose parsed tmdb_id matches the wanted item SURVIVES."""
+        survivors = apply_hard_filters(self._tracker_results("2021"), QualityProfile(), MediaRef(tmdb_id=2021))
+
+        assert len(survivors) == 1
+
+    def test_tracker_result_without_the_attr_still_passes(self) -> None:
+        """No ``tmdbid`` attr → None → the filter stays a no-op (never a wrong drop)."""
+        results = self._tracker_results(None)
+        assert results[0].tmdb_id is None
+
+        survivors = apply_hard_filters(results, QualityProfile(), MediaRef(tmdb_id=2021))
+
+        assert len(survivors) == 1
+
+    def test_mixed_tracker_batch_keeps_only_the_right_version(self) -> None:
+        """Wrong remake dropped, right one and id-less one kept — all from one parse."""
+        results = self._tracker_results("1984", "2021", None)
+
+        survivors = apply_hard_filters(results, QualityProfile(), MediaRef(tmdb_id=2021))
+
+        assert [r.tmdb_id for r in survivors] == [2021, None]
