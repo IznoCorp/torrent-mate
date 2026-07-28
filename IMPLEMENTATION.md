@@ -19,8 +19,8 @@ dans le .env opérateur.
 | #   | Phase                                 | File                                                           | Status |
 | --- | ------------------------------------- | -------------------------------------------------------------- | ------ |
 | 1   | Client + subscriber + câblage + tests | [phase-01](docs/features/plex-refresh/plan/phase-01-engine.md) | [x]    |
-| 2   | Docs + env + ACC + preuve réelle      | [phase-02](docs/features/plex-refresh/plan/phase-02-acc.md)    | [ ]    |
+| 2   | Docs + env + ACC + preuve réelle      | [phase-02](docs/features/plex-refresh/plan/phase-02-acc.md)    | [x]    |
 
 ## Next action
 
-/implement:phase (phase 1)
+feature-pr : push + PR + CI + review + merge + deploy.
