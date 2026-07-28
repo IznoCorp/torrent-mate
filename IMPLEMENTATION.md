@@ -25,11 +25,11 @@ la file wanted ne prend que les diffusés (un futur n'est pas cherchable).
 
 ## ACC results (2026-07-28)
 
-| ACC    | Verdict | Preuve                                                                                                                                                                                                       |
-| ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ACC    | Verdict | Preuve                                                                                                                                                                                                        |
+| ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ACC-01 | ✅ PASS | `pytest tests/acquire/test_airing.py tests/acquire/test_detect_service.py` — futur → cache, jamais `wanted`.                                                                                                  |
-| ACC-02 | ✅ PASS | `pytest tests/unit/web/acquisition/test_annonce_state.py` — `derive_episode_state(air_date>today)` ⇒ `annonce` (rouge-avant vérifié).                                                                          |
-| ACC-03 | ✅ PASS | `pytest tests/unit/web/acquisition/test_truth.py test_completeness.py` — futur n'entre pas dans le tally ; carte reste « À jour ».                                                                             |
+| ACC-02 | ✅ PASS | `pytest tests/unit/web/acquisition/test_annonce_state.py` — `derive_episode_state(air_date>today)` ⇒ `annonce` (rouge-avant vérifié).                                                                         |
+| ACC-03 | ✅ PASS | `pytest tests/unit/web/acquisition/test_truth.py test_completeness.py` — futur n'entre pas dans le tally ; carte reste « À jour ».                                                                            |
 | ACC-04 | ✅ PASS | spy dans `test_detect_service.py` — `poll_known` appelé **une** fois par série. (78 tests backend verts au total.)                                                                                            |
 | ACC-05 | ✅ PASS | Preuve Chrome 390 px sur staging (Furious S01, E1-3 diffusés + E4-8 annoncés 03→31/08) : légende 6 tons distincts dérivée de meta.ts, `annonce` violet, `scrollWidth-innerWidth==0`, popover date non clippé. |
 | ACC-06 | ✅ PASS | `make openapi` sans drift (`annonce` + `announced` dans schema.d.ts) ; `make check` vert ; front lint+typecheck+vitest (157) verts.                                                                           |
@@ -49,6 +49,20 @@ Harnais iframe 390 px (viewport Chrome épinglé 1440) :
 - `aria-label` corrects : E1-3 « En médiathèque », E4-8 « Annoncé ».
 - Popover date (portalisé, non clippé) : clic E1 ⇒ « Diffusé le 27 juillet 2026 » ;
   clic E4 ⇒ « Sortie prévue le 3 août 2026 » (français long, jamais le jeton ISO).
+
+## Review cycle (PR #333, 2026-07-28)
+
+Adversarial `code-reviewer` pass (Opus subagent) on the full three-dot diff (42 files).
+**Verdict : aucun défaut BLOCKER/HIGH/MEDIUM — les 6 invariants durs tiennent** (futur
+jamais dans `wanted` ; `annonce` ne dégrade pas la carte ; single-poll ; frontière tz
+cohérente ; popover portalisé, pas de fuite ISO ; légende dérivée de meta.ts). 4 findings
+LOW ; 3 corrigés (commit `d64c0f4e`) :
+
+- `SeasonCompleteness.announced` calculé + sérialisé mais jamais affiché (donnée morte sur
+  le fil) → en-tête de saison affiche « · N annoncé(s) » (test ajouté).
+- Commentaire d'ordre de légende faux (« future last » alors qu'il est premier) → corrigé.
+- Docstring `follow.py` décrivait encore `poll_aired` single-call → réécrit `poll_known`.
+- (LOW non corrigé) churn formateur dans `colors.css` — inerte, absorbé par le squash.
 
 ## Next action
 
