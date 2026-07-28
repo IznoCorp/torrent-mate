@@ -16,7 +16,7 @@
 
 | #   | Phase                            | File                                                             | Status |
 | --- | -------------------------------- | ---------------------------------------------------------------- | ------ |
-| 1   | Backend — résolution TVDB séries | [phase-01](docs/features/follow-by-id/plan/phase-01-backend.md)  | [ ]    |
+| 1   | Backend — résolution TVDB séries | [phase-01](docs/features/follow-by-id/plan/phase-01-backend.md)  | [x]    |
 | 2   | Frontend — sélecteur de provider | [phase-02](docs/features/follow-by-id/plan/phase-02-frontend.md) | [ ]    |
 | 3   | ACC + preuve 390 px + gate       | [phase-03](docs/features/follow-by-id/plan/phase-03-acc.md)      | [ ]    |
 
