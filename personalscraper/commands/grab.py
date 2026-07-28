@@ -105,6 +105,12 @@ def grab(
                         "skipped": summary.skipped,
                         "closed_owned": reconcile.closed_owned,
                         "requeued_missing": reconcile.requeued_missing,
+                        # A grab recovered out of the add→confirm crash window is
+                        # a real acquisition this run is responsible for. Without
+                        # it on the row, the recovery was computed, logged and
+                        # then dropped — invisible to the operator (§5 « résultat
+                        # chiffré »: a run states its numbers, all of them).
+                        "confirmed_grabbed": reconcile.confirmed_grabbed,
                     }
                 )
         finally:
@@ -165,10 +171,11 @@ def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "Reconci
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()
-    if summary.closed_owned or summary.requeued_missing:
+    if summary.closed_owned or summary.requeued_missing or summary.confirmed_grabbed:
         console.print(
             f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (en médiathèque), "
-            f"{summary.requeued_missing} remis en file (torrent disparu)."
+            f"{summary.requeued_missing} remis en file (torrent disparu), "
+            f"{summary.confirmed_grabbed} confirmés (récupérés après interruption)."
         )
     return summary
 
