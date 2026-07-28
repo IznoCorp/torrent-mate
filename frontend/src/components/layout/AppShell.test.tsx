@@ -215,6 +215,45 @@ describe("AppShell mobile nav Sheet", () => {
   });
 });
 
+describe("AppShell clampe le débordement horizontal (garde structurelle)", () => {
+  // Class-contract guard, NOT a layout guard. The harness is vitest + jsdom,
+  // which does not lay out — `scrollWidth`/`innerWidth` are always 0 there, so
+  // an assertion on `documentElement.scrollWidth <= innerWidth` would pass
+  // vacuously on ANY markup. What CAN regress and IS catchable here is the
+  // shell losing its structural clamp: this test pins the exact classes that
+  // make a page-level horizontal scroll impossible, so "someone removed
+  // overflow-x-clip from the shell" breaks CI. The real-layout proof (390 px
+  // Chrome, scrollWidth-innerWidth == 0 on every route) is ACC-05, run out of
+  // band by the orchestrator.
+  it("le root porte overflow-x-clip, <main> porte min-w-0 + overflow-x-clip, la bottom-bar est fixed", () => {
+    renderShell();
+
+    // The bottom bar is position:fixed — the DESIGN's whole point is that its
+    // stability comes from the root clamping, never from the page happening not
+    // to scroll. Lock `fixed` so a refactor cannot quietly make it flow.
+    const bottomBar = screen.getByRole("navigation", {
+      name: /navigation principale/i,
+    });
+    expect(bottomBar.className).toContain("fixed");
+
+    // The shell root is the bottom bar's parent: BottomTabBar is a direct child
+    // of AppShellInner's outer <div>, so this anchors on the real render tree
+    // rather than on a brittle class selector. It MUST clip horizontal overflow
+    // (clip, not hidden — no accidental scroll container) so no page-level
+    // horizontal scroll is ever possible, whatever a child does.
+    const root = bottomBar.parentElement;
+    expect(root).not.toBeNull();
+    expect(root?.className).toContain("overflow-x-clip");
+
+    // <main> carries BOTH protections: min-w-0 so a wide child cannot push the
+    // flex column wider than the viewport, and overflow-x-clip so a child that
+    // still overflows is cut here instead of propagating up to the page.
+    const main = screen.getByRole("main");
+    expect(main.className).toContain("min-w-0");
+    expect(main.className).toContain("overflow-x-clip");
+  });
+});
+
 describe("AppShell nav badges", () => {
   beforeEach(() => {
     // Stub the three badge sources — all idle/zero by default so the zero-
