@@ -639,11 +639,13 @@ def run(
 
     from personalscraper.api.notify.healthchecks import HealthcheckClient
     from personalscraper.api.notify.telegram import TelegramNotifier
+    from personalscraper.api.plex import PlexClient
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.pipeline import Pipeline
     from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.debug_log import DebugLogSubscriber
+    from personalscraper.subscribers.plex import PlexSubscriber
     from personalscraper.subscribers.redis_stream import build_redis_publisher
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
@@ -719,6 +721,7 @@ def run(
             rich_subscriber: RichConsoleSubscriber | None = None
             telegram_subscriber: TelegramSubscriber | None = None
             acq_telegram_subscriber: AcquisitionTelegramSubscriber | None = None
+            plex_subscriber: PlexSubscriber | None = None
             # ``--verbose`` activates the DebugLogSubscriber which logs every
             # emitted event at DEBUG. Registered independently of ``--headless``
             # so verbose log streams work even in cron / CI contexts that
@@ -727,6 +730,19 @@ def run(
             # Redis event publisher (gate on web.enabled, fail-soft — Redis down
             # must never block the pipeline boot).
             redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+            # Plex refresh trigger (plex-refresh D3). Wired on the token alone,
+            # deliberately OUTSIDE the ``--headless`` gate: the other subscribers
+            # produce OPERATOR OUTPUT (console, Telegram) which a cron run
+            # legitimately silences, whereas this one makes the dispatched media
+            # visible in Plex — a headless run needs it exactly as much. No token
+            # ⇒ never wired, one info line saying so, and zero requests.
+            if settings.plex_token:
+                plex_subscriber = PlexSubscriber(
+                    app_context.event_bus,
+                    PlexClient(settings.plex_url, settings.plex_token),
+                )
+            else:
+                _run_log.info("plex_refresh_disabled", reason="no_token")
             if verbose:
                 debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:
@@ -807,6 +823,8 @@ def run(
                         telegram_subscriber.close()
                     if acq_telegram_subscriber is not None:
                         acq_telegram_subscriber.close()
+                    if plex_subscriber is not None:
+                        plex_subscriber.close()
                     if debug_subscriber is not None:
                         debug_subscriber.close()
                     if redis_publisher is not None:
