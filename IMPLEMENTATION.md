@@ -10,11 +10,15 @@
 **PR merge**: auto
 **PR**: _(created after last phase)_
 **Design**: docs/features/game-hide/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/game-hide/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                         | File                                                        | Status |
+| --- | ----------------------------- | ----------------------------------------------------------- | ------ |
+| 1   | Détection — `is_game_release` | [phase-01](docs/features/game-hide/plan/phase-01-detect.md) | [ ]    |
+| 2   | Filtre read-model + log       | [phase-02](docs/features/game-hide/plan/phase-02-filter.md) | [ ]    |
+| 3   | ACC + preuve 390 px + gate    | [phase-03](docs/features/game-hide/plan/phase-03-acc.md)    | [ ]    |
 
 ## Review cycles
 
@@ -22,4 +26,4 @@ _(filled by implement:pr-review)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` (phase 1)
