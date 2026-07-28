@@ -6,6 +6,8 @@ Covers :class:`ItemDispatched` emission from both per-action code paths
 - A new movie placement emits ``action="moved"``.
 - A movie dispatched on top of an existing folder emits ``action="replaced"``.
 - A TV merge into an existing folder emits ``action="merged"``.
+- Every emitted event carries ``target_path``, the exact destination folder
+  (plex-refresh D1) — asserted on all three actions through a REAL dispatch.
 - Dry-run dispatches NEVER emit (catalog Notes: ItemDispatched records
   completed transfers only).
 - The factory + envelope round-trip plumbing required for the Phase 4 gate.
@@ -92,6 +94,15 @@ def test_dispatch_movie_emits_item_dispatched_moved(test_config, tmp_path: Path)
     assert event.target_disk == disk_root
     assert event.category_id == "movies"
     assert event.action == "moved"
+    # plex-refresh D1 — the event carries the exact destination FOLDER, not just
+    # the mount point: the Plex trigger scans that one folder, and it cannot
+    # re-derive it from disk + category + name without duplicating the naming
+    # rules. ``target_disk`` alone would scan (or miss) a whole library.
+    assert event.target_path == result.destination, "the event must carry the folder the dispatcher wrote"
+    assert event.target_path is not None
+    assert event.target_path.parent.parent == disk_root, "…under the disk root, in its category folder"
+    assert event.target_path.name == "Inception (2010)"
+    assert event.target_path != event.target_disk
 
 
 def test_dispatch_movie_emits_item_dispatched_replaced(test_config, tmp_path: Path) -> None:
@@ -140,6 +151,9 @@ def test_dispatch_movie_emits_item_dispatched_replaced(test_config, tmp_path: Pa
     assert len(collector.received) == 1
     assert collector.received[0].action == "replaced"
     assert collector.received[0].target_disk == disk_root
+    # plex-refresh D1 — a replace targets the SAME folder the old version
+    # occupied; that is the folder Plex must re-scan for the swap to be seen.
+    assert collector.received[0].target_path == existing_path
 
 
 def test_dispatch_tv_emits_item_dispatched_merged(test_config, tmp_path: Path) -> None:
@@ -189,6 +203,9 @@ def test_dispatch_tv_emits_item_dispatched_merged(test_config, tmp_path: Path) -
     assert collector.received[0].action == "merged"
     assert collector.received[0].item == "Severance"
     assert collector.received[0].target_disk == disk_root
+    # plex-refresh D1 — a merge lands new episodes INSIDE the existing show
+    # folder, so that folder (not the disk, not the season) is what gets scanned.
+    assert collector.received[0].target_path == existing_path
 
 
 def test_dispatch_dry_run_does_not_emit(test_config, tmp_path: Path) -> None:

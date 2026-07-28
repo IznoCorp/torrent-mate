@@ -122,26 +122,19 @@ class TestEventCarriesTargetPath:
 
         assert event.target_path is None
 
-    @pytest.mark.parametrize("action", ["moved", "merged", "replaced"])
-    def test_dispatcher_fills_it_for_every_action(self, action: str) -> None:
-        """The three dispatch actions all carry the exact destination folder.
+    def test_dispatcher_fills_it_for_every_action(self) -> None:
+        """The three actions are covered BEHAVIOURALLY, through a real dispatch.
 
-        Pinned at the EMIT site: ``_item.py`` builds the event with
-        ``target_path=result.destination``, the same path the index
-        write-through and the outbox publish use, so the three records agree.
+        ``tests/dispatch/test_dispatch_events.py`` runs the real dispatcher for
+        ``moved`` / ``replaced`` / ``merged`` and asserts each emitted event
+        carries ``target_path == result.destination``. This test only guards
+        that those assertions still exist, so deleting them cannot pass unnoticed
+        (the behaviour itself is pinned there, not here).
         """
-        import inspect
+        source = Path("tests/dispatch/test_dispatch_events.py").read_text()
 
-        from personalscraper.dispatch import _item
-
-        source = inspect.getsource(_item)
-
-        assert "target_path=result.destination" in source, (
-            "the dispatcher must fill target_path from the destination it just wrote"
-        )
-        # And the emit is reached for every action: the guard admits "moved" and
-        # the family's existing_action (merged for TV, replaced for movies).
-        assert 'result.action in ("moved", spec.existing_action)' in source
+        assert source.count("target_path") >= 3, "each of the three actions must assert target_path"
+        assert "event.target_path == result.destination" in source
 
 
 # ---------------------------------------------------------------------------

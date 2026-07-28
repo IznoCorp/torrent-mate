@@ -23,6 +23,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.59.0] — 2026-07-28
+
+### Added
+
+- **Plex library refresh after every dispatch**. The storage disks are
+  macFUSE/NTFS mounts that deliver no filesystem events to Plex, so dispatched
+  media stayed **invisible** until someone scanned by hand (proven by the Margin
+  Call incident, 2026-07-28: acquisition → dispatch → indexation all green, film
+  on disk with NFO and artwork, absent from Plex).
+  - `api/plex.py` — `PlexClient`: sections fetched once per process, and a
+    PARTIAL scan `GET /library/sections/{id}/refresh?path=<folder>` of the one
+    folder just written. The section is resolved by **longest `Location` prefix**
+    on a path boundary, never a hardcoded id — the four disks each carry several
+    libraries with nested roots, where a first-match resolver scans the wrong
+    one.
+  - `subscribers/plex.py` — `PlexSubscriber`, modelled on `TelegramSubscriber`:
+    reacts to `ItemDispatched`, refreshes off-thread, **fail-soft absolute**
+    (Plex down, 401, unknown path, client bug ⇒ a warning, and the dispatch
+    stays a success).
+  - `PLEX_URL` (default `http://localhost:32400`) + `PLEX_TOKEN` in `Settings`
+    and `.env.example`. **No token ⇒ nothing wired and zero requests.** The token
+    travels in the `X-Plex-Token` header, never a URL, and appears in no log,
+    repr or exception (tests scan every log record over five failure paths).
+  - `docs/reference/plex-api.md` — auth, endpoints, section mapping, the cache
+    lifetime and the no-circuit-breaker trade-off.
+- **`ItemDispatched.target_path`** (additive, defaults to `None`): the exact
+  destination FOLDER of a transfer, filled by the dispatcher for the three
+  actions (moved / merged / replaced). `target_disk` alone is a mount point — a
+  consumer acting on the media itself could not reconstruct the folder without
+  duplicating the naming rules.
+
 ## [0.58.0] — 2026-07-28
 
 ### Changed
