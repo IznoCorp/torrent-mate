@@ -509,3 +509,31 @@ describe("FollowedPanel — add-by-id provider selector (ticket 336)", () => {
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
   });
 });
+
+describe("FollowedPanel — tvdb_unresolved warning (ticket 336 review)", () => {
+  it("shows a « Sans ID TVDB » warning badge for an unresolved show", () => {
+    renderPanel([makeItem({ tvdb_unresolved: true })]);
+    expect(screen.getByText("Sans ID TVDB")).toBeInTheDocument();
+  });
+
+  it("does not show the warning for a resolved show", () => {
+    renderPanel([makeItem({ tvdb_unresolved: false })]);
+    expect(screen.queryByText("Sans ID TVDB")).not.toBeInTheDocument();
+  });
+
+  it("toasts a warning when a followed show comes back tvdb_unresolved", () => {
+    followMock.mockImplementation(
+      (_body: unknown, opts?: { onSuccess?: (item: FollowedSeriesItem) => void }) => {
+        opts?.onSuccess?.(makeItem({ tvdb_unresolved: true }));
+      },
+    );
+    renderPanel([]);
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter par ID" }));
+    fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
+    fireEvent.change(screen.getByLabelText("ID TMDB"), {
+      target: { value: "1399" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(toastMock.warning).toHaveBeenCalled();
+  });
+});

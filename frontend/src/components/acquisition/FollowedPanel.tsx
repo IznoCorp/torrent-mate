@@ -303,6 +303,18 @@ export function FollowedPanel({
                         {statusLabel}
                       </Badge>
                     </span>
+                    {/* An active show with no resolved TVDB id is inert — episode
+                        detection skips it. Surface it persistently (not just a
+                        create-time toast) so a reactivated/resumed follow can
+                        never look healthy while silently detecting nothing
+                        (§méthode: never silently inert). */}
+                    {item.tvdb_unresolved && (
+                      <span title="Détection d'épisodes indisponible : l'ID TVDB de cette série n'a pas pu être résolu. Ajoutez-la par son ID TVDB.">
+                        <Badge tone="warning" dot>
+                          Sans ID TVDB
+                        </Badge>
+                      </span>
+                    )}
                     {/* Kind label — kept as a subtle hint for disambiguation. */}
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}

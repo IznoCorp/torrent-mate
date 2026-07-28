@@ -60,3 +60,38 @@ class TestResolveSeriesTvdb:
         client = MagicMock()
         client.get_tvdb_id.side_effect = RuntimeError("boom")
         assert resolve_series_tvdb(MediaRef(tmdb_id=1399), client) is None
+
+
+class TestDeriveTvdbUnresolved:
+    """_derive_tvdb_unresolved — honest inert-show state on every surface."""
+
+    def _fs(self, ref: MediaRef, *, kind: str = "show", active: bool = True) -> object:
+        from personalscraper.acquire.domain import FollowedSeries
+
+        return FollowedSeries(media_ref=ref, title="T", added_at=0, active=active, kind=kind)
+
+    def test_active_show_without_tvdb_is_unresolved(self) -> None:
+        """An active show with no tvdb_id is inert (poll_known skips it)."""
+        from personalscraper.web.acquisition.service import _derive_tvdb_unresolved
+
+        assert _derive_tvdb_unresolved(self._fs(MediaRef(tmdb_id=1399))) is True
+
+    def test_show_with_tvdb_is_resolved(self) -> None:
+        """A show with a tvdb_id is detectable → not flagged."""
+        from personalscraper.web.acquisition.service import _derive_tvdb_unresolved
+
+        assert _derive_tvdb_unresolved(self._fs(MediaRef(tvdb_id=121361))) is False
+
+    def test_paused_show_without_tvdb_is_not_flagged(self) -> None:
+        """A paused (inactive) show is not searched, so it is not flagged."""
+        from personalscraper.web.acquisition.service import _derive_tvdb_unresolved
+
+        fs = self._fs(MediaRef(tmdb_id=1399), active=False)
+        assert _derive_tvdb_unresolved(fs) is False
+
+    def test_movie_without_tvdb_is_not_flagged(self) -> None:
+        """A film uses the title lifecycle — no TVDB needed, never flagged."""
+        from personalscraper.web.acquisition.service import _derive_tvdb_unresolved
+
+        fs = self._fs(MediaRef(tmdb_id=550), kind="movie")
+        assert _derive_tvdb_unresolved(fs) is False

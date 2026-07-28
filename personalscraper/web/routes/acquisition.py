@@ -756,7 +756,11 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         # detectable, keeping TVDB the detection primary. Films use the §5 title
         # lifecycle and never need a TVDB id. Fail-soft NON silencieux (§méthode):
         # if unresolved, follow anyway but flag it so the UI warns.
-        tvdb_unresolved = False
+        # A series followed by TMDB/IMDB alone has no tvdb_id, but episode
+        # detection needs one — resolve it now so the follow is detectable. When
+        # unresolved, the follow is still created; ``tvdb_unresolved`` is DERIVED
+        # from the stored state by the item builder (honest on every surface),
+        # so nothing is set here beyond upgrading media_ref on success.
         if body.kind == "show" and media_ref.tvdb_id is None:
             resolved_tvdb: int | None = None
             try:
@@ -772,8 +776,6 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
                     tmdb_id=media_ref.tmdb_id,
                     imdb_id=media_ref.imdb_id,
                 )
-            else:
-                tvdb_unresolved = True
 
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
         # detect will produce one movie wanted row and auto-unfollow once acquired.
@@ -800,7 +802,6 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         item.poster_url = metadata.poster_url
         item.overview = metadata.overview
         item.year = metadata.year
-        item.tvdb_unresolved = tvdb_unresolved
         if prime_outcome in ("spawned", "already_running"):
             item.priming_running = True
         return item

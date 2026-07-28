@@ -414,6 +414,24 @@ def _to_search_result(candidate: "DecisionCandidate", kind: str) -> MediaSearchR
 # ── followed-series domain → response mapping ─────────────────────────────
 
 
+def _derive_tvdb_unresolved(fs: FollowedSeries) -> bool:
+    """Whether an active show is inert for lack of a TVDB id.
+
+    Episode detection (``poll_known``) skips any series without a ``tvdb_id``, so
+    an ACTIVE show whose ``media_ref`` has none is inert — it will never detect an
+    episode. Derived from state (not a create-time flag) so it is honest on EVERY
+    surface — create, reactivate, the pause/resume toggle, and the list — never a
+    silently inert follow (§méthode). Movies and paused follows are never flagged.
+
+    Args:
+        fs: The followed-series domain object.
+
+    Returns:
+        ``True`` iff *fs* is an active show with no TVDB id.
+    """
+    return fs.kind == "show" and fs.active and fs.media_ref.tvdb_id is None
+
+
 def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSeriesItem:
     """Convert a :class:`FollowedSeries` domain object to a response item.
 
@@ -438,6 +456,7 @@ def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSer
         added_at=float(fs.added_at),
         wanted_pending=wanted_pending,
         quality_profile=_parse_json_dict(fs.quality_profile_json),
+        tvdb_unresolved=_derive_tvdb_unresolved(fs),
     )
 
 
@@ -469,6 +488,7 @@ def _item_from_followed(fs: FollowedSeries) -> FollowedSeriesItem:
         added_at=float(fs.added_at),
         wanted_pending=0,  # newly created/reactivated → no wanted items yet
         quality_profile=_parse_json_dict(fs.quality_profile_json),
+        tvdb_unresolved=_derive_tvdb_unresolved(fs),
     )
 
 
