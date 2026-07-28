@@ -57,6 +57,13 @@ function SeasonRow({ season }: { season: SeasonCompleteness }): ReactElement {
         >
           {season.owned}/{season.total} en médiathèque
           {season.queued > 0 ? ` · ${String(season.queued)} en cours` : ""}
+          {/* ``announced`` names the future episodes known-but-not-yet-aired
+              (#10). They sit outside owned/total (which count aired only), so
+              surfacing the count here makes the header honest — otherwise the
+              chips show « Annoncé » but the header never says how many. */}
+          {season.announced > 0
+            ? ` · ${String(season.announced)} annoncé${season.announced > 1 ? "s" : ""}`
+            : ""}
         </span>
       </div>
       <div className="flex flex-wrap gap-1">

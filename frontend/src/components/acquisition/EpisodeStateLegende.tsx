@@ -16,9 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { EPISODE_STATE_LABEL, EPISODE_STATE_TONE } from "./meta";
 
 /**
- * The states in reading order — owned first, the future last. Derived from the
- * label map's keys so it can never list a state the maps do not define; the
- * order is a display concern only.
+ * The states in the label map's declaration order (`annonce` first, then the
+ * owned/action states). Derived from the map's keys so the legend can never
+ * list a state the maps do not define; the order is a display concern only.
  */
 const LEGEND_ORDER = Object.keys(
   EPISODE_STATE_LABEL,

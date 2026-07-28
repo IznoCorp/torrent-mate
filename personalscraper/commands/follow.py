@@ -244,14 +244,15 @@ def follow_detect(
 ) -> None:
     """Detect aired episodes for followed series and enqueue them as wanted items.
 
-    Stage A of the DETECT flow: polls the active followed set for aired episodes
-    (one ``poll_aired`` call over the whole set), maps each aired episode back to
-    its followed series via ``media_ref``, skips owned episodes (RP6) and rows
-    already present in the wanted queue, then enqueues the remainder as
-    ``WantedItem(kind='episode', status='pending')`` and emits ``WantedEnqueued``
-    per enqueue.
+    Stage A of the DETECT flow: polls the active followed set for every episode
+    with a known air date (one ``poll_known`` call per series — futures included,
+    cached but never enqueued), maps each back to its followed series via
+    ``media_ref``, keeps only the aired ones (``air_date <= today``), skips owned
+    episodes (RP6) and rows already present in the wanted queue, then enqueues the
+    remainder as ``WantedItem(kind='episode', status='pending')`` and emits
+    ``WantedEnqueued`` per enqueue.
 
-    Both ``poll_aired`` and ``ownership.owns`` are fail-soft: a failure is logged
+    Both ``poll_known`` and ``ownership.owns`` are fail-soft: a failure is logged
     and treated as "no episodes" / "not owned" so one bad series or a missing
     library never aborts the run.
 

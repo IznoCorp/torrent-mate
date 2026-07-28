@@ -387,6 +387,10 @@ describe("CompletenessAccordion — annonce, legend, date popover (episode-state
     expect(
       screen.getByRole("button", { name: /E3 — En médiathèque/ }),
     ).toBeInTheDocument();
+    // The season header surfaces the announced count so it is not dead wire data.
+    expect(
+      screen.getByText(/0\/1 en médiathèque · 1 annoncé/),
+    ).toBeInTheDocument();
   });
 
   it("shows the legend below the matrix, one entry per episode state", () => {
