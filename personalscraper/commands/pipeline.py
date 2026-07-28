@@ -375,6 +375,7 @@ def dispatch(
     from personalscraper.dispatch.run import run_dispatch
     from personalscraper.pipeline_steps import resolve_dispatch_authority
     from personalscraper.subscribers.dispatch_reconcile import build_post_dispatch_reconcile_subscriber
+    from personalscraper.subscribers.plex import build_plex_subscriber
 
     config = ctx.obj.config
     console = state["console"]
@@ -390,6 +391,11 @@ def dispatch(
         app_context.event_bus,
         getattr(app_context, "acquire", None),
     )
+    # Plex refresh trigger, through the SAME single owner the full run uses:
+    # this command is a dispatch composition root too, and a dispatch that
+    # happens here must land in Plex exactly like one from ``run`` (the
+    # Margin Call bug reproduces verbatim on this path otherwise).
+    plex_subscriber = build_plex_subscriber(app_context.event_bus, bundle.settings)
     try:
         # F2 parity: resolve the SAME permit/recorder the full-run
         # DispatchStep injects, via the shared single owner.
@@ -403,6 +409,8 @@ def dispatch(
     finally:
         if reconcile_sub is not None:
             reconcile_sub.close()
+        if plex_subscriber is not None:
+            plex_subscriber.close()
 
     # Post-dispatch index maintenance runs through the single owner
     # shared with the full-run DispatchStep (PIPELINE-CORE-01): the
@@ -639,13 +647,12 @@ def run(
 
     from personalscraper.api.notify.healthchecks import HealthcheckClient
     from personalscraper.api.notify.telegram import TelegramNotifier
-    from personalscraper.api.plex import PlexClient
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.pipeline import Pipeline
     from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
     from personalscraper.subscribers.debug_log import DebugLogSubscriber
-    from personalscraper.subscribers.plex import PlexSubscriber
+    from personalscraper.subscribers.plex import PlexSubscriber, build_plex_subscriber
     from personalscraper.subscribers.redis_stream import build_redis_publisher
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
@@ -730,19 +737,13 @@ def run(
             # Redis event publisher (gate on web.enabled, fail-soft — Redis down
             # must never block the pipeline boot).
             redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
-            # Plex refresh trigger (plex-refresh D3). Wired on the token alone,
-            # deliberately OUTSIDE the ``--headless`` gate: the other subscribers
-            # produce OPERATOR OUTPUT (console, Telegram) which a cron run
-            # legitimately silences, whereas this one makes the dispatched media
-            # visible in Plex — a headless run needs it exactly as much. No token
-            # ⇒ never wired, one info line saying so, and zero requests.
-            if settings.plex_token:
-                plex_subscriber = PlexSubscriber(
-                    app_context.event_bus,
-                    PlexClient(settings.plex_url, settings.plex_token),
-                )
-            else:
-                _run_log.info("plex_refresh_disabled", reason="no_token")
+            # Plex refresh trigger (plex-refresh D3), through the single owner
+            # shared with the standalone ``personalscraper dispatch`` command so
+            # both dispatch entry points behave identically. The token is the
+            # gate, deliberately OUTSIDE ``--headless``: this one makes the
+            # dispatched media visible in Plex rather than producing operator
+            # output, so a cron run needs it exactly as much.
+            plex_subscriber = build_plex_subscriber(app_context.event_bus, settings)
             if verbose:
                 debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:

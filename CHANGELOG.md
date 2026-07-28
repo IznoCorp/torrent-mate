@@ -45,9 +45,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PLEX_URL` (default `http://localhost:32400`) + `PLEX_TOKEN` in `Settings`
     and `.env.example`. **No token ⇒ nothing wired and zero requests.** The token
     travels in the `X-Plex-Token` header, never a URL, and appears in no log,
-    repr or exception (tests scan every log record over five failure paths).
+    repr, exception **or rendered console line** — see below, the record-level
+    guarantee alone was not enough.
+  - Wired through `build_plex_subscriber`, the single owner of the gate, from
+    **both** dispatch composition roots (`run` and the standalone
+    `personalscraper dispatch`): the step-by-step path emits `ItemDispatched`
+    like the full run, so wiring only `run` left it dispatching media that never
+    reached Plex.
   - `docs/reference/plex-api.md` — auth, endpoints, section mapping, the cache
     lifetime and the no-circuit-breaker trade-off.
+
+### Security
+
+- **The Plex token could be printed in clear on stderr.** `PlexSubscriber`
+  logged its fail-soft warning with `exc_info=True`, and the console renderer
+  (`structlog.dev.ConsoleRenderer`) expands a traceback **with frame locals** —
+  every frame between the client and the socket holds the `X-Plex-Token` header.
+  Any exception that was not a `requests.RequestException` (e.g.
+  `UnicodeEncodeError`, raised when an undecodable macFUSE/NTFS filename reaches
+  the URL) therefore printed the credential to the operator's terminal, PM2 log
+  capture and cron mail. The JSON log file was never affected (`format_exc_info`
+  renders no locals). Three changes close it: no `exc_info` on this path (only
+  `error=type(exc).__name__`), `PlexClient.refresh` catches `Exception` so no
+  token-bearing stack escapes, and `allow_redirects=False` so a 302 cannot hand
+  the header to another origin (`requests` strips only `Authorization`). Pinned
+  by tests asserting on the **rendered** output of the production formatter —
+  the pre-existing `caplog.records` assertions could not see a renderer leak.
 - **`ItemDispatched.target_path`** (additive, defaults to `None`): the exact
   destination FOLDER of a transfer, filled by the dispatcher for the three
   actions (moved / merged / replaced). `target_disk` alone is a mount point — a

@@ -26,6 +26,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.api.plex import PlexClient
+    from personalscraper.config import Settings
 
 log = get_logger(__name__)
 
@@ -82,13 +83,61 @@ class PlexSubscriber:
         threading machinery, polluting an operator's run output for a best-effort
         trigger. The client is already fail-soft; this is the second belt.
 
+        Only ``type(exc).__name__`` is logged — NEVER ``exc_info``. The console
+        renderer expands ``exc_info`` into a traceback WITH FRAME LOCALS, and any
+        frame between here and the socket holds the ``X-Plex-Token`` header, so
+        a traceback here printed the credential in clear to the operator's
+        terminal. The exception type is what an operator can act on anyway.
+
         Args:
             target: The dispatched folder (typed loosely — the client owns it).
         """
         try:
             self._client.refresh(target)  # type: ignore[arg-type]  # Path, kept loose for the thread seam
-        except Exception:  # noqa: BLE001 — fail-soft: a dispatch is never failed by its notifier
-            log.warning("plex.refresh_failed", path=str(target), exc_info=True)
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a dispatch is never failed by its notifier
+            log.warning("plex.refresh_failed", path=str(target), error=type(exc).__name__)
 
 
-__all__ = ["PlexSubscriber"]
+def build_plex_subscriber(bus: EventBus, settings: Settings) -> PlexSubscriber | None:
+    """Build + wire the Plex refresh trigger for one dispatch entry point.
+
+    The SINGLE owner of the wiring decision, for the same reason
+    ``resolve_dispatch_authority`` and ``maybe_run_post_dispatch_maintenance``
+    are single owners: the pipeline's ``DispatchStep`` and the standalone
+    ``personalscraper dispatch`` command are BOTH dispatch composition roots and
+    must behave identically. Wiring this in only one of them left the other
+    emitting ``ItemDispatched`` with nobody listening — media on disk, invisible
+    in Plex, which is the exact bug this feature closes (Margin Call).
+
+    The gate is the token alone, deliberately NOT ``--headless``: the other
+    subscribers produce OPERATOR OUTPUT (console, Telegram) that a cron run
+    legitimately silences, whereas this one makes the dispatched media visible
+    in Plex — a headless run needs it exactly as much.
+
+    Fail-soft at construction too: a malformed ``PLEX_URL`` returns ``None``
+    instead of taking the caller's boot down with it.
+
+    Args:
+        bus: The process :class:`EventBus` the subscriber listens on.
+        settings: Environment settings carrying ``plex_url`` / ``plex_token``.
+
+    Returns:
+        A subscribed :class:`PlexSubscriber`, or ``None`` when no token is
+        configured or the client could not be constructed. Callers wire it
+        unconditionally and simply skip a ``None``.
+    """
+    if not settings.plex_token:
+        log.info("plex_refresh_disabled", reason="no_token")
+        return None
+    # Imported here so the caller pays nothing when no token is set, and so the
+    # symbol is resolved at call time (the tests substitute the client).
+    from personalscraper.api.plex import PlexClient  # noqa: PLC0415
+
+    try:
+        return PlexSubscriber(bus, PlexClient(settings.plex_url, settings.plex_token))
+    except Exception as exc:  # noqa: BLE001 — a notifier never breaks the caller's boot
+        log.warning("plex_refresh_unavailable", error=type(exc).__name__)
+        return None
+
+
+__all__ = ["PlexSubscriber", "build_plex_subscriber"]

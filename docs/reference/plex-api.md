@@ -64,10 +64,34 @@ Guarantees, each pinned by a test (`tests/unit/test_plex_refresh.py`):
 - the token never appears in a log record — asserted over five failure paths
   (server down, 401, refresh 403, refresh timeout, unparseable body), scanning
   `record.getMessage()`, `record.args`, `record.msg` and `caplog.text`;
+- the token never appears in the **rendered console output** either — asserted
+  against the formatter production actually installs, over the failure that
+  used to leak it (see below);
 - `repr(PlexClient)` prints the base URL only;
 - `PLEX_TOKEN` is registered in `Settings._SECRET_FIELDS`, so `repr(Settings)`
   shows `plex_token=<masked>`;
 - every request asserts `token not in url` and `token not in params`.
+
+### Three rules that keep the header out of the output
+
+A log record without the token is **not** sufficient: the console handler
+(`logger.py`, `structlog.dev.ConsoleRenderer`) expands `exc_info` into a rich
+traceback **with frame locals**, and every frame between `_get` and the socket
+holds the header dict. Printing a traceback of a failed Plex call therefore
+printed `X-Plex-Token: <token>` in clear on stderr — the operator's terminal,
+PM2 log capture, cron mail. (The JSON file handler uses `format_exc_info`, which
+has no locals, and was never affected.)
+
+1. **Never `exc_info`, anywhere on this path.** Failures log
+   `error=type(exc).__name__`, which is what an operator can act on anyway.
+2. **Catch `Exception`, not `requests.RequestException`.** The narrow catch let
+   a token-bearing stack escape to a caller that logged it with a traceback.
+   The trigger is real, not theoretical: preparing a URL whose path carries a
+   surrogate — an undecodable macFUSE/NTFS filename — raises
+   `UnicodeEncodeError`, which is a `ValueError`.
+3. **`allow_redirects=False`.** `requests` strips only `Authorization` when a
+   redirect changes host; a custom header is forwarded, so a 302 would hand the
+   token to whatever origin the response names.
 
 Finding the token: Plex Web → any item → ⋯ → **Get Info** → **View XML**; the
 `X-Plex-Token` query parameter of the opened URL is it.
@@ -155,12 +179,29 @@ disks.
 No matching section ⇒ `refresh()` logs `plex.no_section_for_path` and returns
 `False`. That is the honest outcome for a library Plex does not know about.
 
+### Operator action — two dispatch targets are in no section
+
+Resolution can only work for roots Plex actually indexes. Cross-checking the
+live `GET /library/sections` against every `(disk, category)` the config allows
+to dispatch (via `conf.resolver.folder_for`) gives **25 covered / 2 uncovered**:
+
+| Disk     | Category             | Folder                                    |
+| -------- | -------------------- | ----------------------------------------- |
+| `disk_1` | `anime`              | `/Volumes/Disk1/medias/series animes`     |
+| `disk_4` | `tv_shows_animation` | `/Volumes/Disk4/medias/series animations` |
+
+Media dispatched to those two folders logs `plex.no_section_for_path` and is
+**never scanned** — the Margin Call symptom persists there. This is a Plex-side
+configuration gap, not a code one: add both folders to the `Séries TV` section
+(section 5) and the trigger covers the whole dispatch surface. Re-run the
+cross-check after any disk or library reorganisation.
+
 ---
 
 ## Sections cache — lifetime
 
-`sections()` fetches once and caches for the **process lifetime**. Sections are
-stable configuration; re-reading them per dispatched item would be one HTTP
+`sections()` fetches lazily and caches for the **process lifetime**. Sections
+are stable configuration; re-reading them per dispatched item would be one HTTP
 request per file for data that does not move.
 
 Consequences, deliberate:
@@ -168,7 +209,15 @@ Consequences, deliberate:
 - a library added to Plex **mid-run** is invisible to the current process; the
   next pipeline run picks it up (the daemon paths are short-lived);
 - a **failed** fetch is not cached — the empty list is returned for that call
-  only, so a Plex that comes back up is used again without a restart.
+  only, so a Plex that comes back up is used again without a restart;
+- the cache is an **optimisation, not an invariant**. One daemon thread runs per
+  dispatched item, so a burst can find the cache empty concurrently and fetch
+  `/library/sections` more than once (measured: 10 simultaneous items ⇒ 10
+  fetches). It is left unlocked on purpose — a lock would serialise the worker
+  threads for a best-effort trigger, and the duplicate fetches all store the
+  same answer. The shared `requests.Session` is likewise used concurrently,
+  which `requests` does not guarantee; the cost of a lost race is one missed
+  refresh, which the next dispatch repairs.
 
 ---
 
@@ -179,20 +228,32 @@ its notifier could not reach a media server would be a lie about what the
 pipeline did (NE-DOIT-PAS-5 forbids the _silent_ failure, not the _survived_
 one — hence a warning at every exit).
 
-| Situation                  | Log                                                                | Result              |
-| -------------------------- | ------------------------------------------------------------------ | ------------------- |
-| Server unreachable         | `plex.sections_unreachable` / `plex.refresh_unreachable` (warning) | `refresh → False`   |
-| Bad token (401)            | `plex.sections_http_error` with the status (never the token)       | `refresh → False`   |
-| Refresh rejected (4xx/5xx) | `plex.refresh_http_error`                                          | `refresh → False`   |
-| Path in no section         | `plex.no_section_for_path`                                         | `refresh → False`   |
-| Non-JSON body              | `plex.sections_unparseable`                                        | `refresh → False`   |
-| Client raises anything     | `plex.refresh_failed` (subscriber, `exc_info`)                     | dispatch unaffected |
-| Success                    | `plex.refresh_triggered` (path, section, title)                    | `refresh → True`    |
+| Situation                       | Log                                                                | Result              |
+| ------------------------------- | ------------------------------------------------------------------ | ------------------- |
+| Server unreachable              | `plex.sections_unreachable` / `plex.refresh_unreachable` (warning) | `refresh → False`   |
+| Bad token (401)                 | `plex.sections_http_error` with the status (never the token)       | `refresh → False`   |
+| Refresh rejected (4xx/5xx)      | `plex.refresh_http_error`                                          | `refresh → False`   |
+| Path in no section              | `plex.no_section_for_path`                                         | `refresh → False`   |
+| Non-JSON / unparseable body     | `plex.sections_unparseable` with `error=<type>`                    | `refresh → False`   |
+| Malformed `Location` shape      | parsed to a section with no roots                                  | `refresh → False`   |
+| Transport raises a non-HTTP exc | `plex.refresh_unreachable` with `error=<type>`                     | `refresh → False`   |
+| Section resolution raises       | `plex.section_resolution_failed` with `error=<type>`               | `refresh → False`   |
+| Client raises anything          | `plex.refresh_failed` (subscriber, `error=<type>`)                 | dispatch unaffected |
+| Success                         | `plex.refresh_triggered` (path, section, title)                    | `refresh → True`    |
+
+`refresh()` is **total**: every caller of `_get` catches `Exception`, not just
+`requests.RequestException`. That matters twice. Fail-soft is the obvious
+reason; the other is the token — see below, a stack that escapes to a caller
+which logs a traceback prints the credential.
 
 The subscriber runs the call on a **daemon thread** (`plex-refresh`), per the
 event-bus performance contract: subscribers return fast or hand the work off. Its
 thread body catches `Exception` as a second belt, because an exception escaping a
 daemon thread prints to stderr and would pollute an operator's run output.
+
+Independently of both belts, `EventBus.emit` wraps every subscriber callback in
+its own `try/except`, so even a failure to _start_ the thread cannot reach the
+dispatcher.
 
 An `ItemDispatched` whose `target_path` is `None` is skipped at DEBUG — the field
 is additive (D1), so a `None` means "this emitter carried no folder", never
@@ -250,10 +311,24 @@ move to the shared transport.
 | `PLEX_URL`   | `http://localhost:32400` | Server root                                                                                                                      |
 | `PLEX_TOKEN` | _(empty)_                | **Gates the feature.** Empty ⇒ the subscriber is never constructed, zero requests, one `plex_refresh_disabled` info line at boot |
 
-Wiring lives in `commands/pipeline.py` next to the Telegram subscribers, gated
-on the token alone and deliberately **outside** the `--headless` gate: the other
-subscribers produce operator output a cron run may silence, while this one makes
-the dispatched media visible — a headless run needs it exactly as much.
+Wiring goes through `subscribers.plex.build_plex_subscriber`, the **single
+owner** of the gate, and both dispatch composition roots call it:
+
+- `commands/pipeline.py::run` — the full pipeline;
+- `commands/pipeline.py::dispatch` — the standalone step.
+
+Both, not one: `personalscraper dispatch` emits `ItemDispatched` exactly like the
+full run, so wiring only `run` left the documented step-by-step path dispatching
+media that never reached Plex — the Margin Call bug, reproduced verbatim. Same
+reasoning as `resolve_dispatch_authority` and
+`maybe_run_post_dispatch_maintenance`, which are single owners for the same
+parity reason.
+
+The gate is the token alone and deliberately **outside** the `--headless` gate:
+the other subscribers produce operator output a cron run may silence, while this
+one makes the dispatched media visible — a headless run needs it exactly as
+much. Construction is fail-soft too: a malformed `PLEX_URL` yields `None` and a
+`plex_refresh_unavailable` warning rather than a failed boot.
 
 ---
 

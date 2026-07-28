@@ -17,13 +17,19 @@ What these tests pin, in the order the DESIGN states it:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import logging
+import re
+import threading
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import requests
+import structlog
 
 from personalscraper.api.plex import PlexClient, PlexSection
 from personalscraper.core.event_bus import EventBus
@@ -87,9 +93,25 @@ class _FakeSession:
         self._responses = list(responses)
         self.calls: list[dict[str, Any]] = []
 
-    def get(self, url: str, *, params: Any = None, headers: Any = None, timeout: Any = None) -> Any:
+    def get(
+        self,
+        url: str,
+        *,
+        params: Any = None,
+        headers: Any = None,
+        timeout: Any = None,
+        allow_redirects: Any = None,
+    ) -> Any:
         """Record the call and return (or raise) the next canned response."""
-        self.calls.append({"url": url, "params": params, "headers": headers, "timeout": timeout})
+        self.calls.append(
+            {
+                "url": url,
+                "params": params,
+                "headers": headers,
+                "timeout": timeout,
+                "allow_redirects": allow_redirects,
+            }
+        )
         nxt = self._responses.pop(0) if self._responses else _FakeResponse(200, _SECTIONS_PAYLOAD)
         if isinstance(nxt, Exception):
             raise nxt
@@ -411,16 +433,21 @@ class TestWiring:
     """No token ⇒ not wired, zero requests; token ⇒ wired at the pipeline boundary."""
 
     def test_pipeline_wires_it_on_the_token_alone(self) -> None:
-        """The run command builds the subscriber iff ``settings.plex_token``."""
+        """The gate is ``settings.plex_token``, owned by the shared builder.
+
+        The gate moved out of the command and into
+        ``build_plex_subscriber`` so the two dispatch composition roots cannot
+        drift apart (F-M2); this pins the gate where it now lives.
+        """
         import inspect
 
-        from personalscraper.commands import pipeline
+        from personalscraper.subscribers import plex
 
-        source = inspect.getsource(pipeline)
+        source = inspect.getsource(plex.build_plex_subscriber)
 
-        assert "if settings.plex_token:" in source
+        assert "if not settings.plex_token:" in source
         assert "PlexSubscriber(" in source
-        assert 'log.info("plex_refresh_disabled"' in source or "plex_refresh_disabled" in source
+        assert "plex_refresh_disabled" in source
 
     def test_subscriber_is_closed_with_the_others(self) -> None:
         """Teardown parity with the Telegram subscriber."""
@@ -462,3 +489,378 @@ def test_parse_sections_tolerates_garbage() -> None:
     assert len(parsed) == 1
     assert isinstance(parsed[0], PlexSection)
     assert (parsed[0].key, parsed[0].title, parsed[0].locations) == ("7", "", ["/a"])
+
+
+# ---------------------------------------------------------------------------
+# F-B1 — the token must not survive the CONSOLE RENDERER either
+#
+# The pre-fix leak: `PlexSubscriber._refresh` logged `exc_info=True`, and the
+# console handler production installs (`logger.py`, ConsoleRenderer) renders a
+# traceback WITH FRAME LOCALS. Any frame holding the request headers — every
+# frame inside `requests`, and the `session.get` call itself — therefore printed
+# `X-Plex-Token: <token>` in clear to stderr.
+#
+# Two reasons the original ACC-03 could not see it:
+#   1. it asserts on caplog RECORDS (message / args / msg), and the leak is
+#      produced by the RENDERER, downstream of the record;
+#   2. the test session swaps ConsoleRenderer for a KeyValueRenderer for speed
+#      (tests/conftest.py::_replace_console_renderer_for_tests), so the rich
+#      traceback never runs under pytest at all.
+# Hence this suite builds the PRODUCTION formatter explicitly and asserts on
+# what an operator's terminal would actually show.
+# ---------------------------------------------------------------------------
+
+
+@contextlib.contextmanager
+def _rendered_console(logger_name: str) -> Iterator[io.StringIO]:
+    """Capture one logger's output through the renderer PRODUCTION uses.
+
+    Mirrors the ``colored`` formatter of ``personalscraper.logger`` (a
+    ``ProcessorFormatter`` over ``structlog.dev.ConsoleRenderer``), which is the
+    component that expands ``exc_info`` into a traceback with frame locals.
+
+    Args:
+        logger_name: The stdlib logger to capture.
+
+    Yields:
+        The buffer receiving the rendered output.
+    """
+    buf = io.StringIO()
+    handler = logging.StreamHandler(buf)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.dev.ConsoleRenderer(colors=True),
+            ],
+        )
+    )
+    logger = logging.getLogger(logger_name)
+    previous_propagate = logger.propagate
+    logger.addHandler(handler)
+    logger.propagate = False
+    try:
+        yield buf
+    finally:
+        logger.removeHandler(handler)
+        logger.propagate = previous_propagate
+
+
+def _visible_text(buf: io.StringIO) -> str:
+    """Return the captured output with ANSI colour escapes removed."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", buf.getvalue())
+
+
+class _LeakySession:
+    """A session whose ``get`` raises a NON-``RequestException``.
+
+    This is the shape of the real failure: ``requests`` raises
+    ``UnicodeEncodeError`` (a ``ValueError``) while preparing a URL whose path
+    carries a surrogate — the macFUSE/NTFS undecodable-filename case — and the
+    ``headers`` argument is a live local of the raising frame, exactly as it is
+    inside ``requests.Session.request``.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def get(
+        self,
+        url: str,
+        *,
+        params: Any = None,
+        headers: Any = None,
+        timeout: Any = None,
+        allow_redirects: Any = None,
+    ) -> Any:
+        """Raise the way ``requests`` does when a surrogate reaches the URL."""
+        self.calls += 1
+        assert headers is not None, "the token-bearing headers must be live in this frame"
+        raise UnicodeEncodeError("utf-8", "\udce9", 0, 1, "surrogates not allowed")
+
+
+class _BrokenClient:
+    """A client whose ``refresh`` raises with the token live in the frame."""
+
+    def __init__(self, token: str) -> None:
+        self._token = token
+
+    def refresh(self, target: Path) -> bool:
+        """Raise a non-``RequestException`` with the headers dict in scope."""
+        headers = {"X-Plex-Token": self._token, "Accept": "application/json"}
+        if headers:
+            raise UnicodeEncodeError("utf-8", "\udce9", 0, 1, "surrogates not allowed")
+        return False
+
+
+class TestTokenNeverReachesRenderedOutput:
+    """F-B1 — the credential must not appear in what the operator's console shows."""
+
+    def test_subscriber_belt_does_not_render_the_token(self) -> None:
+        """A client blowing up must not drag the headers into a rendered traceback."""
+        subscriber = PlexSubscriber(EventBus(), _BrokenClient(_TOKEN))  # type: ignore[arg-type]
+
+        with _rendered_console("personalscraper.subscribers.plex") as buf:
+            subscriber._refresh(Path("/Volumes/Disk1/medias/films/Margin Call (2011)"))
+
+        rendered = _visible_text(buf)
+        assert rendered, "the failure must still be reported (a silent failure is the other bug)"
+        assert "plex.refresh_failed" in rendered
+        assert _TOKEN not in rendered, "the Plex token was rendered to the console"
+        assert "X-Plex-Token" not in rendered
+
+    def test_surrogate_path_does_not_render_the_token(self) -> None:
+        """The proven trigger, end to end: undecodable filename → no leak, no raise."""
+        session = _LeakySession()
+        client = PlexClient("http://localhost:32400", _TOKEN, session=session)  # type: ignore[arg-type]
+        client._sections = [PlexSection("1", "Films", ["/Volumes/Disk1/medias/films"])]
+        subscriber = PlexSubscriber(EventBus(), client)
+        target = Path("/Volumes/Disk1/medias/films/Film \udce9 (2020)")
+
+        with (
+            _rendered_console("personalscraper.subscribers.plex") as sub_buf,
+            _rendered_console("personalscraper.api.plex") as api_buf,
+        ):
+            subscriber._refresh(target)
+
+        rendered = _visible_text(sub_buf) + _visible_text(api_buf)
+        assert session.calls == 1
+        assert _TOKEN not in rendered, "the Plex token was rendered to the console"
+        assert "X-Plex-Token" not in rendered
+
+    def test_the_whole_dispatch_path_renders_no_token(self) -> None:
+        """Through the bus and the worker thread — the operator-visible path."""
+        session = _LeakySession()
+        client = PlexClient("http://localhost:32400", _TOKEN, session=session)  # type: ignore[arg-type]
+        client._sections = [PlexSection("1", "Films", ["/Volumes/Disk1/medias/films"])]
+        bus = EventBus()
+        PlexSubscriber(bus, client)
+
+        with (
+            _rendered_console("personalscraper.subscribers.plex") as sub_buf,
+            _rendered_console("personalscraper.api.plex") as api_buf,
+        ):
+            bus.emit(
+                ItemDispatched(
+                    source="dispatch.movie",
+                    item="Film",
+                    target_disk=Path("/Volumes/Disk1"),
+                    category_id="movies",
+                    action="moved",
+                    target_path=Path("/Volumes/Disk1/medias/films/Film \udce9 (2020)"),
+                )
+            )
+            for thread in threading.enumerate():
+                if thread.name == "plex-refresh":
+                    thread.join(5)
+
+        rendered = _visible_text(sub_buf) + _visible_text(api_buf)
+        assert _TOKEN not in rendered, "the Plex token was rendered to the console"
+
+
+# ---------------------------------------------------------------------------
+# F-M3 — the client's fail-soft must be TOTAL, not just RequestException-deep
+# ---------------------------------------------------------------------------
+
+
+class _RaisingSession:
+    """A session whose ``get`` raises an arbitrary exception."""
+
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+
+    def get(
+        self,
+        url: str,
+        *,
+        params: Any = None,
+        headers: Any = None,
+        timeout: Any = None,
+        allow_redirects: Any = None,
+    ) -> Any:
+        """Raise the injected exception."""
+        raise self._exc
+
+
+class TestClientFailSoftIsTotal:
+    """``refresh`` returns a bool for EVERY failure, never an exception."""
+
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            ValueError("bad value"),
+            TypeError("bad type"),
+            AttributeError("missing attribute"),
+            OSError("device not configured"),
+            MemoryError(),
+            UnicodeEncodeError("utf-8", "\udce9", 0, 1, "surrogates not allowed"),
+            requests.Timeout("timed out"),
+            requests.ConnectionError("refused"),
+            requests.TooManyRedirects("loop"),
+            requests.exceptions.SSLError("bad certificate"),
+        ],
+        ids=[
+            "ValueError",
+            "TypeError",
+            "AttributeError",
+            "OSError",
+            "MemoryError",
+            "UnicodeEncodeError",
+            "Timeout",
+            "ConnectionError",
+            "TooManyRedirects",
+            "SSLError",
+        ],
+    )
+    def test_any_exception_from_the_session_returns_false(self, exc: BaseException) -> None:
+        """Whatever the transport throws, the dispatch sees a bool."""
+        client = PlexClient("http://localhost:32400", _TOKEN, session=_RaisingSession(exc))  # type: ignore[arg-type]
+
+        assert client.sections() == []
+        assert client.refresh(Path("/Volumes/Disk1/medias/films/X")) is False
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": None}]}},
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": 7}]}},
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": "/a/b"}]}},
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": {"path": "/a/b"}}]}},
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": [{"path": 5}]}]}},
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": [None]}]}},
+            {"MediaContainer": {"Directory": [{"key": "1"}]}},
+        ],
+        ids=[
+            "Location-null",
+            "Location-int",
+            "Location-str",
+            "Location-dict",
+            "path-not-str",
+            "Location-holds-null",
+            "Location-absent",
+        ],
+    )
+    def test_malformed_location_never_raises(self, payload: dict[str, Any]) -> None:
+        """A section whose roots are the wrong shape degrades, never explodes."""
+        client, _ = _client(_FakeResponse(200, payload))
+
+        assert client.refresh(Path("/Volumes/Disk1/medias/films/X")) is False
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": None}]}},
+            {"MediaContainer": {"Directory": [{"key": "1", "Location": 7}]}},
+        ],
+        ids=["Location-null", "Location-int"],
+    )
+    def test_malformed_location_parses_to_a_rootless_section(self, payload: dict[str, Any]) -> None:
+        """The entry survives with no roots rather than killing the whole payload."""
+        from personalscraper.api.plex import _parse_sections
+
+        parsed = _parse_sections(payload)
+
+        assert [(s.key, s.locations) for s in parsed] == [("1", [])]
+
+
+class TestRedirectsDoNotCarryTheToken:
+    """F-m4 — ``requests`` strips only ``Authorization`` on a cross-host redirect."""
+
+    def test_both_endpoints_refuse_to_follow_redirects(self) -> None:
+        """A 302 must not forward ``X-Plex-Token`` to another origin."""
+        client, session = _client(_FakeResponse(200, _SECTIONS_PAYLOAD), _FakeResponse(200))
+
+        client.refresh(Path("/Volumes/Disk1/medias/films/X"))
+
+        assert len(session.calls) == 2
+        for call in session.calls:
+            assert call["allow_redirects"] is False, f"{call['url']} may follow a redirect"
+
+
+# ---------------------------------------------------------------------------
+# F-M2 — BOTH dispatch composition roots wire the refresh
+# ---------------------------------------------------------------------------
+
+
+class TestBuilderIsTheSingleOwner:
+    """``build_plex_subscriber`` — one gate, used by every dispatch entry point."""
+
+    def test_no_token_builds_nothing(self) -> None:
+        """No token ⇒ no subscriber, no client, zero requests."""
+        from personalscraper.config import Settings
+        from personalscraper.subscribers.plex import build_plex_subscriber
+
+        bus = EventBus()
+        settings = Settings(_env_file=None, plex_token="")  # type: ignore[call-arg]
+
+        assert build_plex_subscriber(bus, settings) is None
+        assert not bus._subscribers, "nothing may subscribe when the token is absent"
+
+    def test_token_builds_a_subscriber_that_refreshes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A token ⇒ a dispatched folder reaches ``PlexClient.refresh``."""
+        import personalscraper.api.plex as plex_api
+        from personalscraper.config import Settings
+        from personalscraper.subscribers.plex import build_plex_subscriber
+
+        refreshed: list[Path] = []
+
+        class _RecordingClient:
+            def __init__(self, base_url: str, token: str) -> None:
+                self.base_url = base_url
+
+            def refresh(self, target: Path) -> bool:
+                refreshed.append(target)
+                return True
+
+        monkeypatch.setattr(plex_api, "PlexClient", _RecordingClient)
+        bus = EventBus()
+        settings = Settings(_env_file=None, plex_token=_TOKEN)  # type: ignore[call-arg]
+
+        subscriber = build_plex_subscriber(bus, settings)
+        assert subscriber is not None
+        bus.emit(
+            ItemDispatched(
+                source="dispatch.movie",
+                item="Margin Call (2011)",
+                target_disk=Path("/Volumes/Disk1"),
+                category_id="movies",
+                action="moved",
+                target_path=Path("/Volumes/Disk1/medias/films/Margin Call (2011)"),
+            )
+        )
+        for thread in threading.enumerate():
+            if thread.name == "plex-refresh":
+                thread.join(5)
+        subscriber.close()
+
+        assert refreshed == [Path("/Volumes/Disk1/medias/films/Margin Call (2011)")]
+
+    def test_a_construction_failure_never_breaks_the_caller(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A bad PLEX_URL must not take the pipeline boot down with it."""
+        import personalscraper.api.plex as plex_api
+        from personalscraper.config import Settings
+        from personalscraper.subscribers.plex import build_plex_subscriber
+
+        def _explode(base_url: str, token: str) -> Any:
+            raise RuntimeError("bad base url")
+
+        monkeypatch.setattr(plex_api, "PlexClient", _explode)
+        settings = Settings(_env_file=None, plex_token=_TOKEN)  # type: ignore[call-arg]
+
+        assert build_plex_subscriber(EventBus(), settings) is None
+
+
+class TestBothDispatchRootsWireIt:
+    """Parity contract: ``run`` and the standalone ``dispatch`` behave identically."""
+
+    @pytest.mark.parametrize("command", ["run", "dispatch"])
+    def test_command_builds_and_closes_the_subscriber(self, command: str) -> None:
+        """Both dispatch composition roots build the subscriber and close it."""
+        import inspect
+
+        from personalscraper.commands import pipeline
+
+        source = inspect.getsource(getattr(pipeline, command))
+
+        assert "build_plex_subscriber(" in source, f"{command}() must wire the Plex refresh"
+        assert "plex_subscriber.close()" in source, f"{command}() must close the Plex subscriber"

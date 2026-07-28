@@ -7,9 +7,12 @@ and indexed, and stay invisible in Plex until somebody triggered a scan by hand
 
 It is deliberately NOT a general Plex API wrapper. Two calls, one purpose:
 
-- ``sections()`` — ``GET /library/sections``, lazily fetched once per process
-  and cached. Sections are stable configuration; re-reading them per dispatched
-  item would be a request per file for data that does not move.
+- ``sections()`` — ``GET /library/sections``, fetched lazily and cached for the
+  process lifetime. Sections are stable configuration; re-reading them per
+  dispatched item would be a request per file for data that does not move. The
+  cache is an optimisation, not an invariant: the subscriber runs one thread per
+  dispatched item, so a burst can race and fetch more than once (see
+  ``sections()`` for why that is left unlocked).
 - ``refresh(path)`` — ``GET /library/sections/{id}/refresh?path=<folder>``,
   a PARTIAL scan of one folder. The section is resolved by the LONGEST matching
   ``Location`` prefix of the folder, never by a hardcoded id: section ids differ
@@ -24,7 +27,18 @@ really happened must never be reported as a failure by its notifier.
 header, never in a URL, and this module never logs, formats or re-raises a
 value that contains it — including exception text, which is why the HTTP layer
 here is raw ``requests`` rather than the shared transport (whose logging is not
-in this module's control).
+in this module's control). Three rules keep that true, and each one is load-
+bearing:
+
+1. failures log ``error=type(exc).__name__``, never the exception and never
+   ``exc_info`` — the console renderer expands a traceback WITH FRAME LOCALS,
+   and the frames of ``requests`` hold the header dict;
+2. every caller of ``_get`` catches ``Exception``, not just
+   ``requests.RequestException``, so no token-bearing stack can escape to a
+   caller that might log it with a traceback;
+3. redirects are not followed — ``requests`` strips only ``Authorization`` when
+   a redirect changes host, so a 302 would hand ``X-Plex-Token`` to another
+   origin.
 """
 
 from __future__ import annotations
@@ -120,21 +134,42 @@ class PlexClient:
             The raw :class:`requests.Response` (status not checked here).
 
         Raises:
-            requests.RequestException: Propagated to the caller, which is
-                responsible for the fail-soft behaviour. The exception text
-                carries the URL, which is token-free by construction.
+            Exception: Anything the transport throws is propagated to the
+                caller, which is responsible for the fail-soft behaviour. It is
+                NOT limited to ``requests.RequestException``: preparing a URL
+                whose path carries a surrogate (an undecodable macFUSE/NTFS
+                filename) raises ``UnicodeEncodeError``, so every caller here
+                catches ``Exception`` and reports only ``type(exc).__name__``.
+                A caller must never log the exception's traceback: the frames
+                of ``requests`` hold this header dict, and a traceback rendered
+                with locals would print the token in clear.
+
+        ``allow_redirects=False`` is deliberate: ``requests`` strips only the
+        ``Authorization`` header when a redirect changes host, so a 302 would
+        forward ``X-Plex-Token`` to whatever origin the response names.
         """
         return self._session.get(
             f"{self.base_url}{path}",
             params=params,
             headers={"X-Plex-Token": self._token, "Accept": "application/json"},
             timeout=_TIMEOUT,
+            allow_redirects=False,
         )
 
     # -- Sections -----------------------------------------------------------
 
     def sections(self) -> list[PlexSection]:
-        """Return the server's library sections, fetching them at most once.
+        """Return the server's library sections, fetched once on the happy path.
+
+        Caching is best-effort, NOT a guarantee of a single request: the
+        subscriber runs one thread per dispatched item, so several threads can
+        find the cache empty at once and each issue its own
+        ``/library/sections``. That is bounded (they all store the same answer)
+        and deliberately left unlocked — a lock here would serialise the worker
+        threads for a best-effort trigger. For the same reason the shared
+        :class:`requests.Session` is used concurrently, which ``requests`` does
+        not guarantee to be thread-safe; the cost of a lost race is one missed
+        refresh, which the next dispatch repairs.
 
         Returns:
             The sections, or an empty list when Plex is unreachable, refuses the
@@ -146,7 +181,7 @@ class PlexClient:
             return self._sections
         try:
             resp = self._get("/library/sections")
-        except requests.RequestException as exc:
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never break a dispatch
             log.warning("plex.sections_unreachable", base_url=self.base_url, error=type(exc).__name__)
             return []
         if resp.status_code != 200:
@@ -156,10 +191,12 @@ class PlexClient:
             return []
         try:
             payload: Any = resp.json()
-        except ValueError:
-            log.warning("plex.sections_unparseable", base_url=self.base_url)
+            # Parsed INSIDE the guard: a payload whose shape surprises the
+            # parser must degrade the trigger like an unreadable body does.
+            sections = _parse_sections(payload)
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never break a dispatch
+            log.warning("plex.sections_unparseable", base_url=self.base_url, error=type(exc).__name__)
             return []
-        sections = _parse_sections(payload)
         self._sections = sections
         log.info("plex.sections_loaded", count=len(sections))
         return sections
@@ -206,14 +243,23 @@ class PlexClient:
             unreachable server, wrong token, unknown path, non-2xx status. The
             caller treats ``False`` as « nothing happened », never as an error
             worth failing the dispatch over.
+
+        This method is TOTAL: every failure — including one the transport raises
+        that is not a ``requests.RequestException`` — becomes ``False``. Only
+        ``type(exc).__name__`` is ever logged, never the exception itself, whose
+        traceback frames hold the token-bearing headers.
         """
-        section = self.section_for(target)
+        try:
+            section = self.section_for(target)
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never break a dispatch
+            log.warning("plex.section_resolution_failed", error=type(exc).__name__)
+            return False
         if section is None:
             log.warning("plex.no_section_for_path", path=str(target))
             return False
         try:
             resp = self._get(f"/library/sections/{section.key}/refresh", params={"path": str(target)})
-        except requests.RequestException as exc:
+        except Exception as exc:  # noqa: BLE001 — fail-soft: never break a dispatch
             log.warning(
                 "plex.refresh_unreachable",
                 path=str(target),
@@ -238,8 +284,11 @@ def _parse_sections(payload: Any) -> list[PlexSection]:
 
     Tolerant by design: Plex nests the list under ``MediaContainer.Directory``
     and each entry's roots under ``Location[].path``. Anything missing or of the
-    wrong shape yields fewer sections rather than an exception — a malformed
-    payload must degrade the trigger, not break a dispatch.
+    wrong shape yields fewer sections (or a section with no roots) rather than
+    an exception — a malformed payload must degrade the trigger, not break a
+    dispatch. ``Location`` in particular is type-checked before iteration: the
+    key can be present and ``null``, in which case ``dict.get`` returns ``None``
+    and the ``[]`` default never applies.
 
     Args:
         payload: The decoded JSON body.
@@ -258,11 +307,12 @@ def _parse_sections(payload: Any) -> list[PlexSection]:
         key = entry.get("key")
         if not isinstance(key, str) or not key:
             continue
-        locations = [
-            loc.get("path")
-            for loc in entry.get("Location", [])
-            if isinstance(loc, dict) and isinstance(loc.get("path"), str)
-        ]
+        raw_locations = entry.get("Location")
+        locations = (
+            [loc.get("path") for loc in raw_locations if isinstance(loc, dict) and isinstance(loc.get("path"), str)]
+            if isinstance(raw_locations, list)
+            else []
+        )
         title = entry.get("title")
         sections.append(
             PlexSection(
