@@ -23,6 +23,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.57.0] — 2026-07-28
+
+### Added
+
+- **Generic Torznab client** (`personalscraper/api/tracker/torznab.py`):
+  `TorznabDescriptor` (frozen dataclass — provider, base URL, API path, `t=`
+  endpoint names, category mapping, dialect quirks, transport tuning) +
+  `TorznabClient` carrying the whole protocol (HTTP call, XML parse,
+  `torznab:attr` flattening, caps flattening, error taxonomy). Extracted
+  verbatim from the production-proven C411 client, whose behaviour stays pinned
+  byte-identical by its untouched test suite. **Adding a Torznab tracker is now
+  a descriptor plus a logic-free class.**
+- **Tr4ker tracker** (`personalscraper/api/tracker/tr4ker.py`): the second named
+  config — `https://tr4ker.net`, API path `/api/torznab`, activation gated on
+  the single `TR4KER_PASSKEY` secret (sent as the Torznab `apikey=` parameter,
+  per this host's one-variable-per-tracker convention). Enabled in `config/`
+  with priority `["c411", "tr4ker"]`.
+- **`docs/reference/tr4ker-api.md`**: distilled reference — auth, endpoints
+  (`/api/torznab` search, `/api` alias, `/api/torznab/all` cross-seed documented
+  but not wired, `/api/rss` passkey feeds), response mapping, RSS category
+  slugs, operational rules, release-naming grammar, known errors. No secret.
+
+### Changed
+
+- **`TrackerResult.tmdb_id` has a producer again**: the generic client maps the
+  Torznab `tmdbid` attr, which restores the TMDB identity hard-filter (the
+  anti-remake guard) for c411 and tr4ker. Parsing is defensive — absent, empty
+  or non-numeric degrades to `None` (filter no-op), never a wrong drop.
+- **`config.example/tracker.json5`** ships a `tr4ker` entry (disabled) and the
+  updated `PROVIDER_CREDS` comments.
+
+### Removed
+
+- **Torr9 tracker** (`torr9.py`, 578 L, plus its unit suite): torr9.net closed
+  2026-07. `ProviderName.TORR9`, both activation entries, the factory class-map
+  entry, the config providers, `docs/reference/torr9-api.md` and its four sample
+  captures are gone; every test that named it was retargeted to tr4ker. **The
+  historical rows it left in `acquire.db` are untouched** and a dedicated test
+  pins that they stay readable and still veto a deletion (the seeding floors
+  live on the row, and no read path coerces a tracker name into the enum).
+- **`TrackerProviderConfig.enrich_seeders` / `enrich_seeders_top_k`**: consumed
+  only by the removed client (it owned the sole per-torrent detail endpoint) and
+  set by no config file.
+
 ## [0.55.0] — 2026-07-27
 
 ### Added

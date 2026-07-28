@@ -2,8 +2,13 @@
 
 Tracker: **C411** (private French tracker, multi-content).
 Base URL: `https://c411.org`
+Client: `personalscraper/api/tracker/c411.py` — the **first named config of the
+generic Torznab client** (`api/tracker/torznab.py`). The module holds no protocol
+logic: a `TorznabDescriptor` (base URL, `/api` path, `apikey=` query auth, dialect
+quirks, transport tuning) plus its activation ClassVars. Everything documented
+below about the Torznab dialect is implemented once, in the generic engine, and
+shared with the second config — see [`tr4ker-api.md`](tr4ker-api.md).
 Source material: TorrentMaker `docs/C411/api/` (`INDEX.md`, `Reference.md`, `ArrStack.md`, `upload.md`).
-Phase 20 will implement `personalscraper/api/tracker/c411.py` consuming this reference.
 
 ---
 
