@@ -23,6 +23,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.58.0] — 2026-07-28
+
+### Changed
+
+- **Film cards follow the same row-selection rule as episodes** (D3 — VISIBLE
+  CHANGE). `compute_movie_truth` now delegates to `select_wanted_facts`: only
+  OPEN `wanted` rows speak, newest first. A film whose only row is closed
+  (`done` / `abandoned`) therefore derives from no-row facts and reads
+  **« Non vérifié »** where it used to read « En attente » — a queue state for
+  an item that is no longer in any queue, carried by the stale verdict of a
+  finished acquisition.
+  This settles an item the PR #320 review left « à arbitrer »: the film card
+  kept a most-recent-row-of-any-status fallback the episode matrix never had,
+  justified by « a film has no episode matrix to contradict it ». The
+  arbitration is **one rule everywhere** — a closed row is history, not state.
+  Ownership is untouched: a film on disk whose row was closed still reads
+  « À jour », because the library fact is read separately from the queue facts.
+  Open-row cases are byte-identical.
+
+### Fixed
+
+- **`GET /api/acquisition/followed` no longer scans `pipeline_run`** (m24):
+  indexer migration `016_pipeline_run_open_command` adds
+  `idx_pipeline_run_open_command ON pipeline_run (command) WHERE ended_at IS NULL`.
+  Partial by design — only the handful of open runs are indexed, so it stays
+  tiny on an append-only table nothing prunes, and rows leave it as soon as
+  `ended_at` is stamped. Applied at web boot by the lifespan migration pass
+  (additive, no data change).
+
 ## [0.57.0] — 2026-07-28
 
 ### Added
