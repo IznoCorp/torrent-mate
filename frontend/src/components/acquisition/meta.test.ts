@@ -39,6 +39,7 @@ const FOLLOW_STATUSES: readonly FollowStatus[] = [
 
 /** The five per-episode states the backend serves (schema.d.ts truth). */
 const EPISODE_STATES: readonly EpisodeState[] = [
+  "annonce",
   "en_mediatheque",
   "a_recuperer",
   "en_acquisition",
@@ -108,6 +109,7 @@ describe("EPISODE state vocabulary", () => {
     ["en_acquisition", "En cours d'acquisition", "info"],
     ["en_attente", "En attente", "neutral"],
     ["non_verifie", "Non vérifié", "neutral"],
+    ["annonce", "Annoncé", "info"],
   ])("maps %s to its label and tone", (state, label, tone) => {
     expect(EPISODE_STATE_LABEL[state as EpisodeState]).toBe(label);
     expect(EPISODE_STATE_TONE[state as EpisodeState]).toBe(tone);

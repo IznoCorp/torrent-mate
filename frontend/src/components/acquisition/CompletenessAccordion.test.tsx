@@ -33,6 +33,8 @@ function makeCompleteness(
         owned: 1,
         queued: 0,
         total: 2,
+
+        announced: 0,
         episodes: [
           {
             episode: 1,
@@ -117,6 +119,8 @@ describe("CompletenessAccordion — les cinq états par épisode (phase 8)", () 
             owned: 1,
             queued: 2,
             total: 5,
+
+            announced: 0,
             episodes: [
               {
                 episode: 1,
@@ -169,6 +173,8 @@ describe("CompletenessAccordion — les cinq états par épisode (phase 8)", () 
             owned: 3,
             queued: 2,
             total: 6,
+
+            announced: 0,
             episodes: [
               { episode: 1, state: "a_recuperer", title: null, air_date: null },
             ],
@@ -193,6 +199,8 @@ describe("CompletenessAccordion — les cinq états par épisode (phase 8)", () 
             owned: 6,
             queued: 0,
             total: 6,
+
+            announced: 0,
             episodes: [
               {
                 episode: 1,
@@ -221,6 +229,8 @@ describe("CompletenessAccordion — le motif d'attente (phase 8)", () => {
             owned: 0,
             queued: 0,
             total: 3,
+
+            announced: 0,
             episodes: [
               {
                 episode: 1,
@@ -268,6 +278,8 @@ describe("CompletenessAccordion — le motif d'attente (phase 8)", () => {
             owned: 0,
             queued: 0,
             total: 1,
+
+            announced: 0,
             episodes: [
               {
                 episode: 1,
