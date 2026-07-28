@@ -47,7 +47,23 @@ visuelle est faite sur `tm.` (prod) après le merge/déploiement.
 
 ## Review cycles
 
-_(filled by implement:pr-review)_
+### Cycle 1 — adversarial `code-reviewer` (PR #335, 2026-07-28)
+
+**Verdict : BLOCKER trouvé — invariant précision-first CASSÉ** (bon catch de la review).
+Matcher les tokens de `GAME_RELEASE_GROUPS` **n'importe où** dans le nom masquait de vrais
+films dont le TITRE est aussi un nom de groupe scène (_The Matrix **Reloaded**_, _The **Switch**_,
+_A **Prophet**_, _Plaza Suite_) — 10 vrais médias auraient disparu silencieusement. Corrigé
+(commit `58aaabf7`) :
+
+- **Group tokens ancrés à la position release-group** (`Title-GROUP`, après le dernier `-`) —
+  un mot de titre n'y est jamais ; les vrais repacks (`…-Mephisto`, `…-RUNE`) matchent toujours.
+- Token plateforme faible `switch` retiré (le film « The Switch ») — `nsw` conservé.
+- Token version nu (`vX.Y`) retiré comme signal — les fan-edits versionnés (`…Final.Cut.v2.0`)
+  restent visibles.
+- (MEDIUM) log `staging_game_hidden` promu **INFO** (visible au niveau par défaut, §méthode).
+- (LOW) entrée morte `i_know` retirée (le tokenizer la coupait).
+- **7 tests de régression précision** ajoutés ; preuve données réelles re-vérifiée (Marvels
+  masqué via le groupe Mephisto, Top Chef visible).
 
 ## Next action
 
