@@ -267,6 +267,31 @@ class TMDBClient(
             raise TypeError(f"Expected dict response, got {type(raw).__name__}")
         return parse_media_details(raw, "tmdb")
 
+    def find_by_imdb(self, imdb_id: str) -> int | None:
+        """Resolve an IMDb id to a TMDB TV show id via the Find endpoint.
+
+        Uses ``GET /find/{imdb_id}?external_source=imdb_id`` — the reverse
+        cross-reference — and returns the id of the first TV result. Movies are
+        ignored here (the caller only needs the TV cross-reference to reach TVDB).
+
+        Args:
+            imdb_id: The IMDb id (e.g. ``"tt0137523"``).
+
+        Returns:
+            The TMDB TV show id, or ``None`` when the id resolves to no TV show
+            (or to a movie/person only).
+        """
+        params: dict[str, object] = {"external_source": "imdb_id"}
+        raw = self._transport.get(f"/find/{imdb_id}", params=params)
+        if not isinstance(raw, dict):
+            raise TypeError(f"Expected dict response, got {type(raw).__name__}")
+        tv_results = raw.get("tv_results")
+        if not isinstance(tv_results, list) or not tv_results:
+            return None
+        first = tv_results[0]
+        tmdb_id = first.get("id") if isinstance(first, dict) else None
+        return int(tmdb_id) if isinstance(tmdb_id, int) else None
+
     def get_tv_season(self, tv_id: int, season: int) -> SeasonDetails:
         """Fetch season details with episodes and artwork.
 

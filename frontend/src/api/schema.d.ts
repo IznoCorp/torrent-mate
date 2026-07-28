@@ -2832,6 +2832,11 @@ export interface components {
             /** Title */
             title: string;
             /**
+             * Tvdb Unresolved
+             * @default false
+             */
+            tvdb_unresolved: boolean;
+            /**
              * Wanted Grabbed
              * @default 0
              */

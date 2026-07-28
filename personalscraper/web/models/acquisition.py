@@ -121,6 +121,13 @@ class FollowedSeriesItem(BaseModel):
     #: itself (a runtime fact, not a property of the persisted counts).
     priming_running: bool = False
 
+    #: ``True`` when a series was followed by TMDB/IMDB id but its TVDB id could
+    #: not be resolved — episode detection (``poll_known``) needs a TVDB id, so
+    #: the follow is created but flagged so the UI can warn (never a silent inert
+    #: follow, §méthode). Always ``False`` for films and for TVDB follows. Set by
+    #: the create route only; transient, never persisted.
+    tvdb_unresolved: bool = False
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def status(self) -> FollowStatus:

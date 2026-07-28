@@ -34,6 +34,7 @@ from personalscraper.web.models.pipeline import parse_steps_json
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from personalscraper.core.identity import MediaRef
     from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 logger = get_logger(__name__)
@@ -272,6 +273,51 @@ def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]
                 app_context.acquire.close()
             except Exception:  # noqa: BLE001 — same contract
                 logger.warning("acquisition_acquire_context_close_failed", exc_info=True)
+
+
+def resolve_series_tvdb(media_ref: MediaRef, tmdb_client: Any) -> int | None:
+    """Resolve the TVDB id for a series followed by TMDB/IMDB alone.
+
+    Episode detection (``poll_known``) skips any series whose ``media_ref`` has no
+    ``tvdb_id``, so a TMDB/IMDB-only follow would be inert. This backfills the
+    TVDB id via TMDB's cross-reference, keeping TVDB the detection primary
+    (multi-provider separation): TMDB/IMDB only resolve it.
+
+    - ``tvdb_id`` already set → returned as-is (no provider call).
+    - ``tmdb_id`` set → ``get_tv(tmdb_id).external_ids['tvdb']``.
+    - ``imdb_id`` only → ``find_by_imdb`` → tmdb id → the same TVDB extraction.
+
+    Fail-soft: any provider error, a missing TVDB cross-reference, or a malformed
+    id degrades to ``None`` — the caller still creates the follow (flagged
+    unresolved), never inert-and-silent (§méthode).
+
+    Args:
+        media_ref: The follow's provider IDs.
+        tmdb_client: The request-scoped TMDB client (``get_tv`` + ``find_by_imdb``).
+
+    Returns:
+        The resolved TVDB series id, or ``None`` when it cannot be resolved.
+    """
+    if media_ref.tvdb_id is not None:
+        return media_ref.tvdb_id
+    try:
+        tmdb_id = media_ref.tmdb_id
+        if tmdb_id is None and media_ref.imdb_id is not None:
+            tmdb_id = tmdb_client.find_by_imdb(media_ref.imdb_id)
+        if tmdb_id is None:
+            return None
+        details = tmdb_client.get_tv(tmdb_id)
+        raw = details.external_ids.get("tvdb")
+        if raw is None:
+            return None
+        resolved: int = int(raw)
+        return resolved
+    except (ValueError, TypeError):
+        # A malformed (non-numeric) TVDB external id — treat as unresolved.
+        return None
+    except Exception as exc:  # noqa: BLE001 — fail-soft: never block the follow
+        logger.warning("acquisition_follow_tvdb_resolve_failed", error=str(exc))
+        return None
 
 
 def run_media_search(

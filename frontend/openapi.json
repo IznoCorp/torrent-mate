@@ -1491,6 +1491,11 @@
             "title": "Title",
             "type": "string"
           },
+          "tvdb_unresolved": {
+            "default": false,
+            "title": "Tvdb Unresolved",
+            "type": "boolean"
+          },
           "wanted_grabbed": {
             "default": 0,
             "title": "Wanted Grabbed",

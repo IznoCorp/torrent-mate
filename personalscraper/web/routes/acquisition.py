@@ -56,6 +56,7 @@ from personalscraper.web.acquisition.service import (
     _item_from_followed,
     _list_deferred_torrents,
     _query_watcher_recent_runs,
+    resolve_series_tvdb,
     run_media_search,
     scoped_provider_clients,
 )
@@ -750,6 +751,30 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
                 item.priming_running = True
             return item
 
+        # A series followed by TMDB/IMDB alone has no tvdb_id, but episode
+        # detection (poll_known) needs one — resolve it now so the follow is
+        # detectable, keeping TVDB the detection primary. Films use the §5 title
+        # lifecycle and never need a TVDB id. Fail-soft NON silencieux (§méthode):
+        # if unresolved, follow anyway but flag it so the UI warns.
+        tvdb_unresolved = False
+        if body.kind == "show" and media_ref.tvdb_id is None:
+            resolved_tvdb: int | None = None
+            try:
+                with scoped_provider_clients(request) as (tmdb_client, _tvdb_client):
+                    resolved_tvdb = resolve_series_tvdb(media_ref, tmdb_client)
+            except Exception as exc:  # noqa: BLE001 — incl. the 502 the builder raises
+                # A registry that cannot be built must not 500 the follow — mirror
+                # _resolve_follow_metadata's fail-soft contract (§7).
+                logger.warning("acquisition_follow_tvdb_registry_failed", error=str(exc))
+            if resolved_tvdb is not None:
+                media_ref = MediaRef(
+                    tvdb_id=resolved_tvdb,
+                    tmdb_id=media_ref.tmdb_id,
+                    imdb_id=media_ref.imdb_id,
+                )
+            else:
+                tvdb_unresolved = True
+
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
         # detect will produce one movie wanted row and auto-unfollow once acquired.
         series = FollowedSeries(
@@ -775,6 +800,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         item.poster_url = metadata.poster_url
         item.overview = metadata.overview
         item.year = metadata.year
+        item.tvdb_unresolved = tvdb_unresolved
         if prime_outcome in ("spawned", "already_running"):
             item.priming_running = True
         return item
