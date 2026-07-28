@@ -155,6 +155,40 @@ describe("ATraiterList", () => {
     expect(link.getAttribute("href")).toBe("/medias?media=abc123");
   });
 
+  it("lays the title+reason row out so it cannot overflow a narrow viewport (mobile-shell)", () => {
+    // Class-contract guard (jsdom does not lay out — a real 390 px overflow
+    // check is vacuous here; that is ACC-05 in Chrome). The reason span used to
+    // run to 403 px on `/` because `truncate`/`break-words` on inline spans in a
+    // plain block are ignored. This pins the flex row that makes them effective:
+    // the title truncates, the reason wraps (never hidden — it is the actionable
+    // "why"), and the row itself is min-w-0 + flex-wrap.
+    stagingMock.mockReturnValue({
+      data: response([
+        item({
+          id: "over1",
+          title: "Fight Club",
+          blocked_reason: "Bloqué : aucun poster trouvé",
+          position_state: "blocked",
+        }),
+      ]),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderList();
+
+    const title = screen.getByText("Fight Club");
+    expect(title.className).toContain("truncate");
+
+    const reason = screen.getByText("Bloqué : aucun poster trouvé");
+    expect(reason.className).toContain("break-words");
+
+    // Title and reason share the same flex-wrap, min-w-0 row.
+    const row = title.parentElement;
+    expect(row?.className).toContain("flex-wrap");
+    expect(row?.className).toContain("min-w-0");
+  });
+
   it("falls back to match-state label when blocked_reason is absent", () => {
     stagingMock.mockReturnValue({
       data: response([

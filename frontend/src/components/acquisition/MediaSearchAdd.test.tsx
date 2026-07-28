@@ -57,6 +57,21 @@ describe("MediaSearchAdd", () => {
     expect(screen.queryByText("Dune")).not.toBeInTheDocument();
   });
 
+  it("keeps the search row inside a narrow viewport (mobile-shell: input min-w-0, row flex-wrap)", () => {
+    // Class-contract guard (jsdom does not lay out, so a real 390 px overflow
+    // measurement is vacuous here — that is ACC-05 in Chrome). This pins the two
+    // structural fixes that stop « Chercher » overflowing past 390 px: the input
+    // column may shrink, and the kind-filter/Chercher row wraps the button below
+    // instead of pushing it off-screen.
+    render(<MediaSearchAdd />);
+
+    const input = screen.getByLabelText("Rechercher un média à suivre");
+    expect(input.parentElement?.className).toContain("min-w-0");
+
+    const chercher = screen.getByRole("button", { name: "Chercher" });
+    expect(chercher.parentElement?.className).toContain("flex-wrap");
+  });
+
   it("renders results after submitting and follows on click", () => {
     render(<MediaSearchAdd />);
     fireEvent.change(

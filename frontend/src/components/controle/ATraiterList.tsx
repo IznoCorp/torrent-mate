@@ -188,16 +188,23 @@ export function ATraiterList(): ReactElement {
                 className="w-8 shrink-0 rounded-sm"
               />
 
-              {/* Title + reason */}
-              <div className="min-w-0 flex-1">
-                <span className="truncate text-sm">{item.title}</span>
-                <span className="ml-2 text-xs text-muted-foreground">
+              {/* Title + reason — a flex-wrap row so `truncate` on the title
+                  and `break-words` on the reason are actually effective (inline
+                  spans in a plain block ignore both, which let the reason run to
+                  403 px on `/` at 390 px width). `min-w-0` lets each flex child
+                  shrink below its content; the reason WRAPS rather than
+                  truncating, because on the operator's attention list its text
+                  is the actionable "why", not a decorative subtitle. `gap-x-2`
+                  replaces the former `ml-2` spacing. */}
+              <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+                <span className="min-w-0 truncate text-sm">{item.title}</span>
+                <span className="min-w-0 break-words text-xs text-muted-foreground">
                   {reasonLabel(item)}
                 </span>
                 {/* A1: durable deferral trace chip */}
                 {continuationRequestedLabel(item.continuation_requested_at) !==
                   null && (
-                  <span className="ml-2 inline-flex items-center rounded border border-border px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+                  <span className="inline-flex shrink-0 items-center rounded border border-border px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
                     {continuationRequestedLabel(item.continuation_requested_at)}
                   </span>
                 )}

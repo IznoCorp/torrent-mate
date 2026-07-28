@@ -23,6 +23,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.59.1] — 2026-07-28
+
+### Fixed
+
+- **The mobile web UI no longer scrolls horizontally.** At 390 px the `/`
+  (Contrôle) route scrolled 13 px sideways, which made the `position: fixed`
+  bottom tab bar drift with the page; four other routes had children reaching up
+  to 444 px, clipped only by an ancestor `overflow-hidden` (latent bombs). Two
+  layers of fix:
+  - **Structural clamp (the net).** `AppShell` root `<div>` gains
+    `overflow-x-clip` and `<main>` gains `min-w-0 overflow-x-clip`, so no child
+    can ever widen the layout viewport and no page-level horizontal scroll is
+    possible — whatever a future page does. `BottomTabBar` tabs gain `min-w-0`
+    so a label truncates instead of widening the fixed bar. `clip`, not
+    `hidden`, so the shell never becomes an accidental scroll container. Guarded
+    by a class-contract test (JSDOM does not lay out, so a `scrollWidth`
+    assertion would be vacuous; the real 390 px Chrome proof is out-of-band).
+  - **The two culprits, fixed at source** (so the content is right, not merely
+    clipped): the `/` "À traiter" row now lays title + reason in a
+    `flex-wrap min-w-0` row where the title truncates and the reason **wraps**
+    (it is the actionable "why", never hidden); the `/acquisition` search row
+    now lets the input shrink (`min-w-0`) and wraps (`flex-wrap`) so the
+    « Chercher » button drops below the kind filter on a narrow viewport instead
+    of overflowing to 430 px. Desktop (≥ sm/md) layout is unchanged.
+
 ## [0.59.0] — 2026-07-28
 
 ### Added
