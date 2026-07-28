@@ -34,12 +34,22 @@ class ItemDispatched(Event):
         action: ``"moved"`` (new placement), ``"merged"`` (TV merge into
             existing folder), or ``"replaced"`` (movie overwrite of an
             existing folder).
+        target_path: The exact destination FOLDER of the transfer (e.g.
+            ``/Volumes/Disk2/medias/films/Inception (2010)``), as opposed to
+            ``target_disk`` which is only the mount point. Additive with a
+            ``None`` default (D1): every existing emitter and consumer keeps
+            working, and the dispatcher fills it. A consumer that needs to act
+            on the media itself — the Plex refresh trigger, which must scan ONE
+            folder rather than a whole section — cannot reconstruct this path
+            from disk + category + item name without re-deriving the naming
+            rules, so the event carries what the dispatcher already knows.
     """
 
     item: str
     target_disk: Path
     category_id: str
     action: Literal["moved", "merged", "replaced"]
+    target_path: Path | None = None
 
 
 __all__ = ["ItemDispatched"]

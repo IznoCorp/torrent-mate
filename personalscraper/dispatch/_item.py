@@ -494,6 +494,11 @@ def _dispatch_item(
                 target_disk=target_disk_path,
                 category_id=category_id,
                 action=dispatched_action,
+                # D1 — the exact destination folder. The guard above already
+                # proved ``result.destination`` is not None on this branch, and
+                # it is the same path the index write-through and the outbox
+                # publish just used, so the three records agree by construction.
+                target_path=result.destination,
             ),
         )
 

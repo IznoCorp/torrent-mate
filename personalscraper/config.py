@@ -42,6 +42,8 @@ class Settings(BaseSettings):
         telegram_bot_token: Telegram bot token for notifications.
         telegram_chat_id: Telegram chat/user ID for notifications.
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring.
+        plex_url: Plex server root for the post-dispatch library refresh.
+        plex_token: Plex auth token; empty disables the refresh subscriber.
         web_password_hash: scrypt-hashed password for web UI login.
         web_jwt_secret: HS256 secret key for JWT session tokens.
     """
@@ -72,6 +74,11 @@ class Settings(BaseSettings):
     # Monitoring (optional)
     healthcheck_url: str = ""
 
+    # Plex — post-dispatch library refresh (optional). An empty token leaves the
+    # subscriber unwired: no request is ever made and the pipeline logs once why.
+    plex_url: str = "http://localhost:32400"
+    plex_token: str = ""
+
     # TorrentMate Web UI
     web_password_hash: str = ""
     web_jwt_secret: str = ""
@@ -85,6 +92,7 @@ class Settings(BaseSettings):
             "youtube_api_key",
             "telegram_bot_token",
             "healthcheck_url",
+            "plex_token",
             "web_password_hash",
             "web_jwt_secret",
         }
