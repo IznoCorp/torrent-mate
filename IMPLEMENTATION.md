@@ -30,7 +30,7 @@ le distillé n'en reprend aucune trace, le brut est supprimé en fin de feature.
 | --- | ----------------------------------------- | ------------------------------------------------------------------------ | ------ |
 | 1   | Generic Torznab extrait de C411 (pinné)   | [phase-01](docs/features/torznab/plan/phase-01-generic-torznab.md)       | [x]    |
 | 2   | Client Tr4ker + activation + config       | [phase-02](docs/features/torznab/plan/phase-02-tr4ker.md)                | [x]    |
-| 3   | Retrait torr9 (code, tests, activation)   | [phase-03](docs/features/torznab/plan/phase-03-remove-torr9.md)          | [ ]    |
+| 3   | Retrait torr9 (code, tests, activation)   | [phase-03](docs/features/torznab/plan/phase-03-remove-torr9.md)          | [x]    |
 | 4   | Docs + .env.example                       | [phase-04](docs/features/torznab/plan/phase-04-docs-env.md)              | [ ]    |
 | 5   | Vérification réelle + ACC + gate finale   | [phase-05](docs/features/torznab/plan/phase-05-verify-acc.md)            | [ ]    |
 
