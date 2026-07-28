@@ -603,6 +603,11 @@ def scan_staging_media(
     Returns:
         The unsorted, unfiltered list of staged media items.
     """
+    # Local import: keeps the sorter dependency off the module-load path for
+    # callers that only need the read-model models, and sidesteps any web↔sorter
+    # import-ordering concern.
+    from personalscraper.sorter.game import is_game_release
+
     pending = _load_pending_decisions(db_path)
     live_stage_key = _STEP_TO_STAGE.get(live_step) if live_step else None
     # One shared read-only verifier for the whole scan (§méthode rule 6: the UI
@@ -631,6 +636,13 @@ def scan_staging_media(
                 continue
             if _is_artifact_dir(child):
                 logger.debug("staging_artifact_dir_skipped", category=category, folder=child.name)
+                continue
+            if is_game_release(child):
+                # A game (disc image + game signal) is not media — hide it from the
+                # médiathèque (product-intent §2 véridicité). Logged, never a silent
+                # disappearance (§méthode). Precision-first: a movie/TV disc image is
+                # not matched (see sorter.game), so real media stays visible.
+                logger.debug("staging_game_hidden", category=category, folder=child.name)
                 continue
             items.append(
                 _build_item(
