@@ -24,7 +24,7 @@ si tr4ker rend les épisodes American Dad disponibles.
 
 | #   | Phase                                         | File                                                              | Status |
 | --- | --------------------------------------------- | ----------------------------------------------------------------- | ------ |
-| 1   | M9 — hash d'intention pré-add                 | [phase-01](docs/features/acq-debt/plan/phase-01-intent-hash.md)   | [ ]    |
+| 1   | M9 — hash d'intention pré-add                 | [phase-01](docs/features/acq-debt/plan/phase-01-intent-hash.md)   | [x]    |
 | 2   | m15 — taxons d'erreur SearchOutcome           | [phase-02](docs/features/acq-debt/plan/phase-02-error-taxa.md)    | [ ]    |
 | 3   | M6 + m23 — I/O borné + registry fermé         | [phase-03](docs/features/acq-debt/plan/phase-03-bounded-io.md)    | [ ]    |
 | 4   | D3 + m24 — carte film + index partiel         | [phase-04](docs/features/acq-debt/plan/phase-04-film-index.md)    | [ ]    |
