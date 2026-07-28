@@ -20,7 +20,7 @@ la file wanted ne prend que les diffusés (un futur n'est pas cherchable).
 | #   | Phase                                   | File                                                              | Status |
 | --- | --------------------------------------- | ----------------------------------------------------------------- | ------ |
 | 1   | Backend — cache élargi + état `annonce` | [phase-01](docs/features/episode-states/plan/phase-01-backend.md) | [x]    |
-| 2   | UI — statut, légende, date au clic      | [phase-02](docs/features/episode-states/plan/phase-02-ui.md)      | [ ]    |
+| 2   | UI — statut, légende, date au clic      | [phase-02](docs/features/episode-states/plan/phase-02-ui.md)      | [x]    |
 | 3   | ACC + preuve 390 px + gate              | [phase-03](docs/features/episode-states/plan/phase-03-acc.md)     | [ ]    |
 
 ## Next action
