@@ -17,7 +17,7 @@
         },
       },
       torr9: {
-        enabled: true,
+        enabled: false, // tracker closed (torr9.net down) — replaced by tr4ker; disabled to stop per-pass timeouts
         cross_seed: false,
         economy: {
           target_ratio: 2.0,
@@ -27,7 +27,7 @@
         },
       },
     },
-    priority: ["c411", "torr9"],
+    priority: ["c411"],
     max_total_results: 50,
     max_per_tracker: 30,
     timeout_per_tracker: 15,
