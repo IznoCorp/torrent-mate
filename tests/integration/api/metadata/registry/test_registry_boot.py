@@ -59,7 +59,7 @@ def test_boot_raises_registry_config_error_when_tmdb_key_missing(monkeypatch):
     monkeypatch.setattr(
         _factory,
         "build_providers",
-        lambda provider_names, settings_arg, cb_policy_arg, event_bus_arg: {},
+        lambda provider_names, settings_arg, cb_policy_arg, event_bus_arg, retry_arg=None: {},
     )
     # Restore real credential validation (don't patch _CRED_MAP like unit tests do).
     # But empty providers dict means no _check_empty_chain_sections triggers
