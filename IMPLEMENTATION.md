@@ -16,7 +16,7 @@
 
 | #   | Phase                         | File                                                        | Status |
 | --- | ----------------------------- | ----------------------------------------------------------- | ------ |
-| 1   | Détection — `is_game_release` | [phase-01](docs/features/game-hide/plan/phase-01-detect.md) | [ ]    |
+| 1   | Détection — `is_game_release` | [phase-01](docs/features/game-hide/plan/phase-01-detect.md) | [x]    |
 | 2   | Filtre read-model + log       | [phase-02](docs/features/game-hide/plan/phase-02-filter.md) | [ ]    |
 | 3   | ACC + preuve 390 px + gate    | [phase-03](docs/features/game-hide/plan/phase-03-acc.md)    | [ ]    |
 
