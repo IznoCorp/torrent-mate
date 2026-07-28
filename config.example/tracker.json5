@@ -1,11 +1,12 @@
 {
   // PROVIDER_CREDS (activation-gating): lacale → LACALE_API_KEY, c411 → C411_API_KEY
-  // PROVIDER_CREDS (activation-gating): tr4ker → TR4KER_PASSKEY (single secret, sent as
-  //   the Torznab `apikey=` query param; also serves the RSS radar later).
-  //   Put the tracker's PROFILE API KEY in that variable — the Torznab search
-  //   endpoint rejects the announce passkey with 401 `<error code="100">`. One
-  //   secret slot per tracker is the convention; there is no TR4KER_API_KEY.
-  // PROVIDER_OPTIONAL_SECRETS (non-gating, RP2): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
+  // PROVIDER_CREDS (activation-gating): tr4ker → TR4KER_API_KEY — the profile API
+  //   key (Mon compte → Paramètres), sent as the Torznab `apikey=` query param.
+  //   It authenticates API requests. The announce passkey is a DIFFERENT secret
+  //   (see below) and never authenticates the search API.
+  // PROVIDER_OPTIONAL_SECRETS (non-gating, RP2): lacale → LACALE_PASSKEY,
+  //   c411 → C411_PASSKEY, tr4ker → TR4KER_PASSKEY (embedded in the .torrent
+  //   files, identifies the account; future RSS freeleech radar)
   // A missing passkey never deactivates a tracker (DESIGN §Non-Goals, D3).
   tracker: {
     providers: {

@@ -14,6 +14,7 @@ so both suites always feed the parser identical bytes.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -347,6 +348,35 @@ class TestDialectQuirks:
         client._transport.get.return_value = _rss(_item(category=["5030", "5040"]))  # type: ignore[attr-defined]
 
         assert client.search("x")[0].category == "5030"
+
+    def test_guid_with_xml_attributes_yields_its_text_only(self) -> None:
+        """``<guid isPermaLink="true">`` decodes to a dict — only ``#text`` may surface.
+
+        Live-observed on Tr4ker (2026-07-28): stringifying the node put
+        ``"{'@isPermaLink': 'true', '#text': 'https://…'}"`` into ``tracker_id``.
+        """
+        permalink = "https://indexer.example/torrent/abc"
+        client = _client(OTHER_DESCRIPTOR)
+        client._transport.get.return_value = _rss(  # type: ignore[attr-defined]
+            _item(guid={"@isPermaLink": "true", "#text": permalink})
+        )
+
+        result = client.search("x")[0]
+
+        assert result.tracker_id == permalink
+
+    def test_attributed_guid_can_still_back_the_infohash(self) -> None:
+        """A guid-as-infohash dialect that also sets XML attributes still resolves."""
+        descriptor = replace(OTHER_DESCRIPTOR, guid_is_infohash=True)
+        client = _client(descriptor)
+        client._transport.get.return_value = _rss(  # type: ignore[attr-defined]
+            _item(
+                guid={"@isPermaLink": "false", "#text": "c" * 40},
+                **{"torznab:attr": [{"@name": "seeders", "@value": "1"}]},
+            )
+        )
+
+        assert client.search("x")[0].info_hash == "c" * 40
 
     def test_guid_backs_infohash_only_when_the_descriptor_says_so(self) -> None:
         """``guid_is_infohash`` decides whether ``<guid>`` may stand in for the attr."""

@@ -184,7 +184,7 @@ class TestTr4kerCredGating:
     """
 
     def test_tr4ker_missing_cred_raises_tracker_config_error(self) -> None:
-        """With tr4ker enabled and TR4KER_PASSKEY absent, raises TrackerConfigError."""
+        """With tr4ker enabled and TR4KER_API_KEY absent, raises TrackerConfigError."""
         from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
         from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
         from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
@@ -208,7 +208,7 @@ class TestTr4kerCredGating:
         assert any(i.code == "missing_credentials" for i in issues), f"Expected missing_credentials; got {issues!r}"
 
     def test_blank_cred_is_treated_as_missing(self) -> None:
-        """An empty TR4KER_PASSKEY value still fails boot (blank ≠ provisioned)."""
+        """An empty TR4KER_API_KEY value still fails boot (blank ≠ provisioned)."""
         from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
         from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
         from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
@@ -220,7 +220,7 @@ class TestTr4kerCredGating:
                 settings=MagicMock(),
                 event_bus=EventBus(),
                 cb_policy=CircuitPolicy(),
-                env={"TR4KER_PASSKEY": ""},  # blank
+                env={"TR4KER_API_KEY": ""},  # blank
             )
 
         issues = exc_info.value.issues
@@ -236,7 +236,7 @@ class TestTr4kerFactoryConstruction:
     """
 
     def test_tr4ker_built_when_creds_present(self) -> None:
-        """With tr4ker enabled and its passkey present, the registry holds a Tr4kerClient."""
+        """With tr4ker enabled and its API key present, the registry holds a Tr4kerClient."""
         from personalscraper.api.tracker._factory import build_tracker_registry  # noqa: PLC0415
         from personalscraper.api.tracker.tr4ker import Tr4kerClient  # noqa: PLC0415
         from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
@@ -248,7 +248,7 @@ class TestTr4kerFactoryConstruction:
             settings=MagicMock(),
             event_bus=EventBus(),
             cb_policy=CircuitPolicy(),
-            env={"TR4KER_PASSKEY": "secret"},
+            env={"TR4KER_API_KEY": "secret"},
         )
 
         built = reg._trackers["tr4ker"]

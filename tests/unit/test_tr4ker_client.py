@@ -3,21 +3,23 @@
 Tr4ker carries no logic (the generic Torznab client does), so these tests pin
 the two things a named config actually owns: its **descriptor** (base URL, API
 path, auth parameter, transport tuning, dialect quirks) and its **activation**
-(the single ``TR4KER_PASSKEY`` secret, gating, whose value is sent as the
-Torznab ``apikey=`` query param).
+(``TR4KER_API_KEY`` gates and is sent as the Torznab ``apikey=`` query param;
+``TR4KER_PASSKEY`` is the announce passkey — a separate, non-gating secret).
 
-No live Tr4ker capture exists yet (the feature's ACC-03 controlled search will
-produce one). Rather than fabricate a fake sample, the parsing test feeds the
-**C411 live capture** through the Tr4ker client: same protocol, same parser —
-what it proves is that the named config decodes a real Torznab document and
-tags the results with its own provider name.
+The parsing tests run on the **real Tr4ker capture** taken by the ACC-03
+controlled search on 2026-07-28
+(``docs/reference/_samples/tr4ker/search-tvsearch.xml``, api keys redacted) —
+which is also what settled the two dialect quirks below.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
+import xmltodict  # type: ignore[import-untyped]
 
 from personalscraper.api._activation import (
     PROVIDER_CREDS,
@@ -37,6 +39,14 @@ from personalscraper.api.tracker.tr4ker import TR4KER_DESCRIPTOR, Tr4kerClient
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.core.event_bus import EventBus
 from tests.unit.test_c411_client import _load_xml  # shared live Torznab capture — never copied
+
+_TR4KER_SAMPLES = Path(__file__).resolve().parents[2] / "docs" / "reference" / "_samples" / "tr4ker"
+
+
+def _load_tr4ker_xml(name: str) -> dict[str, object]:
+    """Load the captured Tr4ker XML and decode it through xmltodict (as HttpTransport does)."""
+    with (_TR4KER_SAMPLES / name).open() as f:
+        return cast("dict[str, object]", xmltodict.parse(f.read()))
 
 
 def _client() -> Tr4kerClient:
@@ -58,6 +68,18 @@ class TestTr4kerDescriptor:
         """Auth is ``apikey=`` in query — the profile API key, never the passkey."""
         assert TR4KER_DESCRIPTOR.apikey_param == "apikey"
         assert TR4KER_DESCRIPTOR.apikey_location == "query"
+
+    def test_dialect_quirks_match_the_live_capture(self) -> None:
+        """Both quirks are what the ACC-03 capture shows, not the Torznab norm guess.
+
+        The capture carries no per-item ``<category>`` element (the category is
+        a ``torznab:attr``) and its ``<guid isPermaLink="true">`` holds a torrent
+        permalink URL — so ``guid_is_infohash`` must be False for Tr4ker, unlike
+        C411 whose guid IS the raw infohash.
+        """
+        assert TR4KER_DESCRIPTOR.item_category_element is False
+        assert TR4KER_DESCRIPTOR.guid_is_infohash is False
+        assert C411_DESCRIPTOR.guid_is_infohash is True, "the two dialects must stay distinguishable"
 
     def test_no_invented_category_ids(self) -> None:
         """No caps capture ⇒ no ``cat=`` narrowing (the RSS slugs are a different API)."""
@@ -109,11 +131,11 @@ class TestTr4kerPolicy:
         assert policy.rate_limit.requests_per_second == 0.5
 
     def test_from_env_builds_a_client_without_network(self) -> None:
-        """``from_env`` builds a ready client from TR4KER_PASSKEY, sent as ``apikey=``."""
+        """``from_env`` builds a ready client from TR4KER_API_KEY, sent as ``apikey=``."""
         client = Tr4kerClient.from_env(
-            env={"TR4KER_PASSKEY": "secret"},
+            env={"TR4KER_API_KEY": "secret"},
             event_bus=EventBus(),
-            required=["TR4KER_PASSKEY"],
+            required=["TR4KER_API_KEY"],
             provider_cfg=MagicMock(),
         )
 
@@ -168,23 +190,49 @@ class TestTr4kerRequests:
         assert kwargs["path"] == "/api/torznab"
         assert kwargs["params"]["t"] == "caps"
 
-    def test_parses_a_real_torznab_document(self) -> None:
-        """A real Torznab RSS document parses and is tagged with the tr4ker provider.
-
-        The fixture is the C411 live capture (no Tr4ker capture exists before
-        ACC-03) — the point is protocol conformance, not Tr4ker's own catalog.
-        """
+    def test_parses_the_live_capture(self) -> None:
+        """The real ACC-03 ``t=tvsearch`` capture parses into six typed results."""
         client = _client()
-        client._transport.get.return_value = _load_xml("search-inception.xml")  # type: ignore[attr-defined]
+        client._transport.get.return_value = _load_tr4ker_xml("search-tvsearch.xml")  # type: ignore[attr-defined]
 
-        results = client.search("Inception")
+        results = client.search("Furious S01E01", media_type="tv")
 
-        assert len(results) == 18
+        assert len(results) == 6
         assert {r.provider for r in results} == {"tr4ker"}
         first = results[0]
-        assert first.seeders == 141
-        assert first.size.bytes == 7_396_633_907
-        assert first.info_hash == "b08b70d0855318efa71aeccce0ae42b3e4493113"
+        assert first.title == "Furious.S01E01.MULTi.1080p.WEB.EAC3.5.1.H264-SUPPLY"
+        assert first.seeders == 34
+        assert first.leechers == 3  # peers(37) - seeders(34); matches the published leechers attr
+        assert first.size.bytes == 2_073_464_381
+        assert first.category == "5000"
+        assert first.tmdb_id == 287238
+        assert first.resolution == "1080p"
+        assert first.codec == "H264"
+
+    def test_infohash_comes_from_the_attr_not_the_guid(self) -> None:
+        """Tr4ker's guid is a permalink, so the infohash MUST come from the attr."""
+        client = _client()
+        client._transport.get.return_value = _load_tr4ker_xml("search-tvsearch.xml")  # type: ignore[attr-defined]
+
+        first = client.search("Furious S01E01", media_type="tv")[0]
+
+        assert first.info_hash == "b4e83b4ef9356f86a1469bfdd73e718347d9f153"
+
+    def test_tracker_id_is_the_guid_text_not_a_dict_repr(self) -> None:
+        """``<guid isPermaLink="true">`` decodes to a dict — only its text may surface.
+
+        Regression: stringifying the node produced
+        ``"{'@isPermaLink': 'true', '#text': 'https://…'}"`` as ``tracker_id``
+        (live-observed on the ACC-03 capture before the fix).
+        """
+        client = _client()
+        client._transport.get.return_value = _load_tr4ker_xml("search-tvsearch.xml")  # type: ignore[attr-defined]
+
+        first = client.search("Furious S01E01", media_type="tv")[0]
+
+        assert first.tracker_id.startswith("https://tr4ker.net/torrent/")
+        assert "@isPermaLink" not in first.tracker_id
+        assert "#text" not in first.tracker_id
 
 
 class TestTr4kerCapabilities:
@@ -208,42 +256,54 @@ class TestTr4kerCapabilities:
 
 
 class TestTr4kerActivation:
-    """Activation gating — API key gates, passkey never does."""
+    """Activation gating — the API key gates, the announce passkey never does."""
 
-    def test_passkey_is_the_single_gating_credential(self) -> None:
-        """``PROVIDER_CREDS`` requires exactly TR4KER_PASSKEY — the operator convention."""
-        assert PROVIDER_CREDS["tr4ker"] == ["TR4KER_PASSKEY"]
-        assert Tr4kerClient.REQUIRED_CREDS == ["TR4KER_PASSKEY"]
+    def test_api_key_is_the_gating_credential(self) -> None:
+        """``PROVIDER_CREDS`` requires exactly TR4KER_API_KEY (it authenticates the API)."""
+        assert PROVIDER_CREDS["tr4ker"] == ["TR4KER_API_KEY"]
+        assert Tr4kerClient.REQUIRED_CREDS == ["TR4KER_API_KEY"]
 
-    def test_passkey_is_not_also_declared_optional(self) -> None:
-        """The gating secret must not appear as a non-gating optional secret."""
-        assert "tr4ker" not in PROVIDER_OPTIONAL_SECRETS
-        assert resolve_optional_secret("tr4ker", env={"TR4KER_PASSKEY": "v"}) == {}
+    def test_passkey_is_declared_optional_and_non_gating(self) -> None:
+        """The announce passkey is a separate, NON-gating secret (RSS radar R1)."""
+        assert PROVIDER_OPTIONAL_SECRETS["tr4ker"] == ["TR4KER_PASSKEY"]
+        assert resolve_optional_secret("tr4ker", env={"TR4KER_PASSKEY": "v"}) == {"TR4KER_PASSKEY": "v"}
+        assert resolve_optional_secret("tr4ker", env={}) == {"TR4KER_PASSKEY": None}
 
-    def test_passkey_present_activates_the_tracker(self) -> None:
-        """With TR4KER_PASSKEY set, tr4ker resolves as active."""
+    def test_api_key_present_activates_the_tracker_without_the_passkey(self) -> None:
+        """The API key alone activates tr4ker — a missing passkey never deactivates it."""
+        env = {"TR4KER_API_KEY": "key_value"}  # passkey intentionally absent
+
+        active = resolve_active({"tr4ker": MagicMock(enabled=True)}, "tracker", env=env)
+
+        assert active == ["tr4ker"]
+        assert resolve_optional_secret("tr4ker", env=env) == {"TR4KER_PASSKEY": None}
+
+    def test_passkey_alone_does_not_activate_the_tracker(self) -> None:
+        """The two secrets are NOT interchangeable: the passkey cannot stand in for the key."""
         active = resolve_active(
             {"tr4ker": MagicMock(enabled=True)},
             "tracker",
-            env={"TR4KER_PASSKEY": "key_value"},
+            env={"TR4KER_PASSKEY": "announce_only"},
         )
 
-        assert active == ["tr4ker"]
+        assert active == []
 
-    def test_missing_passkey_deactivates_with_a_log(self, caplog: pytest.LogCaptureFixture) -> None:
-        """No TR4KER_PASSKEY ⇒ tr4ker is skipped and the reason is logged (not silent)."""
+    def test_missing_api_key_deactivates_with_a_log(self, caplog: pytest.LogCaptureFixture) -> None:
+        """No TR4KER_API_KEY ⇒ tr4ker is skipped and the reason is logged (not silent)."""
         with caplog.at_level("WARNING"):
             active = resolve_active({"tr4ker": MagicMock(enabled=True)}, "tracker", env={})
 
         assert active == []
-        assert "TR4KER_PASSKEY" in caplog.text
+        assert "TR4KER_API_KEY" in caplog.text
 
     def test_login_credentials_are_not_wired(self) -> None:
         """TR4KER_USERNAME / TR4KER_PASSWORD are decommissioned-tracker leftovers — never required."""
         assert "TR4KER_USERNAME" not in PROVIDER_CREDS["tr4ker"]
         assert "TR4KER_PASSWORD" not in PROVIDER_CREDS["tr4ker"]
 
-    def test_no_second_api_key_variable_exists(self) -> None:
-        """One secret only: no ``TR4KER_API_KEY`` variable anywhere in the wiring."""
-        assert "TR4KER_API_KEY" not in PROVIDER_CREDS["tr4ker"]
-        assert all("TR4KER_API_KEY" not in keys for keys in PROVIDER_OPTIONAL_SECRETS.values())
+    def test_the_two_secrets_have_distinct_roles(self) -> None:
+        """Both variables exist and never cross: key gates the API, passkey stays optional."""
+        assert PROVIDER_CREDS["tr4ker"] == ["TR4KER_API_KEY"]
+        assert PROVIDER_OPTIONAL_SECRETS["tr4ker"] == ["TR4KER_PASSKEY"]
+        assert "TR4KER_PASSKEY" not in PROVIDER_CREDS["tr4ker"]
+        assert "TR4KER_API_KEY" not in PROVIDER_OPTIONAL_SECRETS["tr4ker"]

@@ -73,6 +73,24 @@ laissé `enabled: false`). Recherche via `/api/torznab` (le chemin documenté no
 déprécié pour la recherche) ; `/api/torznab/all` réservé à un futur cross-seed
 (non câblé ici, documenté seulement).
 
+#### Post-merge correction (2026-07-28)
+
+L'opérateur a clarifié le modèle d'auth après le merge de #322 : la convention
+« une seule variable » était une erreur de sa part. Les deux secrets Tr4ker sont
+distincts et non interchangeables — `TR4KER_API_KEY` (clé API du profil)
+authentifie les requêtes API, `TR4KER_PASSKEY` est la passkey d'annonce
+embarquée dans les `.torrent` (identifie le compte, RSS/announce). La clé API
+est désormais présente dans le `.env` et vérifiée en réel :
+`GET /api/torznab?t=caps&apikey=<TR4KER_API_KEY>` → `200` + caps XML.
+
+Le câblage revient donc à la **forme d'origine de ce design** :
+`PROVIDER_CREDS["tr4ker"] = ["TR4KER_API_KEY"]` (gating) +
+`PROVIDER_OPTIONAL_SECRETS["tr4ker"] = ["TR4KER_PASSKEY"]` (non gating, radar
+RSS R1). Aucun changement de descriptor (le client envoyait déjà `apikey=` en
+query, le standard Torznab) ; le tracker passe `enabled: true` et ACC-03 est
+exécuté pour de vrai. Corps du D2 ci-dessus laissé tel quel — l'historique ne se
+réécrit pas.
+
 ### D3 — Retrait torr9 complet
 
 Client, tests, entrées `PROVIDER_CREDS`/`PROVIDER_OPTIONAL_SECRETS`,

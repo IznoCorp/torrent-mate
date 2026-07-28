@@ -28,35 +28,34 @@ The pipeline consumes the **Torznab search** endpoint only.
 
 ## Auth
 
-Tr4ker is natively Torznab, so the search API authenticates with a key in the
-**query string**, never a header.
+Tr4ker is natively Torznab: the search API authenticates with a key in the
+**query string**. Two secrets exist and they are **not** interchangeable.
 
-| Item             | Value                                                            |
-| ---------------- | ---------------------------------------------------------------- |
-| Method           | `apikey=<secret>` query parameter (`AuthMode.API_KEY_QUERY`)     |
-| Env var (gating) | `TR4KER_PASSKEY` — the single secret, per this host's convention |
-| Activation       | `PROVIDER_CREDS["tr4ker"] = ["TR4KER_PASSKEY"]`                  |
-| Transport        | `ApiKeyAuth(key, param="apikey", location="query")`              |
+| Secret               | Env var          | Role                                                                                                                |
+| -------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Profile API key**  | `TR4KER_API_KEY` | Authenticates API requests. Sent as `apikey=<key>`. **Gates activation.**                                           |
+| **Announce passkey** | `TR4KER_PASSKEY` | Embedded in the `.torrent` files; identifies the account (announce + RSS feeds). Never authenticates the search API. |
 
-**One variable, two upstream notions — read this before debugging a 401/100.**
-The tracker's own documentation distinguishes two secrets:
+| Item       | Value                                                     |
+| ---------- | --------------------------------------------------------- |
+| Method     | `apikey=<key>` query parameter (`AuthMode.API_KEY_QUERY`) |
+| Activation | `PROVIDER_CREDS["tr4ker"] = ["TR4KER_API_KEY"]`           |
+| Non-gating | `PROVIDER_OPTIONAL_SECRETS["tr4ker"] = ["TR4KER_PASSKEY"]` |
+| Transport  | `ApiKeyAuth(key, param="apikey", location="query")`       |
 
-- the **profile API key** (Mon compte → Paramètres), which its wiki says Torznab
-  search wants;
-- the **announce passkey**, which authenticates the RSS feeds.
+The profile API key lives on the account page (Mon compte → Paramètres). It was
+live-verified on 2026-07-28: `GET /api/torznab?t=caps&apikey=<TR4KER_API_KEY>`
+returns `200` with the XML caps document.
 
-This codebase follows the operator convention of a single `<TRACKER>_PASSKEY`
-variable per tracker and sends whatever it holds as `apikey=`. If a live search
-ever answers
+The tracker **also** accepts the key as an `X-Api-Key` header. The query
+parameter is the Torznab standard and is what this client sends; the header is
+noted only so a future debugging session recognises it as supported.
 
-```xml
-<error code="100" description="Invalid API Key"/>
-```
+A `401` / `<error code="100" description="Invalid API Key"/>` means the **API
+key** is wrong — never the passkey, which this endpoint does not look at.
 
-the fix is to put the **profile API key** into `TR4KER_PASSKEY` — not to add a
-second environment variable. `TR4KER_USERNAME` / `TR4KER_PASSWORD` in the
-operator `.env` are leftovers from a decommissioned login-style tracker and are
-read by no code.
+`TR4KER_USERNAME` / `TR4KER_PASSWORD` in the operator `.env` are leftovers from
+a decommissioned login-style tracker and are read by no code.
 
 ---
 
@@ -109,10 +108,21 @@ No per-torrent detail endpoint exists (Torznab has none), hence the client
 implements neither `TorrentDetailsProvider` nor `FreeleechAware`: the freeleech
 state is the one captured at search time.
 
-**Descriptor quirks, unverified until the first real search**:
-`item_category_element=False` and `guid_is_infohash=True` carry the Torznab norm
-(what C411 does). If a live capture shows `<category>` elements or a URL-shaped
-`<guid>`, flip the flag in `TR4KER_DESCRIPTOR` — the parser needs no change.
+**Descriptor quirks — verified against the live capture (ACC-03, 2026-07-28)**:
+
+| Quirk                   | Verdict | Evidence in `_samples/tr4ker/search-tvsearch.xml`                                          |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------- |
+| `item_category_element` | `False` | Items carry no `<category>` element; the category is `torznab:attr name="category"` (`5000`). |
+| `guid_is_infohash`      | `False` | `<guid isPermaLink="true">https://tr4ker.net/torrent/…</guid>` — a permalink, not a hash. The infohash comes from `torznab:attr name="infohash"`, which every item carries. |
+
+This is where Tr4ker genuinely differs from C411 (whose `<guid>` **is** the raw
+infohash). The `<guid>` also carries an XML attribute, so it decodes to
+`{"@isPermaLink": …, "#text": …}` — the generic client takes the node's text,
+which is what `TrackerResult.tracker_id` receives.
+
+Items additionally publish `season`, `episode`, `leechers` and `grabs` attrs.
+The client does not read them: it derives leechers as `peers − seeders`, which
+matched the published `leechers` on every item of the capture.
 
 ---
 
@@ -252,7 +262,8 @@ Breaking.Bad.S01E01.FRENCH.1080p.WEB.DL.x264-GRP
 
 - No secret of any kind: this document quotes **no** passkey, API key or account
   identifier. The raw wiki capture that did was deleted with the feature.
-- No sample capture yet: `docs/reference/_samples/tr4ker/` does not exist until a
-  real controlled search is run (feature acceptance criterion ACC-03). The unit
-  tests therefore exercise the Tr4ker client against the C411 Torznab capture —
-  same protocol, different tracker — rather than a fabricated sample.
+- Sample capture: `docs/reference/_samples/tr4ker/search-tvsearch.xml` — the
+  real `t=tvsearch&q=Furious S01E01` response of the ACC-03 controlled search
+  (2026-07-28, 6 items), with every `apikey=` in the document replaced by
+  `REDACTED_API_KEY`. It is the fixture the Tr4ker unit tests parse, and the
+  evidence behind the quirk verdicts above.

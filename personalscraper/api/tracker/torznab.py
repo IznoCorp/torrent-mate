@@ -83,6 +83,27 @@ def _attrs_to_dict(attrs: list[dict[str, Any]] | dict[str, Any] | None) -> dict[
     return out
 
 
+def _text_of(value: Any) -> str:
+    """Return the text of an xmltodict node that may carry XML attributes.
+
+    ``<guid>abc</guid>`` decodes to the plain string ``"abc"``, but
+    ``<guid isPermaLink="true">https://…</guid>`` decodes to
+    ``{"@isPermaLink": "true", "#text": "https://…"}``. Without this, the second
+    shape would stringify into a Python dict repr and land in
+    :attr:`TrackerResult.tracker_id` (live-observed on Tr4ker, 2026-07-28).
+
+    Args:
+        value: The decoded node — a string, an attribute dict, or ``None``.
+
+    Returns:
+        The node's text, or ``""`` when absent.
+    """
+    if isinstance(value, dict):
+        text = value.get("#text")
+        return str(text) if text is not None else ""
+    return str(value) if value is not None else ""
+
+
 def _parse_optional_int(value: str | None) -> int | None:
     """Parse a Torznab attr value as an int, tolerating absence and garbage.
 
@@ -396,7 +417,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
 
         info_hash = attrs.get("infohash")
         if not info_hash and self._descriptor.guid_is_infohash:
-            info_hash = str(item.get("guid", ""))
+            info_hash = _text_of(item.get("guid"))
         download_url = _enclosure_url(item)
         source_url = item.get("comments") or item.get("link")
 
@@ -404,7 +425,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
 
         return TrackerResult(
             provider=self.provider_name,
-            tracker_id=str(item.get("guid", "")),
+            tracker_id=_text_of(item.get("guid")),
             title=title,
             size=size,
             seeders=seeders,

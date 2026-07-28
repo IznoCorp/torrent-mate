@@ -1,8 +1,11 @@
 {
-  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY, tr4ker → TR4KER_PASSKEY
-  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
-  // tr4ker: single secret — TR4KER_PASSKEY, whose value is sent as the Torznab
-  //   `apikey=` query param (and will serve the RSS radar later), so it gates activation.
+  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY, tr4ker → TR4KER_API_KEY
+  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY,
+  //   tr4ker → TR4KER_PASSKEY
+  // tr4ker has TWO secrets with distinct roles: TR4KER_API_KEY authenticates API
+  //   requests (sent as the Torznab `apikey=` query param) → it gates activation;
+  //   TR4KER_PASSKEY is embedded in the .torrent files and identifies the account
+  //   (announce/RSS) → non-gating, never used to authenticate the search API.
   tracker: {
     providers: {
       lacale: { enabled: false, cross_seed: false }, // deprecated + unreachable (la-cale.space down) — disabled to stop CircuitOpenError crashing grab
@@ -17,21 +20,18 @@
         },
       },
       tr4ker: {
-        // DISABLED until the search auth is proven. TR4KER_PASSKEY is present
-        // in .env but currently holds the RSS *passkey*, which the Torznab
-        // search endpoint rejects with 401 <error code="100" "Invalid API Key">.
-        // The fix is to put the PROFILE API KEY (Mon compte → Paramètres) INTO
-        // this same TR4KER_PASSKEY variable — the operator convention is one
-        // secret slot per tracker, so no TR4KER_API_KEY is ever added.
+        // ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte →
+        // Paramètres), which is present in .env and was live-verified against
+        // `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the
+        // announce passkey — a different secret, embedded in the .torrent
+        // files, which never authenticates the search API.
         //
-        // Flip to true only AFTER: (1) this feature is merged AND deployed to
-        // ~/deploy/torrentmate, and (2) a controlled re-probe returns parsed
-        // results. Order matters — this file is shared with prod/staging via
-        // PERSONALSCRAPER_CONFIG, so a tracker enabled here before the code
-        // knows it is a BOOT ERROR (build_tracker_registry raises
-        // TrackerConfigError) that takes down every command and cron.
-        // Same reason removing the secret requires flipping this back to false.
-        enabled: false,
+        // This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so
+        // an enabled tracker whose gating credential is missing is a BOOT ERROR
+        // (build_tracker_registry raises TrackerConfigError) that takes down
+        // every command and cron: removing TR4KER_API_KEY from .env requires
+        // flipping this back to false in the same change.
+        enabled: true,
         cross_seed: false,
         // economy: TR4KER publishes no explicit seeding obligation (no documented
         // min seed time / H&R grace), so no values are invented here. Until the
