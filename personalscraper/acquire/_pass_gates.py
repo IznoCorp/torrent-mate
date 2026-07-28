@@ -41,6 +41,14 @@ log = get_logger("acquire.service")
 
 #: Stale-searching threshold: items stuck in 'searching' longer than this are
 #: eligible for recovery (a process killed mid-grab before any status write).
+#:
+#: SINGLE definition on purpose. Two consumers read it and they MUST agree:
+#: ``AcquisitionService._build_queue`` uses it to SELECT the stale rows
+#: (``list_stale_searching(older_than=now - _STALE_THRESHOLD_S)``) and
+#: :meth:`PassGatesMixin._apply_cutoff_gate` uses it to RECOVER them
+#: (``reclaim_stale_searching(id, now - _STALE_THRESHOLD_S)``). The D6 split
+#: briefly left a copy in each module; a drift between them would list rows the
+#: recovery then refuses — every one of them silently skipped.
 _STALE_THRESHOLD_S = 3600  # 1 hour
 
 

@@ -78,7 +78,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._grab_pass import GrabPassMixin
-from personalscraper.acquire._pass_gates import resolve_effective_profile
+from personalscraper.acquire._pass_gates import _STALE_THRESHOLD_S, resolve_effective_profile
 from personalscraper.acquire._search_pass import SEARCH_OUTCOME_STATUS, SearchPassMixin
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import (
@@ -108,11 +108,6 @@ _SearchItemOutcome = Literal["available", "waiting", "unverified", "abandoned", 
 # cadence gate on top of it (:meth:`AcquisitionService._apply_cadence_gates`)
 # belongs to the search pass alone.
 _GateVerdict = Literal["proceed", "abandoned", "skipped"]
-
-
-# Stale-searching threshold: items stuck in 'searching' longer than this are
-# eligible for recovery (a process killed mid-grab before any status write).
-_STALE_THRESHOLD_S = 3600  # 1 hour
 
 
 @dataclass(frozen=True, kw_only=True)
