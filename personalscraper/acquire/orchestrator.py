@@ -459,6 +459,34 @@ class GrabOrchestrator:
         broken key among two working trackers is not « the trackers are broken »,
         it is a degraded search, and the results that came back still stand.
 
+        WHAT MAKES THE ``auth`` TAXON REACHABLE. It is not automatic, and it was
+        not always true: :exc:`TrackerAuthError` used to be raised in exactly one
+        place — ``fetch_torrent_source``, on the GRAB stage's ``.torrent``
+        download — so a broken key during a SEARCH surfaced as a plain
+        :exc:`ApiError`, taxon ``api``, verdict ``trackers_unavailable``, retried
+        forever. The registry's ``except TrackerAuthError`` clause was dead code.
+        ``TorznabClient`` now classifies its own auth failures (HTTP 401/403 and
+        the Torznab 100-102 error codes) so the search path raises it too. The
+        two paths stay distinct and both matter:
+
+        * SEARCH (``TorznabClient._request`` / ``_parse_rss``) ⇒ the ``auth``
+          taxon ⇒ this method's terminal ``tracker_auth`` verdict;
+        * GRAB (``fetch_torrent_source``) ⇒ the ``except TrackerAuthError``
+          clause in :meth:`grab`, which is where a download-time 401/403 is
+          caught — outside any registry loop.
+
+        A test that proves the first path MUST drive a real tracker client: a
+        stub whose ``search()`` raises :exc:`TrackerAuthError` asserts the
+        classification of an exception nothing produced.
+
+        BLAST RADIUS. Because the verdict really is terminal, a genuine
+        all-trackers-auth failure abandons rows — including during a passkey
+        rotation, when every key is briefly invalid at once. The search pass
+        therefore debounces it: the first all-auth verdict is recorded but the
+        row stays queued, and only a second CONSECUTIVE one abandons (see
+        ``_search_pass._DEBOUNCED_TERMINAL_OUTCOMES``). This method is unchanged
+        by that — it states the verdict; the service decides when to act on it.
+
         :meth:`grab` folds ``tracker_auth`` back into its historical retryable
         ``search_api_error`` bucket, so a search-stage auth failure NEVER
         abandons at grab time — the grab dispositions are unchanged by this.

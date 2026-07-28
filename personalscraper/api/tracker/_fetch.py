@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentSource
-from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
+from personalscraper.api.tracker._errors import AUTH_HTTP_STATUSES, TorrentFetchError, TrackerAuthError
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -38,11 +38,6 @@ if TYPE_CHECKING:
     from personalscraper.api.transport._http import HttpTransport
 
 log = get_logger("api.tracker.fetch")
-
-# HTTP statuses that signal an authentication failure on a tracker download
-# (expired token / invalid passkey). Mapped to ``TrackerAuthError`` so callers
-# can trigger a credential refresh; every other non-2xx propagates verbatim.
-_AUTH_STATUSES = (401, 403)
 
 # Preview length of an invalid download body embedded in the resulting
 # ``TorrentFetchError`` message — enough to distinguish an HTML login wall
@@ -165,7 +160,7 @@ def fetch_torrent_source(
     try:
         data = transport.get_bytes(url)
     except ApiError as exc:
-        if exc.http_status in _AUTH_STATUSES:
+        if exc.http_status in AUTH_HTTP_STATUSES:
             # D4: surface 401/403 as a tracker-family auth error so callers
             # can trigger a credential refresh. ``from exc`` preserves context.
             raise TrackerAuthError(

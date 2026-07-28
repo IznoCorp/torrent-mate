@@ -150,10 +150,15 @@ def _service(
             "available",
             3,
         ),
-        # --- terminal — tracker_auth is permanent ---
+        # --- terminal — tracker_auth is permanent, but DEBOUNCED ---
+        # This row has no previous verdict, so this is the FIRST all-auth
+        # observation: the verdict is recorded, the status stays 'pending'. The
+        # abandon lands on the second CONSECUTIVE one, which is the subject of
+        # test_tracker_auth_debounce.py — the mapping in SEARCH_OUTCOME_STATUS
+        # is still 'abandoned'; what changed is when the service applies it.
         (
             {"disposition": "terminal", "outcome": "tracker_auth", "found": None},
-            "abandoned",
+            "pending",
             "tracker_auth",
             None,
         ),

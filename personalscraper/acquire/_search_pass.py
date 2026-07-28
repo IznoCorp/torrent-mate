@@ -52,6 +52,20 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
     "tracker_auth": "abandoned",
 }
 
+#: Terminal outcomes that abandon only on a SECOND CONSECUTIVE occurrence.
+#:
+#: ``tracker_auth`` fires when EVERY queried tracker reported a broken
+#: credential. That is a real permanent failure and it must terminate — but it is
+#: also exactly what an ordinary passkey rotation looks like for the few minutes
+#: the old keys are dead. Abandoning on the first observation would empty the
+#: whole queue on a condition that fixes itself.
+#:
+#: So the first all-auth search RECORDS the verdict and leaves the row queued;
+#: the next one confirms it and abandons. The counter is the row's own
+#: ``last_search_outcome`` — no extra column, no extra clock — which also makes
+#: the reset free: any other verdict in between breaks the streak.
+_DEBOUNCED_TERMINAL_OUTCOMES: frozenset[str] = frozenset({"tracker_auth"})
+
 
 class SearchPassMixin(PassGatesMixin):
     """The search pass: one item in, one persisted verdict out."""
@@ -149,6 +163,28 @@ class SearchPassMixin(PassGatesMixin):
             # keep the item queued rather than inventing a conclusion.
             log.warning("acquire.service.unmapped_search_outcome", wanted_id=wanted_id, outcome=verdict.outcome)
             status = "pending"
+
+        # A debounced terminal verdict needs a SECOND consecutive observation
+        # before it abandons. ``item`` is the post-claim re-fetch, so
+        # ``last_search_outcome`` here is the PREVIOUS search's verdict — the
+        # streak counter. Deferring only downgrades the STATUS: the verdict
+        # below is still recorded verbatim, so the row states what was actually
+        # observed and the next pass can read it as the confirmation.
+        if status == "abandoned" and verdict.outcome in _DEBOUNCED_TERMINAL_OUTCOMES:
+            if item.last_search_outcome != verdict.outcome:
+                log.warning(
+                    "acquire.service.terminal_verdict_deferred",
+                    wanted_id=wanted_id,
+                    outcome=verdict.outcome,
+                    previous_outcome=item.last_search_outcome,
+                )
+                status = "pending"
+            else:
+                log.warning(
+                    "acquire.service.terminal_verdict_confirmed",
+                    wanted_id=wanted_id,
+                    outcome=verdict.outcome,
+                )
 
         if verdict.disposition == "available":
             found = verdict.found

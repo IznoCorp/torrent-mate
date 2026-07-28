@@ -45,6 +45,7 @@ from personalscraper.api.tracker._contracts import (
     CategoryListable,
     TorrentSearchable,
 )
+from personalscraper.api.tracker._errors import AUTH_HTTP_STATUSES, TrackerAuthError
 from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.transport._auth import ApiKeyAuth, ApiKeyLocation
 from personalscraper.api.transport._http import HttpTransport
@@ -61,6 +62,14 @@ if TYPE_CHECKING:
 
     from personalscraper.conf.models.api_config import TrackerProviderConfig
     from personalscraper.core.event_bus import EventBus
+
+
+#: Torznab/Newznab error codes that mean « your credential is not valid »:
+#: 100 incorrect user credentials, 101 account suspended, 102 insufficient
+#: privileges. Permanent until an operator acts, hence :exc:`TrackerAuthError`.
+#: Deliberately NOT the 103-107 registration codes (this client never registers)
+#: nor the 200-range request errors (those are OUR bug, not the key's).
+_AUTH_ERROR_CODES: frozenset[int] = frozenset({100, 101, 102})
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -340,7 +349,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
         if category:
             params["cat"] = category
 
-        raw = self._transport.get(path=descriptor.api_path, params=params)
+        raw = self._request(params)
         return wrap_parser_drift(
             self.provider_name,
             lambda: self._parse_rss(cast("dict[str, Any]", raw)),
@@ -359,10 +368,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
             Mapping ``description → newznab_id`` (e.g. ``"Animation": "2060"``).
             Top-level categories included as ``@description → @id``.
         """
-        raw = self._transport.get(
-            path=self._descriptor.api_path,
-            params={"t": self._descriptor.caps_endpoint},
-        )
+        raw = self._request({"t": self._descriptor.caps_endpoint})
         data = cast("dict[str, Any]", raw)
 
         caps = data.get("caps") or data
@@ -382,16 +388,62 @@ class TorznabClient(TorrentSearchable, CategoryListable):
 
     # -- Internal helpers ---------------------------------------------------
 
+    def _request(self, params: dict[str, Any]) -> Any:  # noqa: ANN401 — transport's own return type
+        """Call the indexer, classifying an HTTP auth failure as such (D4).
+
+        The transport reports every non-2xx as a flat :exc:`ApiError`, which
+        cannot distinguish a broken passkey from a bad afternoon. 401/403 is the
+        one case where it can: those mean the CREDENTIAL is wrong, and no amount
+        of retrying fixes it. Re-raising them as :exc:`TrackerAuthError` is what
+        gives the registry the ``auth`` taxon and, when every tracker agrees, the
+        terminal ``tracker_auth`` verdict instead of a perpetual retry.
+
+        Shared by :meth:`search` and :meth:`get_categories` so the classification
+        cannot depend on which endpoint happened to notice. Every other status
+        propagates verbatim.
+
+        Args:
+            params: Query parameters for the indexer's single API path.
+
+        Returns:
+            The decoded response body, as the transport returned it.
+
+        Raises:
+            TrackerAuthError: The indexer answered 401 or 403.
+            ApiError: Any other transport failure, unchanged.
+        """
+        try:
+            return self._transport.get(path=self._descriptor.api_path, params=params)
+        except ApiError as exc:
+            if exc.http_status in AUTH_HTTP_STATUSES:
+                raise TrackerAuthError(
+                    provider=self.provider_name,
+                    http_status=exc.http_status,
+                    message=exc.message,
+                ) from exc
+            raise
+
     def _parse_rss(self, data: dict[str, Any]) -> list[TrackerResult]:
         """Parse the xmltodict-decoded Torznab RSS response."""
         # Auth/syntax errors arrive as <error code='100' description='...' />
         # at the document root (HTTP status already non-200 in this case).
+        #
+        # The CODE decides the type (D4). Torznab reserves 100-102 for
+        # credential failures ("Incorrect user credentials" / "Account
+        # suspended" / "Insufficient privileges"), and those are permanent until
+        # an operator acts — the registry books them as the ``auth`` taxon so a
+        # unanimously-broken key can reach a terminal verdict instead of being
+        # retried forever. Everything else (the 200-range request errors, an
+        # unrecognised code) stays a generic operational ApiError.
         if "error" in data:
             err = data["error"]
-            raise ApiError(
+            code = int(err.get("@code", 0) or 0)
+            message = str(err.get("@description", f"{self._descriptor.display_name} error"))
+            error_cls = TrackerAuthError if code in _AUTH_ERROR_CODES else ApiError
+            raise error_cls(
                 provider=self.provider_name,
-                http_status=int(err.get("@code", 0) or 0),
-                message=str(err.get("@description", f"{self._descriptor.display_name} error")),
+                http_status=code,
+                message=message,
             )
 
         rss = data.get("rss") or {}

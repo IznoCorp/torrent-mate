@@ -15,9 +15,9 @@ from unittest.mock import MagicMock
 import pytest
 import xmltodict  # type: ignore[import-untyped]
 
-from personalscraper.api._contracts import ApiError
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._errors import TrackerAuthError
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.transport._auth import ApiKeyAuth
 
@@ -165,12 +165,21 @@ class TestC411SearchAgainstLiveSamples:
 
         assert client.search("zzzz_no_match_xyz") == []
 
-    def test_auth_error_raises_apierror(self) -> None:
-        """Document with root <error> raises ApiError with the description."""
+    def test_auth_error_raises_tracker_auth_error(self) -> None:
+        """The live ``<error code="100"/>`` capture raises the AUTH subclass (D4).
+
+        UNPINNED from ``ApiError`` deliberately. ``pytest.raises(ApiError)``
+        would still pass — :exc:`TrackerAuthError` is a subclass — and that is
+        exactly the problem: the base assertion cannot tell whether a broken
+        passkey is classified as permanent or as a generic outage, which is the
+        single input that decides between the terminal ``tracker_auth`` verdict
+        and retrying an unfixable failure forever. The EXACT type is the
+        contract here, so the test names it.
+        """
         client = _make_client()
         client._transport.get.return_value = _load_xml("error-auth.xml")  # type: ignore[attr-defined]
 
-        with pytest.raises(ApiError) as exc_info:
+        with pytest.raises(TrackerAuthError) as exc_info:
             client.search("anything")
 
         err = exc_info.value
