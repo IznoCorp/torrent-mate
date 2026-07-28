@@ -27,8 +27,11 @@ call_counts), never assert-no-exception.
 
 from __future__ import annotations
 
+import sqlite3
 from typing import Literal
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile, Resolution
@@ -839,3 +842,124 @@ def test_search_covers_every_declared_outcome() -> None:
         f"exit paths without a forcing test: {sorted(set(SEARCH_OUTCOMES) - covered)}; "
         f"stale test coverage: {sorted(covered - set(SEARCH_OUTCOMES))}"
     )
+
+
+# ---------------------------------------------------------------------------
+# D2 — the intent hash is reserved BEFORE add()
+# ---------------------------------------------------------------------------
+
+
+def test_on_intent_fires_before_add_with_the_chosen_hash() -> None:
+    """LOAD-BEARING (D2): the hook runs BEFORE ``add()``, with the chosen release's hash.
+
+    The ordering IS the guarantee: a hash written after the add would leave the
+    exact window this closes. The fake client records the call order, so an
+    implementation that reserved the hash afterwards fails here.
+    """
+    chosen = TrackerResult(
+        provider="c411",
+        tracker_id="7",
+        title="Some Show 2024 1080p WEB x265-GRP",
+        size=ByteSize(3_000_000_000),
+        seeders=42,
+        leechers=1,
+        resolution="1080p",
+        info_hash="cafe1234",
+        download_url="/torrents/7/download",
+    )
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(results=[chosen], trackers_queried=1, trackers_errored=0)
+    registry.transports.return_value = {"c411": MagicMock()}
+
+    order: list[str] = []
+    torrent_client = MagicMock(spec=TorrentAdder)
+    torrent_client.add.side_effect = lambda *a, **kw: (order.append("add"), "cafe1234")[1]
+
+    orchestrator = GrabOrchestrator(
+        tracker_registry=registry,
+        torrent_client=torrent_client,
+        event_bus=EventBus(),
+        ranking=RankingConfig(min_seeders=0),
+    )
+
+    with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)):
+        outcome = orchestrator.grab(
+            _make_wanted(),
+            QualityProfile(),
+            on_intent=lambda h: order.append(f"intent:{h}"),
+        )
+
+    assert outcome.disposition == "success"
+    assert order == ["intent:cafe1234", "add"], f"intent must precede add; got {order}"
+
+
+def test_intent_hook_failure_prevents_the_add() -> None:
+    """A store lock while reserving the intent must NOT let the add run.
+
+    An add nobody recorded is precisely the orphan D2 removes, so the raise
+    propagates (the service's per-item isolation handles it) and the client is
+    never called.
+    """
+    chosen = TrackerResult(
+        provider="c411",
+        tracker_id="7",
+        title="Some Show 2024 1080p WEB x265-GRP",
+        size=ByteSize(3_000_000_000),
+        seeders=42,
+        leechers=1,
+        resolution="1080p",
+        info_hash="cafe1234",
+        download_url="/torrents/7/download",
+    )
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(results=[chosen], trackers_queried=1, trackers_errored=0)
+    registry.transports.return_value = {"c411": MagicMock()}
+    torrent_client = MagicMock(spec=TorrentAdder)
+
+    orchestrator = GrabOrchestrator(
+        tracker_registry=registry,
+        torrent_client=torrent_client,
+        event_bus=EventBus(),
+        ranking=RankingConfig(min_seeders=0),
+    )
+
+    def _boom(_hash: str) -> None:
+        raise sqlite3.OperationalError("database is locked")
+
+    with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)), pytest.raises(sqlite3.OperationalError):
+        orchestrator.grab(_make_wanted(), QualityProfile(), on_intent=_boom)
+
+    torrent_client.add.assert_not_called()
+
+
+def test_grab_without_the_hook_still_adds() -> None:
+    """The hook is optional: a caller that passes none keeps the plain behaviour."""
+    chosen = TrackerResult(
+        provider="c411",
+        tracker_id="7",
+        title="Some Show 2024 1080p WEB x265-GRP",
+        size=ByteSize(3_000_000_000),
+        seeders=42,
+        leechers=1,
+        resolution="1080p",
+        info_hash="cafe1234",
+        download_url="/torrents/7/download",
+    )
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(results=[chosen], trackers_queried=1, trackers_errored=0)
+    registry.transports.return_value = {"c411": MagicMock()}
+    torrent_client = MagicMock(spec=TorrentAdder)
+    torrent_client.add.return_value = "cafe1234"
+
+    orchestrator = GrabOrchestrator(
+        tracker_registry=registry,
+        torrent_client=torrent_client,
+        event_bus=EventBus(),
+        ranking=RankingConfig(min_seeders=0),
+    )
+
+    with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)):
+        outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "success"
+    torrent_client.add.assert_called_once()

@@ -145,8 +145,28 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def record_grab_intent(self, wanted_id: int, info_hash: str) -> bool:
+        """Reserve the chosen hash on a 'searching' row BEFORE ``add()`` (D2).
+
+        Guarded on ``status='searching' AND grabbed_hash IS NULL``; returns
+        ``True`` iff this call reserved the row.
+        """
+        ...
+
+    def confirm_grab_intent(self, wanted_id: int, info_hash: str) -> bool:
+        """Promote an intent row to 'grabbed' once its torrent is confirmed (D2).
+
+        Guarded on ``status='searching' AND grabbed_hash IS NOT NULL`` — the
+        reconciliation's replay of a decision already taken, idempotent.
+        """
+        ...
+
+    def hashes_in_flight(self) -> set[str]:
+        """Return the lowercase hashes of every OPEN row carrying one (probe set)."""
+        ...
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
-        """Persist ``status='grabbed'`` + ``info_hash`` for the idempotence guard."""
+        """Persist ``status='grabbed'`` + ``info_hash`` — the confirmation half of the two-phase claim (D2)."""
         ...
 
     def mark_done_by_hash(self, info_hash: str) -> list[WantedItem]:

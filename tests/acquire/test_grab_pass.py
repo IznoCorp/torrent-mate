@@ -11,7 +11,7 @@ Design: contract_phase2.md § « grab pass rework (run()) » + § ARBITRATION
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -117,7 +117,12 @@ def test_grab_only_walks_available_items(store: ConcreteAcquireStore) -> None:
 
     grabbed_ids: list[int] = []
 
-    def _grab(item: WantedItem, profile: object) -> GrabOutcome:
+    def _grab(
+        item: WantedItem,
+        profile: object,
+        *,
+        on_intent: "Callable[[str], None] | None" = None,
+    ) -> GrabOutcome:
         assert item.id is not None  # noqa: S101
         grabbed_ids.append(item.id)
         return GrabOutcome(disposition="success", info_hash="h", found=3)

@@ -297,16 +297,40 @@ def test_vanished_crash_window_row_requeues_pending(store: ConcreteAcquireStore)
     assert row.grabbed_hash is None
 
 
-def test_crash_window_row_still_in_client_stays_searching(store: ConcreteAcquireStore) -> None:
-    """The torrent is still downloading → the row is in flight, never touched."""
+def test_crash_window_row_still_in_client_is_confirmed_grabbed(store: ConcreteAcquireStore) -> None:
+    """The torrent IS in the client → the intent is confirmed, not left hanging (M9/D2).
+
+    Was: « stays searching, counted in flight ». That left the row in a state no
+    pass could close — ``reclaim_stale_searching`` refuses a hash-carrying row,
+    so it sat at 'searching' until (and unless) the library happened to own it,
+    with no seed obligation protecting the torrent meanwhile. The intent-hash
+    recovery promotes it instead: the add landed, only the status write was lost.
+    """
     wanted_id = _crash_window(store, season=3, episode=9, info_hash="c0ffee03")
 
     summary = reconcile_wanted(store, _StubOwnership(set()), {"c0ffee03"})
 
-    assert summary.still_in_flight == 1
+    assert summary.confirmed_grabbed == 1
+    assert summary.still_in_flight == 0
     row = store.wanted.get(wanted_id)
-    assert row is not None and row.status == "searching"
+    assert row is not None and row.status == "grabbed"
     assert row.grabbed_hash == "c0ffee03"
+
+
+def test_grabbed_row_still_in_client_stays_in_flight(store: ConcreteAcquireStore) -> None:
+    """A row already CONFIRMED 'grabbed' whose torrent lives is simply in flight.
+
+    The confirmation branch is scoped to 'searching' intent rows; a grabbed row
+    with a live torrent must keep its status and be counted, exactly as before.
+    """
+    wanted_id = _grabbed(store, season=3, episode=10, info_hash="c0ffee0a")
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), {"c0ffee0a"})
+
+    assert summary.still_in_flight == 1
+    assert summary.confirmed_grabbed == 0
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
 
 
 def test_legacy_pending_row_with_a_stale_hash_is_requeued(store: ConcreteAcquireStore) -> None:

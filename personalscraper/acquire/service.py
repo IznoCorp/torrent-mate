@@ -857,7 +857,15 @@ class AcquisitionService:
             return "skipped"
 
         profile = self._resolve_profile(current)
-        outcome = self._orchestrator.grab(current, profile)
+        # D2 — the orchestrator writes the chosen hash onto this still
+        # 'searching' row through the hook, immediately before its ``add()``.
+        # A crash in the add→``mark_grabbed`` window then leaves an INTENT the
+        # reconciliation can replay against the client, not an orphan torrent.
+        outcome = self._orchestrator.grab(
+            current,
+            profile,
+            on_intent=lambda info_hash: self._record_grab_intent(wanted_id, info_hash),
+        )
 
         if outcome.disposition == "success":
             return self._persist_success(current, outcome)
@@ -897,6 +905,28 @@ class AcquisitionService:
             self._store.wanted.set_status(wanted_id, "pending")
         return "retried"
 
+    def _record_grab_intent(self, wanted_id: int, info_hash: str) -> None:
+        """Reserve *info_hash* on the claimed row before the torrent is added (D2).
+
+        Called by the orchestrator through its ``on_intent`` hook. A ``False``
+        return from the store means the row is no longer a hash-less 'searching'
+        row — a concurrent runner reserved or completed it. That is logged and
+        NOT raised: the add still proceeds and ``mark_grabbed`` will persist the
+        client's hash, so the outcome is the pre-D2 behaviour rather than a lost
+        grab. A store EXCEPTION (lock) does propagate: the add must not run when
+        nothing recorded the intent.
+
+        Args:
+            wanted_id: Rowid of the claimed ``wanted`` row.
+            info_hash: Info-hash of the release about to be added.
+        """
+        if not self._store.wanted.record_grab_intent(wanted_id, info_hash):
+            log.warning(
+                "acquire.service.grab_intent_not_reserved",
+                wanted_id=wanted_id,
+                info_hash=info_hash,
+            )
+
     def _persist_success(self, item: WantedItem, outcome: GrabOutcome) -> _ItemOutcome:
         """Persist a successful grab then emit ``GrabSucceeded`` (emit-after-persist).
 
@@ -906,24 +936,22 @@ class AcquisitionService:
         persisted hash is on the row, and every later pass short-circuits on it.
         Emit follows persistence.
 
-        WHAT THIS DOES NOT COVER (PR #320 review, M9 — OPEN): the window between
-        the orchestrator's ``add()`` returning and ``mark_grabbed`` committing.
-        In that window the torrent IS in the client and NOTHING records it — no
-        hash on the row, no seed obligation. The previous wording called the
-        recovery an « idempotent ``add`` » emitting « exactly ONCE »; that is not
-        what happens. A crash here leaves:
+        THE add() → mark_grabbed WINDOW (D2, closed): the hash is no longer
+        first written here. ``_record_grab_intent`` reserves it on the still
+        'searching' row BEFORE the orchestrator's ``add()``, and this method is
+        the CONFIRMATION half of that two-phase claim. A crash in the window
+        therefore leaves an intent row, and the reconciliation replays it:
 
-        * an ORPHAN torrent in qBittorrent, downloading, with no ``wanted`` row
-          pointing at it and no seed obligation protecting it from the deletion
-          authority;
-        * a row that recovers to 'pending' and is re-SEARCHED from scratch — a
-          fresh search against today's trackers, NOT a replay of the same
-          decision. It may pick a different release, or none at all.
+        * torrent present in the client ⇒ ``confirm_grab_intent`` promotes the
+          row to 'grabbed' and the seed obligation is recorded then
+          (``DeleteAuthority.record_grab_obligation``) — no orphan, nothing
+          unprotected from the deletion authority;
+        * torrent absent ⇒ ``requeue_missing`` clears the hash and the row is
+          searchable again — the add never landed, so re-searching is honest.
 
-        The window is small (one local SQLite write) and the failure is loud
-        rather than silent — the orphan is visible in the client — but it is a
-        real gap, not a guarantee. Closing it needs the hash reserved BEFORE the
-        add (a two-phase claim), which is a state-machine change.
+        What the recovery is NOT is a fresh decision: it confirms the release
+        already chosen rather than re-ranking today's trackers, so the window can
+        no longer swap the release or add a second torrent for the same item.
 
         The ``'grabbed'`` verdict (with the re-search's takeable count) is
         recorded BEFORE ``mark_grabbed``: recording it after would open a window

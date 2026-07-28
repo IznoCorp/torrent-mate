@@ -115,9 +115,10 @@ def grab(
 def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "ReconcileSummary":
     """Run the B.3 reconciliation pass ahead of a real grab run (fail-soft).
 
-    Gathers the torrent client's known info-hashes once (``None`` on any
-    client error — the vanished-torrent requeue is skipped rather than firing
-    blind) and sweeps the grabbed rows via
+    Gathers the torrent client's known info-hashes once for every OPEN row
+    carrying one (``None`` on any client error — the vanished-torrent requeue
+    and the intent confirmation are then skipped rather than firing blind) and
+    sweeps the open rows via
     :func:`personalscraper.acquire.reconcile.reconcile_wanted`.
 
     Args:
@@ -138,15 +139,29 @@ def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "Reconci
     torrent_client = acquire.torrent_client
     if torrent_client is not None:
         try:
-            grabbed_hashes = {(w.grabbed_hash or "").lower() for w in store.wanted.list_grabbed()}
-            grabbed_hashes.discard("")
-            client_hashes = {t.hash.lower() for t in torrent_client.get_by_hashes(grabbed_hashes)}
+            # Probe EVERY open row carrying a hash, not just the grabbed ones:
+            # since D2 a 'searching' row can hold a pre-add intent, and a hash
+            # the client is never asked about would read as « vanished » — the
+            # sweep would requeue a row whose torrent is alive and downloading.
+            in_flight = store.wanted.hashes_in_flight()
+            client_hashes = {t.hash.lower() for t in torrent_client.get_by_hashes(in_flight)}
         except Exception as exc:  # noqa: BLE001 — fail-soft: skip the requeue half
             log.warning("cli.grab.reconcile_client_unavailable", error=str(exc))
             client_hashes = None
 
+    # D2 — a grab confirmed out of the add→confirm crash window never ran the
+    # grab-time obligation writer; record it now, from the torrent's own tracker
+    # tag. Absent authority (no store) → no recorder, the confirmation still runs.
+    authority = acquire.delete_authority
+    record_obligation = authority.record_grab_obligation if authority is not None else None
+
     try:
-        summary = reconcile_wanted(store, acquire.ownership, client_hashes)
+        summary = reconcile_wanted(
+            store,
+            acquire.ownership,
+            client_hashes,
+            record_obligation=record_obligation,
+        )
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()

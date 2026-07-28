@@ -272,8 +272,108 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def record_grab_intent(self, wanted_id: int, info_hash: str) -> bool:
+        """Reserve the chosen hash on a claimed row BEFORE the torrent is added (D2).
+
+        The first half of the two-phase claim that closes the ``add()`` →
+        ``mark_grabbed`` window. The row keeps ``status='searching'``: this is an
+        *intention*, not a grab. If the process dies right after the add, the
+        hash is already on the row, so the recovery is a REPLAY (confirm the
+        torrent the client holds, record its seed obligation) instead of a fresh
+        search that could add a second torrent for the same item.
+
+        Guarded exactly like the claims — one rowcount-gated ``UPDATE`` inside a
+        single ``BEGIN IMMEDIATE`` transaction:
+
+        * ``status = 'searching'`` — only the runner holding the claim may write
+          an intent;
+        * ``grabbed_hash IS NULL`` — a row already carrying an intent belongs to
+          the add that reserved it; a second writer must not clobber it (that
+          would strand the first torrent with no row pointing at it).
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            info_hash: Info-hash of the release the grab is about to add.
+
+        Returns:
+            ``True`` iff this call reserved the row.
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET grabbed_hash = ?
+                WHERE id = ?
+                  AND status = 'searching'
+                  AND grabbed_hash IS NULL
+                """,
+                (info_hash, wanted_id),
+            )
+            return cur.rowcount == 1
+
+    def confirm_grab_intent(self, wanted_id: int, info_hash: str) -> bool:
+        """Confirm an intent row whose torrent the client really holds (D2).
+
+        The recovery counterpart of :meth:`record_grab_intent`: a 'searching' row
+        carrying a hash that the torrent client still knows means the ``add()``
+        DID land and only the status write was lost. This promotes it to
+        'grabbed' — a replay of the decision already taken, never a new one.
+
+        Guarded on ``status='searching'`` AND ``grabbed_hash IS NOT NULL`` so it
+        is idempotent (a second sweep returns ``False``) and can never invent a
+        grab for a row that holds no intent — that row is the stale sweep's.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            info_hash: The confirmed info-hash (the client's value wins, so a
+                case difference or a client-side normalisation is persisted).
+
+        Returns:
+            ``True`` iff this call confirmed the row.
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET status = 'grabbed', grabbed_hash = ?
+                WHERE id = ?
+                  AND status = 'searching'
+                  AND grabbed_hash IS NOT NULL
+                """,
+                (info_hash, wanted_id),
+            )
+            return cur.rowcount == 1
+
+    def hashes_in_flight(self) -> set[str]:
+        """Return the lowercase hashes of every OPEN row carrying one.
+
+        The probe set the reconciliation asks the torrent client about. It spans
+        :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`, NOT just
+        ``'grabbed'``: since D2 a 'searching' row can hold a pre-add intent, and
+        probing only the grabbed rows would leave the client unasked about it —
+        reconciliation would then read « absent from the client » and requeue a
+        row whose torrent is very much alive, i.e. re-grab a duplicate.
+
+        Returns:
+            Lowercase info-hashes of the open rows that carry one (possibly empty).
+        """
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            f"SELECT lower(grabbed_hash) AS h FROM wanted "  # noqa: S608 — internal placeholders
+            f"WHERE status IN ({placeholders}) AND grabbed_hash IS NOT NULL AND grabbed_hash != ''",
+            open_statuses,
+        ).fetchall()
+        return {row["h"] for row in rows}
+
     def mark_grabbed(self, wanted_id: int, info_hash: str) -> None:
         """Persist ``status='grabbed'`` AND the ``info_hash`` (idempotence guard).
+
+        Since D2 this is the CONFIRMATION half of the two-phase claim: the
+        hash was already reserved by :meth:`record_grab_intent` before the add,
+        and this write promotes the row to 'grabbed' with the client's
+        authoritative hash.
 
         Persisting the hash means a crash between ``add()`` and this write does
         NOT double-emit ``GrabSucceeded`` on re-run: the re-run sees the

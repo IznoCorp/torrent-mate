@@ -579,13 +579,22 @@ class GrabOrchestrator:
         )
         return SearchVerdict(disposition=disposition, outcome=outcome, found=found, chosen=chosen)
 
-    def grab(self, item: WantedItem, profile: QualityProfile) -> GrabOutcome:
+    def grab(
+        self,
+        item: WantedItem,
+        profile: QualityProfile,
+        *,
+        on_intent: "Callable[[str], None] | None" = None,
+    ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
         The item is assumed already claimed (``status='searching'``) by the
-        service. This method performs NO store writes — it returns a
+        service. This method performs NO store writes of its own — it returns a
         :class:`GrabOutcome` whose ``disposition`` the service maps onto a
-        status. On a FAILURE path it emits exactly one event (``GrabFailed`` /
+        status. The ONE persistence point it reaches is the caller-supplied
+        ``on_intent`` hook (D2), invoked with the chosen info-hash
+        immediately before ``add()`` so the orchestrator keeps no store
+        dependency while the window still closes. On a FAILURE path it emits exactly one event (``GrabFailed`` /
         ``WantedAbandoned``); on SUCCESS it emits nothing and instead carries
         the ``GrabSucceeded`` payload on the outcome — the service emits
         ``GrabSucceeded`` after ``mark_grabbed`` persists (DESIGN §15 /
@@ -613,6 +622,13 @@ class GrabOrchestrator:
             item: The claimed ``WantedItem`` to grab (read-only here).
             profile: The effective :class:`QualityProfile` for the hard-filter
                 stage (resolved by the service before dispatch).
+            on_intent: Optional pre-add hook (D2) called with the chosen
+                release's info-hash right before ``add()``. The service writes
+                the intent hash onto the still-'searching' row there, so a crash
+                in the add→confirm window leaves a row that can be REPLAYED
+                (confirmed against the client) instead of an orphan torrent.
+                Skipped when the chosen result carries no info-hash; a raise
+                propagates (the add does NOT run — no orphan).
 
         Returns:
             The :class:`GrabOutcome` describing success / retryable / terminal.
@@ -673,6 +689,14 @@ class GrabOrchestrator:
             # login blip can no longer strand a recovered tracker behind a stale
             # snapshot.
             source = resolve_source(top, self._tracker_registry.transports())
+            # D2 — reserve the hash BEFORE handing the torrent to the client.
+            # ``resolve_source`` has just cross-checked the fetched payload
+            # against ``top.info_hash``, so the value written here is the hash
+            # the client is about to report. A raise here means the intent could
+            # not be persisted: the add is skipped on purpose (an unrecorded add
+            # is exactly the orphan this closes).
+            if on_intent is not None and top.info_hash:
+                on_intent(top.info_hash)
             info_hash = self._torrent_client.add(source, category=None, tags=[top.provider])
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.
