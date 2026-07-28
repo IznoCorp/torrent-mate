@@ -20,6 +20,7 @@ from personalscraper.api.tracker._contracts import (
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.tracker.torr9 import Torr9Client
+from personalscraper.api.tracker.tr4ker import Tr4kerClient
 
 
 def _lacale() -> LaCaleClient:
@@ -34,6 +35,36 @@ def _c411() -> C411Client:
 
 def _torr9() -> Torr9Client:
     return Torr9Client(username="u", password="p", event_bus=MagicMock())
+
+
+def _tr4ker() -> Tr4kerClient:
+    transport = MagicMock()
+    return Tr4kerClient(transport=transport)
+
+
+def test_tr4ker_client_is_torrent_searchable_isinstance() -> None:
+    """``Tr4kerClient`` satisfies the ``TorrentSearchable`` capability."""
+    assert isinstance(_tr4ker(), TorrentSearchable)
+
+
+def test_tr4ker_client_is_category_listable_isinstance() -> None:
+    """``Tr4kerClient`` satisfies the ``CategoryListable`` capability."""
+    assert isinstance(_tr4ker(), CategoryListable)
+
+
+def test_tr4ker_client_not_freeleech_aware_isinstance() -> None:
+    """``Tr4kerClient`` deliberately does not implement ``FreeleechAware``.
+
+    Same accurate composition as C411: Torznab exposes no per-torrent
+    freeleech re-check, so the capability is not advertised — the state is
+    captured at search time on ``TrackerResult.is_freeleech``.
+    """
+    assert not isinstance(_tr4ker(), FreeleechAware)
+
+
+def test_tr4ker_client_not_details_provider_isinstance() -> None:
+    """``Tr4kerClient`` deliberately does not implement ``TorrentDetailsProvider``."""
+    assert not isinstance(_tr4ker(), TorrentDetailsProvider)
 
 
 def test_lacale_client_is_torrent_searchable_isinstance() -> None:
