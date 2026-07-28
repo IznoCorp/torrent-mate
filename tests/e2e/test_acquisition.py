@@ -704,11 +704,10 @@ class TestFollowByIdTvdbResolution:
         self, authed_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A show followed by tmdb_id gets its resolved tvdb_id stored (detectable)."""
-        from types import SimpleNamespace
         from unittest.mock import MagicMock
 
         tmdb = MagicMock()
-        tmdb.get_tv.return_value = SimpleNamespace(external_ids={"tvdb": "121361"})
+        tmdb.get_tvdb_id.return_value = 121361
         monkeypatch.setattr(
             "personalscraper.web.routes.acquisition.scoped_provider_clients",
             self._fake_scoped(tmdb),
@@ -735,11 +734,10 @@ class TestFollowByIdTvdbResolution:
         self, authed_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A show whose TVDB can't be resolved is created but flagged (§méthode)."""
-        from types import SimpleNamespace
         from unittest.mock import MagicMock
 
         tmdb = MagicMock()
-        tmdb.get_tv.return_value = SimpleNamespace(external_ids={})  # no tvdb cross-ref
+        tmdb.get_tvdb_id.return_value = None  # no tvdb cross-ref
         monkeypatch.setattr(
             "personalscraper.web.routes.acquisition.scoped_provider_clients",
             self._fake_scoped(tmdb),

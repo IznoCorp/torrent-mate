@@ -391,3 +391,29 @@ class TestFindByImdb:
         transport.get.return_value = ["not", "a", "dict"]
         with pytest.raises(TypeError):
             client.find_by_imdb("tt0903747")
+
+
+class TestGetTvdbId:
+    """get_tvdb_id — raw /tv/{id}/external_ids tvdb_id (int), parser-bypass."""
+
+    def test_returns_int_tvdb_id(self, client: TMDBClient, transport: MagicMock) -> None:
+        """The raw integer tvdb_id is returned (the parser drops it as non-str)."""
+        transport.get.return_value = {"tvdb_id": 121361, "imdb_id": "tt0944947"}
+        assert client.get_tvdb_id(1399) == 121361
+        transport.get.assert_called_once_with("/tv/1399/external_ids")
+
+    def test_missing_tvdb_id_returns_none(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A show with no TVDB cross-reference yields None."""
+        transport.get.return_value = {"imdb_id": "tt0944947"}
+        assert client.get_tvdb_id(1399) is None
+
+    def test_non_int_tvdb_id_returns_none(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A null/malformed tvdb_id yields None, never raises."""
+        transport.get.return_value = {"tvdb_id": None}
+        assert client.get_tvdb_id(1399) is None
+
+    def test_non_dict_response_raises(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A non-dict transport response is a hard TypeError (contract guard)."""
+        transport.get.return_value = [1, 2, 3]
+        with pytest.raises(TypeError):
+            client.get_tvdb_id(1399)

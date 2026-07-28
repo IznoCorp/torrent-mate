@@ -284,7 +284,7 @@ def resolve_series_tvdb(media_ref: MediaRef, tmdb_client: Any) -> int | None:
     (multi-provider separation): TMDB/IMDB only resolve it.
 
     - ``tvdb_id`` already set → returned as-is (no provider call).
-    - ``tmdb_id`` set → ``get_tv(tmdb_id).external_ids['tvdb']``.
+    - ``tmdb_id`` set → ``get_tvdb_id(tmdb_id)`` (raw ``/tv/{id}/external_ids``).
     - ``imdb_id`` only → ``find_by_imdb`` → tmdb id → the same TVDB extraction.
 
     Fail-soft: any provider error, a missing TVDB cross-reference, or a malformed
@@ -293,7 +293,8 @@ def resolve_series_tvdb(media_ref: MediaRef, tmdb_client: Any) -> int | None:
 
     Args:
         media_ref: The follow's provider IDs.
-        tmdb_client: The request-scoped TMDB client (``get_tv`` + ``find_by_imdb``).
+        tmdb_client: The request-scoped TMDB client (``get_tvdb_id`` +
+            ``find_by_imdb``).
 
     Returns:
         The resolved TVDB series id, or ``None`` when it cannot be resolved.
@@ -306,15 +307,8 @@ def resolve_series_tvdb(media_ref: MediaRef, tmdb_client: Any) -> int | None:
             tmdb_id = tmdb_client.find_by_imdb(media_ref.imdb_id)
         if tmdb_id is None:
             return None
-        details = tmdb_client.get_tv(tmdb_id)
-        raw = details.external_ids.get("tvdb")
-        if raw is None:
-            return None
-        resolved: int = int(raw)
+        resolved: int | None = tmdb_client.get_tvdb_id(tmdb_id)
         return resolved
-    except (ValueError, TypeError):
-        # A malformed (non-numeric) TVDB external id — treat as unresolved.
-        return None
     except Exception as exc:  # noqa: BLE001 — fail-soft: never block the follow
         logger.warning("acquisition_follow_tvdb_resolve_failed", error=str(exc))
         return None

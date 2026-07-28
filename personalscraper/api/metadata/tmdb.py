@@ -292,6 +292,29 @@ class TMDBClient(
         tmdb_id = first.get("id") if isinstance(first, dict) else None
         return int(tmdb_id) if isinstance(tmdb_id, int) else None
 
+    def get_tvdb_id(self, tv_id: int) -> int | None:
+        """Return the TVDB series id cross-referenced by a TMDB TV show, or None.
+
+        Reads ``GET /tv/{id}/external_ids`` and returns its ``tvdb_id`` directly
+        from the raw payload. This does NOT go through ``get_tv`` /
+        ``parse_media_details``: that parser keeps only string-valued external
+        ids, and TMDB returns ``tvdb_id`` as an integer — so the parsed
+        ``MediaDetails.external_ids`` never carries it (verified against the live
+        API). Reading the raw int here is the reliable cross-reference.
+
+        Args:
+            tv_id: The TMDB TV show id.
+
+        Returns:
+            The TVDB series id, or ``None`` when the show has no TVDB
+            cross-reference (or the field is absent/malformed).
+        """
+        raw = self._transport.get(f"/tv/{tv_id}/external_ids")
+        if not isinstance(raw, dict):
+            raise TypeError(f"Expected dict response, got {type(raw).__name__}")
+        tvdb_id = raw.get("tvdb_id")
+        return tvdb_id if isinstance(tvdb_id, int) else None
+
     def get_tv_season(self, tv_id: int, season: int) -> SeasonDetails:
         """Fetch season details with episodes and artwork.
 
