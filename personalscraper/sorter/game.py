@@ -25,9 +25,7 @@ from personalscraper.sorter.file_type import (
 #: Optical-disc-image extensions (a game's primary payload). A movie/TV rip can
 #: also be an ``.iso`` — those are separated out by the media vetoes below, never
 #: by this set alone.
-DISC_IMAGE_EXTENSIONS: frozenset[str] = frozenset(
-    {"iso", "bin", "mds", "mdf", "nrg", "cue", "img"}
-)
+DISC_IMAGE_EXTENSIONS: frozenset[str] = frozenset({"iso", "bin", "mds", "mdf", "nrg", "cue", "img"})
 
 #: Known PC-game repack / scene groups (lowercased). Presence of any as a
 #: name token is a sufficient game signal. Kept deliberately conservative —
@@ -66,9 +64,7 @@ _GAME_VERSION_RE: re.Pattern[str] = re.compile(r"(?i)\bv\d+\.\d+(?:\.\d+)*\b")
 #: Console/platform tokens. ``pc`` is intentionally omitted — too weak a token
 #: (risk of matching non-game text); PC games are still caught by their repack
 #: group or version, which they virtually always carry.
-_PLATFORM_RE: re.Pattern[str] = re.compile(
-    r"(?i)\b(?:ps[345]|psvita|nsw|switch|xbox(?:360|one)?|wii[uu]?)\b"
-)
+_PLATFORM_RE: re.Pattern[str] = re.compile(r"(?i)\b(?:ps[345]|psvita|nsw|switch|xbox(?:360|one)?|wii[uu]?)\b")
 
 #: Split a release name into lowercase alphanumeric tokens for group matching.
 _TOKEN_RE: re.Pattern[str] = re.compile(r"[^0-9a-zA-Z]+")
@@ -132,9 +128,7 @@ def is_game_release(media_dir: Path) -> bool:
 
     # Signal text = the release folder name plus every disc-image filename, so a
     # signal living on the .iso (not the folder) is still seen.
-    disc_names = [
-        c.name for c in files if _extension_of(c) in DISC_IMAGE_EXTENSIONS
-    ]
+    disc_names = [c.name for c in files if _extension_of(c) in DISC_IMAGE_EXTENSIONS]
     haystack = " ".join([media_dir.name, *disc_names])
 
     # A console token like ``PS4`` embeds ``S4``, which the season-pack TV-marker
