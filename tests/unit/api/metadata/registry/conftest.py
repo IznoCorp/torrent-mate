@@ -495,6 +495,7 @@ def build_registry(monkeypatch: pytest.MonkeyPatch) -> Any:
             settings_arg: object,
             cb_policy_arg: object,
             event_bus_arg: object,
+            retry_arg: object = None,
         ) -> dict[str, object]:
             # Only return the fakes that were actually requested by the
             # config, mirroring real factory behaviour.

@@ -18,7 +18,7 @@ from personalscraper.logger import get_logger
 log = get_logger("registry.factory")
 
 if TYPE_CHECKING:
-    from personalscraper.api.transport._policy import CircuitPolicy
+    from personalscraper.api.transport._policy import CircuitPolicy, RetryPolicy
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
 
@@ -67,12 +67,14 @@ def _build_tmdb(
     settings: Settings,
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
+    *,
+    retry: "RetryPolicy | None" = None,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.api.transport._http import HttpTransport
 
-    tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy)
+    tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy, retry=retry)
     tmdb_transport = HttpTransport(tmdb_policy, event_bus=event_bus)
     return TMDBClient(tmdb_transport, language="fr-FR")
 
@@ -81,6 +83,8 @@ def _build_tvdb(
     settings: Settings,
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
+    *,
+    retry: "RetryPolicy | None" = None,
     **_kwargs: Any,
 ) -> object:
     from personalscraper.api.metadata.tvdb import TVDBClient
@@ -89,6 +93,7 @@ def _build_tvdb(
         settings.tvdb_api_key,
         language="fr-FR",
         circuit=cb_policy,
+        retry=retry,
         event_bus=event_bus,
     )
 
@@ -182,6 +187,7 @@ def build_providers(
     settings: Settings,
     cb_policy: CircuitPolicy,
     event_bus: EventBus,
+    retry: "RetryPolicy | None" = None,
 ) -> dict[str, object]:
     """Instantiate each named provider once. Returns ``name → instance`` dict.
 
@@ -196,6 +202,12 @@ def build_providers(
         settings: The pipeline ``Settings`` for credentials.
         cb_policy: Shared ``CircuitPolicy`` for non-TMDB providers.
         event_bus: ``EventBus`` for transport instrumentation.
+        retry: Optional ``RetryPolicy`` override applied to the metadata
+            clients that accept one (TMDB / TVDB). ``None`` keeps each
+            provider's own default. A caller building a registry INSIDE a
+            request passes ``max_attempts=1`` so a dead provider cannot hold
+            the worker thread through the full backed-off retry loop (D1).
+            Builders that take no retry knob absorb it via ``**_kwargs``.
 
     Returns:
         Dict mapping ``{name: instance}`` for each requested provider.
@@ -208,6 +220,7 @@ def build_providers(
             settings,
             cb_policy,
             event_bus,
+            retry=retry,
             _cache=_backend_cache,
         )
     return providers

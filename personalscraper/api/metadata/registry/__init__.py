@@ -81,7 +81,7 @@ from personalscraper.logger import get_logger
 log = get_logger("registry")
 
 if TYPE_CHECKING:
-    from personalscraper.api.transport._policy import CircuitPolicy
+    from personalscraper.api.transport._policy import CircuitPolicy, RetryPolicy
     from personalscraper.conf.models.providers import ProvidersConfig
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import Event, EventBus
@@ -275,6 +275,7 @@ class ProviderRegistry:
         event_bus: EventBus,
         cb_policy: CircuitPolicy,
         providers_config: ProvidersConfig,
+        retry: "RetryPolicy | None" = None,
     ) -> None:
         """Initialize the registry by instantiating providers and validating config.
 
@@ -284,6 +285,12 @@ class ProviderRegistry:
                 project architectural contract — event-bus 0.14.0).
             cb_policy: CircuitPolicy applied to all provider transports.
             providers_config: Parsed ProvidersConfig from config/providers.json5.
+            retry: Optional RetryPolicy override forwarded to the metadata
+                clients that accept one (TMDB / TVDB). ``None`` (the default,
+                and every pipeline path) keeps each provider's own policy. A
+                registry built inside a web request passes ``max_attempts=1``
+                so a dead provider cannot hold the request through the full
+                backed-off retry loop (D1).
 
         Raises:
             RegistryConfigError: Aggregated config issues from validation.
@@ -294,6 +301,7 @@ class ProviderRegistry:
         self._event_bus = event_bus
         self._settings = settings
         self._cb_policy = cb_policy
+        self._retry = retry
         self._providers_config = providers_config
 
         # Collect all unique provider names from any section
@@ -306,7 +314,7 @@ class ProviderRegistry:
         # Instantiate providers with cleanup on failure
         instantiated: list[object] = []
         try:
-            self._providers: dict[str, object] = build_providers(provider_names, settings, cb_policy, event_bus)
+            self._providers: dict[str, object] = build_providers(provider_names, settings, cb_policy, event_bus, retry)
             instantiated.extend(self._providers.values())
 
             # Validate config — aggregated, never fail-fast

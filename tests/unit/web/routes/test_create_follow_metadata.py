@@ -18,6 +18,8 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -227,10 +229,10 @@ def client(test_config: Any, tmp_path: Path) -> TestClient:
 
 @pytest.fixture
 def mock_provider_boundary(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """Patch ``_build_provider_clients`` with a fake that can answer TVDB lookups.
+    """Patch ``scoped_provider_clients`` with a fake that can answer TVDB lookups.
 
-    Returns the MagicMock wrapping the patched function so tests can assert
-    on ``.called`` / ``.call_count``.
+    Returns the MagicMock wrapping the patched context manager so tests can
+    assert on ``.called`` / ``.call_count``.
 
     The fake TVDB client answers ``get_series(tvdb_id)`` for the known ID
     with a minimal stand-in carrying ``year``, ``overview``, and ``images``
@@ -268,8 +270,14 @@ def mock_provider_boundary(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
     fake_tmdb = MagicMock()
     fake_tvdb = _FakeTvdbClient()
-    mock = MagicMock(return_value=(fake_tmdb, fake_tvdb))
-    monkeypatch.setattr(acq_routes, "_build_provider_clients", mock)
+
+    @contextmanager
+    def _fake_scope(_request: Any) -> Iterator[tuple[object, object]]:
+        """Yield the fakes; the real seam also closes the registry here."""
+        yield fake_tmdb, fake_tvdb
+
+    mock = MagicMock(side_effect=_fake_scope)
+    monkeypatch.setattr(acq_routes, "scoped_provider_clients", mock)
     return mock
 
 
@@ -337,10 +345,10 @@ class TestCreateFollowMetadata:
 
         import personalscraper.web.routes.acquisition as acq_routes
 
-        def _provider_boom(_request: Any) -> tuple[object, object]:
+        def _provider_boom(_request: Any) -> Iterator[tuple[object, object]]:
             raise RuntimeError("TVDB API is unreachable")
 
-        monkeypatch.setattr(acq_routes, "_build_provider_clients", _provider_boom)
+        monkeypatch.setattr(acq_routes, "scoped_provider_clients", _provider_boom)
 
         resp = client.post(
             "/api/acquisition/followed",

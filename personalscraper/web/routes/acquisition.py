@@ -52,12 +52,12 @@ from personalscraper.web.acquisition.obligation_titles import resolve_obligation
 from personalscraper.web.acquisition.runner import parse_prime_options
 from personalscraper.web.acquisition.service import (
     _build_followed_item,
-    _build_provider_clients,
     _count_wanted_pending,
     _item_from_followed,
     _list_deferred_torrents,
     _query_watcher_recent_runs,
-    _to_search_result,
+    run_media_search,
+    scoped_provider_clients,
 )
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
@@ -68,7 +68,6 @@ from personalscraper.web.models.acquisition import (
     FollowedResponse,
     FollowedSeriesItem,
     MediaSearchResponse,
-    MediaSearchResult,
     ObligationItem,
     ObligationsResponse,
     UpdateFollowRequest,
@@ -135,26 +134,16 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
     and the follow keeps whatever the client sent — the 201 is never at risk
     (plan §7 « Fail-soft, jamais bloquant »).
 
-    KNOWN UNBOUNDED WORST CASE (PR #320 review, M6 — OPEN, not fixed here).
-    These provider calls are SYNCHRONOUS inside the request. The enrichment
-    makes at most two lookups (primary provider, then the fallback), but each
-    one runs the shared transport retry loop: ``max_attempts=4`` over a 10 s
-    (TMDB) / 15 s (TVDB) per-request timeout, plus exponential-jitter backoff.
-    Against a host that accepts the TCP connection and never answers, one
-    lookup can therefore burn ~60-75 s and a two-source enrichment ~2 minutes,
-    with the worker thread held for the whole time. The circuit breaker only
-    helps from the SECOND affected request onwards — it cannot shorten the one
-    that trips it.
-
-    TODO(acq-states): bound this path to attempts=1. It is deliberately NOT
-    done here: the retry policy is baked into each provider's ``policy()`` and
-    reaches ``HttpTransport`` through ``ProviderRegistry`` →
-    ``build_providers``, with no per-call or per-registry override seam. The
-    only local workaround would be to mutate ``client._transport._policy``
-    (private state, frozen dataclass, on objects the registry owns) from this
-    route — and on TVDB merely READING ``_transport`` fires a bootstrap login.
-    The honest fix is an ``attempts`` override plumbed through the registry
-    factory, which is a provider-tree change, not a route change.
+    BOUNDED WORST CASE (D1). These provider calls are SYNCHRONOUS inside the
+    request, and the enrichment makes at most two lookups (primary provider,
+    then the fallback). They used to run the pipeline's retry loop —
+    ``max_attempts=4`` over a 10 s (TMDB) / 15 s (TVDB) timeout plus
+    exponential-jitter backoff — so a host that accepted the TCP connection and
+    never answered burned ~60-75 s per lookup and ~2 minutes for a two-source
+    enrichment, worker thread held throughout. ``scoped_provider_clients``
+    builds the registry with ``max_attempts=1`` (a construction seam, not a
+    mutation of private policy state), which bounds the worst case to the sum
+    of the two timeouts (~25 s), and closes the registry on the way out.
 
     Args:
         request: The incoming FastAPI request (carries config + settings).
@@ -168,17 +157,19 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
     if known.is_complete:
         return known
     try:
-        tmdb_client, tvdb_client = _build_provider_clients(request)
+        with scoped_provider_clients(request) as (tmdb_client, tvdb_client):
+            return enrich_follow_metadata(
+                media_ref,
+                body.kind,
+                tmdb_client=tmdb_client,
+                tvdb_client=tvdb_client,
+                existing=known,
+            )
     except Exception as exc:  # noqa: BLE001 — incl. the HTTPException(502) the builder raises
+        # Fail-soft end to end (plan §7): the follow keeps whatever the client
+        # sent. The registry is released by the context manager either way.
         logger.warning("acquisition_follow_enrich_registry_failed", error=str(exc))
         return known
-    return enrich_follow_metadata(
-        media_ref,
-        body.kind,
-        tmdb_client=tmdb_client,
-        tvdb_client=tvdb_client,
-        existing=known,
-    )
 
 
 # ── /api/acquisition/followed ──────────────────────────────────────────
@@ -699,54 +690,8 @@ def search_media(
     Raises:
         HTTPException: 502 on provider registry build or provider API failure.
     """
-    tmdb_client, tvdb_client = _build_provider_clients(request)
-    results: list[MediaSearchResult] = []
-
-    if kind in (None, "movie"):
-        from personalscraper.scraper.confidence import match_movie_detailed
-
-        try:
-            _, movie_candidates = match_movie_detailed(tmdb_client, q, None)
-        except Exception as exc:
-            logger.error("acquisition_search_movie_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
-        results.extend(_to_search_result(c, "movie") for c in movie_candidates)
-
-    if kind in (None, "tv"):
-        from personalscraper.scraper.confidence import match_tvshow_detailed
-
-        try:
-            _, tv_candidates = match_tvshow_detailed(tvdb_client, tmdb_client, q, None)
-        except Exception as exc:
-            logger.error("acquisition_search_tvshow_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"TV search failed: {exc}") from exc
-        results.extend(_to_search_result(c, "tv") for c in tv_candidates)
-
-    results.sort(key=lambda r: r.score, reverse=True)
-
-    # §5 replacement confirmation: flag movie results already owned in the
-    # library (by provider id, live files only) so the UI can ask before
-    # following — the pipeline will REPLACE the existing version. Fail-soft:
-    # an unreadable indexer leaves already_owned=False everywhere.
-    indexer_db = request.app.state.config.indexer.db_path
-    if indexer_db is not None and any(r.kind == "movie" for r in results):
-        from personalscraper.core.identity import MediaRef
-        from personalscraper.indexer.ownership import IndexerOwnershipChecker
-
-        checker = IndexerOwnershipChecker(Path(indexer_db))
-        try:
-            for r in results:
-                if r.kind != "movie":
-                    continue
-                ref = MediaRef(tmdb_id=r.provider_id) if r.provider == "tmdb" else MediaRef(tvdb_id=r.provider_id)
-                r.already_owned = checker.owns(ref, kind="movie")
-        finally:
-            checker.close()
-
-    return MediaSearchResponse(results=results)
-
-
-# ── /api/acquisition/followed (write) ─────────────────────────────────────
+    with scoped_provider_clients(request) as (tmdb_client, tvdb_client):
+        return run_media_search(request, tmdb_client, tvdb_client, q, kind)
 
 
 @router.post(

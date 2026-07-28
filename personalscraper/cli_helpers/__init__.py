@@ -29,6 +29,7 @@ from personalscraper.subscribers.redis_stream import build_redis_publisher
 log = get_logger("cli_helpers")
 
 if TYPE_CHECKING:
+    from personalscraper.api.transport._policy import RetryPolicy
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.ownership import OwnershipChecker
@@ -39,6 +40,7 @@ def _build_app_context(
     settings: "Settings",
     *,
     build_torrent_client: bool = False,
+    provider_retry: "RetryPolicy | None" = None,
 ) -> AppContext:
     """Build the process-scoped :class:`AppContext` for a CLI invocation.
 
@@ -79,6 +81,12 @@ def _build_app_context(
             resolve + validate it at boot (D3 fail-fast). When False
             (default), ``torrent_client`` stays None and no torrent daemon is
             contacted — used by commands that never touch the torrent client.
+        provider_retry: Optional ``RetryPolicy`` override forwarded to the
+            metadata providers (TMDB / TVDB). ``None`` — every CLI/pipeline
+            path — keeps each provider's own policy. A caller building this
+            context INSIDE a web request passes ``max_attempts=1`` so a dead
+            provider cannot hold the request through the full backed-off retry
+            loop (D1).
 
     Returns:
         A frozen :class:`AppContext` ready to drive ``Pipeline.__init__``
@@ -101,6 +109,7 @@ def _build_app_context(
         event_bus=event_bus,
         cb_policy=cb_policy,
         providers_config=config.providers,
+        retry=provider_retry,
     )
 
     # D3/D9: Boot-wire the torrent client when configured; fail-fast if

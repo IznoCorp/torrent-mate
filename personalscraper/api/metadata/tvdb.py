@@ -107,6 +107,7 @@ class TVDBClient(
         *,
         language: str = "fr-FR",
         circuit: CircuitPolicy | None = None,
+        retry: RetryPolicy | None = None,
         event_bus: EventBus,
     ) -> None:
         """Initialize TVDB client *without* contacting the API.
@@ -121,6 +122,12 @@ class TVDBClient(
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
             language: Default language for API queries (2-char pipeline code, e.g. "fr").
             circuit: Optional custom CircuitPolicy override for bootstrap + main transport.
+            retry: Optional custom RetryPolicy override for BOTH the bootstrap
+                login and the main transport. A caller with a deadline (a web
+                request) passes ``max_attempts=1`` here so a dead TVDB cannot
+                hold the worker thread through four backed-off attempts (D1);
+                it is stored, never read back off the built transport, so the
+                lazy bootstrap is not triggered.
             event_bus: Required :class:`EventBus` propagated to the bootstrap
                 and main HTTP transports so their circuit breakers emit
                 :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened``
@@ -130,6 +137,7 @@ class TVDBClient(
         self._tvdb_lang = map_language(language)
         self._language = language
         self._circuit_policy = circuit or _DEFAULT_CIRCUIT
+        self._retry_policy = retry or _DEFAULT_RETRY
         self._event_bus = event_bus
         # Lazy: built on first access via the _transport property.
         self.__transport: HttpTransport | None = None
@@ -168,7 +176,7 @@ class TVDBClient(
             base_url="https://api4.thetvdb.com/v4",
             auth=NoAuth(),
             timeout_seconds=15.0,
-            retry=_DEFAULT_RETRY,
+            retry=self._retry_policy,
             circuit=self._circuit_policy,
             rate_limit=_DEFAULT_RATE,
         )
@@ -179,7 +187,7 @@ class TVDBClient(
         jwt = resp["data"]["token"]
 
         # Main transport with JWT.
-        main_policy = TVDBClient.policy(jwt, circuit=self._circuit_policy)
+        main_policy = TVDBClient.policy(jwt, circuit=self._circuit_policy, retry=self._retry_policy)
         self.__transport = HttpTransport(main_policy, event_bus=self._event_bus)
         # Cache the CircuitBreaker reference so :attr:`circuit` reads it
         # directly without re-triggering :meth:`_ensure_transport` — see
@@ -246,12 +254,16 @@ class TVDBClient(
         jwt_token: str,
         *,
         circuit: CircuitPolicy | None = None,
+        retry: RetryPolicy | None = None,
     ) -> TransportPolicy:
         """Build the TransportPolicy for TVDB.
 
         Args:
             jwt_token: JWT Bearer token from POST /login.
             circuit: Optional custom CircuitPolicy override.
+            retry: Optional custom RetryPolicy override — how a caller with a
+                deadline (a web request) bounds the transport instead of
+                mutating private policy state after construction (D1).
 
         Returns:
             A TransportPolicy configured for TVDB v4.
@@ -261,7 +273,7 @@ class TVDBClient(
             base_url="https://api4.thetvdb.com/v4",
             auth=BearerAuth(jwt_token),
             timeout_seconds=15.0,
-            retry=_DEFAULT_RETRY,
+            retry=retry if retry is not None else _DEFAULT_RETRY,
             circuit=circuit if circuit is not None else _DEFAULT_CIRCUIT,
             rate_limit=_DEFAULT_RATE,
         )
