@@ -213,6 +213,22 @@ describe("AppShell mobile nav Sheet", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  it("montre la VersionCard dans le tiroir mobile (tâche #11)", async () => {
+    renderShell();
+
+    // The version card lives in the desktop rail's `hidden md:flex` sidebar, so
+    // it is invisible on a phone. Task #11 adds the SAME single-source
+    // VersionCard to the mobile drawer — the redeploy hint must reach the phone.
+    fireEvent.click(
+      screen.getByRole("button", { name: /ouvrir le menu de navigation/i }),
+    );
+
+    const sheet = await screen.findByRole("dialog");
+    // The card's StatPanel label + its commit line, scoped to the drawer.
+    expect(within(sheet).getByText("Version")).toBeInTheDocument();
+    expect(within(sheet).getByText(/^commit /)).toBeInTheDocument();
+  });
 });
 
 describe("AppShell clampe le débordement horizontal (garde structurelle)", () => {

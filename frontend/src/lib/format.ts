@@ -83,6 +83,43 @@ export function formatDate(iso: string): string {
 }
 
 /**
+ * Format an ISO ``YYYY-MM-DD`` air date into a readable French long date.
+ *
+ * Used by the episode date popover — « 3 août 2026 », never the raw ISO token
+ * (NE-DOIT-PAS-4). The date is parsed at NOON local time so a midnight-UTC value
+ * cannot roll back a day in a negative-offset timezone.
+ *
+ * Args:
+ *   isoDate: An ISO calendar date (``"2026-08-03"``), or ``null`` / empty.
+ *
+ * Returns:
+ *   The long French date (« 3 août 2026 »), or ``null`` when the input is
+ *   absent or unparseable — the caller then renders nothing rather than a bad
+ *   date.
+ */
+export function formatAirDate(
+  isoDate: string | null | undefined,
+): string | null {
+  if (isoDate == null || isoDate === "") {
+    return null;
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (match === null) {
+    return null;
+  }
+  const [, y, m, d] = match;
+  const date = new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return new Intl.DateTimeFormat("fr", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+/**
  * Format a Unix-epoch float as a human-readable datetime in French.
  *
  * Args:

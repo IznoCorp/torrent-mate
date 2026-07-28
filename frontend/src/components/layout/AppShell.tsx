@@ -1,9 +1,4 @@
-import {
-  useMemo,
-  useState,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { Outlet } from "react-router-dom";
 
 import { EventStreamProvider } from "@/components/EventStreamProvider";
@@ -11,6 +6,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { NavSections } from "@/components/layout/NavSections";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { VersionCard } from "@/components/dashboard/VersionCard";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
 import { BrandMark } from "@/components/ds/BrandMark";
 import { StatusDot } from "@/components/ds/StatusDot";
@@ -175,6 +171,14 @@ function AppShellInner(): ReactElement {
               setNavOpen(false);
             }}
           />
+          {/* Task #11: the deployed version + build commit is invisible on
+              mobile (it lives in the desktop Sidebar's `hidden md:flex` rail).
+              Same single-source {@link VersionCard}, same wrapper as the rail,
+              added to the mobile drawer after the nav so the redeploy hint the
+              card carries reaches the phone too. */}
+          <div className="border-t border-sidebar-border px-3 py-3">
+            <VersionCard />
+          </div>
         </SheetContent>
       </Sheet>
     </div>

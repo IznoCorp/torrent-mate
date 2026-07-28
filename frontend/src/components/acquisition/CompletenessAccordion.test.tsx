@@ -7,7 +7,13 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CompletenessResponse } from "@/api/acquisition";
@@ -340,5 +346,159 @@ describe("CompletenessAccordion — catalogue inconnu (phase 8)", () => {
     expect(
       screen.queryByText(/Catalogue pas encore vérifié/),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("CompletenessAccordion — annonce, legend, date popover (episode-states)", () => {
+  it("renders an announced (future) episode chip", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 2,
+            owned: 0,
+            queued: 0,
+            total: 1,
+            announced: 1,
+            episodes: [
+              {
+                episode: 3,
+                state: "en_mediatheque",
+                title: null,
+                air_date: "2024-01-01",
+              },
+              {
+                episode: 4,
+                state: "annonce",
+                title: "The Future",
+                air_date: "2099-01-01",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    // Both chips render, the future one included (the read-model now surfaces it).
+    expect(
+      screen.getByRole("button", { name: /E4 — Annoncé/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /E3 — En médiathèque/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the legend below the matrix, one entry per episode state", () => {
+    mockCompleteness(makeCompleteness());
+    renderOpen();
+
+    const legend = screen.getByLabelText("Légende des statuts d'épisode");
+    // The legend lists every state label — derived from meta.ts, not hardcoded.
+    for (const label of [
+      "En médiathèque",
+      "À récupérer",
+      "En cours d'acquisition",
+      "En attente",
+      "Non vérifié",
+      "Annoncé",
+    ]) {
+      expect(within(legend).getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it("opens « Diffusé le … » on an aired chip (click, portalled)", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 1,
+            queued: 0,
+            total: 1,
+            announced: 0,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_mediatheque",
+                title: null,
+                air_date: "2022-08-21",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /E1 — En médiathèque/ }),
+    );
+    const dialog = screen.getByRole("dialog", { name: /E1 — En médiathèque/ });
+    // French long date, never the ISO token.
+    expect(dialog).toHaveTextContent("Diffusé le 21 août 2022");
+    expect(dialog).not.toHaveTextContent("2022-08-21");
+  });
+
+  it("opens « Sortie prévue le … » on an announced chip", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 2,
+            owned: 0,
+            queued: 0,
+            total: 0,
+            announced: 1,
+            episodes: [
+              {
+                episode: 5,
+                state: "annonce",
+                title: null,
+                air_date: "2099-08-03",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /E5 — Annoncé/ }));
+    const dialog = screen.getByRole("dialog", { name: /E5 — Annoncé/ });
+    expect(dialog).toHaveTextContent("Sortie prévue le 3 août 2099");
+  });
+
+  it("closes the date popover on Escape and returns focus to the chip", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 1,
+            queued: 0,
+            total: 1,
+            announced: 0,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_mediatheque",
+                title: null,
+                air_date: "2022-08-21",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const chip = screen.getByRole("button", { name: /E1 — En médiathèque/ });
+    fireEvent.click(chip);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(chip).toHaveFocus();
   });
 });

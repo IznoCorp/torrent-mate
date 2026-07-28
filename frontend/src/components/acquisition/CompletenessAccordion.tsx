@@ -20,6 +20,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompleteness } from "@/hooks/useAcquisition";
 
+import { EpisodeDatePopover } from "./EpisodeDatePopover";
+import { EpisodeStateLegende } from "./EpisodeStateLegende";
 import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
@@ -62,13 +64,20 @@ function SeasonRow({ season }: { season: SeasonCompleteness }): ReactElement {
           // The reason is appended to the chip tooltip, in French, mapped —
           // the machine verdict never reaches the operator (NE-DOIT-PAS-4).
           const reason = searchOutcomeReason(ep.state, ep.last_search_outcome);
+          // Hover tooltip (desktop fallback) stays on the chip; the CLICK opens
+          // the portalled date popover (#10) — usable on a phone that has no
+          // hover, and not clipped by the mobile-shell guard.
+          const hoverTitle = `E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state]}${ep.title ? ` · ${ep.title}` : ""} — ${EPISODE_STATE_HINT[ep.state]}${reason != null ? ` (${reason})` : ""}`;
           return (
-            <span
+            <EpisodeDatePopover
               key={ep.episode}
-              title={`E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state]}${ep.title ? ` · ${ep.title}` : ""} — ${EPISODE_STATE_HINT[ep.state]}${reason != null ? ` (${reason})` : ""}`}
+              state={ep.state}
+              airDate={ep.air_date}
+              triggerLabel={`E${String(ep.episode)} — ${EPISODE_STATE_LABEL[ep.state]}`}
+              hoverTitle={hoverTitle}
             >
               <Badge tone={EPISODE_STATE_TONE[ep.state]}>E{ep.episode}</Badge>
-            </span>
+            </EpisodeDatePopover>
           );
         })}
       </div>
@@ -136,6 +145,9 @@ export function CompletenessAccordion({
               {data.seasons.map((s) => (
                 <SeasonRow key={s.season} season={s} />
               ))}
+              {/* Colour key under the matrix (#9) — derived from the vocabulary
+                  maps, so it always matches the chips above. */}
+              <EpisodeStateLegende />
             </div>
           ) : data?.source === "unknown" ? (
             /* No catalog has ever been written for this follow: we know

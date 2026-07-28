@@ -197,7 +197,9 @@ export function ATraiterList(): ReactElement {
                   is the actionable "why", not a decorative subtitle. `gap-x-2`
                   replaces the former `ml-2` spacing. */}
               <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
-                <span className="min-w-0 truncate text-sm">{item.title}</span>
+                <span className="min-w-0 truncate text-sm" title={item.title}>
+                  {item.title}
+                </span>
                 <span className="min-w-0 break-words text-xs text-muted-foreground">
                   {reasonLabel(item)}
                 </span>

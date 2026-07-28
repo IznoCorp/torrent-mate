@@ -6,10 +6,18 @@ import { cn } from "@/lib/utils";
 
 /**
  * Semantic badge tone — the subset of {@link badgeVariants} tones reserved for
- * status/outcome signals (healthy/done, error, attention, info, neutral).
+ * status/outcome signals (healthy/done, error, attention, info, neutral,
+ * a dimmer « unknown » muted, and the violet « upcoming » for a future item).
  * Excludes presentational-only tones (``"solid"``, ``"outline"``).
+ *
+ * ``muted`` and ``upcoming`` were added for the episode-states matrix so its six
+ * per-episode states each read as a DISTINCT tone (operator #9 « une couleur par
+ * statut »): ``muted`` is the dimmer, dashed « je ne sais pas » of ``non_verifie``
+ * (visually apart from the solid ``neutral`` of « en attente »), and ``upcoming``
+ * is the accent of an announced, not-yet-aired episode.
  */
-export type BadgeTone = "success" | "danger" | "warning" | "info" | "neutral";
+export type BadgeTone =
+  "success" | "danger" | "warning" | "info" | "neutral" | "muted" | "upcoming";
 
 /** Props for {@link Badge}. */
 export interface BadgeProps

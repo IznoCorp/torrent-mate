@@ -444,17 +444,21 @@ export function formatRunResult(
   return parts.length > 0 ? parts.join(", ") : "rien de nouveau";
 }
 
-/** Per-episode §5 state → chip tone (completeness matrix, phase-08 table). */
+/**
+ * Per-episode §5 state → chip tone (completeness matrix + legend).
+ *
+ * SIX states, SIX distinct DS tones (operator #9 « une couleur par statut ») —
+ * no two states share a tone, asserted by a test. ``non_verifie`` moved off the
+ * grey it used to share with ``en_attente`` onto the dimmer dashed ``muted``,
+ * and ``annonce`` onto the violet ``upcoming``.
+ */
 export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
-  // ``annonce`` (a future episode) shares a placeholder tone for now — the
-  // distinct colour + legend are episode-states phase 2's DS work. It is added
-  // here so the map stays exhaustive over EpisodeState (schema regenerated).
-  annonce: "info",
   en_mediatheque: "success",
   a_recuperer: "warning",
   en_acquisition: "info",
   en_attente: "neutral",
-  non_verifie: "neutral",
+  non_verifie: "muted",
+  annonce: "upcoming",
 };
 
 /**
