@@ -19,7 +19,7 @@ pour tuer la classe de bug.
 
 | #   | Phase                                         | File                                                                   | Status |
 | --- | --------------------------------------------- | ---------------------------------------------------------------------- | ------ |
-| 1   | Garde-fou d'abord (rouge-avant) + clamp shell | [phase-01](docs/features/mobile-shell/plan/phase-01-guard-clamp.md)    | [ ]    |
+| 1   | Garde-fou d'abord (rouge-avant) + clamp shell | [phase-01](docs/features/mobile-shell/plan/phase-01-guard-clamp.md)    | [x]    |
 | 2   | Coupables ponctuels + preuve réelle 390 px    | [phase-02](docs/features/mobile-shell/plan/phase-02-culprits-proof.md) | [ ]    |
 
 ## Next action
