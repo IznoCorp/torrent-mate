@@ -1,10 +1,10 @@
 {
-  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY, tr4ker → TR4KER_API_KEY
+  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY, tr4ker → TR4KER_PASSKEY
   // PROVIDER_CREDS: torr9 → TORR9_USERNAME + TORR9_PASSWORD (JWT login)
   // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY,
-  //   tr4ker → TR4KER_PASSKEY (RSS freeleech radar R1 follow-on),
   //   torr9 → TORR9_PASSKEY (RSS freeleech radar R1 follow-on)
-  // tr4ker auth = the PROFILE API key (apikey= query param), NOT the passkey.
+  // tr4ker: single secret — TR4KER_PASSKEY, whose value is sent as the Torznab
+  //   `apikey=` query param (and will serve the RSS radar later), so it gates activation.
   tracker: {
     providers: {
       lacale: { enabled: false, cross_seed: false }, // deprecated + unreachable (la-cale.space down) — disabled to stop CircuitOpenError crashing grab
@@ -19,6 +19,10 @@
         },
       },
       tr4ker: {
+        // Active: TR4KER_PASSKEY is present in .env. Keep it that way — an
+        // enabled tracker with missing credentials is a BOOT ERROR
+        // (build_tracker_registry raises TrackerConfigError → every command
+        // fails), so removing the secret requires flipping this back to false.
         enabled: true,
         cross_seed: false,
         // economy: TR4KER publishes no explicit seeding obligation (no documented

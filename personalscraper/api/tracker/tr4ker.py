@@ -11,10 +11,18 @@ See ``docs/reference/tr4ker-api.md`` for the endpoint reference.
 Tr4ker particularities (from the tracker's own Prowlarr/Torznab documentation):
 - Natively Torznab; the indexer is added to Prowlarr as "Generic Torznab" with
   base URL ``https://tr4ker.net``.
-- Auth is the **profile API key** sent as ``apikey=`` query param — explicitly
-  NOT the announce passkey (which only authenticates the RSS feed). Legacy
-  ``TR4KER_USERNAME`` / ``TR4KER_PASSWORD`` entries in the operator ``.env`` are
-  torr9 leftovers and are deliberately not wired.
+- Auth is a single secret sent as the ``apikey=`` query param, read from the
+  ``TR4KER_PASSKEY`` env var (the operator's tracker-naming convention: one
+  passkey variable per tracker, which will also authenticate the RSS feed of
+  the freeleech radar R1). Legacy ``TR4KER_USERNAME`` / ``TR4KER_PASSWORD``
+  entries in the operator ``.env`` are torr9 leftovers and are deliberately not
+  wired.
+  **Factual note**: the tracker's own documentation distinguishes the *profile
+  API key* (Mon compte → Paramètres) from the *announce passkey* and states that
+  Torznab search wants the API key. This codebase follows the operator's
+  single-variable convention instead, so if a live search ever answers
+  ``<error code="100" description="Invalid API Key"/>``, the fix is to put the
+  profile API key into ``TR4KER_PASSKEY`` — not to add a second env var.
 - API paths: ``/api/torznab`` (used here) and ``/api`` (zero-config alias, same
   Torznab document). ``/api/torznab/all`` is the full catalog including
   0-seeder torrents — reserved for a future cross-seed, deliberately NOT wired
@@ -70,13 +78,12 @@ class Tr4kerClient(TorznabClient):
     (Torznab exposes neither a freeleech re-check nor a per-torrent detail
     endpoint).
 
-    ``REQUIRED_CREDS`` lists only the API key: ``TR4KER_PASSKEY`` is declared in
-    ``PROVIDER_OPTIONAL_SECRETS`` (RSS / freeleech radar) and never gates
-    activation.
+    ``REQUIRED_CREDS`` lists the single ``TR4KER_PASSKEY`` secret, whose value
+    the transport sends as the ``apikey=`` query param.
     """
 
     DESCRIPTOR: ClassVar[TorznabDescriptor] = TR4KER_DESCRIPTOR
     # Mirrors ``DESCRIPTOR.provider`` for class-level access (``Named`` protocol);
     # instances get the same value from the descriptor at construction.
     provider_name: str = ProviderName.TR4KER.value
-    REQUIRED_CREDS: ClassVar[list[str]] = ["TR4KER_API_KEY"]
+    REQUIRED_CREDS: ClassVar[list[str]] = ["TR4KER_PASSKEY"]
