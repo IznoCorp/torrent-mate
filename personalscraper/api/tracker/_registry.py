@@ -16,6 +16,7 @@ import requests
 from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._contracts import TorrentSearchable
+from personalscraper.api.tracker._errors import TrackerAuthError
 from personalscraper.api.tracker._ranking import RankingConfig, rank
 from personalscraper.logger import get_logger
 
@@ -184,9 +185,11 @@ class TrackerRegistry:
           caller can tell a transient outage (``all_errored`` → retryable) from
           a clean zero-hit search (→ terminal ``no_candidates``). See DESIGN §6.2.
 
-        The per-tracker loop mirrors :meth:`search_all` exactly — same priority
-        order, same narrowed ``except`` (operational failures swallowed and
-        logged; programming errors propagate).
+        The per-tracker loop mirrors :meth:`search_all` — same priority order,
+        same narrowed set of swallowed exceptions (operational failures logged;
+        programming errors propagate). It splits them into ordered clauses that
+        ``search_all`` does not need, because only this method reports the
+        failure TAXON per tracker.
 
         Args:
             query: Search query string.
@@ -196,7 +199,9 @@ class TrackerRegistry:
 
         Returns:
             A :class:`~personalscraper.acquire._dedup.SearchOutcome` carrying the
-            raw result list plus ``trackers_queried`` / ``trackers_errored``.
+            raw result list, ``trackers_queried`` / ``trackers_errored``, and
+            ``errors`` — the per-tracker failure taxon (``auth`` / ``circuit`` /
+            ``api``) the grab chain turns into an honest verdict (D4).
         """
         from personalscraper.acquire._dedup import (
             SearchOutcome,  # noqa: PLC0415 — lazy: avoids api→acquire import cycle
@@ -204,9 +209,23 @@ class TrackerRegistry:
 
         all_results: list[TrackerResult] = []
         queried = 0
-        errored = 0
         errored_names: list[str] = []
         queried_names: list[str] = []
+        errors: dict[str, str] = {}
+
+        def _record_failure(tracker: str, taxon: str) -> None:
+            """Log + book one swallowed per-tracker failure under its taxon.
+
+            Same fail-soft contract as ``search_all``: operational failures are
+            logged and counted; the surviving trackers' results stand. The taxon
+            is what lets the caller tell a permanent breakage (``auth``) from an
+            outage (``circuit`` / ``api``) instead of reading every all-errored
+            search as ``trackers_unavailable`` (D4).
+            """
+            log.warning("tracker_search_failed", tracker=tracker, taxon=taxon, exc_info=True)
+            errored_names.append(tracker)
+            errors[tracker] = taxon
+
         for name in self._priority_for(str(media_type)):
             client = self._trackers.get(name)
             if client is None:
@@ -214,32 +233,38 @@ class TrackerRegistry:
                 continue
             queried += 1
             queried_names.append(name)
+            # Catch order is LOAD-BEARING (mirrors the chain's):
+            #   * CircuitOpenError is NOT an ApiError (core/_contracts.py) — it
+            #     needs its own clause or it escapes the loop entirely;
+            #   * TrackerAuthError IS an ApiError subclass — it must precede its
+            #     base, else a broken key is booked as a generic ``api`` failure
+            #     and the terminal ``tracker_auth`` verdict can never fire.
             try:
                 all_results.extend(client.search(query, media_type, year))
+            except CircuitOpenError:
+                # An OPEN breaker degrades the outcome instead of erasing it: the
+                # healthy trackers' results stand. When EVERY tracker is
+                # circuit-open the caller now reads ``circuit_open`` rather than a
+                # vague outage.
+                _record_failure(name, "circuit")
+            except TrackerAuthError:
+                # Broken passkey / API key: permanent until an operator fixes it.
+                _record_failure(name, "auth")
             except (
                 ApiError,
-                CircuitOpenError,  # NOT an ApiError — must be named, see search_all
                 requests.RequestException,
                 ValueError,  # JSON decode, payload validation
                 TypeError,  # response-shape drift (wrong type returned)
-                xml.parsers.expat.ExpatError,  # malformed XML from c411 / Torznab
+                xml.parsers.expat.ExpatError,  # malformed XML from a Torznab indexer
             ):
-                # Same fail-soft contract as ``search_all``: operational failures
-                # are logged and counted; the surviving trackers' results stand.
-                # An OPEN breaker counts as a normal per-tracker error here (it
-                # lands in ``errored_names``), so a tracker parked behind its
-                # cooldown degrades the outcome instead of erasing it. When EVERY
-                # tracker is circuit-open, ``all_errored`` is True and the caller
-                # still reads that as a retryable outage.
-                log.warning("tracker_search_failed", tracker=name, exc_info=True)
-                errored += 1
-                errored_names.append(name)
+                _record_failure(name, "api")
         return SearchOutcome(
             results=all_results,
             trackers_queried=queried,
-            trackers_errored=errored,
+            trackers_errored=len(errored_names),
             errored_names=errored_names,
             queried_names=queried_names,
+            errors=errors,
         )
 
     def transports(self) -> "dict[str, HttpTransport]":

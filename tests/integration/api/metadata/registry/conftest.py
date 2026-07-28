@@ -293,6 +293,7 @@ def build_registry_fakes(monkeypatch: pytest.MonkeyPatch):
             settings_arg: object,
             cb_policy_arg: object,
             event_bus_arg: object,
+            retry_arg: object = None,
         ) -> dict[str, object]:
             return {n: fakes[n] for n in names if n in fakes}
 

@@ -26,7 +26,6 @@ import sqlite3
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
 from personalscraper.logger import get_logger
 from personalscraper.web.acquisition.states import EpisodeState, derive_episode_state, select_wanted_facts
 from personalscraper.web.models.acquisition import MovieFacts
@@ -171,13 +170,21 @@ def compute_movie_truth(
     series episode runs, so ownership still beats a phantom ``grabbed`` row and
     a film nobody ever searched reads ``non_verifie`` instead of « À jour ».
 
-    Row selection: a film follow carries ONE wanted row, but a re-follow can
-    leave a closed row behind — so an OPEN row wins (the statuses of
-    :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`, the same set
-    the episode selector uses), and only failing that the most recent row of any
-    status. No row at all yields the never-searched facts. That last fallback is
-    the ONE place a closed row can still speak: a film has no episode matrix, so
-    no second surface can contradict its card here.
+    Row selection is delegated to
+    :func:`~personalscraper.web.acquisition.states.select_wanted_facts` — the
+    SAME selector the episode matrix uses (D3). Only OPEN rows speak (the
+    statuses of :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`),
+    highest id first; no open row yields the never-searched facts.
+
+    A film used to keep one exception: failing an open row, its newest row —
+    closed or not — still answered. That let a closed row's stale verdict speak —
+    a film whose only row was ``abandoned`` with ``no_candidates`` read « En
+    attente », i.e. a queue state for an item no longer in any queue. The
+    justification was that a film has no episode matrix to contradict its card,
+    which explains why the divergence was invisible, not why it was true. It is
+    now arbitrated the other way: one rule everywhere, a closed row is history.
+    Ownership is untouched by this — the disk fact is read separately, so an
+    owned film whose row was closed still reads « À jour ».
 
     Args:
         acquire_conn: Open (read) connection to ``acquire.db``.
@@ -190,26 +197,23 @@ def compute_movie_truth(
         by the film's card.
     """
     owned = checker.owns(media_ref, kind="movie")
-    open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
-    placeholders = ", ".join("?" for _ in open_statuses)
     try:
-        row = acquire_conn.execute(
-            "SELECT status, last_search_outcome, last_search_found FROM wanted "
-            "WHERE followed_id = ? AND kind = 'movie' "
-            f"ORDER BY (status IN ({placeholders})) DESC, id DESC "
-            "LIMIT 1",
-            (followed_id, *open_statuses),
-        ).fetchone()
+        rows = acquire_conn.execute(
+            "SELECT id, status, last_search_outcome, last_search_found FROM wanted "
+            "WHERE followed_id = ? AND kind = 'movie' ORDER BY id",
+            (followed_id,),
+        ).fetchall()
     except sqlite3.Error as exc:
         logger.debug("acquisition_truth_movie_read_failed", followed_id=followed_id, error=str(exc))
-        row = None
-    if row is None:
-        return MovieFacts(owned=owned)
+        rows = []
+    status, outcome, found = select_wanted_facts(
+        (int(row[0]), row[1], row[2], None if row[3] is None else int(row[3])) for row in rows
+    )
     return MovieFacts(
         owned=owned,
-        wanted_status=row[0],
-        last_search_outcome=row[1],
-        last_search_found=None if row[2] is None else int(row[2]),
+        wanted_status=status,
+        last_search_outcome=outcome,
+        last_search_found=found,
     )
 
 

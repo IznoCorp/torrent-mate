@@ -40,6 +40,7 @@ def _build_registry(
         settings_arg: Any,
         cb_policy_arg: Any,
         event_bus_arg: Any,
+        retry_arg: Any = None,
     ) -> dict[str, Any]:
         return {name: fakes[name] for name in provider_names if name in fakes}
 

@@ -27,7 +27,7 @@ Load-bearing tests called out (DESIGN §7, §11):
 from __future__ import annotations
 
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -602,20 +602,26 @@ def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) ->
     assert store.wanted.get(rowid).status == "grabbed"  # type: ignore[union-attr]
 
 
-def test_section_11d_crash_window_emits_grab_succeeded_exactly_once(store: ConcreteAcquireStore) -> None:
-    """LOAD-BEARING (DESIGN §11d): crash between add() and mark_grabbed → exactly one GrabSucceeded.
+def test_section_11d_crash_window_never_double_emits_grab_succeeded(store: ConcreteAcquireStore) -> None:
+    """LOAD-BEARING (DESIGN §11d, revised by M9/D2): the crash window NEVER double-emits.
 
-    add() succeeds → mark_grabbed crashes ONCE → stale-recovery re-grabs →
-    EXACTLY one GrabSucceeded across both runs, add idempotent.
+    Emit-after-persist still holds, but M9 changed what recovery means. The
+    orchestrator now reserves the chosen hash BEFORE its ``add()``, so the row
+    left behind by a ``mark_grabbed`` crash carries an INTENT:
 
-    Closes the add→mark_grabbed double-emit window. Run 1: the orchestrator
-    ``add`` succeeds (the stub returns a success outcome) but ``mark_grabbed``
-    raises ``OperationalError`` once — with emit-after-persist NO GrabSucceeded
-    is emitted (persist failed first) and the per-item error isolation leaves the
-    row 'searching' for the stale sweep (skipped). Run 2 (stale recovery):
-    ``mark_grabbed`` now succeeds → the service emits GrabSucceeded ONCE. The
-    idempotent ``add`` (same info_hash both runs) means no duplicate torrent and
-    no duplicate-grab double-emit.
+    * run 1 — ``add`` succeeded, ``mark_grabbed`` raised: NO ``GrabSucceeded``
+      (persist failed first), row stays 'searching' but now WITH its hash;
+    * run 2 — the grab pass must NOT touch it: ``reclaim_stale_searching``
+      refuses a hash-carrying row, so the row is skipped rather than re-grabbed.
+      That is the routing which prevents a second torrent for the same item;
+    * the reconciliation is what closes it (see
+      ``test_grab_intent_hash.py``): the torrent is in the client, so the row is
+      confirmed 'grabbed' and its seed obligation is recorded.
+
+    The §11d guarantee is therefore **at most once, never twice**: across the
+    whole lifecycle of a crashed grab, ``GrabSucceeded`` fires ZERO times — the
+    recovery is a state reconciliation, not a re-grab, and it does not fabricate
+    a success event whose payload (category/tags) it does not hold.
     """
     import sqlite3  # noqa: PLC0415 — local to the crash-injection test
 
@@ -625,9 +631,18 @@ def test_section_11d_crash_window_emits_grab_succeeded_exactly_once(store: Concr
     chosen = _make_tracker_result(provider="lacale")
     add_calls: list[str] = []
 
-    def _grab(item: WantedItem, profile: object) -> GrabOutcome:
-        # Idempotent add(): every grab returns the SAME info_hash (a duplicate
-        # add is a no-op that returns the existing hash, never a new torrent).
+    def _grab(
+        item: WantedItem,
+        profile: object,
+        *,
+        on_intent: "Callable[[str], None] | None" = None,
+    ) -> GrabOutcome:
+        # Mirrors the real orchestrator: reserve the intent hash (M9/D2) BEFORE
+        # the add, then add. Idempotent add(): every grab returns the SAME
+        # info_hash (a duplicate add is a no-op returning the existing hash,
+        # never a new torrent).
+        if on_intent is not None:
+            on_intent("aaaa1234")
         add_calls.append("aaaa1234")
         return GrabOutcome(disposition="success", info_hash="aaaa1234", chosen=chosen, tags=("lacale",))
 
@@ -662,31 +677,32 @@ def test_section_11d_crash_window_emits_grab_succeeded_exactly_once(store: Concr
     )
     item_mid = real_wanted.get(rowid)
     assert item_mid is not None
-    assert item_mid.status == "searching", "row must stay 'searching' (orphan recoverable, not lost)"
-    assert item_mid.grabbed_hash is None
+    assert item_mid.status == "searching", "row must stay 'searching' (recoverable, not lost)"
+    assert item_mid.grabbed_hash == "aaaa1234", (
+        "M9: the intent hash was reserved BEFORE add(), so the crashed row points at its torrent"
+    )
 
-    # --- Run 2: stale recovery. Force the searching row stale so list_stale_searching picks it up. ---
-    # Run 1 stamped last_search_at = _PINNED_NOW (the pinned service clock). Advance
-    # the clock one Hot interval (2h) past that so the row is BOTH stale (older than
-    # the 1h _STALE_THRESHOLD_S sweep window) AND due again under the 2h Hot cadence,
-    # while staying well within the 30d cutoff (total age ~3h). This overrides the
-    # autouse clock pin for the duration of run 2.
+    # --- Run 2: the grab pass must SKIP the intent row (routing proof). ---
+    # Run 1 stamped last_search_at = _PINNED_NOW. Advance the clock past both the
+    # 1h stale sweep window and the 2h Hot cadence so the row is listed and DUE —
+    # the only thing keeping the pass off it is the hash guard itself.
     run2_now = _PINNED_NOW + 7200 + 10
     with patch("personalscraper.acquire.service.time.time", return_value=run2_now):
         summary2 = service.run(limit=10)
 
-    assert summary2.grabbed == 1, "stale recovery must re-grab the orphaned row"
+    assert summary2.grabbed == 0, "a hash-carrying row must never be re-grabbed by the pass"
+    assert summary2.skipped == 1, "it is skipped and left to the reconciling recovery"
     item_final = real_wanted.get(rowid)
     assert item_final is not None
-    assert item_final.status == "grabbed"
+    assert item_final.status == "searching"
     assert item_final.grabbed_hash == "aaaa1234"
 
-    # EXACTLY one GrabSucceeded across BOTH runs (the §11d guarantee).
+    # ZERO GrabSucceeded across BOTH runs, and above all never TWO (the §11d guarantee).
     grab_succeeded = [c.args[0] for c in bus.emit.call_args_list if isinstance(c.args[0], GrabSucceeded)]
-    assert len(grab_succeeded) == 1, f"exactly ONE GrabSucceeded across the crash + recovery; got {len(grab_succeeded)}"
-    assert grab_succeeded[0].info_hash == "aaaa1234"
-    # add() was idempotent: the same hash both attempts → no duplicate torrent.
-    assert add_calls == ["aaaa1234", "aaaa1234"]
+    assert grab_succeeded == [], f"no success event may fire for a grab that never confirmed; got {grab_succeeded}"
+    # add() ran ONCE: the second pass never reached the orchestrator, so no
+    # duplicate torrent was ever handed to the client.
+    assert add_calls == ["aaaa1234"]
 
 
 # ---------------------------------------------------------------------------
@@ -824,7 +840,12 @@ def test_resolve_profile_follow_lookup_passes_floor_to_orchestrator(store: Concr
 
     captured: dict[str, QualityProfile] = {}
 
-    def _grab(item: WantedItem, profile: QualityProfile) -> GrabOutcome:
+    def _grab(
+        item: WantedItem,
+        profile: QualityProfile,
+        *,
+        on_intent: "Callable[[str], None] | None" = None,
+    ) -> GrabOutcome:
         captured["profile"] = profile
         return GrabOutcome(disposition="success", info_hash="h", chosen=_make_tracker_result())
 

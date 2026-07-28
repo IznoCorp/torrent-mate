@@ -118,6 +118,29 @@ INCONCLUSIVE_OUTCOMES: frozenset[str] = frozenset(
 )
 
 
+def _all_errored_exit_path(outcome: SearchOutcome) -> str:
+    """Name the verdict of a search where EVERY queried tracker failed (D4).
+
+    Reads the per-tracker taxa the registry recorded. Only a UNANIMOUS failure
+    mode earns a specific name — a mixed set is not a diagnosis, so it keeps the
+    historical ``trackers_unavailable``.
+
+    Args:
+        outcome: The all-errored :class:`SearchOutcome`.
+
+    Returns:
+        ``"tracker_auth"`` (every tracker's key is broken — permanent),
+        ``"circuit_open"`` (every breaker is open), else
+        ``"trackers_unavailable"``.
+    """
+    taxa = set(outcome.errors.values())
+    if taxa == {"auth"}:
+        return "tracker_auth"
+    if taxa == {"circuit"}:
+        return "circuit_open"
+    return "trackers_unavailable"
+
+
 @dataclass(frozen=True)
 class _SearchChainResult:
     """Intermediate of the shared search→filter→rank pipeline.
@@ -417,35 +440,56 @@ class GrabOrchestrator:
         ``search_api_error`` bucket, so this extraction leaves grab's
         behaviour and reason strings byte-identical.
 
-        REACHABILITY of that clause from the SEARCH stage (PR #320 review,
-        m15 — OPEN): defense-in-depth only, today.
-        :meth:`TrackerRegistry.search_candidates` swallows every per-tracker
-        exception — including :exc:`TrackerAuthError`, which is an
-        :exc:`ApiError` subclass — and reports the failure by NAME in
-        ``SearchOutcome.errored_names``, with no error type attached. So a
-        broken passkey on one tracker surfaces here as
-        ``trackers_unavailable`` (all trackers errored) or is simply absent
-        from the results (some succeeded), never as ``tracker_auth``. The
-        clause below still catches an auth failure raised OUTSIDE that
-        per-tracker loop, which is why it stays.
+        The registry swallows every per-tracker exception (fail-soft: one
+        broken tracker must not erase the results the healthy ones returned),
+        so the ``except`` clauses above only ever fire for a raise OUTSIDE that
+        loop. What the loop DOES report is the failure taxon per tracker
+        (``SearchOutcome.errors``: ``auth`` / ``circuit`` / ``api``), and that is
+        what makes the all-errored verdict honest (D4):
 
-        The same now holds for :exc:`CircuitOpenError` (torznab feature): it
-        joined the registry's per-tracker ``except`` so an OPEN breaker on ONE
-        tracker can no longer discard the results the healthy ones already
-        returned. An item whose trackers are ALL circuit-open therefore reaches
-        this method as ``trackers_unavailable`` rather than ``circuit_open``.
-        Both map to the SAME disposition — ``retryable`` / wanted status
-        ``pending`` (see :data:`_EXIT_DISPOSITIONS` and
-        ``service._OUTCOME_TO_STATUS``) — so only the reason label moved, and it
-        moved toward the truth: the tracker WAS queried and DID error.
-        ``circuit_open`` stays reachable from the GRAB stage, where
-        ``resolve_source`` / ``add`` still raise it outside any registry loop.
+        * every queried tracker in ``auth`` ⇒ ``tracker_auth`` — a broken key is
+          permanent, so :meth:`search` states a TERMINAL verdict and the item is
+          abandoned instead of retrying an unfixable failure forever;
+        * every queried tracker in ``circuit`` ⇒ ``circuit_open`` — the breakers
+          are open, which is a real outage that names itself;
+        * anything else (mixed taxa, or any ``api``) ⇒ ``trackers_unavailable``,
+          the historical label, unchanged.
 
-        Surfacing it properly means teaching ``SearchOutcome`` to carry the
-        per-tracker error TYPE, not just the name — a reshape of a type shared
-        by the whole tracker layer, deliberately NOT attempted in a review fix.
-        ``SEARCH_OUTCOMES`` is unchanged: the taxonomy is right, only one of
-        its inputs cannot currently be observed.
+        Unanimity is the rule because a partial failure is not a diagnosis: one
+        broken key among two working trackers is not « the trackers are broken »,
+        it is a degraded search, and the results that came back still stand.
+
+        WHAT MAKES THE ``auth`` TAXON REACHABLE. It is not automatic, and it was
+        not always true: :exc:`TrackerAuthError` used to be raised in exactly one
+        place — ``fetch_torrent_source``, on the GRAB stage's ``.torrent``
+        download — so a broken key during a SEARCH surfaced as a plain
+        :exc:`ApiError`, taxon ``api``, verdict ``trackers_unavailable``, retried
+        forever. The registry's ``except TrackerAuthError`` clause was dead code.
+        ``TorznabClient`` now classifies its own auth failures (HTTP 401/403 and
+        the Torznab 100-102 error codes) so the search path raises it too. The
+        two paths stay distinct and both matter:
+
+        * SEARCH (``TorznabClient._request`` / ``_parse_rss``) ⇒ the ``auth``
+          taxon ⇒ this method's terminal ``tracker_auth`` verdict;
+        * GRAB (``fetch_torrent_source``) ⇒ the ``except TrackerAuthError``
+          clause in :meth:`grab`, which is where a download-time 401/403 is
+          caught — outside any registry loop.
+
+        A test that proves the first path MUST drive a real tracker client: a
+        stub whose ``search()`` raises :exc:`TrackerAuthError` asserts the
+        classification of an exception nothing produced.
+
+        BLAST RADIUS. Because the verdict really is terminal, a genuine
+        all-trackers-auth failure abandons rows — including during a passkey
+        rotation, when every key is briefly invalid at once. The search pass
+        therefore debounces it: the first all-auth verdict is recorded but the
+        row stays queued, and only a second CONSECUTIVE one abandons (see
+        ``_search_pass._DEBOUNCED_TERMINAL_OUTCOMES``). This method is unchanged
+        by that — it states the verdict; the service decides when to act on it.
+
+        :meth:`grab` folds ``tracker_auth`` back into its historical retryable
+        ``search_api_error`` bucket, so a search-stage auth failure NEVER
+        abandons at grab time — the grab dispositions are unchanged by this.
 
         Args:
             item: The claimed ``WantedItem`` to search for.
@@ -462,10 +506,10 @@ class GrabOrchestrator:
         query = build_search_query(item, title)
         year: int | None = None
 
-        # --- Search (CircuitOpenError is NOT an ApiError → needs its own clause
-        # even though the registry now swallows it per-tracker; TrackerAuthError
-        # IS an ApiError → must precede its base clause). Both are defence for
-        # a raise OUTSIDE the registry's per-tracker loop — see the docstring. ---
+        # --- Search (CircuitOpenError is NOT an ApiError → needs its own clause;
+        # TrackerAuthError IS an ApiError → must precede its base clause). Both
+        # cover a raise OUTSIDE the registry's per-tracker loop; inside it, the
+        # failures come back as taxa on the outcome — see the docstring. ---
         try:
             outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
         except CircuitOpenError:
@@ -476,7 +520,7 @@ class GrabOrchestrator:
             return _SearchChainResult(exit_path="search_api_error", ranked=[], top=None)
 
         if outcome.all_errored:
-            return _SearchChainResult(exit_path="trackers_unavailable", ranked=[], top=None)
+            return _SearchChainResult(exit_path=_all_errored_exit_path(outcome), ranked=[], top=None)
         if not outcome.results:
             return _SearchChainResult(exit_path="no_candidates", ranked=[], top=None)
 
@@ -579,13 +623,22 @@ class GrabOrchestrator:
         )
         return SearchVerdict(disposition=disposition, outcome=outcome, found=found, chosen=chosen)
 
-    def grab(self, item: WantedItem, profile: QualityProfile) -> GrabOutcome:
+    def grab(
+        self,
+        item: WantedItem,
+        profile: QualityProfile,
+        *,
+        on_intent: "Callable[[str], None] | None" = None,
+    ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
         The item is assumed already claimed (``status='searching'``) by the
-        service. This method performs NO store writes — it returns a
+        service. This method performs NO store writes of its own — it returns a
         :class:`GrabOutcome` whose ``disposition`` the service maps onto a
-        status. On a FAILURE path it emits exactly one event (``GrabFailed`` /
+        status. The ONE persistence point it reaches is the caller-supplied
+        ``on_intent`` hook (D2), invoked with the chosen info-hash
+        immediately before ``add()`` so the orchestrator keeps no store
+        dependency while the window still closes. On a FAILURE path it emits exactly one event (``GrabFailed`` /
         ``WantedAbandoned``); on SUCCESS it emits nothing and instead carries
         the ``GrabSucceeded`` payload on the outcome — the service emits
         ``GrabSucceeded`` after ``mark_grabbed`` persists (DESIGN §15 /
@@ -613,6 +666,13 @@ class GrabOrchestrator:
             item: The claimed ``WantedItem`` to grab (read-only here).
             profile: The effective :class:`QualityProfile` for the hard-filter
                 stage (resolved by the service before dispatch).
+            on_intent: Optional pre-add hook (D2) called with the chosen
+                release's info-hash right before ``add()``. The service writes
+                the intent hash onto the still-'searching' row there, so a crash
+                in the add→confirm window leaves a row that can be REPLAYED
+                (confirmed against the client) instead of an orphan torrent.
+                Skipped when the chosen result carries no info-hash; a raise
+                propagates (the add does NOT run — no orphan).
 
         Returns:
             The :class:`GrabOutcome` describing success / retryable / terminal.
@@ -673,6 +733,14 @@ class GrabOrchestrator:
             # login blip can no longer strand a recovered tracker behind a stale
             # snapshot.
             source = resolve_source(top, self._tracker_registry.transports())
+            # D2 — reserve the hash BEFORE handing the torrent to the client.
+            # ``resolve_source`` has just cross-checked the fetched payload
+            # against ``top.info_hash``, so the value written here is the hash
+            # the client is about to report. A raise here means the intent could
+            # not be persisted: the add is skipped on purpose (an unrecorded add
+            # is exactly the orphan this closes).
+            if on_intent is not None and top.info_hash:
+                on_intent(top.info_hash)
             info_hash = self._torrent_client.add(source, category=None, tags=[top.provider])
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.

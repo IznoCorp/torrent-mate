@@ -23,6 +23,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.58.0] — 2026-07-28
+
+### Changed
+
+- **Film cards follow the same row-selection rule as episodes** (D3 — VISIBLE
+  CHANGE, three distinct deltas). `compute_movie_truth` now delegates to
+  `select_wanted_facts`: only OPEN `wanted` rows speak, newest first. The
+  affected set is _a film follow with **no open row** and at least one closed
+  one_ (`done` / `abandoned`) — not only the single-row case. What an operator
+  actually sees, per sub-case:
+
+  1. **Pill.** A film whose last closed verdict concluded nothing takeable read
+     **« En attente »** and now reads **« Non vérifié »** — a queue state for an
+     item that is in no queue, carried by the stale verdict of a finished
+     acquisition.
+  2. **« Récupérer maintenant » button disappears.** A film whose last closed
+     verdict was `available` with `found > 0` read **« À récupérer »**, which is
+     the one state that renders the grab action (`canGrabNow`). The button is
+     gone — and it was a **false affordance**: the grab pass walks OPEN rows
+     only, so pressing it on a follow that has none was already a guaranteed
+     no-op. This removes a promise the backend never kept, not a capability.
+  3. **Reason line disappears.** A film whose last closed verdict was
+     inconclusive already read « Non vérifié »; the pill is unchanged, but the
+     explanatory line under it (`followWaitingReason`, fed by
+     `movie_facts.last_search_outcome`) is now empty — there is no open row to
+     explain.
+
+  **API payload**: `FollowedSeriesItem.movie_facts` is now `null` for every
+  affected follow (it previously carried the closed row's
+  `status` / `last_search_outcome` / `last_search_found`). Any consumer reading
+  those fields sees the change even where the pill did not move.
+
+  This settles an item the PR #320 review left « à arbitrer »: the film card
+  kept a most-recent-row-of-any-status fallback the episode matrix never had,
+  justified by « a film has no episode matrix to contradict it ». The
+  arbitration is **one rule everywhere** — a closed row is history, not state.
+  Ownership is untouched: a film on disk whose row was closed still reads
+  « À jour », because the library fact is read separately from the queue facts.
+  Open-row cases are byte-identical.
+
+- **A broken tracker key can finally be concluded — after being confirmed
+  twice** (m15 / D4). `SearchOutcome` carries `errors: {tracker: taxon}`
+  (`auth` / `circuit` / `api`) alongside the historical `errored_names`, and a
+  UNANIMOUS failure mode now names itself: all-`auth` ⇒ terminal
+  `tracker_auth`, all-`circuit` ⇒ `circuit_open`, anything mixed ⇒
+  `trackers_unavailable` (unchanged). Because that verdict is terminal and a
+  passkey rotation briefly invalidates every key at once, it is **debounced**:
+  the first all-auth search records the verdict but leaves the row queued, and
+  only a second _consecutive_ one abandons. Any other verdict in between resets
+  the streak.
+
+### Fixed
+
+- **A failed `add()` no longer strands its wanted row** (M9, release half). The
+  intent hash reserved before `add()` was never given back when the add
+  _failed_ rather than crashing, and the row it sat on became unreachable:
+  `reclaim_stale_searching` refuses a hash-carrying row, the grab pass's hash
+  guard short-circuits any re-claim, the search pass only walks `pending`, and
+  the pre-claim gate returned `skipped` _before_ the cutoff check — so the row
+  was not even aged out. The only actor left was the reconciliation, and only
+  with a reachable torrent client: precisely what is missing when `add()` failed
+  because the client was down. `clear_grab_intent` now releases the reservation
+  on every non-success disposition, before the status write.
+
+- **The crash-window hash is written before `add()`, not after** (M9). The
+  chosen hash is reserved on the still-`searching` row so an interruption
+  between `add()` and the status write leaves a _replayable intent_ instead of
+  an orphan torrent: the reconciliation confirms it against the client
+  (recording the seed obligation the grab-time writer never reached) or clears
+  it if the torrent never landed. Recovery is a replay of the decision already
+  taken, never a fresh search that could pick a different release.
+
+- **A broken passkey during a SEARCH is now classified as one** (m15). It was
+  raised in exactly one place — the grab stage's `.torrent` download — so a
+  search-time auth failure surfaced as a generic `ApiError`, taxon `api`,
+  retried forever; the `tracker_auth` verdict was unreachable for both
+  configured trackers. `TorznabClient` classifies its own auth failures (Torznab
+  error codes 100-102 and HTTP 401/403).
+
+- **Provider I/O inside a web request is bounded and released** (M6 / m23).
+  The request-scoped registry is built with `max_attempts=1` through a real
+  construction seam, bounding a dead provider to its timeouts instead of a full
+  backed-off retry loop (~60-75 s per lookup before), and
+  `scoped_provider_clients` closes the registry — and its `requests.Session`
+  pool — in a `finally` instead of leaving it to the garbage collector.
+
+- **`GET /api/acquisition/followed` no longer scans `pipeline_run`** (m24):
+  indexer migration `016_pipeline_run_open_command` adds
+  `idx_pipeline_run_open_command ON pipeline_run (command) WHERE ended_at IS NULL`.
+  Partial by design — only the handful of open runs are indexed, so it stays
+  tiny on an append-only table nothing prunes, and rows leave it as soon as
+  `ended_at` is stamped. Applied at web boot by the lifespan migration pass
+  (additive, no data change).
+
+- **Grab runs report their recovered acquisitions.** `confirmed_grabbed` — grabs
+  recovered out of the crash window — is persisted on the run row and printed,
+  alongside `closed_owned` and `requeued_missing`. It was computed, logged, then
+  dropped.
+
+### Internal
+
+- **The acquisition service is split into its two passes** (D6). `service.py`
+  keeps the run loops and the public surface; the per-item work moves to
+  `_search_pass.py`, `_grab_pass.py` and the shared `_pass_gates.py`, mixed into
+  the same class. Behaviour-preserving: the moved bodies are byte-identical
+  moves, same logger, same event names. `service.py` drops from 945 to ~480
+  non-blank LOC — one module-size warning fewer.
+
 ## [0.57.0] — 2026-07-28
 
 ### Added

@@ -113,11 +113,11 @@ class TestApplyMigrations001:
     """
 
     def test_user_version_matches_latest(self, tmp_path: Path) -> None:
-        """After applying every migration, PRAGMA user_version equals the latest version (15)."""
+        """After applying every migration, PRAGMA user_version equals the latest version (16)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 15
+        assert _user_version(conn) == 16
 
     def test_all_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all expected tables exist."""
@@ -160,7 +160,7 @@ class TestApplyMigrationsIdempotence:
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
-        assert version_after_first == 15
+        assert version_after_first == 16
         # Second call must be a no-op.
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
@@ -361,12 +361,12 @@ class TestApplyMigrationsFailureRollback:
     """
 
     def _setup_db_and_mig_dir(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection, Path]:
-        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 016_noop + 999_bad.
+        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 017_noop + 999_bad.
 
         After applying MIGRATIONS_DIR the DB is at the latest committed version
-        (migrations 001-015). The custom mig_dir uses version 016 for the noop
-        migration so it runs after the real chain. Bumped to 016 when the real
-        ``015_destructive_op`` migration was added (§7 destructive journal).
+        (migrations 001-016). The custom mig_dir uses version 017 for the noop
+        migration so it runs after the real chain. Bumped to 017 when the real
+        ``016_pipeline_run_open_command`` migration was added (m24 partial index).
 
         Args:
             tmp_path: Pytest-provided temporary directory.
@@ -374,14 +374,14 @@ class TestApplyMigrationsFailureRollback:
         Returns:
             A tuple of ``(db_path, conn, mig_dir)`` ready for the rollback scenario.
             ``conn`` is the open connection after applying the full chain.
-            ``mig_dir`` contains both ``016_noop.sql`` and ``999_bad.sql``.
+            ``mig_dir`` contains both ``017_noop.sql`` and ``999_bad.sql``.
         """
         mig_dir = tmp_path / "migrations"
         mig_dir.mkdir()
-        # Valid migration: creates `noop` table at version 16 (one past the real
-        # chain, which now ends at the committed migration 015).
-        (mig_dir / "016_noop.sql").write_text(
-            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 16;\n",
+        # Valid migration: creates `noop` table at version 17 (one past the real
+        # chain, which now ends at the committed migration 016).
+        (mig_dir / "017_noop.sql").write_text(
+            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 17;\n",
             encoding="utf-8",
         )
         # Malformed migration: intentionally broken SQL at version 999.
@@ -391,7 +391,7 @@ class TestApplyMigrationsFailureRollback:
         )
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
-        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest (15)
+        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest (16)
         return db_path, conn, mig_dir
 
     def test_bad_migration_raises_indexer_migration_error(self, tmp_path: Path) -> None:
@@ -516,3 +516,77 @@ class TestMigration013ScrapeDecision:
         rows = conn.execute("SELECT version FROM schema_version WHERE version = 13").fetchall()
         assert len(rows) == 1
         assert rows[0][0] == 13
+
+
+# ---------------------------------------------------------------------------
+# Migration 016 — partial index over the OPEN pipeline_run rows (m24)
+# ---------------------------------------------------------------------------
+
+
+class TestMigration016PipelineRunOpenCommand:
+    """``016_pipeline_run_open_command.sql`` — the /followed priming probe's index."""
+
+    @staticmethod
+    def _migrated(tmp_path: Path) -> sqlite3.Connection:
+        """Return a connection with the full migration chain applied."""
+        conn = open_db(tmp_path / "lib.db", event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+        return conn
+
+    def test_partial_index_exists_on_pipeline_run(self, tmp_path: Path) -> None:
+        """The index is created, on the right table, and is PARTIAL.
+
+        The ``WHERE ended_at IS NULL`` clause is the point: only the handful of
+        open runs are indexed, so the index stays tiny on an append-only table
+        that nothing prunes.
+        """
+        conn = self._migrated(tmp_path)
+
+        row = conn.execute(
+            "SELECT tbl_name, sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_pipeline_run_open_command'"
+        ).fetchone()
+
+        assert row is not None, "migration 016 must create idx_pipeline_run_open_command"
+        assert row[0] == "pipeline_run"
+        assert "WHERE ended_at IS NULL" in row[1]
+        assert "(command)" in row[1].replace(" ", "").replace("\n", "") or "command" in row[1]
+
+    def test_query_planner_uses_it_for_the_open_run_probe(self, tmp_path: Path) -> None:
+        """The predicate the /followed render runs is now index-backed, not a scan.
+
+        Non-vacuous: without the index this EXPLAIN says ``SCAN pipeline_run``.
+        """
+        conn = self._migrated(tmp_path)
+
+        plan = " ".join(
+            str(part)
+            for row in conn.execute(
+                "EXPLAIN QUERY PLAN SELECT id FROM pipeline_run WHERE command = ? AND ended_at IS NULL",
+                ("grab",),
+            ).fetchall()
+            for part in row
+        )
+
+        assert "idx_pipeline_run_open_command" in plan, f"expected the partial index in the plan; got {plan}"
+
+    def test_second_apply_is_a_no_op(self, tmp_path: Path) -> None:
+        """Idempotence: re-applying the chain neither raises nor duplicates the index."""
+        conn = self._migrated(tmp_path)
+        version_after_first = _user_version(conn)
+
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        assert _user_version(conn) == version_after_first
+        count = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_pipeline_run_open_command'"
+        ).fetchone()[0]
+        assert count == 1
+
+    def test_version_registered_in_schema_version(self, tmp_path: Path) -> None:
+        """Version 16 is registered in ``schema_version`` (the house pattern)."""
+        conn = self._migrated(tmp_path)
+
+        rows = conn.execute("SELECT version FROM schema_version WHERE version = 16").fetchall()
+
+        assert len(rows) == 1
+        assert rows[0][0] == 16

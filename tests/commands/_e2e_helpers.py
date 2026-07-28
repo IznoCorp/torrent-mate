@@ -499,10 +499,11 @@ def mock_tmdb_client(monkeypatch: Any) -> Any:
     )
 
     cls_mock = MagicMock(return_value=mock)
-    # ``TMDBClient.policy`` accepts ``api_key`` plus a keyword-only ``circuit``
-    # override (used by ``ProviderRegistry`` to inject a shared circuit policy).
-    # The mock ignores both and returns the safe canned policy.
-    cls_mock.policy = lambda api_key, *, circuit=None: safe_policy  # type: ignore[attr-defined]
+    # ``TMDBClient.policy`` accepts ``api_key`` plus the keyword-only ``circuit``
+    # and ``retry`` overrides (the registry injects a shared circuit policy; a
+    # caller with a deadline bounds the retries — D1). The mock ignores all
+    # three and returns the safe canned policy.
+    cls_mock.policy = lambda api_key, *, circuit=None, retry=None: safe_policy  # type: ignore[attr-defined]
 
     monkeypatch.setattr(
         "personalscraper.api.metadata.tmdb.TMDBClient",

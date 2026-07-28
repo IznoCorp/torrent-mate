@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.core.ownership import OwnershipChecker
 
@@ -58,6 +60,7 @@ class ReconcileSummary:
     checked: int = 0
     closed_owned: int = 0
     requeued_missing: int = 0
+    confirmed_grabbed: int = 0
     still_in_flight: int = 0
     closed_movie_followed_ids: tuple[int, ...] = ()
 
@@ -66,6 +69,8 @@ def reconcile_wanted(
     store: "AcquireStore",
     ownership: "OwnershipChecker",
     client_hashes: set[str] | None,
+    *,
+    record_obligation: "Callable[[str], bool] | None" = None,
 ) -> ReconcileSummary:
     """Reconcile every ``grabbed`` wanted row against library + client truth.
 
@@ -80,13 +85,21 @@ def reconcile_wanted(
             in flight rather than mis-closing them).
         client_hashes: Lowercase info-hashes currently known to the torrent
             client, or ``None`` when the client is unavailable — the
-            vanished-torrent requeue is then skipped (fail-soft: never requeue
-            on a blind spot).
+            vanished-torrent requeue AND the intent confirmation are then both
+            skipped (fail-soft: never decide on a blind spot). Callers must
+            build this set from ``store.wanted.hashes_in_flight()``, not from
+            the grabbed rows alone: a pre-add intent hash sits on a 'searching' row
+            and an unasked hash would read as « vanished ».
+        record_obligation: Optional writer invoked with the info-hash of a grab
+            confirmed out of the add→confirm crash window, so the seed obligation the
+            grab-time writer never got to record lands now
+            (``DeleteAuthority.record_grab_obligation``). Fail-soft — it returns
+            a bool and never raises into the sweep.
 
     Returns:
         The :class:`ReconcileSummary` counts.
     """
-    checked = closed = requeued = in_flight = 0
+    checked = closed = requeued = confirmed = in_flight = 0
     closed_movie_followed_ids: list[int] = []
     # EVERY open status (OPEN_WANTED_STATUSES), because ownership — the file is
     # ON DISK — outranks whatever the queue thinks, whichever state the row is in:
@@ -156,12 +169,40 @@ def reconcile_wanted(
                 )
             continue
 
+        # D2 — the row holds an INTENT (hash written before ``add()``) and the
+        # torrent really is in the client: the add landed and only the status
+        # write was lost. Confirm it as a REPLAY of the decision already taken,
+        # then record the seed obligation the grab-time writer never reached.
+        # Nothing here re-decides anything: an unconfirmed row would stay
+        # 'searching' forever (``reclaim_stale_searching`` refuses a
+        # hash-carrying row) with an unprotected torrent seeding on the side.
+        if client_hashes is not None and row.status == "searching":
+            if store.wanted.confirm_grab_intent(row.id, row_hash):
+                confirmed += 1
+                log.info(
+                    "acquire.reconcile.confirmed_grabbed",
+                    wanted_id=row.id,
+                    info_hash=row_hash,
+                )
+                if record_obligation is not None:
+                    try:
+                        record_obligation(row_hash)
+                    except Exception as exc:  # noqa: BLE001 — fail-soft: advisory write
+                        log.warning(
+                            "acquire.reconcile.obligation_failed",
+                            wanted_id=row.id,
+                            info_hash=row_hash,
+                            error=str(exc),
+                        )
+            continue
+
         in_flight += 1
 
     summary = ReconcileSummary(
         checked=checked,
         closed_owned=closed,
         requeued_missing=requeued,
+        confirmed_grabbed=confirmed,
         still_in_flight=in_flight,
         closed_movie_followed_ids=tuple(closed_movie_followed_ids),
     )
@@ -170,6 +211,7 @@ def reconcile_wanted(
         checked=summary.checked,
         closed_owned=summary.closed_owned,
         requeued_missing=summary.requeued_missing,
+        confirmed_grabbed=summary.confirmed_grabbed,
         still_in_flight=summary.still_in_flight,
     )
     return summary

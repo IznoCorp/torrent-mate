@@ -119,12 +119,18 @@ class TMDBClient(
         api_key: str,
         *,
         circuit: CircuitPolicy | None = None,
+        retry: RetryPolicy | None = None,
     ) -> TransportPolicy:
         """Build the TransportPolicy for TMDB.
 
         Args:
             api_key: TMDB API Read Access Token (Bearer token).
             circuit: Optional custom CircuitPolicy override.
+            retry: Optional custom RetryPolicy override. The default retries a
+                dead host up to ``max_attempts`` times with backoff, which is
+                right for a background pipeline step and wrong inside a web
+                request — a caller that must answer a user bounds it here (D1)
+                instead of mutating the built client's private policy.
 
         Returns:
             A TransportPolicy configured for TMDB.
@@ -134,7 +140,7 @@ class TMDBClient(
             base_url="https://api.themoviedb.org/3",
             auth=BearerAuth(api_key),
             timeout_seconds=10.0,
-            retry=_DEFAULT_RETRY,
+            retry=retry if retry is not None else _DEFAULT_RETRY,
             circuit=circuit if circuit is not None else _DEFAULT_CIRCUIT,
             rate_limit=_DEFAULT_RATE,
         )

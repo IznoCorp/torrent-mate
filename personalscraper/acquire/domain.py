@@ -117,20 +117,35 @@ class WantedItem:
             ``list_stale_searching()``; ``None`` for an as-yet-unpersisted item.
             The acquisition service needs it to call ``claim_for_search`` /
             ``mark_grabbed`` / ``set_status`` (RP5b, was a blocking gap).
-        grabbed_hash: Torrent info-hash persisted by ``mark_grabbed``. The
-            idempotence guard consults this persisted hash rather than the
-            status alone, so once it is set no later pass can re-grab or
-            re-emit — including a row left at 'searching' by a crash right
-            after the write (the §11(d) window).
+        grabbed_hash: Torrent info-hash of the release this row is committed to.
+            Written in TWO phases (D2): ``record_grab_intent`` reserves it
+            BEFORE the orchestrator's ``add()`` (the row still reads
+            'searching' — an intention), and ``mark_grabbed`` /
+            ``confirm_grab_intent`` promotes the row to 'grabbed' afterwards.
 
-            It does NOT cover the window BEFORE it is written (PR #320 review,
-            M9 — OPEN): between the orchestrator's ``add()`` returning and
-            ``mark_grabbed`` committing, the torrent is in the client and
-            nothing on the row records it. A crash there leaves an orphan
-            torrent with no seed obligation, and the row recovers by being
-            re-SEARCHED from scratch — a fresh decision against today's
-            trackers, not a replay of the one already acted on. See
-            ``AcquisitionService._persist_success``. ``None`` until grabbed.
+            The idempotence guard consults this hash rather than the status
+            alone, so once it is set no later pass can re-grab or re-emit —
+            including a row left at 'searching' by a crash anywhere in the
+            add→confirm window. Such a row is never reclaimed by the stale
+            sweep (that would add a second torrent); the reconciliation replays
+            it against the torrent client: present ⇒ confirmed 'grabbed' with
+            its seed obligation recorded, absent ⇒ hash cleared and the row is
+            searchable again.
+
+            A grab that FAILS rather than crashing releases the reservation
+            itself, on the way out (``clear_grab_intent``, called for every
+            non-success disposition before the status write). That path must
+            not lean on the reconciliation: it decides nothing without a
+            reachable torrent client, and an unreachable client is the very
+            thing that makes ``add()`` fail. A row whose hash outlived its
+            failed add is reachable by NOTHING — not the stale sweep (it
+            refuses a hash-carrying row), not the grab pass (the guard above),
+            not the search pass ('searching' is not 'pending'), not even the
+            cadence cutoff (the gate skips out before the age check).
+
+            So the hash always points at a torrent that was really handed to
+            the client, and neither a crash nor a failed add can strand an
+            orphan or swap the chosen release. ``None`` until a grab commits.
         last_search_outcome: Named issue of the last search pass
             (``no_candidates``, ``all_filtered``, ``trackers_unavailable``,
             ``available``, …). ``None`` means never searched — the honest

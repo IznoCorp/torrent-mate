@@ -463,6 +463,68 @@ class DeleteAuthority:
         )
         return []
 
+    def record_grab_obligation(self, info_hash: str) -> bool:
+        """Record the seed obligation of a grab recovered from the crash window (D2).
+
+        The grab-time writer in ``AcquisitionService`` never ran (the process
+        died between ``add()`` and ``mark_grabbed``), so the torrent is seeding
+        with nothing protecting it from the deletion authority. The
+        reconciliation calls this once it has confirmed the torrent is really in
+        the client.
+
+        The ``wanted`` row carries no tracker column, so the tracker is resolved
+        the same way :meth:`record_dispatch` does it — from the torrent's own
+        tags intersected with the configured economy map (the acquisition flow
+        tags every torrent with its source tracker). An unresolvable tracker is
+        an honest MISS: no obligation is invented with made-up floors.
+
+        Fail-soft throughout: a client error, a missing store or a store write
+        failure returns ``False`` and never interrupts the sweep.
+
+        Args:
+            info_hash: Info-hash of the recovered torrent.
+
+        Returns:
+            ``True`` iff an obligation was written by this call (``False`` when
+            one already existed, the tracker was unresolvable, or anything
+            failed).
+        """
+        if self._store is None or self._torrent_client is None or not info_hash:
+            return False
+        try:
+            if self._store.seed.find_active_by_hash(info_hash) is not None:
+                return False  # idempotent: the obligation is already there
+            items = list(self._torrent_client.get_by_hashes({info_hash.lower()}))
+            item = next((t for t in items if t.hash.lower() == info_hash.lower()), None)
+            if item is None:
+                log.debug("acquire.record_grab_obligation.no_live_torrent", info_hash=info_hash)
+                return False
+            resolved = self._resolve_tracker(item)
+            if resolved is None:
+                log.info(
+                    "acquire.record_grab_obligation.miss",
+                    reason="tracker-unresolved",
+                    info_hash=info_hash,
+                    tags=list(item.tags),
+                )
+                return False
+            tracker_name, economy = resolved
+            self._store.seed.add(
+                SeedObligation(
+                    info_hash=item.hash,
+                    source_tracker=tracker_name,
+                    min_seed_time_s=economy.min_seed_time,
+                    min_ratio=economy.min_ratio,
+                    added_at=int(time.time()),
+                    dispatched_path=None,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — fail-soft: the sweep must survive
+            log.warning("acquire.record_grab_obligation.failed", info_hash=info_hash, error=str(exc))
+            return False
+        log.info("acquire.record_grab_obligation.recorded", info_hash=info_hash, tracker=tracker_name)
+        return True
+
     def _resolve_tracker(self, item: "TorrentItem") -> "tuple[str, TrackerEconomyConfig] | None":
         """Resolve the source tracker for *item* from its tags and the economy map.
 

@@ -56,6 +56,14 @@ class SearchOutcome:
         trackers_errored: Number of trackers whose ``search()`` raised.
         errored_names: Names of the trackers that errored (so callers can
             distinguish which trackers succeeded vs failed, not just how many).
+        errors: ``{tracker name: taxon}`` for the SAME failures, where taxon is
+            ``'auth'`` (broken key — permanent), ``'circuit'`` (breaker OPEN) or
+            ``'api'`` (anything else operational). The names alone could not tell
+            a broken passkey from a transient outage, so an all-errored search
+            was always ``trackers_unavailable``: retried forever, never
+            abandoned. The chain reads this map to state the honest verdict when
+            EVERY queried tracker failed the same way (D4). ``errored_names``
+            stays as the historical, derivable view its consumers already use.
         queried_names: Names of the trackers that were actually queried
             (success OR error). A tracker absent from this list was never
             reached — either it is not in the per-media-type priority
@@ -69,6 +77,7 @@ class SearchOutcome:
     trackers_errored: int = 0
     errored_names: list[str] = field(default_factory=list)
     queried_names: list[str] = field(default_factory=list)
+    errors: dict[str, str] = field(default_factory=dict)
 
     @property
     def all_errored(self) -> bool:

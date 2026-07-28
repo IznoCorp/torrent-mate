@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -805,7 +806,11 @@ class TestSearchEndpoint:
         """Patch the provider-clients builder so no real registry is built."""
         import personalscraper.web.routes.acquisition as acq_routes
 
-        monkeypatch.setattr(acq_routes, "_build_provider_clients", lambda _request: (object(), object()))
+        monkeypatch.setattr(
+            acq_routes,
+            "scoped_provider_clients",
+            lambda _request: nullcontext((object(), object())),
+        )
 
     def test_search_both_kinds_sorted(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Both matchers run; results are kind-tagged and best-score-first."""

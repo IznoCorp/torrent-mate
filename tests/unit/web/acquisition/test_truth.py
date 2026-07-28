@@ -333,3 +333,82 @@ def test_movie_open_row_wins_over_closed_leftover(acquire_conn: sqlite3.Connecti
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
     assert facts.wanted_status == "grabbed"
     assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "en_acquisition"
+
+
+# ---------------------------------------------------------------------------
+# D3 — one selection rule everywhere: a closed row is history, films included
+# ---------------------------------------------------------------------------
+
+
+def test_movie_whose_only_row_is_abandoned_is_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+    """A film whose ONLY row is ``abandoned`` reads ``non_verifie``, not « En attente ».
+
+    Red-on-old (VISIBLE CHANGE, arbitrated by D3): the movie selector used to
+    fall back to « the most recent row of ANY status » when no open row existed,
+    so a closed row's stale verdict (``no_candidates``, found=0) still answered
+    for the card and the film read « En attente » — a queue state for an item
+    that is no longer in the queue. Episodes never behaved that way
+    (``select_wanted_facts`` drops closed rows); films now use the same rule.
+    """
+    _seed_movie_follow(acquire_conn)
+    _seed_movie_wanted(acquire_conn, "abandoned", outcome="no_candidates", found=0)
+
+    facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
+
+    assert facts == MovieFacts(owned=False), "a closed row must not speak for the card"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "non_verifie"
+
+
+def test_movie_whose_only_row_is_done_is_non_verifie_when_unowned(acquire_conn: sqlite3.Connection) -> None:
+    """Same rule for a ``done`` leftover: history cannot claim the card.
+
+    An unowned film with a ``done`` row is a contradiction (the file left the
+    library, or the closure was wrong). The honest reading is « we do not know »
+    — never the stale verdict of a finished acquisition.
+    """
+    _seed_movie_follow(acquire_conn)
+    _seed_movie_wanted(acquire_conn, "done", outcome="grabbed", found=1)
+
+    facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
+
+    assert facts == MovieFacts(owned=False)
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "non_verifie"
+
+
+def test_owned_film_with_only_a_closed_row_still_reads_a_jour(acquire_conn: sqlite3.Connection) -> None:
+    """Dropping the closed row never hides OWNERSHIP: the disk still wins.
+
+    The rule change removes a stale VERDICT, not the library fact — a film on
+    disk whose row was closed reads « À jour » exactly as before.
+    """
+    _seed_movie_follow(acquire_conn)
+    _seed_movie_wanted(acquire_conn, "done", outcome="grabbed", found=1)
+
+    facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=True), followed_id=2, media_ref=_MOVIE_REF)
+
+    assert facts.owned is True
+    assert facts.wanted_status is None
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "a_jour"
+
+
+def test_movie_selection_matches_the_episode_selector(acquire_conn: sqlite3.Connection) -> None:
+    """The film card and the episode matrix agree on WHICH row governs.
+
+    Same rows in, same governing facts out — the property D3 buys: one rule
+    everywhere, so the two surfaces can no longer disagree.
+    """
+    from personalscraper.web.acquisition.states import select_wanted_facts
+
+    _seed_movie_follow(acquire_conn)
+    _seed_movie_wanted(acquire_conn, "abandoned", outcome="no_candidates", found=0)
+    _seed_movie_wanted(acquire_conn, "pending", outcome="trackers_unavailable", found=None)
+    _seed_movie_wanted(acquire_conn, "done", outcome="grabbed", found=1)
+
+    rows = acquire_conn.execute(
+        "SELECT id, status, last_search_outcome, last_search_found FROM wanted WHERE followed_id = 2"
+    ).fetchall()
+    expected = select_wanted_facts([tuple(r) for r in rows])  # type: ignore[misc]
+
+    facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
+
+    assert (facts.wanted_status, facts.last_search_outcome, facts.last_search_found) == expected

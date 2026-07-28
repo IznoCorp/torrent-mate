@@ -10,13 +10,14 @@ the acquisition mutations stay in the route bodies over the acquire store.
 from __future__ import annotations
 
 import sqlite3
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import HTTPException, Request
 
 from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.api.transport._policy import RetryPolicy
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.web.acquisition._helpers import _parse_json_dict
@@ -24,12 +25,15 @@ from personalscraper.web.models.acquisition import (
     DeferredTorrent,
     FollowedSeriesItem,
     MediaRefResponse,
+    MediaSearchResponse,
     MediaSearchResult,
     RecentRun,
 )
 from personalscraper.web.models.pipeline import parse_steps_json
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 logger = get_logger(__name__)
@@ -203,33 +207,40 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
 # ── media search (add-by-search, OBJ3) ───────────────────────────────────
 
 
-def _build_provider_clients(request: Request) -> tuple[object, object]:
-    """Build request-scoped TMDB + TVDB clients for a live media search.
+#: Retry budget for a registry built INSIDE a request (D1). The pipeline's
+#: default (4 attempts + exponential backoff over a 10 s / 15 s timeout) is
+#: right for a background step and wrong for a user waiting on a 201: against a
+#: host that accepts the TCP connection and never answers, one lookup burned
+#: ~60-75 s and a two-provider enrichment ~2 minutes, with the worker thread
+#: held throughout. One attempt bounds the worst case to the sum of the two
+#: timeouts (~25 s).
+_REQUEST_RETRY = RetryPolicy(max_attempts=1)
+
+
+@contextmanager
+def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]]":
+    """Yield request-scoped TMDB + TVDB clients, then release the registry.
 
     Mirrors the decisions-search pattern: a fresh AppContext + ProviderRegistry
     for this single request (never stored on ``app.state`` — the composition-
-    boundary rule). Live search is an infrequent operator action, not a hot
-    polling endpoint.
+    boundary rule). Live search and create-follow enrichment are infrequent
+    operator actions, not hot polling endpoints.
 
-    LEAK (PR #320 review, m23 — OPEN): the registry built here is never closed.
-    ``ProviderRegistry.close()`` releases each provider's ``requests.Session``
-    (and its connection pool); dropping the registry on the floor leaves that to
-    the garbage collector, which closes sockets late and non-deterministically.
-    Two request paths reach this (create-follow enrichment, media search), both
-    operator-driven and low-frequency, so the leak has never been observed —
-    that is why it is documented rather than papered over.
+    Two properties this seam owns, both formerly documented gaps:
 
-    TODO(acq-states): close it. Not a one-liner: the returned clients are USED by
-    the caller after this function returns, so the registry has to outlive the
-    call — it needs a context manager (or a FastAPI dependency with a
-    ``yield``) wrapping the whole handler, not a ``finally`` here. Doing it
-    wrong closes the transport under the client and turns the leak into a
-    request failure.
+    * **Bounded** (D1): the providers are built with ``max_attempts=1`` through
+      the registry's ``retry`` parameter — a real construction seam, not a
+      mutation of ``client._transport._policy`` (frozen, private, and on TVDB
+      merely READING ``_transport`` fires the bootstrap login).
+    * **Closed** (D5): ``ProviderRegistry.close()`` releases each provider's
+      ``requests.Session`` and its connection pool. It runs in a ``finally``, so
+      it also runs when the body raises — the clients stay usable for the whole
+      ``with`` block, which a ``finally`` inside a plain builder could not do.
 
     Args:
         request: The incoming FastAPI request.
 
-    Returns:
+    Yields:
         A ``(tmdb_client, tvdb_client)`` tuple of provider client objects.
 
     Raises:
@@ -240,13 +251,102 @@ def _build_provider_clients(request: Request) -> tuple[object, object]:
     config = request.app.state.config
     settings = request.app.state.settings
     try:
-        app_context = _build_app_context(config, settings)
+        app_context = _build_app_context(config, settings, provider_retry=_REQUEST_RETRY)
         tmdb_client = app_context.provider_registry.get("tmdb")
         tvdb_client = app_context.provider_registry.get("tvdb")
     except Exception as exc:
         logger.error("acquisition_search_registry_failed", error=str(exc))
         raise HTTPException(status_code=502, detail="Provider registry unavailable") from exc
-    return tmdb_client, tvdb_client
+    try:
+        yield tmdb_client, tvdb_client
+    finally:
+        # Teardown mirrors the CLI's ``per_step_boundary``: registry first, then
+        # the acquisition handle. Fail-soft — a teardown error must never turn a
+        # served response into a 500.
+        try:
+            app_context.provider_registry.close()
+        except Exception:  # noqa: BLE001 — teardown must not mask the response
+            logger.warning("acquisition_provider_registry_close_failed", exc_info=True)
+        if app_context.acquire is not None:
+            try:
+                app_context.acquire.close()
+            except Exception:  # noqa: BLE001 — same contract
+                logger.warning("acquisition_acquire_context_close_failed", exc_info=True)
+
+
+def run_media_search(
+    request: Request,
+    tmdb_client: object,
+    tvdb_client: object,
+    q: str,
+    kind: Literal["movie", "tv"] | None,
+) -> MediaSearchResponse:
+    """Run the movie/TV search chains against already-built provider clients.
+
+    Split out of the route so the registry's lifetime is one ``with`` block:
+    the clients are used entirely inside it, and the 502 raised by a failing
+    provider still unwinds through the context manager's ``finally``.
+
+    Args:
+        request: The incoming FastAPI request (config for the ownership flag).
+        tmdb_client: Request-scoped TMDB client.
+        tvdb_client: Request-scoped TVDB client.
+        q: The title to search for.
+        kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+
+    Returns:
+        A :class:`MediaSearchResponse` with the scored matches.
+
+    Raises:
+        HTTPException: 502 on provider API failure.
+    """
+    results: list[MediaSearchResult] = []
+
+    if kind in (None, "movie"):
+        from personalscraper.scraper.confidence import match_movie_detailed
+
+        try:
+            _, movie_candidates = match_movie_detailed(tmdb_client, q, None)
+        except Exception as exc:
+            logger.error("acquisition_search_movie_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
+        results.extend(_to_search_result(c, "movie") for c in movie_candidates)
+
+    if kind in (None, "tv"):
+        from personalscraper.scraper.confidence import match_tvshow_detailed
+
+        try:
+            _, tv_candidates = match_tvshow_detailed(tvdb_client, tmdb_client, q, None)
+        except Exception as exc:
+            logger.error("acquisition_search_tvshow_failed", error=str(exc))
+            raise HTTPException(status_code=502, detail=f"TV search failed: {exc}") from exc
+        results.extend(_to_search_result(c, "tv") for c in tv_candidates)
+
+    results.sort(key=lambda r: r.score, reverse=True)
+
+    # §5 replacement confirmation: flag movie results already owned in the
+    # library (by provider id, live files only) so the UI can ask before
+    # following — the pipeline will REPLACE the existing version. Fail-soft:
+    # an unreadable indexer leaves already_owned=False everywhere.
+    indexer_db = request.app.state.config.indexer.db_path
+    if indexer_db is not None and any(r.kind == "movie" for r in results):
+        from personalscraper.core.identity import MediaRef
+        from personalscraper.indexer.ownership import IndexerOwnershipChecker
+
+        checker = IndexerOwnershipChecker(Path(indexer_db))
+        try:
+            for r in results:
+                if r.kind != "movie":
+                    continue
+                ref = MediaRef(tmdb_id=r.provider_id) if r.provider == "tmdb" else MediaRef(tvdb_id=r.provider_id)
+                r.already_owned = checker.owns(ref, kind="movie")
+        finally:
+            checker.close()
+
+    return MediaSearchResponse(results=results)
+
+
+# ── /api/acquisition/followed (write) ─────────────────────────────────────
 
 
 def _to_search_result(candidate: "DecisionCandidate", kind: str) -> MediaSearchResult:

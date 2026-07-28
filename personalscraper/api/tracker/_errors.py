@@ -15,13 +15,34 @@ from typing import Literal
 
 from personalscraper.api._contracts import ApiError
 
+#: HTTP statuses that mean « this credential is broken », as opposed to « this
+#: service is having a bad day ». The distinction is what separates a PERMANENT
+#: failure an operator must fix from a transient one worth retrying, so it is
+#: defined ONCE and shared by every place that makes the call: the torrent
+#: download (``_fetch.fetch_torrent_source``) and the tracker searches
+#: (``torznab.TorznabClient``).
+AUTH_HTTP_STATUSES: frozenset[int] = frozenset({401, 403})
+
 
 class TrackerAuthError(ApiError):
-    """Authentication failure on a tracker download (HTTP 401 or 403).
+    """Authentication failure on a tracker (HTTP 401/403, or an auth error document).
 
-    Raised by ``fetch_torrent_source`` when the tracker returns 401/403,
-    signalling an expired token or invalid API key. Callers (RP7 and
-    beyond) can catch this to trigger a credential refresh or alert.
+    Two paths raise it, and both matter:
+
+    * ``fetch_torrent_source`` — the GRAB stage's ``.torrent`` download returns
+      401/403. Terminal at grab time: the orchestrator abandons the item.
+    * ``TorznabClient.search`` — the SEARCH stage gets 401/403 or one of the
+      Torznab auth error codes. The registry books it as the ``auth`` taxon on
+      :class:`~personalscraper.acquire._dedup.SearchOutcome`, and a UNANIMOUS
+      set of those is what earns the terminal ``tracker_auth`` verdict (D4).
+      Without this second path the taxon is unreachable and a broken passkey is
+      retried forever as a generic outage.
+
+    Being an :exc:`ApiError` subclass is load-bearing: every fail-soft consumer
+    that already catches ``ApiError`` keeps working unchanged, and only the code
+    that WANTS the distinction has to name the subclass — which is why the
+    catch order (this class BEFORE its base) is load-bearing wherever both are
+    caught.
 
     Inherits ``ApiError``'s ``__init__``: ``provider``, ``http_status``,
     ``provider_code``, ``message``.
@@ -124,6 +145,7 @@ class TrackerConfigError(TrackerError):
 
 
 __all__ = [
+    "AUTH_HTTP_STATUSES",
     "TrackerAuthError",
     "TorrentFetchError",
     "TrackerError",
