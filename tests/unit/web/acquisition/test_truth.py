@@ -412,3 +412,83 @@ def test_movie_selection_matches_the_episode_selector(acquire_conn: sqlite3.Conn
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
 
     assert (facts.wanted_status, facts.last_search_outcome, facts.last_search_found) == expected
+
+
+# ---------------------------------------------------------------------------
+# episode-states D2 / ACC-03 — announced futures never reach the card counts
+# ---------------------------------------------------------------------------
+
+
+def _seed_aired_dated(conn: sqlite3.Connection, pairs: list[tuple[int, int, str]]) -> None:
+    """Insert aired-catalog rows carrying an explicit ``air_date`` per episode."""
+    conn.executemany(
+        "INSERT INTO aired_episode (followed_id, season, episode, title, air_date, updated_at) "
+        "VALUES (1, ?, ?, NULL, ?, 1750000000)",
+        pairs,
+    )
+    conn.commit()
+
+
+def test_future_episode_is_excluded_from_the_card_counts(acquire_conn: sqlite3.Connection) -> None:
+    """ACC-03: a cached FUTURE episode never degrades the card — the show stays « À jour ».
+
+    Two aired episodes (both owned) plus a future one. The future is cached (the
+    matrix will show it as ``annonce``) but must NOT be counted here: with it in
+    the aired set it would derive to ``non_verifie`` (no wanted row, unowned)
+    and pull the card off « À jour ». The aired-only query drops it.
+    """
+    from datetime import date
+
+    today = date(2024, 6, 15)
+    _seed_aired_dated(
+        acquire_conn,
+        [
+            (1, 1, "2024-06-01"),  # aired, owned
+            (1, 2, "2024-06-10"),  # aired, owned
+            (1, 3, "2025-01-01"),  # FUTURE — announced
+        ],
+    )
+
+    truth = compute_follow_truth(
+        acquire_conn, _StubChecker({(1, 1), (1, 2)}), followed_id=1, media_ref=REF, today=today
+    )
+
+    assert truth.aired_count == 2, "only the two AIRED episodes are counted"
+    assert truth.owned_count == 2
+    assert truth.non_verifie_count == 0, "the future must not fall into non_verifie and degrade the card"
+
+    # And the aggregated card status stays « À jour ».
+    item = FollowedSeriesItem(
+        id=1,
+        title="Severance",
+        media_ref=MediaRefResponse(tvdb_id=403245),
+        active=True,
+        kind="show",
+        added_at=1750000000.0,
+        wanted_pending=0,
+        wanted_grabbed=0,
+        aired_count=truth.aired_count,
+        owned_count=truth.owned_count,
+        a_recuperer_count=truth.a_recuperer_count,
+        en_acquisition_count=truth.en_acquisition_count,
+        en_attente_count=truth.en_attente_count,
+        non_verifie_count=truth.non_verifie_count,
+    )
+    assert item.status == "a_jour"
+
+
+def test_only_future_episodes_read_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+    """A series whose ONLY cached episodes are future has no aired catalog → non_verifie.
+
+    Honest: there is nothing aired to be « up to date » on yet, so the card
+    reads « we don't know » — never « À jour » on the strength of a future.
+    """
+    from datetime import date
+
+    _seed_aired_dated(acquire_conn, [(1, 1, "2025-01-01"), (1, 2, "2025-02-01")])
+
+    truth = compute_follow_truth(
+        acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF, today=date(2024, 6, 15)
+    )
+
+    assert truth == FollowTruth(), "only-future cache is no aired catalog → all-None sentinel"

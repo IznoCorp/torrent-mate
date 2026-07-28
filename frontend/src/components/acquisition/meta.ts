@@ -278,9 +278,13 @@ export function followStatusHint(status: FollowStatus, kind: string): string {
  * ``en_mediatheque`` is absent on purpose: owned episodes are already the
  * numerator of the ``NN/NN`` fraction, and repeating them would inflate the
  * caption with the only number that is never actionable.
+ *
+ * ``annonce`` is absent too (episode-states D2): a future episode is not an
+ * action bucket — it never inflates the card caption and never degrades the
+ * card status. It lives only in the completeness matrix.
  */
 const COUNT_NOUN: Record<
-  Exclude<EpisodeState, "en_mediatheque">,
+  Exclude<EpisodeState, "en_mediatheque" | "annonce">,
   { readonly one: string; readonly many: string }
 > = {
   a_recuperer: { one: "à récupérer", many: "à récupérer" },
@@ -293,12 +297,10 @@ const COUNT_NOUN: Record<
 };
 
 /** The caption's bucket order — most actionable first, as the card status is. */
-const COUNT_ORDER: readonly Exclude<EpisodeState, "en_mediatheque">[] = [
-  "a_recuperer",
-  "en_acquisition",
-  "en_attente",
-  "non_verifie",
-];
+const COUNT_ORDER: readonly Exclude<
+  EpisodeState,
+  "en_mediatheque" | "annonce"
+>[] = ["a_recuperer", "en_acquisition", "en_attente", "non_verifie"];
 
 /**
  * Render a followed SHOW's library fraction, or ``null`` when it has none.
@@ -340,13 +342,15 @@ export function followFraction(item: FollowedSeriesItem): string | null {
  *   empty / unknown (a fully-owned série, or a follow with no catalog).
  */
 export function followCountsCaption(item: FollowedSeriesItem): string | null {
-  const counts: Record<Exclude<EpisodeState, "en_mediatheque">, number | null> =
-    {
-      a_recuperer: item.a_recuperer_count ?? null,
-      en_acquisition: item.en_acquisition_count ?? null,
-      en_attente: item.en_attente_count ?? null,
-      non_verifie: item.non_verifie_count ?? null,
-    };
+  const counts: Record<
+    Exclude<EpisodeState, "en_mediatheque" | "annonce">,
+    number | null
+  > = {
+    a_recuperer: item.a_recuperer_count ?? null,
+    en_acquisition: item.en_acquisition_count ?? null,
+    en_attente: item.en_attente_count ?? null,
+    non_verifie: item.non_verifie_count ?? null,
+  };
   const parts = COUNT_ORDER.filter((state) => (counts[state] ?? 0) > 0).map(
     (state) => {
       const n = counts[state] ?? 0;
@@ -440,13 +444,21 @@ export function formatRunResult(
   return parts.length > 0 ? parts.join(", ") : "rien de nouveau";
 }
 
-/** Per-episode §5 state → chip tone (completeness matrix, phase-08 table). */
+/**
+ * Per-episode §5 state → chip tone (completeness matrix + legend).
+ *
+ * SIX states, SIX distinct DS tones (operator #9 « une couleur par statut ») —
+ * no two states share a tone, asserted by a test. ``non_verifie`` moved off the
+ * grey it used to share with ``en_attente`` onto the dimmer dashed ``muted``,
+ * and ``annonce`` onto the violet ``upcoming``.
+ */
 export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   en_mediatheque: "success",
   a_recuperer: "warning",
   en_acquisition: "info",
   en_attente: "neutral",
-  non_verifie: "neutral",
+  non_verifie: "muted",
+  annonce: "upcoming",
 };
 
 /**
@@ -458,6 +470,7 @@ export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
  * is on the disks or it is not.
  */
 export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
+  annonce: "Annoncé",
   en_mediatheque: "En médiathèque",
   a_recuperer: "À récupérer",
   en_acquisition: "En cours d'acquisition",
@@ -473,6 +486,7 @@ export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
  * verdict yet).
  */
 export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
+  annonce: "Sortie prévue — l'épisode n'est pas encore diffusé.",
   en_mediatheque: "L'épisode est en médiathèque.",
   a_recuperer:
     "Une version conforme au profil est disponible — il reste à la récupérer.",

@@ -90,7 +90,7 @@ def test_detect_service_movie_enqueue_grab_parity(store: ConcreteAcquireStore) -
     emitted: list[WantedEnqueued] = []
     bus.subscribe(WantedEnqueued, emitted.append)
 
-    with patch("personalscraper.acquire.detect.poll_aired", return_value=[]):
+    with patch("personalscraper.acquire.detect.poll_known", return_value=[]):
         result = _service(store, _StubOwnership(set()), bus).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=100
         )
@@ -114,7 +114,7 @@ def test_detect_service_movie_owned_retires_and_emits(store: ConcreteAcquireStor
     films: list[FilmAcquired] = []
     bus.subscribe(FilmAcquired, films.append)
 
-    with patch("personalscraper.acquire.detect.poll_aired", return_value=[]):
+    with patch("personalscraper.acquire.detect.poll_known", return_value=[]):
         result = _service(store, _StubOwnership({ref}), bus).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=100
         )
@@ -144,7 +144,7 @@ def test_detect_service_resurrects_abandoned_within_cutoff(store: ConcreteAcquir
     store.wanted.set_status(wid, "abandoned")
     ep = AiredEpisode(media_ref=ref, season=3, episode=4, air_date=date(2024, 1, 1), title="Ep")
 
-    with patch("personalscraper.acquire.detect.poll_aired", return_value=[ep]):
+    with patch("personalscraper.acquire.detect.poll_known", return_value=[ep]):
         result = _service(store, _StubOwnership(set()), EventBus()).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=int(time.time())
         )
@@ -166,7 +166,7 @@ def test_detect_service_past_cutoff_stays_abandoned(store: ConcreteAcquireStore)
     store.wanted.set_status(wid, "abandoned")
     ep = AiredEpisode(media_ref=ref, season=3, episode=4, air_date=date(2024, 1, 1), title="Ep")
 
-    with patch("personalscraper.acquire.detect.poll_aired", return_value=[ep]):
+    with patch("personalscraper.acquire.detect.poll_known", return_value=[ep]):
         result = _service(store, _StubOwnership(set()), EventBus()).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=int(time.time())
         )
@@ -174,3 +174,38 @@ def test_detect_service_past_cutoff_stays_abandoned(store: ConcreteAcquireStore)
     assert [a.outcome for a in result.actions] == [DetectOutcome.SKIPPED_DUP]
     assert result.summary.skipped_dup == 1
     assert store.wanted.get(wid).status == "abandoned"  # type: ignore[union-attr]
+
+
+def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquireStore) -> None:
+    """THE INVARIANT (episode-states D1 / ACC-01): a future episode is cached, NOT enqueued.
+
+    ``poll_known`` returns an aired AND a future episode for the same series.
+    After detect:
+
+    - the ``aired_episode`` cache holds BOTH (the future is what the matrix will
+      read as ``annonce``);
+    - the ``wanted`` queue holds ONLY the aired episode — a future is not
+      searchable on trackers, so it must never become a wanted row.
+    """
+    ref = MediaRef(tvdb_id=99)
+    fid = store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    aired = AiredEpisode(media_ref=ref, season=2, episode=1, air_date=date(2024, 6, 1), title="Aired")
+    future = AiredEpisode(media_ref=ref, season=2, episode=2, air_date=date(2025, 1, 1), title="Announced")
+
+    with patch("personalscraper.acquire.detect.poll_known", return_value=[aired, future]):
+        result = _service(store, _StubOwnership(set()), EventBus()).run(
+            series=None, dry_run=False, today=today, now=int(time.time())
+        )
+
+    # Only the aired episode produced an enqueue action — the future produced none.
+    assert [a.outcome for a in result.actions] == [DetectOutcome.ENQUEUED]
+    assert result.summary.enqueued == 1
+
+    # The cache holds BOTH the aired and the announced episode.
+    cached = {(r.season, r.episode): r.air_date for r in store.aired.list_for_followed(fid)}
+    assert cached == {(2, 1): "2024-06-01", (2, 2): "2025-01-01"}, "the cache must learn the future"
+
+    # The wanted queue holds the aired episode ONLY — the future is never enqueued.
+    wanted = store.wanted.list_for_followed(fid, kind="episode")
+    assert [(w.season, w.episode) for w in wanted] == [(2, 1)], "a future must NEVER become a wanted row"

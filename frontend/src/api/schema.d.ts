@@ -2674,7 +2674,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie";
+            state: "annonce" | "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie";
             /** Title */
             title?: string | null;
         };
@@ -3775,10 +3775,22 @@ export interface components {
          *             counted here: nothing is in motion for them, and folding them in
          *             would re-create the « queue volume implies progress » lie the
          *             five states exist to kill. A rename is phase 8's call.
-         *         total: Aired episodes in the season.
-         *         episodes: The per-episode states, ordered by episode number.
+         *         total: Aired episodes in the season — the ``annonce`` (future) episodes
+         *             are NOT counted here (nor in ``owned`` / ``queued``): a future
+         *             episode has not aired, so it belongs to no acquisition tally. It is
+         *             counted separately in ``announced``.
+         *         announced: Future episodes of the season (``annonce``) — episode-states
+         *             D2. Display-only: a count of what is coming, kept out of the aired
+         *             tallies and out of the card aggregation entirely.
+         *         episodes: The per-episode states, ordered by episode number (aired AND
+         *             announced — the matrix shows both).
          */
         SeasonCompleteness: {
+            /**
+             * Announced
+             * @default 0
+             */
+            announced: number;
             /** Episodes */
             episodes: components["schemas"]["EpisodeCompleteness"][];
             /** Owned */

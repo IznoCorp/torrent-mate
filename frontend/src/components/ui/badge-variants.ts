@@ -24,6 +24,16 @@ export const badgeVariants = cva(
         danger:
           "border-[color-mix(in_oklch,var(--danger)_34%,transparent)] bg-[color-mix(in_oklch,var(--danger)_16%,transparent)] text-[var(--danger)]",
         info: "border-[color-mix(in_oklch,var(--info)_32%,transparent)] bg-[color-mix(in_oklch,var(--info)_16%,transparent)] text-[var(--info)]",
+        // ``muted`` — the « je ne sais pas » of a never-verified episode. A
+        // dashed border + fainter fill + the idle-signal grey keeps it visually
+        // APART from the solid ``neutral`` chip (« en attente »), so the two
+        // grey-family states never read as one colour (operator #9).
+        muted:
+          "border-dashed border-[color-mix(in_oklch,var(--neutral-signal)_45%,transparent)] bg-[color-mix(in_oklch,var(--neutral-signal)_8%,transparent)] text-[var(--neutral-signal)]",
+        // ``upcoming`` — announced, not yet aired. Violet accent, live-tinted
+        // from the token exactly like the other signal tones.
+        upcoming:
+          "border-[color-mix(in_oklch,var(--upcoming)_32%,transparent)] bg-[color-mix(in_oklch,var(--upcoming)_16%,transparent)] text-[var(--upcoming)]",
       },
       mono: { true: "font-mono tracking-normal", false: "" },
     },

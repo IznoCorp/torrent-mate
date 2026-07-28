@@ -39,6 +39,7 @@ const FOLLOW_STATUSES: readonly FollowStatus[] = [
 
 /** The five per-episode states the backend serves (schema.d.ts truth). */
 const EPISODE_STATES: readonly EpisodeState[] = [
+  "annonce",
   "en_mediatheque",
   "a_recuperer",
   "en_acquisition",
@@ -107,7 +108,8 @@ describe("EPISODE state vocabulary", () => {
     ["a_recuperer", "À récupérer", "warning"],
     ["en_acquisition", "En cours d'acquisition", "info"],
     ["en_attente", "En attente", "neutral"],
-    ["non_verifie", "Non vérifié", "neutral"],
+    ["non_verifie", "Non vérifié", "muted"],
+    ["annonce", "Annoncé", "upcoming"],
   ])("maps %s to its label and tone", (state, label, tone) => {
     expect(EPISODE_STATE_LABEL[state as EpisodeState]).toBe(label);
     expect(EPISODE_STATE_TONE[state as EpisodeState]).toBe(tone);
@@ -129,6 +131,15 @@ describe("EPISODE state vocabulary", () => {
       expect(Object.keys(EPISODE_STATE_LABEL)).not.toContain(dead);
       expect(Object.keys(EPISODE_STATE_TONE)).not.toContain(dead);
     }
+  });
+
+  it("gives each of the six states a DISTINCT tone (operator #9)", () => {
+    // « Une couleur par statut »: no two episode states may share a BadgeTone,
+    // else the matrix would paint two states the same colour. This is the
+    // regression guard for the two collisions that existed at phase-1 end
+    // (annonce=en_acquisition=info, en_attente=non_verifie=neutral).
+    const tones = EPISODE_STATES.map((s) => EPISODE_STATE_TONE[s]);
+    expect(new Set(tones).size).toBe(EPISODE_STATES.length);
   });
 });
 

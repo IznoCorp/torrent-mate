@@ -1,43 +1,69 @@
-# Implementation Progress — mobile-shell
+# Implementation Progress — episode-states
 
 > For Claude: read this file at session start.
 
-**Feature**: Garde structurelle anti-scroll-horizontal + bottom-bar fixe
-**Type**: fix · **Version bump**: 0.59.0 → 0.59.1 (patch) · **Branch**: fix/mobile-shell
-**Ticket**: #330 — claimed · **PR merge**: auto
-**Design**: docs/features/mobile-shell/DESIGN.md · **Master plan**: docs/features/mobile-shell/plan/INDEX.md
+**Feature**: Statut « Annoncé » (épisodes futurs) + légende couleurs + date au clic
+**Type**: feat · **Version bump**: 0.59.1 → 0.60.0 (minor) · **Branch**: feat/episode-states
+**Ticket**: #332 — claimed · **PR merge**: auto
+**Design**: docs/features/episode-states/DESIGN.md · **Master plan**: docs/features/episode-states/plan/INDEX.md
 
 ## Contexte
 
-Régression mobile récurrente (menu invisible sans scroll sur Contrôle, bottom-bar qui scrolle
-horizontalement). Audit Chrome 390 px : `/` scrolle de 13 px (span non tronqué), 4 routes ont
-des enfants débordant jusqu'à 444 px masqués par overflow-hidden. Cause : le shell
-(AppShell.tsx) ne clampe pas le débordement horizontal. Fix STRUCTUREL + garde-fou exécutable
-pour tuer la classe de bug.
+Tâches opérateur #9 (légende couleurs des puces) + #10 (statut « Annoncé » = épisodes futurs
+connus, avec date de diffusion, affichée au clic) — groupées (même zone, la légende doit
+inclure Annoncé). Décisions opérateur : tous les futurs connus (pas la saison courante seule) ;
+1 couleur/statut ; date au clic sur chaque puce. Invariant : le cache stocke les futurs mais
+la file wanted ne prend que les diffusés (un futur n'est pas cherchable).
 
 ## Phases
 
-| #   | Phase                                         | File                                                                   | Status |
-| --- | --------------------------------------------- | ---------------------------------------------------------------------- | ------ |
-| 1   | Garde-fou d'abord (rouge-avant) + clamp shell | [phase-01](docs/features/mobile-shell/plan/phase-01-guard-clamp.md)    | [x]    |
-| 2   | Coupables ponctuels + preuve réelle 390 px    | [phase-02](docs/features/mobile-shell/plan/phase-02-culprits-proof.md) | [x]    |
+| #   | Phase                                   | File                                                              | Status |
+| --- | --------------------------------------- | ----------------------------------------------------------------- | ------ |
+| 1   | Backend — cache élargi + état `annonce` | [phase-01](docs/features/episode-states/plan/phase-01-backend.md) | [x]    |
+| 2   | UI — statut, légende, date au clic      | [phase-02](docs/features/episode-states/plan/phase-02-ui.md)      | [x]    |
+| 3   | ACC + preuve 390 px + gate              | [phase-03](docs/features/episode-states/plan/phase-03-acc.md)     | [x]    |
 
-## ACC-05 — preuve réelle 390 px (staging tm-staging., 393dfde2, 2026-07-28)
+## ACC results (2026-07-28)
 
-Harnais iframe 390 px, 6 routes : `scrollWidth-innerWidth == 0` PARTOUT (Contrôle : 13 → 0),
-bottom-bar fixe (bottom=844) et non-scrollable (barOvf=0) sur les 6. Les enfants larges
-(pipeline 444, systeme 434, acquisition 430) sont désormais clippés par le shell — bombes
-latentes désamorcées structurellement.
+| ACC    | Verdict | Preuve                                                                                                                                                                                                        |
+| ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | ✅ PASS | `pytest tests/acquire/test_airing.py tests/acquire/test_detect_service.py` — futur → cache, jamais `wanted`.                                                                                                  |
+| ACC-02 | ✅ PASS | `pytest tests/unit/web/acquisition/test_annonce_state.py` — `derive_episode_state(air_date>today)` ⇒ `annonce` (rouge-avant vérifié).                                                                         |
+| ACC-03 | ✅ PASS | `pytest tests/unit/web/acquisition/test_truth.py test_completeness.py` — futur n'entre pas dans le tally ; carte reste « À jour ».                                                                            |
+| ACC-04 | ✅ PASS | spy dans `test_detect_service.py` — `poll_known` appelé **une** fois par série. (78 tests backend verts au total.)                                                                                            |
+| ACC-05 | ✅ PASS | Preuve Chrome 390 px sur staging (Furious S01, E1-3 diffusés + E4-8 annoncés 03→31/08) : légende 6 tons distincts dérivée de meta.ts, `annonce` violet, `scrollWidth-innerWidth==0`, popover date non clippé. |
+| ACC-06 | ✅ PASS | `make openapi` sans drift (`annonce` + `announced` dans schema.d.ts) ; `make check` vert ; front lint+typecheck+vitest (157) verts.                                                                           |
 
-| route        | overflowX | barOvf | barBottom |
-| ------------ | --------- | ------ | --------- |
-| /            | 0         | 0      | 844       |
-| /pipeline    | 0         | 0      | 844       |
-| /medias      | 0         | 0      | 844       |
-| /acquisition | 0         | 0      | 844       |
-| /systeme     | 0         | 0      | 844       |
-| /config      | 0         | 0      | 844       |
+### ACC-05 — preuve 390 px (staging, 2026-07-28)
+
+Série suivie **Furious** (TVDB), saison 1 : E1-E3 diffusés (≤ aujourd'hui), E4-E8
+annoncés (`air_date` 2026-08-03 → 2026-08-31) après `detect --series` sur le binaire
+staging. API `completeness` : `{"season":1,"announced":5,"total":3,"owned":3}`.
+
+Harnais iframe 390 px (viewport Chrome épinglé 1440) :
+
+- `overflowX == 0` (aucun scroll horizontal).
+- Légende présente, **6 libellés** : « En médiathèque / À récupérer / En cours /
+  En attente / Non vérifié / **Annoncé** », 6 couleurs distinctes (violet `--upcoming`
+  pour Annoncé, pointillé `muted` pour Non vérifié) — lisibles en clair et sombre.
+- `aria-label` corrects : E1-3 « En médiathèque », E4-8 « Annoncé ».
+- Popover date (portalisé, non clippé) : clic E1 ⇒ « Diffusé le 27 juillet 2026 » ;
+  clic E4 ⇒ « Sortie prévue le 3 août 2026 » (français long, jamais le jeton ISO).
+
+## Review cycle (PR #333, 2026-07-28)
+
+Adversarial `code-reviewer` pass (Opus subagent) on the full three-dot diff (42 files).
+**Verdict : aucun défaut BLOCKER/HIGH/MEDIUM — les 6 invariants durs tiennent** (futur
+jamais dans `wanted` ; `annonce` ne dégrade pas la carte ; single-poll ; frontière tz
+cohérente ; popover portalisé, pas de fuite ISO ; légende dérivée de meta.ts). 4 findings
+LOW ; 3 corrigés (commit `d64c0f4e`) :
+
+- `SeasonCompleteness.announced` calculé + sérialisé mais jamais affiché (donnée morte sur
+  le fil) → en-tête de saison affiche « · N annoncé(s) » (test ajouté).
+- Commentaire d'ordre de légende faux (« future last » alors qu'il est premier) → corrigé.
+- Docstring `follow.py` décrivait encore `poll_aired` single-call → réécrit `poll_known`.
+- (LOW non corrigé) churn formateur dans `colors.css` — inerte, absorbé par le squash.
 
 ## Next action
 
-feature-pr : PR + CI + review + merge + deploy.
+All phases complete — run /implement:feature-pr

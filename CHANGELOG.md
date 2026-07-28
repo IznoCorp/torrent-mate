@@ -23,6 +23,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.60.0] — 2026-07-28
+
+### Added
+
+- **Épisodes « Annoncé » — les sorties futures connues sont visibles.** Le cache
+  d'airing garde désormais **tous** les épisodes à date connue (futurs compris),
+  pas seulement les diffusés. Un nouvel état d'épisode `annonce` est dérivé quand
+  `air_date > today` : la puce apparaît dans la matrice « Détail par épisode » de
+  `/acquisition` avant même la diffusion. Invariant préservé : un futur va au
+  cache mais **jamais** à la file `wanted` (on ne cherche pas un épisode pas encore
+  sorti), et `annonce` ne dégrade pas le `FollowStatus` de la carte — une série
+  dont tous les diffusés sont possédés reste « À jour » même avec des annoncés à
+  venir. Un seul appel provider par série (pas de double-poll).
+- **Légende couleurs des puces d'épisodes.** Sous la matrice, une légende dérivée
+  **directement** de `meta.ts` (source unique) associe une couleur distincte à
+  chacun des 6 états — En médiathèque (vert), À récupérer (ambre), En cours
+  d'acquisition (bleu), En attente (gris plein), Non vérifié (gris pointillé),
+  Annoncé (violet). Un test vérifie que la légende liste exactement les clés de
+  `EPISODE_STATE_LABEL` (drift = échec). Jeton `--upcoming` ajouté (violet),
+  variante de badge `muted` (pointillé) — lisibles en thème clair **et** sombre.
+- **Date de diffusion au clic sur une puce.** Un popover portalisé (non clippé par
+  la garde mobile-shell) affiche « Diffusé le {date} » pour un épisode passé,
+  « Sortie prévue le {date} » pour un annoncé, en français long (« 3 août 2026 »),
+  jamais le jeton ISO brut. Accessible clavier.
+- **Version + commit dans le menu latéral mobile.** Le `VersionCard` (déjà
+  source-unique, jusqu'ici `hidden md:flex` dans la sidebar) est ajouté au
+  `SheetContent` du menu mobile — le numéro de version et le SHA de build sont
+  désormais visibles sur mobile, plus seulement sur desktop.
+
 ## [0.59.1] — 2026-07-28
 
 ### Fixed
