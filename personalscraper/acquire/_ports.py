@@ -161,6 +161,14 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def clear_grab_intent(self, wanted_id: int) -> bool:
+        """Release a reserved hash whose ``add()`` failed (D2).
+
+        Guarded on ``status='searching' AND grabbed_hash IS NOT NULL`` so it can
+        never disarm a confirmed grab; returns ``True`` iff it released one.
+        """
+        ...
+
     def hashes_in_flight(self) -> set[str]:
         """Return the lowercase hashes of every OPEN row carrying one (probe set)."""
         ...

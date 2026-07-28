@@ -128,6 +128,16 @@ class GrabPassMixin(PassGatesMixin):
 
         if outcome.disposition == "success":
             return self._persist_success(current, outcome)
+
+        # D2 (release half) — the grab did NOT hand a torrent to the client, so
+        # the hash reserved before ``add()`` must go back. Done HERE, once, for
+        # every non-success disposition and BEFORE any status write: the store
+        # guard matches ``status='searching'``, which is what the row still
+        # reads at this point and stops reading the moment a branch below calls
+        # ``set_status``. Leaving the hash on strands the row — see
+        # ``clear_grab_intent`` for the full list of actors it locks out.
+        self._release_grab_intent(wanted_id)
+
         if outcome.disposition == "terminal":
             # The orchestrator already emitted WantedAbandoned on this path, so
             # the service only persists: verdict first, then the status (same
@@ -185,6 +195,24 @@ class GrabPassMixin(PassGatesMixin):
                 wanted_id=wanted_id,
                 info_hash=info_hash,
             )
+
+    def _release_grab_intent(self, wanted_id: int) -> None:
+        """Give back the hash reserved for a grab that failed (D2).
+
+        Fail-soft on the ``False`` return, which is not an anomaly here: the
+        row legitimately carries no reservation when the chain failed BEFORE
+        ``resolve_source`` (no candidate was ever chosen, so ``on_intent`` never
+        fired). Only the release of an actual reservation is logged.
+
+        A store EXCEPTION (lock) propagates to :meth:`run`'s per-item isolation,
+        which leaves the row 'searching' for the stale sweep — the same
+        treatment every other persistence failure on this path gets.
+
+        Args:
+            wanted_id: Rowid of the claimed ``wanted`` row.
+        """
+        if self._store.wanted.clear_grab_intent(wanted_id):
+            log.info("acquire.service.grab_intent_released", wanted_id=wanted_id)
 
     def _persist_success(self, item: WantedItem, outcome: GrabOutcome) -> _ItemOutcome:
         """Persist a successful grab then emit ``GrabSucceeded`` (emit-after-persist).

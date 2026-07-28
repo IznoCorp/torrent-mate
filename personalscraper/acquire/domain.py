@@ -130,8 +130,21 @@ class WantedItem:
             sweep (that would add a second torrent); the reconciliation replays
             it against the torrent client: present ⇒ confirmed 'grabbed' with
             its seed obligation recorded, absent ⇒ hash cleared and the row is
-            searchable again. So the hash always points at a torrent that was
-            really handed to the client, and a crash can no longer strand an
+            searchable again.
+
+            A grab that FAILS rather than crashing releases the reservation
+            itself, on the way out (``clear_grab_intent``, called for every
+            non-success disposition before the status write). That path must
+            not lean on the reconciliation: it decides nothing without a
+            reachable torrent client, and an unreachable client is the very
+            thing that makes ``add()`` fail. A row whose hash outlived its
+            failed add is reachable by NOTHING — not the stale sweep (it
+            refuses a hash-carrying row), not the grab pass (the guard above),
+            not the search pass ('searching' is not 'pending'), not even the
+            cadence cutoff (the gate skips out before the age check).
+
+            So the hash always points at a torrent that was really handed to
+            the client, and neither a crash nor a failed add can strand an
             orphan or swap the chosen release. ``None`` until a grab commits.
         last_search_outcome: Named issue of the last search pass
             (``no_candidates``, ``all_filtered``, ``trackers_unavailable``,
