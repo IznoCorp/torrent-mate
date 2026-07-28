@@ -639,10 +639,11 @@ def scan_staging_media(
                 continue
             if is_game_release(child):
                 # A game (disc image + game signal) is not media — hide it from the
-                # médiathèque (product-intent §2 véridicité). Logged, never a silent
+                # médiathèque (product-intent §2 véridicité). Logged at INFO so the
+                # hiding is operator-visible at the default level — never a silent
                 # disappearance (§méthode). Precision-first: a movie/TV disc image is
                 # not matched (see sorter.game), so real media stays visible.
-                logger.debug("staging_game_hidden", category=category, folder=child.name)
+                logger.info("staging_game_hidden", category=category, folder=child.name)
                 continue
             items.append(
                 _build_item(

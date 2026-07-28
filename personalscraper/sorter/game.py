@@ -1,16 +1,29 @@
 """Game (disc-image) release detection for the sorter.
 
 A game release is a disc image (``.iso`` and friends) that carries a *game*
-signal — a known repack/scene group, a ``vX.Y.Z`` version token, or a console
-platform token — and that is NOT a media rip.
+signal — a known repack/scene group in **release-group position** (the scene
+convention ``Title.Tokens-GROUP``) or a console platform token — and that is NOT
+a media rip.
 
 This module is **precision-first**: its only consumer hides matched items from
 the web médiathèque (``read_model.scan_staging_media``), so a false positive
-would make a real media item silently vanish from triage. Every media signal
-(a video child, TV season/episode markers, or a video-release token such as
-``1080p``/``BluRay``/``x264`` — which a movie or TV disc image always carries)
-**vetoes** the game verdict. The predicate is pure (directory name + child
-extensions only, no I/O beyond one ``iterdir``), so it is golden-testable.
+would make a real media item silently vanish from triage. Two design choices
+protect that invariant:
+
+- **Group tokens are matched only in the trailing release-group position** (after
+  the last ``-``), never anywhere in the name. A film whose *title* contains a
+  word that is also a scene-group name (``The Matrix Reloaded``, ``The Switch``,
+  ``A Prophet``, ``Plaza Suite``) is therefore NOT matched — a title word never
+  sits in the group position. A genuine repack (``…-Mephisto``, ``…-RUNE``) does.
+- **A bare version token is not a signal.** Fan-edit disc rips are versioned
+  (``…Final.Cut.v2.0``) and would otherwise be hidden; real repacks carry a group
+  or platform token, which is what we require.
+
+Every media signal (a video child, TV season/episode markers, or a video-release
+token such as ``1080p``/``BluRay``/``x264`` — which a movie or TV disc image
+always carries) additionally **vetoes** the game verdict. The predicate is pure
+(directory name + child extensions only, no I/O beyond one ``iterdir``), so it is
+golden-testable.
 """
 
 import re
@@ -27,9 +40,10 @@ from personalscraper.sorter.file_type import (
 #: by this set alone.
 DISC_IMAGE_EXTENSIONS: frozenset[str] = frozenset({"iso", "bin", "mds", "mdf", "nrg", "cue", "img"})
 
-#: Known PC-game repack / scene groups (lowercased). Presence of any as a
-#: name token is a sufficient game signal. Kept deliberately conservative —
-#: only groups that release games, never movie/TV groups.
+#: Known PC-game repack / scene groups (lowercased). Matched ONLY in the trailing
+#: release-group position (see ``_trailing_group_token``), so entries that are
+#: also ordinary words / film titles (``reloaded``, ``plaza``, ``prophet``…) are
+#: safe: a title word is never the trailing ``-GROUP``, only an actual group is.
 GAME_RELEASE_GROUPS: frozenset[str] = frozenset(
     {
         "mephisto",
@@ -51,23 +65,16 @@ GAME_RELEASE_GROUPS: frozenset[str] = frozenset(
         "prophet",
         "goldberg",
         "chronos",
-        "i_know",
         "steampunks",
         "kaos",
     }
 )
 
-#: A ``vX.Y`` / ``vX.Y.Z`` version token (e.g. ``v1.526.0``) — games are
-#: versioned this way, media releases are not.
-_GAME_VERSION_RE: re.Pattern[str] = re.compile(r"(?i)\bv\d+\.\d+(?:\.\d+)*\b")
-
-#: Console/platform tokens. ``pc`` is intentionally omitted — too weak a token
-#: (risk of matching non-game text); PC games are still caught by their repack
-#: group or version, which they virtually always carry.
-_PLATFORM_RE: re.Pattern[str] = re.compile(r"(?i)\b(?:ps[345]|psvita|nsw|switch|xbox(?:360|one)?|wii[uu]?)\b")
-
-#: Split a release name into lowercase alphanumeric tokens for group matching.
-_TOKEN_RE: re.Pattern[str] = re.compile(r"[^0-9a-zA-Z]+")
+#: Console/platform tokens. Matched anywhere (they sit mid-name, e.g.
+#: ``Game.PS4.FRENCH``). ``pc`` and ``switch`` are intentionally omitted — too
+#: weak (``switch`` is the film "The Switch", ``pc`` matches non-game text);
+#: Nintendo Switch is covered by the game-specific ``nsw`` tag.
+_PLATFORM_RE: re.Pattern[str] = re.compile(r"(?i)\b(?:ps[345]|psvita|nsw|xbox(?:360|one)?|wiiu?)\b")
 
 
 def _extension_of(path: Path) -> str:
@@ -75,22 +82,45 @@ def _extension_of(path: Path) -> str:
     return path.suffix.lstrip(".").lower()
 
 
-def _has_game_signal(text: str) -> bool:
-    """Whether *text* carries a game signal (repack group, version, or platform).
+def _trailing_group_token(name: str) -> str | None:
+    """Return the lowercased trailing release-group token of *name*, or ``None``.
+
+    Scene/repack releases end with ``-GROUP`` (the group is always last). This
+    returns the alphanumeric run immediately after the LAST ``-`` — e.g.
+    ``"Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto"`` → ``"mephisto"`` (the
+    ``Spider-Man`` hyphen is not the last one). A name with no hyphen has no
+    group position and yields ``None``.
 
     Args:
-        text: The concatenated release name + disc-image filename(s).
+        name: A release folder name or disc-image filename stem.
 
     Returns:
-        True if any known game group token, a ``vX.Y[.Z]`` version token, or a
-        console-platform token is present.
+        The lowercased group token, or ``None`` when there is no trailing group.
     """
-    tokens = {t for t in _TOKEN_RE.split(text.lower()) if t}
-    if tokens & GAME_RELEASE_GROUPS:
-        return True
-    if _GAME_VERSION_RE.search(text):
-        return True
-    return bool(_PLATFORM_RE.search(text))
+    if "-" not in name:
+        return None
+    tail = name.rsplit("-", 1)[1]
+    match = re.match(r"[0-9a-zA-Z]+", tail)
+    return match.group(0).lower() if match else None
+
+
+def _has_game_signal(folder_name: str, disc_stems: list[str]) -> bool:
+    """Whether a game signal is present: a trailing repack group or a platform tag.
+
+    Args:
+        folder_name: The release directory name.
+        disc_stems: The disc-image filenames (extension stripped).
+
+    Returns:
+        True if any of ``folder_name``/``disc_stems`` ends with a known game
+        group (release-group position), or a console-platform token appears.
+    """
+    for name in (folder_name, *disc_stems):
+        token = _trailing_group_token(name)
+        if token is not None and token in GAME_RELEASE_GROUPS:
+            return True
+    haystack = " ".join([folder_name, *disc_stems])
+    return bool(_PLATFORM_RE.search(haystack))
 
 
 def is_game_release(media_dir: Path) -> bool:
@@ -104,8 +134,9 @@ def is_game_release(media_dir: Path) -> bool:
     3. neither the folder name nor the disc-image filename(s) carry TV
        season/episode markers or a video-release token (``1080p``/``BluRay``/
        codec/source) — a movie or TV disc image always carries one;
-    4. the folder name or disc-image filename(s) carry a game signal
-       (repack group, ``vX.Y[.Z]`` version, or console platform).
+    4. the folder name or a disc-image filename carries a game signal — a known
+       repack group in trailing release-group position, or a console platform
+       token.
 
     Args:
         media_dir: The staged release directory to classify.
@@ -126,19 +157,19 @@ def is_game_release(media_dir: Path) -> bool:
     if extensions & VIDEO_EXTENSIONS:
         return False  # (2) a video child means a media rip, not a game
 
-    # Signal text = the release folder name plus every disc-image filename, so a
-    # signal living on the .iso (not the folder) is still seen.
-    disc_names = [c.name for c in files if _extension_of(c) in DISC_IMAGE_EXTENSIONS]
-    haystack = " ".join([media_dir.name, *disc_names])
+    # Signal text = the release folder name plus every disc-image filename stem, so
+    # a group living on the .iso (not the folder) is still seen.
+    disc_stems = [Path(c.name).stem for c in files if _extension_of(c) in DISC_IMAGE_EXTENSIONS]
+    haystack = " ".join([media_dir.name, *disc_stems])
 
     # A console token like ``PS4`` embeds ``S4``, which the season-pack TV-marker
     # regex (``s\d``) would read as "Season 4" and wrongly veto the game. Platform
     # tokens are a GAME signal, never a media one, so strip them before the media
-    # vetoes (the game-signal check below still runs on the untouched haystack).
+    # vetoes (the game-signal check below still runs on the untouched names).
     veto_text = _PLATFORM_RE.sub(" ", haystack)
     if _has_tvshow_markers(veto_text):
         return False  # (3a) TV markers → media
     if _looks_like_video_release(veto_text):
         return False  # (3b) resolution/source/codec token → movie/TV disc image
 
-    return _has_game_signal(haystack)  # (4) a game signal is required
+    return _has_game_signal(media_dir.name, disc_stems)  # (4) a game signal is required

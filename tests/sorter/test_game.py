@@ -67,14 +67,23 @@ class TestIsGameRelease:
         d = _mkdir_with(tmp_path, "backup", ["disc.iso"])
         assert is_game_release(d) is False
 
-    def test_game_iso_with_version_token_only_is_game(self, tmp_path: Path):
-        """A version token (vX.Y.Z) alone is a sufficient game signal."""
+    def test_game_iso_with_trailing_repack_group_is_game(self, tmp_path: Path):
+        """A known repack group in trailing release-group position is a game."""
         d = _mkdir_with(
             tmp_path,
-            "Cyberpunk.2077.v2.1.0.MULTi",
+            "Cyberpunk.2077.v2.1.0-RUNE",
             ["setup.iso"],
         )
         assert is_game_release(d) is True
+
+    def test_version_token_alone_is_not_a_game(self, tmp_path: Path):
+        """Precision: a bare vX.Y token is NOT a signal.
+
+        Fan-edit disc rips are versioned; requiring a group/platform (not a bare
+        version) keeps them visible.
+        """
+        d = _mkdir_with(tmp_path, "Cyberpunk.2077.v2.1.0.MULTi", ["setup.iso"])
+        assert is_game_release(d) is False
 
     def test_game_iso_with_platform_token_is_game(self, tmp_path: Path):
         """A console-platform token is a sufficient game signal."""
@@ -107,7 +116,7 @@ class TestIsGameRelease:
         """
         d = _mkdir_with(
             tmp_path,
-            "Concert.2020.Mephisto",
+            "Concert.2020-Mephisto",
             ["concert.mkv", "extras.iso"],
         )
         assert is_game_release(d) is False
@@ -115,3 +124,48 @@ class TestIsGameRelease:
     def test_missing_directory_is_not_game(self, tmp_path: Path):
         """Fail-soft: an unreadable/absent directory yields False, never raises."""
         assert is_game_release(tmp_path / "does-not-exist") is False
+
+
+class TestPrecisionRegressions:
+    """Real films whose TITLE contains a scene-group word must NOT be hidden.
+
+    Regression for the PR #335 review BLOCKER: matching group tokens anywhere in
+    the name misclassified title-only disc rips of real films (whose titles are
+    also scene-group names) as games. Group tokens are now matched only in the
+    trailing release-group position, so a title word is never a signal.
+    """
+
+    def test_the_matrix_reloaded_title_only_iso_is_not_game(self, tmp_path: Path):
+        """`The Matrix Reloaded` (title word 'reloaded') is a film, not a game."""
+        d = _mkdir_with(tmp_path, "The Matrix Reloaded", ["The Matrix Reloaded.iso"])
+        assert is_game_release(d) is False
+
+    def test_the_switch_title_only_iso_is_not_game(self, tmp_path: Path):
+        """`The Switch` (2010) — 'switch' is no longer a platform token."""
+        d = _mkdir_with(tmp_path, "The.Switch", ["The.Switch.iso"])
+        assert is_game_release(d) is False
+
+    def test_a_prophet_title_only_iso_is_not_game(self, tmp_path: Path):
+        """`A Prophet` (title word 'prophet') is a film, not a game."""
+        d = _mkdir_with(tmp_path, "A.Prophet", ["A.Prophet.iso"])
+        assert is_game_release(d) is False
+
+    def test_plaza_suite_title_only_iso_is_not_game(self, tmp_path: Path):
+        """`Plaza Suite` (title word 'plaza') is a film, not a game."""
+        d = _mkdir_with(tmp_path, "Plaza.Suite", ["Plaza.Suite.iso"])
+        assert is_game_release(d) is False
+
+    def test_fan_edit_versioned_disc_is_not_game(self, tmp_path: Path):
+        """A versioned fan-edit disc rip (bare vX.Y, no group) stays visible."""
+        d = _mkdir_with(tmp_path, "Blade.Runner.Final.Cut.v2.0", ["br.iso"])
+        assert is_game_release(d) is False
+
+    def test_despecialized_fan_edit_is_not_game(self, tmp_path: Path):
+        """`Star Wars Despecialized v2.7` (fan edit, bare version) stays visible."""
+        d = _mkdir_with(tmp_path, "Star.Wars.Despecialized.v2.7", ["sw.iso"])
+        assert is_game_release(d) is False
+
+    def test_group_word_in_trailing_position_is_a_game(self, tmp_path: Path):
+        """The same word (RELOADED) IS a signal when it is the trailing group."""
+        d = _mkdir_with(tmp_path, "Some.Game.2024-RELOADED", ["game.iso"])
+        assert is_game_release(d) is True
