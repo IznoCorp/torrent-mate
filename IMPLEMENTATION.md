@@ -1,26 +1,27 @@
-# Implementation Progress — plex-refresh
+# Implementation Progress — mobile-shell
 
-> For Claude: read this file at session start. Current feature tracker.
+> For Claude: read this file at session start.
 
-**Feature**: Scan Plex déclenché après dispatch
-**Type**: feat · **Version bump**: 0.58.0 → 0.59.0 (minor) · **Branch**: feat/plex-refresh
-**Ticket**: #328 — claimed · **PR merge**: auto
-**Design**: docs/features/plex-refresh/DESIGN.md · **Master plan**: docs/features/plex-refresh/plan/INDEX.md
+**Feature**: Garde structurelle anti-scroll-horizontal + bottom-bar fixe
+**Type**: fix · **Version bump**: 0.59.0 → 0.59.1 (patch) · **Branch**: fix/mobile-shell
+**Ticket**: #330 — claimed · **PR merge**: auto
+**Design**: docs/features/mobile-shell/DESIGN.md · **Master plan**: docs/features/mobile-shell/plan/INDEX.md
 
 ## Contexte
 
-Bug prouvé (Margin Call) : dispatch complet mais invisible dans Plex — aucun déclencheur de
-scan n'existe et macFUSE/NTFS ne donne aucun événement filesystem. Donnée réparée à la main
-(scan partiel HTTP 200) ; cette feature corrige la cause. Créds PLEX_URL/PLEX_TOKEN en place
-dans le .env opérateur.
+Régression mobile récurrente (menu invisible sans scroll sur Contrôle, bottom-bar qui scrolle
+horizontalement). Audit Chrome 390 px : `/` scrolle de 13 px (span non tronqué), 4 routes ont
+des enfants débordant jusqu'à 444 px masqués par overflow-hidden. Cause : le shell
+(AppShell.tsx) ne clampe pas le débordement horizontal. Fix STRUCTUREL + garde-fou exécutable
+pour tuer la classe de bug.
 
 ## Phases
 
-| #   | Phase                                 | File                                                           | Status |
-| --- | ------------------------------------- | -------------------------------------------------------------- | ------ |
-| 1   | Client + subscriber + câblage + tests | [phase-01](docs/features/plex-refresh/plan/phase-01-engine.md) | [x]    |
-| 2   | Docs + env + ACC + preuve réelle      | [phase-02](docs/features/plex-refresh/plan/phase-02-acc.md)    | [x]    |
+| #   | Phase                                         | File                                                                   | Status |
+| --- | --------------------------------------------- | ---------------------------------------------------------------------- | ------ |
+| 1   | Garde-fou d'abord (rouge-avant) + clamp shell | [phase-01](docs/features/mobile-shell/plan/phase-01-guard-clamp.md)    | [ ]    |
+| 2   | Coupables ponctuels + preuve réelle 390 px    | [phase-02](docs/features/mobile-shell/plan/phase-02-culprits-proof.md) | [ ]    |
 
 ## Next action
 
-feature-pr : push + PR + CI + review + merge + deploy.
+/implement:phase (phase 1)
