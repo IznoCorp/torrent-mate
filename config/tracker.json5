@@ -21,7 +21,7 @@
         // enabled tracker with missing credentials is a BOOT ERROR
         // (build_tracker_registry raises TrackerConfigError → every command
         // fails), so removing the secret requires flipping this back to false.
-        enabled: true,
+        enabled: false,
         cross_seed: false,
         // economy: TR4KER publishes no explicit seeding obligation (no documented
         // min seed time / H&R grace), so no values are invented here. Until the
