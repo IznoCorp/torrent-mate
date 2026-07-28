@@ -48,7 +48,6 @@ class ProviderName(str, Enum):
     TRANSMISSION = "transmission"
     LACALE = "lacale"
     C411 = "c411"
-    TORR9 = "torr9"
     TR4KER = "tr4ker"
     TELEGRAM = "telegram"
     HEALTHCHECKS = "healthchecks"

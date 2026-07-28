@@ -33,13 +33,13 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "transmission": ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"],
     "lacale": ["LACALE_API_KEY"],
     "c411": ["C411_API_KEY"],
-    "torr9": ["TORR9_USERNAME", "TORR9_PASSWORD"],
     # Tr4ker follows the operator's single-secret convention: ONE
     # ``TR4KER_PASSKEY`` env var, whose value is sent as the Torznab ``apikey=``
     # query param (and will also authenticate the RSS feed of the freeleech
     # radar R1) — hence no tr4ker entry in PROVIDER_OPTIONAL_SECRETS. The
     # TR4KER_USERNAME / TR4KER_PASSWORD entries found in older .env files are
-    # torr9 leftovers and are deliberately not wired.
+    # leftovers from a decommissioned login-style tracker and are deliberately
+    # not wired.
     "tr4ker": ["TR4KER_PASSKEY"],
     "telegram": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
     "healthchecks": ["HEALTHCHECK_URL"],
@@ -97,7 +97,6 @@ PROVIDER_OPTIONAL_SECRETS: dict[str, list[str]] = {
     # Seed-Safety O2) decide what to do with a missing value.
     "lacale": ["LACALE_PASSKEY"],
     "c411": ["C411_PASSKEY"],
-    "torr9": ["TORR9_PASSKEY"],
     # No ``tr4ker`` entry on purpose: its single ``TR4KER_PASSKEY`` is already an
     # ACTIVATION-GATING credential in PROVIDER_CREDS (it is the value sent as
     # ``apikey=``), and the same value will serve the RSS side of the freeleech

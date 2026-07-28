@@ -1,8 +1,6 @@
 {
   // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY, tr4ker → TR4KER_PASSKEY
-  // PROVIDER_CREDS: torr9 → TORR9_USERNAME + TORR9_PASSWORD (JWT login)
-  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY,
-  //   torr9 → TORR9_PASSKEY (RSS freeleech radar R1 follow-on)
+  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
   // tr4ker: single secret — TR4KER_PASSKEY, whose value is sent as the Torznab
   //   `apikey=` query param (and will serve the RSS radar later), so it gates activation.
   tracker: {
@@ -35,16 +33,6 @@
         //   min_seed_time: "72h",
         //   hit_and_run_grace: "0h",
         // },
-      },
-      torr9: {
-        enabled: false, // tracker closed (torr9.net down) — replaced by tr4ker; disabled to stop per-pass timeouts
-        cross_seed: false,
-        economy: {
-          target_ratio: 2.0,
-          min_ratio: 1.0,
-          min_seed_time: "72h",
-          hit_and_run_grace: "0h",
-        },
       },
     },
     priority: ["c411", "tr4ker"], // c411 first: proven main tracker; swap here to prefer tr4ker

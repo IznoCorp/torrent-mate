@@ -82,7 +82,11 @@ class TrackerResult:
             NOTE: this field is codec-only — it never contains language
             markers (VF/VOSTFR/VO). Language detection for the audio
             hard-filter must parse ``result.title`` instead.
-        tmdb_id: TMDB id when the tracker exposes it (torr9 search), else None.
+        tmdb_id: TMDB id when the tracker exposes it, else None. No tracker
+            wired today populates it (the one that did was removed with its
+            client), so the TMDB identity hard-filter that consumes it is a
+            no-op until a client maps an id — Torznab indexers do publish a
+            ``tmdbid`` attr, which the Torznab client does not read yet.
     """
 
     provider: str

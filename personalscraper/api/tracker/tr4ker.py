@@ -15,8 +15,8 @@ Tr4ker particularities (from the tracker's own Prowlarr/Torznab documentation):
   ``TR4KER_PASSKEY`` env var (the operator's tracker-naming convention: one
   passkey variable per tracker, which will also authenticate the RSS feed of
   the freeleech radar R1). Legacy ``TR4KER_USERNAME`` / ``TR4KER_PASSWORD``
-  entries in the operator ``.env`` are torr9 leftovers and are deliberately not
-  wired.
+  entries in the operator ``.env`` are leftovers from a decommissioned
+  login-style tracker and are deliberately not wired.
   **Factual note**: the tracker's own documentation distinguishes the *profile
   API key* (Mon compte → Paramètres) from the *announce passkey* and states that
   Torznab search wants the API key. This codebase follows the operator's

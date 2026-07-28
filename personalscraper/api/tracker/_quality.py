@@ -1,16 +1,16 @@
 """Shared release-title quality-token parser for the tracker family.
 
-The lacale / c411 / torr9 trackers all receive quality markers (resolution,
-codec, source, audio, container format) encoded in the release **title** rather
-than as structured JSON/XML fields — so each must regex-extract them from the
-title. This module owns the single regex table and the parse function so every
-tracker extracts the *same* tokens.
+Every tracker receives quality markers (resolution, codec, source, audio,
+container format) encoded in the release **title** rather than as structured
+JSON/XML fields — so each must regex-extract them from the title. This module
+owns the single regex table and the parse function so every tracker extracts
+the *same* tokens.
 
 Before this module existed, ``lacale.py`` owned ``_TITLE_PATTERNS`` +
-``_parse_title`` and ``c411.py`` reached across the family boundary to call
-``LaCaleClient._parse_title``, while ``torr9.py`` parsed nothing at all —
+``_parse_title``, ``c411.py`` reached across the family boundary to call
+``LaCaleClient._parse_title``, and a third client parsed nothing at all —
 silently dropping the quality signal the ranker relies on
-(TORRENT-TRACKERS-03). All three now call :func:`parse_title_quality`.
+(TORRENT-TRACKERS-03). Every client now calls :func:`parse_title_quality`.
 """
 
 from __future__ import annotations

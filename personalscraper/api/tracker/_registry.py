@@ -235,11 +235,13 @@ class TrackerRegistry:
         ``_open_transport`` are included — a non-triggering PEEK at the
         already-materialized transport. No new public surface is added.
 
-        Crucially, this peeks ``_open_transport`` (NOT the login-triggering lazy
-        ``_transport`` property): a lazy tracker (torr9's TVDB pattern) therefore
-        appears here ONLY when it logged in during a prior search — exactly when
-        ``resolve_source`` needs its transport. No spurious bootstrap login is
-        ever fired by building this map.
+        Crucially, this peeks ``_open_transport`` (NOT a login-triggering lazy
+        ``_transport`` property). Every tracker wired today builds its transport
+        eagerly at construction, so the peek always yields it; the indirection is
+        the contract that keeps a login-style tracker safe: such a client would
+        appear here ONLY once it logged in during a prior search — exactly when
+        ``resolve_source`` needs its transport — and no spurious bootstrap login
+        is ever fired by building this map.
 
         Returns:
             Dict mapping each tracker's lowercase wire name to its (materialized)
@@ -268,13 +270,14 @@ class TrackerRegistry:
         propagate — a failing close on one tracker must not prevent the others
         from releasing their sessions.
 
-        Peeks ``_open_transport`` (NOT the login-triggering lazy ``_transport``
-        property): a read-only command may tear the registry down without ever
-        materializing a lazy tracker's transport (torr9's TVDB pattern). The peek
-        returns None in that case, so close() closes ONLY materialized transports
-        and never fires a spurious bootstrap login at teardown — which would
+        Peeks ``_open_transport`` (NOT a login-triggering lazy ``_transport``
+        property): a read-only command may tear the registry down before a
+        login-style tracker ever materialized its transport. The peek returns
+        None in that case, so close() closes ONLY materialized transports and
+        never fires a spurious bootstrap login at teardown — which would
         otherwise hit the network and break the network-free-until-first-use
-        guarantee.
+        guarantee. No lazy tracker is wired today; the peek is what keeps the
+        guarantee free for the next one.
         """
         for name, client in list(self._trackers.items()):
             transport = getattr(client, "_open_transport", None)

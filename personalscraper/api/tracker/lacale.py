@@ -133,9 +133,9 @@ class LaCaleClient(TorrentSearchable, CategoryListable):
     def _open_transport(self) -> HttpTransport:
         """The HTTP transport (always materialized for an api-key client).
 
-        Uniform peek for the registry seams (see Torr9Client._open_transport):
-        api-key trackers build their transport at construction, so this simply
-        returns ``self._transport`` with no laziness.
+        Uniform peek for the registry seams (``TrackerRegistry.transports()`` /
+        ``close()``): api-key trackers build their transport at construction, so
+        this simply returns ``self._transport`` with no laziness.
         """
         return self._transport
 
