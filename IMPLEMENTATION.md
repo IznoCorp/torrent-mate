@@ -22,6 +22,22 @@ pour tuer la classe de bug.
 | 1   | Garde-fou d'abord (rouge-avant) + clamp shell | [phase-01](docs/features/mobile-shell/plan/phase-01-guard-clamp.md)    | [x]    |
 | 2   | Coupables ponctuels + preuve réelle 390 px    | [phase-02](docs/features/mobile-shell/plan/phase-02-culprits-proof.md) | [x]    |
 
+## ACC-05 — preuve réelle 390 px (staging tm-staging., 393dfde2, 2026-07-28)
+
+Harnais iframe 390 px, 6 routes : `scrollWidth-innerWidth == 0` PARTOUT (Contrôle : 13 → 0),
+bottom-bar fixe (bottom=844) et non-scrollable (barOvf=0) sur les 6. Les enfants larges
+(pipeline 444, systeme 434, acquisition 430) sont désormais clippés par le shell — bombes
+latentes désamorcées structurellement.
+
+| route        | overflowX | barOvf | barBottom |
+| ------------ | --------- | ------ | --------- |
+| /            | 0         | 0      | 844       |
+| /pipeline    | 0         | 0      | 844       |
+| /medias      | 0         | 0      | 844       |
+| /acquisition | 0         | 0      | 844       |
+| /systeme     | 0         | 0      | 844       |
+| /config      | 0         | 0      | 844       |
+
 ## Next action
 
-/implement:phase (phase 1)
+feature-pr : PR + CI + review + merge + deploy.
