@@ -1,68 +1,69 @@
-# Implementation Progress — episode-states
+# Implementation Progress — game-hide
 
-> For Claude: read this file at session start.
+> For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Statut « Annoncé » (épisodes futurs) + légende couleurs + date au clic
-**Type**: feat · **Version bump**: 0.59.1 → 0.60.0 (minor) · **Branch**: feat/episode-states
-**Ticket**: #332 — claimed · **PR merge**: auto
-**Design**: docs/features/episode-states/DESIGN.md · **Master plan**: docs/features/episode-states/plan/INDEX.md
-
-## Contexte
-
-Tâches opérateur #9 (légende couleurs des puces) + #10 (statut « Annoncé » = épisodes futurs
-connus, avec date de diffusion, affichée au clic) — groupées (même zone, la légende doit
-inclure Annoncé). Décisions opérateur : tous les futurs connus (pas la saison courante seule) ;
-1 couleur/statut ; date au clic sur chaque puce. Invariant : le cache stocke les futurs mais
-la file wanted ne prend que les diffusés (un futur n'est pas cherchable).
+**Feature**: Détecter les jeux (ISO) et les masquer de la médiathèque
+**Type**: feat
+**Version bump**: 0.60.0 → 0.61.0 (minor)
+**Branch**: feat/game-hide
+**Ticket**: #334 — claimed
+**PR merge**: auto
+**PR**: _(created after last phase)_
+**Design**: docs/features/game-hide/DESIGN.md
+**Master plan**: docs/features/game-hide/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                   | File                                                              | Status |
-| --- | --------------------------------------- | ----------------------------------------------------------------- | ------ |
-| 1   | Backend — cache élargi + état `annonce` | [phase-01](docs/features/episode-states/plan/phase-01-backend.md) | [x]    |
-| 2   | UI — statut, légende, date au clic      | [phase-02](docs/features/episode-states/plan/phase-02-ui.md)      | [x]    |
-| 3   | ACC + preuve 390 px + gate              | [phase-03](docs/features/episode-states/plan/phase-03-acc.md)     | [x]    |
+| #   | Phase                         | File                                                        | Status |
+| --- | ----------------------------- | ----------------------------------------------------------- | ------ |
+| 1   | Détection — `is_game_release` | [phase-01](docs/features/game-hide/plan/phase-01-detect.md) | [x]    |
+| 2   | Filtre read-model + log       | [phase-02](docs/features/game-hide/plan/phase-02-filter.md) | [x]    |
+| 3   | ACC + preuve 390 px + gate    | [phase-03](docs/features/game-hide/plan/phase-03-acc.md)    | [x]    |
 
 ## ACC results (2026-07-28)
 
-| ACC    | Verdict | Preuve                                                                                                                                                                                                        |
-| ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ACC-01 | ✅ PASS | `pytest tests/acquire/test_airing.py tests/acquire/test_detect_service.py` — futur → cache, jamais `wanted`.                                                                                                  |
-| ACC-02 | ✅ PASS | `pytest tests/unit/web/acquisition/test_annonce_state.py` — `derive_episode_state(air_date>today)` ⇒ `annonce` (rouge-avant vérifié).                                                                         |
-| ACC-03 | ✅ PASS | `pytest tests/unit/web/acquisition/test_truth.py test_completeness.py` — futur n'entre pas dans le tally ; carte reste « À jour ».                                                                            |
-| ACC-04 | ✅ PASS | spy dans `test_detect_service.py` — `poll_known` appelé **une** fois par série. (78 tests backend verts au total.)                                                                                            |
-| ACC-05 | ✅ PASS | Preuve Chrome 390 px sur staging (Furious S01, E1-3 diffusés + E4-8 annoncés 03→31/08) : légende 6 tons distincts dérivée de meta.ts, `annonce` violet, `scrollWidth-innerWidth==0`, popover date non clippé. |
-| ACC-06 | ✅ PASS | `make openapi` sans drift (`annonce` + `announced` dans schema.d.ts) ; `make check` vert ; front lint+typecheck+vitest (157) verts.                                                                           |
+| ACC    | Verdict | Preuve                                                                                                                                                                                                                                                                                                      |
+| ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | ✅ PASS | `pytest tests/sorter/test_game.py` — dossier `Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto` (iso+nfo) ⇒ `is_game_release` True. (10 tests verts.)                                                                                                                                                          |
+| ACC-02 | ✅ PASS | même suite — image disque de FILM (`The.Matrix.1999.1080p.BluRay.iso`) ⇒ False (garde anti-faux-positif video-release) ; régression PS5→S5 couverte.                                                                                                                                                        |
+| ACC-03 | ✅ PASS | `pytest tests/unit/web/staging/test_read_model_game_filter.py` — jeu en OTHER non surfacé, média non-jeu en OTHER visible, log `staging_game_hidden` émis.                                                                                                                                                  |
+| ACC-04 | ✅ PASS | `make check` **exit 0** (977 tests front + suite Python + guardrails) ; `make openapi` sans drift (aucun changement de contrat).                                                                                                                                                                            |
+| ACC-05 | ✅ PASS | **Preuve données réelles** (config réelle + `library.db` réelle) : `scan_staging_media` ne surface PLUS `Marvels.Spider-Man.2` (log `staging_game_hidden` → `098-AUTRES`), et « Top Chef Le Concours Parallèle » (autre item OTHER, non-jeu) **reste visible**. Confirmation visuelle sur `tm.` post-merge. |
 
-### ACC-05 — preuve 390 px (staging, 2026-07-28)
+### ACC-05 — preuve données réelles (2026-07-28)
 
-Série suivie **Furious** (TVDB), saison 1 : E1-E3 diffusés (≤ aujourd'hui), E4-E8
-annoncés (`air_date` 2026-08-03 → 2026-08-31) après `detect --series` sur le binaire
-staging. API `completeness` : `{"season":1,"announced":5,"total":3,"owned":3}`.
+```
+staging_dir: /Volumes/IznoServer SSD/A TRIER
+total staged items surfaced: 1
+Marvels/Spider-Man items STILL surfaced: NONE (correct)
+staging_game_hidden log entries: [('098-AUTRES', 'Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto')]
+All surfaced folders: ['Top Chef Le Concours Parallèle (2026)']
+```
 
-Harnais iframe 390 px (viewport Chrome épinglé 1440) :
+Note : la preuve visuelle Chrome sur `tm-staging.` exigerait un déploiement de branche
+sur staging (force-push gaté par le classifieur auto-mode) ; la preuve données réelles
+ci-dessus (read model réel sur arborescence réelle) est plus forte, et la confirmation
+visuelle est faite sur `tm.` (prod) après le merge/déploiement.
 
-- `overflowX == 0` (aucun scroll horizontal).
-- Légende présente, **6 libellés** : « En médiathèque / À récupérer / En cours /
-  En attente / Non vérifié / **Annoncé** », 6 couleurs distinctes (violet `--upcoming`
-  pour Annoncé, pointillé `muted` pour Non vérifié) — lisibles en clair et sombre.
-- `aria-label` corrects : E1-3 « En médiathèque », E4-8 « Annoncé ».
-- Popover date (portalisé, non clippé) : clic E1 ⇒ « Diffusé le 27 juillet 2026 » ;
-  clic E4 ⇒ « Sortie prévue le 3 août 2026 » (français long, jamais le jeton ISO).
+## Review cycles
 
-## Review cycle (PR #333, 2026-07-28)
+### Cycle 1 — adversarial `code-reviewer` (PR #335, 2026-07-28)
 
-Adversarial `code-reviewer` pass (Opus subagent) on the full three-dot diff (42 files).
-**Verdict : aucun défaut BLOCKER/HIGH/MEDIUM — les 6 invariants durs tiennent** (futur
-jamais dans `wanted` ; `annonce` ne dégrade pas la carte ; single-poll ; frontière tz
-cohérente ; popover portalisé, pas de fuite ISO ; légende dérivée de meta.ts). 4 findings
-LOW ; 3 corrigés (commit `d64c0f4e`) :
+**Verdict : BLOCKER trouvé — invariant précision-first CASSÉ** (bon catch de la review).
+Matcher les tokens de `GAME_RELEASE_GROUPS` **n'importe où** dans le nom masquait de vrais
+films dont le TITRE est aussi un nom de groupe scène (_The Matrix **Reloaded**_, _The **Switch**_,
+_A **Prophet**_, _Plaza Suite_) — 10 vrais médias auraient disparu silencieusement. Corrigé
+(commit `58aaabf7`) :
 
-- `SeasonCompleteness.announced` calculé + sérialisé mais jamais affiché (donnée morte sur
-  le fil) → en-tête de saison affiche « · N annoncé(s) » (test ajouté).
-- Commentaire d'ordre de légende faux (« future last » alors qu'il est premier) → corrigé.
-- Docstring `follow.py` décrivait encore `poll_aired` single-call → réécrit `poll_known`.
-- (LOW non corrigé) churn formateur dans `colors.css` — inerte, absorbé par le squash.
+- **Group tokens ancrés à la position release-group** (`Title-GROUP`, après le dernier `-`) —
+  un mot de titre n'y est jamais ; les vrais repacks (`…-Mephisto`, `…-RUNE`) matchent toujours.
+- Token plateforme faible `switch` retiré (le film « The Switch ») — `nsw` conservé.
+- Token version nu (`vX.Y`) retiré comme signal — les fan-edits versionnés (`…Final.Cut.v2.0`)
+  restent visibles.
+- (MEDIUM) log `staging_game_hidden` promu **INFO** (visible au niveau par défaut, §méthode).
+- (LOW) entrée morte `i_know` retirée (le tokenizer la coupait).
+- **7 tests de régression précision** ajoutés ; preuve données réelles re-vérifiée (Marvels
+  masqué via le groupe Mephisto, Top Chef visible).
 
 ## Next action
 
