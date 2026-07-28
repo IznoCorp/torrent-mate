@@ -17,10 +17,20 @@
         },
       },
       tr4ker: {
-        // Active: TR4KER_PASSKEY is present in .env. Keep it that way — an
-        // enabled tracker with missing credentials is a BOOT ERROR
-        // (build_tracker_registry raises TrackerConfigError → every command
-        // fails), so removing the secret requires flipping this back to false.
+        // DISABLED until the search auth is proven. TR4KER_PASSKEY is present
+        // in .env but currently holds the RSS *passkey*, which the Torznab
+        // search endpoint rejects with 401 <error code="100" "Invalid API Key">.
+        // The fix is to put the PROFILE API KEY (Mon compte → Paramètres) INTO
+        // this same TR4KER_PASSKEY variable — the operator convention is one
+        // secret slot per tracker, so no TR4KER_API_KEY is ever added.
+        //
+        // Flip to true only AFTER: (1) this feature is merged AND deployed to
+        // ~/deploy/torrentmate, and (2) a controlled re-probe returns parsed
+        // results. Order matters — this file is shared with prod/staging via
+        // PERSONALSCRAPER_CONFIG, so a tracker enabled here before the code
+        // knows it is a BOOT ERROR (build_tracker_registry raises
+        // TrackerConfigError) that takes down every command and cron.
+        // Same reason removing the secret requires flipping this back to false.
         enabled: false,
         cross_seed: false,
         // economy: TR4KER publishes no explicit seeding obligation (no documented
