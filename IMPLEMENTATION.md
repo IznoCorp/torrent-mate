@@ -45,7 +45,29 @@ PASS
 
 ## Review cycles
 
-_(filled by implement:pr-review)_
+### Cycle 1 — adversarial `code-reviewer` (PR #337, 2026-07-29)
+
+**Verdict : chemin create airtight sur tous les invariants durs ; 1 HIGH trouvé** (bon catch).
+
+- **HIGH — suivi silencieusement inerte à la réactivation/reprise.** `tvdb_unresolved` n'était
+  posé qu'à la création ; réactiver (POST re-match) ou reprendre (toggle PATCH `active=true`) une
+  série sans TVDB la remettait active **sans** résolution **ni** drapeau → l'opérateur croit que
+  ça marche alors que `poll_known` la saute. **Corrigé** (commit `7758ab56`) : `tvdb_unresolved`
+  est désormais **dérivé de l'état** (`show ∧ active ∧ pas de tvdb_id`) dans les DEUX builders —
+  create, réactivation, toggle ET liste sont honnêtes ; badge persistant « Sans ID TVDB » côté
+  front. Tests ajoutés (dérivation + badge + toast).
+
+**Items ouverts (présentés, décision opérateur — non tranchés unilatéralement) :**
+
+- **(LOW-MED, perf)** L'ajout-par-ID d'une série construit le registry **deux fois** (une fois pour
+  la résolution TVDB, une fois pour l'enrichissement métadonnées). Coût réel ≈ un build de registry
+  en plus (~80 ms) ; le pire-cas ~50 s n'arrive que si **deux** hôtes providers pendent (même risque
+  que le chemin métadonnées existant). Fusionner les deux dans un seul `scoped_provider_clients`
+  l'éliminerait. Non fait (borné, action peu fréquente) — à arbitrer.
+- **(ENHANCEMENT)** La réactivation ne **re-résout** pas le TVDB (elle le signale seulement via le
+  drapeau dérivé). Une panne provider transitoire à la création reste inerte jusqu'à un ré-ajout
+  explicite. Auto-recovery possible (re-résoudre + mettre à jour le media_ref stocké au moment de
+  la réactivation) — à arbitrer.
 
 ## Next action
 
