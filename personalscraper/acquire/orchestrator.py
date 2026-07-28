@@ -429,6 +429,18 @@ class GrabOrchestrator:
         clause below still catches an auth failure raised OUTSIDE that
         per-tracker loop, which is why it stays.
 
+        The same now holds for :exc:`CircuitOpenError` (torznab feature): it
+        joined the registry's per-tracker ``except`` so an OPEN breaker on ONE
+        tracker can no longer discard the results the healthy ones already
+        returned. An item whose trackers are ALL circuit-open therefore reaches
+        this method as ``trackers_unavailable`` rather than ``circuit_open``.
+        Both map to the SAME disposition — ``retryable`` / wanted status
+        ``pending`` (see :data:`_EXIT_DISPOSITIONS` and
+        ``service._OUTCOME_TO_STATUS``) — so only the reason label moved, and it
+        moved toward the truth: the tracker WAS queried and DID error.
+        ``circuit_open`` stays reachable from the GRAB stage, where
+        ``resolve_source`` / ``add`` still raise it outside any registry loop.
+
         Surfacing it properly means teaching ``SearchOutcome`` to carry the
         per-tracker error TYPE, not just the name — a reshape of a type shared
         by the whole tracker layer, deliberately NOT attempted in a review fix.
@@ -450,8 +462,10 @@ class GrabOrchestrator:
         query = build_search_query(item, title)
         year: int | None = None
 
-        # --- Search (CircuitOpenError is NOT an ApiError → catch separately;
-        # TrackerAuthError IS an ApiError → must precede its base clause) ---
+        # --- Search (CircuitOpenError is NOT an ApiError → needs its own clause
+        # even though the registry now swallows it per-tracker; TrackerAuthError
+        # IS an ApiError → must precede its base clause). Both are defence for
+        # a raise OUTSIDE the registry's per-tracker loop — see the docstring. ---
         try:
             outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
         except CircuitOpenError:

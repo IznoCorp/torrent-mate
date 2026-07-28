@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import requests
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._contracts import TorrentSearchable
 from personalscraper.api.tracker._ranking import RankingConfig, rank
@@ -145,6 +145,7 @@ class TrackerRegistry:
                 results.extend(client.search(query, media_type, year))
             except (
                 ApiError,
+                CircuitOpenError,  # OPEN breaker on ONE tracker — see below
                 requests.RequestException,
                 ValueError,  # JSON decode, payload validation
                 TypeError,  # response-shape drift (wrong type returned)
@@ -152,6 +153,14 @@ class TrackerRegistry:
             ):
                 # Operational failures (network, malformed payload, schema drift)
                 # are logged and the surviving trackers' results are still ranked.
+                # ``CircuitOpenError`` is NOT an ``ApiError`` (it is a plain
+                # ``Exception``), so it has to be named explicitly: without it an
+                # open breaker on a LOW-priority tracker escaped this loop and
+                # discarded the results already collected from the healthy
+                # HIGH-priority ones — the exact opposite of this method's
+                # fail-soft contract, and the reason lacale once had to be
+                # disabled outright ("disabled to stop CircuitOpenError crashing
+                # grab" in tracker.json5).
                 # Programming errors (KeyError, AttributeError, …) are *not*
                 # caught here — they indicate a code bug that must surface.
                 # See ``TorrentSearchable`` Protocol docstring for the parse-drift
@@ -209,6 +218,7 @@ class TrackerRegistry:
                 all_results.extend(client.search(query, media_type, year))
             except (
                 ApiError,
+                CircuitOpenError,  # NOT an ApiError — must be named, see search_all
                 requests.RequestException,
                 ValueError,  # JSON decode, payload validation
                 TypeError,  # response-shape drift (wrong type returned)
@@ -216,6 +226,11 @@ class TrackerRegistry:
             ):
                 # Same fail-soft contract as ``search_all``: operational failures
                 # are logged and counted; the surviving trackers' results stand.
+                # An OPEN breaker counts as a normal per-tracker error here (it
+                # lands in ``errored_names``), so a tracker parked behind its
+                # cooldown degrades the outcome instead of erasing it. When EVERY
+                # tracker is circuit-open, ``all_errored`` is True and the caller
+                # still reads that as a retryable outage.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
                 errored += 1
                 errored_names.append(name)
