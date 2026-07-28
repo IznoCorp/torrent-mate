@@ -30,12 +30,16 @@ Torznab — l'ajout d'un futur tracker doit devenir _config + doc, zéro code_.
   raison d'un client sur mesure.
 - **Tr4ker est nativement Torznab** (doc brute `docs/tr4ker.md`, 1 035 lignes) :
   - recherche : `https://tr4ker.net/api/torznab` (alias zéro-config `/api`) —
-    auth par **API key du profil** (`apikey=`), PAS la passkey ;
+    le tracker attend l'**API key du profil** dans `apikey=` (Mon compte →
+    Paramètres), qui n'est PAS la passkey d'annonce ;
   - catalogue complet cross-seed : `/api/torznab/all` (inclut les 0-seeders) ;
   - RSS : `/api/rss?passkey=…` (+ `freeleech=1`, `cat=<slug>`) — auth par passkey.
 - Le `.env` opérateur porte déjà des entrées `TR4KER_*` mais calquées sur le JWT
-  torr9 (`USERNAME`/`PASSWORD`) — le modèle retenu (convention opérateur) est `TR4KER_PASSKEY` unique (+
-  `TR4KER_PASSKEY` optionnelle, radar freeleech/RSS). `ANNOUNCE_URL`/`API_URL` ne
+  torr9 (`USERNAME`/`PASSWORD`). Le modèle retenu est **une seule variable**,
+  `TR4KER_PASSKEY` (convention opérateur : un secret par tracker) : c'est le
+  conteneur, pas le type du secret — la valeur qu'on y met doit être l'API key du
+  profil exigée par `apikey=`. La valeur actuellement présente est la passkey RSS,
+  d'où le 401 et le report d'ACC-03 (cf. §5). `ANNOUNCE_URL`/`API_URL` ne
   sont consommés par aucun code (notes d'opérateur).
 - La doc brute contient la **passkey réelle en clair** → le doc de référence
   distillé ne doit JAMAIS la reprendre ; le brut est supprimé en fin de feature.
@@ -59,9 +63,15 @@ mais vide de logique).
 
 ### D2 — Auth et activation Tr4ker
 
-`PROVIDER_CREDS["tr4ker"] = ["TR4KER_PASSKEY"]` (gating — convention opérateur 2026-07-28 : une seule variable, PAS de TR4KER_API_KEY ; la même valeur servira au radar RSS R1). Recherche via `/api/torznab` (le chemin documenté non déprécié pour la
-recherche) ; `/api/torznab/all` réservé à un futur cross-seed (non câblé ici,
-documenté seulement).
+`PROVIDER_CREDS["tr4ker"] = ["TR4KER_PASSKEY"]` (gating — convention opérateur
+2026-07-28 : une seule variable, PAS de `TR4KER_API_KEY`). Cohérent avec §2 : le
+tracker attend l'API key du profil dans `apikey=`, et ce dépôt stocke cette
+valeur dans l'unique variable `TR4KER_PASSKEY` — le nom de la variable désigne le
+slot « secret tracker », pas la nature du secret. Tant que le slot contient la
+passkey RSS, la recherche répond `401 <error code="100">` (ACC-03 différé, tracker
+laissé `enabled: false`). Recherche via `/api/torznab` (le chemin documenté non
+déprécié pour la recherche) ; `/api/torznab/all` réservé à un futur cross-seed
+(non câblé ici, documenté seulement).
 
 ### D3 — Retrait torr9 complet
 

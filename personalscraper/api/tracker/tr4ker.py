@@ -3,8 +3,14 @@
 Like ``c411.py``, this module holds no protocol logic: everything lives in
 ``api/tracker/torznab.py`` and Tr4ker contributes only its
 :class:`~personalscraper.api.tracker.torznab.TorznabDescriptor` plus its
-activation credentials. It is the proof of DESIGN §3 D1 — "a new Torznab
-tracker is config + doc, zero code".
+activation credentials.
+
+It is the proof of DESIGN §3 D1, whose actual claim is narrower than "zero
+code": a new Torznab tracker is a **thin named class** — this descriptor, a
+``ProviderName`` member, a ``PROVIDER_CREDS`` entry and one line in
+``_TRACKER_CLASSES`` — with **zero protocol logic**. D1 explicitly rejected a
+pure-JSON5 tracker registry because activation, the provider enums and the
+registry typing all want static names.
 
 See ``docs/reference/tr4ker-api.md`` for the endpoint reference.
 
