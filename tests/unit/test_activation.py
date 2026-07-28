@@ -85,7 +85,7 @@ class TestProviderCreds:
     """PROVIDER_CREDS structure tests."""
 
     def test_has_13_entries(self) -> None:
-        """PROVIDER_CREDS has exactly 13 entries (torr9 added RP5b).
+        """PROVIDER_CREDS has exactly 13 entries (tr4ker added, the closed tracker removed).
 
         The two extra entries (``imdb`` and ``rotten_tomatoes``) are
         façades over the OMDb HTTP backend introduced by the
@@ -106,7 +106,7 @@ class TestProviderCreds:
             "transmission",
             "lacale",
             "c411",
-            "torr9",
+            "tr4ker",
             "telegram",
             "healthchecks",
         }

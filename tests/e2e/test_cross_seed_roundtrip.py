@@ -37,7 +37,7 @@ from personalscraper.core.tags import SEED_PURE
 from tests.integration.acquire.test_cross_seed_service import (
     _SOURCE_HASH,
     _TRACKER_LACALE,
-    _TRACKER_TORR9,
+    _TRACKER_TR4KER,
     FakeTorrentClient,
     FakeTracker,
     FakeTransport,
@@ -116,21 +116,21 @@ class TestCrossSeedRoundtrip:
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
         # Fake transport returning the matching .torrent bytes.
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         # Fake tracker returning one candidate.
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -156,8 +156,8 @@ class TestCrossSeedRoundtrip:
 
         # SeedObligation was persisted.
         obligations = store.seed.find_active_under(Path(item.save_path))
-        assert any(o.source_tracker == _TRACKER_TORR9 for o in obligations), (
-            f"Expected a SeedObligation with source_tracker={_TRACKER_TORR9!r} "
+        assert any(o.source_tracker == _TRACKER_TR4KER for o in obligations), (
+            f"Expected a SeedObligation with source_tracker={_TRACKER_TR4KER!r} "
             f"under {item.save_path!r}, got {obligations!r}"
         )
 

@@ -124,8 +124,8 @@ def build_acquire_context(
     # torrent_client (read-only / dry-run can still search+filter+rank via the
     # registry, but cannot add). No transport snapshot is taken here: the
     # orchestrator reads tracker_registry.transports() FRESH at grab time, so a
-    # lazy tracker (torr9) is not forced to log in at boot and a transient boot
-    # blip can't strand it in a stale snapshot.
+    # login-style tracker would not be forced to log in at boot and a transient
+    # boot blip can't strand it in a stale snapshot.
     grab: GrabCore | None = None
     if torrent_client is not None:
         from personalscraper.acquire.orchestrator import GrabOrchestrator  # noqa: PLC0415

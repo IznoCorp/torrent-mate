@@ -6,18 +6,22 @@ Decomposes the historical monolithic ``TrackerClient`` Protocol
 the capabilities it actually implements (DESIGN §4 "Composition par
 client") :
 
-- ``LaCaleClient(TorrentSearchable, CategoryListable, FreeleechAware)``
-- ``C411Client(TorrentSearchable, CategoryListable)``
+- ``LaCaleClient(TorrentSearchable, CategoryListable)``
+- ``C411Client(TorrentSearchable, CategoryListable)`` — and every other
+  Torznab config, through ``TorznabClient``
 
 Two of the four capabilities derive from the existing ``TrackerClient``
 methods (``search`` → :class:`TorrentSearchable`, ``get_categories`` →
 :class:`CategoryListable`). The remaining two —
-:class:`FreeleechAware` and :class:`TorrentDetailsProvider` — are new
+:class:`FreeleechAware` and :class:`TorrentDetailsProvider` — are
 contracts for tracker-side features that today live as fields on
 :class:`TrackerResult` rather than as queries (``is_freeleech``) or
-are not implemented at all (per-torrent detail page fetch). Trackers
-that grow these capabilities will declare them explicitly without
-forcing the others to follow.
+are not implemented at all (per-torrent detail page fetch). **No client
+implements either one right now** (the only one that did was removed with
+its tracker); they remain declared so a tracker that grows the capability
+can advertise it explicitly without forcing the others to follow, and so
+the "accurate composition" tests can keep asserting that today's clients
+do NOT claim them.
 
 The detail-provider returns the existing :class:`TrackerResult`
 dataclass rather than introducing a sibling ``TorrentDetails`` type :
@@ -106,10 +110,11 @@ class TrackerConstructible(Protocol):
     """Capability — construct a tracker client from resolved env credentials.
 
     The factory dispatches construction UNIFORMLY through ``from_env`` (no
-    provider-name literal, no cred-style branch). api-key trackers build an
-    HttpTransport from ``policy(env[required[0]])``; login-style trackers
-    (torr9) self-build their authed transport lazily and read extra options
-    off ``provider_cfg``.
+    provider-name literal, no cred-style branch). api-key trackers — every
+    tracker wired today — build an HttpTransport from
+    ``policy(env[required[0]])``; the contract equally covers a login-style
+    tracker that would self-build its authed transport lazily and read extra
+    options off ``provider_cfg``.
     """
 
     @classmethod

@@ -127,7 +127,7 @@ def make_torrent_bytes(
 # ---------------------------------------------------------------------------
 
 _TRACKER_LACALE = "lacale"
-_TRACKER_TORR9 = "torr9"
+_TRACKER_TR4KER = "tr4ker"
 
 _SOURCE_HASH = "abc123def4567890abc123def4567890abc123de"  # 40-char hex
 _CANDIDATE_HASH = "def456abc1237890def456abc1237890def456ab"
@@ -197,10 +197,10 @@ def make_config(
     if tracker_providers is None:
         tracker_providers = {
             _TRACKER_LACALE: _tracker_provider(),
-            _TRACKER_TORR9: _tracker_provider(),
+            _TRACKER_TR4KER: _tracker_provider(),
         }
     if tracker_priority is None:
-        tracker_priority = [_TRACKER_LACALE, _TRACKER_TORR9]
+        tracker_priority = [_TRACKER_LACALE, _TRACKER_TR4KER]
 
     return Config(
         paths=PathConfig(
@@ -370,7 +370,7 @@ class FakeTransport:
 
     def __init__(
         self,
-        provider_name: str = _TRACKER_TORR9,
+        provider_name: str = _TRACKER_TR4KER,
         responses: dict[str, bytes] | None = None,
     ) -> None:
         """Initialise with named provider and response map.
@@ -413,7 +413,7 @@ class FakeTracker:
         """Initialise with provider name and optional transport.
 
         Args:
-            provider: Tracker provider name (e.g. ``"torr9"``).
+            provider: Tracker provider name (e.g. ``"tr4ker"``).
             transport: Transport instance exposed via ``_open_transport``.
             results: Pre-seeded search results returned by ``search()``.
         """
@@ -595,7 +595,7 @@ def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
 
 
 # ---------------------------------------------------------------------------
-# Shared builder — CrossSeedService with two trackers (lacale origin, torr9 target)
+# Shared builder — CrossSeedService with two trackers (lacale origin, tr4ker target)
 # ---------------------------------------------------------------------------
 
 
@@ -623,9 +623,9 @@ def _source_item(
 
 
 def _candidate_result(
-    provider: str = _TRACKER_TORR9,
+    provider: str = _TRACKER_TR4KER,
     title: str = "Movie.2024.1080p.BluRay.x264-GROUP",
-    download_url: str = "https://torr9.example.com/dl/123",
+    download_url: str = "https://tr4ker.example.com/dl/123",
     info_hash: str | None = None,
     tracker_id: str = "456",
 ) -> TrackerResult:
@@ -726,13 +726,13 @@ class TestCheckHappyPath:
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
         # Fake transport returning the matching .torrent bytes.
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         # Fake tracker returning one candidate.
         fake_torrent_tracker = FakeTracker(
-            provider=_TRACKER_TORR9,
+            provider=_TRACKER_TR4KER,
             transport=fake_transport,
             results=[_candidate_result(download_url=candidate_url)],
         )
@@ -742,8 +742,8 @@ class TestCheckHappyPath:
         )
 
         fake_registry = make_registry(
-            {_TRACKER_LACALE: fake_lacale_tracker, _TRACKER_TORR9: fake_torrent_tracker},
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            {_TRACKER_LACALE: fake_lacale_tracker, _TRACKER_TR4KER: fake_torrent_tracker},
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -754,9 +754,9 @@ class TestCheckHappyPath:
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(),
-                _TRACKER_TORR9: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
+                _TRACKER_TR4KER: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
@@ -777,7 +777,7 @@ class TestCheckHappyPath:
         # EventBus: exactly one CrossSeedInjected emitted with the right info_hash.
         assert len(injected_events) == 1
         assert injected_events[0].info_hash == injected_hash
-        assert injected_events[0].source_tracker == _TRACKER_TORR9
+        assert injected_events[0].source_tracker == _TRACKER_TR4KER
         assert injected_events[0].source_hash == _SOURCE_HASH
         assert injected_events[0].save_path == item.save_path
 
@@ -790,13 +790,13 @@ class TestCheckHappyPath:
         assert len(obligations) == 1
         ob = obligations[0]
         assert ob.info_hash == injected_hash
-        assert ob.source_tracker == _TRACKER_TORR9  # Target tracker.
-        assert ob.min_seed_time_s == 86_400  # From torr9 economy.
+        assert ob.source_tracker == _TRACKER_TR4KER  # Target tracker.
+        assert ob.min_seed_time_s == 86_400  # From tr4ker economy.
         assert ob.min_ratio == 1.5
         assert ob.dispatched_path == item.save_path
 
         # Search history recorded.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is True
 
 
 class TestCheckRecheckFails:
@@ -841,20 +841,20 @@ class TestCheckRecheckFails:
 
         fake_client.inject = _inject_no_complete  # type: ignore[method-assign]
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -889,14 +889,14 @@ class TestCheckRecheckFails:
         # completed-check-failed from a still-running recheck).
         assert len(result.rejected) == 1
         _, rejected_tracker, rejected_reason = result.rejected[0]
-        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_tracker == _TRACKER_TR4KER
         assert rejected_reason == "verify_timeout"
 
         # EventBus: a CrossSeedRejected with reason=verify_timeout was emitted.
         recheck_rejections = [e for e in rejected_events if e.reason == "verify_timeout"]
         assert len(recheck_rejections) == 1
         assert recheck_rejections[0].info_hash == injected_hash
-        assert recheck_rejections[0].tracker == _TRACKER_TORR9
+        assert recheck_rejections[0].tracker == _TRACKER_TR4KER
         assert recheck_rejections[0].source_hash == _SOURCE_HASH
 
         # Delete called (delete_files=False).
@@ -933,20 +933,20 @@ class TestCheckIdempotent:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path, exclude_recent_search_days=3)
@@ -975,7 +975,7 @@ class TestCheckOriginExcluded:
         tmp_path: Path,
         store: ConcreteAcquireStore,
     ) -> None:
-        """Source from lacale → lacale candidates excluded, torr9 candidate injected.
+        """Source from lacale → lacale candidates excluded, tr4ker candidate injected.
 
         The promised scenario from the phase-10 plan: the origin tracker has
         candidates (which must be excluded), AND an eligible other tracker has
@@ -991,7 +991,7 @@ class TestCheckOriginExcluded:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # Matching .torrent bytes for the torr9 candidate.
+        # Matching .torrent bytes for the tr4ker candidate.
         candidate_torrent = make_torrent_bytes(
             name=item.name,
             files=source_files,
@@ -1003,11 +1003,11 @@ class TestCheckOriginExcluded:
         fake_lacale_transport = FakeTransport(provider_name=_TRACKER_LACALE)
         lacale_results = [_candidate_result(provider=_TRACKER_LACALE, download_url="https://lacale.example.com/dl/1")]
 
-        # torr9 (eligible) has a structurally-matching candidate → should be injected.
-        torr9_url = "https://torr9.example.com/dl/456"
-        fake_torr9_transport = FakeTransport(provider_name=_TRACKER_TORR9)
-        fake_torr9_transport.seed(torr9_url, candidate_torrent)
-        torr9_results = [_candidate_result(provider=_TRACKER_TORR9, download_url=torr9_url)]
+        # tr4ker (eligible) has a structurally-matching candidate → should be injected.
+        tr4ker_url = "https://tr4ker.example.com/dl/456"
+        fake_tr4ker_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
+        fake_tr4ker_transport.seed(tr4ker_url, candidate_torrent)
+        tr4ker_results = [_candidate_result(provider=_TRACKER_TR4KER, download_url=tr4ker_url)]
 
         fake_registry = make_registry(
             {
@@ -1016,22 +1016,22 @@ class TestCheckOriginExcluded:
                     transport=fake_lacale_transport,
                     results=lacale_results,
                 ),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
-                    transport=fake_torr9_transport,
-                    results=torr9_results,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
+                    transport=fake_tr4ker_transport,
+                    results=tr4ker_results,
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(),
-                _TRACKER_TORR9: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
+                _TRACKER_TR4KER: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -1039,7 +1039,7 @@ class TestCheckOriginExcluded:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
-        # torr9 candidate was injected (origin lacale excluded → not iterated).
+        # tr4ker candidate was injected (origin lacale excluded → not iterated).
         assert result.injected == [injected_hash]
         assert result.rejected == []
         assert result.skipped is False
@@ -1048,12 +1048,12 @@ class TestCheckOriginExcluded:
         assert injected_hash in fake_client.resumed
         assert SEED_PURE in fake_client.tags_added.get(injected_hash, set())
 
-        # Search history recorded for torr9 only (lacale is origin → excluded).
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+        # Search history recorded for tr4ker only (lacale is origin → excluded).
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is True
         # lacale was never in remaining → no search recorded.
         obligations = store.seed.find_active_under(Path(item.save_path))
         assert len(obligations) == 1
-        assert obligations[0].source_tracker == _TRACKER_TORR9
+        assert obligations[0].source_tracker == _TRACKER_TR4KER
 
 
 class TestCheckSeedPureSkipped:
@@ -1082,7 +1082,7 @@ class TestCheckSeedPureSkipped:
         assert result.skip_reason == "seed_pure"
         assert result.injected == []
         # No searches should have been triggered.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is False
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is False
 
 
 class TestCheckV2HybridSkipped:
@@ -1139,29 +1139,29 @@ class TestCheckCrossSeedDisabledTracker:
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
         candidate_torrent = make_torrent_bytes(name=item.name, files=source_files)
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
-        fake_transport.seed("https://torr9.example.com/dl/123", candidate_torrent)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
+        fake_transport.seed("https://tr4ker.example.com/dl/123", candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
-                    results=[_candidate_result(download_url="https://torr9.example.com/dl/123")],
+                    results=[_candidate_result(download_url="https://tr4ker.example.com/dl/123")],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
-        # torr9 has cross_seed=False — should be excluded.
+        # tr4ker has cross_seed=False — should be excluded.
         cfg = make_config(
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(cross_seed=True),
-                _TRACKER_TORR9: _tracker_provider(cross_seed=False),
+                _TRACKER_TR4KER: _tracker_provider(cross_seed=False),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -1169,7 +1169,7 @@ class TestCheckCrossSeedDisabledTracker:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
-        # lacale is origin (excluded), torr9 cross_seed=False (excluded) → no remaining.
+        # lacale is origin (excluded), tr4ker cross_seed=False (excluded) → no remaining.
         assert result.skipped is True
         assert result.injected == []
 
@@ -1211,18 +1211,18 @@ class TestSweepQuotaExhausted:
         # We need candidate torrents with matching names.
         candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(3)]
 
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         for i, cb in enumerate(candidate_bytes):
-            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+            fake_transport.seed(f"https://tr4ker.example.com/dl/{i}", cb)
 
         fake_torrent_tracker = FakeTracker(
-            provider=_TRACKER_TORR9,
+            provider=_TRACKER_TR4KER,
             transport=fake_transport,
             results=[
                 _candidate_result(
-                    provider=_TRACKER_TORR9,
+                    provider=_TRACKER_TR4KER,
                     title=items[i].name,
-                    download_url=f"https://torr9.example.com/dl/{i}",
+                    download_url=f"https://tr4ker.example.com/dl/{i}",
                 )
                 for i in range(3)
             ],
@@ -1231,9 +1231,9 @@ class TestSweepQuotaExhausted:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: fake_torrent_tracker,
+                _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path, max_searches_per_day=2)
@@ -1263,28 +1263,28 @@ class TestSweepExcludeRecent:
         source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
 
         item = _source_item()
-        # Pre-record a recent search for this source hash on torr9.
-        store.cross_seed.record_search(_SOURCE_HASH, _TRACKER_TORR9)
+        # Pre-record a recent search for this source hash on tr4ker.
+        store.cross_seed.record_search(_SOURCE_HASH, _TRACKER_TR4KER)
 
         fake_client = FakeTorrentClient(completed=[item])
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # torr9 DOES have candidates, but search is excluded by recent history.
+        # tr4ker DOES have candidates, but search is excluded by recent history.
         candidate_torrent = make_torrent_bytes(name=item.name, files=source_files)
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
-        fake_transport.seed("https://torr9.example.com/dl/123", candidate_torrent)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
+        fake_transport.seed("https://tr4ker.example.com/dl/123", candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
-                    results=[_candidate_result(download_url="https://torr9.example.com/dl/123")],
+                    results=[_candidate_result(download_url="https://tr4ker.example.com/dl/123")],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path, max_searches_per_day=5, exclude_recent_search_days=3)
@@ -1295,7 +1295,7 @@ class TestSweepExcludeRecent:
 
         # -- Assert -----------------------------------------------------------
         # The item is eligible (not seed_pure), but check() skips it because
-        # torr9 was recently searched → no tracker remaining → skipped.
+        # tr4ker was recently searched → no tracker remaining → skipped.
         # Sweep only counts quota for non-skipped checks.
         assert result.checked == 1  # check() was called.
         assert result.injected == 0  # But nothing injected (skipped inside check).
@@ -1331,18 +1331,18 @@ class TestSweepDelayRespected:
 
         candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(3)]
 
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         for i, cb in enumerate(candidate_bytes):
-            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+            fake_transport.seed(f"https://tr4ker.example.com/dl/{i}", cb)
 
         fake_torrent_tracker = FakeTracker(
-            provider=_TRACKER_TORR9,
+            provider=_TRACKER_TR4KER,
             transport=fake_transport,
             results=[
                 _candidate_result(
-                    provider=_TRACKER_TORR9,
+                    provider=_TRACKER_TR4KER,
                     title=items[i].name,
-                    download_url=f"https://torr9.example.com/dl/{i}",
+                    download_url=f"https://tr4ker.example.com/dl/{i}",
                 )
                 for i in range(3)
             ],
@@ -1351,9 +1351,9 @@ class TestSweepDelayRespected:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: fake_torrent_tracker,
+                _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         min_delay = 15
@@ -1420,20 +1420,20 @@ class TestPathFrameNormalization:
         )
         injected_hash = _derive_injected_hash(candidate_torrent)
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1481,20 +1481,20 @@ class TestPathFrameNormalization:
         )
         injected_hash = _derive_injected_hash(candidate_torrent)
 
-        candidate_url = "https://torr9.example.com/dl/renamed"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/renamed"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1537,20 +1537,20 @@ class TestPathFrameNormalization:
         )
         injected_hash = _derive_injected_hash(candidate_torrent)
 
-        candidate_url = "https://torr9.example.com/dl/flat"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/flat"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1594,20 +1594,20 @@ class TestPathFrameNormalization:
         )
         injected_hash = _derive_injected_hash(candidate_torrent)
 
-        candidate_url = "https://torr9.example.com/dl/mixed"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/mixed"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1650,8 +1650,8 @@ class TestCheckSelfCandidate:
         fake_client.seed_files(real_hash, source_files)
         fake_client.seed_properties(real_hash, {"piece_size": 262144})
 
-        candidate_url = "https://torr9.example.com/dl/self"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/self"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         rejected_events: list[CrossSeedRejected] = []
@@ -1661,13 +1661,13 @@ class TestCheckSelfCandidate:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1681,7 +1681,7 @@ class TestCheckSelfCandidate:
         assert result.injected == []
         assert len(result.rejected) == 1
         _, rejected_tracker, rejected_reason = result.rejected[0]
-        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_tracker == _TRACKER_TR4KER
         assert rejected_reason == "self_candidate"
         assert len(fake_client.injected) == 0
         assert len(fake_client.deleted) == 0
@@ -1713,9 +1713,9 @@ class TestOriginUnresolvedWarning:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(provider=_TRACKER_TORR9, results=[]),
+                _TRACKER_TR4KER: FakeTracker(provider=_TRACKER_TR4KER, results=[]),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1790,20 +1790,20 @@ class TestSelfDeleteAverted:
         )
 
         try:
-            candidate_url = "https://torr9.example.com/dl/self-bb"
-            fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+            candidate_url = "https://tr4ker.example.com/dl/self-bb"
+            fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
             fake_transport.seed(candidate_url, candidate_torrent)
 
             fake_registry = make_registry(
                 {
                     _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                    _TRACKER_TORR9: FakeTracker(
-                        provider=_TRACKER_TORR9,
+                    _TRACKER_TR4KER: FakeTracker(
+                        provider=_TRACKER_TR4KER,
                         transport=fake_transport,
                         results=[_candidate_result(download_url=candidate_url)],
                     ),
                 },
-                priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+                priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
             )
 
             cfg = make_config(tmp_path)
@@ -1872,18 +1872,18 @@ class TestSweepInjectErrorIsolation:
 
         candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(3)]
 
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         for i, cb in enumerate(candidate_bytes):
-            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+            fake_transport.seed(f"https://tr4ker.example.com/dl/{i}", cb)
 
         fake_torrent_tracker = FakeTracker(
-            provider=_TRACKER_TORR9,
+            provider=_TRACKER_TR4KER,
             transport=fake_transport,
             results=[
                 _candidate_result(
-                    provider=_TRACKER_TORR9,
+                    provider=_TRACKER_TR4KER,
                     title=items[i].name,
-                    download_url=f"https://torr9.example.com/dl/{i}",
+                    download_url=f"https://tr4ker.example.com/dl/{i}",
                 )
                 for i in range(3)
             ],
@@ -1892,9 +1892,9 @@ class TestSweepInjectErrorIsolation:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: fake_torrent_tracker,
+                _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         # Make inject fail on the second call (item index 1).
@@ -1963,20 +1963,20 @@ class TestObligationWriteFailure:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -2000,7 +2000,7 @@ class TestObligationWriteFailure:
         # Rejected with obligation_write_failed.
         assert len(result.rejected) == 1
         _, rejected_tracker, rejected_reason = result.rejected[0]
-        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_tracker == _TRACKER_TR4KER
         assert rejected_reason == "obligation_write_failed"
 
         # Injection deleted (delete_files=False).
@@ -2042,20 +2042,20 @@ class TestResumeFailureKeepsObligation:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -2066,9 +2066,9 @@ class TestResumeFailureKeepsObligation:
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(),
-                _TRACKER_TORR9: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
+                _TRACKER_TR4KER: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         # Override resume to raise.
@@ -2105,7 +2105,7 @@ class TestResumeFailureKeepsObligation:
         # CrossSeedInjected emitted.
         assert len(injected_events) == 1
         assert injected_events[0].info_hash == injected_hash
-        assert injected_events[0].source_tracker == _TRACKER_TORR9
+        assert injected_events[0].source_tracker == _TRACKER_TR4KER
 
         # Obligation persisted.
         obligations = store.seed.find_active_under(Path(item.save_path))
@@ -2194,21 +2194,21 @@ class TestErroredTrackerNotRecorded:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # torr9 succeeds (has candidate), lacale errors.
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        # tr4ker succeeds (has candidate), lacale errors.
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
         # lacale errors → no candidates from it, errored_names = ["lacale"].
         fake_registry.seed_errored({_TRACKER_LACALE})
@@ -2220,11 +2220,11 @@ class TestErroredTrackerNotRecorded:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
-        # Injection succeeded via torr9 (the non-errored tracker).
+        # Injection succeeded via tr4ker (the non-errored tracker).
         assert len(result.injected) == 1
 
-        # torr9 (succeeded) IS recorded in search history.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+        # tr4ker (succeeded) IS recorded in search history.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is True
 
         # lacale (errored) is NOT recorded → retry possible next check.
         assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_LACALE, days=3) is False
@@ -2289,20 +2289,20 @@ class TestVerifyTimeoutConfig:
 
         fake_client.inject = _inject_no_complete  # type: ignore[method-assign]
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         # Use a non-default verify_timeout_s to prove the config value is read.
@@ -2366,8 +2366,8 @@ class TestCheckInjectApiError:
             files=source_files,
             piece_length=262144,
         )
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         # Override inject to raise ApiError.
@@ -2389,13 +2389,13 @@ class TestCheckInjectApiError:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         rejected_events: list[CrossSeedRejected] = []
@@ -2414,13 +2414,13 @@ class TestCheckInjectApiError:
         # Rejected with inject_failed.
         assert len(result.rejected) == 1
         _, rejected_tracker, rejected_reason = result.rejected[0]
-        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_tracker == _TRACKER_TR4KER
         assert rejected_reason == "inject_failed"
 
         # CrossSeedRejected with reason=inject_failed emitted.
         inject_failures = [e for e in rejected_events if e.reason == "inject_failed"]
         assert len(inject_failures) == 1
-        assert inject_failures[0].tracker == _TRACKER_TORR9
+        assert inject_failures[0].tracker == _TRACKER_TR4KER
         assert inject_failures[0].source_hash == _SOURCE_HASH
 
 
@@ -2446,8 +2446,8 @@ class TestCheckInjectValueError:
             files=source_files,
             piece_length=262144,
         )
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         # Override inject to raise ValueError (simulating hash_uncomputable in inject).
@@ -2465,13 +2465,13 @@ class TestCheckInjectValueError:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         rejected_events: list[CrossSeedRejected] = []
@@ -2488,12 +2488,12 @@ class TestCheckInjectValueError:
         assert result.injected == []
         assert len(result.rejected) == 1
         _, rejected_tracker, rejected_reason = result.rejected[0]
-        assert rejected_tracker == _TRACKER_TORR9
+        assert rejected_tracker == _TRACKER_TR4KER
         assert rejected_reason == "inject_failed"
 
         inject_failures = [e for e in rejected_events if e.reason == "inject_failed"]
         assert len(inject_failures) == 1
-        assert inject_failures[0].tracker == _TRACKER_TORR9
+        assert inject_failures[0].tracker == _TRACKER_TR4KER
         assert inject_failures[0].source_hash == _SOURCE_HASH
 
 
@@ -2518,9 +2518,9 @@ class TestCheckEmptyFileList:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(provider=_TRACKER_TORR9, results=[]),
+                _TRACKER_TR4KER: FakeTracker(provider=_TRACKER_TR4KER, results=[]),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -2575,20 +2575,20 @@ class TestObligationWriteFailSelfHash:
 
         fake_client.inject = _inject_returns_source  # type: ignore[method-assign]
 
-        candidate_url = "https://torr9.example.com/dl/self-ob"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/self-ob"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -2639,12 +2639,12 @@ class TestTrackerAbsentFromRegistryNotRecorded:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # Only lacale is registered — torr9 is absent (client None in
+        # Only lacale is registered — tr4ker is absent (client None in
         # FakeRegistry).  lacale is origin (excluded from remaining),
-        # torr9 is in remaining but not in queried_names.
+        # tr4ker is in remaining but not in queried_names.
         fake_registry = make_registry(
             {_TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[])},
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -2657,9 +2657,9 @@ class TestTrackerAbsentFromRegistryNotRecorded:
         # No candidates from any tracker → no injection.
         assert result.injected == []
 
-        # torr9 was in remaining but NOT in queried_names → NOT recorded.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is False, (
-            "torr9 should NOT be recorded as searched — it was never queried (client None)"
+        # tr4ker was in remaining but NOT in queried_names → NOT recorded.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is False, (
+            "tr4ker should NOT be recorded as searched — it was never queried (client None)"
         )
 
         # lacale is origin → excluded from remaining → never recorded either.
@@ -2701,18 +2701,18 @@ class TestSweepItemErrors:
 
         candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(3)]
 
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         for i, cb in enumerate(candidate_bytes):
-            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+            fake_transport.seed(f"https://tr4ker.example.com/dl/{i}", cb)
 
         fake_torrent_tracker = FakeTracker(
-            provider=_TRACKER_TORR9,
+            provider=_TRACKER_TR4KER,
             transport=fake_transport,
             results=[
                 _candidate_result(
-                    provider=_TRACKER_TORR9,
+                    provider=_TRACKER_TR4KER,
                     title=items[i].name,
-                    download_url=f"https://torr9.example.com/dl/{i}",
+                    download_url=f"https://tr4ker.example.com/dl/{i}",
                 )
                 for i in range(3)
             ],
@@ -2721,9 +2721,9 @@ class TestSweepItemErrors:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: fake_torrent_tracker,
+                _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         # Make check() raise on the second call (item index 1).
@@ -2794,18 +2794,18 @@ class TestSweepItemErrors:
 
         candidate_bytes = [make_torrent_bytes(name=items[i].name, files=source_files) for i in range(2)]
 
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         for i, cb in enumerate(candidate_bytes):
-            fake_transport.seed(f"https://torr9.example.com/dl/{i}", cb)
+            fake_transport.seed(f"https://tr4ker.example.com/dl/{i}", cb)
 
         fake_torrent_tracker = FakeTracker(
-            provider=_TRACKER_TORR9,
+            provider=_TRACKER_TR4KER,
             transport=fake_transport,
             results=[
                 _candidate_result(
-                    provider=_TRACKER_TORR9,
+                    provider=_TRACKER_TR4KER,
                     title=items[i].name,
-                    download_url=f"https://torr9.example.com/dl/{i}",
+                    download_url=f"https://tr4ker.example.com/dl/{i}",
                 )
                 for i in range(2)
             ],
@@ -2814,9 +2814,9 @@ class TestSweepItemErrors:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: fake_torrent_tracker,
+                _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         # Make every check() call raise.
@@ -2881,10 +2881,10 @@ class TestCheckMediaTypeQueryableScope:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # torr9 has candidates (queryable for movies), "third" has candidates
+        # tr4ker has candidates (queryable for movies), "third" has candidates
         # too but is excluded from the movie priority override.
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         third_url = "https://third.example.com/dl/456"
@@ -2893,8 +2893,8 @@ class TestCheckMediaTypeQueryableScope:
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
@@ -2904,19 +2904,19 @@ class TestCheckMediaTypeQueryableScope:
                     results=[_candidate_result(provider="third", download_url=third_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
-            priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TORR9]},
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
+            priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TR4KER]},
         )
 
         cfg = make_config(
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(),
-                _TRACKER_TORR9: _tracker_provider(),
+                _TRACKER_TR4KER: _tracker_provider(),
                 "third": _tracker_provider(),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
-            tracker_priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TORR9]},
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
+            tracker_priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TR4KER]},
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -2925,7 +2925,7 @@ class TestCheckMediaTypeQueryableScope:
             first = svc.check(_SOURCE_HASH)
 
         # -- Assert: first check ----------------------------------------------
-        # Injection succeeded via torr9.
+        # Injection succeeded via tr4ker.
         assert len(first.injected) == 1
 
         # "third" was in eligible (enabled + cross_seed + not origin) but NOT
@@ -2935,8 +2935,8 @@ class TestCheckMediaTypeQueryableScope:
             "third should NOT be recorded — it was excluded from movie priority override"
         )
 
-        # torr9 IS recorded as searched.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is True
+        # tr4ker IS recorded as searched.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is True
 
         # DEBUG log emitted for the dropped tracker.
         debug_messages = [r.message for r in caplog.records if r.levelno == logging.DEBUG]
@@ -2948,7 +2948,7 @@ class TestCheckMediaTypeQueryableScope:
         second = svc.check(_SOURCE_HASH)
 
         # -- Assert: second check ---------------------------------------------
-        # torr9 was recently searched → excluded from remaining.
+        # tr4ker was recently searched → excluded from remaining.
         # third is not queryable for movies → excluded from remaining.
         # remaining empty → all_excluded_recent short-circuit fires.
         assert second.skipped is True, (
@@ -2980,21 +2980,21 @@ class TestCheckMediaTypeQueryableScope:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         # Default config: no priority_by_media_type override.
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -3038,14 +3038,14 @@ class TestCheckNotQueryableForMediaType:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # torr9 has candidates but is NOT in the movie priority override.
+        # tr4ker has candidates but is NOT in the movie priority override.
         candidate_torrent = make_torrent_bytes(
             name=item.name,
             files=source_files,
             piece_length=262144,
         )
-        candidate_url = "https://torr9.example.com/dl/123"
-        fake_transport = FakeTransport(provider_name=_TRACKER_TORR9)
+        candidate_url = "https://tr4ker.example.com/dl/123"
+        fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         # "third" also has candidates but is NOT in the movie override.
@@ -3053,13 +3053,13 @@ class TestCheckNotQueryableForMediaType:
         fake_third_transport = FakeTransport(provider_name="third")
 
         # movie override = [lacale] only.  lacale is the origin → excluded
-        # from eligible.  torr9 + third are eligible but NOT queryable for
+        # from eligible.  tr4ker + third are eligible but NOT queryable for
         # movies → remaining becomes empty at the media-type filter step.
         fake_registry = make_registry(
             {
                 _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
-                _TRACKER_TORR9: FakeTracker(
-                    provider=_TRACKER_TORR9,
+                _TRACKER_TR4KER: FakeTracker(
+                    provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
@@ -3069,7 +3069,7 @@ class TestCheckNotQueryableForMediaType:
                     results=[_candidate_result(provider="third", download_url=third_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
+            priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
             priority_by_media_type={"movie": [_TRACKER_LACALE]},
         )
 
@@ -3077,10 +3077,10 @@ class TestCheckNotQueryableForMediaType:
             tmp_path,
             tracker_providers={
                 _TRACKER_LACALE: _tracker_provider(),
-                _TRACKER_TORR9: _tracker_provider(),
+                _TRACKER_TR4KER: _tracker_provider(),
                 "third": _tracker_provider(),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TORR9, "third"],
+            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
             tracker_priority_by_media_type={"movie": [_TRACKER_LACALE]},
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
@@ -3104,7 +3104,7 @@ class TestCheckNotQueryableForMediaType:
         )
 
         # No search history recorded (trackers were dropped before search).
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TORR9, days=3) is False
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is False
         assert store.cross_seed.was_searched_recently(_SOURCE_HASH, "third", days=3) is False
 
         # -- Act: second check ------------------------------------------------

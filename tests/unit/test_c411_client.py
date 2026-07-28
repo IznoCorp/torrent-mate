@@ -77,7 +77,14 @@ class TestC411SearchAgainstLiveSamples:
         assert all(r.provider == "c411" for r in results)
 
     def test_first_item_field_mapping(self) -> None:
-        """First captured Inception item maps to expected TrackerResult fields."""
+        """First captured Inception item maps to expected TrackerResult fields.
+
+        UNPINNED 2026-07-28, one field only: ``tmdb_id`` was ``None`` for c411
+        until the generic Torznab client started mapping the ``tmdbid`` attr.
+        The change restores the TMDB identity hard-filter (the anti-remake
+        guard), which lost its only producer when the torr9 client was removed.
+        Every other assertion below is the untouched phase-1 pin.
+        """
         client = _make_client()
         client._transport.get.return_value = _load_xml("search-inception.xml")  # type: ignore[attr-defined]
 
@@ -93,6 +100,7 @@ class TestC411SearchAgainstLiveSamples:
         assert first.category == "2030"
         assert first.is_freeleech is False
         assert first.is_silverleech is False
+        assert first.tmdb_id == 27205  # unpinned field — real value from the capture
         assert isinstance(first.upload_date, datetime)
         assert first.upload_date.tzinfo == timezone.utc
         assert first.upload_date.year == 2026

@@ -1,8 +1,8 @@
 {
-  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY
-  // PROVIDER_CREDS: torr9 → TORR9_USERNAME + TORR9_PASSWORD (JWT login)
-  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY,
-  //   torr9 → TORR9_PASSKEY (RSS freeleech radar R1 follow-on)
+  // PROVIDER_CREDS: lacale → LACALE_API_KEY, c411 → C411_API_KEY, tr4ker → TR4KER_PASSKEY
+  // PROVIDER_OPTIONAL_SECRETS (non-gating): lacale → LACALE_PASSKEY, c411 → C411_PASSKEY
+  // tr4ker: single secret — TR4KER_PASSKEY, whose value is sent as the Torznab
+  //   `apikey=` query param (and will serve the RSS radar later), so it gates activation.
   tracker: {
     providers: {
       lacale: { enabled: false, cross_seed: false }, // deprecated + unreachable (la-cale.space down) — disabled to stop CircuitOpenError crashing grab
@@ -16,18 +16,36 @@
           hit_and_run_grace: "0h",
         },
       },
-      torr9: {
-        enabled: true,
+      tr4ker: {
+        // DISABLED until the search auth is proven. TR4KER_PASSKEY is present
+        // in .env but currently holds the RSS *passkey*, which the Torznab
+        // search endpoint rejects with 401 <error code="100" "Invalid API Key">.
+        // The fix is to put the PROFILE API KEY (Mon compte → Paramètres) INTO
+        // this same TR4KER_PASSKEY variable — the operator convention is one
+        // secret slot per tracker, so no TR4KER_API_KEY is ever added.
+        //
+        // Flip to true only AFTER: (1) this feature is merged AND deployed to
+        // ~/deploy/torrentmate, and (2) a controlled re-probe returns parsed
+        // results. Order matters — this file is shared with prod/staging via
+        // PERSONALSCRAPER_CONFIG, so a tracker enabled here before the code
+        // knows it is a BOOT ERROR (build_tracker_registry raises
+        // TrackerConfigError) that takes down every command and cron.
+        // Same reason removing the secret requires flipping this back to false.
+        enabled: false,
         cross_seed: false,
-        economy: {
-          target_ratio: 2.0,
-          min_ratio: 1.0,
-          min_seed_time: "72h",
-          hit_and_run_grace: "0h",
-        },
+        // economy: TR4KER publishes no explicit seeding obligation (no documented
+        // min seed time / H&R grace), so no values are invented here. Until the
+        // operator fills this block in, dispatch records an honest
+        // tracker-unresolved MISS for tr4ker torrents instead of a wrong rule.
+        // economy: {
+        //   target_ratio: 2.0,
+        //   min_ratio: 1.0,
+        //   min_seed_time: "72h",
+        //   hit_and_run_grace: "0h",
+        // },
       },
     },
-    priority: ["c411", "torr9"],
+    priority: ["c411", "tr4ker"], // c411 first: proven main tracker; swap here to prefer tr4ker
     max_total_results: 50,
     max_per_tracker: 30,
     timeout_per_tracker: 15,

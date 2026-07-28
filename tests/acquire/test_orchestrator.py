@@ -228,13 +228,14 @@ def test_episode_kind_searches_with_tv_media_type() -> None:
 class _StalenessFakeRegistry:
     """Registry whose transports() map differs between construction and grab time.
 
-    Reproduces the boot-snapshot staleness bug: a lazy tracker (torr9) is
-    transiently ABSENT the first time ``transports()`` is called (the boot login
-    blipped) but PRESENT on every later call (it logged in during the grab's own
-    ``search()``). The OLD orchestrator snapshotted ``transports()`` at
-    construction → the first (empty) call → torr9 never recoverable for the
-    process lifetime. The fixed orchestrator reads ``transports()`` FRESH at
-    grab time → it sees the recovered map.
+    Reproduces the boot-snapshot staleness bug: a tracker is transiently ABSENT
+    the first time ``transports()`` is called (its boot login blipped, or a
+    login-style client had not materialized yet) but PRESENT on every later call
+    (it logged in during the grab's own ``search()``). The OLD orchestrator
+    snapshotted ``transports()`` at construction → the first (empty) call → that
+    tracker was never recoverable for the process lifetime. The fixed
+    orchestrator reads ``transports()`` FRESH at grab time → it sees the
+    recovered map.
     """
 
     def __init__(self, *, search_outcome: SearchOutcome, recovered_transport: object) -> None:
@@ -247,11 +248,11 @@ class _StalenessFakeRegistry:
         return self._search_outcome
 
     def transports(self) -> dict[str, object]:
-        """Return ``{}`` on the FIRST call (boot blip), ``{torr9: ...}`` after."""
+        """Return ``{}`` on the FIRST call (boot blip), ``{tr4ker: ...}`` after."""
         self.transports_calls += 1
         if self.transports_calls == 1:
             return {}
-        return {"torr9": self._recovered}
+        return {"tr4ker": self._recovered}
 
 
 def test_transports_resolved_fresh_at_grab_not_boot_snapshot() -> None:
@@ -259,17 +260,17 @@ def test_transports_resolved_fresh_at_grab_not_boot_snapshot() -> None:
 
     Transports are read FRESH at grab time, not from a boot snapshot.
 
-    Drives one grab whose top result is a torr9 hit with a RELATIVE
+    Drives one grab whose top result is a tr4ker hit with a RELATIVE
     ``/torrents/7/download`` url (no magnet → needs a transport). The fake
     registry returns an EMPTY transports map on its first call (simulating a
-    transient boot login blip that dropped torr9) and the recovered
-    ``{"torr9": <transport>}`` on every later call. With the boot-snapshot bug
+    transient boot blip that dropped the tracker) and the recovered
+    ``{"tr4ker": <transport>}`` on every later call. With the boot-snapshot bug
     the orchestrator would hand ``resolve_source`` the empty map → no transport
     → ``fetch_failed``. The fix reads ``transports()`` at grab time, so
     ``resolve_source`` receives the recovered transport and the add path runs.
     """
-    torr9_result = TrackerResult(
-        provider="torr9",
+    tracker_result = TrackerResult(
+        provider="tr4ker",
         tracker_id="7",
         title="Some Show 2024 1080p WEB x265-GRP",
         size=ByteSize(3_000_000_000),
@@ -280,11 +281,11 @@ def test_transports_resolved_fresh_at_grab_not_boot_snapshot() -> None:
         download_url="/torrents/7/download",  # relative → transport lookup required
     )
     search_outcome = SearchOutcome(
-        results=[torr9_result],
+        results=[tracker_result],
         trackers_queried=1,
         trackers_errored=0,
     )
-    recovered_transport = MagicMock(name="torr9_transport")
+    recovered_transport = MagicMock(name="tr4ker_transport")
     registry = _StalenessFakeRegistry(search_outcome=search_outcome, recovered_transport=recovered_transport)
 
     torrent_client = MagicMock(spec=TorrentAdder)
@@ -301,8 +302,8 @@ def test_transports_resolved_fresh_at_grab_not_boot_snapshot() -> None:
     )
 
     # Simulate the boot moment the OLD code snapshotted at: the FIRST
-    # transports() call returns the EMPTY map (torr9 dropped by a transient boot
-    # login blip). The OLD orchestrator captured exactly this at construction and
+    # transports() call returns the EMPTY map (the tracker dropped by a transient
+    # boot blip). The OLD orchestrator captured exactly this at construction and
     # would forever hand resolve_source an empty map. We consume it here so the
     # subsequent grab-time call lands on the recovered branch — proving the fixed
     # orchestrator does NOT reuse this stale empty snapshot.
@@ -328,11 +329,11 @@ def test_transports_resolved_fresh_at_grab_not_boot_snapshot() -> None:
     torrent_client.add.assert_called_once()
     assert not [e for e in spy.events if isinstance(e, GrabFailed)]
 
-    # resolve_source received the FRESH recovered map containing torr9 — proving
+    # resolve_source received the FRESH recovered map containing tr4ker — proving
     # the orchestrator did NOT reuse the empty boot snapshot consumed above. The
     # registry's transports() was called at grab time (the 2nd call: boot blip +
     # the live grab-time read).
-    assert captured["transports"] == {"torr9": recovered_transport}
+    assert captured["transports"] == {"tr4ker": recovered_transport}
     assert registry.transports_calls >= 2
 
 

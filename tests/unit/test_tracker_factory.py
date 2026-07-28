@@ -535,14 +535,61 @@ class TestTrackerConstructibleConformance:
     """
 
     def test_all_real_clients_expose_from_env(self) -> None:
-        """Lacale / c411 / torr9 all expose a callable from_env classmethod."""
+        """Lacale / c411 / tr4ker all expose a callable from_env classmethod."""
         from personalscraper.api.tracker.c411 import C411Client  # noqa: PLC0415
         from personalscraper.api.tracker.lacale import LaCaleClient  # noqa: PLC0415
-        from personalscraper.api.tracker.torr9 import Torr9Client  # noqa: PLC0415
+        from personalscraper.api.tracker.tr4ker import Tr4kerClient  # noqa: PLC0415
 
-        for cls in (LaCaleClient, C411Client, Torr9Client):
+        for cls in (LaCaleClient, C411Client, Tr4kerClient):
             assert hasattr(cls, "from_env"), f"{cls.__name__} missing from_env"
             assert callable(cls.from_env)
+
+    def test_tr4ker_resolves_through_the_real_class_map(self) -> None:
+        """tr4ker boots end-to-end through the REAL _TRACKER_CLASSES entry.
+
+        No stub substitution: this is the wiring the operator gets once
+        TR4KER_PASSKEY is in the environment — the factory must import
+        ``Tr4kerClient``, build it via the uniform ``from_env`` and expose its
+        transport to the grab seam.
+        """
+        from personalscraper.api.tracker.tr4ker import Tr4kerClient  # noqa: PLC0415
+
+        cfg = _cfg({"c411": True, "tr4ker": True}, priority=["c411", "tr4ker"])
+
+        registry = build_tracker_registry(
+            cfg,
+            _ranking(),
+            settings=_settings(),
+            event_bus=EventBus(),
+            cb_policy=_policy(),
+            env=_env("C411_API_KEY", "TR4KER_PASSKEY"),
+        )
+
+        assert isinstance(registry._trackers["tr4ker"], Tr4kerClient)
+        assert sorted(registry.transports()) == ["c411", "tr4ker"]
+
+    def test_tr4ker_enabled_without_key_fails_boot_loudly(self) -> None:
+        """An enabled tr4ker with no passkey is a boot ERROR, never a silent skip.
+
+        The tracker factory's contract is fail-loud (parity with
+        ``RegistryConfigError``): enabling tr4ker in config while removing
+        ``TR4KER_PASSKEY`` from the environment breaks boot on purpose, rather
+        than quietly searching one tracker short.
+        """
+        cfg = _cfg({"tr4ker": True}, priority=["tr4ker"])
+
+        with pytest.raises(TrackerConfigError) as exc_info:
+            build_tracker_registry(
+                cfg,
+                _ranking(),
+                settings=_settings(),
+                event_bus=EventBus(),
+                cb_policy=_policy(),
+                env={},
+            )
+
+        assert any("TR4KER_PASSKEY" in i.message for i in exc_info.value.issues)
+        assert [i.code for i in exc_info.value.issues] == ["missing_credentials"]
 
     def test_api_key_client_from_env_builds_instance(self) -> None:
         """LaCaleClient.from_env builds a real client from a single API key (no network)."""

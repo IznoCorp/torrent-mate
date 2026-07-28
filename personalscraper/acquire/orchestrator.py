@@ -49,11 +49,11 @@ store/seed dependency at all. Seed obligations are a dispatch-time concern.
 Dep injection: narrow constructor (NOT ``AppContext`` — boundary rule). The
 orchestrator holds the ``TrackerRegistry`` and resolves transports FRESH at
 grab time (``tracker_registry.transports()``), NOT from a boot snapshot. This
-matters for a lazy tracker (torr9's TVDB-lazy ``_transport`` property logs in on
-first access): by grab time it has already logged in during that same grab's
-``search()`` (search precedes resolve in the chain), so its authed transport is
-present — and a transient boot-time login blip can no longer strand it in a
-stale snapshot for the process lifetime.
+matters for a login-style tracker whose ``_transport`` materializes lazily on
+first access (none is wired today): by grab time it has already logged in during
+that same grab's ``search()`` (search precedes resolve in the chain), so its
+authed transport is present — and a transient boot-time login blip can no longer
+strand it in a stale snapshot for the process lifetime.
 
 Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 ``events/`` downward only — never the triage packages (layering guard).
@@ -181,7 +181,7 @@ def build_search_query(item: "WantedItem", title: str | None) -> str:
     This is the Follow D3 title-resolution seam. When the series ``title`` is
     known (resolved from the followed-series row), an episode query becomes
     ``"{title} SxxEyy"`` and a movie query becomes ``"{title}"`` — the form the
-    title-based trackers (c411, torr9) actually match. When ``title`` is
+    title-based trackers (c411, tr4ker) actually match. When ``title`` is
     ``None`` (standalone item with no followed row, or a resolver miss), it
     falls back to the primary provider ID string — the legacy behavior, which
     finds nothing on title-based trackers but keeps the query non-empty.
@@ -429,6 +429,18 @@ class GrabOrchestrator:
         clause below still catches an auth failure raised OUTSIDE that
         per-tracker loop, which is why it stays.
 
+        The same now holds for :exc:`CircuitOpenError` (torznab feature): it
+        joined the registry's per-tracker ``except`` so an OPEN breaker on ONE
+        tracker can no longer discard the results the healthy ones already
+        returned. An item whose trackers are ALL circuit-open therefore reaches
+        this method as ``trackers_unavailable`` rather than ``circuit_open``.
+        Both map to the SAME disposition — ``retryable`` / wanted status
+        ``pending`` (see :data:`_EXIT_DISPOSITIONS` and
+        ``service._OUTCOME_TO_STATUS``) — so only the reason label moved, and it
+        moved toward the truth: the tracker WAS queried and DID error.
+        ``circuit_open`` stays reachable from the GRAB stage, where
+        ``resolve_source`` / ``add`` still raise it outside any registry loop.
+
         Surfacing it properly means teaching ``SearchOutcome`` to carry the
         per-tracker error TYPE, not just the name — a reshape of a type shared
         by the whole tracker layer, deliberately NOT attempted in a review fix.
@@ -450,8 +462,10 @@ class GrabOrchestrator:
         query = build_search_query(item, title)
         year: int | None = None
 
-        # --- Search (CircuitOpenError is NOT an ApiError → catch separately;
-        # TrackerAuthError IS an ApiError → must precede its base clause) ---
+        # --- Search (CircuitOpenError is NOT an ApiError → needs its own clause
+        # even though the registry now swallows it per-tracker; TrackerAuthError
+        # IS an ApiError → must precede its base clause). Both are defence for
+        # a raise OUTSIDE the registry's per-tracker loop — see the docstring. ---
         try:
             outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
         except CircuitOpenError:
@@ -653,10 +667,11 @@ class GrabOrchestrator:
         try:
             # Read transports FRESH (not a boot snapshot): by here the top
             # result's tracker has already run its search() in THIS grab, so a
-            # lazy tracker (torr9) has materialized + cached its authed
+            # login-style tracker would have materialized + cached its authed
             # transport. transports() is cheap (cached transports;
-            # plain-attribute for lacale/c411). A transient boot login blip can
-            # no longer strand a recovered tracker behind a stale snapshot.
+            # plain-attribute for every tracker wired today). A transient boot
+            # login blip can no longer strand a recovered tracker behind a stale
+            # snapshot.
             source = resolve_source(top, self._tracker_registry.transports())
             info_hash = self._torrent_client.add(source, category=None, tags=[top.provider])
         except CircuitOpenError:

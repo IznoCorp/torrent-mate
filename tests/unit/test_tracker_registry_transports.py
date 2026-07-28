@@ -6,12 +6,16 @@ bootstrap login.
 
 Verifies:
 - A normal client's materialized ``_open_transport`` is included.
-- A torr9-style client that has NOT logged in (``_open_transport`` is ``None``)
+- A login-style client that has NOT logged in (``_open_transport`` is ``None``)
   is NOT included — AND its login-triggering ``_transport`` is NEVER accessed
   (peek only). A class whose ``_transport`` raises if touched proves the seam
   never triggers a login.
-- A torr9-style client that HAS logged in (``_open_transport`` returns a real
+- A login-style client that HAS logged in (``_open_transport`` returns a real
   transport) IS included.
+
+No tracker wired today is login-style (all build their transport eagerly), so
+these stubs ARE the contract: they keep the no-bootstrap-login guarantee
+enforced for the next such client.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ def _make_registry(trackers: dict) -> TrackerRegistry:
 
 
 class _NotLoggedInClient:
-    """torr9-style client that has NOT logged in yet.
+    """Login-style client that has NOT logged in yet.
 
     ``_open_transport`` is the non-triggering peek → ``None`` (no transport
     materialized). The login-triggering ``_transport`` property RAISES if the
@@ -49,7 +53,7 @@ class _NotLoggedInClient:
 
 
 class _LoggedInClient:
-    """torr9-style client that HAS logged in — ``_open_transport`` returns the cached transport."""
+    """Login-style client that HAS logged in — ``_open_transport`` returns the cached transport."""
 
     def __init__(self) -> None:
         self._materialized = MagicMock()
@@ -83,33 +87,33 @@ class TestTrackerRegistryTransports:
         assert result == {"lacale": client._transport}
 
     def test_not_logged_in_client_is_omitted_without_triggering_login(self) -> None:
-        """A torr9-style not-logged-in client is omitted AND its _transport is never accessed.
+        """A not-logged-in login-style client is omitted AND its _transport is never accessed.
 
         ``_open_transport`` returns None, so the client is absent from the map.
         Its login-triggering ``_transport`` property would raise if touched —
         the test passing proves the seam peeks only (no spurious login fired).
         """
-        registry = _make_registry({"torr9": _NotLoggedInClient()})
+        registry = _make_registry({"lazy": _NotLoggedInClient()})
 
         result = registry.transports()  # must not raise (no _transport access)
 
         assert result == {}
 
     def test_logged_in_client_transport_included(self) -> None:
-        """A torr9-style client that already logged in exposes its materialized transport."""
+        """A login-style client that already logged in exposes its materialized transport."""
         client = _LoggedInClient()
-        registry = _make_registry({"torr9": client})
+        registry = _make_registry({"lazy": client})
 
         result = registry.transports()
 
-        assert result == {"torr9": client._materialized}
+        assert result == {"lazy": client._materialized}
 
     def test_not_logged_in_client_does_not_drop_a_logged_in_sibling(self) -> None:
         """A not-logged-in tracker must not stop a logged-in sibling from being included."""
         healthy = _PlainTransportClient()
-        registry = _make_registry({"torr9": _NotLoggedInClient(), "lacale": healthy})
+        registry = _make_registry({"lazy": _NotLoggedInClient(), "lacale": healthy})
 
         result = registry.transports()
 
-        assert "torr9" not in result
+        assert "lazy" not in result
         assert result["lacale"] is healthy._transport

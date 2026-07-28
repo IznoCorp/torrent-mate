@@ -762,7 +762,8 @@ def test_build_acquire_context_grab_is_grabcore_with_torrent_client(tmp_path: Pa
 def test_factory_does_not_snapshot_transports_at_boot(tmp_path: Path) -> None:
     """The factory must NOT call registry.transports() at construction (no boot login).
 
-    torr9's ``_transport`` is a lazy property that logs in on first access. An
+    A login-style tracker's ``_transport`` is a lazy property that logs in on
+    first access (none is wired today; the contract outlives the client). An
     eager ``transports()`` snapshot at boot would force that login (defeating the
     network-free build guarantee) AND freeze a one-shot map a transient blip
     could leave stale. The orchestrator now reads ``transports()`` FRESH at grab

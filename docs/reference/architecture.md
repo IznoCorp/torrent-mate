@@ -86,7 +86,13 @@ staging/
 │   │   │   ├── _factory.py           # build_client, build_active_torrent_client
 │   │   │   ├── qbittorrent.py        # QBitClient (Adder + Limiter)
 │   │   │   └── transmission.py       # TransmissionClient (Adder only)
-│   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411
+│   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411, tr4ker
+│   │   │   ├── torznab.py            # GENERIC Torznab/Newznab engine: TorznabDescriptor (dataclass)
+│   │   │   │                         # + TorznabClient (HTTP, XML parse, torznab:attr flattening,
+│   │   │   │                         # caps, error taxonomy). A new Torznab tracker = descriptor + thin class
+│   │   │   ├── c411.py               # C411Client — first named config of torznab.py (descriptor only)
+│   │   │   ├── tr4ker.py             # Tr4kerClient — second named config (descriptor only)
+│   │   │   ├── lacale.py             # LaCaleClient — bespoke JSON client (not Torznab)
 │   │   │   ├── _errors.py            # TrackerAuthError, TorrentFetchError (tracker-family errors)
 │   │   │   └── _fetch.py             # fetch boundary (RP1a): TrackerResult → TorrentSource
 │   │   │                             # via HttpTransport.get_bytes (dedicated download circuit, D3);

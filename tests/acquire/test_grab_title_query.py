@@ -1,7 +1,7 @@
 """Tests for the Follow D3 title-resolution query builder (``build_search_query``).
 
 Before D3 the grab searched trackers with the bare numeric provider ID, which
-title-based trackers (c411, torr9) never match → every wanted item abandoned.
+title-based trackers (c411, tr4ker) never match → every wanted item abandoned.
 ``build_search_query`` turns a resolved series title into ``"{title} SxxEyy"``
 (episodes) or ``"{title}"`` (movies), and falls back to the ID only when no
 title is available.

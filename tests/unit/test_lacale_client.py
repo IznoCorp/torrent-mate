@@ -195,7 +195,7 @@ class TestLaCaleCategoriesAgainstLiveSamples:
 class TestLaCaleParseTitle:
     """Shared ``parse_title_quality`` against live LaCale title samples.
 
-    LaCale (like c411/torr9) feeds the shared
+    LaCale (like every Torznab config) feeds the shared
     :func:`personalscraper.api.tracker._quality.parse_title_quality` — the
     per-client ``_parse_title`` static method was extracted into that module.
     """
