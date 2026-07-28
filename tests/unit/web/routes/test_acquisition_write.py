@@ -287,8 +287,26 @@ class TestCreateFollow:
         assert data["media_ref"]["tvdb_id"] == 456
         assert data["active"] is True
 
-    def test_create_with_tmdb_id(self, client: TestClient, tmp_path: Path) -> None:
-        """Following via tmdb_id (no tvdb_id) works."""
+    def test_create_with_tmdb_id(self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Following a show via tmdb_id resolves and stores its tvdb_id.
+
+        The provider is mocked (deterministic, no network): a show followed by
+        tmdb_id gets its TVDB id backfilled so episode detection works.
+        """
+        from contextlib import contextmanager
+        from unittest.mock import MagicMock
+
+        tmdb = MagicMock()
+        tmdb.get_tvdb_id.return_value = 424242
+
+        @contextmanager
+        def _fake_scoped(_request: Any):  # noqa: ANN401 — test double
+            yield tmdb, MagicMock()
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition.scoped_provider_clients",
+            _fake_scoped,
+        )
         resp = client.post(
             "/api/acquisition/followed",
             json={"tmdb_id": 999, "title": "TMDB Only"},
@@ -298,7 +316,8 @@ class TestCreateFollow:
         assert resp.status_code == 201, resp.text
         data = resp.json()
         assert data["media_ref"]["tmdb_id"] == 999
-        assert data["media_ref"]["tvdb_id"] is None
+        assert data["media_ref"]["tvdb_id"] == 424242
+        assert data["tvdb_unresolved"] is False
 
     def test_duplicate_active_returns_409(self, client: TestClient, tmp_path: Path) -> None:
         """Following the same active series again returns 409."""
