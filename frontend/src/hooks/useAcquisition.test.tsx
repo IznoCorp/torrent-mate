@@ -55,6 +55,7 @@ const FOLLOWED: FollowedResponse = {
     kind: "show",
       status: "a_recuperer",
       priming_running: false,
+      tvdb_unresolved: false,
       media_ref: {
         tvdb_id: 123,
         tmdb_id: null,

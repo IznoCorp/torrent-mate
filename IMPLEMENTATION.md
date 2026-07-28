@@ -1,69 +1,73 @@
-# Implementation Progress — game-hide
+# Implementation Progress — follow-by-id
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Détecter les jeux (ISO) et les masquer de la médiathèque
+**Feature**: Suivre par ID IMDB et TMDB (résolution TVDB pour les séries)
 **Type**: feat
-**Version bump**: 0.60.0 → 0.61.0 (minor)
-**Branch**: feat/game-hide
-**Ticket**: #334 — claimed
+**Version bump**: 0.61.0 → 0.62.0 (minor)
+**Branch**: feat/follow-by-id
+**Ticket**: #336 — claimed
 **PR merge**: auto
 **PR**: _(created after last phase)_
-**Design**: docs/features/game-hide/DESIGN.md
-**Master plan**: docs/features/game-hide/plan/INDEX.md
+**Design**: docs/features/follow-by-id/DESIGN.md
+**Master plan**: docs/features/follow-by-id/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                         | File                                                        | Status |
-| --- | ----------------------------- | ----------------------------------------------------------- | ------ |
-| 1   | Détection — `is_game_release` | [phase-01](docs/features/game-hide/plan/phase-01-detect.md) | [x]    |
-| 2   | Filtre read-model + log       | [phase-02](docs/features/game-hide/plan/phase-02-filter.md) | [x]    |
-| 3   | ACC + preuve 390 px + gate    | [phase-03](docs/features/game-hide/plan/phase-03-acc.md)    | [x]    |
+| #   | Phase                            | File                                                             | Status |
+| --- | -------------------------------- | ---------------------------------------------------------------- | ------ |
+| 1   | Backend — résolution TVDB séries | [phase-01](docs/features/follow-by-id/plan/phase-01-backend.md)  | [x]    |
+| 2   | Frontend — sélecteur de provider | [phase-02](docs/features/follow-by-id/plan/phase-02-frontend.md) | [x]    |
+| 3   | ACC + preuve 390 px + gate       | [phase-03](docs/features/follow-by-id/plan/phase-03-acc.md)      | [x]    |
 
-## ACC results (2026-07-28)
+## ACC results (2026-07-29)
 
-| ACC    | Verdict | Preuve                                                                                                                                                                                                                                                                                                      |
-| ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ACC-01 | ✅ PASS | `pytest tests/sorter/test_game.py` — dossier `Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto` (iso+nfo) ⇒ `is_game_release` True. (10 tests verts.)                                                                                                                                                          |
-| ACC-02 | ✅ PASS | même suite — image disque de FILM (`The.Matrix.1999.1080p.BluRay.iso`) ⇒ False (garde anti-faux-positif video-release) ; régression PS5→S5 couverte.                                                                                                                                                        |
-| ACC-03 | ✅ PASS | `pytest tests/unit/web/staging/test_read_model_game_filter.py` — jeu en OTHER non surfacé, média non-jeu en OTHER visible, log `staging_game_hidden` émis.                                                                                                                                                  |
-| ACC-04 | ✅ PASS | `make check` **exit 0** (977 tests front + suite Python + guardrails) ; `make openapi` sans drift (aucun changement de contrat).                                                                                                                                                                            |
-| ACC-05 | ✅ PASS | **Preuve données réelles** (config réelle + `library.db` réelle) : `scan_staging_media` ne surface PLUS `Marvels.Spider-Man.2` (log `staging_game_hidden` → `098-AUTRES`), et « Top Chef Le Concours Parallèle » (autre item OTHER, non-jeu) **reste visible**. Confirmation visuelle sur `tm.` post-merge. |
+| ACC    | Verdict | Preuve                                                                                                                                                                                          |
+| ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | ✅ PASS | `pytest tests/unit/test_tmdb_client.py::TestFindByImdb ::TestGetTvdbId` — `find_by_imdb` + `get_tvdb_id` (transport mock).                                                                      |
+| ACC-02 | ✅ PASS | `pytest tests/unit/web/acquisition/test_follow_resolve_tvdb.py` — résolution tmdb→tvdb et imdb→find→tvdb. **+ Preuve données réelles live TMDB** (voir ci-dessous).                             |
+| ACC-03 | ✅ PASS | `pytest tests/e2e/test_acquisition.py::TestFollowByIdTvdbResolution::test_series_unresolved_is_flagged_not_silent` — non résolu ⇒ suivi créé + `tvdb_unresolved=true`.                          |
+| ACC-04 | ✅ PASS | même suite — film par tmdb ⇒ aucune résolution (scope non entré), `tvdb_unresolved=false`.                                                                                                      |
+| ACC-05 | ✅ PASS | `vitest` — `buildIdFollowBody` (mapping + validation IMDB) + tests sélecteur FollowedPanel (TMDB→tmdb_id, IMDB→imdb_id, IMDB mal formé désactive). Preuve visuelle Chrome sur `tm.` post-merge. |
+| ACC-06 | ✅ PASS | `make check` **exit 0** (9514 back + 989 front) ; `make openapi` régénéré (`tvdb_unresolved`).                                                                                                  |
 
-### ACC-05 — preuve données réelles (2026-07-28)
+### ACC-02 — preuve données réelles (live TMDB, 2026-07-29)
+
+Bug attrapé par cette preuve (que les mocks masquaient) : le parser TMDB ne garde que les
+external ids **string**, or `tvdb_id` est un **entier** → jamais dans `MediaDetails.external_ids`.
+Corrigé par `get_tvdb_id` (lecture brute de `/tv/{id}/external_ids`). Vérifié en live :
 
 ```
-staging_dir: /Volumes/IznoServer SSD/A TRIER
-total staged items surfaced: 1
-Marvels/Spider-Man items STILL surfaced: NONE (correct)
-staging_game_hidden log entries: [('098-AUTRES', 'Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto')]
-All surfaced folders: ['Top Chef Le Concours Parallèle (2026)']
+resolve via TMDB id 1399    -> TVDB 121361
+resolve via IMDB tt0944947  -> TVDB 121361   (Game of Thrones — TVDB attendu 121361)
+PASS
 ```
-
-Note : la preuve visuelle Chrome sur `tm-staging.` exigerait un déploiement de branche
-sur staging (force-push gaté par le classifieur auto-mode) ; la preuve données réelles
-ci-dessus (read model réel sur arborescence réelle) est plus forte, et la confirmation
-visuelle est faite sur `tm.` (prod) après le merge/déploiement.
 
 ## Review cycles
 
-### Cycle 1 — adversarial `code-reviewer` (PR #335, 2026-07-28)
+### Cycle 1 — adversarial `code-reviewer` (PR #337, 2026-07-29)
 
-**Verdict : BLOCKER trouvé — invariant précision-first CASSÉ** (bon catch de la review).
-Matcher les tokens de `GAME_RELEASE_GROUPS` **n'importe où** dans le nom masquait de vrais
-films dont le TITRE est aussi un nom de groupe scène (_The Matrix **Reloaded**_, _The **Switch**_,
-_A **Prophet**_, _Plaza Suite_) — 10 vrais médias auraient disparu silencieusement. Corrigé
-(commit `58aaabf7`) :
+**Verdict : chemin create airtight sur tous les invariants durs ; 1 HIGH trouvé** (bon catch).
 
-- **Group tokens ancrés à la position release-group** (`Title-GROUP`, après le dernier `-`) —
-  un mot de titre n'y est jamais ; les vrais repacks (`…-Mephisto`, `…-RUNE`) matchent toujours.
-- Token plateforme faible `switch` retiré (le film « The Switch ») — `nsw` conservé.
-- Token version nu (`vX.Y`) retiré comme signal — les fan-edits versionnés (`…Final.Cut.v2.0`)
-  restent visibles.
-- (MEDIUM) log `staging_game_hidden` promu **INFO** (visible au niveau par défaut, §méthode).
-- (LOW) entrée morte `i_know` retirée (le tokenizer la coupait).
-- **7 tests de régression précision** ajoutés ; preuve données réelles re-vérifiée (Marvels
-  masqué via le groupe Mephisto, Top Chef visible).
+- **HIGH — suivi silencieusement inerte à la réactivation/reprise.** `tvdb_unresolved` n'était
+  posé qu'à la création ; réactiver (POST re-match) ou reprendre (toggle PATCH `active=true`) une
+  série sans TVDB la remettait active **sans** résolution **ni** drapeau → l'opérateur croit que
+  ça marche alors que `poll_known` la saute. **Corrigé** (commit `7758ab56`) : `tvdb_unresolved`
+  est désormais **dérivé de l'état** (`show ∧ active ∧ pas de tvdb_id`) dans les DEUX builders —
+  create, réactivation, toggle ET liste sont honnêtes ; badge persistant « Sans ID TVDB » côté
+  front. Tests ajoutés (dérivation + badge + toast).
+
+**Items ouverts (présentés, décision opérateur — non tranchés unilatéralement) :**
+
+- **(LOW-MED, perf)** L'ajout-par-ID d'une série construit le registry **deux fois** (une fois pour
+  la résolution TVDB, une fois pour l'enrichissement métadonnées). Coût réel ≈ un build de registry
+  en plus (~80 ms) ; le pire-cas ~50 s n'arrive que si **deux** hôtes providers pendent (même risque
+  que le chemin métadonnées existant). Fusionner les deux dans un seul `scoped_provider_clients`
+  l'éliminerait. Non fait (borné, action peu fréquente) — à arbitrer.
+- **(ENHANCEMENT)** La réactivation ne **re-résout** pas le TVDB (elle le signale seulement via le
+  drapeau dérivé). Une panne provider transitoire à la création reste inerte jusqu'à un ré-ajout
+  explicite. Auto-recovery possible (re-résoudre + mettre à jour le media_ref stocké au moment de
+  la réactivation) — à arbitrer.
 
 ## Next action
 

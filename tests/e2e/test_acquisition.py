@@ -678,3 +678,113 @@ class TestAcquisitionStatusSentinel:
             assert resp.json()["watcher_enabled"] is False
         finally:
             paused.unlink(missing_ok=True)
+
+
+class TestFollowByIdTvdbResolution:
+    """A series followed by TMDB/IMDB resolves its TVDB id; a film skips it.
+
+    Backfilling the TVDB id at follow time is what makes a TMDB/IMDB series
+    follow actually detectable (poll_known needs a tvdb_id); a film uses the §5
+    title lifecycle and never needs one.
+    """
+
+    @staticmethod
+    def _fake_scoped(tmdb: Any):
+        """A scoped_provider_clients replacement yielding a fake TMDB client."""
+        from contextlib import contextmanager
+        from unittest.mock import MagicMock
+
+        @contextmanager
+        def _ctx(_request: Any):
+            yield tmdb, MagicMock()
+
+        return _ctx
+
+    def test_series_by_tmdb_resolves_and_stores_tvdb(
+        self, authed_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A show followed by tmdb_id gets its resolved tvdb_id stored (detectable)."""
+        from unittest.mock import MagicMock
+
+        tmdb = MagicMock()
+        tmdb.get_tvdb_id.return_value = 121361
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition.scoped_provider_clients",
+            self._fake_scoped(tmdb),
+        )
+        resp = authed_client.post(
+            "/api/acquisition/followed",
+            json={
+                "tmdb_id": 1399,
+                "title": "GoT",
+                "kind": "show",
+                "poster_url": "http://x/p.jpg",
+                "overview": "o",
+                "year": 2011,
+            },
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["media_ref"]["tvdb_id"] == 121361
+        assert data["media_ref"]["tmdb_id"] == 1399
+        assert data["tvdb_unresolved"] is False
+
+    def test_series_unresolved_is_flagged_not_silent(
+        self, authed_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A show whose TVDB can't be resolved is created but flagged (§méthode)."""
+        from unittest.mock import MagicMock
+
+        tmdb = MagicMock()
+        tmdb.get_tvdb_id.return_value = None  # no tvdb cross-ref
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition.scoped_provider_clients",
+            self._fake_scoped(tmdb),
+        )
+        resp = authed_client.post(
+            "/api/acquisition/followed",
+            json={
+                "tmdb_id": 424242,
+                "title": "Obscure Show",
+                "kind": "show",
+                "poster_url": "http://x/p.jpg",
+                "overview": "o",
+                "year": 2020,
+            },
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["tvdb_unresolved"] is True
+        assert data["media_ref"]["tvdb_id"] is None
+
+    def test_film_by_tmdb_skips_resolution(self, authed_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A film follow never enters TVDB resolution (kind guard)."""
+        from contextlib import contextmanager
+        from unittest.mock import MagicMock
+
+        calls = {"n": 0}
+
+        @contextmanager
+        def _counting(_request: Any):
+            calls["n"] += 1
+            yield MagicMock(), MagicMock()
+
+        monkeypatch.setattr("personalscraper.web.routes.acquisition.scoped_provider_clients", _counting)
+        resp = authed_client.post(
+            "/api/acquisition/followed",
+            json={
+                "tmdb_id": 550,
+                "title": "Fight Club",
+                "kind": "movie",
+                "poster_url": "http://x/p.jpg",
+                "overview": "o",
+                "year": 1999,
+            },
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["tvdb_unresolved"] is False
+        assert calls["n"] == 0  # metadata complete + film → no provider scope entered

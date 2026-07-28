@@ -18,8 +18,9 @@ import { ApiError } from "@/api/client";
 
 // The « Récupérer maintenant » action posts through the API module directly
 // (no hook), so the endpoint itself is stubbed; everything else stays real.
-const { grabMock, toastMock } = vi.hoisted(() => ({
+const { grabMock, followMock, toastMock } = vi.hoisted(() => ({
   grabMock: vi.fn(),
+  followMock: vi.fn(),
   toastMock: {
     info: vi.fn(),
     error: vi.fn(),
@@ -42,7 +43,7 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 // Inert hook mocks: the panel's mutations/queries never fire in these render
 // tests — only the markup derived from the `data` prop is under test.
 vi.mock("@/hooks/useAcquisition", () => ({
-  useFollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useFollow: () => ({ mutate: followMock, isPending: false }),
   useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
   useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
   useCompleteness: () => ({
@@ -82,6 +83,7 @@ function makeItem(
     media_ref: { tvdb_id: 371572, tmdb_id: null, imdb_id: null },
     status: "a_jour",
     priming_running: false,
+    tvdb_unresolved: false,
     aired_count: null,
     owned_count: null,
     a_recuperer_count: null,
@@ -450,5 +452,88 @@ describe("FollowedPanel — « Récupérer maintenant » (phase 8 / §6)", () =>
     expect(
       screen.getByRole("button", { name: /Récupérer maintenant/ }),
     ).toBeEnabled();
+  });
+});
+
+describe("FollowedPanel — add-by-id provider selector (ticket 336)", () => {
+  function openAddForm(): void {
+    renderPanel([]);
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter par ID" }));
+  }
+
+  it("offers TVDB, TMDB and IMDB providers", () => {
+    openAddForm();
+    for (const p of ["TVDB", "TMDB", "IMDB"]) {
+      expect(screen.getByRole("button", { name: p })).toBeInTheDocument();
+    }
+  });
+
+  it("selecting IMDB switches the id field to the tt… placeholder", () => {
+    openAddForm();
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    expect(screen.getByPlaceholderText("ex: tt0903747")).toBeInTheDocument();
+    expect(screen.getByLabelText("ID IMDB")).toBeInTheDocument();
+  });
+
+  it("follows by TMDB id → sends tmdb_id", () => {
+    openAddForm();
+    fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
+    fireEvent.change(screen.getByLabelText("ID TMDB"), {
+      target: { value: "1399" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(followMock).toHaveBeenCalledTimes(1);
+    expect(followMock.mock.calls[0]?.[0]).toEqual({ tmdb_id: 1399, kind: "show" });
+  });
+
+  it("follows by IMDB id → sends the tt string", () => {
+    openAddForm();
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    fireEvent.change(screen.getByLabelText("ID IMDB"), {
+      target: { value: "tt0903747" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(followMock).toHaveBeenCalledTimes(1);
+    expect(followMock.mock.calls[0]?.[0]).toEqual({
+      imdb_id: "tt0903747",
+      kind: "show",
+    });
+  });
+
+  it("disables Suivre for a malformed IMDB id", () => {
+    openAddForm();
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    fireEvent.change(screen.getByLabelText("ID IMDB"), {
+      target: { value: "0903747" },
+    });
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+  });
+});
+
+describe("FollowedPanel — tvdb_unresolved warning (ticket 336 review)", () => {
+  it("shows a « Sans ID TVDB » warning badge for an unresolved show", () => {
+    renderPanel([makeItem({ tvdb_unresolved: true })]);
+    expect(screen.getByText("Sans ID TVDB")).toBeInTheDocument();
+  });
+
+  it("does not show the warning for a resolved show", () => {
+    renderPanel([makeItem({ tvdb_unresolved: false })]);
+    expect(screen.queryByText("Sans ID TVDB")).not.toBeInTheDocument();
+  });
+
+  it("toasts a warning when a followed show comes back tvdb_unresolved", () => {
+    followMock.mockImplementation(
+      (_body: unknown, opts?: { onSuccess?: (item: FollowedSeriesItem) => void }) => {
+        opts?.onSuccess?.(makeItem({ tvdb_unresolved: true }));
+      },
+    );
+    renderPanel([]);
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter par ID" }));
+    fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
+    fireEvent.change(screen.getByLabelText("ID TMDB"), {
+      target: { value: "1399" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(toastMock.warning).toHaveBeenCalled();
   });
 });

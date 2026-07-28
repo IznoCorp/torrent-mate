@@ -23,6 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.62.0] — 2026-07-29
+
+### Added
+
+- **Suivre un média par ID IMDB ou TMDB, plus seulement TVDB.** Le formulaire
+  « Ajouter par ID » (onglet Suivis) propose désormais un sélecteur de provider
+  TVDB / TMDB / IMDB : un entier pour TVDB/TMDB, un identifiant `tt…` pour IMDB
+  (validé côté client). Comme la détection d'épisodes (`poll_known`) a besoin d'un
+  ID TVDB, le serveur **résout le TVDB** d'une série suivie par TMDB/IMDB au
+  moment du suivi — `TMDBClient.get_tvdb_id` lit l'ID TVDB brut de
+  `/tv/{id}/external_ids`, et `find_by_imdb` fait le pont IMDB → TMDB → TVDB. TVDB
+  reste le primaire de détection ; TMDB/IMDB ne servent qu'à le résoudre
+  (séparation multi-provider). Si le TVDB d'une série ne peut être résolu, le
+  suivi est **créé mais signalé** (`tvdb_unresolved`, toast d'avertissement) —
+  jamais un suivi silencieusement inerte (§méthode). Les films (cycle titre §5)
+  n'ont pas besoin de TVDB et sont suivis tels quels.
+
 ## [0.61.0] — 2026-07-28
 
 ### Added

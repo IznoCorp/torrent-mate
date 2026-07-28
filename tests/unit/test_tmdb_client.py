@@ -361,3 +361,59 @@ class TestSearchPaginated:
         ]
         results = client.search_movie("X", max_pages=5)
         assert [r.provider_id for r in results] == ["1", "2"]
+
+
+class TestFindByImdb:
+    """find_by_imdb — IMDb → TMDB TV id via the /find endpoint."""
+
+    def test_returns_first_tv_result_id(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A tv_results hit yields the first result's TMDB id (int)."""
+        transport.get.return_value = {
+            "movie_results": [],
+            "tv_results": [{"id": 1396, "name": "Breaking Bad"}],
+            "person_results": [],
+        }
+        assert client.find_by_imdb("tt0903747") == 1396
+        transport.get.assert_called_once_with("/find/tt0903747", params={"external_source": "imdb_id"})
+
+    def test_empty_tv_results_returns_none(self, client: TMDBClient, transport: MagicMock) -> None:
+        """No TV cross-reference (e.g. a movie-only id) yields None."""
+        transport.get.return_value = {"movie_results": [{"id": 550}], "tv_results": []}
+        assert client.find_by_imdb("tt0137523") is None
+
+    def test_missing_tv_results_key_returns_none(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A response without tv_results yields None, never raises."""
+        transport.get.return_value = {"person_results": []}
+        assert client.find_by_imdb("tt0000001") is None
+
+    def test_non_dict_response_raises(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A non-dict transport response is a hard TypeError (contract guard)."""
+        transport.get.return_value = ["not", "a", "dict"]
+        with pytest.raises(TypeError):
+            client.find_by_imdb("tt0903747")
+
+
+class TestGetTvdbId:
+    """get_tvdb_id — raw /tv/{id}/external_ids tvdb_id (int), parser-bypass."""
+
+    def test_returns_int_tvdb_id(self, client: TMDBClient, transport: MagicMock) -> None:
+        """The raw integer tvdb_id is returned (the parser drops it as non-str)."""
+        transport.get.return_value = {"tvdb_id": 121361, "imdb_id": "tt0944947"}
+        assert client.get_tvdb_id(1399) == 121361
+        transport.get.assert_called_once_with("/tv/1399/external_ids")
+
+    def test_missing_tvdb_id_returns_none(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A show with no TVDB cross-reference yields None."""
+        transport.get.return_value = {"imdb_id": "tt0944947"}
+        assert client.get_tvdb_id(1399) is None
+
+    def test_non_int_tvdb_id_returns_none(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A null/malformed tvdb_id yields None, never raises."""
+        transport.get.return_value = {"tvdb_id": None}
+        assert client.get_tvdb_id(1399) is None
+
+    def test_non_dict_response_raises(self, client: TMDBClient, transport: MagicMock) -> None:
+        """A non-dict transport response is a hard TypeError (contract guard)."""
+        transport.get.return_value = [1, 2, 3]
+        with pytest.raises(TypeError):
+            client.get_tvdb_id(1399)

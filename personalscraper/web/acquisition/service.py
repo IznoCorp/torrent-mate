@@ -34,6 +34,7 @@ from personalscraper.web.models.pipeline import parse_steps_json
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from personalscraper.core.identity import MediaRef
     from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 logger = get_logger(__name__)
@@ -274,6 +275,45 @@ def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]
                 logger.warning("acquisition_acquire_context_close_failed", exc_info=True)
 
 
+def resolve_series_tvdb(media_ref: MediaRef, tmdb_client: Any) -> int | None:
+    """Resolve the TVDB id for a series followed by TMDB/IMDB alone.
+
+    Episode detection (``poll_known``) skips any series whose ``media_ref`` has no
+    ``tvdb_id``, so a TMDB/IMDB-only follow would be inert. This backfills the
+    TVDB id via TMDB's cross-reference, keeping TVDB the detection primary
+    (multi-provider separation): TMDB/IMDB only resolve it.
+
+    - ``tvdb_id`` already set → returned as-is (no provider call).
+    - ``tmdb_id`` set → ``get_tvdb_id(tmdb_id)`` (raw ``/tv/{id}/external_ids``).
+    - ``imdb_id`` only → ``find_by_imdb`` → tmdb id → the same TVDB extraction.
+
+    Fail-soft: any provider error, a missing TVDB cross-reference, or a malformed
+    id degrades to ``None`` — the caller still creates the follow (flagged
+    unresolved), never inert-and-silent (§méthode).
+
+    Args:
+        media_ref: The follow's provider IDs.
+        tmdb_client: The request-scoped TMDB client (``get_tvdb_id`` +
+            ``find_by_imdb``).
+
+    Returns:
+        The resolved TVDB series id, or ``None`` when it cannot be resolved.
+    """
+    if media_ref.tvdb_id is not None:
+        return media_ref.tvdb_id
+    try:
+        tmdb_id = media_ref.tmdb_id
+        if tmdb_id is None and media_ref.imdb_id is not None:
+            tmdb_id = tmdb_client.find_by_imdb(media_ref.imdb_id)
+        if tmdb_id is None:
+            return None
+        resolved: int | None = tmdb_client.get_tvdb_id(tmdb_id)
+        return resolved
+    except Exception as exc:  # noqa: BLE001 — fail-soft: never block the follow
+        logger.warning("acquisition_follow_tvdb_resolve_failed", error=str(exc))
+        return None
+
+
 def run_media_search(
     request: Request,
     tmdb_client: object,
@@ -374,6 +414,24 @@ def _to_search_result(candidate: "DecisionCandidate", kind: str) -> MediaSearchR
 # ── followed-series domain → response mapping ─────────────────────────────
 
 
+def _derive_tvdb_unresolved(fs: FollowedSeries) -> bool:
+    """Whether an active show is inert for lack of a TVDB id.
+
+    Episode detection (``poll_known``) skips any series without a ``tvdb_id``, so
+    an ACTIVE show whose ``media_ref`` has none is inert — it will never detect an
+    episode. Derived from state (not a create-time flag) so it is honest on EVERY
+    surface — create, reactivate, the pause/resume toggle, and the list — never a
+    silently inert follow (§méthode). Movies and paused follows are never flagged.
+
+    Args:
+        fs: The followed-series domain object.
+
+    Returns:
+        ``True`` iff *fs* is an active show with no TVDB id.
+    """
+    return fs.kind == "show" and fs.active and fs.media_ref.tvdb_id is None
+
+
 def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSeriesItem:
     """Convert a :class:`FollowedSeries` domain object to a response item.
 
@@ -398,6 +456,7 @@ def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSer
         added_at=float(fs.added_at),
         wanted_pending=wanted_pending,
         quality_profile=_parse_json_dict(fs.quality_profile_json),
+        tvdb_unresolved=_derive_tvdb_unresolved(fs),
     )
 
 
@@ -429,6 +488,7 @@ def _item_from_followed(fs: FollowedSeries) -> FollowedSeriesItem:
         added_at=float(fs.added_at),
         wanted_pending=0,  # newly created/reactivated → no wanted items yet
         quality_profile=_parse_json_dict(fs.quality_profile_json),
+        tvdb_unresolved=_derive_tvdb_unresolved(fs),
     )
 
 
