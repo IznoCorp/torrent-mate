@@ -30,6 +30,7 @@ _TRACKER_CLASSES: dict[str, str] = {
     "lacale": "personalscraper.api.tracker.lacale:LaCaleClient",
     "c411": "personalscraper.api.tracker.c411:C411Client",
     "torr9": "personalscraper.api.tracker.torr9:Torr9Client",
+    "tr4ker": "personalscraper.api.tracker.tr4ker:Tr4kerClient",
 }
 
 

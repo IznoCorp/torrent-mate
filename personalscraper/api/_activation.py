@@ -34,6 +34,11 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "lacale": ["LACALE_API_KEY"],
     "c411": ["C411_API_KEY"],
     "torr9": ["TORR9_USERNAME", "TORR9_PASSWORD"],
+    # Tr4ker authenticates Torznab with the PROFILE API key, never the announce
+    # passkey (which lives in PROVIDER_OPTIONAL_SECRETS). The TR4KER_USERNAME /
+    # TR4KER_PASSWORD entries found in older .env files are torr9 leftovers and
+    # are deliberately not wired.
+    "tr4ker": ["TR4KER_API_KEY"],
     "telegram": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
     "healthchecks": ["HEALTHCHECK_URL"],
 }
@@ -91,6 +96,10 @@ PROVIDER_OPTIONAL_SECRETS: dict[str, list[str]] = {
     "lacale": ["LACALE_PASSKEY"],
     "c411": ["C411_PASSKEY"],
     "torr9": ["TORR9_PASSKEY"],
+    # Tr4ker's passkey authenticates the RSS feed only (freeleech radar R1);
+    # search goes through TR4KER_API_KEY, so a missing passkey never
+    # deactivates the tracker.
+    "tr4ker": ["TR4KER_PASSKEY"],
 }
 
 
