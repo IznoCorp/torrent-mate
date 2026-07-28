@@ -23,6 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.61.0] — 2026-07-28
+
+### Added
+
+- **Les jeux (images disque) sont détectés et masqués de la médiathèque.** Une
+  release de jeu — une image disque (`.iso`/`.bin`/`.mds`/…) portant un signal jeu
+  (groupe de repack connu type Mephisto/FitGirl/DODI, un token de version `vX.Y.Z`,
+  ou une plateforme console) — était classée `OTHER` par le sorter (`.iso` n'est ni
+  vidéo ni app) et remontait comme item à trier dans l'UI Medias, alors que ce n'est
+  pas un média. `is_game_release` (`personalscraper/sorter/game.py`) la détecte, et
+  le read-model de staging (`scan_staging_media`) ne la surface plus, en journalisant
+  `staging_game_hidden` (jamais de disparition silencieuse). **Précision-first** :
+  une image disque de FILM/série (qui porte toujours un token video-release comme
+  `1080p`/`BluRay`) n'est jamais prise pour un jeu, un enfant vidéo ou un marqueur TV
+  opposent un veto, et un token PlayStation (`PS5` contient `S5`) n'est plus lu comme
+  une saison TV — donc aucun vrai média ne disparaît du tri. L'item existant
+  `Marvels.Spider-Man.2` est masqué sans déplacement ni migration.
+
 ## [0.60.0] — 2026-07-28
 
 ### Added
