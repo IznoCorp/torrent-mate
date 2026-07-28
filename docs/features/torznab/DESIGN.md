@@ -34,7 +34,7 @@ Torznab — l'ajout d'un futur tracker doit devenir _config + doc, zéro code_.
   - catalogue complet cross-seed : `/api/torznab/all` (inclut les 0-seeders) ;
   - RSS : `/api/rss?passkey=…` (+ `freeleech=1`, `cat=<slug>`) — auth par passkey.
 - Le `.env` opérateur porte déjà des entrées `TR4KER_*` mais calquées sur le JWT
-  torr9 (`USERNAME`/`PASSWORD`) — le vrai modèle est `TR4KER_API_KEY` (+
+  torr9 (`USERNAME`/`PASSWORD`) — le modèle retenu (convention opérateur) est `TR4KER_PASSKEY` unique (+
   `TR4KER_PASSKEY` optionnelle, radar freeleech/RSS). `ANNOUNCE_URL`/`API_URL` ne
   sont consommés par aucun code (notes d'opérateur).
 - La doc brute contient la **passkey réelle en clair** → le doc de référence
@@ -59,9 +59,7 @@ mais vide de logique).
 
 ### D2 — Auth et activation Tr4ker
 
-`PROVIDER_CREDS["tr4ker"] = ["TR4KER_API_KEY"]` (gating d'activation, modèle C411),
-`PROVIDER_OPTIONAL_SECRETS["tr4ker"] = ["TR4KER_PASSKEY"]` (non-gating, RSS/radar
-R1). Recherche via `/api/torznab` (le chemin documenté non déprécié pour la
+`PROVIDER_CREDS["tr4ker"] = ["TR4KER_PASSKEY"]` (gating — convention opérateur 2026-07-28 : une seule variable, PAS de TR4KER_API_KEY ; la même valeur servira au radar RSS R1). Recherche via `/api/torznab` (le chemin documenté non déprécié pour la
 recherche) ; `/api/torznab/all` réservé à un futur cross-seed (non câblé ici,
 documenté seulement).
 
@@ -85,7 +83,7 @@ section dans architecture.md — au choix du plan). `c411-api.md` mis à jour
 ### D5 — `.env.example` synchronisé (tâche opérateur #7)
 
 Toutes les clés du `.env` réel mappées (noms seulement, jamais de valeurs) :
-`TR4KER_API_KEY`, `TR4KER_PASSKEY`, `C411_*`, `TORR9_*` marquées `# DEPRECATED
+`TR4KER_PASSKEY` (unique, convention opérateur), `C411_*`, `TORR9_*` marquées `# DEPRECATED
 (tracker closed 2026-07, replaced by tr4ker)`. Les entrées non-tracker manquantes
 sont ajoutées aussi (audit complet du delta .env → .env.example).
 

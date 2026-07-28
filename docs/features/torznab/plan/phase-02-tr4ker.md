@@ -11,7 +11,7 @@ zéro code » — la classe Tr4ker doit être ~vide (descriptor + ClassVars).
 | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `personalscraper/api/tracker/tr4ker.py`                                                                                 | **NEW** — descriptor tr4ker (base https://tr4ker.net, api_path /api/torznab)                            |
 | `personalscraper/api/_contracts.py`                                                                                     | `ProviderName.TR4KER = "tr4ker"`                                                                        |
-| `personalscraper/api/_activation.py`                                                                                    | `PROVIDER_CREDS["tr4ker"]=["TR4KER_API_KEY"]`, `PROVIDER_OPTIONAL_SECRETS["tr4ker"]=["TR4KER_PASSKEY"]` |
+| `personalscraper/api/_activation.py`                                                                                    | `PROVIDER_CREDS["tr4ker"]=["TR4KER_PASSKEY"]` (convention opérateur — correction en cours de phase ; pas d'optional secret) |
 | `personalscraper/acquire/_factory.py` (ou le site réel de construction — vérifier `tests/unit/test_tracker_factory.py`) | construction tr4ker                                                                                     |
 | `config/tracker.json5` + `config.example/tracker.json5`                                                                 | entrée tr4ker enabled:true, priority ["c411","tr4ker"], commentaires PROVIDER_CREDS à jour              |
 | `tests/unit/test_tr4ker_client.py`                                                                                      | **NEW** — descriptor + URL construction + auth param                                                    |
@@ -40,7 +40,7 @@ zéro code » — la classe Tr4ker doit être ~vide (descriptor + ClassVars).
 1. `pytest tests/unit/ -q -k "tr4ker or torznab or activation or tracker"` — vert.
 2. `python3 -m mypy personalscraper/` — 0.
 3. Boot réel : `python3 -c "..."` charge la config et construit le registry avec
-   `active_trackers=['c411','tr4ker']` (les creds TR4KER_API_KEY existent-elles dans le
+   `active_trackers=['c411','tr4ker']` (les creds TR4KER_PASSKEY existent-elles dans le
    .env ? si NON : l'activation doit proprement dégrader — tr4ker inactif + log clair —
    et la gate le constate ; l'opérateur ajoutera la clé).
 4. `pytest tests/acquire/ tests/conf/ -q` — vert.

@@ -7,8 +7,9 @@ puis ré-exercer les 7 ACC du DESIGN. Aucun verdict « conforme » sans run dat�
 
 ## Pré-requis opérateur (bloquant, à demander AVANT cette phase si absent)
 
-`TR4KER_API_KEY` dans le `.env` réel (profil Tr4ker → Mon compte → Paramètres). Sans elle,
-l'activation dégrade proprement (tr4ker inactif) et ACC-03 ne peut pas être exercé.
+`TR4KER_PASSKEY` dans le `.env` réel — DÉJÀ en place (confirmé opérateur 2026-07-28). Si la
+recherche réelle rend « error 100 Invalid API Key », la clé API du profil (Mon compte →
+Paramètres) doit remplacer la valeur actuelle de TR4KER_PASSKEY.
 
 ## Étapes
 
