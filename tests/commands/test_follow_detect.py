@@ -10,7 +10,7 @@ The final test (``test_detect_integration_enqueues_into_real_store``) is
 NON-VACUOUS: it wires a REAL :class:`ConcreteAcquireStore` behind a real
 :class:`AcquireContext` and asserts the enqueued row round-trips through the
 real DB.  It fails if anyone reverts the command to ``acquire.provider_registry``
-or to the per-series ``poll_aired(fs, ...)`` signature, because those bugs are
+or to the per-series ``poll_known(fs, ...)`` signature, because those bugs are
 invisible to the all-mock tests.
 """
 
@@ -100,11 +100,11 @@ def _run_detect(
     dry_run: bool = False,
     series_filter: str | None = None,
 ) -> None:
-    """Drive ``follow_detect`` with ``per_step_boundary`` + ``poll_aired`` patched.
+    """Drive ``follow_detect`` with ``per_step_boundary`` + ``poll_known`` patched.
 
     Args:
         app_context: The app context to yield from the boundary.
-        aired_eps: The aired episodes ``poll_aired`` returns.
+        aired_eps: The known-date episodes ``poll_known`` returns.
         dry_run: ``--dry-run`` flag value.
         series_filter: ``--series`` filter value.
     """
@@ -116,7 +116,7 @@ def _run_detect(
 
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.acquire.detect.poll_aired", return_value=aired_eps),
+        patch("personalscraper.acquire.detect.poll_known", return_value=aired_eps),
     ):
         ctx = MagicMock()
         ctx.obj.config = MagicMock()
@@ -336,14 +336,14 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
     Wires a real :class:`ConcreteAcquireStore` behind a real
     :class:`AcquireContext` and a lightweight app-context stub exposing the
     REAL attribute names (``provider_registry`` / ``event_bus`` on the
-    app_context).  ``poll_aired`` is patched to return one aired episode whose
+    app_context).  ``poll_known`` is patched to return one aired episode whose
     ``media_ref`` equals the followed series' ``media_ref`` so the command's
     ``by_ref`` map resolves it.
 
     This test fails if someone reverts the command to
     ``acquire.provider_registry`` (AttributeError on the real AcquireContext —
-    it has no such field) or to the per-series ``poll_aired(fs, ...)`` call
-    (the patched poll_aired asserts it is invoked once over the Sequence).  The
+    it has no such field) or to the per-series ``poll_known(fs, ...)`` call
+    (the patched poll_known asserts it is invoked once over the Sequence).  The
     final DB round-trip proves ``store.wanted.add`` ran through the real store
     and persisted with ``status='pending'`` and the mapped ``followed_id``.
     """
@@ -373,7 +373,7 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         app_context = SimpleNamespace(
             acquire=acquire,
             event_bus=bus,
-            provider_registry=MagicMock(),  # stub — poll_aired is patched
+            provider_registry=MagicMock(),  # stub — poll_known is patched
         )
 
         aired = AiredEpisode(
@@ -384,7 +384,7 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
             title="Better Call Saul",
         )
 
-        from personalscraper.acquire.airing import poll_aired as _real_poll  # noqa: F401
+        from personalscraper.acquire.airing import poll_known as _real_poll  # noqa: F401
         from personalscraper.commands.follow import follow_detect
 
         @contextmanager
@@ -394,13 +394,13 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         poll_spy = MagicMock(return_value=[aired])
         with (
             patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-            patch("personalscraper.acquire.detect.poll_aired", poll_spy),
+            patch("personalscraper.acquire.detect.poll_known", poll_spy),
         ):
             ctx = MagicMock()
             ctx.obj.config = MagicMock()
             follow_detect(ctx, dry_run=False, series=None)
 
-        # poll_aired was called ONCE over the active Sequence (not per series):
+        # poll_known was called ONCE over the active Sequence (not per series):
         # the first positional arg is a list/sequence containing our series.
         poll_spy.assert_called_once()
         passed_series = poll_spy.call_args[0][0]
@@ -456,7 +456,7 @@ def test_detect_resurrects_wrongfully_abandoned_episode() -> None:
     ctx.obj.config.acquire.cadence = CadenceConfig()
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.acquire.detect.poll_aired", return_value=[ep]),
+        patch("personalscraper.acquire.detect.poll_known", return_value=[ep]),
     ):
         follow_detect(ctx, dry_run=False, series=None)
 
@@ -495,7 +495,7 @@ def test_detect_past_cutoff_abandoned_stays_abandoned() -> None:
     ctx.obj.config.acquire.cadence = CadenceConfig()
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.acquire.detect.poll_aired", return_value=[ep]),
+        patch("personalscraper.acquire.detect.poll_known", return_value=[ep]),
     ):
         follow_detect(ctx, dry_run=False, series=None)
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import date
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
@@ -67,13 +68,21 @@ def compute_follow_truth(
     *,
     followed_id: int,
     media_ref: "MediaRef",
+    today: "date | None" = None,
 ) -> FollowTruth:
     """Count each five-state bucket for one followed show.
 
-    Every aired episode is passed through
+    Every AIRED episode is passed through
     :func:`~personalscraper.web.acquisition.states.derive_episode_state` with
     its own facts — ownership, its open ``wanted`` row (if any) and that row's
     last search verdict — and the result is tallied. No state is inferred here.
+
+    The FUTURE episodes the cache now stores (episode-states D1) are excluded
+    from this count entirely: the card aggregates aired episodes only, so an
+    announced episode never degrades a series' status — a show whose aired
+    episodes are all owned stays « À jour » with futures ahead. The
+    ``air_date > today`` rows are dropped at the source query below; they never
+    reach the derivation, so ``annonce`` cannot leak into ``FollowStatus``.
 
     Which row supplies those facts is NOT decided here: every row of the follow
     is handed to
@@ -88,16 +97,26 @@ def compute_follow_truth(
         checker: The library ownership checker (bulk ``owned_pairs``).
         followed_id: The ``followed_series`` row id.
         media_ref: The follow's provider IDs.
+        today: Reference date for the aired-vs-future split (episode-states D2).
+            Defaults to ``date.today()``. Cached rows with ``air_date > today``
+            are future/announced and are excluded from the card tallies.
 
     Returns:
         The :class:`FollowTruth` counts — the all-``None`` sentinel when the
-        series has no cached aired catalog (or the cache read failed), which the
-        card reads as ``non_verifie``.
+        series has no cached AIRED catalog (or the cache read failed), which the
+        card reads as ``non_verifie``. A series with ONLY future episodes cached
+        therefore reads ``non_verifie`` (no aired episode to be up to date on).
     """
+    ref_today = (today if today is not None else date.today()).isoformat()
     try:
         aired_rows = acquire_conn.execute(
-            "SELECT season, episode FROM aired_episode WHERE followed_id = ?",
-            (followed_id,),
+            # Aired-only: a future episode (air_date > today) is cached for the
+            # matrix's ``annonce`` display but is NOT a card fact. NULL/empty
+            # air_date rows are kept (legacy caches without a date read as aired,
+            # the pre-episode-states behaviour).
+            "SELECT season, episode FROM aired_episode "
+            "WHERE followed_id = ? AND (air_date IS NULL OR air_date = '' OR air_date <= ?)",
+            (followed_id, ref_today),
         ).fetchall()
     except sqlite3.Error as exc:
         logger.debug("acquisition_truth_cache_read_failed", followed_id=followed_id, error=str(exc))

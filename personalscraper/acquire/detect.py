@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from personalscraper.acquire.airing import poll_aired
+from personalscraper.acquire.airing import poll_known
 from personalscraper.acquire.cadence import is_past_cutoff
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import WantedItem
@@ -149,7 +149,7 @@ class DetectService:
         Args:
             store: The acquire store (single-writer discipline via its sub-stores).
             ownership: The library ownership port (RP6).
-            registry: The metadata provider registry ``poll_aired`` polls.
+            registry: The metadata provider registry ``poll_known`` polls.
             event_bus: The bus on which ``WantedEnqueued`` / ``FilmAcquired`` fire.
             config: The validated config (read for the cadence default).
         """
@@ -194,9 +194,13 @@ class DetectService:
         show_follows = [s for s in active if s.kind != "movie"]
         by_ref = {s.media_ref: s for s in show_follows}
 
-        aired = self._poll(show_follows, today=today)
+        # ONE poll per series (episode-states D1 + ACC-04): the widened
+        # ``poll_known`` returns every known-date episode, futures included.
+        known = self._poll(show_follows, today=today)
         if not dry_run:
-            self._persist_aired_cache(aired, by_ref, now=now)
+            # The cache stores EVERY known episode — the future ones are what the
+            # completeness matrix reads as ``annonce``.
+            self._persist_aired_cache(known, by_ref, now=now)
 
         closed_owned = 0
         if not dry_run:
@@ -212,7 +216,14 @@ class DetectService:
         counts = _MutableCounts()
         for mf in movie_follows:
             self._detect_movie(mf, actions, counts, dry_run=dry_run, now=now)
-        for ep in aired:
+        for ep in known:
+            # THE INVARIANT (episode-states D1): a future episode is cached above
+            # but is NOT searchable on trackers, so it never enters the enqueue
+            # pass — it can never become a ``wanted`` row. The <= today filter
+            # that ``poll_aired`` applies to its result is applied HERE, in
+            # memory, over the single ``poll_known`` result (no re-poll).
+            if ep.air_date > today:
+                continue
             self._detect_episode(ep, by_ref, actions, counts, dry_run=dry_run, now=now)
 
         summary = DetectSummary(
@@ -225,12 +236,17 @@ class DetectService:
         return DetectResult(DetectStatus.OK, actions, summary)
 
     def _poll(self, show_follows: "list[FollowedSeries]", *, today: "date") -> "list[AiredEpisode]":
-        """Poll aired episodes over the active shows (fail-soft → empty)."""
+        """Poll EVERY known-date episode over the active shows (fail-soft → empty).
+
+        Uses ``poll_known`` (futures included) so the cache learns announced
+        episodes; the caller applies the ``air_date <= today`` filter before the
+        enqueue pass so a future never becomes a ``wanted`` row.
+        """
         if not show_follows:
             return []
         try:
-            return poll_aired(show_follows, self._registry, today=today)
-        except Exception as exc:  # noqa: BLE001 — defensive; poll_aired is already fail-soft per series
+            return poll_known(show_follows, self._registry, today=today)
+        except Exception as exc:  # noqa: BLE001 — defensive; poll_known is already fail-soft per series
             log.warning("acquire.detect.poll_failed", error=str(exc))
             return []
 

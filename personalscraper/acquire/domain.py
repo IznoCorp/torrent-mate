@@ -71,17 +71,21 @@ class FollowedSeries:
 
 @dataclass(frozen=True)
 class AiredEpisode:
-    """A TV episode that has already aired (air-date <= today).
+    """A TV episode with a KNOWN air date — aired OR announced (episode-states D1).
 
-    Emitted by :func:`~personalscraper.acquire.airing.poll_aired`.
-    Only episodes whose ``air_date`` has passed (inclusive of today) are
-    represented here — unscheduled / future / TBA episodes are never emitted.
+    Emitted by :func:`~personalscraper.acquire.airing.poll_known` (all known
+    dates) and, filtered to the aired subset, by
+    :func:`~personalscraper.acquire.airing.poll_aired`. Only episodes with NO
+    parseable date (unscheduled / TBA / malformed) are excluded. The name is kept
+    (a rename would be pure churn); ``air_date`` carries the aired-vs-future
+    distinction, compared against ``today`` by the caller.
 
     Attributes:
         media_ref: Provider-ID key of the parent followed series (tvdb_id primary).
         season: Season number (1-based; specials / season 0 are excluded by the poller).
         episode: Episode number within the season.
-        air_date: The parsed, confirmed air-date (always a real :class:`datetime.date`).
+        air_date: The parsed air-date (always a real :class:`datetime.date`); may
+            be in the future for an announced episode.
         title: Episode title for display/logging; empty string when the provider
             did not supply one.
     """

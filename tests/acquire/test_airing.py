@@ -803,3 +803,71 @@ def test_poll_aired_chain_fallthrough_on_primary_error() -> None:
     assert secondary.get_episodes.call_count >= 1, (
         "Secondary fetcher must have been called — proves inner except continues to next fetcher"
     )
+
+
+# ---------------------------------------------------------------------------
+# episode-states D1 — poll_known returns futures too, poll_aired still filters
+# ---------------------------------------------------------------------------
+
+
+def test_poll_known_includes_future_and_aired_single_call() -> None:
+    """LOAD-BEARING (episode-states D1 + ACC-04): poll_known keeps futures, ONE call/series.
+
+    Past + today are kept (as poll_aired keeps them) AND the future is kept
+    too — the cache must know announced episodes. TBA / malformed (no parseable
+    date) stay out: without a date there is nothing to announce. The whole
+    series is polled with exactly ONE get_tv + ONE per-season episode call, so
+    widening the result never doubles the provider load (NE-DOIT-PAS-8).
+    """
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_known
+
+    TODAY = date(2024, 6, 15)
+    ep_past = _make_episode(1, 1, "2023-01-10", "Past")
+    ep_future = _make_episode(2, 1, "2025-12-31", "Future")
+    ep_today = _make_episode(3, 1, "2024-06-15", "Today")
+    ep_tba = _make_episode(4, 1, "", "TBA")
+    ep_bad = _make_episode(5, 1, "not-a-date", "Bad")
+
+    provider_seq = MagicMock()
+    provider_seq.get_episodes.return_value = [ep_past, ep_future, ep_today, ep_tba, ep_bad]
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+    registry = _make_registry(tv_provider, provider_seq)
+
+    known = poll_known([_make_series(81189, "Breaking Bad")], registry, today=TODAY)
+
+    pairs = {(e.season, e.episode): e.air_date for e in known}
+    assert pairs.get((1, 1)) == date(2023, 1, 10), "past kept"
+    assert pairs.get((1, 3)) == date(2024, 6, 15), "today kept"
+    assert pairs.get((1, 2)) == date(2025, 12, 31), "FUTURE kept — the point of D1"
+    assert (1, 4) not in pairs and (1, 5) not in pairs, "no parseable date ⇒ nothing to announce"
+
+    assert tv_provider.get_tv.call_count == 1, "one catalog call per series"
+    assert provider_seq.get_episodes.call_count == 1, "one per-season episode call — no re-poll"
+
+
+def test_poll_aired_still_excludes_futures() -> None:
+    """poll_aired stays aired-only — derived from poll_known, futures dropped."""
+    from datetime import date
+
+    from personalscraper.acquire.airing import poll_aired
+
+    TODAY = date(2024, 6, 15)
+    provider_seq = MagicMock()
+    provider_seq.get_episodes.return_value = [
+        _make_episode(1, 1, "2023-01-10", "Past"),
+        _make_episode(2, 1, "2025-12-31", "Future"),
+    ]
+    tv_provider = MagicMock()
+    details = MagicMock()
+    details.seasons = [_make_season(1)]
+    tv_provider.get_tv.return_value = details
+    registry = _make_registry(tv_provider, provider_seq)
+
+    aired = poll_aired([_make_series(81189)], registry, today=TODAY)
+
+    assert {(e.season, e.episode) for e in aired} == {(1, 1)}, "poll_aired must drop the future"

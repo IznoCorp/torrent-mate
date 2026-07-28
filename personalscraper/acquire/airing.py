@@ -1,8 +1,14 @@
 """Air-date set-poll service for the acquire lobe (RP9).
 
-Exposes :func:`poll_aired` — a stateless function that, given a set of
-followed TV series and a metadata ``ProviderRegistry``, returns the list of
-episodes that have already aired (air-date <= today).
+Exposes two stateless views over ONE provider poll (episode-states D1):
+
+- :func:`poll_known` — every episode with a known air date, future INCLUDED
+  (the ``aired_episode`` cache stores these so the matrix can show ``annonce``);
+- :func:`poll_aired` — only the episodes that have already aired
+  (``air_date <= today``), the enqueue view: a future is not searchable on
+  trackers and must never become a ``wanted`` row.
+
+``poll_aired`` filters ``poll_known``'s result — the provider is polled once.
 
 Mirrors :mod:`personalscraper.acquire.title_resolver` in structure:
 no ``AcquireContext`` handle, no store/indexer import.
@@ -81,39 +87,41 @@ def _is_aired(air_date: str, today: date) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def poll_aired(
+def poll_known(
     series: Sequence[FollowedSeries],
     registry: "ProviderRegistry",
     *,
     today: date,
 ) -> list[AiredEpisode]:
-    """Return the list of episodes that have already aired across a set of followed series.
+    """Return EVERY known-date episode across a set of followed series (episode-states D1).
+
+    Widened sibling of :func:`poll_aired`: it keeps the future episodes too
+    (``air_date > today``), which the ``aired_episode`` cache needs so the
+    completeness matrix can show them as ``annonce``. Only episodes with NO
+    parseable air date (TBA / malformed) are dropped — without a date there is
+    nothing to announce and nothing to schedule.
 
     For each series whose ``media_ref.tvdb_id`` is set, fetches the season catalog
-    via ``registry.chain(TvDetailsProvider)`` then fetches episode details per
-    non-special season (``season_number >= 1``) via ``registry.chain(EpisodeFetcher)``.
-    Episodes are filtered to those whose ``air_date`` is a known past-or-today date
-    (DESIGN §5 predicate).
+    via ``registry.chain(TvDetailsProvider)`` then the episode details per
+    non-special season (``season_number >= 1``) via ``registry.chain(EpisodeFetcher)``
+    — exactly ONE catalog call + one per-season call per series. Widening the
+    result does NOT add provider calls (NE-DOIT-PAS-8): the provider already
+    returns the full season list; this simply stops discarding the futures.
 
-    Provider chain fall-through: if the primary provider returns an empty list for a
-    season, the next provider in the chain is tried (mirrors
-    ``scraper.tv_service_episodes.fetch_season_with_fallback``).
-
-    Fail-soft: any ``ApiError``, ``CircuitOpenError``, or unexpected ``Exception``
-    per series or per season is logged at warning level and skipped — the remaining
-    series/seasons are still polled.
+    Provider chain fall-through, fail-soft per series / per season: identical to
+    :func:`poll_aired` (they share this body — ``poll_aired`` filters the result).
 
     Args:
-        series: The set of followed series to poll.  Typically the result of
-            ``store.follow.list_active()`` — RP9 does not read the store itself.
+        series: The set of followed series to poll (typically
+            ``store.follow.list_active()`` — this module never reads the store).
         registry: The live ``ProviderRegistry`` from the composition root.
-        today: Reference date (injected for determinism/testability — no hidden
-            ``date.today()`` call).
+        today: Reference date (injected for determinism; used only to stamp
+            aired-vs-future callers downstream — this function keeps both).
 
     Returns:
-        Flat list of :class:`~personalscraper.acquire.domain.AiredEpisode` objects,
-        one per aired episode found across all series.  Empty when no episodes have
-        aired or all providers are unavailable.
+        Flat list of :class:`~personalscraper.acquire.domain.AiredEpisode`, one
+        per known-date episode (aired AND announced) across all series. Empty
+        when nothing has a known date or all providers are unavailable.
     """
     result: list[AiredEpisode] = []
 
@@ -167,7 +175,10 @@ def poll_aired(
 
             for ep in episodes:
                 parsed = _parse_date(ep.air_date)
-                if parsed is not None and parsed <= today and (season_num, ep.episode_number) not in seen_pairs:
+                # Widened predicate (D1): keep every episode with a KNOWN date,
+                # future included. The <= today filter now lives in poll_aired,
+                # applied to this result — one poll, two views.
+                if parsed is not None and (season_num, ep.episode_number) not in seen_pairs:
                     seen_pairs.add((season_num, ep.episode_number))
                     result.append(
                         AiredEpisode(
@@ -180,6 +191,32 @@ def poll_aired(
                     )
 
     return result
+
+
+def poll_aired(
+    series: Sequence[FollowedSeries],
+    registry: "ProviderRegistry",
+    *,
+    today: date,
+) -> list[AiredEpisode]:
+    """Return only the episodes that have already AIRED (air_date <= today).
+
+    Derived from :func:`poll_known` — the SAME single provider poll — by dropping
+    the futures. This is the enqueue view: an unaired episode is not searchable
+    on trackers, so it must never reach the ``wanted`` queue. The ``<= today``
+    comparison is inclusive (an episode airing exactly today counts as aired).
+
+    Args:
+        series: The set of followed series to poll.
+        registry: The live ``ProviderRegistry`` from the composition root.
+        today: Reference date (injected for determinism/testability).
+
+    Returns:
+        Flat list of aired :class:`~personalscraper.acquire.domain.AiredEpisode`,
+        one per aired episode. Empty when nothing has aired or all providers are
+        unavailable.
+    """
+    return [ep for ep in poll_known(series, registry, today=today) if ep.air_date <= today]
 
 
 def _fetch_season_with_fallback(
@@ -230,4 +267,4 @@ def _fetch_season_with_fallback(
     return []
 
 
-__all__ = ["AiredEpisode", "_is_aired", "_parse_date", "poll_aired"]
+__all__ = ["AiredEpisode", "_is_aired", "_parse_date", "poll_aired", "poll_known"]

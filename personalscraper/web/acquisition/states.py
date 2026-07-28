@@ -32,6 +32,7 @@ copied here.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import date
 from typing import Literal
 
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
@@ -46,8 +47,12 @@ WantedFacts = tuple[str | None, str | None, int | None]
 #: library holds the file).
 NO_WANTED_FACTS: WantedFacts = (None, None, None)
 
-#: State of ONE aired episode (or of the single unit a followed film is).
-EpisodeState = Literal["en_mediatheque", "a_recuperer", "en_acquisition", "en_attente", "non_verifie"]
+#: State of ONE episode (or of the single unit a followed film is). ``annonce``
+#: is the episode-states addition: a future episode (air_date > today) is known
+#: to the cache but not yet aired, so it is neither owned nor searchable — it is
+#: announced. It is a MATRIX-ONLY state: the card aggregation never sees it (a
+#: future never degrades a series' status).
+EpisodeState = Literal["annonce", "en_mediatheque", "a_recuperer", "en_acquisition", "en_attente", "non_verifie"]
 
 #: State of a followed card, aggregated from its episodes. Same vocabulary as
 #: :data:`EpisodeState` (``en_mediatheque`` becoming the card-level ``a_jour``),
@@ -121,11 +126,22 @@ def derive_episode_state(
     wanted_status: str | None,
     last_search_outcome: str | None,
     last_search_found: int | None,
+    air_date: date | None = None,
+    today: date | None = None,
 ) -> EpisodeState:
-    """Derive one aired episode's state from persisted facts only.
+    """Derive one episode's state from persisted facts only.
 
     The evaluation order IS the specification — first match wins:
 
+    0. ``air_date > today`` → ``annonce``. Checked FIRST (episode-states D2): a
+       future episode is not aired, so it cannot be owned, searched or waiting —
+       whatever ownership or ``wanted`` facts happen to sit on it. This precedes
+       the ``non_verifie`` no-row path deliberately: a future has no ``wanted``
+       row, so its facts are the same all-None « never searched » facts a
+       genuinely unknown aired episode has, and only the date tells them apart.
+       Requires BOTH ``air_date`` and ``today``; when either is ``None`` (a
+       caller that does not track dates) the derivation reduces to the five
+       states below, unchanged.
     1. ``owned`` → ``en_mediatheque``. Ownership beats everything: a file on
        disk is the strongest fact we hold, so a stale ``grabbed`` row on an
        owned episode is a phantom (the Silo bug) and cannot pin the episode at
@@ -159,10 +175,16 @@ def derive_episode_state(
             …), or ``None`` when the episode was never searched.
         last_search_found: Number of TAKEABLE candidates the last search
             reported, or ``None`` when the search did not conclude.
+        air_date: The episode's air date, or ``None`` when the caller does not
+            track dates (films, and any pre-episode-states call site).
+        today: The reference date, injected for determinism (no hidden
+            ``date.today()``). ``None`` disables the ``annonce`` check.
 
     Returns:
         The episode's :data:`EpisodeState`.
     """
+    if air_date is not None and today is not None and air_date > today:
+        return "annonce"
     if owned:
         return "en_mediatheque"
     if wanted_status == "grabbed":

@@ -306,3 +306,38 @@ def test_exposed_outcome_comes_from_the_governing_row() -> None:
     episode = result.seasons[0].episodes[0]
     assert episode.state == "non_verifie"
     assert episode.last_search_outcome is None
+
+
+# ---------------------------------------------------------------------------
+# episode-states D2 — the matrix shows futures as ``annonce`` + counts them apart
+# ---------------------------------------------------------------------------
+
+
+def _cached_dated(season: int, episode: int, air_date: str) -> AiredEpisodeRow:
+    """Build a cached row with an explicit ``air_date``."""
+    return AiredEpisodeRow(followed_id=5, season=season, episode=episode, title="Ep", air_date=air_date, updated_at=1)
+
+
+def test_matrix_shows_future_as_annonce_kept_out_of_aired_tallies() -> None:
+    """A future cached episode reads ``annonce`` and is counted in ``announced`` only.
+
+    Owned/queued/total stay AIRED-only; ``annonce`` is a display state and its
+    count lives in the separate ``announced`` field — never inflating the
+    season's completeness denominator.
+    """
+    from datetime import date
+
+    ownership = MagicMock()
+    ownership.owns.side_effect = lambda ref, *, kind, season, episode: (season, episode) == (1, 1)
+    store = _store([_cached_dated(1, 1, "2024-06-01"), _cached_dated(1, 2, "2025-01-01")])
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store, today=date(2024, 6, 15))
+
+    season = result.seasons[0]
+    states = {e.episode: e.state for e in season.episodes}
+    assert states == {1: "en_mediatheque", 2: "annonce"}, "the future episode reads annonce"
+    assert season.total == 1, "total counts AIRED only"
+    assert season.owned == 1
+    assert season.announced == 1, "the future is counted apart, in announced"
+    # The announced episode still exposes its air_date for the click-to-see-date UI.
+    assert next(e.air_date for e in season.episodes if e.episode == 2) == "2025-01-01"

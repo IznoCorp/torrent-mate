@@ -35,6 +35,7 @@ read-only staging web instance.
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
@@ -86,11 +87,31 @@ def _wanted_rows_by_episode(store: object, followed_id: int) -> dict[tuple[int, 
     return by_episode
 
 
+def _parse_iso(value: str | None) -> date | None:
+    """Parse an ISO ``YYYY-MM-DD`` air-date string, tolerating garbage/None.
+
+    Args:
+        value: The cached ``air_date`` string, or ``None``.
+
+    Returns:
+        The parsed :class:`datetime.date`, or ``None`` when absent or malformed —
+        a missing date simply disables the ``annonce`` distinction for that row
+        (it derives through the five aired states, unchanged).
+    """
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
 def compute_completeness(
     followed: FollowedSeries,
     *,
     ownership: object,
     store: object,
+    today: date | None = None,
 ) -> CompletenessResponse:
     """Compute the per-season / per-episode completeness for one follow.
 
@@ -105,6 +126,11 @@ def compute_completeness(
             their lifecycle lives on the card status).
         ownership: The indexer ownership checker (``owns`` by provider id).
         store: The acquire store (aired-catalog cache + wanted-queue lookups).
+        today: Reference date for the aired-vs-future split (episode-states D2).
+            Defaults to ``date.today()``; injected in tests for determinism. A
+            cached episode whose ``air_date`` is after ``today`` reads
+            ``annonce`` and is counted in ``announced``, never in the aired
+            tallies.
 
     Returns:
         The :class:`CompletenessResponse` — never raises for a data problem
@@ -112,6 +138,7 @@ def compute_completeness(
         empty seasons with ``source="unknown"``: honest ignorance rather than a
         fabricated all-missing matrix.
     """
+    ref_today = today if today is not None else date.today()
     if followed.kind == "movie" or followed.id is None:
         return CompletenessResponse(
             followed_id=followed.id or 0,
@@ -184,6 +211,9 @@ def compute_completeness(
                     wanted_status=wanted_status,
                     last_search_outcome=last_search_outcome,
                     last_search_found=last_search_found,
+                    # episode-states D2: a future cached episode reads ``annonce``.
+                    air_date=_parse_iso(row.air_date),
+                    today=ref_today,
                 ),
                 # The SAME verdict the state was derived from — exposed (never
                 # re-read from another row) so the UI can explain the wait in
@@ -197,7 +227,11 @@ def compute_completeness(
             season=season,
             owned=sum(1 for e in eps if e.state == "en_mediatheque"),
             queued=sum(1 for e in eps if e.state in ("a_recuperer", "en_acquisition")),
-            total=len(eps),
+            # ``total`` counts AIRED episodes only — the announced futures are
+            # tallied separately (episode-states D2) so they never inflate the
+            # season's completeness denominator.
+            total=sum(1 for e in eps if e.state != "annonce"),
+            announced=sum(1 for e in eps if e.state == "annonce"),
             episodes=eps,
         )
         # Newest season first — the operator's eye goes to the current season.
