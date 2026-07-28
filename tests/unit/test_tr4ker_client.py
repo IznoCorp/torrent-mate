@@ -239,7 +239,7 @@ class TestTr4kerActivation:
         assert "TR4KER_PASSKEY" in caplog.text
 
     def test_login_credentials_are_not_wired(self) -> None:
-        """TR4KER_USERNAME / TR4KER_PASSWORD are torr9 leftovers — never required."""
+        """TR4KER_USERNAME / TR4KER_PASSWORD are decommissioned-tracker leftovers — never required."""
         assert "TR4KER_USERNAME" not in PROVIDER_CREDS["tr4ker"]
         assert "TR4KER_PASSWORD" not in PROVIDER_CREDS["tr4ker"]
 

@@ -312,7 +312,7 @@ def test_audio_regex_multi_exact_match_works() -> None:
 
 
 # ---------------------------------------------------------------------------
-# TMDB identity filter (wires torr9's tmdb_id into matching)
+# TMDB identity filter (wires a tracker result's tmdb_id into matching)
 # ---------------------------------------------------------------------------
 
 

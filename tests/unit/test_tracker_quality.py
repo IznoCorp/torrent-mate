@@ -1,15 +1,15 @@
-"""Shared tracker title-quality parser — symmetry across lacale/c411/torr9.
+"""Shared tracker title-quality parser — symmetry across lacale/c411/tr4ker.
 
-TORRENT-TRACKERS-03: the three tracker clients encode quality markers
+TORRENT-TRACKERS-03: every tracker client encodes quality markers
 (resolution, codec, source, audio, container format) in the release *title*,
-not as structured fields. They now all feed the single shared parser
+not as structured fields. They all feed the single shared parser
 :func:`personalscraper.api.tracker._quality.parse_title_quality`. Before this,
-torr9 parsed nothing (all quality fields left ``None``) and c411 reached across
-the family boundary into ``LaCaleClient._parse_title``.
+one client parsed nothing (all quality fields left ``None``) and c411 reached
+across the family boundary into ``LaCaleClient._parse_title``.
 
 These tests prove (a) the parser extracts the expected tokens and (b) each
 client's ``_parse_item`` surfaces the SAME tokens on a shared title fixture —
-in particular torr9, which previously dropped them.
+including the Torznab configs, which share one parser through the generic.
 """
 
 from __future__ import annotations
@@ -21,8 +21,7 @@ import pytest
 from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.tracker.lacale import LaCaleClient
-from personalscraper.api.tracker.torr9 import Torr9Client
-from personalscraper.core.event_bus import EventBus
+from personalscraper.api.tracker.tr4ker import Tr4kerClient
 
 # Shared title fixtures spanning the token families the ranker consumes.
 _SHARED_TITLES = [
@@ -36,9 +35,9 @@ _SHARED_TITLES = [
 _QUALITY_FIELDS = ("resolution", "codec", "source", "audio", "format")
 
 
-def _torr9_result_quality(title: str) -> dict[str, str | None]:
-    client = Torr9Client(username="u", password="p", event_bus=EventBus())
-    r = client._parse_item({"title": title, "id": "1", "file_size_bytes": 100})
+def _tr4ker_result_quality(title: str) -> dict[str, str | None]:
+    client = Tr4kerClient(MagicMock())
+    r = client._parse_item({"title": title, "guid": "hash"})
     return {f: getattr(r, f) for f in _QUALITY_FIELDS}
 
 
@@ -84,19 +83,23 @@ class TestTrackerQualityParser:
 
 
 class TestTrackerQualitySymmetry:
-    """torr9/lacale/c411 surface the SAME quality tokens on a shared title."""
+    """lacale/c411/tr4ker surface the SAME quality tokens on a shared title."""
 
     @pytest.mark.parametrize("title", _SHARED_TITLES)
     def test_all_three_clients_agree_with_shared_parser(self, title: str) -> None:
         """Each client's _parse_item surfaces the same tokens as the shared parser."""
         expected = {f: parse_title_quality(title).get(f) for f in _QUALITY_FIELDS}
-        assert _torr9_result_quality(title) == expected
+        assert _tr4ker_result_quality(title) == expected
         assert _lacale_result_quality(title) == expected
         assert _c411_result_quality(title) == expected
 
-    def test_torr9_now_parses_quality_tokens(self) -> None:
-        """Regression: torr9 previously left every quality field None."""
-        quality = _torr9_result_quality(_SHARED_TITLES[0])
+    def test_every_client_parses_quality_tokens(self) -> None:
+        """Regression: a tracker client must never leave the quality fields None.
+
+        The historical regression (one client dropped every quality token,
+        silently starving the ranker) is pinned here on the newest client.
+        """
+        quality = _tr4ker_result_quality(_SHARED_TITLES[0])
         assert quality["resolution"] == "2160p"
         assert quality["codec"] == "H265"
         assert quality["source"] is not None

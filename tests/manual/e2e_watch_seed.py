@@ -30,7 +30,7 @@ Usage examples::
 
     python tests/manual/e2e_watch_seed.py env
     python tests/manual/e2e_watch_seed.py layout --hash f9afc9d9a271
-    python tests/manual/e2e_watch_seed.py match --enable-tracker c411 --enable-tracker torr9 --limit 5
+    python tests/manual/e2e_watch_seed.py match --enable-tracker c411 --enable-tracker tr4ker --limit 5
     python tests/manual/e2e_watch_seed.py watch-decide
     python tests/manual/e2e_watch_seed.py inject --hash <H> --enable-tracker c411 --confirm-inject
 """

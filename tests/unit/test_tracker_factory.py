@@ -535,13 +535,12 @@ class TestTrackerConstructibleConformance:
     """
 
     def test_all_real_clients_expose_from_env(self) -> None:
-        """Lacale / c411 / torr9 / tr4ker all expose a callable from_env classmethod."""
+        """Lacale / c411 / tr4ker all expose a callable from_env classmethod."""
         from personalscraper.api.tracker.c411 import C411Client  # noqa: PLC0415
         from personalscraper.api.tracker.lacale import LaCaleClient  # noqa: PLC0415
-        from personalscraper.api.tracker.torr9 import Torr9Client  # noqa: PLC0415
         from personalscraper.api.tracker.tr4ker import Tr4kerClient  # noqa: PLC0415
 
-        for cls in (LaCaleClient, C411Client, Torr9Client, Tr4kerClient):
+        for cls in (LaCaleClient, C411Client, Tr4kerClient):
             assert hasattr(cls, "from_env"), f"{cls.__name__} missing from_env"
             assert callable(cls.from_env)
 

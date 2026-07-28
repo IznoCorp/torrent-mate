@@ -10,10 +10,11 @@ Verifies:
 - A client with no ``_open_transport`` (peek → None) is skipped gracefully.
 - A ``transport.close()`` that raises is swallowed (does not propagate).
 - All transports are attempted even when one raises.
-- A torr9-style client that has NOT logged in (``_open_transport`` is ``None``)
+- A login-style client that has NOT logged in (``_open_transport`` is ``None``)
   is skipped WITHOUT ever accessing its login-triggering ``_transport`` —
   proving teardown peeks only and fires no spurious bootstrap login. The other
-  plain-attribute clients are still closed.
+  plain-attribute clients are still closed. No tracker wired today is
+  login-style, so this stub IS the contract for the next one.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from personalscraper.api.tracker._registry import TrackerRegistry
 
 
 class _NotLoggedInClient:
-    """torr9-style client that has NOT logged in yet.
+    """Login-style client that has NOT logged in yet.
 
     ``_open_transport`` is the non-triggering peek → ``None`` (no transport
     materialized). The login-triggering ``_transport`` property RAISES if the
@@ -145,20 +146,20 @@ class TestTrackerRegistryClose:
         assert "tracker_transport_close_failed" not in logged
 
     def test_not_logged_in_client_is_skipped_without_triggering_login(self) -> None:
-        """A torr9-style not-logged-in client is skipped without accessing its _transport.
+        """A not-logged-in login-style client is skipped without accessing its _transport.
 
-        torr9's ``_transport`` is a lazy PROPERTY that triggers a bootstrap login on
-        first access. A read-only command can tear the registry down before torr9
-        ever logged in. close() peeks ``_open_transport`` (→ None here), so the
+        Such a client's ``_transport`` is a lazy PROPERTY that triggers a bootstrap
+        login on first access. A read-only command can tear the registry down before
+        it ever logged in. close() peeks ``_open_transport`` (→ None here), so the
         login-triggering ``_transport`` is NEVER accessed (it raises if touched) —
         proving NO spurious bootstrap login is fired at teardown. The other
         plain-attribute clients are STILL closed.
         """
         lazy = _NotLoggedInClient()
         healthy = _stub_client("lacale")
-        registry = _make_registry({"torr9": lazy, "lacale": healthy})
+        registry = _make_registry({"lazy": lazy, "lacale": healthy})
 
-        registry.close()  # must NOT raise and must NOT access torr9._transport
+        registry.close()  # must NOT raise and must NOT access lazy._transport
 
         # The healthy plain-attribute client was STILL closed:
         healthy._open_transport.close.assert_called_once()
