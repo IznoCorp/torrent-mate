@@ -581,7 +581,7 @@ describe("AcquisitionPage", () => {
     // The manual add-by-ID form is a collapsed accordion (secondary to the
     // primary title search) — expand it before asserting its inputs.
     fireEvent.click(
-      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+      screen.getByRole("button", { name: /Ajouter par ID/ }),
     );
 
     expect(screen.getByLabelText("ID TVDB")).toBeInTheDocument();
@@ -593,7 +593,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(
-      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+      screen.getByRole("button", { name: /Ajouter par ID/ }),
     );
 
     fireEvent.change(screen.getByLabelText("ID TVDB"), {
@@ -617,7 +617,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(
-      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+      screen.getByRole("button", { name: /Ajouter par ID/ }),
     );
 
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
@@ -1152,7 +1152,7 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
     fireEvent.click(
-      screen.getByRole("button", { name: /Ajouter par ID TVDB/ }),
+      screen.getByRole("button", { name: /Ajouter par ID/ }),
     );
 
     const tvdbInput = screen.getByLabelText("ID TVDB");

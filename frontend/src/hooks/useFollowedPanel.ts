@@ -36,6 +36,36 @@ import {
 } from "@/hooks/useAcquisition";
 import { useSchedulers } from "@/hooks/useSchedulers";
 
+/** The provider an add-by-id follow targets. */
+export type FollowProvider = "tvdb" | "tmdb" | "imdb";
+
+/** An IMDb id is ``tt`` followed by digits (e.g. ``tt0137523``). */
+const IMDB_ID_RE = /^tt\d+$/;
+
+/**
+ * Build the follow body for an add-by-id submit, or ``null`` when the id is
+ * invalid for the provider (TVDB/TMDB → positive int, IMDB → ``tt\d+``).
+ *
+ * The form is series-only (``kind: 'show'``) — a TVDB id is a series id, and a
+ * film is followed from the search cards which carry ``kind: 'movie'``. The
+ * server resolves TVDB from a TMDB/IMDB series so detection works.
+ */
+export function buildIdFollowBody(
+  provider: FollowProvider,
+  rawId: string,
+): CreateFollowRequest | null {
+  const value = rawId.trim();
+  if (!value) return null;
+  if (provider === "imdb") {
+    return IMDB_ID_RE.test(value) ? { imdb_id: value, kind: "show" } : null;
+  }
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric <= 0) return null;
+  return provider === "tvdb"
+    ? { tvdb_id: numeric, kind: "show" }
+    : { tmdb_id: numeric, kind: "show" };
+}
+
 /** Everything {@link FollowedPanel} needs to render + drive the "Suivis" tab. */
 export interface FollowedPanelMachine {
   /**
@@ -45,16 +75,22 @@ export interface FollowedPanelMachine {
   readonly grabSchedule: string | null;
 
   // ---- Add-by-id form ----
-  /** Add-form TVDB id input value. */
-  readonly tvdbId: string;
-  /** Set the add-form TVDB id. */
-  readonly setTvdbId: (value: string) => void;
+  /** Which provider the add-by-id form targets. */
+  readonly provider: FollowProvider;
+  /** Set the add-form provider (resets nothing; the id is re-validated). */
+  readonly setProvider: (value: FollowProvider) => void;
+  /** Add-form id input value (int text for TVDB/TMDB, ``tt…`` for IMDB). */
+  readonly idValue: string;
+  /** Set the add-form id value. */
+  readonly setIdValue: (value: string) => void;
   /** Add-form title input value. */
   readonly title: string;
   /** Set the add-form title. */
   readonly setTitle: (value: string) => void;
-  /** Submit the add-by-TVDB-id form (series-only). */
+  /** Submit the add-by-id form (series-only; a TVDB/TMDB/IMDB id). */
   readonly handleAdd: () => void;
+  /** ``true`` when the current id value is valid for the selected provider. */
+  readonly addValid: boolean;
   /** ``true`` while a follow (add) mutation is in flight. */
   readonly followPending: boolean;
 
@@ -208,7 +244,8 @@ export function useFollowedPanel(): FollowedPanelMachine {
   });
 
   // Add-form state
-  const [tvdbId, setTvdbId] = useState("");
+  const [provider, setProvider] = useState<FollowProvider>("tvdb");
+  const [idValue, setIdValue] = useState("");
   const [title, setTitle] = useState("");
 
   // Edit-cadence dialog state
@@ -216,16 +253,20 @@ export function useFollowedPanel(): FollowedPanelMachine {
   const [editInterval, setEditInterval] = useState("");
 
   const handleAdd = (): void => {
-    const tvdb = tvdbId.trim() ? Number(tvdbId.trim()) : null;
-    if (tvdb === null || !Number.isFinite(tvdb)) return;
-    // The manual add-by-TVDB-id form is series-only (a TVDB id is a series id);
-    // films are followed from the search cards, which carry kind='movie'.
-    const body: CreateFollowRequest = { tvdb_id: tvdb, kind: "show" };
+    const body = buildIdFollowBody(provider, idValue);
+    if (body === null) return;
     if (title.trim()) body.title = title.trim();
     followMutation.mutate(body, {
-      onSuccess: () => {
-        setTvdbId("");
+      onSuccess: (created) => {
+        setIdValue("");
         setTitle("");
+        // Non-silent fail-soft (§méthode): a TMDB/IMDB series whose TVDB id
+        // could not be resolved is followed but not yet detectable — warn.
+        if (created.tvdb_unresolved) {
+          toast.warning(
+            "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
+          );
+        }
       },
     });
   };
@@ -261,11 +302,14 @@ export function useFollowedPanel(): FollowedPanelMachine {
 
   return {
     grabSchedule,
-    tvdbId,
-    setTvdbId,
+    provider,
+    setProvider,
+    idValue,
+    setIdValue,
     title,
     setTitle,
     handleAdd,
+    addValid: buildIdFollowBody(provider, idValue) !== null,
     followPending: followMutation.isPending,
     triggerSearch: (id: number) => {
       triggerMutation.mutate(id);

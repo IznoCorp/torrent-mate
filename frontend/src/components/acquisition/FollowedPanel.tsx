@@ -90,11 +90,14 @@ export function FollowedPanel({
 }: FollowedPanelProps): ReactElement {
   const {
     grabSchedule,
-    tvdbId,
-    setTvdbId,
+    provider,
+    setProvider,
+    idValue,
+    setIdValue,
     title,
     setTitle,
     handleAdd,
+    addValid,
     followPending,
     triggerSearch,
     triggerPendingId,
@@ -141,43 +144,77 @@ export function FollowedPanel({
   // Manual add-by-ID is the power-user fallback to the primary title search
   // above; collapsed by default so it does not compete with it. Inputs stack on
   // mobile (ID, then title, then a full-width Suivre) and inline on sm+.
+  const idLabel =
+    provider === "imdb"
+      ? "ID IMDB"
+      : provider === "tmdb"
+        ? "ID TMDB"
+        : "ID TVDB";
+  const idPlaceholder =
+    provider === "imdb"
+      ? "ex: tt0903747"
+      : provider === "tmdb"
+        ? "ex: 1399"
+        : "ex: 255968";
   const addForm = (
     <Accordion className="rounded-lg border border-border bg-card px-3">
       <AccordionItem>
-        <AccordionTrigger>Ajouter par ID TVDB</AccordionTrigger>
+        <AccordionTrigger>Ajouter par ID</AccordionTrigger>
         <AccordionContent>
-          <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-end">
-            <div className="flex flex-col gap-1 sm:w-36">
-              <Label htmlFor="follow-tvdb-id">ID TVDB</Label>
-              <Input
-                id="follow-tvdb-id"
-                type="number"
-                placeholder="ex: 255968"
-                value={tvdbId}
-                onChange={(e) => {
-                  setTvdbId(e.target.value);
-                }}
-              />
+          <div className="flex flex-col gap-3 pb-3">
+            {/* Provider selector — a TVDB/TMDB id is an int, an IMDb id is
+                ``tt…``. The server resolves TVDB from a TMDB/IMDB series so
+                episode detection works (series-only form). */}
+            <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
+              {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
+                <Button
+                  key={p}
+                  type="button"
+                  size="sm"
+                  className="flex-1 sm:flex-none"
+                  variant={provider === p ? "default" : "ghost"}
+                  onClick={() => {
+                    setProvider(p);
+                  }}
+                >
+                  {p.toUpperCase()}
+                </Button>
+              ))}
             </div>
-            <div className="flex flex-1 flex-col gap-1">
-              <Label htmlFor="follow-title">Titre (optionnel)</Label>
-              <Input
-                id="follow-title"
-                type="text"
-                placeholder="ex: Top Chef"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                }}
-              />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex flex-col gap-1 sm:w-40">
+                <Label htmlFor="follow-id">{idLabel}</Label>
+                <Input
+                  id="follow-id"
+                  type={provider === "imdb" ? "text" : "number"}
+                  inputMode={provider === "imdb" ? "text" : "numeric"}
+                  placeholder={idPlaceholder}
+                  value={idValue}
+                  onChange={(e) => {
+                    setIdValue(e.target.value);
+                  }}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1">
+                <Label htmlFor="follow-title">Titre (optionnel)</Label>
+                <Input
+                  id="follow-title"
+                  type="text"
+                  placeholder="ex: Top Chef"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                  }}
+                />
+              </div>
+              <Button
+                className="w-full sm:w-auto sm:shrink-0"
+                disabled={!addValid || followPending}
+                onClick={handleAdd}
+              >
+                {followPending ? "Ajout…" : "Suivre"}
+              </Button>
             </div>
-            <Button
-              className="w-full sm:w-auto sm:shrink-0"
-              disabled={!tvdbId.trim() || followPending}
-              onClick={handleAdd}
-            >
-              {followPending ? "Ajout…" : "Suivre"}
-            </Button>
           </div>
         </AccordionContent>
       </AccordionItem>
@@ -198,8 +235,8 @@ export function FollowedPanel({
         {addForm}
         <div className="py-8 text-center">
           <p className="text-muted-foreground">
-            Aucune série suivie. Ajoutez une série avec son identifiant TVDB
-            pour commencer.
+            Aucune série suivie. Ajoutez une série avec son identifiant TVDB,
+            TMDB ou IMDB pour commencer.
           </p>
         </div>
       </div>
