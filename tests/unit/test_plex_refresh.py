@@ -31,6 +31,7 @@ import pytest
 import requests
 import structlog
 
+import personalscraper.api.plex as _plex_api
 from personalscraper.api.plex import PlexClient, PlexSection
 from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.events import ItemDispatched
@@ -511,6 +512,20 @@ def test_parse_sections_tolerates_garbage() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _api_logger_name() -> str:
+    """Return the client's stdlib logger name, read from the module itself.
+
+    Spelling it out would be a trap: it is ``"api.plex"``, NOT
+    ``"personalscraper.api.plex"``, and capturing the wrong name yields an empty
+    buffer that makes every token assertion pass vacuously. Resolved at call
+    time because the structlog binding only carries a name once the session
+    fixture has run ``configure_logging()``.
+    """
+    name: str = _plex_api.log.name
+    assert name, "the client's logger must be resolvable, else the captures are vacuous"
+    return name
+
+
 @contextlib.contextmanager
 def _rendered_console(logger_name: str) -> Iterator[io.StringIO]:
     """Capture one logger's output through the renderer PRODUCTION uses.
@@ -619,12 +634,16 @@ class TestTokenNeverReachesRenderedOutput:
 
         with (
             _rendered_console("personalscraper.subscribers.plex") as sub_buf,
-            _rendered_console("personalscraper.api.plex") as api_buf,
+            _rendered_console(_api_logger_name()) as api_buf,
         ):
             subscriber._refresh(target)
 
         rendered = _visible_text(sub_buf) + _visible_text(api_buf)
         assert session.calls == 1
+        # Non-vacuity: the client MUST have reported the failure through the
+        # captured logger. Without this the assertions below would pass on an
+        # empty buffer if the logger were ever renamed.
+        assert "plex.refresh_unreachable" in rendered
         assert _TOKEN not in rendered, "the Plex token was rendered to the console"
         assert "X-Plex-Token" not in rendered
 
@@ -638,7 +657,7 @@ class TestTokenNeverReachesRenderedOutput:
 
         with (
             _rendered_console("personalscraper.subscribers.plex") as sub_buf,
-            _rendered_console("personalscraper.api.plex") as api_buf,
+            _rendered_console(_api_logger_name()) as api_buf,
         ):
             bus.emit(
                 ItemDispatched(
@@ -655,6 +674,7 @@ class TestTokenNeverReachesRenderedOutput:
                     thread.join(5)
 
         rendered = _visible_text(sub_buf) + _visible_text(api_buf)
+        assert "plex.refresh_unreachable" in rendered, "the worker thread must have reported the failure"
         assert _TOKEN not in rendered, "the Plex token was rendered to the console"
 
 
