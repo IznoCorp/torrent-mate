@@ -33,14 +33,16 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "transmission": ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"],
     "lacale": ["LACALE_API_KEY"],
     "c411": ["C411_API_KEY"],
-    # Tr4ker follows the operator's single-secret convention: ONE
-    # ``TR4KER_PASSKEY`` env var, whose value is sent as the Torznab ``apikey=``
-    # query param (and will also authenticate the RSS feed of the freeleech
-    # radar R1) — hence no tr4ker entry in PROVIDER_OPTIONAL_SECRETS. The
+    # Tr4ker separates its two secrets, like every other api-key tracker here:
+    # ``TR4KER_API_KEY`` authenticates API requests (sent as the Torznab
+    # ``apikey=`` query param — live-verified against ``t=caps`` 2026-07-28), so
+    # it is what gates activation; ``TR4KER_PASSKEY`` is the announce passkey
+    # embedded in the .torrent files and identifies the account — it never
+    # authenticates the search API and lives in PROVIDER_OPTIONAL_SECRETS. The
     # TR4KER_USERNAME / TR4KER_PASSWORD entries found in older .env files are
     # leftovers from a decommissioned login-style tracker and are deliberately
     # not wired.
-    "tr4ker": ["TR4KER_PASSKEY"],
+    "tr4ker": ["TR4KER_API_KEY"],
     "telegram": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
     "healthchecks": ["HEALTHCHECK_URL"],
 }
@@ -97,10 +99,11 @@ PROVIDER_OPTIONAL_SECRETS: dict[str, list[str]] = {
     # Seed-Safety O2) decide what to do with a missing value.
     "lacale": ["LACALE_PASSKEY"],
     "c411": ["C411_PASSKEY"],
-    # No ``tr4ker`` entry on purpose: its single ``TR4KER_PASSKEY`` is already an
-    # ACTIVATION-GATING credential in PROVIDER_CREDS (it is the value sent as
-    # ``apikey=``), and the same value will serve the RSS side of the freeleech
-    # radar R1 — declaring it here too would make a gating secret look optional.
+    # Tr4ker's passkey is the announce credential embedded in its .torrent files
+    # (it identifies the account, it does NOT authenticate the search API — that
+    # is TR4KER_API_KEY in PROVIDER_CREDS). Non-gating: it will feed the RSS
+    # freeleech radar R1, and its absence must never deactivate the tracker.
+    "tr4ker": ["TR4KER_PASSKEY"],
 }
 
 

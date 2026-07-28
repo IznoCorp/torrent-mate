@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
+  <channel>
+    <atom:link href="https://tr4ker.net/torznab?apikey=REDACTED_API_KEY&amp;t=tvsearch&amp;q=Furious+S01E01" rel="self" type="application/rss+xml"/>
+    <title>TR4KER</title>
+    <description>TR4KER — Torznab feed</description>
+    <link>https://tr4ker.net</link>
+    <language>fr-fr</language>
+    <newznab:response offset="0" total="6"/>
+    <torznab:response offset="0" total="6"/>
+    <item>
+      <title>Furious.S01E01.MULTi.1080p.WEB.EAC3.5.1.H264-SUPPLY</title>
+      <guid isPermaLink="true">https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-eac3-5-1-h264-supply-b4e83b4e</guid>
+      <comments>https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-eac3-5-1-h264-supply-b4e83b4e</comments>
+      <link>https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-eac3-5-1-h264-supply-b4e83b4e/download?apikey=REDACTED_API_KEY</link>
+      <pubDate>Tue, 28 Jul 2026 04:21:16 +0000</pubDate>
+      <enclosure url="https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-eac3-5-1-h264-supply-b4e83b4e/download?apikey=REDACTED_API_KEY" length="2073464381" type="application/x-bittorrent"/>
+      <torznab:attr name="category" value="5000"/>
+      <torznab:attr name="size" value="2073464381"/>
+      <torznab:attr name="seeders" value="34"/>
+      <torznab:attr name="leechers" value="3"/>
+      <torznab:attr name="peers" value="37"/>
+      <torznab:attr name="grabs" value="42"/>
+      <torznab:attr name="infohash" value="b4e83b4ef9356f86a1469bfdd73e718347d9f153"/>
+      <torznab:attr name="downloadvolumefactor" value="1"/>
+      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <torznab:attr name="tmdbid" value="287238"/>
+      <torznab:attr name="season" value="1"/>
+      <torznab:attr name="episode" value="1"/>
+    </item>
+    <item>
+      <title>Furious.S01E01.MULTi.2160p.WEB.10bits.DV.HDR10.EAC3.5.1.H265-GL0P</title>
+      <guid isPermaLink="true">https://tr4ker.net/torrent/furious-s01e01-multi-2160p-web-10bits-dv-hdr10-eac3-5-1-h265-gl0p-bcb1dd9e</guid>
+      <comments>https://tr4ker.net/torrent/furious-s01e01-multi-2160p-web-10bits-dv-hdr10-eac3-5-1-h265-gl0p-bcb1dd9e</comments>
+      <link>https://tr4ker.net/api/torrents/furious-s01e01-multi-2160p-web-10bits-dv-hdr10-eac3-5-1-h265-gl0p-bcb1dd9e/download?apikey=REDACTED_API_KEY</link>
+      <pubDate>Mon, 27 Jul 2026 18:22:15 +0000</pubDate>
+      <enclosure url="https://tr4ker.net/api/torrents/furious-s01e01-multi-2160p-web-10bits-dv-hdr10-eac3-5-1-h265-gl0p-bcb1dd9e/download?apikey=REDACTED_API_KEY" length="4287339434" type="application/x-bittorrent"/>
+      <torznab:attr name="category" value="5000"/>
+      <torznab:attr name="size" value="4287339434"/>
+      <torznab:attr name="seeders" value="18"/>
+      <torznab:attr name="leechers" value="3"/>
+      <torznab:attr name="peers" value="21"/>
+      <torznab:attr name="grabs" value="30"/>
+      <torznab:attr name="infohash" value="bcb1dd9ebb5e5b58b0fc5e883dcc3e5b75239897"/>
+      <torznab:attr name="downloadvolumefactor" value="1"/>
+      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <torznab:attr name="tmdbid" value="287238"/>
+      <torznab:attr name="season" value="1"/>
+      <torznab:attr name="episode" value="1"/>
+    </item>
+    <item>
+      <title>Furious.S01E01.MULTi.VFF.1080p.WEB.EAC3.5.1.H264-FRQC</title>
+      <guid isPermaLink="true">https://tr4ker.net/torrent/furious-s01e01-multi-vff-1080p-web-eac3-5-1-h264-frqc-58aa0bbb</guid>
+      <comments>https://tr4ker.net/torrent/furious-s01e01-multi-vff-1080p-web-eac3-5-1-h264-frqc-58aa0bbb</comments>
+      <link>https://tr4ker.net/api/torrents/furious-s01e01-multi-vff-1080p-web-eac3-5-1-h264-frqc-58aa0bbb/download?apikey=REDACTED_API_KEY</link>
+      <pubDate>Mon, 27 Jul 2026 15:02:44 +0000</pubDate>
+      <enclosure url="https://tr4ker.net/api/torrents/furious-s01e01-multi-vff-1080p-web-eac3-5-1-h264-frqc-58aa0bbb/download?apikey=REDACTED_API_KEY" length="2120441786" type="application/x-bittorrent"/>
+      <torznab:attr name="category" value="5000"/>
+      <torznab:attr name="size" value="2120441786"/>
+      <torznab:attr name="seeders" value="22"/>
+      <torznab:attr name="leechers" value="0"/>
+      <torznab:attr name="peers" value="22"/>
+      <torznab:attr name="grabs" value="66"/>
+      <torznab:attr name="infohash" value="58aa0bbb6ede5152be5935d2f1fa9e5b8ec874bd"/>
+      <torznab:attr name="downloadvolumefactor" value="1"/>
+      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <torznab:attr name="tmdbid" value="287238"/>
+      <torznab:attr name="season" value="1"/>
+      <torznab:attr name="episode" value="1"/>
+    </item>
+    <item>
+      <title>Furious.S01E01.MULTi.1080p.WEB.EAC3.5.1.H264-GL0P</title>
+      <guid isPermaLink="true">https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-eac3-5-1-h264-gl0p-e18713b3</guid>
+      <comments>https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-eac3-5-1-h264-gl0p-e18713b3</comments>
+      <link>https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-eac3-5-1-h264-gl0p-e18713b3/download?apikey=REDACTED_API_KEY</link>
+      <pubDate>Mon, 27 Jul 2026 15:02:09 +0000</pubDate>
+      <enclosure url="https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-eac3-5-1-h264-gl0p-e18713b3/download?apikey=REDACTED_API_KEY" length="2026476045" type="application/x-bittorrent"/>
+      <torznab:attr name="category" value="5000"/>
+      <torznab:attr name="size" value="2026476045"/>
+      <torznab:attr name="seeders" value="16"/>
+      <torznab:attr name="leechers" value="0"/>
+      <torznab:attr name="peers" value="16"/>
+      <torznab:attr name="grabs" value="41"/>
+      <torznab:attr name="infohash" value="e18713b32b23897b6a4422a38a6f370d923dfbf9"/>
+      <torznab:attr name="downloadvolumefactor" value="1"/>
+      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <torznab:attr name="tmdbid" value="287238"/>
+      <torznab:attr name="season" value="1"/>
+      <torznab:attr name="episode" value="1"/>
+    </item>
+    <item>
+      <title>Furious.S01E01.MULTi.1080p.WEB.10bits.EAC3.5.1.H265-GL0P</title>
+      <guid isPermaLink="true">https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-10bits-eac3-5-1-h265-gl0p-d837585f</guid>
+      <comments>https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-10bits-eac3-5-1-h265-gl0p-d837585f</comments>
+      <link>https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-10bits-eac3-5-1-h265-gl0p-d837585f/download?apikey=REDACTED_API_KEY</link>
+      <pubDate>Mon, 27 Jul 2026 10:34:52 +0000</pubDate>
+      <enclosure url="https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-10bits-eac3-5-1-h265-gl0p-d837585f/download?apikey=REDACTED_API_KEY" length="1610378979" type="application/x-bittorrent"/>
+      <torznab:attr name="category" value="5000"/>
+      <torznab:attr name="size" value="1610378979"/>
+      <torznab:attr name="seeders" value="100"/>
+      <torznab:attr name="leechers" value="0"/>
+      <torznab:attr name="peers" value="100"/>
+      <torznab:attr name="grabs" value="217"/>
+      <torznab:attr name="infohash" value="d837585ffee75866738b757cca372bb39a694853"/>
+      <torznab:attr name="downloadvolumefactor" value="1"/>
+      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <torznab:attr name="tmdbid" value="287238"/>
+      <torznab:attr name="season" value="1"/>
+      <torznab:attr name="episode" value="1"/>
+    </item>
+    <item>
+      <title>Furious.S01E01.MULTi.1080p.WEB.EAC3.5.1.H264-higgsboson</title>
+      <guid isPermaLink="true">https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-eac3-5-1-h264-higgsboson-185a593c</guid>
+      <comments>https://tr4ker.net/torrent/furious-s01e01-multi-1080p-web-eac3-5-1-h264-higgsboson-185a593c</comments>
+      <link>https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-eac3-5-1-h264-higgsboson-185a593c/download?apikey=REDACTED_API_KEY</link>
+      <pubDate>Mon, 27 Jul 2026 09:12:55 +0000</pubDate>
+      <enclosure url="https://tr4ker.net/api/torrents/furious-s01e01-multi-1080p-web-eac3-5-1-h264-higgsboson-185a593c/download?apikey=REDACTED_API_KEY" length="2026419428" type="application/x-bittorrent"/>
+      <torznab:attr name="category" value="5000"/>
+      <torznab:attr name="size" value="2026419428"/>
+      <torznab:attr name="seeders" value="23"/>
+      <torznab:attr name="leechers" value="0"/>
+      <torznab:attr name="peers" value="23"/>
+      <torznab:attr name="grabs" value="45"/>
+      <torznab:attr name="infohash" value="185a593c2edfcc76b4e7533f31b0bb4a30abafc4"/>
+      <torznab:attr name="downloadvolumefactor" value="1"/>
+      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <torznab:attr name="tmdbid" value="287238"/>
+      <torznab:attr name="season" value="1"/>
+      <torznab:attr name="episode" value="1"/>
+    </item>
+  </channel>
+</rss>

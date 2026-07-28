@@ -17,18 +17,17 @@ See ``docs/reference/tr4ker-api.md`` for the endpoint reference.
 Tr4ker particularities (from the tracker's own Prowlarr/Torznab documentation):
 - Natively Torznab; the indexer is added to Prowlarr as "Generic Torznab" with
   base URL ``https://tr4ker.net``.
-- Auth is a single secret sent as the ``apikey=`` query param, read from the
-  ``TR4KER_PASSKEY`` env var (the operator's tracker-naming convention: one
-  passkey variable per tracker, which will also authenticate the RSS feed of
-  the freeleech radar R1). Legacy ``TR4KER_USERNAME`` / ``TR4KER_PASSWORD``
+- Two distinct secrets, two distinct roles: ``TR4KER_API_KEY`` (profile API key,
+  Mon compte → Paramètres) authenticates API requests and is sent as the Torznab
+  ``apikey=`` query param — it is the activation-gating credential;
+  ``TR4KER_PASSKEY`` is the announce passkey embedded in the .torrent files,
+  identifying the account, and never authenticates the search API (it is a
+  non-gating optional secret, future RSS freeleech radar R1). The API key was
+  live-verified against ``t=caps`` on 2026-07-28. The tracker also accepts an
+  ``X-Api-Key`` header, but the query parameter is the Torznab standard and is
+  what this client sends. Legacy ``TR4KER_USERNAME`` / ``TR4KER_PASSWORD``
   entries in the operator ``.env`` are leftovers from a decommissioned
   login-style tracker and are deliberately not wired.
-  **Factual note**: the tracker's own documentation distinguishes the *profile
-  API key* (Mon compte → Paramètres) from the *announce passkey* and states that
-  Torznab search wants the API key. This codebase follows the operator's
-  single-variable convention instead, so if a live search ever answers
-  ``<error code="100" description="Invalid API Key"/>``, the fix is to put the
-  profile API key into ``TR4KER_PASSKEY`` — not to add a second env var.
 - API paths: ``/api/torznab`` (used here) and ``/api`` (zero-config alias, same
   Torznab document). ``/api/torznab/all`` is the full catalog including
   0-seeder torrents — reserved for a future cross-seed, deliberately NOT wired
@@ -42,9 +41,15 @@ Tr4ker particularities (from the tracker's own Prowlarr/Torznab documentation):
   captured yet, so ``search_categories`` stays empty (no ``cat=`` is sent) —
   inventing Newznab ids without a capture is exactly the kind of guess that
   silently returns nothing.
-- The two dialect quirks (``item_category_element`` / ``guid_is_infohash``)
-  carry the Torznab norm, which C411 also follows; both are re-verified by the
-  real controlled search of the feature's acceptance criterion ACC-03.
+- Dialect quirks, verified by the ACC-03 controlled search (2026-07-28):
+  ``item_category_element=False`` (no per-item ``<category>`` element — the
+  category rides on a ``torznab:attr``, same as C411) and
+  ``guid_is_infohash=False`` (unlike C411, ``<guid isPermaLink="true">`` holds
+  a torrent permalink URL; the infohash comes from the ``infohash`` attr).
+- Beyond the pipeline's own fields, Tr4ker also publishes ``season`` /
+  ``episode`` / ``leechers`` / ``grabs`` attrs (unused today: the generic
+  derives leechers from ``peers - seeders``, which matched the published value
+  on every item of the capture).
 """
 
 from __future__ import annotations
@@ -55,17 +60,19 @@ from personalscraper.api._contracts import ProviderName
 from personalscraper.api.tracker.torznab import TorznabClient, TorznabDescriptor
 
 #: Tr4ker's dialect of Torznab. ``search_categories`` is intentionally empty
-#: (no capture of the caps document → no invented category ids), and the two
-#: quirk flags carry the Torznab norm shared with C411: the category is read
-#: from the flattened ``torznab:attr``, and ``<guid>`` may back the infohash
-#: when the ``infohash`` attr is absent.
+#: (no ``cat=`` narrowing without a captured caps document). Both quirk flags
+#: are LIVE-VERIFIED against the real ``t=tvsearch`` capture of 2026-07-28
+#: (``docs/reference/_samples/tr4ker/search-tvsearch.xml``): items carry no
+#: ``<category>`` element (the category is a ``torznab:attr``), and ``<guid>``
+#: is a permalink URL — NOT an infohash — so the infohash comes from the
+#: dedicated ``infohash`` attr, which Tr4ker always publishes.
 TR4KER_DESCRIPTOR = TorznabDescriptor(
     provider=ProviderName.TR4KER,
     display_name="Tr4ker",
     base_url="https://tr4ker.net",
     api_path="/api/torznab",
     item_category_element=False,
-    guid_is_infohash=True,
+    guid_is_infohash=False,
 )
 
 
@@ -84,12 +91,14 @@ class Tr4kerClient(TorznabClient):
     (Torznab exposes neither a freeleech re-check nor a per-torrent detail
     endpoint).
 
-    ``REQUIRED_CREDS`` lists the single ``TR4KER_PASSKEY`` secret, whose value
-    the transport sends as the ``apikey=`` query param.
+    ``REQUIRED_CREDS`` lists ``TR4KER_API_KEY`` — the profile API key the
+    transport sends as the ``apikey=`` query param. The announce passkey
+    (``TR4KER_PASSKEY``) is a separate, non-gating secret declared in
+    ``PROVIDER_OPTIONAL_SECRETS``; it authenticates nothing here.
     """
 
     DESCRIPTOR: ClassVar[TorznabDescriptor] = TR4KER_DESCRIPTOR
     # Mirrors ``DESCRIPTOR.provider`` for class-level access (``Named`` protocol);
     # instances get the same value from the descriptor at construction.
     provider_name: str = ProviderName.TR4KER.value
-    REQUIRED_CREDS: ClassVar[list[str]] = ["TR4KER_PASSKEY"]
+    REQUIRED_CREDS: ClassVar[list[str]] = ["TR4KER_API_KEY"]
