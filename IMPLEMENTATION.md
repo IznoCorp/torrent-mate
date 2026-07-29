@@ -16,7 +16,7 @@
 
 | #   | Phase                             | File                                                                 | Status |
 | --- | --------------------------------- | -------------------------------------------------------------------- | ------ |
-| 1   | Résolveur `resolve_followed_tvdb` | [phase-01](docs/features/scrape-follow-id/plan/phase-01-resolver.md) | [ ]    |
+| 1   | Résolveur `resolve_followed_tvdb` | [phase-01](docs/features/scrape-follow-id/plan/phase-01-resolver.md) | [x]    |
 | 2   | Injection orchestrateur + wiring  | [phase-02](docs/features/scrape-follow-id/plan/phase-02-inject.md)   | [ ]    |
 | 3   | ACC + gate                        | [phase-03](docs/features/scrape-follow-id/plan/phase-03-acc.md)      | [ ]    |
 
