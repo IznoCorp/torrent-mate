@@ -41,6 +41,7 @@ export const ACQ_EVENT_TYPES = new Set([
   "WantedAbandoned",
   "GrabSucceeded",
   "GrabFailed",
+  "GrabReswitched",
   "SeedObligationRecorded",
   "SeedObligationBreached",
   "SeedObligationSatisfied",
@@ -60,6 +61,9 @@ export const WANTED_INVALIDATE_EVENTS = new Set([
   "WantedAbandoned",
   "GrabSucceeded",
   "GrabFailed",
+  // A reswitch sends a dead-stalled item back to searching — the wanted/followed
+  // views must refresh so the card stops reading « en cours » (reswitch, ticket 342).
+  "GrabReswitched",
 ]);
 
 /** Events that invalidate the obligations queries. */
