@@ -109,6 +109,14 @@ function renderPanel(items: readonly FollowedSeriesItem[]): void {
   );
 }
 
+/**
+ * Select the « Films » sub-tab (#20). Follows default to the « Séries » tab, so
+ * a movie-only render must switch tabs before its card is visible.
+ */
+function selectFilmsTab(): void {
+  fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -303,6 +311,7 @@ describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
         },
       }),
     ]);
+    selectFilmsTab();
 
     expect(screen.getByText("Acquis")).toBeInTheDocument();
     // No "1/1", and no "—" either: a film is not a completeness fraction.
@@ -314,6 +323,7 @@ describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
     renderPanel([
       makeItem({ kind: "movie", title: "Ferrari", status: "a_recuperer" }),
     ]);
+    selectFilmsTab();
 
     expect(screen.getByText("À récupérer")).toBeInTheDocument();
   });
@@ -332,6 +342,7 @@ describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
         },
       }),
     ]);
+    selectFilmsTab();
 
     expect(screen.getByText("En attente")).toBeInTheDocument();
     expect(screen.getByText("rien de conforme au profil")).toBeInTheDocument();
@@ -342,6 +353,7 @@ describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
     renderPanel([
       makeItem({ kind: "movie", title: "Ferrari", status: "a_jour" }),
     ]);
+    selectFilmsTab();
 
     expect(screen.getByText("Acquis")).toBeInTheDocument();
     expect(screen.queryByText("À jour")).not.toBeInTheDocument();
@@ -362,8 +374,10 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
       makeItem(),
       makeItem({
         id: 7,
-        title: "Le Robot sauvage",
-        kind: "movie",
+        title: "La Nuit du chasseur",
+        // Same kind as the active follow so both sit under the default « Séries »
+        // sub-tab (#20) — this test targets the active/retired split, not kind.
+        kind: "show",
         active: false,
       }),
     ]);
@@ -372,7 +386,7 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
     expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
     // Retired section: collapsed summary with count + reactivate control.
     expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
-    expect(screen.getByText(/Le Robot sauvage/)).toBeInTheDocument();
+    expect(screen.getByText(/La Nuit du chasseur/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Réactiver" }),
     ).toBeInTheDocument();
@@ -467,5 +481,52 @@ describe("FollowedPanel — tvdb_unresolved warning badge", () => {
   it("does not show the warning for a resolved show", () => {
     renderPanel([makeItem({ tvdb_unresolved: false })]);
     expect(screen.queryByText("Sans ID TVDB")).not.toBeInTheDocument();
+  });
+});
+
+describe("FollowedPanel — séries / films sub-tabs (#20)", () => {
+  const aShow = makeItem({ id: 1, kind: "show", title: "House of the Dragon" });
+  const aMovie = makeItem({ id: 2, kind: "movie", title: "Dune" });
+
+  it("defaults to « Séries » and lists only shows", () => {
+    renderPanel([aShow, aMovie]);
+    // The show is visible in the default (Séries) tab; the movie is filtered out.
+    expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
+    expect(screen.queryByText("Dune")).not.toBeInTheDocument();
+  });
+
+  it("switching to « Films » lists only movies", () => {
+    renderPanel([aShow, aMovie]);
+    fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+    expect(screen.getByText("Dune")).toBeInTheDocument();
+    expect(screen.queryByText("House of the Dragon")).not.toBeInTheDocument();
+  });
+
+  it("labels each sub-tab with its active follow count", () => {
+    renderPanel([aShow, aMovie]);
+    expect(screen.getByRole("tab", { name: "Séries (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Films (1)" })).toBeInTheDocument();
+  });
+
+  it("shows a per-tab empty hint when the selected kind has no follow", () => {
+    renderPanel([aShow]);
+    fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+    expect(screen.getByText("Aucun film suivi.")).toBeInTheDocument();
+  });
+
+  it("scopes the retired list to the active sub-tab's kind", () => {
+    const retiredMovie = makeItem({
+      id: 3,
+      kind: "movie",
+      title: "Retired Film",
+      active: false,
+    });
+    renderPanel([aShow, retiredMovie]);
+    // Default (Séries) tab: no retired shows → no « Suivis retirés » section.
+    expect(screen.queryByText(/Suivis retirés/)).not.toBeInTheDocument();
+    // Films tab: the retired movie surfaces under « Suivis retirés (1) ».
+    fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+    expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
+    expect(screen.getByText("Retired Film")).toBeInTheDocument();
   });
 });

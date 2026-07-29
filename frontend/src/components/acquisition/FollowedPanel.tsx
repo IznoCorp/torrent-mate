@@ -17,7 +17,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
 import { MediaPoster } from "@/components/ds/MediaPoster";
@@ -101,6 +101,10 @@ export function FollowedPanel({
     handleSaveCadence,
   } = useFollowedPanel();
 
+  // #20: séries / films sub-tabs. Declared before any early return so the hook
+  // order stays stable. Default « Séries » (the primary followed-media kind).
+  const [kindTab, setKindTab] = useState<"show" | "movie">("show");
+
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -133,6 +137,16 @@ export function FollowedPanel({
   const activeItems = data.filter((item) => item.active);
   const inactiveItems = data.filter((item) => !item.active);
 
+  // #20: partition by kind so the « Séries » / « Films » sub-tabs each show only
+  // their own follows (and the retired list follows the same split).
+  const isFilm = (item: FollowedSeriesItem): boolean => item.kind === "movie";
+  const activeSeries = activeItems.filter((item) => !isFilm(item));
+  const activeMovies = activeItems.filter(isFilm);
+  const visibleActive = kindTab === "movie" ? activeMovies : activeSeries;
+  const visibleInactive = (
+    kindTab === "movie" ? inactiveItems.filter(isFilm) : inactiveItems.filter((item) => !isFilm(item))
+  );
+
   if (data.length === 0) {
     return (
       <div className="py-8 text-center">
@@ -147,6 +161,32 @@ export function FollowedPanel({
   // ── Normal ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
+      {/* #20: séries / films sub-tabs. Counts read the ACTIVE follows only (the
+          retired list has its own collapsed section per tab). */}
+      <div
+        role="tablist"
+        aria-label="Filtrer les suivis par type"
+        className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit"
+      >
+        {(["show", "movie"] as const).map((k) => (
+          <Button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={kindTab === k}
+            size="sm"
+            className="flex-1 sm:flex-none"
+            variant={kindTab === k ? "default" : "ghost"}
+            onClick={() => {
+              setKindTab(k);
+            }}
+          >
+            {k === "show" ? "Séries" : "Films"} (
+            {k === "show" ? activeSeries.length : activeMovies.length})
+          </Button>
+        ))}
+      </div>
+
       {/* Automatic-search cadence caption, built from the live grab scheduler
           (C15). Omitted entirely when the scheduler is unavailable — never a
           hardcoded/invented value. */}
@@ -156,9 +196,18 @@ export function FollowedPanel({
         </p>
       )}
 
+      {/* Per-tab empty hint — there ARE follows, just none of this kind. */}
+      {visibleActive.length === 0 && (
+        <p className="py-4 text-center text-sm text-muted-foreground">
+          {kindTab === "movie"
+            ? "Aucun film suivi."
+            : "Aucune série suivie."}
+        </p>
+      )}
+
       {/* Compact rows */}
       <div className="flex flex-col gap-2">
-        {activeItems.map((item) => {
+        {visibleActive.map((item) => {
           const isMovie = item.kind === "movie";
           // Every readout below is a pure mapping of SERVER facts computed
           // outside the JSX — no business derivation in the markup.
@@ -325,14 +374,15 @@ export function FollowedPanel({
         })}
       </div>
 
-      {/* Retired follows — compact, reactivatable (operator review 2026-07-15). */}
-      {inactiveItems.length > 0 && (
+      {/* Retired follows — compact, reactivatable (operator review 2026-07-15).
+          Scoped to the active sub-tab's kind (#20). */}
+      {visibleInactive.length > 0 && (
         <details className="rounded-md border border-border p-3">
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
-            Suivis retirés ({inactiveItems.length})
+            Suivis retirés ({visibleInactive.length})
           </summary>
           <ul className="mt-2 space-y-2">
-            {inactiveItems.map((item) => (
+            {visibleInactive.map((item) => (
               <li
                 key={`inactive-${String(item.id)}`}
                 className="flex flex-wrap items-center justify-between gap-2"
