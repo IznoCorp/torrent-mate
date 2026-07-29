@@ -9,6 +9,7 @@ Registered against the shared Typer ``app`` (imported side-effect in cli.py).
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 import typer
@@ -28,6 +29,7 @@ from personalscraper.subscribers.redis_stream import build_redis_publisher
 if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.acquire.reconcile import ReconcileSummary
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("cli.grab")
 
@@ -79,6 +81,13 @@ def grab(
                         "[red]No torrent client configured — cannot run grab. Check config or use --dry-run.[/red]"
                     )
                     raise typer.Exit(1)
+
+                # reswitch #342 — BEFORE reconcile, switch dead-stalled grabs
+                # (dead swarm / broken / stuck past the deadline) to another
+                # release: the dead torrent is removed and the row requeued with
+                # the failed hash remembered, so the next search+grab picks a
+                # DIFFERENT release. A vanished torrent is left to reconcile.
+                _reswitch_before_run(acquire, app_context.event_bus, console)
 
                 # P0-B.3 — reconcile grabbed rows BEFORE searching: rows whose
                 # work the library owns close ``done``; rows whose torrent
@@ -178,6 +187,38 @@ def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "Reconci
             f"{summary.confirmed_grabbed} confirmés (récupérés après interruption)."
         )
     return summary
+
+
+def _reswitch_before_run(acquire: AcquireContext, event_bus: "EventBus", console: Console) -> None:
+    """Switch every dead-stalled grabbed release to another one before grabbing (reswitch #342).
+
+    A grabbed torrent whose swarm is dead / that broke / that is stuck past the
+    deadline is removed and its row requeued (the failed hash remembered) so the
+    next search+grab picks a DIFFERENT release. Requires the torrent client (only
+    built for a real run), so a dry-run / clientless config is a silent no-op.
+    Fail-soft: a reswitch error never aborts the grab.
+
+    Args:
+        acquire: The live :class:`AcquireContext` (store + client).
+        event_bus: The app event bus (a ``GrabReswitched`` is a visible trace).
+        console: Rich console for the operator line.
+    """
+    from personalscraper.acquire._reswitch import reswitch_stalled
+
+    store = acquire.store
+    torrent_client = acquire.torrent_client
+    if store is None or torrent_client is None:
+        return
+    try:
+        summary = reswitch_stalled(store, torrent_client, time.time(), event_bus=event_bus)
+    except Exception as exc:  # noqa: BLE001 — reswitch must never abort the grab
+        log.warning("cli.grab.reswitch_failed", error=str(exc))
+        return
+    if summary.reswitched:
+        console.print(
+            f"[cyan]Bascule:[/cyan] {summary.reswitched} release(s) bloquée(s) remplacée(s) "
+            f"(sur {summary.checked} en cours)."
+        )
 
 
 def _run_dry(
