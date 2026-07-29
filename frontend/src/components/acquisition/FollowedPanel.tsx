@@ -17,16 +17,10 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
 import { MediaPoster } from "@/components/ds/MediaPoster";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,15 +84,6 @@ export function FollowedPanel({
 }: FollowedPanelProps): ReactElement {
   const {
     grabSchedule,
-    provider,
-    setProvider,
-    idValue,
-    setIdValue,
-    title,
-    setTitle,
-    handleAdd,
-    addValid,
-    followPending,
     triggerSearch,
     triggerPendingId,
     grabNow,
@@ -115,6 +100,10 @@ export function FollowedPanel({
     openEditCadence,
     handleSaveCadence,
   } = useFollowedPanel();
+
+  // #20: séries / films sub-tabs. Declared before any early return so the hook
+  // order stays stable. Default « Séries » (the primary followed-media kind).
+  const [kindTab, setKindTab] = useState<"show" | "movie">("show");
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -140,87 +129,6 @@ export function FollowedPanel({
     );
   }
 
-  // ── Add form (always visible) ──────────────────────────────────────────
-  // Manual add-by-ID is the power-user fallback to the primary title search
-  // above; collapsed by default so it does not compete with it. Inputs stack on
-  // mobile (ID, then title, then a full-width Suivre) and inline on sm+.
-  const idLabel =
-    provider === "imdb"
-      ? "ID IMDB"
-      : provider === "tmdb"
-        ? "ID TMDB"
-        : "ID TVDB";
-  const idPlaceholder =
-    provider === "imdb"
-      ? "ex: tt0903747"
-      : provider === "tmdb"
-        ? "ex: 1399"
-        : "ex: 255968";
-  const addForm = (
-    <Accordion className="rounded-lg border border-border bg-card px-3">
-      <AccordionItem>
-        <AccordionTrigger>Ajouter par ID</AccordionTrigger>
-        <AccordionContent>
-          <div className="flex flex-col gap-3 pb-3">
-            {/* Provider selector — a TVDB/TMDB id is an int, an IMDb id is
-                ``tt…``. The server resolves TVDB from a TMDB/IMDB series so
-                episode detection works (series-only form). */}
-            <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
-              {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
-                <Button
-                  key={p}
-                  type="button"
-                  size="sm"
-                  className="flex-1 sm:flex-none"
-                  variant={provider === p ? "default" : "ghost"}
-                  onClick={() => {
-                    setProvider(p);
-                  }}
-                >
-                  {p.toUpperCase()}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex flex-col gap-1 sm:w-40">
-                <Label htmlFor="follow-id">{idLabel}</Label>
-                <Input
-                  id="follow-id"
-                  type={provider === "imdb" ? "text" : "number"}
-                  inputMode={provider === "imdb" ? "text" : "numeric"}
-                  placeholder={idPlaceholder}
-                  value={idValue}
-                  onChange={(e) => {
-                    setIdValue(e.target.value);
-                  }}
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <Label htmlFor="follow-title">Titre (optionnel)</Label>
-                <Input
-                  id="follow-title"
-                  type="text"
-                  placeholder="ex: Top Chef"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                  }}
-                />
-              </div>
-              <Button
-                className="w-full sm:w-auto sm:shrink-0"
-                disabled={!addValid || followPending}
-                onClick={handleAdd}
-              >
-                {followPending ? "Ajout…" : "Suivre"}
-              </Button>
-            </div>
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
-
   // ── Empty ──────────────────────────────────────────────────────────────
   // Operator review (2026-07-15): a retired follow (« Retirer » → active=0)
   // must LEAVE the rows — rendering it identically made the button look
@@ -229,16 +137,23 @@ export function FollowedPanel({
   const activeItems = data.filter((item) => item.active);
   const inactiveItems = data.filter((item) => !item.active);
 
+  // #20: partition by kind so the « Séries » / « Films » sub-tabs each show only
+  // their own follows (and the retired list follows the same split).
+  const isFilm = (item: FollowedSeriesItem): boolean => item.kind === "movie";
+  const activeSeries = activeItems.filter((item) => !isFilm(item));
+  const activeMovies = activeItems.filter(isFilm);
+  const visibleActive = kindTab === "movie" ? activeMovies : activeSeries;
+  const visibleInactive = (
+    kindTab === "movie" ? inactiveItems.filter(isFilm) : inactiveItems.filter((item) => !isFilm(item))
+  );
+
   if (data.length === 0) {
     return (
-      <div className="space-y-4">
-        {addForm}
-        <div className="py-8 text-center">
-          <p className="text-muted-foreground">
-            Aucune série suivie. Ajoutez une série avec son identifiant TVDB,
-            TMDB ou IMDB pour commencer.
-          </p>
-        </div>
+      <div className="py-8 text-center">
+        <p className="text-muted-foreground">
+          Aucune série suivie. Utilisez la recherche ci-dessus (par titre ou par
+          identifiant TVDB, TMDB ou IMDB) pour commencer.
+        </p>
       </div>
     );
   }
@@ -246,7 +161,33 @@ export function FollowedPanel({
   // ── Normal ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {addForm}
+      {/* #20: séries / films filter. A segmented toggle group (aria-pressed) —
+          NOT a tablist: there is no separate tabpanel, and this matches the
+          identical toggle-groups elsewhere on the screen (MediaSearchAdd's kind
+          + provider pickers). Counts read the ACTIVE follows only (the retired
+          list has its own collapsed section per tab). */}
+      <div
+        role="group"
+        aria-label="Filtrer les suivis par type"
+        className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit"
+      >
+        {(["show", "movie"] as const).map((k) => (
+          <Button
+            key={k}
+            type="button"
+            aria-pressed={kindTab === k}
+            size="sm"
+            className="flex-1 sm:flex-none"
+            variant={kindTab === k ? "default" : "ghost"}
+            onClick={() => {
+              setKindTab(k);
+            }}
+          >
+            {k === "show" ? "Séries" : "Films"} (
+            {k === "show" ? activeSeries.length : activeMovies.length})
+          </Button>
+        ))}
+      </div>
 
       {/* Automatic-search cadence caption, built from the live grab scheduler
           (C15). Omitted entirely when the scheduler is unavailable — never a
@@ -257,9 +198,18 @@ export function FollowedPanel({
         </p>
       )}
 
+      {/* Per-tab empty hint — there ARE follows, just none of this kind. */}
+      {visibleActive.length === 0 && (
+        <p className="py-4 text-center text-sm text-muted-foreground">
+          {kindTab === "movie"
+            ? "Aucun film suivi."
+            : "Aucune série suivie."}
+        </p>
+      )}
+
       {/* Compact rows */}
       <div className="flex flex-col gap-2">
-        {activeItems.map((item) => {
+        {visibleActive.map((item) => {
           const isMovie = item.kind === "movie";
           // Every readout below is a pure mapping of SERVER facts computed
           // outside the JSX — no business derivation in the markup.
@@ -426,14 +376,15 @@ export function FollowedPanel({
         })}
       </div>
 
-      {/* Retired follows — compact, reactivatable (operator review 2026-07-15). */}
-      {inactiveItems.length > 0 && (
+      {/* Retired follows — compact, reactivatable (operator review 2026-07-15).
+          Scoped to the active sub-tab's kind (#20). */}
+      {visibleInactive.length > 0 && (
         <details className="rounded-md border border-border p-3">
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
-            Suivis retirés ({inactiveItems.length})
+            Suivis retirés ({visibleInactive.length})
           </summary>
           <ul className="mt-2 space-y-2">
-            {inactiveItems.map((item) => (
+            {visibleInactive.map((item) => (
               <li
                 key={`inactive-${String(item.id)}`}
                 className="flex flex-wrap items-center justify-between gap-2"

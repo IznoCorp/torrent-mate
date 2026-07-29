@@ -5,8 +5,8 @@
  * unfollow / update / verification / « Récupérer maintenant » mutations, the
  * live grab-scheduler cadence caption, the fire-and-track runs (launch → track
  * to NUMERIC result → toast only on real end, via
- * {@link useTrackedAcquisitionRun}), the queued-grab readouts, the add-by-id
- * form buffer and the edit-cadence dialog buffer. The presentation component
+ * {@link useTrackedAcquisitionRun}), the queued-grab readouts and the
+ * edit-cadence dialog buffer. The presentation component
  * (``components/acquisition/FollowedPanel.tsx``) consumes this hook's result and
  * renders it over the ``data`` prop — no data logic lives in the view layer.
  */
@@ -29,7 +29,6 @@ import {
   GRAB_JOB_NAME,
 } from "@/components/acquisition/meta";
 import {
-  useFollow,
   useTrackedAcquisitionRun,
   useUnfollow,
   useUpdateFollow,
@@ -73,26 +72,6 @@ export interface FollowedPanelMachine {
    * ``null`` when the job is absent (caption omitted entirely).
    */
   readonly grabSchedule: string | null;
-
-  // ---- Add-by-id form ----
-  /** Which provider the add-by-id form targets. */
-  readonly provider: FollowProvider;
-  /** Set the add-form provider (resets nothing; the id is re-validated). */
-  readonly setProvider: (value: FollowProvider) => void;
-  /** Add-form id input value (int text for TVDB/TMDB, ``tt…`` for IMDB). */
-  readonly idValue: string;
-  /** Set the add-form id value. */
-  readonly setIdValue: (value: string) => void;
-  /** Add-form title input value. */
-  readonly title: string;
-  /** Set the add-form title. */
-  readonly setTitle: (value: string) => void;
-  /** Submit the add-by-id form (series-only; a TVDB/TMDB/IMDB id). */
-  readonly handleAdd: () => void;
-  /** ``true`` when the current id value is valid for the selected provider. */
-  readonly addValid: boolean;
-  /** ``true`` while a follow (add) mutation is in flight. */
-  readonly followPending: boolean;
 
   // ---- Per-series actions ----
   /** Launch a manual grab search for one followed series (OBJ3). */
@@ -145,7 +124,6 @@ export interface FollowedPanelMachine {
  */
 export function useFollowedPanel(): FollowedPanelMachine {
   const queryClient = useQueryClient();
-  const followMutation = useFollow();
   const unfollowMutation = useUnfollow();
   const updateMutation = useUpdateFollow();
 
@@ -243,33 +221,9 @@ export function useFollowedPanel(): FollowedPanelMachine {
     },
   });
 
-  // Add-form state
-  const [provider, setProvider] = useState<FollowProvider>("tvdb");
-  const [idValue, setIdValue] = useState("");
-  const [title, setTitle] = useState("");
-
   // Edit-cadence dialog state
   const [editTarget, setEditTarget] = useState<FollowedSeriesItem | null>(null);
   const [editInterval, setEditInterval] = useState("");
-
-  const handleAdd = (): void => {
-    const body = buildIdFollowBody(provider, idValue);
-    if (body === null) return;
-    if (title.trim()) body.title = title.trim();
-    followMutation.mutate(body, {
-      onSuccess: (created) => {
-        setIdValue("");
-        setTitle("");
-        // Non-silent fail-soft (§méthode): a TMDB/IMDB series whose TVDB id
-        // could not be resolved is followed but not yet detectable — warn.
-        if (created.tvdb_unresolved) {
-          toast.warning(
-            "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
-          );
-        }
-      },
-    });
-  };
 
   const handleUnfollow = (id: number): void => {
     unfollowMutation.mutate(id);
@@ -302,15 +256,6 @@ export function useFollowedPanel(): FollowedPanelMachine {
 
   return {
     grabSchedule,
-    provider,
-    setProvider,
-    idValue,
-    setIdValue,
-    title,
-    setTitle,
-    handleAdd,
-    addValid: buildIdFollowBody(provider, idValue) !== null,
-    followPending: followMutation.isPending,
     triggerSearch: (id: number) => {
       triggerMutation.mutate(id);
     },

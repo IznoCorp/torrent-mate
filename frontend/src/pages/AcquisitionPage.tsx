@@ -32,7 +32,6 @@ import {
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
-import { Card, CardContent } from "@/components/ui/card";
 import { useDownloads, useFollowed } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 
@@ -168,25 +167,25 @@ export default function AcquisitionPage(): ReactElement {
         ))}
       </div>
 
-      {/* Active panel */}
-      <Card>
-        <CardContent className="pt-4">
-          {activeTab === "followed" && (
-            <div className="flex flex-col gap-6">
-              <MediaSearchAdd />
-              <FollowedPanel
-                data={followedQuery.data?.items ?? []}
-                isLoading={followedQuery.isLoading}
-                isError={followedQuery.isError}
-                error={followedQuery.error}
-              />
-            </div>
-          )}
-          {activeTab === "file" && <FileDAcquisitionPanel />}
-          {activeTab === "obligations" && <ObligationsPanel />}
-          {activeTab === "watcher" && <WatcherPanel />}
-        </CardContent>
-      </Card>
+      {/* Active panel — no wrapping Card: the tab content uses the full width
+          (esp. mobile), where a Card's border + padding stacked on the section
+          margin wasted space on both sides (#12). Vertical rhythm kept via gap. */}
+      <div className="flex flex-col gap-4 pt-1">
+        {activeTab === "followed" && (
+          <div className="flex flex-col gap-6">
+            <MediaSearchAdd />
+            <FollowedPanel
+              data={followedQuery.data?.items ?? []}
+              isLoading={followedQuery.isLoading}
+              isError={followedQuery.isError}
+              error={followedQuery.error}
+            />
+          </div>
+        )}
+        {activeTab === "file" && <FileDAcquisitionPanel />}
+        {activeTab === "obligations" && <ObligationsPanel />}
+        {activeTab === "watcher" && <WatcherPanel />}
+      </div>
     </section>
   );
 }

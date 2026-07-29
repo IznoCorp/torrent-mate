@@ -23,6 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.64.0] — 2026-07-29
+
+### Changed
+
+- **UI Acquisitions plus lisible et pleine largeur (4 demandes opérateur).**
+  - #12 — le contenu de chaque onglet n'est plus enfermé dans une `Card` :
+    il prend toute la largeur (surtout à 390 px), sans double marge box+section.
+  - #21 — la recherche par titre et l'ajout par ID fusionnent en une seule
+    surface (`MediaSearchAdd`) ; l'accordéon « Ajouter par ID » de `FollowedPanel`
+    est retiré, et l'empty-state « Recherchez un média / Tapez un titre… » ne
+    s'affiche plus au repos (plus d'espace gaspillé).
+  - #19 — après un « Suivre » réussi, la recherche est réinitialisée.
+  - #20 — la liste des suivis se scinde en sous-onglets « Séries » / « Films »
+    (filtre client sur `item.kind`, actifs + section retirés).
+
 ## [0.63.0] — 2026-07-29
 
 ### Fixed

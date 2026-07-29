@@ -17,9 +17,12 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: followMutate, isPending: false }),
 }));
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
 
 import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
+import { toast } from "sonner";
 
 beforeEach(() => {
   mediaSearchMock.mockReturnValue({
@@ -49,10 +52,31 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+/**
+ * Click the single ENABLED « Suivre » button. After a search, two « Suivre »
+ * buttons coexist (the always-visible by-ID entry + the result card); the by-ID
+ * one is disabled while its id field is empty, so exactly one is enabled — the
+ * result-card action. Asserts that invariant, then clicks it (lint-clean: no
+ * non-null assertion, narrowed via a runtime guard).
+ */
+function clickResultSuivre(): void {
+  const enabled = screen
+    .getAllByRole("button", { name: "Suivre" })
+    .filter((b) => !(b as HTMLButtonElement).disabled);
+  expect(enabled).toHaveLength(1);
+  const btn = enabled[0];
+  if (btn === undefined) throw new Error("no enabled « Suivre » button");
+  fireEvent.click(btn);
+}
+
 describe("MediaSearchAdd", () => {
-  it("shows the initial prompt before any search", () => {
+  it("shows no encumbering empty-state before a search, but keeps the by-ID entry (#21)", () => {
     render(<MediaSearchAdd />);
-    expect(screen.getByText("Recherchez un média")).toBeInTheDocument();
+    // #21: the « Recherchez un média / Tapez un titre… » empty-state is gone —
+    // an idle query renders nothing where the results grid would be.
+    expect(screen.queryByText("Recherchez un média")).not.toBeInTheDocument();
+    // The by-ID entry is merged into this surface and always visible.
+    expect(screen.getByText("ou ajouter directement par ID")).toBeInTheDocument();
     // No result card yet (query is empty).
     expect(screen.queryByText("Dune")).not.toBeInTheDocument();
   });
@@ -82,7 +106,7 @@ describe("MediaSearchAdd", () => {
 
     expect(screen.getByText("Dune")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    clickResultSuivre();
     // The candidate's card metadata (year/overview; poster_url is null → omitted)
     // is carried into the follow body so the watch-list card can show it (OBJ3).
     expect(followMutate).toHaveBeenCalledWith(
@@ -95,5 +119,117 @@ describe("MediaSearchAdd", () => {
       },
       expect.anything(),
     );
+  });
+
+  it("resets the search after a successful follow (#19)", () => {
+    // The follow succeeds synchronously so the onSuccess reset runs.
+    followMutate.mockImplementation(
+      (_body: unknown, opts?: { onSuccess?: (created: unknown) => void }) => {
+        opts?.onSuccess?.({});
+      },
+    );
+    render(<MediaSearchAdd />);
+    const input = screen.getByLabelText("Rechercher un média à suivre");
+    fireEvent.change(input, { target: { value: "dune" } });
+    fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+    expect(screen.getByText("Dune")).toBeInTheDocument();
+
+    clickResultSuivre();
+
+    // #19: the query + draft are cleared → the results collapse and the input
+    // is empty, ready for the next search.
+    expect(screen.queryByText("Dune")).not.toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe("");
+  });
+});
+
+// The add-by-ID entry is merged into this search surface (#21) — it used to be a
+// separate FollowedPanel accordion (ticket 336). No accordion to open now.
+describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
+  it("offers TVDB, TMDB and IMDB providers", () => {
+    render(<MediaSearchAdd />);
+    for (const p of ["TVDB", "TMDB", "IMDB"]) {
+      expect(screen.getByRole("button", { name: p })).toBeInTheDocument();
+    }
+  });
+
+  it("selecting IMDB switches the id field to the tt… placeholder", () => {
+    render(<MediaSearchAdd />);
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    expect(screen.getByPlaceholderText("ex: tt0903747")).toBeInTheDocument();
+    expect(screen.getByLabelText("ID IMDB")).toBeInTheDocument();
+  });
+
+  it("follows by TMDB id → sends tmdb_id", () => {
+    render(<MediaSearchAdd />);
+    fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
+    fireEvent.change(screen.getByLabelText("ID TMDB"), {
+      target: { value: "1399" },
+    });
+    // query === "" here → no result cards, so « Suivre » is unambiguous.
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(followMutate).toHaveBeenCalledTimes(1);
+    expect(followMutate.mock.calls[0]?.[0]).toEqual({
+      tmdb_id: 1399,
+      kind: "show",
+    });
+  });
+
+  it("follows by IMDB id → sends the tt string", () => {
+    render(<MediaSearchAdd />);
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    fireEvent.change(screen.getByLabelText("ID IMDB"), {
+      target: { value: "tt0903747" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(followMutate).toHaveBeenCalledTimes(1);
+    expect(followMutate.mock.calls[0]?.[0]).toEqual({
+      imdb_id: "tt0903747",
+      kind: "show",
+    });
+  });
+
+  it("carries an optional title into the by-ID follow body", () => {
+    render(<MediaSearchAdd />);
+    fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
+    fireEvent.change(screen.getByLabelText("ID TMDB"), {
+      target: { value: "1399" },
+    });
+    fireEvent.change(screen.getByLabelText("Titre (optionnel)"), {
+      target: { value: "Game of Thrones" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(followMutate.mock.calls[0]?.[0]).toEqual({
+      tmdb_id: 1399,
+      kind: "show",
+      title: "Game of Thrones",
+    });
+  });
+
+  it("disables Suivre for a malformed IMDB id", () => {
+    render(<MediaSearchAdd />);
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    fireEvent.change(screen.getByLabelText("ID IMDB"), {
+      target: { value: "0903747" },
+    });
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+  });
+
+  it("toasts a warning when the followed show comes back tvdb_unresolved", () => {
+    followMutate.mockImplementation(
+      (
+        _body: unknown,
+        opts?: { onSuccess?: (created: { tvdb_unresolved?: boolean }) => void },
+      ) => {
+        opts?.onSuccess?.({ tvdb_unresolved: true });
+      },
+    );
+    render(<MediaSearchAdd />);
+    fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
+    fireEvent.change(screen.getByLabelText("ID TMDB"), {
+      target: { value: "1399" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
+    expect(vi.mocked(toast.warning)).toHaveBeenCalled();
   });
 });
