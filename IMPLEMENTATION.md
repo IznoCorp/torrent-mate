@@ -16,7 +16,7 @@
 
 | #   | Phase                                          | File                                                          | Status |
 | --- | ---------------------------------------------- | ------------------------------------------------------------- | ------ |
-| 1   | Seeders renforcés (config + test)              | [phase-01](docs/features/reswitch/plan/phase-01-seeders.md)   | [ ]    |
+| 1   | Seeders renforcés (config + test)              | [phase-01](docs/features/reswitch/plan/phase-01-seeders.md)   | [x]    |
 | 2   | Observabilité swarm (`swarm_seeds` + classify) | [phase-02](docs/features/reswitch/plan/phase-02-swarm.md)     | [ ]    |
 | 3   | Mémoire hashes tentés + exclusion ranking      | [phase-03](docs/features/reswitch/plan/phase-03-exclusion.md) | [ ]    |
 | 4   | Acteur de rebascule (`reswitch_stalled`)       | [phase-04](docs/features/reswitch/plan/phase-04-actor.md)     | [ ]    |
