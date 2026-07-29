@@ -114,7 +114,7 @@ function renderPanel(items: readonly FollowedSeriesItem[]): void {
  * a movie-only render must switch tabs before its card is visible.
  */
 function selectFilmsTab(): void {
-  fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Films/ }));
 }
 
 afterEach(() => {
@@ -212,7 +212,11 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
 
   it("does NOT render the CompletenessAccordion for movies", () => {
     renderPanel([makeItem({ kind: "movie", title: "Ferrari" })]);
+    // Switch to Films so the movie row actually renders — otherwise the absence
+    // assertion would pass vacuously (the movie hidden under the default tab).
+    selectFilmsTab();
 
+    expect(screen.getByText("Ferrari")).toBeInTheDocument();
     expect(screen.queryByText("Détail par épisode")).not.toBeInTheDocument();
   });
 });
@@ -497,20 +501,20 @@ describe("FollowedPanel — séries / films sub-tabs (#20)", () => {
 
   it("switching to « Films » lists only movies", () => {
     renderPanel([aShow, aMovie]);
-    fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Films/ }));
     expect(screen.getByText("Dune")).toBeInTheDocument();
     expect(screen.queryByText("House of the Dragon")).not.toBeInTheDocument();
   });
 
   it("labels each sub-tab with its active follow count", () => {
     renderPanel([aShow, aMovie]);
-    expect(screen.getByRole("tab", { name: "Séries (1)" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Films (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Séries (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Films (1)" })).toBeInTheDocument();
   });
 
   it("shows a per-tab empty hint when the selected kind has no follow", () => {
     renderPanel([aShow]);
-    fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Films/ }));
     expect(screen.getByText("Aucun film suivi.")).toBeInTheDocument();
   });
 
@@ -525,7 +529,7 @@ describe("FollowedPanel — séries / films sub-tabs (#20)", () => {
     // Default (Séries) tab: no retired shows → no « Suivis retirés » section.
     expect(screen.queryByText(/Suivis retirés/)).not.toBeInTheDocument();
     // Films tab: the retired movie surfaces under « Suivis retirés (1) ».
-    fireEvent.click(screen.getByRole("tab", { name: /Films/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Films/ }));
     expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
     expect(screen.getByText("Retired Film")).toBeInTheDocument();
   });

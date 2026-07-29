@@ -161,10 +161,13 @@ export function FollowedPanel({
   // ── Normal ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* #20: séries / films sub-tabs. Counts read the ACTIVE follows only (the
-          retired list has its own collapsed section per tab). */}
+      {/* #20: séries / films filter. A segmented toggle group (aria-pressed) —
+          NOT a tablist: there is no separate tabpanel, and this matches the
+          identical toggle-groups elsewhere on the screen (MediaSearchAdd's kind
+          + provider pickers). Counts read the ACTIVE follows only (the retired
+          list has its own collapsed section per tab). */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Filtrer les suivis par type"
         className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit"
       >
@@ -172,8 +175,7 @@ export function FollowedPanel({
           <Button
             key={k}
             type="button"
-            role="tab"
-            aria-selected={kindTab === k}
+            aria-pressed={kindTab === k}
             size="sm"
             className="flex-1 sm:flex-none"
             variant={kindTab === k ? "default" : "ghost"}
