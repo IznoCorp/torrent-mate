@@ -777,9 +777,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     # but never a mere "unknown".
     num_complete_raw = getattr(t, "num_complete", None)
     swarm_seeds: int | None = (
-        int(num_complete_raw)
-        if isinstance(num_complete_raw, (int, float)) and num_complete_raw >= 0
-        else None
+        int(num_complete_raw) if isinstance(num_complete_raw, (int, float)) and num_complete_raw >= 0 else None
     )
     return TorrentItem(
         hash=t.hash,

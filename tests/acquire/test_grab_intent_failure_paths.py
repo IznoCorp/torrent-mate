@@ -97,7 +97,13 @@ def _orchestrator_writing_intent_then(outcome: GrabOutcome) -> MagicMock:
     """
     orchestrator = MagicMock()
 
-    def _grab(item: object, profile: object, *, on_intent: object = None) -> GrabOutcome:
+    def _grab(
+        item: object,
+        profile: object,
+        *,
+        on_intent: object = None,
+        exclude_hashes: object = frozenset(),
+    ) -> GrabOutcome:
         if on_intent is not None:
             on_intent(_HASH)  # type: ignore[operator]
         return outcome

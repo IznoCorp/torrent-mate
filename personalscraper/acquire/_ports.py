@@ -198,6 +198,18 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def list_tried_hashes(self, wanted_id: int) -> tuple[str, ...]:
+        """Return the info-hashes already grabbed-and-failed for this item (reswitch #342)."""
+        ...
+
+    def append_tried_hash(self, wanted_id: int, info_hash: str) -> None:
+        """Remember *info_hash* as a release already grabbed-and-failed (idempotent, lowercase)."""
+        ...
+
+    def requeue_for_reswitch(self, wanted_id: int, failed_hash: str) -> bool:
+        """Atomically append *failed_hash* to tried_hashes AND requeue the row (reswitch #342)."""
+        ...
+
     def resurrect(self, wanted_id: int, now: int) -> bool:
         """Re-open an ``abandoned`` row for a still-missing aired episode (B.4)."""
         ...

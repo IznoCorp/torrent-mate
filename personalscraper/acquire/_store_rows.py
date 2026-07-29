@@ -73,6 +73,35 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
     )
 
 
+def decode_tried_hashes(blob: str | None) -> tuple[str, ...]:
+    """Decode the ``tried_hashes_json`` column to a tuple of lowercase hashes.
+
+    Fail-soft: a NULL, empty, or malformed blob yields an empty tuple (never
+    raises) so a corrupt value can never block a grab. Order is preserved and
+    duplicates are dropped (order-stable) — the list is a set-with-history.
+
+    Args:
+        blob: The raw ``tried_hashes_json`` value (a JSON array of strings) or
+            ``None``.
+
+    Returns:
+        The tried info-hashes as a tuple of lowercase strings.
+    """
+    if not blob:
+        return ()
+    try:
+        raw = json.loads(blob)
+    except (ValueError, TypeError):
+        return ()
+    if not isinstance(raw, list):
+        return ()
+    seen: dict[str, None] = {}
+    for h in raw:
+        if isinstance(h, str) and h:
+            seen.setdefault(h.lower(), None)
+    return tuple(seen)
+
+
 def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
     """Map a ``wanted`` row to a :class:`WantedItem`.
 
@@ -82,6 +111,10 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
     Returns:
         The frozen :class:`WantedItem` value object.
     """
+    # tried_hashes_json is optional: only SELECTs that fetch it populate the
+    # field. Decode defensively so every other read (which omits the column)
+    # keeps working with an empty tuple — no SELECT churn across the store.
+    tried_blob = row["tried_hashes_json"] if "tried_hashes_json" in row.keys() else None
     return WantedItem(
         media_ref=_media_ref_from_json(row["media_ref_json"]),
         # kind/status are CHECK-constrained columns; cast the raw string to the
@@ -99,6 +132,7 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
         grabbed_hash=row["grabbed_hash"],
         last_search_outcome=row["last_search_outcome"],
         last_search_found=row["last_search_found"],
+        tried_hashes=decode_tried_hashes(tried_blob),
     )
 
 

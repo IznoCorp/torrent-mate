@@ -43,15 +43,9 @@ _SEEDERS = RankingCriterion(
     ],
 )
 # Codec criterion straight from the template (x265 > x264).
-_CODEC = RankingCriterion(
-    field="codec", weight=3, values={"x265": 10, "HEVC": 10, "x264": 5}
-)
-_RESOLUTION = RankingCriterion(
-    field="resolution", weight=4, values={"2160p": 20, "1080p": 15, "720p": 10}
-)
-_TUNED = RankingConfig(
-    criteria=[_RESOLUTION, _CODEC, _SEEDERS], min_seeders=1
-)
+_CODEC = RankingCriterion(field="codec", weight=3, values={"x265": 10, "HEVC": 10, "x264": 5})
+_RESOLUTION = RankingCriterion(field="resolution", weight=4, values={"2160p": 20, "1080p": 15, "720p": 10})
+_TUNED = RankingConfig(criteria=[_RESOLUTION, _CODEC, _SEEDERS], min_seeders=1)
 
 
 def _result(*, seeders: int, codec: str = "x265", resolution: str = "1080p", tid: str = "t") -> TrackerResult:

@@ -636,6 +636,7 @@ def test_section_11d_crash_window_never_double_emits_grab_succeeded(store: Concr
         profile: object,
         *,
         on_intent: "Callable[[str], None] | None" = None,
+        exclude_hashes: object = frozenset(),
     ) -> GrabOutcome:
         # Mirrors the real orchestrator: reserve the intent hash (M9/D2) BEFORE
         # the add, then add. Idempotent add(): every grab returns the SAME
@@ -845,6 +846,7 @@ def test_resolve_profile_follow_lookup_passes_floor_to_orchestrator(store: Concr
         profile: QualityProfile,
         *,
         on_intent: "Callable[[str], None] | None" = None,
+        exclude_hashes: object = frozenset(),
     ) -> GrabOutcome:
         captured["profile"] = profile
         return GrabOutcome(disposition="success", info_hash="h", chosen=_make_tracker_result())

@@ -264,6 +264,8 @@ def rank_candidates(
     profile: "QualityProfile",
     media_ref: "MediaRef | None",
     ranking: "RankingConfig",
+    *,
+    exclude_hashes: "frozenset[str]" = frozenset(),
 ) -> "tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]":
     """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
 
@@ -290,6 +292,9 @@ def rank_candidates(
         media_ref: The wanted item's provider IDs (TMDB-identity filter seam);
             ``None`` for a manual CLI grab with no wanted item.
         ranking: Ranking configuration for the soft-score sort.
+        exclude_hashes: Lowercase info-hashes to exclude from ranking — releases
+            already grabbed-and-failed for this item (reswitch #342). Empty by
+            default, so the ordinary grab and the dry-run preview are unchanged.
 
     Returns:
         ``(representatives, ranked)`` — the deduped post-hard-filter survivors
@@ -298,7 +303,7 @@ def rank_candidates(
     """
     survivors = apply_hard_filters(results, profile, media_ref)
     representatives = dedup(survivors)
-    ranked = rank(representatives, ranking)
+    ranked = rank(representatives, ranking, exclude_hashes=exclude_hashes)
     return representatives, ranked
 
 
@@ -416,7 +421,13 @@ class GrabOrchestrator:
     # Shared search→filter→rank chain
     # ------------------------------------------------------------------
 
-    def _search_chain(self, item: WantedItem, profile: QualityProfile) -> _SearchChainResult:
+    def _search_chain(
+        self,
+        item: WantedItem,
+        profile: QualityProfile,
+        *,
+        exclude_hashes: "frozenset[str]" = frozenset(),
+    ) -> _SearchChainResult:
         """Run the shared search→filter→rank pipeline and return the exit path.
 
         Both :meth:`search` and :meth:`grab` call this private method.  It
@@ -495,6 +506,9 @@ class GrabOrchestrator:
             item: The claimed ``WantedItem`` to search for.
             profile: The effective :class:`QualityProfile` for the hard-filter
                 stage.
+            exclude_hashes: Lowercase info-hashes to drop from ranking — releases
+                already grabbed-and-failed for this item (reswitch #342). Empty
+                by default, so the search path is unchanged.
 
         Returns:
             A :class:`_SearchChainResult` whose ``exit_path`` is one of the
@@ -540,7 +554,9 @@ class GrabOrchestrator:
         # differently from the run is a lie). Empty ``representatives`` ⇔ empty
         # hard-filter survivors (``dedup([])`` is ``[]``), so the two guards
         # below keep the all_filtered / no_seeders taxonomy bit-for-bit.
-        representatives, ranked = rank_candidates(results, profile, media_ref, self._ranking)
+        representatives, ranked = rank_candidates(
+            results, profile, media_ref, self._ranking, exclude_hashes=exclude_hashes
+        )
         if not representatives:
             return _SearchChainResult(exit_path="all_filtered", ranked=[], top=None)
         if not ranked:
@@ -629,6 +645,7 @@ class GrabOrchestrator:
         profile: QualityProfile,
         *,
         on_intent: "Callable[[str], None] | None" = None,
+        exclude_hashes: "frozenset[str]" = frozenset(),
     ) -> GrabOutcome:
         """Execute the full grab chain for one claimed ``WantedItem``.
 
@@ -673,6 +690,10 @@ class GrabOrchestrator:
                 (confirmed against the client) instead of an orphan torrent.
                 Skipped when the chosen result carries no info-hash; a raise
                 propagates (the add does NOT run — no orphan).
+            exclude_hashes: Lowercase info-hashes to exclude from ranking —
+                releases already grabbed-and-failed for this item (reswitch
+                #342), so a re-grab after an auto-reswitch never re-picks the
+                same dead release. Empty by default (the ordinary first grab).
 
         Returns:
             The :class:`GrabOutcome` describing success / retryable / terminal.
@@ -680,7 +701,9 @@ class GrabOrchestrator:
         media_ref = item.media_ref
 
         # --- Shared search→filter→rank chain ---
-        result = self._search_chain(item, profile)
+        # reswitch #342: exclude releases already grabbed-and-failed for this item
+        # so a re-grab after a dead-swarm stall never re-picks the same release.
+        result = self._search_chain(item, profile, exclude_hashes=exclude_hashes)
 
         # Map each exit path to the same disposition + event the inline chain
         # produced before the extraction (outcome.reason strings unchanged).
