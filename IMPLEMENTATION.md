@@ -20,7 +20,7 @@
 | 2   | Observabilité swarm (`swarm_seeds` + classify) | [phase-02](docs/features/reswitch/plan/phase-02-swarm.md)     | [x]    |
 | 3   | Mémoire hashes tentés + exclusion ranking      | [phase-03](docs/features/reswitch/plan/phase-03-exclusion.md) | [x]    |
 | 4   | Acteur de rebascule (`reswitch_stalled`)       | [phase-04](docs/features/reswitch/plan/phase-04-actor.md)     | [x]    |
-| 5   | Surfaçage UI + events + ACC + déploiement      | [phase-05](docs/features/reswitch/plan/phase-05-acc.md)       | [ ]    |
+| 5   | Surfaçage UI + events + ACC + déploiement      | [phase-05](docs/features/reswitch/plan/phase-05-acc.md)       | [x]    |
 
 ## Review cycles
 
@@ -28,4 +28,5 @@ _(filled by implement:pr-review)_
 
 ## Next action
 
-Run `/implement:phase` (phase 1)
+Toutes les phases terminées — feature-pr (push + PR + CI), review adversariale,
+merge squash, déploiement prod, clôture #342.
