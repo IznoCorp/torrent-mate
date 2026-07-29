@@ -51,6 +51,14 @@ class TorrentItem:
             when the torrent is healthy. Surfaced so a broken torrent (data
             vanished on disk, tracker error) is VISIBLE (§8) instead of bucketed
             as a neutral "in client" state.
+        swarm_seeds: The number of complete copies (seeds) the tracker reports in
+            the swarm, or ``None`` when the client does not expose it. Populated by
+            the qBittorrent mapper from ``num_complete`` in ``torrents/info``.
+            ``0`` means a dead swarm (no seed available); it distinguishes an
+            unreachable release from one that is merely downloading slowly, which
+            the auto-reswitch (reswitch #342) needs to decide whether to switch to
+            another release. Optional + defaulted so every existing caller and
+            mapper stays source-compatible.
     """
 
     hash: str
@@ -66,6 +74,7 @@ class TorrentItem:
     save_path: str = ""
     completion_on: int | None = None
     error_reason: str | None = None
+    swarm_seeds: int | None = None
 
 
 @dataclass(frozen=True)
