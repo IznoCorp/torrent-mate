@@ -23,6 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.63.0] — 2026-07-29
+
+### Fixed
+
+- **Une série suivie n'est plus splittée sous deux identités TVDB au scrape.**
+  Le scraper re-matchait librement chaque dossier de staging ; pour une série
+  suivie dont TVDB a des doublons (ex. « Rooster » 457770 vs « ニワトリ・ファイター »
+  452575), il pouvait résoudre la mauvaise fiche, dispatcher un 2ᵉ dossier et
+  **casser le reconcile d'acquisition** (les épisodes restaient « en cours
+  d'acquisition » à vie). Désormais, quand un dossier de show provient de la file
+  `wanted` d'un suivi (épisodes grabbed appariés par saison/épisode + garde de
+  similarité de titre), le scrape **force l'ID TVDB du suivi**
+  (`scrape_tvshow_forced`) au lieu de re-matcher. Précision-first : forçage
+  seulement si un seul suivi recouvre le dossier ET le titre concorde, sinon
+  match libre (rétro-compatible). Fail-soft de bout en bout (jamais de blocage du
+  scrape). TVDB reste le primaire de détection.
+
 ## [0.62.0] — 2026-07-29
 
 ### Added
