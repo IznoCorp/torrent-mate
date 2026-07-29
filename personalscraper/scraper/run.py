@@ -26,6 +26,8 @@ from personalscraper.reports.scrape import ScrapeDetails
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from personalscraper.api.metadata.registry import ProviderRegistry
 
 log = get_logger("run")
@@ -144,6 +146,50 @@ def _needs_repair(category_dir: Path, file_type: FileType) -> bool:
     return False
 
 
+def _build_follow_tvdb_resolver(config: Config) -> "Callable[[Path], int | None] | None":
+    """Build the scrape-follow-id provenance resolver from the acquire queue.
+
+    Reads the grabbed wanted snapshot + follow titles ONCE (they stay ``grabbed``
+    for the whole scrape step — the reconcile runs post-dispatch) and closes over
+    them, so each show dir is resolved in-memory without re-opening the store.
+
+    Args:
+        config: The loaded config (its ``acquire`` sub-config locates the store).
+
+    Returns:
+        A ``show_dir -> tvdb_id | None`` callable, or ``None`` (free match) when
+        nothing is grabbed or the store cannot be read (fail-soft, never blocks).
+    """
+    from personalscraper.acquire.store import build_acquire_store  # noqa: PLC0415
+    from personalscraper.scraper.follow_provenance import resolve_followed_tvdb  # noqa: PLC0415
+
+    # Only touch the acquire store when it is configured with a real path — guards
+    # against a non-configured/mock acquire config (opening it would create a
+    # spurious DB file). In production db_path is always a real Path.
+    db_path = getattr(config.acquire, "db_path", None)
+    if not isinstance(db_path, (str, Path)):
+        return None
+
+    try:
+        store = build_acquire_store(config.acquire)
+        try:
+            grabbed = store.wanted.list_grabbed()
+            follow_titles = {f.id: f.title for f in store.follow.list_all() if f.id is not None}
+        finally:
+            store.close()
+    except Exception as exc:  # noqa: BLE001 — fail-soft: free match if store unavailable
+        log.warning("scrape_follow_resolver_build_failed", error=str(exc))
+        return None
+
+    if not grabbed:
+        return None
+
+    def _resolver(show_dir: Path) -> int | None:
+        return resolve_followed_tvdb(show_dir, grabbed, follow_titles)
+
+    return _resolver
+
+
 def run_scrape(
     settings: Settings,
     config: Config,
@@ -208,6 +254,9 @@ def run_scrape(
         config=config,
         event_bus=event_bus,
         registry=registry,
+        # scrape-follow-id: force the followed series' TVDB id (anti-split) when a
+        # staging show came from the wanted queue. None ⇒ free match (unchanged).
+        follow_tvdb_resolver=_build_follow_tvdb_resolver(config),
     )
 
     all_results: list[ScrapeResult] = []
