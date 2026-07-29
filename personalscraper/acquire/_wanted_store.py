@@ -627,7 +627,7 @@ class _WantedSubStore:
                 (json.dumps([*existing, normalized]), wanted_id),
             )
 
-    def requeue_for_reswitch(self, wanted_id: int, failed_hash: str) -> bool:
+    def requeue_for_reswitch(self, wanted_id: int, failed_hash: str, now: int) -> bool:
         """Atomically remember the failed release AND requeue the row for a re-grab.
 
         The auto-reswitch (reswitch #342) calls this when a grabbed torrent is
@@ -638,12 +638,21 @@ class _WantedSubStore:
         back to the same dead release). ``tried_hashes`` is preserved across the
         requeue; only ``grabbed_hash`` is cleared.
 
+        The cadence clock is RESET (``enqueued_at = now``, ``attempts = 0``,
+        ``last_search_at = NULL``) — like :meth:`resurrect` — because the original
+        clock is no longer fair: without it the cutoff gate would abandon a
+        reswitched item whose original enqueue predates the cadence window on the
+        very next pass, before it could be re-grabbed (review L1). The
+        ``tried_hashes`` exclusion, not the attempt counter, is the loop guard, so
+        resetting ``attempts`` cannot cause an infinite reswitch.
+
         Guarded on ``grabbed_hash IS NOT NULL`` + the OPEN statuses, mirroring
         :meth:`requeue_missing`, so a second call is a no-op (idempotent).
 
         Args:
             wanted_id: Rowid of the ``wanted`` row.
             failed_hash: The stalled release's info-hash (appended to tried_hashes).
+            now: Unix epoch seconds — the reswitched row's fresh ``enqueued_at``.
 
         Returns:
             ``True`` iff the row transitioned.
@@ -662,9 +671,10 @@ class _WantedSubStore:
             existing = decode_tried_hashes(row["tried_hashes_json"])
             merged = existing if (not normalized or normalized in existing) else (*existing, normalized)
             cur = self._conn.execute(
-                f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL, tried_hashes_json = ? "  # noqa: S608
+                f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL, tried_hashes_json = ?, "  # noqa: S608
+                f"enqueued_at = ?, attempts = 0, last_search_at = NULL "
                 f"WHERE id = ? AND status IN ({placeholders}) AND grabbed_hash IS NOT NULL",
-                (json.dumps(list(merged)), wanted_id, *open_statuses),
+                (json.dumps(list(merged)), now, wanted_id, *open_statuses),
             )
             return cur.rowcount == 1
 

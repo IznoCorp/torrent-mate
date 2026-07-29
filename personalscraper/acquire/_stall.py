@@ -69,8 +69,12 @@ def classify_stall(
         The :class:`StallVerdict`.
     """
     # A broken torrent (data vanished, tracker error) never recovers on its own —
-    # switch immediately, whatever its progress.
-    if item.error_reason is not None:
+    # switch it, UNLESS it already completed. A 100 %-done torrent is the
+    # pipeline's / reconciliation's business and may be seeding under a min-seed
+    # obligation; the reswitch deletes files, so it must never discard a complete
+    # download over a transient error state (review M2). A complete-but-errored
+    # torrent falls through to the state check below → HEALTHY (left alone).
+    if item.error_reason is not None and item.progress < 1.0:
         return StallVerdict.STALLED_DEAD
 
     state = item.state.strip().lower()

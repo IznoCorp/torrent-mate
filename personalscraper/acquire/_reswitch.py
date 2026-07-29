@@ -11,10 +11,12 @@ This pass reacts to it:
     requeue the row (:meth:`requeue_for_reswitch`), remove the dead torrent from
     the client, and emit :class:`~personalscraper.acquire.events.GrabReswitched`.
 
-The next grab pass then re-searches, ranks EXCLUDING the remembered hash, and
-grabs a DIFFERENT release. A row whose torrent has *vanished* is NOT our job —
-that is the reconciliation's ``requeue_missing`` (absence, not stall) — so we
-skip any grabbed hash the client no longer reports.
+The next SEARCH+GRAB cycle then re-searches, ranks EXCLUDING the remembered hash
+(the exclusion is threaded into BOTH passes), and grabs a DIFFERENT release —
+the requeued ``pending`` row is promoted by the search pass first, then grabbed.
+A row whose torrent has *vanished* is NOT our job — that is the reconciliation's
+``requeue_missing`` (absence, not stall) — so we skip any grabbed hash the client
+no longer reports.
 
 Ordering is load-bearing: ``requeue_for_reswitch`` (append-hash + requeue, one
 transaction) runs BEFORE the delete, so a delete failure can never strand a row
@@ -155,8 +157,10 @@ def reswitch_stalled(
 
         reason = _dead_reason(item)
         # Atomic append-hash + requeue FIRST — a delete failure afterwards can
-        # never leave the hash unrecorded (which would loop back onto it).
-        if not store.wanted.requeue_for_reswitch(row.id, row.grabbed_hash):
+        # never leave the hash unrecorded (which would loop back onto it). The
+        # clock is reset (enqueued_at = now) so the cutoff does not abandon the
+        # reswitched item before it can be re-grabbed (review L1).
+        if not store.wanted.requeue_for_reswitch(row.id, row.grabbed_hash, int(now)):
             continue
         try:
             torrent_client.delete(row.grabbed_hash, delete_files=True)

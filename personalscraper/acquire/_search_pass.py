@@ -126,7 +126,12 @@ class SearchPassMixin(PassGatesMixin):
             return "skipped"
 
         profile = self._resolve_profile(current)
-        verdict = self._orchestrator.search(current, profile)
+        # reswitch #342 (review M1) — exclude releases already grabbed-and-failed
+        # for this item so a reswitched row does not count its known-dead release
+        # as an « À récupérer » candidate (which would bounce it at 'available'
+        # forever). Empty on the ordinary first search.
+        tried = frozenset(self._store.wanted.list_tried_hashes(wanted_id))
+        verdict = self._orchestrator.search(current, profile, exclude_hashes=tried)
         return self._apply_search_verdict(current, verdict)
 
     def _apply_search_verdict(self, item: WantedItem, verdict: SearchVerdict) -> _SearchItemOutcome:

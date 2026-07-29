@@ -206,8 +206,8 @@ class WantedSubStore(Protocol):
         """Remember *info_hash* as a release already grabbed-and-failed (idempotent, lowercase)."""
         ...
 
-    def requeue_for_reswitch(self, wanted_id: int, failed_hash: str) -> bool:
-        """Atomically append *failed_hash* to tried_hashes AND requeue the row (reswitch #342)."""
+    def requeue_for_reswitch(self, wanted_id: int, failed_hash: str, now: int) -> bool:
+        """Atomically append *failed_hash* to tried_hashes AND requeue the row, clock reset (reswitch #342)."""
         ...
 
     def resurrect(self, wanted_id: int, now: int) -> bool:

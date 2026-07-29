@@ -82,18 +82,20 @@ def grab(
                     )
                     raise typer.Exit(1)
 
-                # reswitch #342 — BEFORE reconcile, switch dead-stalled grabs
-                # (dead swarm / broken / stuck past the deadline) to another
-                # release: the dead torrent is removed and the row requeued with
-                # the failed hash remembered, so the next search+grab picks a
-                # DIFFERENT release. A vanished torrent is left to reconcile.
-                _reswitch_before_run(acquire, app_context.event_bus, console)
-
                 # P0-B.3 — reconcile grabbed rows BEFORE searching: rows whose
                 # work the library owns close ``done``; rows whose torrent
                 # vanished from the client (and are unowned) requeue pending
                 # and re-enter this very run's queue.
                 reconcile = _reconcile_before_run(acquire, console)
+
+                # reswitch #342 — AFTER reconcile (review ordering note): reconcile
+                # closes library-owned rows to ``done`` first, so reswitch only
+                # acts on rows that are genuinely still downloading. For each
+                # dead-stalled grab (dead swarm / broken / stuck past the deadline)
+                # the dead torrent is removed and the row requeued with the failed
+                # hash remembered, so the next search+grab picks a DIFFERENT
+                # release. A vanished torrent is left to reconcile.
+                _reswitch_before_run(acquire, app_context.event_bus, console)
 
                 summary = grab_core.service.run(limit=limit, followed_id=followed_id)
                 console.print(

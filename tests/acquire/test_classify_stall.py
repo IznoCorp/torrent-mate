@@ -36,12 +36,22 @@ def _item(
 
 
 class TestBroken:
-    """A broken torrent (error / missingFiles) is always dead, whatever else."""
+    """A broken INCOMPLETE torrent is dead; a COMPLETE one is left alone (review M2)."""
 
-    def test_error_reason_is_dead_even_when_downloading(self) -> None:
-        """An error_reason ⇒ dead regardless of progress/swarm."""
+    def test_error_reason_is_dead_when_incomplete(self) -> None:
+        """An error_reason on an unfinished download ⇒ dead (switch it)."""
         item = _item(state="downloading", progress=0.5, swarm_seeds=50, error_reason="boom")
         assert classify_stall(item, 1.0, dead_after_s=_DEAD_AFTER) is StallVerdict.STALLED_DEAD
+
+    def test_complete_errored_torrent_is_not_dead(self) -> None:
+        """A 100 %-done torrent is never reswitched — its files/seed must not be deleted.
+
+        Review M2: reswitch deletes files, so a complete download (possibly
+        seeding under an obligation) that transiently errors must fall through to
+        HEALTHY, not STALLED_DEAD.
+        """
+        item = _item(state="error", progress=1.0, swarm_seeds=0, error_reason="missingFiles")
+        assert classify_stall(item, 1.0, dead_after_s=_DEAD_AFTER) is StallVerdict.HEALTHY
 
 
 class TestHealthy:

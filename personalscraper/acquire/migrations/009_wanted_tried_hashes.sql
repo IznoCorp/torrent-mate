@@ -18,9 +18,20 @@
 --
 -- NULL = no release tried yet — the honest default for pre-existing rows. The
 -- store encodes the list as a JSON array of lowercase hex info-hashes.
+--
+-- Wrapped in an explicit transaction (like 008) so the ADD COLUMN and the
+-- user_version bump commit together: `executescript` auto-commits each statement
+-- on its own outside a BEGIN, so a crash between the ALTER and the PRAGMA would
+-- leave the column present with user_version still 8 — the next boot re-runs 009
+-- and dies on `duplicate column name`. Inside one transaction there is no such
+-- window (review L4).
+
+BEGIN TRANSACTION;
 
 ALTER TABLE wanted ADD COLUMN tried_hashes_json TEXT;
 
 -- Record the migration + publish the schema version (mirrors 008's markers).
 INSERT OR IGNORE INTO schema_version(version) VALUES (9);
 PRAGMA user_version = 9;
+
+COMMIT;

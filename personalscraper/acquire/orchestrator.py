@@ -568,7 +568,13 @@ class GrabOrchestrator:
     # Public methods
     # ------------------------------------------------------------------
 
-    def search(self, item: WantedItem, profile: QualityProfile) -> SearchVerdict:
+    def search(
+        self,
+        item: WantedItem,
+        profile: QualityProfile,
+        *,
+        exclude_hashes: "frozenset[str]" = frozenset(),
+    ) -> SearchVerdict:
         """State availability for one wanted item — NEVER downloads.
 
         Runs the full search→filter→rank chain and returns a pure
@@ -610,11 +616,15 @@ class GrabOrchestrator:
             item: The wanted item to search for (read-only).
             profile: The effective :class:`QualityProfile` for the hard-filter
                 stage.
+            exclude_hashes: Lowercase info-hashes to drop from ranking — releases
+                already grabbed-and-failed for this item (reswitch #342), so the
+                availability verdict never counts a known-dead release as takeable
+                (review M1). Empty by default, so the ordinary search is unchanged.
 
         Returns:
             A :class:`SearchVerdict` describing availability.
         """
-        result = self._search_chain(item, profile)
+        result = self._search_chain(item, profile, exclude_hashes=exclude_hashes)
 
         mapping: dict[str, tuple[SearchDisposition, str, int | None]] = {
             "circuit_open": ("retryable", "circuit_open", None),

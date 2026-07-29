@@ -114,7 +114,7 @@ class TestTriedHashesStore:
     def test_requeue_for_reswitch_records_hash_and_requeues(self, store: ConcreteAcquireStore) -> None:
         """The stalled hash is remembered AND the row goes back to pending."""
         rowid = _grabbed_row(store, "deadbeef")
-        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef") is True
+        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef", 1_800_000_000) is True
         row = store.wanted.get(rowid)
         assert row is not None
         assert row.status == "pending"
@@ -124,16 +124,26 @@ class TestTriedHashesStore:
     def test_requeue_for_reswitch_is_idempotent(self, store: ConcreteAcquireStore) -> None:
         """A second call (row no longer grabbed) is a no-op and keeps the memory."""
         rowid = _grabbed_row(store, "deadbeef")
-        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef") is True
-        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef") is False
+        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef", 1_800_000_000) is True
+        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef", 1_800_000_000) is False
         assert store.wanted.list_tried_hashes(rowid) == ("deadbeef",)
+
+    def test_requeue_for_reswitch_resets_the_cadence_clock(self, store: ConcreteAcquireStore) -> None:
+        """enqueued_at is reset to now so the cutoff cannot abandon the reswitch (review L1)."""
+        rowid = _grabbed_row(store, "deadbeef")  # enqueued_at = 1_700_000_000
+        assert store.wanted.requeue_for_reswitch(rowid, "deadbeef", 1_900_000_000) is True
+        row = store.wanted.get(rowid)
+        assert row is not None
+        assert row.enqueued_at == 1_900_000_000
+        assert row.attempts == 0
+        assert row.last_search_at is None
 
     def test_tried_hashes_survive_a_second_reswitch(self, store: ConcreteAcquireStore) -> None:
         """A second dead release is appended, the first is preserved (no loop)."""
         rowid = _grabbed_row(store, "deadbeef")
-        store.wanted.requeue_for_reswitch(rowid, "deadbeef")
+        store.wanted.requeue_for_reswitch(rowid, "deadbeef", 1_800_000_000)
         # Simulate a re-grab of a different release that also stalls.
         store.wanted.claim_for_search(rowid, 1_700_000_200)
         store.wanted.mark_grabbed(rowid, "cafef00d")
-        store.wanted.requeue_for_reswitch(rowid, "cafef00d")
+        store.wanted.requeue_for_reswitch(rowid, "cafef00d", 1_800_000_100)
         assert store.wanted.list_tried_hashes(rowid) == ("deadbeef", "cafef00d")
