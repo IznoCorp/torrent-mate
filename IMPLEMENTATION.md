@@ -32,7 +32,19 @@
 
 ## Review cycles
 
-_(filled by implement:pr-review)_
+### Cycle 1 — adversarial `code-reviewer` (PR #339, 2026-07-29)
+
+**Verdict : invariants fail-soft/rétro-compat OK ; 1 HIGH précision trouvé** (bon catch).
+
+- **HIGH (Finding 1) — forçage d'un mauvais tvdb sur collision même-titre-de-base.** La garde de
+  titre (`token_set_ratio`) est subset-tolerant + aveugle à l'année → un dossier NON suivi
+  `Doctor Who (1963)` pouvait recevoir le tvdb d'un suivi `Doctor Who` (2005) via un S01E06 partagé.
+  **Corrigé** (commit `1de93017`) : (a) **couverture totale** (un suivi ne qualifie que s'il couvre
+  TOUS les épisodes du dossier), (b) **garde d'année** (année dossier vs `followed_series.year`),
+  (c) scan récursif `Saison NN/` + regex multi-épisode `S01E06E07`. 6 tests de régression.
+- **MEDIUM (Finding 2)** — `_build_follow_tvdb_resolver` non testé : 4 tests ajoutés (garde de fuite
+  MagicMock + fail-soft build).
+- Findings 3/4 (LOW) traités en même temps (regex multi-ep + scan récursif).
 
 ## Next action
 
