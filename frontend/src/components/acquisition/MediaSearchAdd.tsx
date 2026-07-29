@@ -26,8 +26,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollow, useMediaSearch } from "@/hooks/useAcquisition";
+import {
+  buildIdFollowBody,
+  type FollowProvider,
+} from "@/hooks/useFollowedPanel";
 
 /** The optional kind filter over the search. */
 type KindFilter = "all" | "movie" | "tv";
@@ -66,9 +71,40 @@ export function MediaSearchAdd(): ReactElement {
   const [confirmReplace, setConfirmReplace] = useState<MediaSearchResult | null>(
     null,
   );
+  // Add-by-ID (#21): the same surface also accepts a TVDB/TMDB/IMDB id, so the
+  // by-ID accordion no longer lives in FollowedPanel.
+  const [provider, setProvider] = useState<FollowProvider>("tvdb");
+  const [idValue, setIdValue] = useState("");
+  const [idTitle, setIdTitle] = useState("");
 
   const searchQuery = useMediaSearch(query, kind === "all" ? undefined : kind);
   const followMut = useFollow();
+
+  const idLabel =
+    provider === "imdb" ? "ID IMDB" : provider === "tmdb" ? "ID TMDB" : "ID TVDB";
+  const idPlaceholder =
+    provider === "imdb" ? "ex: tt0903747" : provider === "tmdb" ? "ex: 1399" : "ex: 255968";
+  const idBody = buildIdFollowBody(provider, idValue);
+
+  function handleAddById(): void {
+    if (idBody === null) return;
+    if (idTitle.trim()) idBody.title = idTitle.trim();
+    followMut.mutate(idBody, {
+      onSuccess: (created) => {
+        toast.success("Média ajouté au suivi");
+        setIdValue("");
+        setIdTitle("");
+        if (created.tvdb_unresolved) {
+          toast.warning(
+            "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
+          );
+        }
+      },
+      onError: (err: unknown) => {
+        toast.error(err instanceof Error ? err.message : "Échec de l'ajout");
+      },
+    });
+  }
 
   function submit(e: SyntheticEvent): void {
     e.preventDefault();
@@ -91,6 +127,10 @@ export function MediaSearchAdd(): ReactElement {
       onSuccess: () => {
         toast.success(`« ${result.title} » ajouté au suivi`);
         setFollowed((prev) => new Set(prev).add(key));
+        // Reset the search so the surface is ready for the next one (#19) —
+        // the results collapse and the input clears.
+        setDraft("");
+        setQuery("");
       },
       onError: (err: unknown) => {
         toast.error(err instanceof Error ? err.message : "Échec de l'ajout");
@@ -149,13 +189,65 @@ export function MediaSearchAdd(): ReactElement {
         </div>
       </form>
 
-      {query === "" ? (
-        <EmptyState
-          icon={Search}
-          title="Recherchez un média"
-          description="Tapez un titre puis validez pour trouver des films ou séries à suivre."
-        />
-      ) : searchQuery.isLoading ? (
+      {/* Add-by-ID (#21): the same surface accepts a TVDB/TMDB/IMDB id, so the
+          by-ID entry no longer lives in a separate FollowedPanel accordion. */}
+      <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+        <span className="text-xs font-medium text-muted-foreground">
+          ou ajouter directement par ID
+        </span>
+        <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
+          {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
+            <Button
+              key={p}
+              type="button"
+              size="sm"
+              className="flex-1 sm:flex-none"
+              variant={provider === p ? "default" : "ghost"}
+              onClick={() => {
+                setProvider(p);
+              }}
+            >
+              {p.toUpperCase()}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-1 sm:w-40">
+            <Label htmlFor="acq-id">{idLabel}</Label>
+            <Input
+              id="acq-id"
+              type={provider === "imdb" ? "text" : "number"}
+              inputMode={provider === "imdb" ? "text" : "numeric"}
+              placeholder={idPlaceholder}
+              value={idValue}
+              onChange={(e) => {
+                setIdValue(e.target.value);
+              }}
+            />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <Label htmlFor="acq-id-title">Titre (optionnel)</Label>
+            <Input
+              id="acq-id-title"
+              type="text"
+              placeholder="ex: Top Chef"
+              value={idTitle}
+              onChange={(e) => {
+                setIdTitle(e.target.value);
+              }}
+            />
+          </div>
+          <Button
+            className="w-full sm:w-auto sm:shrink-0"
+            disabled={idBody === null || followMut.isPending}
+            onClick={handleAddById}
+          >
+            {followMut.isPending ? "Ajout…" : "Suivre"}
+          </Button>
+        </div>
+      </div>
+
+      {query === "" ? null : searchQuery.isLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={`sk-${String(i)}`} className="aspect-[2/3] w-full" />

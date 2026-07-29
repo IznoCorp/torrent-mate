@@ -21,12 +21,6 @@ import { type ReactElement } from "react";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
 import { MediaPoster } from "@/components/ds/MediaPoster";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,15 +84,6 @@ export function FollowedPanel({
 }: FollowedPanelProps): ReactElement {
   const {
     grabSchedule,
-    provider,
-    setProvider,
-    idValue,
-    setIdValue,
-    title,
-    setTitle,
-    handleAdd,
-    addValid,
-    followPending,
     triggerSearch,
     triggerPendingId,
     grabNow,
@@ -140,87 +125,6 @@ export function FollowedPanel({
     );
   }
 
-  // ── Add form (always visible) ──────────────────────────────────────────
-  // Manual add-by-ID is the power-user fallback to the primary title search
-  // above; collapsed by default so it does not compete with it. Inputs stack on
-  // mobile (ID, then title, then a full-width Suivre) and inline on sm+.
-  const idLabel =
-    provider === "imdb"
-      ? "ID IMDB"
-      : provider === "tmdb"
-        ? "ID TMDB"
-        : "ID TVDB";
-  const idPlaceholder =
-    provider === "imdb"
-      ? "ex: tt0903747"
-      : provider === "tmdb"
-        ? "ex: 1399"
-        : "ex: 255968";
-  const addForm = (
-    <Accordion className="rounded-lg border border-border bg-card px-3">
-      <AccordionItem>
-        <AccordionTrigger>Ajouter par ID</AccordionTrigger>
-        <AccordionContent>
-          <div className="flex flex-col gap-3 pb-3">
-            {/* Provider selector — a TVDB/TMDB id is an int, an IMDb id is
-                ``tt…``. The server resolves TVDB from a TMDB/IMDB series so
-                episode detection works (series-only form). */}
-            <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
-              {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
-                <Button
-                  key={p}
-                  type="button"
-                  size="sm"
-                  className="flex-1 sm:flex-none"
-                  variant={provider === p ? "default" : "ghost"}
-                  onClick={() => {
-                    setProvider(p);
-                  }}
-                >
-                  {p.toUpperCase()}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex flex-col gap-1 sm:w-40">
-                <Label htmlFor="follow-id">{idLabel}</Label>
-                <Input
-                  id="follow-id"
-                  type={provider === "imdb" ? "text" : "number"}
-                  inputMode={provider === "imdb" ? "text" : "numeric"}
-                  placeholder={idPlaceholder}
-                  value={idValue}
-                  onChange={(e) => {
-                    setIdValue(e.target.value);
-                  }}
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <Label htmlFor="follow-title">Titre (optionnel)</Label>
-                <Input
-                  id="follow-title"
-                  type="text"
-                  placeholder="ex: Top Chef"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                  }}
-                />
-              </div>
-              <Button
-                className="w-full sm:w-auto sm:shrink-0"
-                disabled={!addValid || followPending}
-                onClick={handleAdd}
-              >
-                {followPending ? "Ajout…" : "Suivre"}
-              </Button>
-            </div>
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
-
   // ── Empty ──────────────────────────────────────────────────────────────
   // Operator review (2026-07-15): a retired follow (« Retirer » → active=0)
   // must LEAVE the rows — rendering it identically made the button look
@@ -231,14 +135,11 @@ export function FollowedPanel({
 
   if (data.length === 0) {
     return (
-      <div className="space-y-4">
-        {addForm}
-        <div className="py-8 text-center">
-          <p className="text-muted-foreground">
-            Aucune série suivie. Ajoutez une série avec son identifiant TVDB,
-            TMDB ou IMDB pour commencer.
-          </p>
-        </div>
+      <div className="py-8 text-center">
+        <p className="text-muted-foreground">
+          Aucune série suivie. Utilisez la recherche ci-dessus (par titre ou par
+          identifiant TVDB, TMDB ou IMDB) pour commencer.
+        </p>
       </div>
     );
   }
@@ -246,8 +147,6 @@ export function FollowedPanel({
   // ── Normal ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {addForm}
-
       {/* Automatic-search cadence caption, built from the live grab scheduler
           (C15). Omitted entirely when the scheduler is unavailable — never a
           hardcoded/invented value. */}
