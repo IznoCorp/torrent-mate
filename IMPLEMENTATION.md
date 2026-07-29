@@ -17,7 +17,7 @@
 | #   | Phase                                      | File                                                        | Status |
 | --- | ------------------------------------------ | ----------------------------------------------------------- | ------ |
 | 1   | Structure — retrait box + fusion recherche | [phase-01](docs/features/acq-ui/plan/phase-01-structure.md) | [x]    |
-| 2   | Comportement — reset + sous-onglets        | [phase-02](docs/features/acq-ui/plan/phase-02-behaviour.md) | [ ]    |
+| 2   | Comportement — reset + sous-onglets        | [phase-02](docs/features/acq-ui/plan/phase-02-behaviour.md) | [x]    |
 | 3   | ACC + preuve 390 px + gate                 | [phase-03](docs/features/acq-ui/plan/phase-03-acc.md)       | [ ]    |
 
 ## Review cycles
@@ -26,4 +26,4 @@ _(filled by implement:pr-review)_
 
 ## Next action
 
-Run `/implement:phase` (phase 2 — sous-onglets séries/films)
+Run `/implement:phase` (phase 3 — ACC + preuve 390 px + gate)
