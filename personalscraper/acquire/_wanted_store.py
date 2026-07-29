@@ -8,6 +8,7 @@ Reads are lock-free (WAL); writes use ``BEGIN IMMEDIATE`` via the shared
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -15,6 +16,7 @@ from contextlib import AbstractContextManager
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_wanted,
+    decode_tried_hashes,
 )
 from personalscraper.acquire.domain import (
     OPEN_WANTED_STATUSES,
@@ -98,7 +100,8 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found
+                   grabbed_hash, last_search_outcome, last_search_found,
+                   tried_hashes_json
             FROM wanted WHERE id = ?
             """,
             (wanted_id,),
@@ -132,7 +135,7 @@ class _WantedSubStore:
         rows = self._conn.execute(
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
             "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
-            "last_search_outcome, last_search_found "
+            "last_search_outcome, last_search_found, tried_hashes_json "
             "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
             (status,),
         ).fetchall()
@@ -572,6 +575,106 @@ class _WantedSubStore:
                 f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL "  # noqa: S608 — internal placeholders
                 f"WHERE id = ? AND status IN ({placeholders}) AND grabbed_hash IS NOT NULL",
                 (wanted_id, *open_statuses),
+            )
+            return cur.rowcount == 1
+
+    def list_tried_hashes(self, wanted_id: int) -> tuple[str, ...]:
+        """Return the info-hashes already grabbed-and-failed for this item.
+
+        The grab path passes these as the ranking exclusion set so a re-search
+        never re-picks a known-dead release (reswitch #342). Read-only; empty
+        tuple when the row is gone or nothing has been tried.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+
+        Returns:
+            The tried info-hashes (lowercase), order-stable.
+        """
+        self._conn.row_factory = sqlite3.Row
+        row = self._conn.execute(
+            "SELECT tried_hashes_json FROM wanted WHERE id = ?",
+            (wanted_id,),
+        ).fetchone()
+        return decode_tried_hashes(row["tried_hashes_json"]) if row is not None else ()
+
+    def append_tried_hash(self, wanted_id: int, info_hash: str) -> None:
+        """Remember *info_hash* as a release already grabbed-and-failed for this item.
+
+        Idempotent: a hash already recorded is not duplicated. Hashes are stored
+        lowercase. A blank hash or a missing row is a no-op.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            info_hash: The failed release's info-hash.
+        """
+        normalized = info_hash.strip().lower()
+        if not normalized:
+            return
+        with self._write_tx(self._conn):
+            self._conn.row_factory = sqlite3.Row
+            row = self._conn.execute(
+                "SELECT tried_hashes_json FROM wanted WHERE id = ?",
+                (wanted_id,),
+            ).fetchone()
+            if row is None:
+                return
+            existing = decode_tried_hashes(row["tried_hashes_json"])
+            if normalized in existing:
+                return
+            self._conn.execute(
+                "UPDATE wanted SET tried_hashes_json = ? WHERE id = ?",
+                (json.dumps([*existing, normalized]), wanted_id),
+            )
+
+    def requeue_for_reswitch(self, wanted_id: int, failed_hash: str, now: int) -> bool:
+        """Atomically remember the failed release AND requeue the row for a re-grab.
+
+        The auto-reswitch (reswitch #342) calls this when a grabbed torrent is
+        declared dead: *failed_hash* is appended to ``tried_hashes`` (so the next
+        search excludes it) and the row goes back to ``pending`` with its
+        ``grabbed_hash`` cleared — all in one transaction so a crash can never
+        clear the hash without recording it (which would let the reswitch loop
+        back to the same dead release). ``tried_hashes`` is preserved across the
+        requeue; only ``grabbed_hash`` is cleared.
+
+        The cadence clock is RESET (``enqueued_at = now``, ``attempts = 0``,
+        ``last_search_at = NULL``) — like :meth:`resurrect` — because the original
+        clock is no longer fair: without it the cutoff gate would abandon a
+        reswitched item whose original enqueue predates the cadence window on the
+        very next pass, before it could be re-grabbed (review L1). The
+        ``tried_hashes`` exclusion, not the attempt counter, is the loop guard, so
+        resetting ``attempts`` cannot cause an infinite reswitch.
+
+        Guarded on ``grabbed_hash IS NOT NULL`` + the OPEN statuses, mirroring
+        :meth:`requeue_missing`, so a second call is a no-op (idempotent).
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+            failed_hash: The stalled release's info-hash (appended to tried_hashes).
+            now: Unix epoch seconds — the reswitched row's fresh ``enqueued_at``.
+
+        Returns:
+            ``True`` iff the row transitioned.
+        """
+        normalized = failed_hash.strip().lower()
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
+        with self._write_tx(self._conn):
+            self._conn.row_factory = sqlite3.Row
+            row = self._conn.execute(
+                "SELECT tried_hashes_json FROM wanted WHERE id = ?",
+                (wanted_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            existing = decode_tried_hashes(row["tried_hashes_json"])
+            merged = existing if (not normalized or normalized in existing) else (*existing, normalized)
+            cur = self._conn.execute(
+                f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL, tried_hashes_json = ?, "  # noqa: S608
+                f"enqueued_at = ?, attempts = 0, last_search_at = NULL "
+                f"WHERE id = ? AND status IN ({placeholders}) AND grabbed_hash IS NOT NULL",
+                (json.dumps(list(merged)), now, wanted_id, *open_statuses),
             )
             return cur.rowcount == 1
 

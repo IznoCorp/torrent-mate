@@ -356,6 +356,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     CrossSeedRejected,
     FilmAcquired,
     GrabFailed,
+    GrabReswitched,
     GrabSucceeded,
     RatioMeasured,
     SeedObligationBreached,
@@ -431,6 +432,16 @@ def make_grab_failed() -> GrabFailed:
         media_ref=None,
         source_tracker="lacale",
         reason="ConnectionError: Max retries exceeded",
+    )
+
+
+@register_factory(GrabReswitched)
+def make_grab_reswitched() -> GrabReswitched:
+    """Realistic GrabReswitched factory — a dead-swarm release switched (reswitch #342)."""
+    return GrabReswitched(
+        media_ref=_BREAKING_BAD_REF,
+        old_hash="d" * 40,
+        reason="dead_swarm",
     )
 
 

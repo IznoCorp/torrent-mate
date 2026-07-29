@@ -86,6 +86,10 @@ vi.mock("@/hooks/useSchedulers", () => ({
   useSchedulers: () => useSchedulersMock(),
 }));
 
+vi.mock("sonner", () => ({
+  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
+
 vi.mock("@/api/pipeline", async () => {
   const actual = await vi.importActual("@/api/pipeline");
   return {
@@ -1044,6 +1048,39 @@ describe("AcquisitionPage", () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: ["acquisition", "followed", {}],
+      }),
+    );
+  });
+
+  it("toasts + invalidates wanted on GrabReswitched event (ticket 342)", async () => {
+    const { toast } = await import("sonner");
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidateQueriesSpy = vi
+      .spyOn(qc, "invalidateQueries")
+      .mockResolvedValue(undefined);
+
+    useEventStreamContextMock.mockReturnValue({
+      events: [{ type: "GrabReswitched", id: "9-0", data: {} }],
+    });
+    mockAllEmpty();
+
+    const tree: ReactElement = (
+      <MemoryRouter>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    render(tree);
+
+    // The operator sees WHY the item went back to searching…
+    expect(vi.mocked(toast.info)).toHaveBeenCalled();
+    // …and the wanted view refreshes so the card stops reading « en cours ».
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: ["acquisition", "wanted", {}],
       }),
     );
   });

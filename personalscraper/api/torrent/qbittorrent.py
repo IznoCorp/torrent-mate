@@ -770,6 +770,15 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     # as errored (§8) instead of bucketing it to a neutral "in client" state.
     raw_state = str(t.state or "")
     error_reason = _QBIT_ERROR_REASONS.get(raw_state.strip().lower())
+    # num_complete = seeds the tracker reports in the swarm. qBittorrent returns
+    # -1 when it does not know (never announced / private tracker silent), which
+    # we normalize to None ("unknown") so a genuine 0 ("dead swarm") stays
+    # distinct — the auto-reswitch (reswitch #342) treats 0 as a switch signal
+    # but never a mere "unknown".
+    num_complete_raw = getattr(t, "num_complete", None)
+    swarm_seeds: int | None = (
+        int(num_complete_raw) if isinstance(num_complete_raw, (int, float)) and num_complete_raw >= 0 else None
+    )
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -784,6 +793,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         save_path=save_path,
         completion_on=completion_on,
         error_reason=error_reason,
+        swarm_seeds=swarm_seeds,
     )
 
 

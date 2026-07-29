@@ -116,6 +116,10 @@ class GrabPassMixin(PassGatesMixin):
             return "skipped"
 
         profile = self._resolve_profile(current)
+        # reswitch #342 — exclude releases already grabbed-and-failed for this
+        # item (dead swarm / broken payload), so a re-grab after an auto-reswitch
+        # never re-picks the same dead release. Empty on the ordinary first grab.
+        tried = frozenset(self._store.wanted.list_tried_hashes(wanted_id))
         # D2 — the orchestrator writes the chosen hash onto this still
         # 'searching' row through the hook, immediately before its ``add()``.
         # A crash in the add→``mark_grabbed`` window then leaves an INTENT the
@@ -124,6 +128,7 @@ class GrabPassMixin(PassGatesMixin):
             current,
             profile,
             on_intent=lambda info_hash: self._record_grab_intent(wanted_id, info_hash),
+            exclude_hashes=tried,
         )
 
         if outcome.disposition == "success":

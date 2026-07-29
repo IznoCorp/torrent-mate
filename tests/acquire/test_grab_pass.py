@@ -122,6 +122,7 @@ def test_grab_only_walks_available_items(store: ConcreteAcquireStore) -> None:
         profile: object,
         *,
         on_intent: "Callable[[str], None] | None" = None,
+        exclude_hashes: object = frozenset(),
     ) -> GrabOutcome:
         assert item.id is not None  # noqa: S101
         grabbed_ids.append(item.id)

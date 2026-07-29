@@ -163,6 +163,13 @@ class WantedItem:
             dead swarm): zero would falsely claim « I looked, there is
             nothing », which is the lie of the Furious incident (DESIGN §1).
             ``None`` is also the default for never-searched rows.
+        tried_hashes: Lowercase info-hashes of releases already grabbed-and-failed
+            for this item (dead swarm / broken payload). The auto-reswitch
+            (reswitch #342) appends the stalled hash before requeueing, and the
+            next search ranks EXCLUDING these so it never loops back to a known
+            dead release. Empty tuple = none tried (the default for pre-existing
+            rows and the ordinary first grab). Populated only by SELECTs that
+            fetch ``tried_hashes_json``; other reads leave it empty.
     """
 
     media_ref: MediaRef
@@ -179,6 +186,7 @@ class WantedItem:
     grabbed_hash: str | None = None
     last_search_outcome: str | None = None
     last_search_found: int | None = None
+    tried_hashes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate kind and status values.

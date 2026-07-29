@@ -16,6 +16,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { acqKeys } from "@/api/acquisition";
 import { FileDAcquisitionPanel } from "@/components/acquisition/FileDAcquisitionPanel";
@@ -101,6 +102,13 @@ export default function AcquisitionPage(): ReactElement {
 
     for (const msg of fresh) {
       if (!ACQ_EVENT_TYPES.has(msg.type)) continue;
+
+      // reswitch (ticket 342) — tell the operator WHY an « en cours » item just
+      // went back to searching (a dead/blocked release was swapped). The wanted
+      // invalidation below still runs so the card refreshes.
+      if (msg.type === "GrabReswitched") {
+        toast.info("Source bloquée — bascule vers une autre release.");
+      }
 
       if (FULL_INVALIDATE_EVENTS.has(msg.type)) {
         void queryClient.invalidateQueries({ queryKey: acqKeys.all });

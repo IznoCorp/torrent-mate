@@ -1,24 +1,26 @@
-# Implementation Progress — acq-ui
+# Implementation Progress — reswitch
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Polish UI Acquisitions (full-width, reset recherche, sous-onglets séries/films, fusion recherche)
+**Feature**: Auto-bascule d'une release bloquée + seeders renforcés dans le score
 **Type**: feat
-**Version bump**: 0.63.0 → 0.64.0 (minor)
-**Branch**: feat/acq-ui
-**Ticket**: #340 — claimed
+**Version bump**: 0.64.0 → 0.65.0 (minor)
+**Branch**: feat/reswitch
+**Ticket**: #342 — claimed
 **PR merge**: auto
 **PR**: _(created after last phase)_
-**Design**: docs/features/acq-ui/DESIGN.md
-**Master plan**: docs/features/acq-ui/plan/INDEX.md
+**Design**: docs/features/reswitch/DESIGN.md
+**Master plan**: docs/features/reswitch/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                      | File                                                        | Status |
-| --- | ------------------------------------------ | ----------------------------------------------------------- | ------ |
-| 1   | Structure — retrait box + fusion recherche | [phase-01](docs/features/acq-ui/plan/phase-01-structure.md) | [x]    |
-| 2   | Comportement — reset + sous-onglets        | [phase-02](docs/features/acq-ui/plan/phase-02-behaviour.md) | [x]    |
-| 3   | ACC + preuve 390 px + gate                 | [phase-03](docs/features/acq-ui/plan/phase-03-acc.md)       | [x]    |
+| #   | Phase                                          | File                                                          | Status |
+| --- | ---------------------------------------------- | ------------------------------------------------------------- | ------ |
+| 1   | Seeders renforcés (config + test)              | [phase-01](docs/features/reswitch/plan/phase-01-seeders.md)   | [x]    |
+| 2   | Observabilité swarm (`swarm_seeds` + classify) | [phase-02](docs/features/reswitch/plan/phase-02-swarm.md)     | [x]    |
+| 3   | Mémoire hashes tentés + exclusion ranking      | [phase-03](docs/features/reswitch/plan/phase-03-exclusion.md) | [x]    |
+| 4   | Acteur de rebascule (`reswitch_stalled`)       | [phase-04](docs/features/reswitch/plan/phase-04-actor.md)     | [x]    |
+| 5   | Surfaçage UI + events + ACC + déploiement      | [phase-05](docs/features/reswitch/plan/phase-05-acc.md)       | [x]    |
 
 ## Review cycles
 
@@ -27,4 +29,4 @@ _(filled by implement:pr-review)_
 ## Next action
 
 Toutes les phases terminées — feature-pr (push + PR + CI), review adversariale,
-merge squash, déploiement prod, preuve Chrome 390 px, clôture #340.
+merge squash, déploiement prod, clôture #342.

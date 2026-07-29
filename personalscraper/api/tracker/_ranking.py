@@ -33,6 +33,8 @@ from personalscraper.conf.models._ranking import (
 def rank(
     results: list[TrackerResult],
     ranking: RankingConfig,
+    *,
+    exclude_hashes: frozenset[str] = frozenset(),
 ) -> list[tuple[TrackerResult, int]]:
     """Score tracker results, apply bonuses, drop sub-min-seeders, sort desc.
 
@@ -56,6 +58,9 @@ def rank(
     Args:
         results: Tracker results to score.
         ranking: Ranking configuration.
+        exclude_hashes: Lowercase info-hashes to drop before scoring — releases
+            already grabbed-and-failed for this item (reswitch #342). Empty by
+            default, so the ordinary grab is unchanged.
 
     Returns:
         Sorted list of (result, score) pairs, highest score first.
@@ -63,6 +68,11 @@ def rank(
     scored: list[tuple[TrackerResult, int]] = []
     for r in results:
         if r.seeders < ranking.min_seeders:
+            continue
+        # reswitch #342: never re-pick a release already grabbed-and-failed for
+        # this item (dead swarm / broken). The exclusion set is lowercase hex;
+        # compare case-insensitively so a differently-cased hash still matches.
+        if r.info_hash is not None and r.info_hash.lower() in exclude_hashes:
             continue
         total = 0
         for c in ranking.criteria:

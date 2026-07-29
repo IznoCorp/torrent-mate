@@ -145,6 +145,30 @@ class GrabFailed(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class GrabReswitched(Event):
+    """A grabbed release was declared dead-stalled and switched for another.
+
+    Emitted by :func:`personalscraper.acquire._reswitch.reswitch_stalled` when a
+    grabbed torrent is classified ``STALLED_DEAD`` (dead swarm / broken payload /
+    stuck past the deadline): the dead torrent is removed from the client, the
+    item is requeued with the failed hash remembered (so the next search excludes
+    it), and the next grab picks a DIFFERENT release. Never a silent state — the
+    operator sees WHY an « en cours d'acquisition » item went back to searching
+    (product-intent §2 / §méthode).
+
+    Attributes:
+        media_ref: Provider-ID key of the item being reswitched.
+        old_hash: The dead release's info-hash (now recorded in ``tried_hashes``).
+        reason: Why it was declared dead — a short machine-stable token
+            (``dead_swarm`` / ``broken`` / ``deadline``).
+    """
+
+    media_ref: MediaRef
+    old_hash: str
+    reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class SeedObligationRecorded(Event):
     """A seed obligation was created when a dispatched payload is registered.
 

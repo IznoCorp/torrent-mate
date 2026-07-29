@@ -23,6 +23,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.65.0] — 2026-07-29
+
+### Added
+
+- **Auto-bascule d'une release bloquée + seeders renforcés dans le score (#342).**
+  Un torrent grabé qui ne démarre pas (swarm injoignable, payload cassé, bloqué
+  au-delà d'un délai) est automatiquement remplacé par une AUTRE release :
+  - seeders renforcés dans le score (poids 1 → 2, seuils affinés) pour favoriser
+    les releases bien seedées (config, sans changement de code) ;
+  - observabilité du swarm (`TorrentItem.swarm_seeds` depuis `num_complete` qBit)
+    - `classify_stall` (HEALTHY / STALLED_RECOVERABLE / STALLED_DEAD) ;
+  - mémoire des hashes déjà tentés (`wanted.tried_hashes_json`, migration 009) +
+    exclusion au ranking (`rank(..., exclude_hashes=…)`) — jamais deux fois la
+    même release morte ;
+  - acteur `reswitch_stalled` (dans le CLI `grab`) : supprime le torrent mort,
+    requeue l'item, émet `GrabReswitched` ; toast + rafraîchissement live côté UI.
+  - Garde-fou honnête : toutes sources tentées → `en_attente` (jamais un faux
+    « en cours »).
+
 ## [0.64.0] — 2026-07-29
 
 ### Changed

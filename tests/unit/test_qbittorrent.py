@@ -83,6 +83,36 @@ class TestTorrentItemMapping:
         mock.added_on = 0
         assert _torrent_item(mock).error_reason == "Torrent en erreur (voir qBittorrent)"
 
+    def test_num_complete_maps_to_swarm_seeds(self) -> None:
+        """QBit ``num_complete`` → ``swarm_seeds`` (reswitch #342)."""
+        mock = MagicMock()
+        mock.state = "stalledDL"
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        mock.num_complete = 12
+        assert _torrent_item(mock).swarm_seeds == 12
+
+    def test_num_complete_zero_is_kept_as_dead_swarm(self) -> None:
+        """A genuine 0 (dead swarm) must survive as 0, not collapse to None."""
+        mock = MagicMock()
+        mock.state = "stalledDL"
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        mock.num_complete = 0
+        assert _torrent_item(mock).swarm_seeds == 0
+
+    def test_num_complete_negative_one_is_unknown(self) -> None:
+        """QBit returns -1 when it does not know → normalized to None (unknown)."""
+        mock = MagicMock()
+        mock.state = "stalledDL"
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        mock.num_complete = -1
+        assert _torrent_item(mock).swarm_seeds is None
+
     def test_ratio_field_present_on_item(self) -> None:
         """Regression for BUG #8: every TorrentItem must carry a `ratio` attribute.
 

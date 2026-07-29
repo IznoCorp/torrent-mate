@@ -12,13 +12,19 @@
       { field: "source", weight: 2, values: { BluRay: 15, "WEB-DL": 10 } },
       {
         field: "seeders",
-        weight: 1,
+        // Strengthened (reswitch #342): seeders are a strong signal, so a
+        // well-seeded release is favoured — a live swarm outweighs a codec tier
+        // (max 2*22 = 44) without dominating the resolution policy. Complements
+        // the auto-reswitch that drops truly dead swarms at download time.
+        weight: 2,
         prefer: "higher",
         thresholds: [
           { at: 0, score: 0 },
-          { at: 5, score: 5 },
-          { at: 20, score: 10 },
-          { at: 100, score: 20 },
+          { at: 1, score: 3 },
+          { at: 5, score: 8 },
+          { at: 20, score: 14 },
+          { at: 50, score: 18 },
+          { at: 100, score: 22 },
         ],
       },
       {
