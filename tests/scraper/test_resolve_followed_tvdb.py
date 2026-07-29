@@ -104,3 +104,53 @@ class TestResolveFollowedTvdb:
         show = _show_dir(tmp_path, "Rooster Fighter", [(1, 11)])
         grabbed = _grabbed(457770, 14, [(1, 6), (1, 7)])
         assert resolve_followed_tvdb(show, grabbed, {14: "Rooster"}) is None
+
+
+class TestReviewHardening:
+    """Regression tests for the PR #339 adversarial review (precision-first)."""
+
+    def test_different_year_remake_does_not_force(self, tmp_path: Path) -> None:
+        """Finding 1: a different-year remake must not force the follow's tvdb.
+
+        An unfollowed 'X (1963)' folder must NOT get a followed 'X' (2005) tvdb
+        via a coincidental shared episode — the year guard blocks it.
+        """
+        show = _show_dir(tmp_path, "Doctor Who (1963)", [(1, 6)])
+        grabbed = _grabbed(78804, 5, [(1, 6)])  # followed Doctor Who (2005)
+        titles = {5: "Doctor Who"}
+        years = {5: 2005}
+        assert resolve_followed_tvdb(show, grabbed, titles, years) is None
+
+    def test_matching_year_still_resolves(self, tmp_path: Path) -> None:
+        """A folder year that AGREES with the follow year still resolves."""
+        show = _show_dir(tmp_path, "Rooster Fighter (2026)", [(1, 6)])
+        grabbed = _grabbed(457770, 14, [(1, 6)])
+        assert resolve_followed_tvdb(show, grabbed, {14: "Rooster"}, {14: 2026}) == 457770
+
+    def test_coverage_all_required(self, tmp_path: Path) -> None:
+        """Finding 1: every folder episode must be covered — a partial cover abstains."""
+        show = _show_dir(tmp_path, "Rooster Fighter", [(1, 6), (1, 7)])
+        grabbed = _grabbed(457770, 14, [(1, 6)])  # only E06 grabbed
+        assert resolve_followed_tvdb(show, grabbed, {14: "Rooster"}) is None
+
+    def test_recursive_saison_folder(self, tmp_path: Path) -> None:
+        """Finding 4: episodes nested under 'Saison NN/' are parsed (recursive)."""
+        d = tmp_path / "Rooster Fighter"
+        (d / "Saison 01").mkdir(parents=True)
+        (d / "Saison 01" / "Rooster Fighter.S01E06.mkv").write_bytes(b"")
+        grabbed = _grabbed(457770, 14, [(1, 6)])
+        assert resolve_followed_tvdb(d, grabbed, {14: "Rooster"}) == 457770
+
+    def test_multi_episode_file(self, tmp_path: Path) -> None:
+        """Finding 3: a multi-episode file (S01E06E07) contributes both episodes."""
+        d = tmp_path / "Rooster Fighter"
+        d.mkdir()
+        (d / "Rooster Fighter.S01E06E07.mkv").write_bytes(b"")
+        grabbed = _grabbed(457770, 14, [(1, 6), (1, 7)])
+        assert resolve_followed_tvdb(d, grabbed, {14: "Rooster"}) == 457770
+
+    def test_missing_folder_year_falls_back_to_title(self, tmp_path: Path) -> None:
+        """No year in the folder ⇒ the year guard is inert (Rooster's real case)."""
+        show = _show_dir(tmp_path, "Rooster Fighter", [(1, 6)])
+        grabbed = _grabbed(457770, 14, [(1, 6)])
+        assert resolve_followed_tvdb(show, grabbed, {14: "Rooster"}, {14: 2026}) == 457770

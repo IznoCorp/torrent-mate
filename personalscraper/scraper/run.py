@@ -175,6 +175,7 @@ def _build_follow_tvdb_resolver(config: Config) -> "Callable[[Path], int | None]
         try:
             grabbed = store.wanted.list_grabbed()
             follow_titles = {f.id: f.title for f in store.follow.list_all() if f.id is not None}
+            follow_years = _read_follow_years(db_path)
         finally:
             store.close()
     except Exception as exc:  # noqa: BLE001 — fail-soft: free match if store unavailable
@@ -185,9 +186,33 @@ def _build_follow_tvdb_resolver(config: Config) -> "Callable[[Path], int | None]
         return None
 
     def _resolver(show_dir: Path) -> int | None:
-        return resolve_followed_tvdb(show_dir, grabbed, follow_titles)
+        return resolve_followed_tvdb(show_dir, grabbed, follow_titles, follow_years)
 
     return _resolver
+
+
+def _read_follow_years(db_path: "str | Path") -> dict[int, int | None]:
+    """Read ``followed_id -> year`` from the acquire DB (year guard input).
+
+    Fail-soft: any error (missing column on an un-migrated DB, unreadable file)
+    yields an empty map, which simply disables the year guard.
+    """
+    import sqlite3  # noqa: PLC0415
+
+    from personalscraper.core.sqlite._pragmas import apply_pragmas  # noqa: PLC0415
+
+    years: dict[int, int | None] = {}
+    try:
+        conn = sqlite3.connect(str(db_path))
+        try:
+            apply_pragmas(conn)
+            for row in conn.execute("SELECT id, year FROM followed_series"):
+                years[int(row[0])] = int(row[1]) if row[1] is not None else None
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:
+        log.debug("scrape_follow_years_read_failed", error=str(exc))
+    return years
 
 
 def run_scrape(
