@@ -41,12 +41,15 @@ export function OverviewPanel(): ReactElement {
 
   const d = query.data;
   const byStatus: Record<string, number> = d.by_status;
-  const total = Object.values(byStatus).reduce((a, b) => a + b, 0);
-  if (total === 0) {
+  const spineTotal = Object.values(byStatus).reduce((a, b) => a + b, 0);
+  // Empty state ONLY when EVERY pillar is zero — a manual-drop item raises a pending
+  // decision with NO spine row, so it must never be hidden by a spine-only check
+  // (§méthode rule 6: don't under-count what needs attention).
+  if (spineTotal === 0 && d.awaiting_resolution === 0) {
     return (
       <EmptyState
         title="Rien en vol"
-        description="Aucune acquisition suivie en cours. Les grabs issus d'un suivi apparaîtront ici, agrégés par étape."
+        description="Aucune acquisition ni décision en attente. Les grabs issus d'un suivi apparaîtront ici, agrégés par étape."
       />
     );
   }

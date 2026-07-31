@@ -68,7 +68,24 @@ describe("OverviewPanel", () => {
     expect(screen.getByText(/Veille active/)).toBeInTheDocument();
   });
 
-  it("shows an empty state when the spine is empty", async () => {
+  it("still renders tiles when the spine is empty but decisions are pending (no under-count)", async () => {
+    getOverviewMock.mockResolvedValue({
+      by_status: {},
+      in_flight: 0,
+      stuck: 0,
+      awaiting_resolution: 3, // manual-drop decisions, NO spine row
+      watcher_enabled: true,
+      last_successful_run_at: null,
+    });
+    renderPanel();
+    // Must NOT show the empty state — the 3 pending decisions need attention.
+    expect(
+      await screen.findByText("En attente de résolution"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Rien en vol")).toBeNull();
+  });
+
+  it("shows an empty state when EVERY pillar is zero", async () => {
     getOverviewMock.mockResolvedValue({
       by_status: {},
       in_flight: 0,

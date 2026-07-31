@@ -16,6 +16,7 @@ from personalscraper.config import Settings
 from personalscraper.core.identity import MediaRef
 from personalscraper.web.auth.tokens import create_session_token
 from personalscraper.web.routes.acquisition import router as acquisition_router
+from personalscraper.web.routes.acquisition_overview import router as overview_router
 from tests.web._web_harness import guarded_client
 
 
@@ -187,7 +188,11 @@ def test_overview_composes_the_spine_rollup(test_config: Any, tmp_path: Path) ->
 
     settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
     client = guarded_client(
-        config=test_config, settings=settings, routers=acquisition_router, with_auth=False, https=False
+        config=test_config,
+        settings=settings,
+        routers=[acquisition_router, overview_router],
+        with_auth=False,
+        https=False,
     )
     token = create_session_token("izno", "testsecret", 24)
     resp = client.get("/api/acquisition/overview", cookies={"tm_session": token})
@@ -204,6 +209,10 @@ def test_overview_requires_auth(test_config: Any, tmp_path: Path) -> None:
     test_config.acquire.db_path = tmp_path / "acquire.db"
     settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
     client = guarded_client(
-        config=test_config, settings=settings, routers=acquisition_router, with_auth=False, https=False
+        config=test_config,
+        settings=settings,
+        routers=[acquisition_router, overview_router],
+        with_auth=False,
+        https=False,
     )
     assert client.get("/api/acquisition/overview").status_code in (401, 403)
