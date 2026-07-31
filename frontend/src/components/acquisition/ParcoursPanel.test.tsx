@@ -7,12 +7,16 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getJourneysMock } = vi.hoisted(() => ({ getJourneysMock: vi.fn() }));
 
 vi.mock("@/api/acquisition", async () => {
-  const actual = await vi.importActual<typeof import("@/api/acquisition")>("@/api/acquisition");
+  const actual =
+    await vi.importActual<typeof import("@/api/acquisition")>(
+      "@/api/acquisition",
+    );
   return { ...actual, getJourneys: getJourneysMock };
 });
 
@@ -22,7 +26,9 @@ function renderPanel(): void {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <ParcoursPanel />
+      <MemoryRouter>
+        <ParcoursPanel />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -67,6 +73,67 @@ describe("ParcoursPanel", () => {
   it("shows an empty state when there are no journeys", async () => {
     getJourneysMock.mockResolvedValue({ journeys: [] });
     renderPanel();
-    expect(await screen.findByText("Aucun parcours pour l'instant")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Aucun parcours pour l'instant"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an actionable 'awaiting' resolution chip linking to the decision deck (F2)", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          info_hash: "abcd1234",
+          kind: "movie",
+          media_ref: { tvdb_id: null, tmdb_id: 27205, imdb_id: null },
+          scraped_ref: null,
+          followed_id: null,
+          follow_title: "Inception",
+          status: "ingested",
+          ingest_path: "/stage/Inception",
+          current_path: "/stage/Inception",
+          dispatch_path: null,
+          grabbed_at: 1_700_000_000,
+          ingested_at: 1_700_000_100,
+          scraped_at: null,
+          dispatched_at: null,
+          resolution_state: "awaiting",
+          decision_id: 7,
+          resolution_trigger: "mid_band",
+        },
+      ],
+    });
+    renderPanel();
+    const chip = await screen.findByText("En attente de résolution");
+    expect(chip).toBeInTheDocument();
+    // The chip is a link into the resolution deck for this decision.
+    expect(chip.closest("a")).toHaveAttribute("href", "/medias?decision=7");
+  });
+
+  it("shows a terminal 'Résolu' marker when the decision was resolved (F2)", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          info_hash: "beef5678",
+          kind: "movie",
+          media_ref: { tvdb_id: null, tmdb_id: 1, imdb_id: null },
+          scraped_ref: null,
+          followed_id: null,
+          follow_title: "Resolved Movie",
+          status: "scraped",
+          ingest_path: "/stage/R",
+          current_path: "/stage/R",
+          dispatch_path: null,
+          grabbed_at: 1_700_000_000,
+          ingested_at: 1_700_000_100,
+          scraped_at: 1_700_000_200,
+          dispatched_at: null,
+          resolution_state: "resolved",
+          decision_id: 9,
+          resolution_trigger: "ambiguous",
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("Résolu")).toBeInTheDocument();
   });
 });

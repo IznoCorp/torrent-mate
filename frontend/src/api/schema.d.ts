@@ -3100,10 +3100,18 @@ export interface components {
          *         dispatch_path: Final destination after dispatch, when reached.
          *         grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage
          *             timestamps (None until that stage is reached).
+         *         resolution_state: The scrape-arbiter projection (decisions-spine F2) —
+         *             ``awaiting`` / ``resolved`` / ``dismissed``, or None when no decision
+         *             was raised (a confident scrape).
+         *         decision_id: The linked ``scrape_decision.id`` (deep-link target), if any.
+         *         resolution_trigger: Why the item was enqueued (``below_threshold`` /
+         *             ``mid_band`` / ``ambiguous``), for display.
          */
         JourneyItem: {
             /** Current Path */
             current_path?: string | null;
+            /** Decision Id */
+            decision_id?: number | null;
             /** Dispatch Path */
             dispatch_path?: string | null;
             /** Dispatched At */
@@ -3123,6 +3131,10 @@ export interface components {
             /** Kind */
             kind?: string | null;
             media_ref: components["schemas"]["MediaRefResponse"];
+            /** Resolution State */
+            resolution_state?: string | null;
+            /** Resolution Trigger */
+            resolution_trigger?: string | null;
             /** Scraped At */
             scraped_at?: number | null;
             scraped_ref?: components["schemas"]["MediaRefResponse"] | null;
