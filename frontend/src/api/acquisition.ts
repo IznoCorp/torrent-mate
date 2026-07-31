@@ -511,3 +511,32 @@ export type JourneyItem = JourneysResponse["journeys"][number];
 export function getJourneys(): Promise<JourneysResponse> {
   return apiFetch("/api/acquisition/journeys", { method: "get" });
 }
+
+/** Response of a spine-driven per-item action (rescrape / requeue) — the launched run. */
+export type JourneyActionResponse = SuccessBody<
+  paths["/api/acquisition/journeys/{info_hash}/rescrape"]["post"]["responses"]
+>;
+
+/**
+ * Re-scrape one tracked staging item (F4): ``POST /journeys/{info_hash}/rescrape``.
+ * Mutating — carries the ``X-Requested-With`` header. 202 with the launched run_uid.
+ */
+export function rescrapeJourney(infoHash: string): Promise<JourneyActionResponse> {
+  return apiFetch("/api/acquisition/journeys/{info_hash}/rescrape", {
+    method: "post",
+    params: { path: { info_hash: infoHash } },
+    headers: XRW_HEADERS,
+  });
+}
+
+/**
+ * Requeue one item's wanted row (F4): ``POST /journeys/{info_hash}/requeue``.
+ * Mutating — carries the ``X-Requested-With`` header. 202 with the launched run_uid.
+ */
+export function requeueJourney(infoHash: string): Promise<JourneyActionResponse> {
+  return apiFetch("/api/acquisition/journeys/{info_hash}/requeue", {
+    method: "post",
+    params: { path: { info_hash: infoHash } },
+    headers: XRW_HEADERS,
+  });
+}

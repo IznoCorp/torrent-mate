@@ -668,6 +668,9 @@ class JourneyItem(BaseModel):
     ingest_run_uid: str | None = None
     scrape_run_uid: str | None = None
     dispatch_run_uid: str | None = None
+    # F4 (spine-actions): True when this in-flight item is stuck (folder still on disk,
+    # no stage advanced it past the idle horizon) — the UI flags it as actionable.
+    stuck: bool = False
 
 
 class JourneysResponse(BaseModel):

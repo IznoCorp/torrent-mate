@@ -110,3 +110,31 @@ def test_journeys_requires_auth(test_config: Any, tmp_path: Path) -> None:
     )
     resp = client.get("/api/acquisition/journeys")
     assert resp.status_code in (401, 403)
+
+
+def test_journeys_flags_stuck_item(test_config: Any, tmp_path: Path) -> None:
+    """F4: an aged, on-disk, in-flight item is flagged stuck; a fresh one is not."""
+    db_path = tmp_path / "acquire.db"
+    test_config.acquire.db_path = db_path
+    stuck_dir = tmp_path / "staging" / "Stuck Movie"
+    stuck_dir.mkdir(parents=True)  # exists on disk
+
+    store = build_acquire_store_config(db_path)
+    try:
+        # Stuck: ingested at epoch 100 (far past the idle horizon), folder exists.
+        store.provenance.upsert_grab(
+            "stuck", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1
+        )
+        store.provenance.set_ingest("stuck", ingest_path=str(stuck_dir), ingested_at=100)
+    finally:
+        store.close()
+
+    settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
+    client = guarded_client(
+        config=test_config, settings=settings, routers=acquisition_router, with_auth=False, https=False
+    )
+    token = create_session_token("izno", "testsecret", 24)
+    resp = client.get("/api/acquisition/journeys", cookies={"tm_session": token})
+    assert resp.status_code == 200, resp.text
+    item = next(j for j in resp.json()["journeys"] if j["info_hash"] == "stuck")
+    assert item["stuck"] is True

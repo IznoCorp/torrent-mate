@@ -6,18 +6,33 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getJourneysMock } = vi.hoisted(() => ({ getJourneysMock: vi.fn() }));
+const { getJourneysMock, rescrapeMock, requeueMock } = vi.hoisted(() => ({
+  getJourneysMock: vi.fn(),
+  rescrapeMock: vi.fn(),
+  requeueMock: vi.fn(),
+}));
 
 vi.mock("@/api/acquisition", async () => {
   const actual =
     await vi.importActual<typeof import("@/api/acquisition")>(
       "@/api/acquisition",
     );
-  return { ...actual, getJourneys: getJourneysMock };
+  return {
+    ...actual,
+    getJourneys: getJourneysMock,
+    rescrapeJourney: rescrapeMock,
+    requeueJourney: requeueMock,
+  };
 });
 
 import { ParcoursPanel } from "./ParcoursPanel";
@@ -168,5 +183,66 @@ describe("ParcoursPanel", () => {
     });
     renderPanel();
     expect(await screen.findByText("Résolu")).toBeInTheDocument();
+  });
+});
+
+describe("ParcoursPanel — F4 actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    cleanup();
+  });
+
+  const stuckJourney = {
+    info_hash: "beef",
+    kind: "movie",
+    media_ref: { tvdb_id: null, tmdb_id: 1, imdb_id: null },
+    scraped_ref: null,
+    followed_id: null,
+    follow_title: "Stuck Movie",
+    status: "ingested",
+    ingest_path: "/stage/S",
+    current_path: "/stage/S",
+    dispatch_path: null,
+    grabbed_at: 1_700_000_000,
+    ingested_at: 1_700_000_100,
+    scraped_at: null,
+    dispatched_at: null,
+    stuck: true,
+  };
+
+  it("shows the Bloqué badge + action buttons on a stuck in-flight item, and triggers rescrape", async () => {
+    getJourneysMock.mockResolvedValue({ journeys: [stuckJourney] });
+    rescrapeMock.mockResolvedValue({ run_uid: "r1" });
+    renderPanel();
+
+    expect(await screen.findByText("Bloqué")).toBeInTheDocument();
+    const rescrapeBtn = screen.getByRole("button", { name: "Re-scraper" });
+    expect(rescrapeBtn).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Requeue" })).toBeInTheDocument();
+
+    fireEvent.click(rescrapeBtn);
+    await waitFor(() => {
+      expect(rescrapeMock).toHaveBeenCalledWith("beef");
+    });
+  });
+
+  it("hides the action buttons on a dispatched (terminal) item", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...stuckJourney,
+          info_hash: "done",
+          status: "dispatched",
+          dispatch_path: "/Volumes/D/x",
+          dispatched_at: 1_700_000_300,
+          stuck: false,
+        },
+      ],
+    });
+    renderPanel();
+    await screen.findByText("Stuck Movie");
+    expect(screen.queryByRole("button", { name: "Re-scraper" })).toBeNull();
   });
 });

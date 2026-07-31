@@ -381,3 +381,57 @@ class TestRunLinkage:
         )
         hashes = {r.info_hash for r in store.provenance.list_journeys_for_run("RUN_X")}
         assert hashes == {"a", "b"}
+
+
+class TestStuckDetection:
+    """F4 substrate: list_stuck + provenance_row_is_stuck identify in-flight, on-disk, aged items."""
+
+    def _seed(self, store: ConcreteAcquireStore, h: str, path: str, status_at: dict) -> None:
+        store.provenance.upsert_grab(h, followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1)
+        if "ingested_at" in status_at:
+            store.provenance.set_ingest(h, ingest_path=path, ingested_at=status_at["ingested_at"])
+        if "dispatched_at" in status_at:
+            store.provenance.record_dispatch_by_path(
+                path, dispatch_path="/D/x", dispatched_at=status_at["dispatched_at"]
+            )
+
+    def test_list_stuck_returns_aged_on_disk_in_flight_only(self, store: ConcreteAcquireStore) -> None:
+        """Aged + on-disk + in-flight → stuck; dispatched / vanished / fresh → excluded."""
+        # A: ingested long ago, folder exists → STUCK.
+        self._seed(store, "a", "/stage/A", {"ingested_at": 100})
+        # B: ingested recently → not aged.
+        self._seed(store, "b", "/stage/B", {"ingested_at": 10_000})
+        # C: ingested long ago but folder gone → not stuck (prune candidate, not resume).
+        self._seed(store, "c", "/stage/C", {"ingested_at": 100})
+        # D: dispatched (terminal) → excluded even if aged.
+        self._seed(store, "d", "/stage/D", {"ingested_at": 100, "dispatched_at": 200})
+
+        present = {"/stage/A", "/stage/B", "/stage/D"}  # C's folder vanished
+        stuck = store.provenance.list_stuck(older_than=5_000, exists_fn=lambda p: p in present)
+        assert {r.info_hash for r in stuck} == {"a"}
+
+    def test_provenance_row_is_stuck_predicate(self, store: ConcreteAcquireStore) -> None:
+        """The shared predicate mirrors list_stuck (used by the journeys endpoint's stuck flag)."""
+        from personalscraper.acquire._provenance_store import provenance_row_is_stuck
+
+        self._seed(store, "a", "/stage/A", {"ingested_at": 100})
+        row = store.provenance.by_hash("a")
+        assert row is not None
+        # Aged + exists → stuck.
+        assert provenance_row_is_stuck(row, now=10_000, idle_seconds=1_000, exists_fn=lambda _p: True) is True
+        # Folder gone → not stuck.
+        assert provenance_row_is_stuck(row, now=10_000, idle_seconds=1_000, exists_fn=lambda _p: False) is False
+        # Not yet idle → not stuck.
+        assert provenance_row_is_stuck(row, now=500, idle_seconds=1_000, exists_fn=lambda _p: True) is False
+
+    def test_list_stuck_fail_soft(self) -> None:
+        """A DB error yields an empty list (never raises)."""
+
+        class _RaisingConn:
+            row_factory = None
+
+            def execute(self, *_a: object, **_k: object) -> object:
+                raise RuntimeError("db exploded")
+
+        sub = _ProvenanceSubStore(_RaisingConn(), _write_tx)  # type: ignore[arg-type]
+        assert sub.list_stuck(older_than=1, exists_fn=lambda _p: True) == []

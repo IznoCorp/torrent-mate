@@ -76,13 +76,32 @@ from personalscraper.web._runner_engine import (
 log = get_logger(__name__)
 
 #: Accepted values of ``PERSONALSCRAPER_ACQ_COMMAND``.
-_COMMANDS = ("grab", "detect", "prime")
+_COMMANDS = ("grab", "detect", "prime", "rescrape", "requeue")
 
 #: Commands whose run is scoped to one follow (``FOLLOWED_ID`` mandatory).
 _SCOPED_COMMANDS = ("grab", "prime")
 
+#: Spine-driven per-item commands scoped to one grab (``INFO_HASH`` mandatory, F4).
+_HASH_SCOPED_COMMANDS = ("rescrape", "requeue")
+
 #: ``pipeline_run.command`` written for each runner command.
-_ROW_COMMANDS = {"grab": "grab", "detect": "follow-detect", "prime": "prime"}
+_ROW_COMMANDS = {
+    "grab": "grab",
+    "detect": "follow-detect",
+    "prime": "prime",
+    "rescrape": "acquisition-rescrape",
+    "requeue": "acquisition-requeue",
+}
+
+
+def hash_options_json(info_hash: str) -> str:
+    """Canonical ``options_json`` for a spine-driven per-item run row (F4).
+
+    The spawner, the idempotence guard, and this runner all build the scope string HERE
+    so an exact-string comparison never diverges. ``'{"info_hash": "…"}'``.
+    """
+    return json.dumps({"info_hash": info_hash})
+
 
 #: Wall-clock ceiling for ONE acquisition step (30 min). Every step here talks
 #: to trackers and providers over the network, so a hung step is not
@@ -161,13 +180,14 @@ def parse_prime_options(options_json: str | None) -> int | None:
     return fid if isinstance(fid, int) else None
 
 
-def _read_mandatory_env() -> tuple[str, str, int | None]:
+def _read_mandatory_env() -> tuple[str, str, int | None, str | None]:
     """Read the runner env vars; exit 2 on missing/invalid.
 
     Returns:
-        A ``(run_uid, command, followed_id)`` tuple — ``command`` is ``"grab"``,
-        ``"detect"`` or ``"prime"``; ``followed_id`` is ``None`` for ``detect``
-        and mandatory for the follow-scoped commands.
+        A ``(run_uid, command, followed_id, info_hash)`` tuple — ``command`` is one of
+        ``_COMMANDS``; ``followed_id`` is set for the follow-scoped commands (grab/prime),
+        ``info_hash`` for the spine-driven per-item commands (rescrape/requeue), both
+        ``None`` otherwise.
 
     Raises:
         SystemExit: 2 when a required var is missing/invalid.
@@ -180,8 +200,18 @@ def _read_mandatory_env() -> tuple[str, str, int | None]:
             hint="The spawner MUST set PERSONALSCRAPER_RUN_UID (+ a valid PERSONALSCRAPER_ACQ_COMMAND)",
         )
         sys.exit(2)
+    if command in _HASH_SCOPED_COMMANDS:
+        info_hash = os.environ.get("PERSONALSCRAPER_ACQ_INFO_HASH")
+        if not info_hash:
+            log.error(
+                "grab_runner_missing_env",
+                command=command,
+                hint="The spawner MUST set PERSONALSCRAPER_ACQ_INFO_HASH for a rescrape/requeue run",
+            )
+            sys.exit(2)
+        return run_uid, command, None, info_hash
     if command not in _SCOPED_COMMANDS:
-        return run_uid, command, None
+        return run_uid, command, None, None
     raw_followed = os.environ.get("PERSONALSCRAPER_GRAB_FOLLOWED_ID")
     if not raw_followed:
         log.error(
@@ -195,28 +225,30 @@ def _read_mandatory_env() -> tuple[str, str, int | None]:
     except ValueError:
         log.error("grab_runner_bad_followed_id", value=raw_followed)
         sys.exit(2)
-    return run_uid, command, followed_id
+    return run_uid, command, followed_id, None
 
 
-def _build_argv(command: str, followed_id: int | None) -> list[list[str]]:
+def _build_argv(command: str, followed_id: int | None, info_hash: str | None = None) -> list[list[str]]:
     """Build the acquisition CLI step sequence.
 
     Args:
-        command: ``"grab"`` (per-series manual grab), ``"detect"`` (§5 manual
-            aired-episode discovery over every active follow) or ``"prime"``
-            (the three-step amorce of ONE follow).
-        followed_id: The followed series to scope the run to (``None`` for
-            detect).
+        command: one of ``_COMMANDS``.
+        followed_id: The followed series to scope the run to (``None`` for detect / the
+            hash-scoped commands).
+        info_hash: The grab info-hash to scope a spine-driven per-item command to (F4).
 
     Returns:
-        The steps to run in order, each a command-line argument list starting
-        with ``sys.executable``. ``grab`` / ``detect`` yield a single step;
-        ``prime`` yields three (detect → search → grab), all scoped to
-        *followed_id* so priming one follow never runs a library-wide pass.
+        The steps to run in order, each a command-line argument list starting with
+        ``sys.executable``. ``grab`` / ``detect`` / ``rescrape`` / ``requeue`` yield a
+        single step; ``prime`` yields three (detect → search → grab).
     """
     base = [sys.executable, "-m", "personalscraper"]
     if command == "detect":
         return [[*base, "follow", "detect"]]
+    if command == "rescrape":
+        return [[*base, "acquisition-rescrape", "--hash", str(info_hash)]]
+    if command == "requeue":
+        return [[*base, "acquisition-requeue", "--hash", str(info_hash)]]
     scope = str(followed_id)
     if command == "prime":
         return [
@@ -227,20 +259,22 @@ def _build_argv(command: str, followed_id: int | None) -> list[list[str]]:
     return [[*base, "grab", "--followed-id", scope]]
 
 
-def _options_json(command: str, followed_id: int | None) -> str:
+def _options_json(command: str, followed_id: int | None, info_hash: str | None = None) -> str:
     """Canonical ``options_json`` for the run row of *command*.
 
     Args:
-        command: The runner command (``"grab"``, ``"detect"`` or ``"prime"``).
+        command: The runner command.
         followed_id: The scoped follow, when the command has one.
+        info_hash: The scoped grab, for the spine-driven per-item commands (F4).
 
     Returns:
-        The JSON scope string the spawner wrote for the same run, so the
-        ``if_absent`` insert below can never produce a divergent duplicate.
-        Both formats come from their single construction site
-        (:func:`prime_options_json` / :func:`grab_options_json`) — never
-        re-typed here.
+        The JSON scope string the spawner wrote for the same run, so the ``if_absent``
+        insert can never produce a divergent duplicate. Every format comes from its single
+        construction site (:func:`prime_options_json` / :func:`grab_options_json` /
+        :func:`hash_options_json`) — never re-typed here.
     """
+    if info_hash is not None:
+        return hash_options_json(info_hash)
     if followed_id is None:
         return "{}"
     if command == "prime":
@@ -260,7 +294,7 @@ def main() -> None:
     module only supplies the env parsing, the step argvs, and the
     process-global SIGTERM handler.
     """
-    run_uid, command, followed_id = _read_mandatory_env()
+    run_uid, command, followed_id, info_hash = _read_mandatory_env()
 
     try:
         config = load_config()
@@ -275,8 +309,8 @@ def main() -> None:
     web_config = config.web
 
     row_command = _ROW_COMMANDS[command]
-    options_json = _options_json(command, followed_id)
-    steps = _build_argv(command, followed_id)
+    options_json = _options_json(command, followed_id, info_hash)
+    steps = _build_argv(command, followed_id, info_hash)
 
     writer = PipelineRunWriter(db_path)
     ring = _RingBuffer()
@@ -309,7 +343,7 @@ def main() -> None:
             stream_key=web_config.stream_key,
             stream_maxlen=web_config.stream_maxlen,
             event_prefix="grab_runner",
-            log_context={"command": command, "followed_id": followed_id},
+            log_context={"command": command, "followed_id": followed_id, "info_hash": info_hash},
             step_timeout_s=_STEP_TIMEOUT_S,
         )
     )

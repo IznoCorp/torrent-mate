@@ -34,8 +34,11 @@ _ALLOWLIST: frozenset[str] = frozenset(
         # Not user config — never set manually in .env.
         "PERSONALSCRAPER_RUN_UID",
         # Internal: the acquisition web runner sets this to pick the CLI to
-        # spawn ('grab' | 'detect'). Runtime-only, never user config.
+        # spawn ('grab' | 'detect' | 'prime' | 'rescrape' | 'requeue'). Runtime-only.
         "PERSONALSCRAPER_ACQ_COMMAND",
+        # Internal: the spine-actions web spawner sets this to scope a rescrape/
+        # requeue run to one grab info-hash (F4). Runtime-only, never user config.
+        "PERSONALSCRAPER_ACQ_INFO_HASH",
         # PM2-injected: present in a PM2-launched process' env; the acquisition
         # CLIs read it to tag a self-launched run trigger='cron'. Not our config.
         "PM2_HOME",
