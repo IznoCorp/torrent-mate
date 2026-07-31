@@ -38,6 +38,7 @@ from personalscraper.acquire.desired import cadence_from_config, cadence_from_js
 from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.conf.models._ranking import RankingConfig
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -71,6 +72,8 @@ from personalscraper.web.models.acquisition import (
     MediaSearchResponse,
     ObligationItem,
     ObligationsResponse,
+    RankingPreviewRelease,
+    RankingPreviewResponse,
     UpdateFollowRequest,
     WantedItemResponse,
     WantedResponse,
@@ -79,6 +82,7 @@ from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run, p
 
 if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
+    from personalscraper.api.tracker._base import TrackerResult
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 logger = get_logger(__name__)
@@ -654,6 +658,147 @@ def get_acquisition_downloads(request: Request) -> AcquisitionDownloadsResponse:
     from personalscraper.web.acquisition.downloads import list_active_downloads
 
     return list_active_downloads(request.app.state.config)
+
+
+# ── ranking preview (ranking editor, #18) ─────────────────────────────────
+
+
+def _ranking_preview_samples() -> list["TrackerResult"]:
+    """Build the fixed, representative release sample set for the ranking preview.
+
+    Six synthetic releases spanning every scored axis (resolution, codec,
+    language, source, provider, seeders, freeleech) so the operator sees a
+    weight/value change reorder visible rows without running a real search.
+    Fields are set explicitly (as the trackers would after title-parsing), so
+    the preview scores exactly what a real grab would.
+    """
+    from personalscraper.api._units import ByteSize
+    from personalscraper.api.tracker._base import TrackerResult
+
+    return [
+        TrackerResult(
+            provider="tr4ker",
+            tracker_id="s1",
+            title="Sample.2024.MULTi.2160p.UHD.BluRay.x265 — tr4ker",
+            size=ByteSize(15_000_000_000),
+            seeders=40,
+            leechers=2,
+            is_freeleech=True,
+            resolution="2160p",
+            codec="x265",
+            source="BluRay",
+            language="MULTI",
+        ),
+        TrackerResult(
+            provider="tr4ker",
+            tracker_id="s2",
+            title="Sample.2024.MULTi.1080p.WEB-DL.x265 — tr4ker",
+            size=ByteSize(4_500_000_000),
+            seeders=120,
+            leechers=5,
+            is_freeleech=True,
+            resolution="1080p",
+            codec="x265",
+            source="WEB-DL",
+            language="MULTI",
+        ),
+        TrackerResult(
+            provider="c411",
+            tracker_id="s3",
+            title="Sample.2024.VFF.1080p.WEB-DL.x264 — c411",
+            size=ByteSize(4_000_000_000),
+            seeders=60,
+            leechers=3,
+            resolution="1080p",
+            codec="x264",
+            source="WEB-DL",
+            language="VFF",
+        ),
+        TrackerResult(
+            provider="c411",
+            tracker_id="s4",
+            title="Sample.2024.TRUEFRENCH.1080p.BluRay.x265 — c411",
+            size=ByteSize(8_000_000_000),
+            seeders=8,
+            leechers=1,
+            resolution="1080p",
+            codec="x265",
+            source="BluRay",
+            language="TRUEFRENCH",
+        ),
+        TrackerResult(
+            provider="lacale",
+            tracker_id="s5",
+            title="Sample.2024.VOSTFR.720p.HDTV.x264 — lacale",
+            size=ByteSize(1_500_000_000),
+            seeders=15,
+            leechers=0,
+            resolution="720p",
+            codec="x264",
+            source="HDTV",
+            language="VOSTFR",
+        ),
+        TrackerResult(
+            provider="lacale",
+            tracker_id="s6",
+            title="Sample.2024.MULTi.2160p.BluRay.x265 — lacale (low seed)",
+            size=ByteSize(16_000_000_000),
+            seeders=3,
+            leechers=0,
+            resolution="2160p",
+            codec="x265",
+            source="BluRay",
+            language="MULTI",
+        ),
+    ]
+
+
+@router.post("/ranking/preview", response_model=RankingPreviewResponse)
+def preview_ranking(body: RankingConfig) -> RankingPreviewResponse:
+    """Score the representative sample set under a candidate ranking (#18).
+
+    Read-only + pure: no DB, no filesystem, no torrent client — it scores the
+    fixed :func:`_ranking_preview_samples` set with the POSTed candidate config
+    so the editor can render a live preview of the acquisition ranking. To keep
+    every sample VISIBLE (a live preview must never silently drop rows), scoring
+    runs with ``min_seeders`` neutralized; each row is instead flagged
+    ``excluded`` when its seeders fall below the candidate ``min_seeders`` — so
+    the operator SEES which releases the real ``rank()`` would drop. Rows sort
+    non-excluded first (by score desc), excluded last.
+
+    Not staging-guarded and no CSRF header: it mutates nothing, so it is safe
+    on the read-only staging role and idempotent by construction.
+
+    Args:
+        body: The candidate ranking configuration to score with.
+
+    Returns:
+        A :class:`RankingPreviewResponse` with the scored, sorted samples.
+    """
+    from personalscraper.api.tracker._ranking import rank
+
+    samples = _ranking_preview_samples()
+    # Neutralize the seeder floor so EVERY sample is scored and shown; flag the
+    # ones the real min_seeders would have dropped rather than hiding them.
+    scored = rank(samples, body.model_copy(update={"min_seeders": 0}))
+    rows = [
+        RankingPreviewRelease(
+            title=result.title,
+            provider=str(result.provider),
+            resolution=result.resolution,
+            codec=result.codec,
+            language=result.language,
+            source=result.source,
+            seeders=result.seeders,
+            is_freeleech=result.is_freeleech,
+            score=score,
+            excluded=result.seeders < body.min_seeders,
+        )
+        for result, score in scored
+    ]
+    # Excluded rows sink to the end; within each group keep the score order.
+    rows.sort(key=lambda r: (r.excluded, -r.score))
+    return RankingPreviewResponse(ranked=rows)
 
 
 # ── media search (add-by-search, OBJ3) ───────────────────────────────────

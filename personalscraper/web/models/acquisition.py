@@ -571,3 +571,49 @@ class AcquisitionDownloadsResponse(BaseModel):
 
     downloads: list[AcquisitionDownload] = []
     client_available: bool = True
+
+
+class RankingPreviewRelease(BaseModel):
+    """One representative release scored under a candidate ranking (#18).
+
+    The ranking editor scores a fixed, illustrative sample set against the
+    operator's edited criteria so a weight/value change reorders visible rows —
+    a live preview of the acquisition ranking WITHOUT running a real search.
+
+    Attributes:
+        title: Human-readable sample release title.
+        provider: Tracker wire name the sample stands for (``tr4ker`` / ``c411``
+            / ``lacale``).
+        resolution: Parsed resolution token (``2160p`` / ``1080p`` / …), if any.
+        codec: Parsed video-codec token, if any.
+        language: Parsed language / audio-track marker (``MULTI`` / ``VFF`` / …).
+        source: Parsed media-source token (``BluRay`` / ``WEB-DL`` / …).
+        seeders: Sample seeder count.
+        is_freeleech: Whether the sample is freeleech (earns ``bonuses.freeleech``).
+        score: Total score under the candidate ranking.
+        excluded: ``True`` when ``seeders`` is below the candidate ``min_seeders``
+            — the real ``rank()`` would drop it; the preview keeps it (flagged)
+            so the operator SEES the cutoff instead of a row silently vanishing.
+    """
+
+    title: str
+    provider: str
+    resolution: str | None = None
+    codec: str | None = None
+    language: str | None = None
+    source: str | None = None
+    seeders: int
+    is_freeleech: bool = False
+    score: int
+    excluded: bool = False
+
+
+class RankingPreviewResponse(BaseModel):
+    """Response for ``POST /api/acquisition/ranking/preview`` (#18).
+
+    Attributes:
+        ranked: The sample releases scored under the candidate ranking, highest
+            score first (excluded-by-min_seeders rows sink to the end, flagged).
+    """
+
+    ranked: list[RankingPreviewRelease] = []
