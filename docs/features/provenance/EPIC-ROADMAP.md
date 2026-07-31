@@ -47,7 +47,11 @@ acquisition (grabbed → téléchargé → ingéré → scrapé → dispatché �
 - Rend le pipeline **lisible** (product-intent §pipeline lisible).
 - Read-only, aucun nouveau mécanisme d'écriture. Prouve la jointure tôt (validation).
 
-### F2 — Intégration des décisions de scraping
+### F2 — Intégration des décisions de scraping — **MIGRATE (choix opérateur)**
+
+> Décision opérateur : on **migre** l'état de résolution sur le spine (pas un simple
+> lien). L'intégration est profonde ; garde-fous obligatoires : revue adverse + tests
+> anti-régression sur le flux décisions existant (ne rien casser).
 
 Relier le sous-système décisions au spine : une décision prise sur un item de staging
 met à jour son parcours ; « médias en attente de résolution » devient un **état
