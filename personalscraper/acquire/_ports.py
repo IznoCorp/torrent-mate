@@ -452,6 +452,18 @@ class ProvenanceSubStore(Protocol):
         """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
         ...
 
+    def set_resolution(
+        self,
+        staging_path: str,
+        *,
+        state: str,
+        resolved_at: int,
+        decision_id: int | None = None,
+        trigger: str | None = None,
+    ) -> None:
+        """Project a decision verdict onto *staging_path* (path-keyed, advisory, F2)."""
+        ...
+
     def by_hash(self, info_hash: str) -> ProvenanceRow | None:
         """Return the row for *info_hash*, or ``None`` (fail-soft)."""
         ...

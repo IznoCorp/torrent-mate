@@ -216,3 +216,73 @@ class TestAdvisoryInvariants:
         pruned = store.provenance.prune_stale(lambda _p: False)  # treat every path as missing
         assert pruned == 0, "a dispatched row (completed journey) must never be pruned"
         assert store.provenance.by_hash("d") is not None
+
+
+class TestMigration011ResolutionColumns:
+    """The F2 resolution-projection columns + partial index exist after migration 011."""
+
+    def test_resolution_columns_and_index_present(self, store: ConcreteAcquireStore) -> None:
+        """A fresh store carries the resolution_* columns and their partial index."""
+        conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
+        cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
+        assert {"resolution_state", "decision_id", "resolution_trigger", "resolution_at"} <= cols
+        indexes = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+        assert "idx_provenance_resolution_state" in indexes
+
+    def test_user_version_is_11(self, store: ConcreteAcquireStore) -> None:
+        """The migrated store publishes user_version 11."""
+        conn = store._ensure_open()  # noqa: SLF001
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 11
+
+
+class TestResolutionProjection:
+    """set_resolution projects the decision lifecycle onto a tracked folder (F2, advisory)."""
+
+    def test_awaiting_round_trips_on_tracked_row(self, store: ConcreteAcquireStore) -> None:
+        """An enqueued item's folder gets resolution_state='awaiting' + trigger + decision_id."""
+        store.provenance.upsert_grab(
+            "h1", followed_id=None, media_ref=MediaRef(tmdb_id=27205), kind="movie", grabbed_at=1
+        )
+        store.provenance.set_ingest("h1", ingest_path="/stage/Item", ingested_at=2)
+        store.provenance.set_resolution(
+            "/stage/Item", state="awaiting", resolved_at=3, decision_id=42, trigger="mid_band"
+        )
+        row = store.provenance.by_path("/stage/Item")
+        assert row is not None
+        assert row.resolution_state == "awaiting"
+        assert row.decision_id == 42
+        assert row.resolution_trigger == "mid_band"
+        assert row.resolution_at == 3
+
+    def test_resolved_then_dismissed_transition(self, store: ConcreteAcquireStore) -> None:
+        """A later verdict overwrites the projection (awaiting → resolved)."""
+        store.provenance.upsert_grab(
+            "h2", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1
+        )
+        store.provenance.set_ingest("h2", ingest_path="/stage/B", ingested_at=2)
+        store.provenance.set_resolution("/stage/B", state="awaiting", resolved_at=3, decision_id=7, trigger="ambiguous")
+        store.provenance.set_resolution("/stage/B", state="resolved", resolved_at=9)
+        row = store.provenance.by_path("/stage/B")
+        assert row is not None
+        assert row.resolution_state == "resolved"
+        assert row.resolution_at == 9
+
+    def test_untracked_folder_is_a_noop(self, store: ConcreteAcquireStore) -> None:
+        """set_resolution on an untracked (manual-item) path changes nothing, never raises."""
+        # No upsert_grab → no row. The manual/direct item lives only in scrape_decision.
+        store.provenance.set_resolution(
+            "/stage/manual-item", state="awaiting", resolved_at=1, decision_id=99, trigger="mid_band"
+        )
+        assert store.provenance.by_path("/stage/manual-item") is None
+        conn = store._ensure_open()  # noqa: SLF001
+        assert conn.execute("SELECT COUNT(*) FROM staging_provenance").fetchone()[0] == 0
+
+    def test_set_resolution_swallows_db_error(self) -> None:
+        """A DB error inside set_resolution is swallowed (advisory — never fails a step)."""
+
+        class _RaisingConn:
+            def execute(self, *_a: object, **_k: object) -> object:
+                raise RuntimeError("db exploded")
+
+        sub = _ProvenanceSubStore(_RaisingConn(), _write_tx)  # type: ignore[arg-type]
+        sub.set_resolution("/x", state="awaiting", resolved_at=1)  # must NOT raise

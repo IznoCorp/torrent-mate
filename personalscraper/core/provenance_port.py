@@ -32,3 +32,20 @@ class StagingProvenanceWriter(Protocol):
     def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
         """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
         ...
+
+    def set_resolution(
+        self,
+        staging_path: str,
+        *,
+        state: str,
+        resolved_at: int,
+        decision_id: int | None = None,
+        trigger: str | None = None,
+    ) -> None:
+        """Project a scrape-arbiter decision verdict onto *staging_path* (path-keyed, F2).
+
+        ``state`` is ``'awaiting'`` | ``'resolved'`` | ``'dismissed'``. No-op when the
+        folder is untracked (a manual/direct item — its decision lives only in
+        ``scrape_decision``). Advisory: must never raise to the caller.
+        """
+        ...
