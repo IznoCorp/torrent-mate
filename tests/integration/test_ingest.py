@@ -322,7 +322,9 @@ class _RaisingProvenance:
     def move_path(self, old_path: str, new_path: str) -> None:  # pragma: no cover - not hit here
         raise RuntimeError("provenance exploded")
 
-    def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:  # pragma: no cover - not hit here
+    def set_scrape_run(  # pragma: no cover - not hit here
+        self, staging_path: str, *, run_uid: str | None, scraped_at: int
+    ) -> None:
         raise RuntimeError("provenance exploded")
 
     def record_dispatch_by_path(
