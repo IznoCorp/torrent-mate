@@ -69,6 +69,13 @@ function clickResultSuivre(): void {
   fireEvent.click(btn);
 }
 
+/** Expand the collapsed « ou ajouter directement par ID » section. */
+function expandById(): void {
+  fireEvent.click(
+    screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
+  );
+}
+
 describe("MediaSearchAdd", () => {
   it("shows no encumbering empty-state before a search, but keeps the by-ID entry (#21)", () => {
     render(<MediaSearchAdd />);
@@ -146,8 +153,22 @@ describe("MediaSearchAdd", () => {
 // The add-by-ID entry is merged into this search surface (#21) — it used to be a
 // separate FollowedPanel accordion (ticket 336). No accordion to open now.
 describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
+  it("is collapsed by default and expands on click (compact surface)", () => {
+    render(<MediaSearchAdd />);
+    // The header is always visible; the id fields/providers are hidden until expanded.
+    const toggle = screen.getByRole("button", {
+      name: /ou ajouter directement par ID/i,
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "TVDB" })).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "TVDB" })).toBeInTheDocument();
+  });
+
   it("offers TVDB, TMDB and IMDB providers", () => {
     render(<MediaSearchAdd />);
+    expandById();
     for (const p of ["TVDB", "TMDB", "IMDB"]) {
       expect(screen.getByRole("button", { name: p })).toBeInTheDocument();
     }
@@ -155,6 +176,7 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
 
   it("selecting IMDB switches the id field to the tt… placeholder", () => {
     render(<MediaSearchAdd />);
+    expandById();
     fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
     expect(screen.getByPlaceholderText("ex: tt0903747")).toBeInTheDocument();
     expect(screen.getByLabelText("ID IMDB")).toBeInTheDocument();
@@ -162,6 +184,7 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
 
   it("follows by TMDB id → sends tmdb_id", () => {
     render(<MediaSearchAdd />);
+    expandById();
     fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
     fireEvent.change(screen.getByLabelText("ID TMDB"), {
       target: { value: "1399" },
@@ -177,6 +200,7 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
 
   it("follows by IMDB id → sends the tt string", () => {
     render(<MediaSearchAdd />);
+    expandById();
     fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
     fireEvent.change(screen.getByLabelText("ID IMDB"), {
       target: { value: "tt0903747" },
@@ -191,6 +215,7 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
 
   it("carries an optional title into the by-ID follow body", () => {
     render(<MediaSearchAdd />);
+    expandById();
     fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
     fireEvent.change(screen.getByLabelText("ID TMDB"), {
       target: { value: "1399" },
@@ -208,6 +233,7 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
 
   it("disables Suivre for a malformed IMDB id", () => {
     render(<MediaSearchAdd />);
+    expandById();
     fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
     fireEvent.change(screen.getByLabelText("ID IMDB"), {
       target: { value: "0903747" },
@@ -225,6 +251,7 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
       },
     );
     render(<MediaSearchAdd />);
+    expandById();
     fireEvent.click(screen.getByRole("button", { name: "TMDB" }));
     fireEvent.change(screen.getByLabelText("ID TMDB"), {
       target: { value: "1399" },
