@@ -73,12 +73,8 @@ def test_awaiting_projected_on_tracked_item_and_manual_noop(tmp_path: Path) -> N
     config.acquire = AcquireConfig(db_path=acquire_db)
 
     results = [
-        ScrapeResult(
-            media_path=tracked, media_type="movie", action="queued_for_decision", decision_trigger="mid_band"
-        ),
-        ScrapeResult(
-            media_path=manual, media_type="movie", action="queued_for_decision", decision_trigger="ambiguous"
-        ),
+        ScrapeResult(media_path=tracked, media_type="movie", action="queued_for_decision", decision_trigger="mid_band"),
+        ScrapeResult(media_path=manual, media_type="movie", action="queued_for_decision", decision_trigger="ambiguous"),
     ]
 
     with (

@@ -576,9 +576,7 @@ class TestScrapeResolveExit0:
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
         acquire_db = tmp_path / "acquire.db"
-        cfg = test_config.model_copy(
-            update={"acquire": test_config.acquire.model_copy(update={"db_path": acquire_db})}
-        )
+        cfg = test_config.model_copy(update={"acquire": test_config.acquire.model_copy(update={"db_path": acquire_db})})
         _create_db(cfg.indexer.db_path)
         decision_id = _insert_decision(cfg.indexer.db_path, str(staging.resolve()))
 

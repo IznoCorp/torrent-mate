@@ -256,9 +256,7 @@ class TestResolutionProjection:
 
     def test_resolved_then_dismissed_transition(self, store: ConcreteAcquireStore) -> None:
         """A later verdict overwrites the projection (awaiting → resolved)."""
-        store.provenance.upsert_grab(
-            "h2", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1
-        )
+        store.provenance.upsert_grab("h2", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1)
         store.provenance.set_ingest("h2", ingest_path="/stage/B", ingested_at=2)
         store.provenance.set_resolution("/stage/B", state="awaiting", resolved_at=3, decision_id=7, trigger="ambiguous")
         store.provenance.set_resolution("/stage/B", state="resolved", resolved_at=9)

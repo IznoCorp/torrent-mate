@@ -35,8 +35,8 @@
 
 | #   | Phase                                                                      | File                     | Status |
 | --- | -------------------------------------------------------------------------- | ------------------------ | ------ |
-| 1   | Spine schema + store (migration 011, ProvenanceRow, set_resolution, ports) | phase-01-schema-store.md | [ ]    |
-| 2   | Write hooks (enqueue / resolve / dismiss) + anti-regression tests          | phase-02-write-hooks.md  | [ ]    |
-| 3   | Read surface (JourneyItem + endpoint + ParcoursPanel badge) + gate + PR    | phase-03-read-surface.md | [ ]    |
+| 1   | Spine schema + store (migration 011, ProvenanceRow, set_resolution, ports) | phase-01-schema-store.md | [x]    |
+| 2   | Write hooks (enqueue / resolve / dismiss) + anti-regression tests          | phase-02-write-hooks.md  | [x]    |
+| 3   | Read surface (JourneyItem + endpoint + ParcoursPanel badge) + gate + PR    | phase-03-read-surface.md | [x]    |
 
-**Next action**: Phase 1 — spine schema + store.
+**Next action**: all phases complete — phase gate + feature-PR.
