@@ -9,6 +9,7 @@ only secrets (API keys, passwords, tokens).
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
@@ -16,11 +17,56 @@ from typing import Any, ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Resolve .env relative to the package root (parent of this config module),
-# not CWD.  pydantic-settings treats a relative env_file as CWD-relative,
-# which breaks when the pipeline is launched from the staging directory
-# (config.json5 + .env live at the project root, not inside staging).
-_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+
+def _canonical_env_path() -> Path | None:
+    """The shared/canonical ``.env`` for a multi-checkout host, or ``None``.
+
+    In the shared-checkout topology a deploy/staging clone points
+    ``PERSONALSCRAPER_CONFIG`` at the CANONICAL checkout's ``config/`` dir (so all
+    clones read one config). The full secret set lives beside that ``config/`` —
+    at ``<config-parent>/.env`` — while the clone's OWN root ``.env`` may lack
+    some (the recurring bug: the deploy ``.env`` had no ``PLEX_TOKEN``, so the
+    post-dispatch Plex refresh was silently disabled and dispatched media never
+    appeared in Plex). ``PERSONALSCRAPER_ENV_FILE`` is an explicit override.
+
+    Returns:
+        The canonical ``.env`` path if resolvable and present, else ``None``.
+    """
+    override = os.environ.get("PERSONALSCRAPER_ENV_FILE")
+    if override:
+        candidate = Path(override)
+        return candidate if candidate.is_file() else None
+    config_dir = os.environ.get("PERSONALSCRAPER_CONFIG")
+    if config_dir:
+        candidate = Path(config_dir).resolve().parent / ".env"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _resolve_env_files() -> tuple[str, ...]:
+    """Resolve the ordered ``.env`` files pydantic-settings loads.
+
+    The package-root ``.env`` (parent of this module — resolved absolutely, NOT
+    CWD-relative, so a run launched from the staging dir still finds it) is the
+    LOCAL one. When a distinct canonical ``.env`` exists (see
+    :func:`_canonical_env_path`) it is prepended so the LOCAL file still wins for
+    every key it defines — deploy/staging keep their own values — and the
+    canonical only FILLS keys the local one omits (e.g. ``PLEX_TOKEN``).
+    pydantic-settings loads a tuple left-to-right with later files taking
+    precedence, so ``(canonical, local)`` gives exactly that.
+
+    Returns:
+        A tuple of ``.env`` paths in load order (canonical first when present).
+    """
+    local = Path(__file__).resolve().parent.parent / ".env"
+    canonical = _canonical_env_path()
+    if canonical is not None and canonical.resolve() != local.resolve():
+        return (str(canonical), str(local))
+    return (str(local),)
+
+
+_ENV_FILES = _resolve_env_files()
 
 
 class Settings(BaseSettings):
@@ -48,7 +94,7 @@ class Settings(BaseSettings):
         web_jwt_secret: HS256 secret key for JWT session tokens.
     """
 
-    model_config = SettingsConfigDict(env_file=str(_ENV_PATH), extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILES, extra="ignore")
 
     # qBittorrent
     qbit_host: str = "localhost"
