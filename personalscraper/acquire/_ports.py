@@ -460,6 +460,10 @@ class ProvenanceSubStore(Protocol):
         """Return the row whose ``current_path`` equals *path*, or ``None``."""
         ...
 
+    def path_ref_index(self) -> dict[str, MediaRef]:
+        """Snapshot ``{current_path: media_ref}`` for tracked, identified rows (#30)."""
+        ...
+
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
         """Delete rows whose ``current_path`` no longer exists (FS = truth)."""
         ...

@@ -68,6 +68,7 @@ class Scraper(
         event_bus: EventBus,
         registry: ProviderRegistry,
         follow_tvdb_resolver: "Callable[[Path], int | None] | None" = None,
+        follow_movie_resolver: "Callable[[Path], int | None] | None" = None,
     ):
         """Initialize the scraper with the provider registry and helpers.
 
@@ -91,6 +92,11 @@ class Scraper(
                 TVDB id so the scrape forces that id (``scrape_tvshow_forced``)
                 instead of re-matching a duplicate TVDB entry. ``None`` (default)
                 keeps the legacy free-match behaviour — fully retro-compatible.
+            follow_movie_resolver: Optional provenance hook for MOVIES (#30 /
+                ACC-05). Given a staging movie directory, returns the followed
+                movie's TMDB id so the scrape forces that id
+                (``scrape_movie_forced``) instead of free-matching by title+year.
+                ``None`` (default) keeps the legacy free-match behaviour.
         """
         self.settings = settings
         self.config = config
@@ -104,6 +110,11 @@ class Scraper(
         # instead of re-matching a duplicate TVDB entry. None ⇒ free match
         # (retro-compatible: legacy callers pass nothing).
         self._follow_tvdb_resolver = follow_tvdb_resolver
+        # Optional provenance hook for MOVIES (#30 / ACC-05): given a staging movie
+        # dir, returns the TMDB id recorded at grab so the scrape forces that id
+        # (``scrape_movie_forced``) instead of free-matching by title+year. None ⇒
+        # free match (retro-compatible).
+        self._follow_movie_resolver = follow_movie_resolver
         scraper_config = config.scraper if config is not None else None
         self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
         self._scraper_fallback_language = scraper_config.fallback_language if scraper_config is not None else "en-US"
@@ -217,7 +228,20 @@ class Scraper(
                 continue
 
             try:
-                result = self.scrape_movie(movie_dir)
+                # scrape-follow-id (#30 / ACC-05): if this folder came from a
+                # follow-driven grab, force the recorded TMDB id (deterministic)
+                # instead of free-matching. Fail-soft → free match on any error.
+                forced_tmdb: int | None = None
+                if self._follow_movie_resolver is not None:
+                    try:
+                        forced_tmdb = self._follow_movie_resolver(movie_dir)
+                    except Exception as exc:  # noqa: BLE001 — never block the scrape
+                        log.warning("scrape_movie_resolver_failed", directory=movie_dir.name, error=str(exc))
+                if forced_tmdb is not None:
+                    log.info("scrape_follow_forced_tmdb", directory=movie_dir.name, tmdb_id=forced_tmdb)
+                    result = self.scrape_movie_forced(movie_dir, forced_tmdb)
+                else:
+                    result = self.scrape_movie(movie_dir)
                 results.append(result)
             except CircuitOpenError as e:
                 # Circuit opened during this item's processing

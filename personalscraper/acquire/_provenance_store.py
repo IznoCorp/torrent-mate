@@ -211,6 +211,26 @@ class _ProvenanceSubStore:
         """
         return self._read_one("WHERE current_path = ?", (path,))
 
+    def path_ref_index(self) -> dict[str, MediaRef]:
+        """Snapshot ``{current_path: media_ref}`` for every tracked, identified row.
+
+        The scrape consumer (#30) reads this ONCE at scrape-step start (mirroring
+        the #29 grabbed-snapshot) and resolves each folder in-memory. Fail-soft:
+        an empty dict on any error (the caller then falls back to #29 → free match).
+        """
+        out: dict[str, MediaRef] = {}
+        try:
+            self._conn.row_factory = sqlite3.Row
+            rows = self._conn.execute(
+                "SELECT current_path, media_ref_json FROM staging_provenance "
+                "WHERE current_path IS NOT NULL AND media_ref_json IS NOT NULL"
+            ).fetchall()
+            for r in rows:
+                out[r["current_path"]] = _media_ref_from_json(r["media_ref_json"])
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty snapshot
+            log.warning("acquire.provenance.index_failed", error=str(exc))
+        return out
+
     def _read_one(self, where: str, params: tuple[object, ...]) -> ProvenanceRow | None:
         """Fetch one row for *where*/*params*, fail-soft (``None`` on any error)."""
         try:

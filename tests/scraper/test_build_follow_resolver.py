@@ -48,6 +48,7 @@ def test_empty_grabbed_returns_none(tmp_path: Path) -> None:
     store = MagicMock()
     store.wanted.list_grabbed.return_value = []
     store.follow.list_all.return_value = []
+    store.provenance.path_ref_index.return_value = {}  # no provenance either (#30)
     with (
         patch("personalscraper.acquire.store.build_acquire_store", return_value=store),
         patch("personalscraper.scraper.run._read_follow_years", return_value={}),
