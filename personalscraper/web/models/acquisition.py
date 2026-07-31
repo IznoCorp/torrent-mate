@@ -664,6 +664,10 @@ class JourneyItem(BaseModel):
     resolution_state: str | None = None
     decision_id: int | None = None
     resolution_trigger: str | None = None
+    grab_run_uid: str | None = None
+    ingest_run_uid: str | None = None
+    scrape_run_uid: str | None = None
+    dispatch_run_uid: str | None = None
 
 
 class JourneysResponse(BaseModel):

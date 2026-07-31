@@ -815,25 +815,30 @@ def _journey_media_ref(ref: "MediaRef | None") -> MediaRefResponse:
 
 
 @router.get("/journeys", response_model=JourneysResponse)
-def get_journeys(request: Request) -> JourneysResponse:
-    """List each acquisition's pipeline journey from the provenance registry (F1).
+def get_journeys(
+    request: Request,
+    run_uid: str | None = Query(default=None, description="Filter to acquisitions a given pipeline run touched (F3)."),
+) -> JourneysResponse:
+    """List each acquisition's pipeline journey from the provenance registry (F1/F3).
 
     Read-only: opens a fresh acquire store per request (like the other acquisition
     routes), reads the provenance journeys (most-recent first), and joins each row's
-    follow title so the « Parcours » view is human-readable. The provenance READ is
-    fail-soft (``list_journeys`` yields an empty list on a query error); a store
-    open/migration failure surfaces as a 500, consistent with every other
-    ``build_acquire_store`` route.
+    follow title so the « Parcours » view is human-readable. When *run_uid* is given
+    (F3 converse view), returns only the acquisitions that run advanced at any stage —
+    « quelles acquisitions ce run a-t-il traitées ? ». The provenance READ is fail-soft
+    (an empty list on a query error); a store open/migration failure surfaces as a 500,
+    consistent with every other ``build_acquire_store`` route.
 
     Args:
         request: The incoming FastAPI request.
+        run_uid: Optional pipeline-run hex id — restrict to that run's acquisitions.
 
     Returns:
         A :class:`JourneysResponse` — the acquisition journeys, most-recent first.
     """
     store = build_acquire_store(request.app.state.config.acquire)
     try:
-        rows = store.provenance.list_journeys()
+        rows = store.provenance.list_journeys_for_run(run_uid) if run_uid else store.provenance.list_journeys()
         title_cache: dict[int, str | None] = {}
         items: list[JourneyItem] = []
         for row in rows:
@@ -862,6 +867,10 @@ def get_journeys(request: Request) -> JourneysResponse:
                     resolution_state=row.resolution_state,
                     decision_id=row.decision_id,
                     resolution_trigger=row.resolution_trigger,
+                    grab_run_uid=row.grab_run_uid,
+                    ingest_run_uid=row.ingest_run_uid,
+                    scrape_run_uid=row.scrape_run_uid,
+                    dispatch_run_uid=row.dispatch_run_uid,
                 )
             )
         return JourneysResponse(journeys=items)

@@ -16,12 +16,15 @@ import { relativeTime } from "@/components/acquisition/meta";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Badge } from "@/components/ui/badge";
 
-/** The four pipeline stages, in order, keyed by their provenance timestamp field. */
+/**
+ * The four pipeline stages, in order — each keyed by its provenance timestamp field
+ * and the per-stage run-uid (F3) that deep-links the chip to the run that did it.
+ */
 const STAGES = [
-  { key: "grabbed_at", label: "Récupéré" },
-  { key: "ingested_at", label: "Ingéré" },
-  { key: "scraped_at", label: "Scrapé" },
-  { key: "dispatched_at", label: "Rangé" },
+  { key: "grabbed_at", label: "Récupéré", runKey: "grab_run_uid" },
+  { key: "ingested_at", label: "Ingéré", runKey: "ingest_run_uid" },
+  { key: "scraped_at", label: "Scrapé", runKey: "scrape_run_uid" },
+  { key: "dispatched_at", label: "Rangé", runKey: "dispatch_run_uid" },
 ] as const;
 
 /** A human-readable label for a journey: the follow title, else an id, else the hash. */
@@ -124,12 +127,26 @@ export function ParcoursPanel(): ReactElement {
             {STAGES.map((stage) => {
               const at = j[stage.key];
               const done = at != null;
+              const runUid = j[stage.runKey];
+              const badge = (
+                <Badge tone={done ? "success" : "muted"}>
+                  {stage.label}
+                  {done ? ` · ${relativeTime(at)}` : ""}
+                </Badge>
+              );
               return (
                 <li key={stage.key}>
-                  <Badge tone={done ? "success" : "muted"}>
-                    {stage.label}
-                    {done ? ` · ${relativeTime(at)}` : ""}
-                  </Badge>
+                  {/* F3: a completed stage with a known run deep-links to that run. */}
+                  {done && runUid != null ? (
+                    <Link
+                      to={`/pipeline?run=${encodeURIComponent(runUid)}`}
+                      title="Voir le run qui a effectué cette étape"
+                    >
+                      {badge}
+                    </Link>
+                  ) : (
+                    badge
+                  )}
                 </li>
               );
             })}

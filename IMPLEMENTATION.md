@@ -34,8 +34,8 @@ stamped fail-soft from the run correlation; `pipeline_run` stays authoritative &
 
 | #   | Phase                                                                                           | File                     | Status |
 | --- | ----------------------------------------------------------------------------------------------- | ------------------------ | ------ |
-| 1   | Schema + store (migration 012, run_uid params, set_scrape_run, list_journeys_for_run)           | phase-01-schema-store.md | [ ]    |
-| 2   | Wire the 4 stages (grab/ingest/scrape/dispatch) + integration tests                             | phase-02-wire-stages.md  | [ ]    |
-| 3   | Read surface (JourneyItem run fields + ?run_uid= filter + ParcoursPanel deep-links) + gate + PR | phase-03-read-surface.md | [ ]    |
+| 1   | Schema + store (migration 012, run_uid params, set_scrape_run, list_journeys_for_run)           | phase-01-schema-store.md | [x]    |
+| 2   | Wire the 4 stages (grab/ingest/scrape/dispatch) + integration tests                             | phase-02-wire-stages.md  | [x]    |
+| 3   | Read surface (JourneyItem run fields + ?run_uid= filter + ParcoursPanel deep-links) + gate + PR | phase-03-read-surface.md | [x]    |
 
-**Next action**: Phase 1 — schema + store.
+**Next action**: all phases complete — phase gate + feature-PR.
