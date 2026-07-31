@@ -23,6 +23,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
 
+## [0.65.2] — 2026-07-31
+
+### Fixed
+
+- **Scan Plex après dispatch enfin déclenché sur les crons (#346, bug récurrent).**
+  Les crons pipeline/dispatch tournent le checkout deploy dont le `.env` n'avait pas
+  `PLEX_TOKEN` → le subscriber de refresh Plex n'était jamais câblé
+  (`plex_refresh_disabled reason=no_token`) → média acquis + dispatché + indexé mais
+  invisible dans Plex (Supergirl, Rooster…). `Settings` charge désormais un overlay de
+  `.env` : le `.env` canonique (à côté du `config/` partagé via `PERSONALSCRAPER_CONFIG`)
+  comble les clés manquantes du `.env` local, sans écraser les secrets locaux. Rétro-compat
+  totale.
+
+### Changed
+
+- **Constitution produit v3** (`docs/reference/product-intent.md`) : §4 « la chaîne va
+  jusqu'à la visibilité Plex » (acquisition→pipeline→dispatch→scan Plex) + §5 « identité
+  conservée au scraping » (récup via acquisition garde l'ID du suivi).
+
+## [0.65.1] — 2026-07-31
+
+### Fixed
+
+- **Acquisitions — polish des statuts (#344).**
+  - #23 : dans « Suivis retirés », le bouton « Réactiver » ne revient plus à la
+    ligne sur un titre long (mobile) — la rangée ne wrappe plus, le titre tronque,
+    le bouton reste sur place.
+  - #24 : « En attente » et « Non vérifié » ne partagent plus la même couleur —
+    `non_verifie` (tone `muted`) passe d'un gris tireté à un bleu-info tireté faible,
+    distinct du gris plein d'« En attente », dans la carte de suivi ET la matrice
+    d'épisodes.
+
 ## [0.65.0] — 2026-07-29
 
 ### Added
