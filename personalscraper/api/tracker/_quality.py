@@ -33,6 +33,16 @@ _TITLE_PATTERNS: dict[str, re.Pattern[str]] = {
         r"\b(truehd|atmos|dts[- ]?hd|dts|ddp?5\.1|aac|ac3|flac|mp3)\b",
         re.IGNORECASE,
     ),
+    # Language / audio-track marker — a SEPARATE axis from the audio CODEC above.
+    # « MULTi » (several audio tracks) and the French VF variants (VFF/VFQ/…) live
+    # here so a ranking criterion can score « prefer Multi » — the operator's
+    # request the ``audio`` codec field could never serve (a torrent never carries
+    # a VFF token in its codec). Normalized to an UPPERCASE canonical token (see
+    # below) so config ``values`` lookups are case-stable.
+    "language": re.compile(
+        r"\b(multi|vff|vfq|vfi|vof|truefrench|french|vostfr|subfrench|vo)\b",
+        re.IGNORECASE,
+    ),
     "format": re.compile(r"\.(mkv|mp4|avi|m4v|wmv|mov)$", re.IGNORECASE),
 }
 
@@ -45,13 +55,19 @@ def parse_title_quality(title: str) -> dict[str, str | None]:
 
     Returns:
         Dict with keys ``resolution``, ``codec``, ``source``, ``audio``,
-        ``format``. Each value is the matched token (as it appears in the
-        title) or ``None`` when no pattern matches. Freeleech/silverleech flags
-        are NOT included — they are not encoded uniformly across trackers and
-        each client reads its own structured signal for them.
+        ``language``, ``format``. Each value is the matched token or ``None`` when
+        no pattern matches. ``language`` is normalized to an UPPERCASE canonical
+        token (``MULTI`` / ``VFF`` / ``VOSTFR`` / …) so ranking ``values`` lookups
+        are case-stable regardless of the release's casing (``MULTi`` / ``MULTI``);
+        the other fields keep the matched token as it appears. Freeleech /
+        silverleech flags are NOT included — each client reads its own structured
+        signal for them.
     """
     out: dict[str, str | None] = {}
     for field, pattern in _TITLE_PATTERNS.items():
         match = pattern.search(title)
-        out[field] = match.group(1) if match else None
+        token = match.group(1) if match else None
+        # Language is the one normalized axis: a case-stable canonical token
+        # makes « prefer MULTi » a reliable config value across « MULTi »/« MULTI ».
+        out[field] = token.upper() if (token is not None and field == "language") else token
     return out
