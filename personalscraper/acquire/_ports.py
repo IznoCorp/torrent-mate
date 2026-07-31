@@ -491,6 +491,10 @@ class ProvenanceSubStore(Protocol):
         """Return acquisitions a run advanced at any stage (F3 converse view; fail-soft)."""
         ...
 
+    def list_stuck(self, older_than: int, exists_fn: Callable[[str], bool], limit: int = 500) -> "list[ProvenanceRow]":
+        """Return in-flight items stuck past *older_than* whose folder still exists (F4; fail-soft)."""
+        ...
+
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
         """Delete rows whose ``current_path`` no longer exists (FS = truth)."""
         ...

@@ -49,6 +49,39 @@ def _path_key_forms(path: str) -> tuple[str, str]:
     return unicodedata.normalize("NFC", path), unicodedata.normalize("NFD", path)
 
 
+# An in-flight item (not yet dispatched/reconciled) can get STUCK mid-pipeline (F4): its
+# staging folder still exists on disk but no stage has advanced it for a while. These are
+# the statuses a targeted re-action (re-scrape / requeue) can act on.
+_STUCK_STATUSES = ("grabbed", "ingested", "scraped")
+
+# Default idle horizon before an in-flight item is considered stuck (2h) — long enough that
+# a normally-cadenced pipeline would have advanced it.
+STUCK_IDLE_SECONDS = 7200
+
+
+def _latest_stage_at(row: ProvenanceRow) -> int | None:
+    """The most-recent stage timestamp reached (scrape → ingest → grab)."""
+    return row.scraped_at or row.ingested_at or row.grabbed_at
+
+
+def provenance_row_is_stuck(
+    row: ProvenanceRow, *, now: int, idle_seconds: int, exists_fn: Callable[[str], bool]
+) -> bool:
+    """Return True when *row* is a stuck in-flight item (F4 substrate).
+
+    Stuck = an in-flight status (grabbed/ingested/scraped, never a terminal
+    dispatched/reconciled), whose ``current_path`` still exists on disk (FS = truth — a
+    vanished folder is a ``prune_stale`` candidate, not a resume), and whose latest stage
+    is older than *idle_seconds*.
+    """
+    if row.status not in _STUCK_STATUSES or not row.current_path:
+        return False
+    latest = _latest_stage_at(row)
+    if latest is None or latest >= now - idle_seconds:
+        return False
+    return exists_fn(row.current_path)
+
+
 @dataclass(frozen=True)
 class ProvenanceRow:
     """One acquisition's provenance record (a row of ``staging_provenance``)."""
@@ -386,6 +419,28 @@ class _ProvenanceSubStore:
             return [_row_to_provenance(r) for r in rows]
         except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty list
             log.warning("acquire.provenance.list_journeys_for_run_failed", error=str(exc))
+            return []
+
+    def list_stuck(self, older_than: int, exists_fn: Callable[[str], bool], limit: int = 500) -> list[ProvenanceRow]:
+        """Return in-flight items stuck past *older_than* whose folder still exists (F4, fail-soft).
+
+        The substrate for targeted re-actions: an in-flight row (grabbed/ingested/scraped)
+        whose latest stage is older than *older_than* and whose ``current_path`` still exists
+        on disk (checked via *exists_fn*, FS = truth). Oldest first. Empty list on any error.
+        """
+        try:
+            self._conn.row_factory = sqlite3.Row
+            rows = self._conn.execute(
+                "SELECT * FROM staging_provenance "
+                "WHERE status IN ('grabbed', 'ingested', 'scraped') AND current_path IS NOT NULL "
+                "AND COALESCE(scraped_at, ingested_at, grabbed_at) < ? "
+                "ORDER BY COALESCE(scraped_at, ingested_at, grabbed_at) ASC LIMIT ?",
+                (older_than, limit),
+            ).fetchall()
+            out = [_row_to_provenance(r) for r in rows]
+            return [r for r in out if r.current_path is not None and exists_fn(r.current_path)]
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty list
+            log.warning("acquire.provenance.list_stuck_failed", error=str(exc))
             return []
 
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:

@@ -1980,6 +1980,11 @@
               }
             ],
             "title": "Status"
+          },
+          "stuck": {
+            "default": false,
+            "title": "Stuck",
+            "type": "boolean"
           }
         },
         "required": [

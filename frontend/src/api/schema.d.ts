@@ -3150,6 +3150,11 @@ export interface components {
             scraped_ref?: components["schemas"]["MediaRefResponse"] | null;
             /** Status */
             status?: string | null;
+            /**
+             * Stuck
+             * @default false
+             */
+            stuck: boolean;
         };
         /**
          * JourneysResponse

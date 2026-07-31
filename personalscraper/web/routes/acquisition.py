@@ -25,6 +25,7 @@ carries ``require_not_staging`` (staging → 403) and
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from contextlib import closing
@@ -33,6 +34,7 @@ from typing import TYPE_CHECKING, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS, provenance_row_is_stuck
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
@@ -839,9 +841,14 @@ def get_journeys(
     store = build_acquire_store(request.app.state.config.acquire)
     try:
         rows = store.provenance.list_journeys_for_run(run_uid) if run_uid else store.provenance.list_journeys()
+        now = int(time.time())
         title_cache: dict[int, str | None] = {}
         items: list[JourneyItem] = []
         for row in rows:
+            # F4: flag a stuck in-flight item (folder still on disk, idle past the horizon).
+            stuck = provenance_row_is_stuck(
+                row, now=now, idle_seconds=STUCK_IDLE_SECONDS, exists_fn=os.path.exists
+            )
             follow_title: str | None = None
             if row.followed_id is not None:
                 if row.followed_id not in title_cache:
@@ -871,6 +878,7 @@ def get_journeys(
                     ingest_run_uid=row.ingest_run_uid,
                     scrape_run_uid=row.scrape_run_uid,
                     dispatch_run_uid=row.dispatch_run_uid,
+                    stuck=stuck,
                 )
             )
         return JourneysResponse(journeys=items)

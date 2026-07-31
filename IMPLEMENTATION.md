@@ -1,27 +1,28 @@
-# Implementation Progress — run-linkage
+# Implementation Progress — spine-actions
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Link each `pipeline_run` to the acquisitions it processed (F3 of the
-tracking-spine epic) — per-stage nullable `*_run_uid` columns on `staging_provenance`
-stamped fail-soft from the run correlation; `pipeline_run` stays authoritative & unchanged.
+**Feature**: Targeted maintenance actions driven by the provenance spine (F4 of the
+tracking-spine epic) — re-scrape a precise grab / resume a stuck item / requeue by
+journey state, keyed on `staging_provenance`. CLI + web buttons; reuses forced-scrape +
+wanted-requeue seams; advisory + fail-soft.
 **Type**: feat
-**Version bump**: 0.69.0 → 0.70.0 (minor)
-**Branch**: feat/run-linkage
-**Ticket**: #362 — claimed
+**Version bump**: 0.70.0 → 0.71.0 (minor)
+**Branch**: feat/spine-actions
+**Ticket**: #364 — claimed
 **PR merge**: auto (operator-authorized epic contract)
-**Design**: docs/features/run-linkage/DESIGN.md
+**Design**: docs/features/spine-actions/DESIGN.md
 **Epic roadmap**: docs/features/provenance/EPIC-ROADMAP.md (F0 → F5)
 
 ## Non-negotiable invariants
 
-- Per-stage columns (grab/ingest/scrape/dispatch run uids): an acquisition is advanced by
-  DIFFERENT runs at different stages (grab = its own maintenance run, OUTSIDE the full run).
-- Grab stamp reads the `CliRunRecorder.run_uid` handle (its ContextVar is misaligned);
-  ingest/scrape/dispatch read `current_correlation_id` → `.hex` (== pipeline_run.run_uid).
-- Cross-DB back-link, NO FK; `pipeline_run`/PipelineRunWriter/steps_json untouched.
-- Every column nullable + every write `_safe_write` (advisory; wipe ⇒ today's behaviour);
-  manual/direct item (no spine row) gets no run stamp (ACC-06).
+- Reuse, don't rewrite: forced scrape (`scrape_{movie,tvshow}_forced` seeded from the spine
+  `media_ref`) + `WantedStore.requeue_missing`; the maintenance registry (+ sync test),
+  `library-rescrape`, and the decisions resolve path stay untouched.
+- Web actions via the acquisition-trigger pattern (not the `library-*` registry). Every
+  mutating endpoint carries `require_not_staging` + `require_x_requested_with` + `guarded_api`.
+- Re-scrape holds only the per-item scrape lock (parallel-safe, exclusive with a full run);
+  requeue is lock-free. `list_stuck` is fail-soft; manual/direct item (no row) = no-op (ACC-06).
 
 ## Autonomous epic contract (operator-authorized — run F0→F5 without stopping)
 
@@ -32,10 +33,10 @@ stamped fail-soft from the run correlation; `pipeline_run` stays authoritative &
 
 ## Phases
 
-| #   | Phase                                                                                           | File                     | Status |
-| --- | ----------------------------------------------------------------------------------------------- | ------------------------ | ------ |
-| 1   | Schema + store (migration 012, run_uid params, set_scrape_run, list_journeys_for_run)           | phase-01-schema-store.md | [x]    |
-| 2   | Wire the 4 stages (grab/ingest/scrape/dispatch) + integration tests                             | phase-02-wire-stages.md  | [x]    |
-| 3   | Read surface (JourneyItem run fields + ?run_uid= filter + ParcoursPanel deep-links) + gate + PR | phase-03-read-surface.md | [x]    |
+| #   | Phase                                                           | File                  | Status |
+| --- | --------------------------------------------------------------- | --------------------- | ------ |
+| 1   | Spine substrate (list_stuck + stuck flag on JourneyItem)        | phase-01-substrate.md | [ ]    |
+| 2   | CLI actions (acquisition-rescrape + acquisition-requeue)        | phase-02-cli.md       | [ ]    |
+| 3   | Web trigger endpoints + ParcoursPanel buttons/badge + gate + PR | phase-03-web.md       | [ ]    |
 
-**Next action**: all phases complete — phase gate + feature-PR.
+**Next action**: Phase 1 — spine substrate.
