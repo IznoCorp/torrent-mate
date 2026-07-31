@@ -23,7 +23,13 @@ import {
 } from "@/lib/outcome-labels";
 
 /** Tab ids for the panels. */
-export type TabId = "followed" | "file" | "obligations" | "watcher" | "reglages";
+export type TabId =
+  | "followed"
+  | "file"
+  | "obligations"
+  | "watcher"
+  | "parcours"
+  | "reglages";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -80,6 +86,7 @@ export const TABS: readonly { id: TabId; label: string }[] = [
   { id: "file", label: "File d'acquisition" },
   { id: "obligations", label: "Obligations" },
   { id: "watcher", label: "Watcher" },
+  { id: "parcours", label: "Parcours" },
   { id: "reglages", label: "Réglages" },
 ];
 

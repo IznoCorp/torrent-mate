@@ -1763,6 +1763,170 @@
         "title": "IndexHealthResponse",
         "type": "object"
       },
+      "JourneyItem": {
+        "description": "One acquisition's journey through the pipeline (provenance F1, kanban #358).\n\nRead straight off the F0 provenance registry (``staging_provenance``), joined\nwith the follow title. The per-stage timestamps + ``status`` make the journey\ngrabbed \u2192 ingested \u2192 scraped \u2192 dispatched legible in the \u00ab Parcours \u00bb view.\n\nAttributes:\n    info_hash: The grabbed torrent hash (the journey key).\n    kind: ``movie`` / ``episode`` (None when unknown).\n    media_ref: Identity KNOWN at grab (the deterministic scrape seed).\n    scraped_ref: Identity actually scraped, when recorded (audit / drift).\n    followed_id: The follow this acquisition came from, if any.\n    follow_title: The follow's title (joined) \u2014 the human-readable label.\n    status: Journey status: grabbed / ingested / scraped / dispatched / reconciled.\n    ingest_path: Staging folder created at ingest.\n    current_path: Live staging folder (updated through sort/scrape rename).\n    dispatch_path: Final destination after dispatch, when reached.\n    grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage\n        timestamps (None until that stage is reached).",
+        "properties": {
+          "current_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Path"
+          },
+          "dispatch_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatch Path"
+          },
+          "dispatched_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatched At"
+          },
+          "follow_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Title"
+          },
+          "followed_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Id"
+          },
+          "grabbed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grabbed At"
+          },
+          "info_hash": {
+            "title": "Info Hash",
+            "type": "string"
+          },
+          "ingest_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Path"
+          },
+          "ingested_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingested At"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "media_ref": {
+            "$ref": "#/components/schemas/MediaRefResponse"
+          },
+          "scraped_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scraped At"
+          },
+          "scraped_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MediaRefResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "info_hash",
+          "media_ref"
+        ],
+        "title": "JourneyItem",
+        "type": "object"
+      },
+      "JourneysResponse": {
+        "description": "Response for ``GET /api/acquisition/journeys`` (provenance F1).\n\nAttributes:\n    journeys: Acquisition journeys, most-recent (grabbed) first.",
+        "properties": {
+          "journeys": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/JourneyItem"
+            },
+            "title": "Journeys",
+            "type": "array"
+          }
+        },
+        "title": "JourneysResponse",
+        "type": "object"
+      },
       "LockState": {
         "description": "State of a single filesystem lock file.\n\nAttributes:\n    held: ``True`` when the lock file exists on disk.\n    pid: The process ID read from the lock file, or ``None`` when the\n        lock is not held or the PID couldn't be parsed.\n    pid_alive: ``True`` when the PID reported in the lock file\n        corresponds to a live process (checked via ``os.kill(pid, 0)``).\n    stale: ``True`` when the lock file exists but the PID inside it is\n        no longer alive \u2014 the lock should be cleaned up.\n    age_s: Age of the lock file in seconds (``time.time() - mtime``),\n        or ``None`` when the lock is not held.",
         "properties": {
@@ -4670,6 +4834,28 @@
           }
         },
         "summary": "Trigger Followed Search",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/journeys": {
+      "get": {
+        "description": "List each acquisition's pipeline journey from the provenance registry (F1).\n\nRead-only: opens a fresh acquire store per request (like the other acquisition\nroutes), reads the provenance journeys (most-recent first), and joins each row's\nfollow title so the \u00ab Parcours \u00bb view is human-readable. The provenance READ is\nfail-soft (``list_journeys`` yields an empty list on a query error); a store\nopen/migration failure surfaces as a 500, consistent with every other\n``build_acquire_store`` route.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`JourneysResponse` \u2014 the acquisition journeys, most-recent first.",
+        "operationId": "get_journeys_api_acquisition_journeys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JourneysResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Journeys",
         "tags": [
           "acquisition"
         ]

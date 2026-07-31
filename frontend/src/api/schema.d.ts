@@ -277,6 +277,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/journeys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Journeys
+         * @description List each acquisition's pipeline journey from the provenance registry (F1).
+         *
+         *     Read-only: opens a fresh acquire store per request (like the other acquisition
+         *     routes), reads the provenance journeys (most-recent first), and joins each row's
+         *     follow title so the « Parcours » view is human-readable. The provenance READ is
+         *     fail-soft (``list_journeys`` yields an empty list on a query error); a store
+         *     open/migration failure surfaces as a 500, consistent with every other
+         *     ``build_acquire_store`` route.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`JourneysResponse` — the acquisition journeys, most-recent first.
+         */
+        get: operations["get_journeys_api_acquisition_journeys_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -3047,6 +3080,70 @@ export interface components {
             soft_deleted: number;
         };
         /**
+         * JourneyItem
+         * @description One acquisition's journey through the pipeline (provenance F1, kanban #358).
+         *
+         *     Read straight off the F0 provenance registry (``staging_provenance``), joined
+         *     with the follow title. The per-stage timestamps + ``status`` make the journey
+         *     grabbed → ingested → scraped → dispatched legible in the « Parcours » view.
+         *
+         *     Attributes:
+         *         info_hash: The grabbed torrent hash (the journey key).
+         *         kind: ``movie`` / ``episode`` (None when unknown).
+         *         media_ref: Identity KNOWN at grab (the deterministic scrape seed).
+         *         scraped_ref: Identity actually scraped, when recorded (audit / drift).
+         *         followed_id: The follow this acquisition came from, if any.
+         *         follow_title: The follow's title (joined) — the human-readable label.
+         *         status: Journey status: grabbed / ingested / scraped / dispatched / reconciled.
+         *         ingest_path: Staging folder created at ingest.
+         *         current_path: Live staging folder (updated through sort/scrape rename).
+         *         dispatch_path: Final destination after dispatch, when reached.
+         *         grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage
+         *             timestamps (None until that stage is reached).
+         */
+        JourneyItem: {
+            /** Current Path */
+            current_path?: string | null;
+            /** Dispatch Path */
+            dispatch_path?: string | null;
+            /** Dispatched At */
+            dispatched_at?: number | null;
+            /** Follow Title */
+            follow_title?: string | null;
+            /** Followed Id */
+            followed_id?: number | null;
+            /** Grabbed At */
+            grabbed_at?: number | null;
+            /** Info Hash */
+            info_hash: string;
+            /** Ingest Path */
+            ingest_path?: string | null;
+            /** Ingested At */
+            ingested_at?: number | null;
+            /** Kind */
+            kind?: string | null;
+            media_ref: components["schemas"]["MediaRefResponse"];
+            /** Scraped At */
+            scraped_at?: number | null;
+            scraped_ref?: components["schemas"]["MediaRefResponse"] | null;
+            /** Status */
+            status?: string | null;
+        };
+        /**
+         * JourneysResponse
+         * @description Response for ``GET /api/acquisition/journeys`` (provenance F1).
+         *
+         *     Attributes:
+         *         journeys: Acquisition journeys, most-recent (grabbed) first.
+         */
+        JourneysResponse: {
+            /**
+             * Journeys
+             * @default []
+             */
+            journeys: components["schemas"]["JourneyItem"][];
+        };
+        /**
          * LockState
          * @description State of a single filesystem lock file.
          *
@@ -4947,6 +5044,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_journeys_api_acquisition_journeys_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JourneysResponse"];
                 };
             };
         };

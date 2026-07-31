@@ -464,6 +464,10 @@ class ProvenanceSubStore(Protocol):
         """Snapshot ``{current_path: media_ref}`` for tracked, identified rows (#30)."""
         ...
 
+    def list_journeys(self, limit: int = 200) -> "list[ProvenanceRow]":
+        """Return provenance rows most-recent first (F1 journey view; fail-soft)."""
+        ...
+
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
         """Delete rows whose ``current_path`` no longer exists (FS = truth)."""
         ...

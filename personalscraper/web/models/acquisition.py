@@ -617,3 +617,51 @@ class RankingPreviewResponse(BaseModel):
     """
 
     ranked: list[RankingPreviewRelease] = []
+
+
+class JourneyItem(BaseModel):
+    """One acquisition's journey through the pipeline (provenance F1, kanban #358).
+
+    Read straight off the F0 provenance registry (``staging_provenance``), joined
+    with the follow title. The per-stage timestamps + ``status`` make the journey
+    grabbed → ingested → scraped → dispatched legible in the « Parcours » view.
+
+    Attributes:
+        info_hash: The grabbed torrent hash (the journey key).
+        kind: ``movie`` / ``episode`` (None when unknown).
+        media_ref: Identity KNOWN at grab (the deterministic scrape seed).
+        scraped_ref: Identity actually scraped, when recorded (audit / drift).
+        followed_id: The follow this acquisition came from, if any.
+        follow_title: The follow's title (joined) — the human-readable label.
+        status: Journey status: grabbed / ingested / scraped / dispatched / reconciled.
+        ingest_path: Staging folder created at ingest.
+        current_path: Live staging folder (updated through sort/scrape rename).
+        dispatch_path: Final destination after dispatch, when reached.
+        grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage
+            timestamps (None until that stage is reached).
+    """
+
+    info_hash: str
+    kind: str | None = None
+    media_ref: MediaRefResponse
+    scraped_ref: MediaRefResponse | None = None
+    followed_id: int | None = None
+    follow_title: str | None = None
+    status: str | None = None
+    ingest_path: str | None = None
+    current_path: str | None = None
+    dispatch_path: str | None = None
+    grabbed_at: int | None = None
+    ingested_at: int | None = None
+    scraped_at: int | None = None
+    dispatched_at: int | None = None
+
+
+class JourneysResponse(BaseModel):
+    """Response for ``GET /api/acquisition/journeys`` (provenance F1).
+
+    Attributes:
+        journeys: Acquisition journeys, most-recent (grabbed) first.
+    """
+
+    journeys: list[JourneyItem] = []
