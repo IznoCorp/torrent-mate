@@ -186,8 +186,8 @@ class _FollowSubStore:
                 """
                 INSERT INTO followed_series
                   (media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                   quality_profile_json, cadence_json, added_at, kind, year)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(media_ref_json) DO UPDATE SET
                   active = 1,
                   title = excluded.title,
@@ -202,6 +202,7 @@ class _FollowSubStore:
                     series.cadence_json,
                     series.added_at,
                     series.kind,
+                    series.year,
                 ),
             ).fetchone()
         assert row is not None  # noqa: S101 — RETURNING always yields the affected row
