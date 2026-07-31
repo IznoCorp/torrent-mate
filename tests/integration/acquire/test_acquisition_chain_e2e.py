@@ -225,7 +225,8 @@ class TestFullAcquisitionChain:
                 "personalscraper.acquire.orchestrator.resolve_source",
                 return_value=MagicMock(spec=TorrentSource),
             ):
-                summary = service.run(limit=10)
+                # F3: the grab command passes its CliRunRecorder.run_uid down to the pass.
+                summary = service.run(limit=10, run_uid="grabRUN01")
 
         assert summary.grabbed == 1
         grabbed = store.wanted.find(followed_id=fid, kind="movie", season=None, episode=None)
@@ -240,6 +241,8 @@ class TestFullAcquisitionChain:
         prov = store.provenance.by_hash("grab-hash-01")
         assert prov is not None and prov.status == "grabbed"
         assert prov.media_ref == MediaRef(tmdb_id=27205)
+        # F3 run-linkage: the grab stage stamped its own pipeline_run.run_uid.
+        assert prov.grab_run_uid == "grabRUN01"
 
     def test_movie_chain_rejects_wrong_year_release(self, store: ConcreteAcquireStore) -> None:
         """#28 END-TO-END: a wrong-year « Wicker » release is filtered, not grabbed.

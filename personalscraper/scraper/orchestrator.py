@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -71,6 +72,7 @@ class Scraper(
         follow_tvdb_resolver: "Callable[[Path], int | None] | None" = None,
         follow_movie_resolver: "Callable[[Path], int | None] | None" = None,
         provenance: "StagingProvenanceWriter | None" = None,
+        run_uid: str | None = None,
     ):
         """Initialize the scraper with the provider registry and helpers.
 
@@ -103,6 +105,9 @@ class Scraper(
                 tracked folder to its canonical name, ``move_path`` keeps the
                 registry's ``current_path`` live so the later dispatch record matches
                 (review A/B). Best-effort; ``None`` (default) ⇒ no rename tracking.
+            run_uid: The scraping run's ``pipeline_run.run_uid`` (hex), stamped onto each
+                scraped item's provenance row via ``set_scrape_run`` (F3). ``None``
+                (default) ⇒ no run stamp.
         """
         self.settings = settings
         self.config = config
@@ -126,6 +131,9 @@ class Scraper(
         # the DISPATCH record (record_dispatch_by_path) matches and the row reaches
         # status='dispatched' (review A/B). Best-effort; None ⇒ not tracked.
         self._provenance = provenance
+        # F3 run-linkage: the run that is scraping (hex pipeline_run.run_uid), stamped
+        # onto each scraped item's provenance row via set_scrape_run. None ⇒ no stamp.
+        self._run_uid = run_uid
         scraper_config = config.scraper if config is not None else None
         self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
         self._scraper_fallback_language = scraper_config.fallback_language if scraper_config is not None else "en-US"
@@ -191,12 +199,14 @@ class Scraper(
             return None
 
     def _track_scrape_rename(self, input_dir: Path, result: ScrapeResult) -> None:
-        """Keep provenance ``current_path`` live across the scrape's canonical rename.
+        """Keep ``current_path`` live across the scrape rename + stamp the scraping run.
 
         The scrape renames a folder to ``Title (Year)`` AFTER the identity resolver
-        ran; without this, ``current_path`` would stay the sorted release name and
-        the dispatch record (keyed on ``current_path``) would never match (review
-        A/B). Advisory + best-effort — a provenance error never affects the scrape.
+        ran; without ``move_path``, ``current_path`` would stay the sorted release name
+        and the dispatch record (keyed on ``current_path``) would never match (review
+        A/B). After the folder is live at its final path, ``set_scrape_run`` records the
+        run that scraped this item (F3). Advisory + best-effort — a provenance error
+        never affects the scrape.
 
         Args:
             input_dir: The folder the scrape started from (the sorted path).
@@ -211,6 +221,16 @@ class Scraper(
                 self._provenance.move_path(str(input_dir), str(final))
             except Exception as exc:  # noqa: BLE001 — advisory: never fails the scrape
                 log.warning("scrape_provenance_move_failed", directory=input_dir.name, error=str(exc))
+        # F3: record the scrape STAGE (scraped_at + status='scraped') + the scraping run
+        # onto the (now live-at-``final``) row — ONLY for a CONFIDENTLY-scraped item. An
+        # ambiguous item (queued_for_decision) is NOT marked scraped (it awaits resolution).
+        # No-op when the item is untracked. Advisory — never fails the scrape.
+        if result.action in ("scraped", "artwork_recovered"):
+            stamp_path = final if final is not None else input_dir
+            try:
+                self._provenance.set_scrape_run(str(stamp_path), run_uid=self._run_uid, scraped_at=int(time.time()))
+            except Exception as exc:  # noqa: BLE001 — advisory: never fails the scrape
+                log.warning("scrape_provenance_run_stamp_failed", directory=stamp_path.name, error=str(exc))
 
     def process_movies(self, movies_dir: Path) -> list[ScrapeResult]:
         """Scrape all movies in a directory using the registry chain.

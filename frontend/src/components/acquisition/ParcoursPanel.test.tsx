@@ -109,6 +109,39 @@ describe("ParcoursPanel", () => {
     expect(chip.closest("a")).toHaveAttribute("href", "/medias?decision=7");
   });
 
+  it("deep-links a completed stage chip to the run that did it (F3)", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          info_hash: "abcd1234",
+          kind: "movie",
+          media_ref: { tvdb_id: null, tmdb_id: 27205, imdb_id: null },
+          scraped_ref: null,
+          followed_id: null,
+          follow_title: "Inception",
+          status: "scraped",
+          ingest_path: "/stage/Inception",
+          current_path: "/stage/Inception",
+          dispatch_path: null,
+          grabbed_at: 1_700_000_000,
+          ingested_at: 1_700_000_100,
+          scraped_at: 1_700_000_200,
+          dispatched_at: null,
+          scrape_run_uid: "run-abc-123",
+        },
+      ],
+    });
+    renderPanel();
+    const scraped = await screen.findByText(/Scrapé/);
+    // The « Scrapé » chip links to the run that scraped it.
+    expect(scraped.closest("a")).toHaveAttribute(
+      "href",
+      "/pipeline?run=run-abc-123",
+    );
+    // « Récupéré » has no grab_run_uid here → not a link.
+    expect(screen.getByText(/Récupéré/).closest("a")).toBeNull();
+  });
+
   it("shows a terminal 'Résolu' marker when the decision was resolved (F2)", async () => {
     getJourneysMock.mockResolvedValue({
       journeys: [

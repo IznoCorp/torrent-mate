@@ -141,9 +141,11 @@ class _ProvenanceSpy:
 
     def __init__(self) -> None:
         self.ingests: list[tuple[str, str]] = []
+        self.ingest_run_uids: list[str | None] = []
 
-    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int, run_uid: str | None = None) -> None:
         self.ingests.append((info_hash, ingest_path))
+        self.ingest_run_uids.append(run_uid)
 
     def set_current_path(self, info_hash: str, *, path: str) -> None:  # pragma: no cover - unused here
         pass
@@ -186,6 +188,42 @@ def test_ingest_records_provenance_hash_to_folder(
     info_hash, ingest_path = spy.ingests[0]
     assert info_hash == completed.hash
     assert ingest_path.endswith(completed.name), f"ingest_path {ingest_path} should be the staging folder"
+
+
+def test_ingest_stamps_ingest_run_uid_from_pipeline_run(
+    fake_qbit: FakeQBitClient,
+    staging_tree: Path,
+    integration_config: Config,
+    tmp_path: Path,
+) -> None:
+    """F3: ingest stamps the running pipeline run's uid when the pipeline-run var is bound."""
+    from uuid import uuid4
+
+    from personalscraper.core.event_bus import current_pipeline_run_uid
+
+    torrent_source = tmp_path / "complete"
+    torrent_source.mkdir()
+    completed = _make_torrent_dir(torrent_source, "Inception.2010.1080p")
+    fake_qbit.seed([completed])
+    integration_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    spy = _ProvenanceSpy()
+
+    run_uid = uuid4().hex
+    token = current_pipeline_run_uid.set(run_uid)  # as Pipeline.run() binds it
+    try:
+        run_ingest(
+            _make_settings(),
+            config=integration_config,
+            ingest_dir=staging_tree / "097-TEMP",
+            staging_dir=staging_tree,
+            event_bus=EventBus(),
+            torrent_client=fake_qbit,
+            provenance=spy,
+        )
+    finally:
+        current_pipeline_run_uid.reset(token)
+
+    assert spy.ingest_run_uids == [run_uid]
 
 
 # ---------------------------------------------------------------------------
@@ -278,14 +316,19 @@ def test_ingest_ratio_threshold(
 class _RaisingProvenance:
     """A StagingProvenanceWriter whose every write RAISES (ACC-03 hardening)."""
 
-    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int, run_uid: str | None = None) -> None:
         raise RuntimeError("provenance exploded")
 
     def move_path(self, old_path: str, new_path: str) -> None:  # pragma: no cover - not hit here
         raise RuntimeError("provenance exploded")
 
+    def set_scrape_run(  # pragma: no cover - not hit here
+        self, staging_path: str, *, run_uid: str | None, scraped_at: int
+    ) -> None:
+        raise RuntimeError("provenance exploded")
+
     def record_dispatch_by_path(
-        self, staging_path: str, *, dispatch_path: str, dispatched_at: int
+        self, staging_path: str, *, dispatch_path: str, dispatched_at: int, run_uid: str | None = None
     ) -> None:  # pragma: no cover
         raise RuntimeError("provenance exploded")
 

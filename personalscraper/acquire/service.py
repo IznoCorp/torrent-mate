@@ -235,8 +235,13 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         self._orchestrator = orchestrator
         self._event_bus = event_bus
         self._config = config
+        # F3 run-linkage: the grab-stage run_uid, set per-run at run() entry from the
+        # command's CliRunRecorder (grab's ContextVar is a misaligned fresh uuid).
+        self._grab_run_uid: str | None = None
 
-    def run(self, *, limit: int | None = None, followed_id: int | None = None) -> RunSummary:
+    def run(
+        self, *, limit: int | None = None, followed_id: int | None = None, run_uid: str | None = None
+    ) -> RunSummary:
         """Run the GRAB pass over the available + stale-searching queue.
 
         Takes the items a search already concluded takeable — and ONLY those.
@@ -262,10 +267,14 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
                 trigger). Items with a different — or ``None`` — ``followed_id``
                 are skipped. Applied BEFORE ``limit`` so the cap counts only the
                 targeted series' items.
+            run_uid: The grab command's ``pipeline_run.run_uid`` (hex, from its
+                ``CliRunRecorder``), stamped onto each grabbed item's provenance row
+                (F3). ``None`` when grab runs with no run row.
 
         Returns:
             A :class:`RunSummary` of outcome counts.
         """
+        self._grab_run_uid = run_uid  # F3: per-run grab-stage run stamp (see _persist_success)
         now = int(time.time())
         queue = self._build_queue(
             self._store.wanted.list_available(),

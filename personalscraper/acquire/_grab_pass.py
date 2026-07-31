@@ -39,6 +39,9 @@ class GrabPassMixin(PassGatesMixin):
     _orchestrator: GrabOrchestrator
     _event_bus: EventBus
     _config: Config
+    # F3 run-linkage: the grab command's pipeline_run.run_uid (set on the service at run()
+    # entry from its CliRunRecorder). None outside a recorded grab run.
+    _grab_run_uid: str | None
 
     def _process_item(self, item: WantedItem, now: int, *, cadence: Cadence) -> _ItemOutcome:
         """Claim, grab and persist the result for ONE queued item.
@@ -290,6 +293,10 @@ class GrabPassMixin(PassGatesMixin):
                 media_ref=item.media_ref,
                 kind=item.kind,
                 grabbed_at=int(time.time()),
+                # F3: the grab command's OWN pipeline_run.run_uid (from its CliRunRecorder,
+                # NOT the ContextVar — grab's correlation is a misaligned fresh uuid). None
+                # when grab runs with no run row.
+                run_uid=self._grab_run_uid,
             )
         # Seed obligation at GRAB time (2026-07-15): the dispatch-time
         # name+size correlation can never match a renamed/aggregated TV show

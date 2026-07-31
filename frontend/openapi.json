@@ -1799,6 +1799,17 @@
             ],
             "title": "Dispatch Path"
           },
+          "dispatch_run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatch Run Uid"
+          },
           "dispatched_at": {
             "anyOf": [
               {
@@ -1832,6 +1843,17 @@
             ],
             "title": "Followed Id"
           },
+          "grab_run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grab Run Uid"
+          },
           "grabbed_at": {
             "anyOf": [
               {
@@ -1857,6 +1879,17 @@
               }
             ],
             "title": "Ingest Path"
+          },
+          "ingest_run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Run Uid"
           },
           "ingested_at": {
             "anyOf": [
@@ -1904,6 +1937,17 @@
               }
             ],
             "title": "Resolution Trigger"
+          },
+          "scrape_run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scrape Run Uid"
           },
           "scraped_at": {
             "anyOf": [
@@ -4874,8 +4918,28 @@
     },
     "/api/acquisition/journeys": {
       "get": {
-        "description": "List each acquisition's pipeline journey from the provenance registry (F1).\n\nRead-only: opens a fresh acquire store per request (like the other acquisition\nroutes), reads the provenance journeys (most-recent first), and joins each row's\nfollow title so the \u00ab Parcours \u00bb view is human-readable. The provenance READ is\nfail-soft (``list_journeys`` yields an empty list on a query error); a store\nopen/migration failure surfaces as a 500, consistent with every other\n``build_acquire_store`` route.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`JourneysResponse` \u2014 the acquisition journeys, most-recent first.",
+        "description": "List each acquisition's pipeline journey from the provenance registry (F1/F3).\n\nRead-only: opens a fresh acquire store per request (like the other acquisition\nroutes), reads the provenance journeys (most-recent first), and joins each row's\nfollow title so the \u00ab Parcours \u00bb view is human-readable. When *run_uid* is given\n(F3 converse view), returns only the acquisitions that run advanced at any stage \u2014\n\u00ab quelles acquisitions ce run a-t-il trait\u00e9es ? \u00bb. The provenance READ is fail-soft\n(an empty list on a query error); a store open/migration failure surfaces as a 500,\nconsistent with every other ``build_acquire_store`` route.\n\nArgs:\n    request: The incoming FastAPI request.\n    run_uid: Optional pipeline-run hex id \u2014 restrict to that run's acquisitions.\n\nReturns:\n    A :class:`JourneysResponse` \u2014 the acquisition journeys, most-recent first.",
         "operationId": "get_journeys_api_acquisition_journeys_get",
+        "parameters": [
+          {
+            "description": "Filter to acquisitions a given pipeline run touched (F3).",
+            "in": "query",
+            "name": "run_uid",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to acquisitions a given pipeline run touched (F3).",
+              "title": "Run Uid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -4886,6 +4950,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Journeys",

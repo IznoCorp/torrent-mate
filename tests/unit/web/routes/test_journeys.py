@@ -27,8 +27,10 @@ def _seed_journey(db_path: Path) -> None:
         store.provenance.upsert_grab(
             "abcd", followed_id=fid, media_ref=MediaRef(tvdb_id=382389), kind="episode", grabbed_at=1000
         )
-        store.provenance.set_ingest("abcd", ingest_path="/stage/Star Trek", ingested_at=1001)
+        # F3 (run-linkage): the ingesting run is stamped (non-conflicting with 'awaiting').
+        store.provenance.set_ingest("abcd", ingest_path="/stage/Star Trek", ingested_at=1001, run_uid="ingRUN")
         # F2 (decisions-spine): project an 'awaiting' verdict so the journey carries it.
+        # (An awaiting item was NOT confidently scraped, so it carries no scrape stage/run.)
         store.provenance.set_resolution(
             "/stage/Star Trek", state="awaiting", resolved_at=1002, decision_id=7, trigger="mid_band"
         )
@@ -69,6 +71,34 @@ def test_journeys_returns_provenance_with_follow_title(test_config: Any, tmp_pat
     assert j["resolution_state"] == "awaiting"
     assert j["decision_id"] == 7
     assert j["resolution_trigger"] == "mid_band"
+    # F3 — the per-stage run uids are carried on the journey.
+    assert j["ingest_run_uid"] == "ingRUN"
+    assert j["scrape_run_uid"] is None  # an awaiting item was not confidently scraped
+
+
+def test_journeys_run_uid_filter_returns_only_that_runs_items(test_config: Any, tmp_path: Path) -> None:
+    """F3 converse view: ?run_uid=<uid> returns only acquisitions that run touched."""
+    db_path = tmp_path / "acquire.db"
+    test_config.acquire.db_path = db_path
+    _seed_journey(db_path)  # item 'abcd' has ingest_run_uid='ingRUN'
+    # A second, unrelated item touched by a different run.
+    store = build_acquire_store_config(db_path)
+    try:
+        store.provenance.upsert_grab(
+            "efgh", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=500, run_uid="otherRUN"
+        )
+    finally:
+        store.close()
+
+    settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
+    client = guarded_client(
+        config=test_config, settings=settings, routers=acquisition_router, with_auth=False, https=False
+    )
+    token = create_session_token("izno", "testsecret", 24)
+    resp = client.get("/api/acquisition/journeys?run_uid=ingRUN", cookies={"tm_session": token})
+    assert resp.status_code == 200, resp.text
+    journeys = resp.json()["journeys"]
+    assert [j["info_hash"] for j in journeys] == ["abcd"]  # only the item ingRUN ingested
 
 
 def test_journeys_requires_auth(test_config: Any, tmp_path: Path) -> None:

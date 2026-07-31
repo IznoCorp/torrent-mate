@@ -21,16 +21,32 @@ from typing import Protocol
 class StagingProvenanceWriter(Protocol):
     """The provenance writes a pipeline step performs on the staging journey."""
 
-    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
-        """Record the staging folder created for *info_hash* at ingest (no-op if untracked)."""
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int, run_uid: str | None = None) -> None:
+        """Record the staging folder created for *info_hash* at ingest (no-op if untracked).
+
+        ``run_uid`` (F3) is the ingesting run's ``pipeline_run.run_uid`` (hex), or None.
+        """
         ...
 
     def move_path(self, old_path: str, new_path: str) -> None:
         """Re-point a tracked folder old_path → new_path across a sort/rename (path-keyed)."""
         ...
 
-    def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
-        """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
+    def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
+        """Record the scrape stage for the folder at *staging_path* (path-keyed, F3).
+
+        Advances the row to ``status='scraped'`` + ``scraped_at`` and stamps the scraping
+        run. No-op when the folder is untracked. Advisory: never raises.
+        """
+        ...
+
+    def record_dispatch_by_path(
+        self, staging_path: str, *, dispatch_path: str, dispatched_at: int, run_uid: str | None = None
+    ) -> None:
+        """Record the dispatch of the folder currently at *staging_path* (path-keyed).
+
+        ``run_uid`` (F3) is the dispatching run's ``pipeline_run.run_uid`` (hex), or None.
+        """
         ...
 
     def set_resolution(

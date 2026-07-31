@@ -286,17 +286,19 @@ export interface paths {
         };
         /**
          * Get Journeys
-         * @description List each acquisition's pipeline journey from the provenance registry (F1).
+         * @description List each acquisition's pipeline journey from the provenance registry (F1/F3).
          *
          *     Read-only: opens a fresh acquire store per request (like the other acquisition
          *     routes), reads the provenance journeys (most-recent first), and joins each row's
-         *     follow title so the « Parcours » view is human-readable. The provenance READ is
-         *     fail-soft (``list_journeys`` yields an empty list on a query error); a store
-         *     open/migration failure surfaces as a 500, consistent with every other
-         *     ``build_acquire_store`` route.
+         *     follow title so the « Parcours » view is human-readable. When *run_uid* is given
+         *     (F3 converse view), returns only the acquisitions that run advanced at any stage —
+         *     « quelles acquisitions ce run a-t-il traitées ? ». The provenance READ is fail-soft
+         *     (an empty list on a query error); a store open/migration failure surfaces as a 500,
+         *     consistent with every other ``build_acquire_store`` route.
          *
          *     Args:
          *         request: The incoming FastAPI request.
+         *         run_uid: Optional pipeline-run hex id — restrict to that run's acquisitions.
          *
          *     Returns:
          *         A :class:`JourneysResponse` — the acquisition journeys, most-recent first.
@@ -3114,18 +3116,24 @@ export interface components {
             decision_id?: number | null;
             /** Dispatch Path */
             dispatch_path?: string | null;
+            /** Dispatch Run Uid */
+            dispatch_run_uid?: string | null;
             /** Dispatched At */
             dispatched_at?: number | null;
             /** Follow Title */
             follow_title?: string | null;
             /** Followed Id */
             followed_id?: number | null;
+            /** Grab Run Uid */
+            grab_run_uid?: string | null;
             /** Grabbed At */
             grabbed_at?: number | null;
             /** Info Hash */
             info_hash: string;
             /** Ingest Path */
             ingest_path?: string | null;
+            /** Ingest Run Uid */
+            ingest_run_uid?: string | null;
             /** Ingested At */
             ingested_at?: number | null;
             /** Kind */
@@ -3135,6 +3143,8 @@ export interface components {
             resolution_state?: string | null;
             /** Resolution Trigger */
             resolution_trigger?: string | null;
+            /** Scrape Run Uid */
+            scrape_run_uid?: string | null;
             /** Scraped At */
             scraped_at?: number | null;
             scraped_ref?: components["schemas"]["MediaRefResponse"] | null;
@@ -5062,7 +5072,10 @@ export interface operations {
     };
     get_journeys_api_acquisition_journeys_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter to acquisitions a given pipeline run touched (F3). */
+                run_uid?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5076,6 +5089,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JourneysResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

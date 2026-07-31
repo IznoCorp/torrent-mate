@@ -217,6 +217,29 @@ current_correlation_id: ContextVar[str | None] = ContextVar(
 )
 
 
+# Bound EXCLUSIVELY by ``Pipeline.run()`` to the run's own ``pipeline_run.run_uid`` (hex).
+# A standalone CLI step (``per_step_boundary``) does NOT bind it, so its stages stamp NULL
+# rather than a phantom uid no ``pipeline_run`` owns (F3 review). Kept separate from
+# ``current_correlation_id`` (whose value a standalone boundary sets to a fresh uuid that
+# is NOT a real run's id).
+current_pipeline_run_uid: ContextVar[str | None] = ContextVar(
+    "current_pipeline_run_uid",
+    default=None,
+)
+
+
+def current_run_uid() -> str | None:
+    """Return the current pipeline run's ``pipeline_run.run_uid`` (hex), or ``None``.
+
+    Bound EXCLUSIVELY by :meth:`Pipeline.run` to the run's own ``run_uid`` — so the F3
+    per-stage stamps (ingest/scrape/dispatch) record a run id that genuinely joins to a
+    ``pipeline_run`` row, and a standalone single-step CLI invocation stamps ``None``
+    instead of a phantom uid. The grab stage stamps from its ``CliRunRecorder`` handle
+    (a separate command with its own row), never this helper.
+    """
+    return current_pipeline_run_uid.get()
+
+
 @dataclass(frozen=True, kw_only=True)
 class Event:
     """Base class for every typed event in the system.

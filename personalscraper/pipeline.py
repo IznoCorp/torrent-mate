@@ -25,7 +25,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.app_context import AppContext
-from personalscraper.core.event_bus import current_correlation_id
+from personalscraper.core.event_bus import current_correlation_id, current_pipeline_run_uid
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pause import PauseController
@@ -363,6 +363,10 @@ class Pipeline:
         }
 
         token = current_correlation_id.set(str(self._run_id))
+        # F3: bind the run's real run_uid so ingest/scrape/dispatch stamp a run id that
+        # genuinely joins to this run's pipeline_run row (a standalone single-step CLI
+        # invocation does NOT bind this, so it stamps None instead of a phantom uid).
+        run_uid_token = current_pipeline_run_uid.set(self._run_id.hex)
         run_outcome = "success"  # pipe-control sub-phase 1.3b
         try:
             # Bootstrap staging tree on first run (idempotent, no-op if already exists)
@@ -492,6 +496,7 @@ class Pipeline:
                     self._history_writer.finalize(self._run_uid, run_outcome, output_tail=output_tail)
             finally:
                 current_correlation_id.reset(token)
+                current_pipeline_run_uid.reset(run_uid_token)
                 self._restore_sigint_handler(previous_sigint)
             # Cleanup provider registry resources (best-effort, never blocks
             # the pipeline report from being returned). Must run AFTER the

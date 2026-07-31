@@ -97,7 +97,7 @@ def grab(
                 # release. A vanished torrent is left to reconcile.
                 _reswitch_before_run(acquire, app_context.event_bus, console)
 
-                summary = grab_core.service.run(limit=limit, followed_id=followed_id)
+                summary = grab_core.service.run(limit=limit, followed_id=followed_id, run_uid=run_rec.run_uid)
                 console.print(
                     f"[green]Grab complete:[/green] "
                     f"{summary.grabbed} grabbed, "
