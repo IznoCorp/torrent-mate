@@ -30,6 +30,7 @@ and ``indexer/`` (the scan-completed event), never triage internals.
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire.events import FilmAcquired
@@ -109,6 +110,14 @@ class PostDispatchReconcileSubscriber:
             return
         for followed_id in summary.closed_movie_followed_ids:
             self._retire_acquired_film(followed_id)
+        # Provenance (advisory / F0): prune ORPHANED in-flight rows whose staging
+        # folder vanished (a failed/abandoned item) — FS = truth, the disk is never
+        # mutated to match the DB. Dispatched rows are kept (completed journey).
+        # Best-effort: a prune error never disrupts the scanner.
+        try:
+            self._store.provenance.prune_stale(os.path.exists)
+        except Exception as exc:  # noqa: BLE001 — advisory: prune never disrupts the scan
+            log.warning("acquire.post_dispatch_reconcile.provenance_prune_failed", error=str(exc))
 
     def _retire_acquired_film(self, followed_id: int) -> None:
         """Retire a followed film whose media just landed and emit ``FilmAcquired``.

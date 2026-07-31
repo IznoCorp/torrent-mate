@@ -48,7 +48,7 @@ scrape identity, films + séries), zero regression on manual/direct grabs.
 | 2   | Grab + ingest write points              | phase-02-grab-ingest.md         | [x]    |
 | 3   | Sort/rename + dispatch write points     | phase-03-sort-dispatch.md       | [x]    |
 | 4   | #30 consumer — scrape identity resolver | phase-04-scrape-consumer.md     | [x]    |
-| 5   | Reconcile + advisory-overlay hardening  | phase-05-reconcile-hardening.md | [ ]    |
+| 5   | Reconcile + advisory-overlay hardening  | phase-05-reconcile-hardening.md | [x]    |
 
 **Master plan**: docs/features/provenance/plan/INDEX.md
 **Next action**: run `/implement:phase` to execute phase 1.

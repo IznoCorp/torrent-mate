@@ -273,3 +273,45 @@ def test_ingest_ratio_threshold(
         f"{below.name!r} should have been skipped (ratio 0.99 < 1.0), found: {ingested_names}"
     )
     assert report.error_count == 0, f"Unexpected errors: {report.details}"
+
+
+class _RaisingProvenance:
+    """A StagingProvenanceWriter whose every write RAISES (ACC-03 hardening)."""
+
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
+        raise RuntimeError("provenance exploded")
+
+    def move_path(self, old_path: str, new_path: str) -> None:  # pragma: no cover - not hit here
+        raise RuntimeError("provenance exploded")
+
+    def record_dispatch_by_path(
+        self, staging_path: str, *, dispatch_path: str, dispatched_at: int
+    ) -> None:  # pragma: no cover
+        raise RuntimeError("provenance exploded")
+
+
+def test_ingest_survives_a_raising_provenance_writer(
+    fake_qbit: FakeQBitClient,
+    staging_tree: Path,
+    integration_config: Config,
+    tmp_path: Path,
+) -> None:
+    """ACC-03: a provenance write that RAISES never fails the ingest step."""
+    torrent_source = tmp_path / "complete"
+    torrent_source.mkdir()
+    completed = _make_torrent_dir(torrent_source, "Film.2024.1080p")
+    fake_qbit.seed([completed])
+    integration_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+
+    report = run_ingest(
+        _make_settings(),
+        config=integration_config,
+        ingest_dir=staging_tree / "097-TEMP",
+        staging_dir=staging_tree,
+        event_bus=EventBus(),
+        torrent_client=fake_qbit,
+        provenance=_RaisingProvenance(),
+    )
+
+    assert report.error_count == 0, f"a raising provenance writer must not fail ingest: {report.details}"
+    assert report.success_count == 1, "the transfer must still complete"

@@ -245,9 +245,13 @@ class _ProvenanceSubStore:
             return None
 
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
-        """Delete rows whose ``current_path`` no longer exists on disk (FS = truth).
+        """Prune ORPHANED in-flight rows whose ``current_path`` no longer exists.
 
-        The FS is NEVER mutated to match the DB — only the DB is pruned. Best-effort.
+        FS = truth: a mid-pipeline row whose staging folder vanished (a failed /
+        abandoned item) is dropped — the FS is NEVER mutated to match the DB, only
+        the DB is pruned. ``dispatched`` rows are KEPT: their ``current_path`` is
+        legitimately gone (the media moved to disk), and the completed journey is
+        an audit record the provenance view (F1) reads. Best-effort (0 on error).
 
         Args:
             exists_fn: Predicate ``path -> bool`` (typically ``os.path.exists``).
@@ -258,7 +262,8 @@ class _ProvenanceSubStore:
         try:
             self._conn.row_factory = sqlite3.Row
             rows = self._conn.execute(
-                "SELECT info_hash, current_path FROM staging_provenance WHERE current_path IS NOT NULL"
+                "SELECT info_hash, current_path FROM staging_provenance "
+                "WHERE current_path IS NOT NULL AND status != 'dispatched'"
             ).fetchall()
             stale = [r["info_hash"] for r in rows if not exists_fn(r["current_path"])]
             for info_hash in stale:

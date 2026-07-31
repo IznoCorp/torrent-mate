@@ -168,3 +168,12 @@ class TestAdvisoryInvariants:
         assert pruned == 1
         assert store.provenance.by_hash("keep") is not None
         assert store.provenance.by_hash("drop") is None
+
+    def test_prune_keeps_dispatched_rows(self, store: ConcreteAcquireStore) -> None:
+        """A DISPATCHED row with a vanished current_path is KEPT (completed journey)."""
+        store.provenance.upsert_grab("d", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("d", ingest_path="/gone", ingested_at=1)
+        store.provenance.record_dispatch_by_path("/gone", dispatch_path="/Volumes/Disk/x", dispatched_at=2)
+        pruned = store.provenance.prune_stale(lambda _p: False)  # treat every path as missing
+        assert pruned == 0, "a dispatched row (completed journey) must never be pruned"
+        assert store.provenance.by_hash("d") is not None
