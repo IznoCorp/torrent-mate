@@ -181,12 +181,23 @@ def _build_search_service(
         row = store.follow.get(item.followed_id)
         return row.title if row is not None else None
 
+    # #28 (review HIGH) — the search pass MUST resolve the year too, or its movie
+    # availability verdict counts the WRONG « Wicker* » film (query yearless +
+    # filter_to_movie year-disabled) while the grab pass, correctly year-wired,
+    # disagrees. Both feed the same _search_chain, so the wiring must match.
+    def _year_resolver(item: WantedItem) -> int | None:
+        if item.followed_id is None:
+            return None
+        row = store.follow.get(item.followed_id)
+        return row.year if row is not None else None
+
     orchestrator = GrabOrchestrator(
         tracker_registry=acquire.tracker_registry,
         torrent_client=None,  # the search pass adds nothing
         event_bus=event_bus,
         ranking=config.ranking,
         title_resolver=_title_resolver,
+        year_resolver=_year_resolver,
     )
     return AcquisitionService(
         store=store,
