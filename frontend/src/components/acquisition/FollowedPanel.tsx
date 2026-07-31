@@ -143,9 +143,10 @@ export function FollowedPanel({
   const activeSeries = activeItems.filter((item) => !isFilm(item));
   const activeMovies = activeItems.filter(isFilm);
   const visibleActive = kindTab === "movie" ? activeMovies : activeSeries;
-  const visibleInactive = (
-    kindTab === "movie" ? inactiveItems.filter(isFilm) : inactiveItems.filter((item) => !isFilm(item))
-  );
+  const visibleInactive =
+    kindTab === "movie"
+      ? inactiveItems.filter(isFilm)
+      : inactiveItems.filter((item) => !isFilm(item));
 
   if (data.length === 0) {
     return (
@@ -201,9 +202,7 @@ export function FollowedPanel({
       {/* Per-tab empty hint — there ARE follows, just none of this kind. */}
       {visibleActive.length === 0 && (
         <p className="py-4 text-center text-sm text-muted-foreground">
-          {kindTab === "movie"
-            ? "Aucun film suivi."
-            : "Aucune série suivie."}
+          {kindTab === "movie" ? "Aucun film suivi." : "Aucune série suivie."}
         </p>
       )}
 
@@ -387,9 +386,12 @@ export function FollowedPanel({
             {visibleInactive.map((item) => (
               <li
                 key={`inactive-${String(item.id)}`}
-                className="flex flex-wrap items-center justify-between gap-2"
+                // #23 — no wrap: a long title truncates and the « Réactiver »
+                // button stays on the same line (shrink-0) instead of dropping
+                // below on mobile.
+                className="flex items-center gap-2"
               >
-                <span className="min-w-0 break-words text-sm">
+                <span className="min-w-0 flex-1 truncate text-sm">
                   {item.title}
                   {item.year != null && (
                     <span className="text-muted-foreground">
@@ -401,6 +403,7 @@ export function FollowedPanel({
                 <Button
                   size="sm"
                   variant="outline"
+                  className="shrink-0"
                   onClick={() => {
                     handleToggleActive(item.id, true);
                   }}

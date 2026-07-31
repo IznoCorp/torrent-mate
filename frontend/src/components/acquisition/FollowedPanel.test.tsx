@@ -404,6 +404,24 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
     renderPanel([makeItem()]);
     expect(screen.queryByText(/Suivis retirés/)).not.toBeInTheDocument();
   });
+
+  it("keeps the « Réactiver » button on one line for a long title (#23, no wrap)", () => {
+    // Class-contract guard (jsdom does not lay out): the row must NOT flex-wrap
+    // and the button must be shrink-0, so a long title truncates instead of
+    // pushing « Réactiver » onto a second line on mobile.
+    renderPanel([
+      makeItem({
+        id: 8,
+        title: "Un titre de suivi retiré vraiment très très long qui déborde sur mobile",
+        kind: "show",
+        active: false,
+      }),
+    ]);
+    const button = screen.getByRole("button", { name: "Réactiver" });
+    expect(button.className).toContain("shrink-0");
+    const li = button.closest("li");
+    expect(li?.className).not.toContain("flex-wrap");
+  });
 });
 
 describe("FollowedPanel — « Récupérer maintenant » (phase 8 / §6)", () => {
