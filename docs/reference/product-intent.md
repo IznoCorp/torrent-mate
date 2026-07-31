@@ -13,7 +13,9 @@
 > qu'ils devaient améliorer — voir `§méthode` et le post-mortem associé.
 >
 > **Historique** : v1 — §1–§5 + §méthode (gravée `4d80c26a`) ; **v2** — §6–§10 + listes
-> DOIT / NE-DOIT-PAS + « En une phrase », dictée par l'opérateur le 2026-07-15.
+> DOIT / NE-DOIT-PAS + « En une phrase », dictée par l'opérateur le 2026-07-15 ;
+> **v3** — §4 « la chaîne va jusqu'à la visibilité Plex » + §5 « identité conservée au scraping »,
+> dictée par l'opérateur le 2026-07-31.
 > **Seul l'opérateur amende ce document.**
 
 ---
@@ -63,6 +65,17 @@ second mécanisme). L'UI **montre cette continuation** : le média avance sur le
 complète, et il finit **dispatché en médiathèque**. Un média qui reste échoué en staging après
 « résolution » est une **dénaturation** du §4.
 
+**La chaîne va jusqu'à la visibilité (v3).** « Terminer le pipeline » ne s'arrête **pas** au fichier
+sur le disque : un média dispatché **DOIT devenir visible dans le lecteur** (Plex). La chaîne
+s'**enchaîne** de bout en bout — **acquisition terminée → pipeline → dispatch terminé → scan Plex** —
+et le **dispatch terminé déclenche le scan Plex** du dossier écrit (fail-soft : Plex injoignable =
+avertissement, **jamais** un échec du transfert ; le scan cible **le dossier dispatché**, pas toute
+la bibliothèque). Un média **acquis + dispatché + indexé mais invisible dans Plex** est une
+**dénaturation** du §4 : le scan n'a pas été déclenché (cause classique — le **token Plex absent de
+l'environnement réel des crons**, donc le subscriber de refresh jamais câblé). Le déclencheur du scan
+DOIT être **le même dans tous les points d'entrée de dispatch** (pipeline, `dispatch` autonome, run
+web) et **fonctionner dans l'environnement d'exécution réel**, pas seulement en théorie.
+
 ## §5 — Acquisitions
 
 L'écran Acquisitions contrôle l'acquisition **automatique** de films et de séries.
@@ -81,6 +94,12 @@ L'écran Acquisitions contrôle l'acquisition **automatique** de films et de sé
   chiffré** (« X nouveaux épisodes détectés, Y disponibles, Z récupérés », ou « rien de nouveau »,
   ou l'**erreur réelle**). Un toast de succès sur un run mort est **interdit** ; l'échec remonte
   bruyamment.
+- **Identité conservée (v3)** : une récupération **via les acquisitions** (suivi) **garde l'ID du
+  suivi (provider-ID) pour le scraping**. Le média scrapé est identifié par **l'ID choisi à
+  l'ajout** — jamais re-deviné par correspondance de nom, qui recrée la **confusion d'identité** (un
+  scrape re-matchant un TVDB différent du suivi → deux dossiers / deux items, épisodes coincés en
+  acquisition). C'est l'application du §7 (contrôle d'identité par provider-ID) au **chemin
+  acquisition → scrape**.
 - **États visibles** :
   - pour chaque **film** — _en attente_ (pas encore récupéré), _en cours d'acquisition_ (du torrent
     repéré jusqu'au pipeline terminé), _en médiathèque_ (acquis, sur les disques) ;
