@@ -494,6 +494,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
             source=title_parsed.get("source"),
             resolution=title_parsed.get("resolution"),
             audio=title_parsed.get("audio"),
+            language=title_parsed.get("language"),
             # Torznab indexers publish the TMDB id as a ``tmdbid`` attr. It feeds
             # the TMDB identity hard-filter (the anti-remake guard: a 1984 result
             # can never be grabbed for a 2021 wanted item). Absent or non-numeric

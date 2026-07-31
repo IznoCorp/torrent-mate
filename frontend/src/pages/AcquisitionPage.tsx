@@ -31,6 +31,7 @@ import {
   type TabId,
 } from "@/components/acquisition/meta";
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
+import { ReglagesPanel } from "@/components/acquisition/ReglagesPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
 import { useDownloads, useFollowed } from "@/hooks/useAcquisition";
@@ -146,7 +147,7 @@ export default function AcquisitionPage(): ReactElement {
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight">Acquisition</h1>
 
-      {/* Tabs — horizontal scroll on narrow screens (4 tabs at ~390px: no wrap,
+      {/* Tabs — horizontal scroll on narrow screens (5 tabs at ~390px: no wrap,
           natural width per tab, scroll inside the tablist). On sm+ tabs fill
           the row evenly (flex-1). E5 segmented control. */}
       <div
@@ -193,6 +194,7 @@ export default function AcquisitionPage(): ReactElement {
         {activeTab === "file" && <FileDAcquisitionPanel />}
         {activeTab === "obligations" && <ObligationsPanel />}
         {activeTab === "watcher" && <WatcherPanel />}
+        {activeTab === "reglages" && <ReglagesPanel />}
       </div>
     </section>
   );

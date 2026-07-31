@@ -8,7 +8,19 @@
       },
       { field: "codec", weight: 3, values: { x265: 10, HEVC: 10, x264: 5 } },
       { field: "format", weight: 2, values: { MKV: 10, MP4: 5 } },
-      { field: "audio", weight: 2, values: { VFF: 20, VFQ: 15, TrueHD: 10 } },
+      // Audio CODEC only (TrueHD/DTS/…). Language markers (VF/Multi/VOSTFR) are
+      // a SEPARATE axis — see the "language" criterion below. Before #18 this
+      // list held VFF/VFQ, which never matched the codec-only "audio" field and
+      // therefore scored nothing (dead config).
+      { field: "audio", weight: 2, values: { TrueHD: 12, "DTS-HD": 10, DTS: 8, AC3: 4 } },
+      // Language / audio-track preference (#18). Tokens are the UPPERCASE
+      // canonical forms emitted by parse_title_quality: MULTI (several audio
+      // tracks — the operator's preferred pick), the VF variants, then subbed.
+      {
+        field: "language",
+        weight: 2,
+        values: { MULTI: 20, VFF: 18, VFQ: 15, TRUEFRENCH: 12, FRENCH: 10, VOSTFR: 6 },
+      },
       { field: "source", weight: 2, values: { BluRay: 15, "WEB-DL": 10 } },
       {
         field: "seeders",
@@ -38,6 +50,11 @@
           { at: "5GB", score: 10 },
         ],
       },
+      // Per-tracker preference (#18). Favour trackers with a healthy user ratio:
+      // tr4ker (ratio ~5.17, currently freeleech) over c411 (~1.63). This is the
+      // ranking half; tr4ker's freeleech state additionally earns bonuses.freeleech
+      // at search time, so a freeleech tr4ker release stacks both.
+      { field: "provider", weight: 1, values: { tr4ker: 15, c411: 5 } },
     ],
     bonuses: { freeleech: 10, silverleech: 5 },
     min_seeders: 1,

@@ -2448,6 +2448,205 @@
         "title": "PutFileResponse",
         "type": "object"
       },
+      "RankingBonuses": {
+        "description": "Bonus points for torrent properties.\n\nAttributes:\n    freeleech: Bonus points for freeleech torrents.\n    silverleech: Bonus points for silverleech (partial freeleech) torrents.",
+        "properties": {
+          "freeleech": {
+            "default": 10,
+            "title": "Freeleech",
+            "type": "integer"
+          },
+          "silverleech": {
+            "default": 5,
+            "title": "Silverleech",
+            "type": "integer"
+          }
+        },
+        "title": "RankingBonuses",
+        "type": "object"
+      },
+      "RankingConfig": {
+        "description": "Full ranking configuration consumed by the ranking engine.\n\nAttributes:\n    criteria: Ordered list of :class:`RankingCriterion` to evaluate.\n    bonuses: Bonus point configuration.\n    min_seeders: Minimum seeders required for a result to be considered.",
+        "properties": {
+          "bonuses": {
+            "$ref": "#/components/schemas/RankingBonuses"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/RankingCriterion"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "min_seeders": {
+            "default": 1,
+            "title": "Min Seeders",
+            "type": "integer"
+          }
+        },
+        "title": "RankingConfig",
+        "type": "object"
+      },
+      "RankingCriterion": {
+        "description": "A single ranking criterion for scoring tracker results.\n\nAttributes:\n    field: The field to score (e.g. ``\"resolution\"``, ``\"seeders\"``).\n    weight: Multiplier applied to this criterion's score.\n    values: Map of field value \u2192 score (for categorical fields).\n    thresholds: Ordered thresholds for numeric fields.\n    prefer: For threshold-based fields, whether higher or lower is better.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "prefer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "higher",
+                  "lower"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefer"
+          },
+          "thresholds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ThresholdEntry"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thresholds"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          },
+          "weight": {
+            "default": 1.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "field"
+        ],
+        "title": "RankingCriterion",
+        "type": "object"
+      },
+      "RankingPreviewRelease": {
+        "description": "One representative release scored under a candidate ranking (#18).\n\nThe ranking editor scores a fixed, illustrative sample set against the\noperator's edited criteria so a weight/value change reorders visible rows \u2014\na live preview of the acquisition ranking WITHOUT running a real search.\n\nAttributes:\n    title: Human-readable sample release title.\n    provider: Tracker wire name the sample stands for (``tr4ker`` / ``c411``\n        / ``lacale``).\n    resolution: Parsed resolution token (``2160p`` / ``1080p`` / \u2026), if any.\n    codec: Parsed video-codec token, if any.\n    language: Parsed language / audio-track marker (``MULTI`` / ``VFF`` / \u2026).\n    source: Parsed media-source token (``BluRay`` / ``WEB-DL`` / \u2026).\n    seeders: Sample seeder count.\n    is_freeleech: Whether the sample is freeleech (earns ``bonuses.freeleech``).\n    score: Total score under the candidate ranking.\n    excluded: ``True`` when ``seeders`` is below the candidate ``min_seeders``\n        \u2014 the real ``rank()`` would drop it; the preview keeps it (flagged)\n        so the operator SEES the cutoff instead of a row silently vanishing.",
+        "properties": {
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "excluded": {
+            "default": false,
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "is_freeleech": {
+            "default": false,
+            "title": "Is Freeleech",
+            "type": "boolean"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "seeders": {
+            "title": "Seeders",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "seeders",
+          "score"
+        ],
+        "title": "RankingPreviewRelease",
+        "type": "object"
+      },
+      "RankingPreviewResponse": {
+        "description": "Response for ``POST /api/acquisition/ranking/preview`` (#18).\n\nAttributes:\n    ranked: The sample releases scored under the candidate ranking, highest\n        score first (excluded-by-min_seeders rows sink to the end, flagged).",
+        "properties": {
+          "ranked": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RankingPreviewRelease"
+            },
+            "title": "Ranked",
+            "type": "array"
+          }
+        },
+        "title": "RankingPreviewResponse",
+        "type": "object"
+      },
       "RecentRun": {
         "description": "A recent acquisition-relevant pipeline run summary.\n\nCovers watcher-triggered pipeline runs AND the acquisition CLI runs\n(``follow-detect`` / ``grab``), each carrying its \u00a75 numeric result when\nthe CLI recorded one.",
         "properties": {
@@ -3781,6 +3980,25 @@
         "title": "StepTiming",
         "type": "object"
       },
+      "ThresholdEntry": {
+        "description": "A size-or-count threshold with a score value.\n\nAttributes:\n    at: Threshold value \u2014 int, float, or human-readable string like ``\"1GB\"``.\n    score: Score awarded when the field meets this threshold.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "at",
+          "score"
+        ],
+        "title": "ThresholdEntry",
+        "type": "object"
+      },
       "TmpOrphan": {
         "description": "A single temporary orphan entry found during a bounded filesystem sweep.\n\nMatched by the crash-recovery marker prefixes (``_tmp_dispatch_*``,\n``.ingest_tmp_*``) and reported up to a hard cap of 100 entries.\n\nAttributes:\n    path: Absolute or relative path to the orphan entry.\n    prefix: The matched prefix (``\"_tmp_dispatch_\"`` or\n        ``\".ingest_tmp_\"``).\n    age_s: Age of the orphan entry in seconds (``time.time() - mtime``).",
         "properties": {
@@ -4502,6 +4720,48 @@
           }
         },
         "summary": "Get Obligations",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/ranking/preview": {
+      "post": {
+        "description": "Score the representative sample set under a candidate ranking (#18).\n\nRead-only + pure: no DB, no filesystem, no torrent client \u2014 it scores the\nfixed :func:`_ranking_preview_samples` set with the POSTed candidate config\nso the editor can render a live preview of the acquisition ranking. To keep\nevery sample VISIBLE (a live preview must never silently drop rows), scoring\nruns with ``min_seeders`` neutralized; each row is instead flagged\n``excluded`` when its seeders fall below the candidate ``min_seeders`` \u2014 so\nthe operator SEES which releases the real ``rank()`` would drop. Rows sort\nnon-excluded first (by score desc), excluded last.\n\nNot staging-guarded and no CSRF header: it mutates nothing, so it is safe\non the read-only staging role and idempotent by construction.\n\nArgs:\n    body: The candidate ranking configuration to score with.\n\nReturns:\n    A :class:`RankingPreviewResponse` with the scored, sorted samples.",
+        "operationId": "preview_ranking_api_acquisition_ranking_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankingConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Ranking",
         "tags": [
           "acquisition"
         ]

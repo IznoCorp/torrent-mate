@@ -306,6 +306,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/ranking/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Ranking
+         * @description Score the representative sample set under a candidate ranking (#18).
+         *
+         *     Read-only + pure: no DB, no filesystem, no torrent client — it scores the
+         *     fixed :func:`_ranking_preview_samples` set with the POSTed candidate config
+         *     so the editor can render a live preview of the acquisition ranking. To keep
+         *     every sample VISIBLE (a live preview must never silently drop rows), scoring
+         *     runs with ``min_seeders`` neutralized; each row is instead flagged
+         *     ``excluded`` when its seeders fall below the candidate ``min_seeders`` — so
+         *     the operator SEES which releases the real ``rank()`` would drop. Rows sort
+         *     non-excluded first (by score desc), excluded last.
+         *
+         *     Not staging-guarded and no CSRF header: it mutates nothing, so it is safe
+         *     on the read-only staging role and idempotent by construction.
+         *
+         *     Args:
+         *         body: The candidate ranking configuration to score with.
+         *
+         *     Returns:
+         *         A :class:`RankingPreviewResponse` with the scored, sorted samples.
+         */
+        post: operations["preview_ranking_api_acquisition_ranking_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/search": {
         parameters: {
             query?: never;
@@ -3446,6 +3484,139 @@ export interface components {
             warnings: string[];
         };
         /**
+         * RankingBonuses
+         * @description Bonus points for torrent properties.
+         *
+         *     Attributes:
+         *         freeleech: Bonus points for freeleech torrents.
+         *         silverleech: Bonus points for silverleech (partial freeleech) torrents.
+         */
+        RankingBonuses: {
+            /**
+             * Freeleech
+             * @default 10
+             */
+            freeleech: number;
+            /**
+             * Silverleech
+             * @default 5
+             */
+            silverleech: number;
+        };
+        /**
+         * RankingConfig
+         * @description Full ranking configuration consumed by the ranking engine.
+         *
+         *     Attributes:
+         *         criteria: Ordered list of :class:`RankingCriterion` to evaluate.
+         *         bonuses: Bonus point configuration.
+         *         min_seeders: Minimum seeders required for a result to be considered.
+         */
+        RankingConfig: {
+            bonuses?: components["schemas"]["RankingBonuses"];
+            /** Criteria */
+            criteria?: components["schemas"]["RankingCriterion"][];
+            /**
+             * Min Seeders
+             * @default 1
+             */
+            min_seeders: number;
+        };
+        /**
+         * RankingCriterion
+         * @description A single ranking criterion for scoring tracker results.
+         *
+         *     Attributes:
+         *         field: The field to score (e.g. ``"resolution"``, ``"seeders"``).
+         *         weight: Multiplier applied to this criterion's score.
+         *         values: Map of field value → score (for categorical fields).
+         *         thresholds: Ordered thresholds for numeric fields.
+         *         prefer: For threshold-based fields, whether higher or lower is better.
+         */
+        RankingCriterion: {
+            /** Field */
+            field: string;
+            /** Prefer */
+            prefer?: ("higher" | "lower") | null;
+            /** Thresholds */
+            thresholds?: components["schemas"]["ThresholdEntry"][] | null;
+            /** Values */
+            values?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+        };
+        /**
+         * RankingPreviewRelease
+         * @description One representative release scored under a candidate ranking (#18).
+         *
+         *     The ranking editor scores a fixed, illustrative sample set against the
+         *     operator's edited criteria so a weight/value change reorders visible rows —
+         *     a live preview of the acquisition ranking WITHOUT running a real search.
+         *
+         *     Attributes:
+         *         title: Human-readable sample release title.
+         *         provider: Tracker wire name the sample stands for (``tr4ker`` / ``c411``
+         *             / ``lacale``).
+         *         resolution: Parsed resolution token (``2160p`` / ``1080p`` / …), if any.
+         *         codec: Parsed video-codec token, if any.
+         *         language: Parsed language / audio-track marker (``MULTI`` / ``VFF`` / …).
+         *         source: Parsed media-source token (``BluRay`` / ``WEB-DL`` / …).
+         *         seeders: Sample seeder count.
+         *         is_freeleech: Whether the sample is freeleech (earns ``bonuses.freeleech``).
+         *         score: Total score under the candidate ranking.
+         *         excluded: ``True`` when ``seeders`` is below the candidate ``min_seeders``
+         *             — the real ``rank()`` would drop it; the preview keeps it (flagged)
+         *             so the operator SEES the cutoff instead of a row silently vanishing.
+         */
+        RankingPreviewRelease: {
+            /** Codec */
+            codec?: string | null;
+            /**
+             * Excluded
+             * @default false
+             */
+            excluded: boolean;
+            /**
+             * Is Freeleech
+             * @default false
+             */
+            is_freeleech: boolean;
+            /** Language */
+            language?: string | null;
+            /** Provider */
+            provider: string;
+            /** Resolution */
+            resolution?: string | null;
+            /** Score */
+            score: number;
+            /** Seeders */
+            seeders: number;
+            /** Source */
+            source?: string | null;
+            /** Title */
+            title: string;
+        };
+        /**
+         * RankingPreviewResponse
+         * @description Response for ``POST /api/acquisition/ranking/preview`` (#18).
+         *
+         *     Attributes:
+         *         ranked: The sample releases scored under the candidate ranking, highest
+         *             score first (excluded-by-min_seeders rows sink to the end, flagged).
+         */
+        RankingPreviewResponse: {
+            /**
+             * Ranked
+             * @default []
+             */
+            ranked: components["schemas"]["RankingPreviewRelease"][];
+        };
+        /**
          * RecentRun
          * @description A recent acquisition-relevant pipeline run summary.
          *
@@ -4316,6 +4487,20 @@ export interface components {
             unmatched_count?: number | null;
         };
         /**
+         * ThresholdEntry
+         * @description A size-or-count threshold with a score value.
+         *
+         *     Attributes:
+         *         at: Threshold value — int, float, or human-readable string like ``"1GB"``.
+         *         score: Score awarded when the field meets this threshold.
+         */
+        ThresholdEntry: {
+            /** At */
+            at: number;
+            /** Score */
+            score: number;
+        };
+        /**
          * TmpOrphan
          * @description A single temporary orphan entry found during a bounded filesystem sweep.
          *
@@ -4784,6 +4969,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObligationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_ranking_api_acquisition_ranking_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RankingConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankingPreviewResponse"];
                 };
             };
             /** @description Validation Error */

@@ -80,8 +80,15 @@ class TrackerResult:
         resolution: Video resolution (2160p, 1080p, 720p...).
         audio: Audio codec info (DTS, AAC, TrueHD, AC3, ...).
             NOTE: this field is codec-only — it never contains language
-            markers (VF/VOSTFR/VO). Language detection for the audio
-            hard-filter must parse ``result.title`` instead.
+            markers (VF/VOSTFR/VO). Those live in ``language`` (below).
+        language: Language / audio-track marker parsed from the title, as an
+            UPPERCASE canonical token: ``MULTI`` (several audio tracks), the
+            French VF variants (``VFF`` / ``VFQ`` / ``VFI`` / ``VOF`` /
+            ``TRUEFRENCH`` / ``FRENCH``), or the VO variants (``VOSTFR`` /
+            ``SUBFRENCH`` / ``VO``). ``None`` when the title carries no marker.
+            A SEPARATE axis from ``audio`` (the codec): a ranking criterion can
+            score ``field: "language"`` to prefer ``MULTI`` releases — a
+            preference the codec-only ``audio`` field could never serve.
         tmdb_id: TMDB id when the tracker exposes it, else None. The generic
             Torznab client maps the ``tmdbid`` attr (2026-07-28), so c411 and
             tr4ker both populate this whenever their indexer publishes it —
@@ -111,6 +118,7 @@ class TrackerResult:
     source: str | None = None
     resolution: str | None = None
     audio: str | None = None
+    language: str | None = None
     tmdb_id: int | None = None
 
 

@@ -32,7 +32,9 @@ _SHARED_TITLES = [
 ]
 
 # Fields the shared parser owns and every client must surface identically.
-_QUALITY_FIELDS = ("resolution", "codec", "source", "audio", "format")
+# ``language`` is the axis added for the ranking editor (#18): a « prefer MULTi »
+# criterion needs the marker parsed off the title on every tracker.
+_QUALITY_FIELDS = ("resolution", "codec", "source", "audio", "language", "format")
 
 
 def _tr4ker_result_quality(title: str) -> dict[str, str | None]:
@@ -78,8 +80,53 @@ class TestTrackerQualityParser:
             "codec": None,
             "source": None,
             "audio": None,
+            "language": None,
             "format": None,
         }
+
+
+class TestLanguageParsing:
+    """#18 — the language / audio-track axis (separate from the audio codec)."""
+
+    def test_multi_marker_normalized_uppercase(self) -> None:
+        """« MULTi » (any casing) parses to the canonical ``MULTI`` token."""
+        assert parse_title_quality("Movie.2024.MULTi.1080p.WEB-DL.x265")["language"] == "MULTI"
+
+    def test_multi_wins_over_later_french_variant(self) -> None:
+        """A « MULTi ... TRUEFRENCH » title reports MULTI (the leading marker)."""
+        title = "Inception.2010.MULTi.TRUEFRENCH.2160p.BluRay.H265"
+        assert parse_title_quality(title)["language"] == "MULTI"
+
+    def test_vostfr_parsed(self) -> None:
+        """A subbed release surfaces the VOSTFR token."""
+        assert parse_title_quality("Film.2023.VOSTFR.1080p.WEB.x264")["language"] == "VOSTFR"
+
+    def test_truefrench_parsed_when_alone(self) -> None:
+        """A TRUEFRENCH-only release surfaces that token."""
+        assert parse_title_quality("Film.2023.TRUEFRENCH.1080p.BluRay")["language"] == "TRUEFRENCH"
+
+    def test_language_is_not_the_audio_codec(self) -> None:
+        """Language and audio are distinct axes: a MULTi DTS title fills BOTH."""
+        out = parse_title_quality("Movie.2024.MULTi.1080p.BluRay.DTS-HD.x265")
+        assert out["language"] == "MULTI"
+        assert out["audio"] == "DTS-HD"
+
+    def test_no_language_marker_is_none(self) -> None:
+        """A release with no language token leaves the field None."""
+        assert parse_title_quality("Some.Show.S01E02.720p.HDTV.x264")["language"] is None
+
+    def test_title_word_french_does_not_beat_multi_tag(self) -> None:
+        """Review defect 1: a « French »-titled MULTi release reports MULTI, not FRENCH.
+
+        The leftmost regex match would pick the FRENCH title word that precedes
+        the real MULTi tag; priority selection makes the multi-track marker win.
+        """
+        assert parse_title_quality("The.French.Dispatch.2021.MULTi.2160p.BluRay")["language"] == "MULTI"
+        assert parse_title_quality("French.Connection.1971.MULTi.1080p.x265")["language"] == "MULTI"
+
+    def test_priority_multi_over_truefrench_regardless_of_order(self) -> None:
+        """MULTI outranks TRUEFRENCH even when TRUEFRENCH appears first."""
+        assert parse_title_quality("Film.2023.TRUEFRENCH.MULTi.1080p")["language"] == "MULTI"
 
 
 class TestTrackerQualitySymmetry:

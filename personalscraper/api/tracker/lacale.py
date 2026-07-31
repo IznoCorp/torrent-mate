@@ -229,6 +229,7 @@ class LaCaleClient(TorrentSearchable, CategoryListable):
             source=parsed.get("source"),
             resolution=parsed.get("resolution"),
             audio=parsed.get("audio"),
+            language=parsed.get("language"),
         )
 
 
