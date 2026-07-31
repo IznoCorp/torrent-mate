@@ -254,6 +254,18 @@ class DeleteAuthority:
             return type is kept so the dispatch template's emit loop is
             byte-identical (it iterates an empty list).
         """
+        # Provenance (advisory / #30 / F0 completeness): record the dispatch of the
+        # folder currently at staging_source → its final destination. Best-effort
+        # (the sub-store swallows any error) + no-op for an untracked (manual/direct)
+        # item. Done BEFORE the client guard: provenance needs only the store, so a
+        # dispatch with no torrent client still completes the journey record.
+        if self._store is not None:
+            self._store.provenance.record_dispatch_by_path(
+                str(staging_source),
+                dispatch_path=str(dispatched_dest),
+                dispatched_at=int(time.time()),
+            )
+
         if self._store is None or self._torrent_client is None:
             log.debug(
                 "acquire.record_dispatch.noop",

@@ -235,6 +235,12 @@ class TestFullAcquisitionChain:
         adder.add.assert_called_once()
         assert any(isinstance(e, GrabSucceeded) for e in spy.events)
 
+        # Phase 2 (provenance): the grab seeded a provenance row carrying the wanted
+        # identity — the deterministic scrape seed for #30.
+        prov = store.provenance.by_hash("grab-hash-01")
+        assert prov is not None and prov.status == "grabbed"
+        assert prov.media_ref == MediaRef(tmdb_id=27205)
+
     def test_movie_chain_rejects_wrong_year_release(self, store: ConcreteAcquireStore) -> None:
         """#28 END-TO-END: a wrong-year « Wicker » release is filtered, not grabbed.
 
@@ -281,3 +287,5 @@ class TestFullAcquisitionChain:
         assert row is not None
         assert row.status != "grabbed"
         assert row.grabbed_hash is None
+        # ACC-06: nothing was grabbed → NO provenance row was ever created.
+        assert store.provenance.by_hash("wrong-hash") is None

@@ -92,6 +92,10 @@ class IngestStep:
         # probe alone (byte-identical to the pre-E4 behaviour).
         acquire = getattr(ctx.app, "acquire", None)
         seed_checker = getattr(acquire, "delete_authority", None)
+        # Advisory provenance writer (feature provenance / #30): the acquire store's
+        # staging_provenance sub-store, injected via the core port so ingest links
+        # each torrent's hash → its staging folder. None ⇒ no provenance (unaffected).
+        provenance = getattr(getattr(acquire, "store", None), "provenance", None)
 
         return run_ingest(
             ctx.app.settings,
@@ -100,6 +104,7 @@ class IngestStep:
             event_bus=ctx.app.event_bus,
             torrent_client=ctx.app.torrent_client,
             seed_checker=seed_checker,
+            provenance=provenance,
             # Boot's _recover_from_previous_run owns the once-per-run orphan
             # sweep (PIPELINE-CORE-07) — don't sweep again here.
             recover_orphans=False,
@@ -126,6 +131,9 @@ class SortStep:
         # enabled; otherwise leave it None so run_sort never queries the client.
         sort_cfg = getattr(ctx.app.config, "sort", None)
         torrent_client = ctx.app.torrent_client if sort_cfg is not None and sort_cfg.verify_seed_pure else None
+        # Advisory provenance (feature provenance / #30): keep current_path live as
+        # sort moves each folder, so the scrape resolves identity by path.
+        provenance = getattr(getattr(getattr(ctx.app, "acquire", None), "store", None), "provenance", None)
 
         return run_sort(
             ctx.app.settings,
@@ -134,6 +142,7 @@ class SortStep:
             config=ctx.app.config,
             event_bus=ctx.app.event_bus,
             torrent_client=torrent_client,
+            provenance=provenance,
         )
 
 

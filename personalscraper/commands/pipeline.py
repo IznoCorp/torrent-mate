@@ -98,6 +98,9 @@ def ingest(
     # checker from the acquire context via the core port.
     _acquire = getattr(app_context, "acquire", None)
     _seed_checker = getattr(_acquire, "delete_authority", None)
+    # Advisory provenance writer (feature provenance / #30) — same injection as the
+    # pipeline IngestStep; None ⇒ no provenance recorded (manual/direct unaffected).
+    _provenance = getattr(getattr(_acquire, "store", None), "provenance", None)
     report = cli_helpers.run_ingest(
         bundle.settings,
         dry_run=dry_run,
@@ -107,6 +110,7 @@ def ingest(
         event_bus=app_context.event_bus,
         torrent_client=app_context.torrent_client,
         seed_checker=_seed_checker,
+        provenance=_provenance,
     )
     console.print(
         f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"

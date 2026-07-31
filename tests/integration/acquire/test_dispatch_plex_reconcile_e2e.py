@@ -211,3 +211,27 @@ def test_reconcile_closes_only_owned_rows(store: ConcreteAcquireStore) -> None:
     unowned_row = store.wanted.get(unowned_id)
     assert owned_row is not None and owned_row.status == "done"
     assert unowned_row is not None and unowned_row.status != "done"
+
+
+def test_reconcile_prunes_orphaned_provenance_keeps_dispatched(store: ConcreteAcquireStore) -> None:
+    """Phase 5 (5.1): the post-dispatch reconcile prunes ORPHANED in-flight provenance.
+
+    FS = truth: a mid-pipeline row whose staging folder vanished is dropped; a
+    dispatched row (completed journey, its staging path legitimately gone) is KEPT.
+    """
+    # Orphaned in-flight row — its staging path does not exist → pruned.
+    store.provenance.upsert_grab("orph", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=1)
+    store.provenance.set_ingest("orph", ingest_path="/tmp/provenance-does-not-exist-xyz", ingested_at=1)
+    # Dispatched row — staging path also gone, but the journey completed → kept.
+    store.provenance.upsert_grab("done", followed_id=None, media_ref=MediaRef(tvdb_id=2), kind="movie", grabbed_at=1)
+    store.provenance.set_ingest("done", ingest_path="/tmp/provenance-also-gone-xyz", ingested_at=1)
+    store.provenance.record_dispatch_by_path(
+        "/tmp/provenance-also-gone-xyz", dispatch_path="/Volumes/Disk/films/Done", dispatched_at=2
+    )
+
+    bus = EventBus()
+    PostDispatchReconcileSubscriber(bus, store, _OwnsAll())
+    bus.emit(LibraryScanCompleted(mode="enrich", scanned=1, errors=0, elapsed_s=0.1))
+
+    assert store.provenance.by_hash("orph") is None, "orphaned in-flight row must be pruned"
+    assert store.provenance.by_hash("done") is not None, "dispatched (completed) row must be kept"

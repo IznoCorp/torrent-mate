@@ -29,6 +29,7 @@ from personalscraper.sorter.sorter import Sorter
 
 if TYPE_CHECKING:
     from personalscraper.api.torrent._contracts import TorrentLister
+    from personalscraper.core.provenance_port import StagingProvenanceWriter
 
 log = get_logger("sorter.run")
 
@@ -41,6 +42,7 @@ def run_sort(
     *,
     event_bus: EventBus,
     torrent_client: "TorrentLister | None" = None,
+    provenance: "StagingProvenanceWriter | None" = None,
 ) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
@@ -67,6 +69,11 @@ def run_sort(
             standalone ``personalscraper sort`` command does NOT wire a client
             (the seed-pure sort guard is pipeline-only by design — DESIGN §4.2),
             so the flag has effect only on the full-pipeline path.
+        provenance: Optional advisory provenance writer (the acquire store's
+            ``staging_provenance`` sub-store, injected via the core port). Keeps
+            the live folder path in sync as each item moves ingest_dir → category
+            dir, so the scrape can resolve identity by path (#30). Best-effort +
+            no-op for an untracked (manual/direct) item; ``None`` ⇒ not recorded.
 
     Returns:
         StepReport with counts and per-item details.
@@ -109,6 +116,14 @@ def run_sort(
     report = StepReport(name="sort")
     for r in results:
         _record_sort_terminal(report, event_bus, r)
+        # Provenance (advisory / best-effort): keep the live folder path in sync as
+        # sort moves each item ingest_dir → category dir, so the scrape resolves
+        # identity by path (#30). No-op for an untracked (manual/direct) item.
+        if provenance is not None and not dry_run and r.status == "moved":
+            try:
+                provenance.move_path(str(r.source), str(r.destination))
+            except Exception as exc:  # noqa: BLE001 — advisory: never fails sort
+                log.warning("sort_provenance_move_failed", name=r.source.name, error=str(exc))
 
     # Typed details payload (STEP_REPORT_CONTRACT): partition the sort results
     # by terminal status. ``dry-run`` counts as a (previewed) move, mirroring
