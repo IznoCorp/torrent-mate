@@ -220,7 +220,7 @@ class _FollowSubStore:
         row = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind
+                   quality_profile_json, cadence_json, added_at, kind, year
             FROM followed_series WHERE id = ?
             """,
             (followed_id,),

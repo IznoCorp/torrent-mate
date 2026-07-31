@@ -263,15 +263,20 @@ def _run_dry(
     for item in pending:
         console.print(f"\n[bold]Item:[/bold] {item.media_ref} ({item.kind})")
         media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
-        # Follow D3: same title resolution as the real grab (see build_search_query)
-        # so the preview reflects the actual query the trackers receive.
+        # Follow D3: same title + year resolution as the real grab (see
+        # build_search_query) so the preview reflects the ACTUAL query the
+        # trackers receive — for a movie that means « {title} {year} » (#28,
+        # review F4: a preview that ranks a different film than the grab is a lie).
         title = None
+        year: int | None = None
         if item.followed_id is not None:
             row = store.follow.get(item.followed_id)
-            title = row.title if row is not None else None
-        query = build_search_query(item, title)
+            if row is not None:
+                title = row.title
+                year = row.year
+        query = build_search_query(item, title, year)
         try:
-            outcome = registry.search_candidates(query, media_type, None)
+            outcome = registry.search_candidates(query, media_type, year)
         except CircuitOpenError:
             # A dead tracker's OPEN circuit must not crash the preview (the real
             # grab already catches this in the orchestrator).
@@ -294,6 +299,16 @@ def _run_dry(
             results = filter_to_episode(results, item.season, item.episode)
             if not results:
                 console.print("  [yellow]No result matches the exact episode.[/yellow]")
+                continue
+        elif item.kind == "movie" and title is not None:
+            # #28 (review F4) — mirror the real grab's movie identity filter so
+            # the preview's Top is the SAME film the grab would take, not a
+            # higher-seeded « Wicker* » of a different year.
+            from personalscraper.acquire.orchestrator import filter_to_movie  # noqa: PLC0415
+
+            results = filter_to_movie(results, title, year)
+            if not results:
+                console.print("  [yellow]No result matches the wanted movie (title/year).[/yellow]")
                 continue
 
         # Resolve the SAME effective profile the real grab uses (series

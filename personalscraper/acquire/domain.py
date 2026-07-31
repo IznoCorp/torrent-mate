@@ -48,6 +48,13 @@ class FollowedSeries:
         id: SQLite rowid — populated by ``find_by_ref()`` / ``list_active()`` /
             ``list_all()`` / ``get()``; ``None`` for an as-yet-unpersisted item.
             The follow CLI needs it to call ``set_active`` (Follow D1).
+        year: Release year of the followed media, or ``None``. Used by the grab
+            to disambiguate an ambiguous title — a movie query « Wicker » returns
+            every « Wicker* » film, so the year narrows the search AND lets a
+            ``filter_to_movie`` identity filter drop the wrong-year releases
+            (the Wicker wrong-movie bug, §5/§7). Populated only by SELECTs that
+            fetch the ``year`` column (decoded defensively); other reads leave it
+            ``None``.
     """
 
     media_ref: MediaRef
@@ -58,6 +65,7 @@ class FollowedSeries:
     cadence_json: str | None = None
     kind: FollowKind = "show"
     id: int | None = None
+    year: int | None = None
 
     def __post_init__(self) -> None:
         """Validate the kind literal.

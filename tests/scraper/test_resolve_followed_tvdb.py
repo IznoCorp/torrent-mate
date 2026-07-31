@@ -154,3 +154,40 @@ class TestReviewHardening:
         show = _show_dir(tmp_path, "Rooster Fighter", [(1, 6)])
         grabbed = _grabbed(457770, 14, [(1, 6)])
         assert resolve_followed_tvdb(show, grabbed, {14: "Rooster"}, {14: 2026}) == 457770
+
+
+class TestSubsetTitle:
+    """#29 — a generic folder name that is a SUBSET of the follow title resolves."""
+
+    def test_generic_folder_subset_of_follow_title_resolves(self, tmp_path: Path) -> None:
+        """« Star Trek » folder ⊆ « Star Trek: Strange New Worlds » follow ⇒ its tvdb.
+
+        The real STSNW bug: token_set_ratio("Star Trek", "Star Trek: Strange New
+        Worlds") is 61.5 (< 80) because the follow's extra words dilute it, yet
+        the grabbed S03E09/E10 uniquely identify tvdb 382389 → must force it, not
+        land in « à résoudre ».
+        """
+        show = _show_dir(tmp_path, "Star Trek", [(3, 9), (3, 10)])
+        grabbed = _grabbed(382389, 12, [(3, 9), (3, 10)])
+        titles = {12: "Star Trek: Strange New Worlds"}
+        assert resolve_followed_tvdb(show, grabbed, titles) == 382389
+
+    def test_subset_still_needs_coverage_all_uniqueness(self, tmp_path: Path) -> None:
+        """Two « Star Trek » follows both title-match the folder → coverage-all decides.
+
+        Both follows pass the subset title guard, but only the one that grabbed
+        BOTH folder episodes covers them → it alone forces; the collision guard
+        (coverage-all uniqueness) still holds under the relaxed title match.
+        """
+        show = _show_dir(tmp_path, "Star Trek", [(3, 9), (3, 10)])
+        # STSNW grabbed BOTH; Discovery grabbed only E09 → does not cover the folder.
+        grabbed = _grabbed(382389, 12, [(3, 9), (3, 10)]) + _grabbed(999, 13, [(3, 9)])
+        titles = {12: "Star Trek: Strange New Worlds", 13: "Star Trek: Discovery"}
+        assert resolve_followed_tvdb(show, grabbed, titles) == 382389
+
+    def test_non_subset_dissimilar_still_abstains(self, tmp_path: Path) -> None:
+        """The subset relaxation does NOT over-match an unrelated title (abstains)."""
+        show = _show_dir(tmp_path, "Star Trek", [(3, 9), (3, 10)])
+        grabbed = _grabbed(382389, 12, [(3, 9), (3, 10)])
+        titles = {12: "Battlestar Galactica"}  # no token overlap ⇒ no force
+        assert resolve_followed_tvdb(show, grabbed, titles) is None

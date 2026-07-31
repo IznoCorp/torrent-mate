@@ -198,14 +198,16 @@ class SearchVerdict:
     chosen: TrackerResult | None = None  # top-ranked candidate, for logging only
 
 
-def build_search_query(item: "WantedItem", title: str | None) -> str:
+def build_search_query(item: "WantedItem", title: str | None, year: int | None = None) -> str:
     """Build a tracker search query from a wanted item + resolved series title.
 
     This is the Follow D3 title-resolution seam. When the series ``title`` is
     known (resolved from the followed-series row), an episode query becomes
-    ``"{title} SxxEyy"`` and a movie query becomes ``"{title}"`` — the form the
-    title-based trackers (c411, tr4ker) actually match. When ``title`` is
-    ``None`` (standalone item with no followed row, or a resolver miss), it
+    ``"{title} SxxEyy"`` and a movie query becomes ``"{title} {year}"`` when the
+    year is known (« Wicker 2026 » — narrows an ambiguous title so the trackers
+    do not return every « Wicker* » film, #28) or ``"{title}"`` otherwise — the
+    form the title-based trackers (c411, tr4ker) actually match. When ``title``
+    is ``None`` (standalone item with no followed row, or a resolver miss), it
     falls back to the primary provider ID string — the legacy behavior, which
     finds nothing on title-based trackers but keeps the query non-empty.
 
@@ -213,6 +215,8 @@ def build_search_query(item: "WantedItem", title: str | None) -> str:
         item: The claimed wanted item (carries ``kind`` + ``season`` +
             ``episode`` + ``media_ref``).
         title: The resolved series/movie title, or ``None``.
+        year: The movie's release year, or ``None`` — appended to a movie query
+            to disambiguate the title (#28). Ignored for episodes.
 
     Returns:
         A non-empty query string.
@@ -220,6 +224,8 @@ def build_search_query(item: "WantedItem", title: str | None) -> str:
     if title:
         if item.kind == "episode" and item.season is not None and item.episode is not None:
             return f"{title} S{item.season:02d}E{item.episode:02d}"
+        if year is not None:
+            return f"{title} {year}"
         return title
     media_ref = item.media_ref
     if media_ref.tvdb_id is not None:
@@ -257,6 +263,76 @@ def filter_to_episode(
     # S9 does not match S19; 0* absorbs the zero-padding difference.
     pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
     return [r for r in results if pattern.search(r.title)]
+
+
+#: Minimum rapidfuzz token-set score between a release's parsed title and the
+#: wanted movie title to survive the identity filter. Deliberately LOOSE — a
+#: subset like "Wicker" vs "The Wicker Man" scores high either way, so the YEAR
+#: is the real discriminator; this threshold only drops the wholly-unrelated.
+_MOVIE_TITLE_THRESHOLD = 60
+
+
+def filter_to_movie(
+    results: "list[TrackerResult]",
+    title: str,
+    year: int | None,
+) -> "list[TrackerResult]":
+    """Keep only releases matching the wanted MOVIE's identity (title + year, #28).
+
+    A title query (``"{title} {year}"``) returns fuzzy matches — a bare title
+    like « Wicker » pulls « The Wicker Man », « Wicker Park », … from title-based
+    trackers, which then rank by seeders so the WRONG film can win (the Wicker
+    incident, §5/§7). Tracker results carry no provider-ID, so identity is
+    verified from the parsed release name:
+
+    - **title**: the release's parsed title must be similar to the wanted title
+      (loose rapidfuzz guard — drops the wholly-unrelated);
+    - **year**: the discriminator — a release whose parsed year is known and more
+      than one year off the wanted year is a DIFFERENT film and is dropped
+      (``Wicker 2026`` vs ``The Wicker Man 2006``). A ±1 tolerance absorbs the
+      release-vs-production-year drift; a release with no parseable year is kept
+      (year can't refute it) and left to the title guard + ranking.
+
+    Fail-soft per release: an unparseable name falls back to (raw title, no year)
+    so a parser hiccup never silently drops a candidate on the year axis.
+
+    Args:
+        results: Raw tracker results for the movie query.
+        title: The wanted movie's title.
+        year: The wanted movie's release year, or ``None`` (year check disabled).
+
+    Returns:
+        The subset whose parsed identity matches the wanted movie (possibly empty).
+    """
+    from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
+
+    kept: list[TrackerResult] = []
+    for r in results:
+        parsed_title, parsed_year = _parse_release_identity(r.title)
+        if parsed_title and fuzz.token_set_ratio(parsed_title, title) < _MOVIE_TITLE_THRESHOLD:
+            continue
+        if year is not None and parsed_year is not None and abs(parsed_year - year) > 1:
+            continue
+        kept.append(r)
+    return kept
+
+
+def _parse_release_identity(release_title: str) -> "tuple[str, int | None]":
+    """Parse a release name into ``(title, year)`` via guessit (fail-soft).
+
+    Returns ``(raw_title, None)`` on any guessit failure so a parse error never
+    drops a candidate on the year axis.
+    """
+    try:
+        from guessit import guessit  # noqa: PLC0415 — heavy import, grab-path only
+
+        info = guessit(release_title)
+        parsed_title = str(info.get("title") or release_title)
+        raw_year = info.get("year")
+        parsed_year = int(raw_year) if isinstance(raw_year, int) else None
+        return parsed_title, parsed_year
+    except Exception:  # noqa: BLE001 — fail-soft: a parser hiccup must not drop a candidate
+        return release_title, None
 
 
 def rank_candidates(
@@ -390,6 +466,7 @@ class GrabOrchestrator:
         event_bus: EventBus,
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
+        year_resolver: "Callable[[WantedItem], int | None] | None" = None,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -410,12 +487,17 @@ class GrabOrchestrator:
                 row) so the tracker query is ``"{title} SxxEyy"`` rather than the
                 bare provider ID. ``None`` (or a resolver miss) falls back to the
                 ID query (legacy behavior). See :func:`build_search_query`.
+            year_resolver: Resolves a claimed ``WantedItem`` to its release year
+                (from the followed-series row) — disambiguates an ambiguous movie
+                title (#28). ``None`` (or a miss) leaves the query yearless and
+                the movie identity filter inert on the year axis.
         """
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
         self._event_bus = event_bus
         self._ranking = ranking
         self._title_resolver = title_resolver
+        self._year_resolver = year_resolver
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
@@ -517,8 +599,11 @@ class GrabOrchestrator:
         media_ref = item.media_ref
         media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
         title = self._title_resolver(item) if self._title_resolver is not None else None
-        query = build_search_query(item, title)
-        year: int | None = None
+        # #28 — resolve the follow's release year to narrow an ambiguous movie
+        # title (« Wicker » → every « Wicker* » film) in BOTH the query and the
+        # identity filter below.
+        year = self._year_resolver(item) if self._year_resolver is not None else None
+        query = build_search_query(item, title, year)
 
         # --- Search (CircuitOpenError is NOT an ApiError → needs its own clause;
         # TrackerAuthError IS an ApiError → must precede its base clause). Both
@@ -546,6 +631,13 @@ class GrabOrchestrator:
             results = filter_to_episode(results, item.season, item.episode)
             if not results:
                 return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
+        elif item.kind == "movie" and title is not None:
+            # #28 — a movie title query pulls the WRONG « Wicker* » films; keep
+            # only releases whose parsed title+year match the wanted movie so
+            # ranking cannot pick a different film (§5/§7 identity). An empty
+            # result flows to rank_candidates → all_filtered (honest « rien de
+            # conforme »), never a wrong-movie grab.
+            results = filter_to_movie(results, title, year)
 
         # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
         # Delegated to the module-level :func:`rank_candidates` seam so the

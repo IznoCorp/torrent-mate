@@ -963,3 +963,44 @@ def test_grab_without_the_hook_still_adds() -> None:
 
     assert outcome.disposition == "success"
     torrent_client.add.assert_called_once()
+
+
+def test_search_pass_applies_movie_year_filter_and_query(followed_id: int = 7) -> None:
+    """#28 (review HIGH): search() narrows a movie by year and drops wrong-year films.
+
+    The search pass feeds the SAME _search_chain as grab; when its year_resolver
+    is wired, a followed « Wicker » (2026) query is « Wicker 2026 » and
+    filter_to_movie drops « The Wicker Man 2006 » so the verdict cannot state a
+    different film available (the §5/§7 identity lie the fix removes).
+    """
+    item = WantedItem(
+        media_ref=MediaRef(tmdb_id=1195803),
+        kind="movie",
+        status="searching",
+        enqueued_at=0,
+        followed_id=followed_id,
+    )
+    right = _make_result(title="Wicker.2026.1080p.WEB-DL.x265-GRP", info_hash="right123")
+    wrong = _make_result(title="The.Wicker.Man.2006.1080p.BluRay-OLD", seeders=9999, info_hash="wrong123")
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(
+        results=[right, wrong], trackers_queried=1, trackers_errored=0
+    )
+    registry.transports.return_value = {"lacale": MagicMock()}
+    orchestrator = GrabOrchestrator(
+        tracker_registry=registry,
+        torrent_client=None,
+        event_bus=EventBus(),
+        ranking=RankingConfig(min_seeders=0),
+        title_resolver=lambda _i: "Wicker",
+        year_resolver=lambda _i: 2026,
+    )
+
+    verdict = orchestrator.search(item, QualityProfile())
+
+    # The query narrowed the tracker search with the year (#28).
+    assert registry.search_candidates.call_args.args[0] == "Wicker 2026"
+    # Only the right-year film survives → available with found == 1, never the
+    # higher-seeded wrong-year « The Wicker Man ».
+    assert verdict.disposition == "available"
+    assert verdict.found == 1
