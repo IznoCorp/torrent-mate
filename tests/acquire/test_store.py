@@ -305,6 +305,28 @@ def test_follow_round_trip(store: ConcreteAcquireStore) -> None:
     assert fetched.media_ref == MediaRef(tvdb_id=12345, tmdb_id=678, imdb_id="tt0011223")
 
 
+def test_follow_add_persists_year(store: ConcreteAcquireStore) -> None:
+    """#31: follow.add persists ``year`` on the INSERT (defends the #28 filter).
+
+    The INSERT used to omit the ``year`` column, so a ``FollowedSeries(year=X)``
+    was silently stored NULL and the #28 movie-identity year guard — which reads
+    ``follow.year`` via the year_resolver — was inert for any follow created
+    without a later ``merge_metadata`` call. The old round-trip test never set a
+    year, so both sides were None and the drop was invisible.
+    """
+    series = FollowedSeries(
+        media_ref=MediaRef(tmdb_id=1195803),
+        title="Wicker",
+        added_at=1_700_000_000,
+        kind="movie",
+        year=2026,
+    )
+    row_id = store.follow.add(series)
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.year == 2026, "follow.add must persist the year (else #28 is inert)"
+
+
 def test_follow_get_missing_returns_none(store: ConcreteAcquireStore) -> None:
     """follow.get on an unknown id returns None."""
     assert store.follow.get(99999) is None
