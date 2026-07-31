@@ -36,9 +36,12 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-# Repo-root ``.env`` — the same file pydantic-settings reads for credentials
-# (see ``personalscraper.config._ENV_PATH``). web.py lives two package levels
-# deep (personalscraper/commands/web.py), so the repo root is three parents up.
+# Repo-root ``.env`` — the LOCAL layer of the credential overlay pydantic-settings
+# reads (see ``personalscraper.config._resolve_env_files`` / ``_ENV_FILES``: a
+# canonical `.env` may be layered UNDER this one, but the local file wins, so
+# ``web.py set-keys`` correctly writes the authoritative layer). web.py lives two
+# package levels deep (personalscraper/commands/web.py), so the repo root is
+# three parents up.
 _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 
 web_app = typer.Typer(
