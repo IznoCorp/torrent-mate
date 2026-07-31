@@ -24,12 +24,14 @@ export const badgeVariants = cva(
         danger:
           "border-[color-mix(in_oklch,var(--danger)_34%,transparent)] bg-[color-mix(in_oklch,var(--danger)_16%,transparent)] text-[var(--danger)]",
         info: "border-[color-mix(in_oklch,var(--info)_32%,transparent)] bg-[color-mix(in_oklch,var(--info)_16%,transparent)] text-[var(--info)]",
-        // ``muted`` — the « je ne sais pas » of a never-verified episode. A
-        // dashed border + fainter fill + the idle-signal grey keeps it visually
-        // APART from the solid ``neutral`` chip (« en attente »), so the two
-        // grey-family states never read as one colour (operator #9).
+        // ``muted`` — the « je ne sais pas » of a never-verified item. A DASHED
+        // border (the "unknown, not a real signal" cue) + a faint INFO-blue tint
+        // (#24) so « Non vérifié » reads as a clearly different COLOUR from the
+        // solid neutral-grey « En attente », not merely a dashed grey. The dashed
+        // border + fainter fill still set it well apart from the solid, brighter
+        // ``info`` chip of « En cours d'acquisition ».
         muted:
-          "border-dashed border-[color-mix(in_oklch,var(--neutral-signal)_45%,transparent)] bg-[color-mix(in_oklch,var(--neutral-signal)_8%,transparent)] text-[var(--neutral-signal)]",
+          "border-dashed border-[color-mix(in_oklch,var(--info)_38%,transparent)] bg-[color-mix(in_oklch,var(--info)_9%,transparent)] text-[color-mix(in_oklch,var(--info)_70%,var(--muted-foreground))]",
         // ``upcoming`` — announced, not yet aired. Violet accent, live-tinted
         // from the token exactly like the other signal tones.
         upcoming:

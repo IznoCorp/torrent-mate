@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils";
  *
  * ``muted`` and ``upcoming`` were added for the episode-states matrix so its six
  * per-episode states each read as a DISTINCT tone (operator #9 « une couleur par
- * statut »): ``muted`` is the dimmer, dashed « je ne sais pas » of ``non_verifie``
- * (visually apart from the solid ``neutral`` of « en attente »), and ``upcoming``
+ * statut »): ``muted`` is the dashed « je ne sais pas » of ``non_verifie`` —
+ * a faint INFO-blue tint (#24), a clearly different COLOUR from the solid
+ * neutral-grey of « en attente », not merely a dashed grey — and ``upcoming``
  * is the accent of an announced, not-yet-aired episode.
  */
 export type BadgeTone =

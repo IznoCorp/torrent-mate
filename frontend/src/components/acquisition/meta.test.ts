@@ -54,7 +54,7 @@ describe("FOLLOW status vocabulary", () => {
     ["a_recuperer", "À récupérer", "warning"],
     ["en_acquisition", "En cours d'acquisition", "info"],
     ["en_attente", "En attente", "neutral"],
-    ["non_verifie", "Non vérifié", "neutral"],
+    ["non_verifie", "Non vérifié", "muted"],
     ["a_jour", "À jour", "success"],
   ])("maps %s to its série label and tone", (status, label, tone) => {
     expect(FOLLOW_STATUS_LABEL[status as FollowStatus]).toBe(label);
@@ -211,8 +211,15 @@ describe("waitingGroups — un motif, les épisodes qui le partagent", () => {
 });
 
 describe("« En attente » vs « Non vérifié » (must not be confusable)", () => {
-  it("gives the two neutral states distinct labels AND distinct hints", () => {
-    expect(FOLLOW_STATUS_TONE.en_attente).toBe(FOLLOW_STATUS_TONE.non_verifie);
+  it("gives the two states DISTINCT tones, labels AND hints (#24)", () => {
+    // #24 — they no longer share a colour: en_attente = solid neutral grey,
+    // non_verifie = the muted (dashed info-blue) idle tone, in BOTH maps.
+    expect(FOLLOW_STATUS_TONE.en_attente).not.toBe(
+      FOLLOW_STATUS_TONE.non_verifie,
+    );
+    expect(EPISODE_STATE_TONE.en_attente).not.toBe(
+      EPISODE_STATE_TONE.non_verifie,
+    );
     expect(FOLLOW_STATUS_LABEL.en_attente).not.toBe(
       FOLLOW_STATUS_LABEL.non_verifie,
     );

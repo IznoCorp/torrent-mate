@@ -182,8 +182,13 @@ export const FOLLOW_STATUS_TONE: Record<FollowStatus, BadgeTone> = {
   verification_en_cours: "info",
   a_recuperer: "warning",
   en_acquisition: "info",
+  // #24 — « En attente » (searched, nothing conforming yet) and « Non vérifié »
+  // (no verdict at all yet) must NOT read as the same colour. They use the same
+  // distinct pair as the episode matrix: « En attente » is the solid neutral
+  // chip, « Non vérifié » the ``muted`` idle tone (a visibly different fill, see
+  // badge-variants). Labels + hints still disambiguate on top.
   en_attente: "neutral",
-  non_verifie: "neutral",
+  non_verifie: "muted",
   a_jour: "success",
 };
 
@@ -213,11 +218,11 @@ export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = 
 /**
  * Followed-card status → the sentence that disambiguates it (tooltip / title).
  *
- * « En attente » and « Non vérifié » share a neutral tone and must NEVER be
- * confusable: one says « I searched the trackers and nothing was takeable »,
- * the other « I have no verdict at all yet ». The label carries the
- * distinction, this hint spells it out (DOIT-1: compréhensible sans être
- * ingénieur).
+ * « En attente » and « Non vérifié » must NEVER be confusable: one says « I
+ * searched the trackers and nothing was takeable », the other « I have no
+ * verdict at all yet ». They now carry DISTINCT tones (#24 — neutral grey vs the
+ * muted info-blue), and the label + this hint spell the distinction out on top
+ * (DOIT-1: compréhensible sans être ingénieur).
  */
 export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
   disabled: "Suivi en pause — aucune recherche automatique n'est faite.",
