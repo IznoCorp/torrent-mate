@@ -13,7 +13,7 @@
 
 import {
   Activity,
-  Home,
+  Gauge,
   Radar,
   ScanSearch,
   Settings,
@@ -62,10 +62,13 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     title: "Supervision",
     items: [
-      { to: "/", label: "Contrôle", icon: Home },
-      { to: "/pipeline", label: "Pipeline", icon: Activity },
-      { to: "/medias", label: "Médias", icon: ScanSearch },
+      // Operator directive: Acquisitions leads the nav (the main page), Contrôle last;
+      // Contrôle lives at /controle (root `/` redirects to the acquisitions landing) and
+      // uses a gauge (poste de pilotage) rather than a « home » house.
       { to: "/acquisition", label: "Acquisition", icon: Radar },
+      { to: "/medias", label: "Médias", icon: ScanSearch },
+      { to: "/pipeline", label: "Pipeline", icon: Activity },
+      { to: "/controle", label: "Contrôle", icon: Gauge },
     ],
   },
   {
@@ -85,25 +88,25 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_SECTIONS.flatMap(
 
 /**
  * Paths shown in the mobile bottom tab bar — a four-item subset of
- * {@link NAV_ITEMS}: Contrôle · Pipeline · Médias · Acquisition.
+ * {@link NAV_ITEMS}: Acquisition · Médias · Pipeline · Contrôle.
  *
- * Operator directive (2026-07-15 mobile review): the dashboard — now the
- * control station (A3) — leads the bar; Maintenance moves to the nav Sheet
- * only (rarely needed on the go).
+ * Operator directive: Acquisitions leads the bar (the main page); Contrôle (the
+ * control station, now at /controle) closes it. The order follows the nav's
+ * display order (see {@link BOTTOM_TAB_ITEMS}).
  */
 export const BOTTOM_TAB_PATHS: readonly string[] = [
-  "/",
-  "/pipeline",
-  "/medias",
   "/acquisition",
+  "/medias",
+  "/pipeline",
+  "/controle",
 ];
 
 /**
  * The subset of {@link NAV_ITEMS} rendered by the bottom tab bar.
  *
  * Filtering `NAV_ITEMS` (rather than mapping `BOTTOM_TAB_PATHS`) preserves the
- * nav's display order, which already yields Contrôle · Pipeline ·
- * Médias · Acquisition.
+ * nav's display order, which already yields Acquisition · Médias ·
+ * Pipeline · Contrôle.
  */
 export const BOTTOM_TAB_ITEMS: readonly NavItem[] = NAV_ITEMS.filter((item) =>
   BOTTOM_TAB_PATHS.includes(item.to),

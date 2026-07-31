@@ -44,7 +44,10 @@ export const routes: RouteObject[] = [
           {
             element: <AppShell />,
             children: [
-              { index: true, element: <Dashboard /> },
+              // Operator directive: Acquisitions is the main page — the root redirects
+              // there (query-preserving). Contrôle (the control station) moves to /controle.
+              { index: true, element: <LegacyRedirect to="/acquisition" /> },
+              { path: "controle", element: <Dashboard /> },
               {
                 path: "pipeline",
                 element: <Pipeline />,

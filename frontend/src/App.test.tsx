@@ -62,13 +62,14 @@ afterEach(() => {
 });
 
 describe("App", () => {
-  it("monte le shell et rend le tableau de bord à la racine", async () => {
+  it("monte le shell et rend la page principale (Acquisitions) à la racine", async () => {
     render(<App />);
 
-    // The browser router boots at jsdom's default path ("/"); once `me`
-    // resolves authenticated the guard renders the Dashboard inside the shell.
+    // The browser router boots at jsdom's default path ("/"); once `me` resolves
+    // authenticated the guard renders the shell, and the root redirects to the
+    // acquisitions landing (the main page, per the operator nav reorder).
     expect(
-      await screen.findByRole("heading", { name: /contrôle/i }),
+      await screen.findByRole("heading", { name: /acquisition/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /menu utilisateur/i }),

@@ -25,10 +25,10 @@ describe("nav model", () => {
     );
 
     expect(byTitle.Supervision).toEqual([
-      "/",
-      "/pipeline",
-      "/medias",
       "/acquisition",
+      "/medias",
+      "/pipeline",
+      "/controle",
     ]);
     expect(byTitle["Système"]).toEqual(["/systeme"]);
     expect(byTitle.Configuration).toEqual(["/config"]);
@@ -40,32 +40,32 @@ describe("nav model", () => {
     // Tous les items sont interactifs — Maintenance et Registre fusionnés dans /systeme.
     expect(
       NAV_ITEMS.map((item) => item.to),
-    ).toEqual(["/", "/pipeline", "/medias", "/acquisition", "/systeme", "/config"]);
+    ).toEqual(["/acquisition", "/medias", "/pipeline", "/controle", "/systeme", "/config"]);
   });
 
   it("dérive NAV_ITEMS de la projection à plat des sections", () => {
     expect(NAV_ITEMS.map((item) => item.to)).toEqual([
-      "/",
-      "/pipeline",
-      "/medias",
       "/acquisition",
+      "/medias",
+      "/pipeline",
+      "/controle",
       "/systeme",
       "/config",
     ]);
   });
 
-  it("réduit la barre d'onglets mobile à Contrôle · Pipeline · Médias · Acquisition", () => {
+  it("réduit la barre d'onglets mobile à Acquisition · Médias · Pipeline · Contrôle", () => {
     expect(BOTTOM_TAB_PATHS).toEqual([
-      "/",
-      "/pipeline",
-      "/medias",
       "/acquisition",
+      "/medias",
+      "/pipeline",
+      "/controle",
     ]);
     expect(BOTTOM_TAB_ITEMS.map((item) => item.label)).toEqual([
-      "Contrôle",
-      "Pipeline",
-      "Médias",
       "Acquisition",
+      "Médias",
+      "Pipeline",
+      "Contrôle",
     ]);
     // Systeme (replacing Maintenance) and the disabled stubs are excluded from
     // the bottom bar; the dashboard (control station, A3) leads it.
