@@ -4973,6 +4973,92 @@
         ]
       }
     },
+    "/api/acquisition/journeys/{info_hash}/requeue": {
+      "post": {
+        "description": "Requeue one item's wanted row back to pending (F4, \u00ab Requeue \u00bb).\n\nReturns 202 with the run_uid. 404 when untracked, 409 when a requeue for this item is\nalready in flight, 500 on spawn failure.",
+        "operationId": "trigger_journey_requeue_api_acquisition_journeys__info_hash__requeue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "info_hash",
+            "required": true,
+            "schema": {
+              "title": "Info Hash",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrabTriggerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Journey Requeue",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/journeys/{info_hash}/rescrape": {
+      "post": {
+        "description": "Re-scrape one tracked staging item, seeded from its grab identity (F4, \u00ab Re-scraper \u00bb).\n\nReturns 202 with the run_uid. 404 when untracked, 409 when a re-scrape for this item is\nalready in flight, 500 on spawn failure.",
+        "operationId": "trigger_journey_rescrape_api_acquisition_journeys__info_hash__rescrape_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "info_hash",
+            "required": true,
+            "schema": {
+              "title": "Info Hash",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrabTriggerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Journey Rescrape",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/obligations": {
       "get": {
         "description": "List seed obligations with their current ratio state.\n\nArgs:\n    request: The incoming FastAPI request.\n    status: Filter: ``\"all\"`` (default), ``\"pending\"``, ``\"breached\"``,\n        or ``\"satisfied\"``.\n\nReturns:\n    An ``ObligationsResponse`` with matching items.  Each item LEFT JOINs\n    ``ratio_state`` on tracker name.",

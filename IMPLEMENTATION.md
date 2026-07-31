@@ -35,8 +35,8 @@ wanted-requeue seams; advisory + fail-soft.
 
 | #   | Phase                                                           | File                  | Status |
 | --- | --------------------------------------------------------------- | --------------------- | ------ |
-| 1   | Spine substrate (list_stuck + stuck flag on JourneyItem)        | phase-01-substrate.md | [ ]    |
-| 2   | CLI actions (acquisition-rescrape + acquisition-requeue)        | phase-02-cli.md       | [ ]    |
-| 3   | Web trigger endpoints + ParcoursPanel buttons/badge + gate + PR | phase-03-web.md       | [ ]    |
+| 1   | Spine substrate (list_stuck + stuck flag on JourneyItem)        | phase-01-substrate.md | [x]    |
+| 2   | CLI actions (acquisition-rescrape + acquisition-requeue)        | phase-02-cli.md       | [x]    |
+| 3   | Web trigger endpoints + ParcoursPanel buttons/badge + gate + PR | phase-03-web.md       | [x]    |
 
-**Next action**: Phase 1 — spine substrate.
+**Next action**: all phases complete — phase gate + feature-PR.

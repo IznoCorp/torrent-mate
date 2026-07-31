@@ -152,9 +152,7 @@ def acquisition_rescrape(
     info_hash: str | None = typer.Option(None, "--hash", help="Re-scrape the item with this grab info-hash."),
     path: str | None = typer.Option(None, "--path", help="Re-scrape the item at this staging folder."),
     stuck: bool = typer.Option(False, "--stuck", help="Re-scrape ALL stuck in-flight items."),
-    older_than: int = typer.Option(
-        STUCK_IDLE_SECONDS, "--older-than", help="Stuck horizon in seconds (with --stuck)."
-    ),
+    older_than: int = typer.Option(STUCK_IDLE_SECONDS, "--older-than", help="Stuck horizon in seconds (with --stuck)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview the targets without scraping."),
 ) -> None:
     """Re-scrape a precise grab / resume stuck items, seeded from the provenance registry."""

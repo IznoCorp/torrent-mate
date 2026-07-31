@@ -7,14 +7,21 @@
  * pipeline legible (product-intent §pipeline lisible). Read-only; mobile-first.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
-import { acqKeys, getJourneys, type JourneyItem } from "@/api/acquisition";
+import {
+  acqKeys,
+  getJourneys,
+  requeueJourney,
+  rescrapeJourney,
+  type JourneyItem,
+} from "@/api/acquisition";
 import { relativeTime } from "@/components/acquisition/meta";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 /**
  * The four pipeline stages, in order — each keyed by its provenance timestamp field
@@ -66,6 +73,63 @@ function ResolutionChip({ j }: { j: JourneyItem }): ReactElement | null {
     <Badge tone="muted" className="self-start">
       {state === "resolved" ? "Résolu" : "Écarté"}
     </Badge>
+  );
+}
+
+/**
+ * Per-journey targeted actions (spine-actions F4): a « Bloqué » badge for a stuck item,
+ * plus « Re-scraper » / « Requeue » buttons that trigger the spine-driven CLI actions.
+ *
+ * Shown only for an IN-FLIGHT item (not yet dispatched) — a dispatched item's staging
+ * folder is gone, so a re-scrape would no-op. On success the journeys query is
+ * invalidated so the card reflects the new state on the next poll.
+ *
+ * Returns:
+ *   The action row, or ``null`` for a dispatched/terminal item.
+ */
+function JourneyActions({ j }: { j: JourneyItem }): ReactElement | null {
+  const qc = useQueryClient();
+  const invalidate = (): void => {
+    void qc.invalidateQueries({ queryKey: acqKeys.all });
+  };
+  const rescrape = useMutation({
+    mutationFn: () => rescrapeJourney(j.info_hash),
+    onSuccess: invalidate,
+  });
+  const requeue = useMutation({
+    mutationFn: () => requeueJourney(j.info_hash),
+    onSuccess: invalidate,
+  });
+  const inFlight = j.dispatched_at == null;
+  if (!inFlight) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {j.stuck ? (
+        <Badge tone="warning" dot>
+          Bloqué
+        </Badge>
+      ) : null}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={rescrape.isPending}
+        onClick={() => {
+          rescrape.mutate();
+        }}
+      >
+        Re-scraper
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={requeue.isPending}
+        onClick={() => {
+          requeue.mutate();
+        }}
+      >
+        Requeue
+      </Button>
+    </div>
   );
 }
 
@@ -152,6 +216,7 @@ export function ParcoursPanel(): ReactElement {
             })}
           </ol>
           <ResolutionChip j={j} />
+          <JourneyActions j={j} />
           {j.dispatch_path != null && (
             <p
               className="truncate text-xs text-muted-foreground"

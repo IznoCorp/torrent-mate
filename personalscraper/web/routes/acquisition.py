@@ -846,9 +846,7 @@ def get_journeys(
         items: list[JourneyItem] = []
         for row in rows:
             # F4: flag a stuck in-flight item (folder still on disk, idle past the horizon).
-            stuck = provenance_row_is_stuck(
-                row, now=now, idle_seconds=STUCK_IDLE_SECONDS, exists_fn=os.path.exists
-            )
+            stuck = provenance_row_is_stuck(row, now=now, idle_seconds=STUCK_IDLE_SECONDS, exists_fn=os.path.exists)
             follow_title: str | None = None
             if row.followed_id is not None:
                 if row.followed_id not in title_cache:

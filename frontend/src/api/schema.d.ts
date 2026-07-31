@@ -312,6 +312,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/journeys/{info_hash}/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Journey Requeue
+         * @description Requeue one item's wanted row back to pending (F4, « Requeue »).
+         *
+         *     Returns 202 with the run_uid. 404 when untracked, 409 when a requeue for this item is
+         *     already in flight, 500 on spawn failure.
+         */
+        post: operations["trigger_journey_requeue_api_acquisition_journeys__info_hash__requeue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/journeys/{info_hash}/rescrape": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Journey Rescrape
+         * @description Re-scrape one tracked staging item, seeded from its grab identity (F4, « Re-scraper »).
+         *
+         *     Returns 202 with the run_uid. 404 when untracked, 409 when a re-scrape for this item is
+         *     already in flight, 500 on spawn failure.
+         */
+        post: operations["trigger_journey_rescrape_api_acquisition_journeys__info_hash__rescrape_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -5094,6 +5140,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JourneysResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_journey_requeue_api_acquisition_journeys__info_hash__requeue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                info_hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_journey_rescrape_api_acquisition_journeys__info_hash__rescrape_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                info_hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrabTriggerResponse"];
                 };
             };
             /** @description Validation Error */

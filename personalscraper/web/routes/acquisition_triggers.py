@@ -24,7 +24,7 @@ from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web.acquisition.runner import grab_options_json, prime_options_json
+from personalscraper.web.acquisition.runner import grab_options_json, hash_options_json, prime_options_json
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import GrabTriggerResponse
 
@@ -483,3 +483,123 @@ def trigger_followed_grab(request: Request, followed_id: int) -> GrabTriggerResp
         500: The runner subprocess failed to spawn.
     """
     return _launch_followed_action(request, followed_id, "grab")
+
+
+# ── Spine-driven per-item actions (feature spine-actions, F4) ────────────────────
+
+#: Maps the F4 action to its ``pipeline_run.command`` (and the CLI it runs).
+_HASH_ACTIONS = {"rescrape": "acquisition-rescrape", "requeue": "acquisition-requeue"}
+
+
+def _spawn_hash_runner(run_uid: str, action: str, info_hash: str) -> int:
+    """Spawn the acquisition runner scoped to one grab info-hash (F4).
+
+    Args:
+        run_uid: The reserved run's unique identifier.
+        action: ``"rescrape"`` or ``"requeue"`` (the ``PERSONALSCRAPER_ACQ_COMMAND`` value).
+        info_hash: The grab info-hash to scope the action to.
+
+    Returns:
+        The pid of the spawned runner process.
+    """
+    env = {
+        **os.environ,
+        "PERSONALSCRAPER_RUN_UID": run_uid,
+        "PERSONALSCRAPER_ACQ_COMMAND": action,
+        "PERSONALSCRAPER_ACQ_INFO_HASH": info_hash,
+    }
+    logger.info("hash_trigger_spawned", run_uid=run_uid, action=action, info_hash=info_hash)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "personalscraper.web.acquisition.runner"],
+        start_new_session=True,
+        env=env,
+    )
+    return proc.pid
+
+
+def _launch_hash_action(request: Request, info_hash: str, action: str) -> GrabTriggerResponse:
+    """Reserve + spawn a spine-driven per-item action (rescrape / requeue).
+
+    Mirrors :func:`_launch_followed_action` for an info-hash scope: 404 when the grab is
+    not tracked, 409 when the SAME action is already in flight for this item, fail-soft
+    finalize on a spawn error.
+
+    Raises:
+        HTTPException: 404 (untracked grab), 409 (same action in flight), 500 (spawn failed).
+    """
+    row_command = _HASH_ACTIONS[action]
+    config = request.app.state.config
+    db_path = cast(Path, config.indexer.db_path)
+
+    # 1. Verify the grab is tracked on the spine (404 before any reservation). A manual/
+    #    direct item has no row → nothing to act on.
+    store = build_acquire_store(config.acquire)
+    try:
+        row = store.provenance.by_hash(info_hash)
+    finally:
+        store.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No tracked acquisition for this info-hash")
+
+    options_json = hash_options_json(info_hash)
+    # 2. Reject the duplicate of the SAME action on the same item (409).
+    _guard_no_running_grab(db_path, options_json, command=row_command)
+
+    # 3. Reserve the run row with the web pid, then spawn the runner.
+    run_uid = uuid.uuid4().hex
+    writer = PipelineRunWriter(db_path)
+    writer.insert(
+        run_uid,
+        trigger="web",
+        dry_run=False,
+        pid=os.getpid(),
+        kind="maintenance",
+        command=row_command,
+        options_json=options_json,
+        if_absent=True,
+    )
+    try:
+        pid = _spawn_hash_runner(run_uid, action, info_hash)
+    except (OSError, ValueError) as exc:
+        try:
+            writer.finalize(run_uid, "error", error=str(exc))
+        except sqlite3.Error:
+            logger.warning("hash_trigger_finalize_failed", run_uid=run_uid, command=row_command)
+        logger.error("hash_trigger_spawn_failed", run_uid=run_uid, command=row_command, error=str(exc))
+        raise HTTPException(status_code=500, detail=f"Failed to spawn {row_command} runner") from exc
+    if isinstance(pid, int):
+        try:
+            writer.update_pid(run_uid, pid)
+        except sqlite3.Error:
+            logger.warning("hash_trigger_update_pid_failed", run_uid=run_uid, command=row_command)
+    return GrabTriggerResponse(run_uid=run_uid)
+
+
+@router.post(
+    "/journeys/{info_hash}/rescrape",
+    status_code=202,
+    response_model=GrabTriggerResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def trigger_journey_rescrape(request: Request, info_hash: str) -> GrabTriggerResponse:
+    """Re-scrape one tracked staging item, seeded from its grab identity (F4, « Re-scraper »).
+
+    Returns 202 with the run_uid. 404 when untracked, 409 when a re-scrape for this item is
+    already in flight, 500 on spawn failure.
+    """
+    return _launch_hash_action(request, info_hash, "rescrape")
+
+
+@router.post(
+    "/journeys/{info_hash}/requeue",
+    status_code=202,
+    response_model=GrabTriggerResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def trigger_journey_requeue(request: Request, info_hash: str) -> GrabTriggerResponse:
+    """Requeue one item's wanted row back to pending (F4, « Requeue »).
+
+    Returns 202 with the run_uid. 404 when untracked, 409 when a requeue for this item is
+    already in flight, 500 on spawn failure.
+    """
+    return _launch_hash_action(request, info_hash, "requeue")

@@ -900,3 +900,84 @@ class TestRunnerSpawnEnvContract:
         assert env.get("PERSONALSCRAPER_ACQ_COMMAND") in (None, "grab")
         assert env["PERSONALSCRAPER_RUN_UID"] == "uid-2"
         assert env["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] == "9"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# POST /journeys/{info_hash}/rescrape  and  /requeue  (spine-actions, F4)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _seed_provenance_row(tmp_path: Path, info_hash: str) -> None:
+    """Seed a tracked provenance row in the client's acquire.db so by_hash finds it."""
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.conf.models.acquire import AcquireConfig
+    from personalscraper.core.identity import MediaRef
+
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    try:
+        store.provenance.upsert_grab(
+            info_hash, followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1
+        )
+    finally:
+        store.close()
+
+
+class TestTriggerJourneyRescrape:
+    """POST /api/acquisition/journeys/{info_hash}/rescrape — « Re-scraper » (F4)."""
+
+    def test_untracked_hash_returns_404(self, client: TestClient) -> None:
+        """A hash with no spine row → 404 (a manual/direct item has nothing to act on)."""
+        resp = client.post("/api/acquisition/journeys/nope/rescrape", cookies=_auth_cookies(), headers=_xrw_headers())
+        assert resp.status_code == 404, resp.text
+
+    def test_tracked_hash_spawns_and_returns_202(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A tracked item reserves a run + spawns the rescrape runner (202)."""
+        spawned: list[tuple[str, str, str]] = []
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_hash_runner",
+            lambda run_uid, action, info_hash: (spawned.append((run_uid, action, info_hash)), 4242)[1],
+        )
+        _seed_provenance_row(tmp_path, "beef")
+
+        resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies(), headers=_xrw_headers())
+        assert resp.status_code == 202, resp.text
+        run_uid = resp.json()["run_uid"]
+        assert spawned == [(run_uid, "rescrape", "beef")]
+
+    def test_missing_xrw_returns_400(self, client: TestClient) -> None:
+        """Without the X-Requested-With header → 400 (CSRF guard)."""
+        resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies())
+        assert resp.status_code == 400, resp.text
+
+    def test_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
+        """The staging role refuses the write (403)."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies(), headers=_xrw_headers())
+        assert resp.status_code == 403, resp.text
+
+
+class TestTriggerJourneyRequeue:
+    """POST /api/acquisition/journeys/{info_hash}/requeue — « Requeue » (F4)."""
+
+    def test_untracked_hash_returns_404(self, client: TestClient) -> None:
+        """A hash with no spine row → 404."""
+        resp = client.post("/api/acquisition/journeys/nope/requeue", cookies=_auth_cookies(), headers=_xrw_headers())
+        assert resp.status_code == 404, resp.text
+
+    def test_tracked_hash_spawns_and_returns_202(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A tracked item reserves a run + spawns the requeue runner (202)."""
+        spawned: list[tuple[str, str, str]] = []
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_hash_runner",
+            lambda run_uid, action, info_hash: (spawned.append((run_uid, action, info_hash)), 7)[1],
+        )
+        _seed_provenance_row(tmp_path, "cafe")
+        resp = client.post("/api/acquisition/journeys/cafe/requeue", cookies=_auth_cookies(), headers=_xrw_headers())
+        assert resp.status_code == 202, resp.text
+        assert spawned == [(resp.json()["run_uid"], "requeue", "cafe")]
+
+    def test_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
+        """The staging role refuses the write (403)."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        resp = client.post("/api/acquisition/journeys/cafe/requeue", cookies=_auth_cookies(), headers=_xrw_headers())
+        assert resp.status_code == 403, resp.text

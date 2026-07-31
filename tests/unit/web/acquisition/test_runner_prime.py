@@ -34,6 +34,7 @@ def _clear_runner_env() -> None:
         "PERSONALSCRAPER_RUN_UID",
         "PERSONALSCRAPER_ACQ_COMMAND",
         "PERSONALSCRAPER_GRAB_FOLLOWED_ID",
+        "PERSONALSCRAPER_ACQ_INFO_HASH",
     ):
         os.environ.pop(k, None)
 
@@ -122,10 +123,11 @@ class TestEnvContractPrime:
         os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "prime"
         os.environ["PERSONALSCRAPER_GRAB_FOLLOWED_ID"] = "42"
         try:
-            run_uid, command, followed_id = _read_mandatory_env()
+            run_uid, command, followed_id, info_hash = _read_mandatory_env()
             assert run_uid == "test-uid-prime-1"
             assert command == "prime", f"Expected 'prime', got {command!r}"
             assert followed_id == 42, f"Expected 42, got {followed_id!r}"
+            assert info_hash is None
         finally:
             _clear_runner_env()
 
@@ -381,3 +383,48 @@ class TestOptionsJsonSingleAuthority:
             if py.resolve() != runner_path and 'json.dumps({"followed_id"' in py.read_text(encoding="utf-8")
         )
         assert offenders == [], f"options_json must be built in runner.py alone; also built in {offenders}"
+
+
+class TestHashScopedCommands:
+    """F4: the spine-driven rescrape/requeue commands (info-hash scope)."""
+
+    def test_build_argv_rescrape(self) -> None:
+        """Rescrape yields one `acquisition-rescrape --hash H` step."""
+        steps = _build_argv("rescrape", None, "abcdef")
+        assert len(steps) == 1
+        assert steps[0][-3:] == ["acquisition-rescrape", "--hash", "abcdef"]
+
+    def test_build_argv_requeue(self) -> None:
+        """Requeue yields one `acquisition-requeue --hash H` step."""
+        steps = _build_argv("requeue", None, "abcdef")
+        assert len(steps) == 1
+        assert steps[0][-3:] == ["acquisition-requeue", "--hash", "abcdef"]
+
+    def test_read_env_reads_info_hash_scope(self) -> None:
+        """PERSONALSCRAPER_ACQ_INFO_HASH scopes a rescrape/requeue run."""
+        _clear_runner_env()
+        os.environ["PERSONALSCRAPER_RUN_UID"] = "u1"
+        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "rescrape"
+        os.environ["PERSONALSCRAPER_ACQ_INFO_HASH"] = "deadbeef"
+        try:
+            run_uid, command, followed_id, info_hash = _read_mandatory_env()
+            assert (run_uid, command, followed_id, info_hash) == ("u1", "rescrape", None, "deadbeef")
+        finally:
+            _clear_runner_env()
+
+    def test_read_env_requires_info_hash_for_hash_commands(self) -> None:
+        """A rescrape run without the info-hash scope exits 2."""
+        _clear_runner_env()
+        os.environ["PERSONALSCRAPER_RUN_UID"] = "u1"
+        os.environ["PERSONALSCRAPER_ACQ_COMMAND"] = "requeue"
+        try:
+            with pytest.raises(SystemExit) as exc:
+                _read_mandatory_env()
+            assert exc.value.code == 2
+        finally:
+            _clear_runner_env()
+
+    def test_options_json_hash_scope(self) -> None:
+        """The run-row options_json for a hash command is the canonical hash scope."""
+        assert runner_mod._options_json("rescrape", None, "abc") == runner_mod.hash_options_json("abc")
+        assert runner_mod.hash_options_json("abc") == '{"info_hash": "abc"}'
