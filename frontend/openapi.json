@@ -112,6 +112,52 @@
         "title": "AcquisitionDownloadsResponse",
         "type": "object"
       },
+      "AcquisitionOverviewResponse": {
+        "description": "The \u00ab \u00e9tat de la machine \u00bb rollup (F5 capstone) \u2014 one page over the F0\u2013F4 spine.\n\nAggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente\n(``stuck``), d\u00e9cisions (``awaiting_resolution``), and the watcher/last-run context.\nEvery count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped\njourney list \u2014 product-intent \u00a7m\u00e9thode rule 6).\n\nAttributes:\n    by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).\n    in_flight: Non-terminal total = grabbed + ingested + scraped.\n    stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).\n    awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.\n    watcher_enabled: Whether the acquisition watcher is running (not paused).\n    last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.",
+        "properties": {
+          "awaiting_resolution": {
+            "default": 0,
+            "title": "Awaiting Resolution",
+            "type": "integer"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "By Status",
+            "type": "object"
+          },
+          "in_flight": {
+            "default": 0,
+            "title": "In Flight",
+            "type": "integer"
+          },
+          "last_successful_run_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Successful Run At"
+          },
+          "stuck": {
+            "default": 0,
+            "title": "Stuck",
+            "type": "integer"
+          },
+          "watcher_enabled": {
+            "default": true,
+            "title": "Watcher Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "AcquisitionOverviewResponse",
+        "type": "object"
+      },
       "AcquisitionStatusResponse": {
         "description": "Response for GET /api/acquisition/status.",
         "properties": {
@@ -5104,6 +5150,28 @@
           }
         },
         "summary": "Get Obligations",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/overview": {
+      "get": {
+        "description": "The unified \u00ab \u00e9tat de la machine \u00bb rollup (F5 capstone). Read-only, fail-soft.\n\nComposes the F0\u2013F4 spine into one view \u2014 acquisitions by status + in-flight total,\nthe F4 stuck count (FS-truth), the authoritative awaiting-resolution count, and the\nwatcher / last-run context \u2014 each an UNCAPPED aggregate (never a count over the\n200-capped journey list; product-intent \u00a72/\u00a75/\u00a78 + \u00a7m\u00e9thode rule 6). NOT staging-guarded\n(a read; writes nothing).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    An :class:`AcquisitionOverviewResponse` \u2014 the machine-state rollup.",
+        "operationId": "get_overview_api_acquisition_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcquisitionOverviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Overview",
         "tags": [
           "acquisition"
         ]

@@ -1,28 +1,27 @@
-# Implementation Progress — spine-actions
+# Implementation Progress — machine-state
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Targeted maintenance actions driven by the provenance spine (F4 of the
-tracking-spine epic) — re-scrape a precise grab / resume a stuck item / requeue by
-journey state, keyed on `staging_provenance`. CLI + web buttons; reuses forced-scrape +
-wanted-requeue seams; advisory + fail-soft.
+**Feature**: Unified « état de la machine » overview (F5 capstone of the tracking-spine
+epic) — acquisitions + pipeline + décisions + en-attente rolled up on one view, consuming
+the F0–F4 spine. Backend aggregate endpoint + « Vue d'ensemble » tab on the Acquisition hub.
 **Type**: feat
-**Version bump**: 0.70.0 → 0.71.0 (minor)
-**Branch**: feat/spine-actions
-**Ticket**: #364 — claimed
+**Version bump**: 0.71.0 → 0.72.0 (minor)
+**Branch**: feat/machine-state
+**Ticket**: #366 — claimed
 **PR merge**: auto (operator-authorized epic contract)
-**Design**: docs/features/spine-actions/DESIGN.md
+**Design**: docs/features/machine-state/DESIGN.md
 **Epic roadmap**: docs/features/provenance/EPIC-ROADMAP.md (F0 → F5)
 
 ## Non-negotiable invariants
 
-- Reuse, don't rewrite: forced scrape (`scrape_{movie,tvshow}_forced` seeded from the spine
-  `media_ref`) + `WantedStore.requeue_missing`; the maintenance registry (+ sync test),
-  `library-rescrape`, and the decisions resolve path stay untouched.
-- Web actions via the acquisition-trigger pattern (not the `library-*` registry). Every
-  mutating endpoint carries `require_not_staging` + `require_x_requested_with` + `guarded_api`.
-- Re-scrape holds only the per-item scrape lock (parallel-safe, exclusive with a full run);
-  requeue is lock-free. `list_stuck` is fail-soft; manual/direct item (no row) = no-op (ACC-06).
+- Product-intent (BINDING) §2/§5/§8: rollup of the spine; every tile deep-links to the
+  URL-addressable detail view. Counts are an UNCAPPED SQL aggregate (never a frontend count
+  over the 200-capped list_journeys — §méthode rule 6).
+- awaiting_resolution uses the AUTHORITATIVE scrape_decision pending count (not the advisory
+  spine mirror); no DB fusion; no migration (read-only aggregate).
+- The overview endpoint is read-only, NOT staging-guarded, side-effect-free (staging-safe).
+- No change to existing endpoints / decisions / pipeline flows; stage_counts fail-soft.
 
 ## Autonomous epic contract (operator-authorized — run F0→F5 without stopping)
 
@@ -33,10 +32,9 @@ wanted-requeue seams; advisory + fail-soft.
 
 ## Phases
 
-| #   | Phase                                                           | File                  | Status |
-| --- | --------------------------------------------------------------- | --------------------- | ------ |
-| 1   | Spine substrate (list_stuck + stuck flag on JourneyItem)        | phase-01-substrate.md | [x]    |
-| 2   | CLI actions (acquisition-rescrape + acquisition-requeue)        | phase-02-cli.md       | [x]    |
-| 3   | Web trigger endpoints + ParcoursPanel buttons/badge + gate + PR | phase-03-web.md       | [x]    |
+| #   | Phase                                                                            | File                 | Status |
+| --- | -------------------------------------------------------------------------------- | -------------------- | ------ |
+| 1   | Backend aggregate (stage_counts + AcquisitionOverviewResponse + GET /overview)   | phase-01-backend.md  | [ ]    |
+| 2   | Frontend « Vue d'ensemble » tab (OverviewPanel + tiles + deep-links) + gate + PR | phase-02-frontend.md | [ ]    |
 
-**Next action**: all phases complete — phase gate + feature-PR.
+**Next action**: Phase 1 — backend aggregate.

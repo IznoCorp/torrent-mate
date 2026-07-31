@@ -435,3 +435,34 @@ class TestStuckDetection:
 
         sub = _ProvenanceSubStore(_RaisingConn(), _write_tx)  # type: ignore[arg-type]
         assert sub.list_stuck(older_than=1, exists_fn=lambda _p: True) == []
+
+
+class TestStageCounts:
+    """F5 overview: stage_counts returns the uncapped per-status GROUP BY rollup."""
+
+    def test_counts_by_status(self, store: ConcreteAcquireStore) -> None:
+        """Each status is counted; dispatched/reconciled distinguished from in-flight."""
+        # 2 grabbed, 1 ingested, 1 dispatched.
+        for h in ("g1", "g2"):
+            store.provenance.upsert_grab(h, followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.upsert_grab("i1", followed_id=None, media_ref=MediaRef(tmdb_id=2), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("i1", ingest_path="/s/i1", ingested_at=2)
+        store.provenance.upsert_grab("d1", followed_id=None, media_ref=MediaRef(tmdb_id=3), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("d1", ingest_path="/s/d1", ingested_at=2)
+        store.provenance.record_dispatch_by_path("/s/d1", dispatch_path="/D/d1", dispatched_at=3)
+        counts = store.provenance.stage_counts()
+        assert counts.get("grabbed") == 2
+        assert counts.get("ingested") == 1
+        assert counts.get("dispatched") == 1
+
+    def test_stage_counts_fail_soft(self) -> None:
+        """A DB error yields an empty dict (never raises)."""
+
+        class _RaisingConn:
+            row_factory = None
+
+            def execute(self, *_a: object, **_k: object) -> object:
+                raise RuntimeError("db exploded")
+
+        sub = _ProvenanceSubStore(_RaisingConn(), _write_tx)  # type: ignore[arg-type]
+        assert sub.stage_counts() == {}

@@ -138,3 +138,72 @@ def test_journeys_flags_stuck_item(test_config: Any, tmp_path: Path) -> None:
     assert resp.status_code == 200, resp.text
     item = next(j for j in resp.json()["journeys"] if j["info_hash"] == "stuck")
     assert item["stuck"] is True
+
+
+_MIGRATION_013 = (
+    Path(__file__).parent.parent.parent.parent.parent
+    / "personalscraper"
+    / "indexer"
+    / "migrations"
+    / "013_scrape_decision.sql"
+)
+
+
+def _library_with_pending_decision(db_path: Path, n: int) -> None:
+    """Create a library.db (scrape_decision table) with *n* pending decisions."""
+    import sqlite3
+
+    conn = sqlite3.connect(str(db_path), isolation_level=None)
+    conn.execute("CREATE TABLE schema_version (version INTEGER PRIMARY KEY)")
+    conn.executescript(_MIGRATION_013.read_text(encoding="utf-8"))
+    for i in range(n):
+        conn.execute(
+            "INSERT INTO scrape_decision (staging_path, media_kind, extracted_title, extracted_year, "
+            '"trigger", candidates_json, status, run_uid, created_at, updated_at) '
+            "VALUES (?, 'movie', 't', 2020, 'mid_band', '[]', 'pending', NULL, 1, 1)",
+            (f"/stage/dec{i}",),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_overview_composes_the_spine_rollup(test_config: Any, tmp_path: Path) -> None:
+    """F5: GET /overview composes by_status + in_flight + stuck + awaiting_resolution."""
+    db_path = tmp_path / "acquire.db"
+    test_config.acquire.db_path = db_path
+    library_db = tmp_path / "library.db"
+    test_config.indexer.db_path = library_db
+    _library_with_pending_decision(library_db, 2)  # 2 authoritative awaiting decisions
+
+    store = build_acquire_store_config(db_path)
+    try:
+        # 1 grabbed (in-flight), 1 dispatched (terminal).
+        store.provenance.upsert_grab("g", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.upsert_grab("d", followed_id=None, media_ref=MediaRef(tmdb_id=2), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("d", ingest_path="/s/d", ingested_at=2)
+        store.provenance.record_dispatch_by_path("/s/d", dispatch_path="/D/d", dispatched_at=3)
+    finally:
+        store.close()
+
+    settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
+    client = guarded_client(
+        config=test_config, settings=settings, routers=acquisition_router, with_auth=False, https=False
+    )
+    token = create_session_token("izno", "testsecret", 24)
+    resp = client.get("/api/acquisition/overview", cookies={"tm_session": token})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["by_status"]["grabbed"] == 1
+    assert body["by_status"]["dispatched"] == 1
+    assert body["in_flight"] == 1  # grabbed only (dispatched is terminal)
+    assert body["awaiting_resolution"] == 2  # authoritative scrape_decision pending count
+
+
+def test_overview_requires_auth(test_config: Any, tmp_path: Path) -> None:
+    """Without a session cookie the guard rejects the overview."""
+    test_config.acquire.db_path = tmp_path / "acquire.db"
+    settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
+    client = guarded_client(
+        config=test_config, settings=settings, routers=acquisition_router, with_auth=False, https=False
+    )
+    assert client.get("/api/acquisition/overview").status_code in (401, 403)

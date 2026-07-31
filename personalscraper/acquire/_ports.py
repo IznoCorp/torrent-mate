@@ -495,6 +495,10 @@ class ProvenanceSubStore(Protocol):
         """Return in-flight items stuck past *older_than* whose folder still exists (F4; fail-soft)."""
         ...
 
+    def stage_counts(self) -> "dict[str, int]":
+        """Return ``{status: count}`` over the registry (F5 overview, uncapped; fail-soft)."""
+        ...
+
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
         """Delete rows whose ``current_path`` no longer exists (FS = truth)."""
         ...

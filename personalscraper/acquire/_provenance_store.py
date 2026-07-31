@@ -443,6 +443,23 @@ class _ProvenanceSubStore:
             log.warning("acquire.provenance.list_stuck_failed", error=str(exc))
             return []
 
+    def stage_counts(self) -> dict[str, int]:
+        """Return ``{status: count}`` over the whole registry (F5 overview, uncapped).
+
+        An UNCAPPED ``GROUP BY status`` — the honest per-stage rollup the « état de la
+        machine » view needs (a frontend count over the 200-capped ``list_journeys`` would
+        silently lie). Fail-soft: an empty dict on any error.
+        """
+        try:
+            self._conn.row_factory = sqlite3.Row
+            rows = self._conn.execute(
+                "SELECT status, COUNT(*) AS n FROM staging_provenance GROUP BY status"
+            ).fetchall()
+            return {r["status"]: r["n"] for r in rows if r["status"] is not None}
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty dict
+            log.warning("acquire.provenance.stage_counts_failed", error=str(exc))
+            return {}
+
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
         """Prune ORPHANED in-flight rows whose ``current_path`` no longer exists.
 
