@@ -582,8 +582,10 @@ describe("AcquisitionPage", () => {
   it("renders the add form with TVDB ID and title inputs", () => {
     mockAllEmpty();
     renderPage();
-    // The add-by-ID entry is merged into the always-visible search surface (#21)
-    // — no accordion to expand anymore.
+    // The add-by-ID entry is a collapsible section (repliable) — expand it first.
+    fireEvent.click(
+      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
+    );
     expect(screen.getByLabelText("ID TVDB")).toBeInTheDocument();
     expect(screen.getByLabelText(/titre/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Suivre" })).toBeInTheDocument();
@@ -592,6 +594,9 @@ describe("AcquisitionPage", () => {
   it("calls useFollow().mutate on form submit", () => {
     mockAllEmpty();
     renderPage();
+    fireEvent.click(
+      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
+    );
     fireEvent.change(screen.getByLabelText("ID TVDB"), {
       target: { value: "255968" },
     });
@@ -612,6 +617,9 @@ describe("AcquisitionPage", () => {
   it("disables the Follow button when tvdb_id is empty", () => {
     mockAllEmpty();
     renderPage();
+    fireEvent.click(
+      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
+    );
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
   });
 
@@ -1176,6 +1184,9 @@ describe("AcquisitionPage", () => {
   it("add form inputs have associated labels", () => {
     mockAllEmpty();
     renderPage();
+    fireEvent.click(
+      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
+    );
     const tvdbInput = screen.getByLabelText("ID TVDB");
     expect(tvdbInput).toBeInTheDocument();
     const titleInput = screen.getByLabelText(/titre/i);

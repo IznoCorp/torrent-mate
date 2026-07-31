@@ -8,9 +8,11 @@
  * reuses {@link useFollow}. Loading, error and empty states are all soigné.
  */
 
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useState, type ReactElement, type SyntheticEvent } from "react";
 import { toast } from "sonner";
+
+import { cn } from "@/lib/utils";
 
 import type { CreateFollowRequest, MediaSearchResult } from "@/api/acquisition";
 import { EmptyState } from "@/components/ds/EmptyState";
@@ -68,22 +70,32 @@ export function MediaSearchAdd(): ReactElement {
     () => new Set(),
   );
   // §5 replacement confirmation target (an already-owned film).
-  const [confirmReplace, setConfirmReplace] = useState<MediaSearchResult | null>(
-    null,
-  );
+  const [confirmReplace, setConfirmReplace] =
+    useState<MediaSearchResult | null>(null);
   // Add-by-ID (#21): the same surface also accepts a TVDB/TMDB/IMDB id, so the
   // by-ID accordion no longer lives in FollowedPanel.
   const [provider, setProvider] = useState<FollowProvider>("tvdb");
   const [idValue, setIdValue] = useState("");
   const [idTitle, setIdTitle] = useState("");
+  // The by-ID entry is collapsed by default so the add surface stays compact
+  // (search is the primary path; add-by-ID is the occasional fallback).
+  const [idOpen, setIdOpen] = useState(false);
 
   const searchQuery = useMediaSearch(query, kind === "all" ? undefined : kind);
   const followMut = useFollow();
 
   const idLabel =
-    provider === "imdb" ? "ID IMDB" : provider === "tmdb" ? "ID TMDB" : "ID TVDB";
+    provider === "imdb"
+      ? "ID IMDB"
+      : provider === "tmdb"
+        ? "ID TMDB"
+        : "ID TVDB";
   const idPlaceholder =
-    provider === "imdb" ? "ex: tt0903747" : provider === "tmdb" ? "ex: 1399" : "ex: 255968";
+    provider === "imdb"
+      ? "ex: tt0903747"
+      : provider === "tmdb"
+        ? "ex: 1399"
+        : "ex: 255968";
   const idBody = buildIdFollowBody(provider, idValue);
 
   function handleAddById(): void {
@@ -144,7 +156,10 @@ export function MediaSearchAdd(): ReactElement {
     <div className="flex flex-col gap-4">
       {/* Full-width input on mobile (its own line), the kind filter + Chercher on
           a second row; a single inline row on sm+. */}
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+      >
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <label
             htmlFor="acq-search"
@@ -192,59 +207,78 @@ export function MediaSearchAdd(): ReactElement {
       {/* Add-by-ID (#21): the same surface accepts a TVDB/TMDB/IMDB id, so the
           by-ID entry no longer lives in a separate FollowedPanel accordion. */}
       <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-        <span className="text-xs font-medium text-muted-foreground">
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          aria-expanded={idOpen}
+          aria-controls="acq-by-id"
+          onClick={() => {
+            setIdOpen((prev) => !prev);
+          }}
+        >
+          <ChevronDown
+            className={cn(
+              "size-3.5 transition-transform",
+              idOpen ? "rotate-0" : "-rotate-90",
+            )}
+            aria-hidden="true"
+          />
           ou ajouter directement par ID
-        </span>
-        <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
-          {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
-            <Button
-              key={p}
-              type="button"
-              size="sm"
-              className="flex-1 sm:flex-none"
-              variant={provider === p ? "default" : "ghost"}
-              onClick={() => {
-                setProvider(p);
-              }}
-            >
-              {p.toUpperCase()}
-            </Button>
-          ))}
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <div className="flex flex-col gap-1 sm:w-40">
-            <Label htmlFor="acq-id">{idLabel}</Label>
-            <Input
-              id="acq-id"
-              type={provider === "imdb" ? "text" : "number"}
-              inputMode={provider === "imdb" ? "text" : "numeric"}
-              placeholder={idPlaceholder}
-              value={idValue}
-              onChange={(e) => {
-                setIdValue(e.target.value);
-              }}
-            />
+        </button>
+        {idOpen && (
+          <div id="acq-by-id" className="flex flex-col gap-2">
+            <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
+              {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
+                <Button
+                  key={p}
+                  type="button"
+                  size="sm"
+                  className="flex-1 sm:flex-none"
+                  variant={provider === p ? "default" : "ghost"}
+                  onClick={() => {
+                    setProvider(p);
+                  }}
+                >
+                  {p.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex flex-col gap-1 sm:w-40">
+                <Label htmlFor="acq-id">{idLabel}</Label>
+                <Input
+                  id="acq-id"
+                  type={provider === "imdb" ? "text" : "number"}
+                  inputMode={provider === "imdb" ? "text" : "numeric"}
+                  placeholder={idPlaceholder}
+                  value={idValue}
+                  onChange={(e) => {
+                    setIdValue(e.target.value);
+                  }}
+                />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <Label htmlFor="acq-id-title">Titre (optionnel)</Label>
+                <Input
+                  id="acq-id-title"
+                  type="text"
+                  placeholder="ex: Top Chef"
+                  value={idTitle}
+                  onChange={(e) => {
+                    setIdTitle(e.target.value);
+                  }}
+                />
+              </div>
+              <Button
+                className="w-full sm:w-auto sm:shrink-0"
+                disabled={idBody === null || followMut.isPending}
+                onClick={handleAddById}
+              >
+                {followMut.isPending ? "Ajout…" : "Suivre"}
+              </Button>
+            </div>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Label htmlFor="acq-id-title">Titre (optionnel)</Label>
-            <Input
-              id="acq-id-title"
-              type="text"
-              placeholder="ex: Top Chef"
-              value={idTitle}
-              onChange={(e) => {
-                setIdTitle(e.target.value);
-              }}
-            />
-          </div>
-          <Button
-            className="w-full sm:w-auto sm:shrink-0"
-            disabled={idBody === null || followMut.isPending}
-            onClick={handleAddById}
-          >
-            {followMut.isPending ? "Ajout…" : "Suivre"}
-          </Button>
-        </div>
+        )}
       </div>
 
       {query === "" ? null : searchQuery.isLoading ? (
@@ -329,7 +363,12 @@ export function MediaSearchAdd(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setConfirmReplace(null); }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirmReplace(null);
+              }}
+            >
               Annuler
             </Button>
             <Button
