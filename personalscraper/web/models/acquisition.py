@@ -639,6 +639,12 @@ class JourneyItem(BaseModel):
         dispatch_path: Final destination after dispatch, when reached.
         grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage
             timestamps (None until that stage is reached).
+        resolution_state: The scrape-arbiter projection (decisions-spine F2) —
+            ``awaiting`` / ``resolved`` / ``dismissed``, or None when no decision
+            was raised (a confident scrape).
+        decision_id: The linked ``scrape_decision.id`` (deep-link target), if any.
+        resolution_trigger: Why the item was enqueued (``below_threshold`` /
+            ``mid_band`` / ``ambiguous``), for display.
     """
 
     info_hash: str
@@ -655,6 +661,9 @@ class JourneyItem(BaseModel):
     ingested_at: int | None = None
     scraped_at: int | None = None
     dispatched_at: int | None = None
+    resolution_state: str | None = None
+    decision_id: int | None = None
+    resolution_trigger: str | None = None
 
 
 class JourneysResponse(BaseModel):

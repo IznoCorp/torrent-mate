@@ -28,6 +28,10 @@ def _seed_journey(db_path: Path) -> None:
             "abcd", followed_id=fid, media_ref=MediaRef(tvdb_id=382389), kind="episode", grabbed_at=1000
         )
         store.provenance.set_ingest("abcd", ingest_path="/stage/Star Trek", ingested_at=1001)
+        # F2 (decisions-spine): project an 'awaiting' verdict so the journey carries it.
+        store.provenance.set_resolution(
+            "/stage/Star Trek", state="awaiting", resolved_at=1002, decision_id=7, trigger="mid_band"
+        )
     finally:
         store.close()
 
@@ -61,6 +65,10 @@ def test_journeys_returns_provenance_with_follow_title(test_config: Any, tmp_pat
     assert j["follow_title"] == "Star Trek: SNW"
     assert j["media_ref"]["tvdb_id"] == 382389
     assert j["current_path"] == "/stage/Star Trek"
+    # F2 — the resolution projection is carried on the journey.
+    assert j["resolution_state"] == "awaiting"
+    assert j["decision_id"] == 7
+    assert j["resolution_trigger"] == "mid_band"
 
 
 def test_journeys_requires_auth(test_config: Any, tmp_path: Path) -> None:

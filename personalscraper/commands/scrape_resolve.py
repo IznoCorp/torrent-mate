@@ -14,6 +14,7 @@ Registered as ``personalscraper scrape-resolve`` on the shared Typer app.
 from __future__ import annotations
 
 import sqlite3 as _sqlite3
+import time
 import unicodedata
 from pathlib import Path
 
@@ -227,66 +228,98 @@ def scrape_resolve(
             # ``verify`` step blocking dispatch (product-intent §méthode; the
             # resolve-but-never-dispatch loop the operator reported).
             from personalscraper.scraper.orchestrator import Scraper  # noqa: PLC0415
+            from personalscraper.scraper.run import _open_provenance_store  # noqa: PLC0415
 
-            scraper = Scraper(
-                settings=settings,
-                patterns=patterns,
-                dry_run=False,
-                config=config,
-                event_bus=app_context.event_bus,
-                registry=app_context.provider_registry,
-            )
-            if media_kind == "movie":
-                scrape_result = scraper.scrape_movie_forced(staging_path, provider_id)
-            else:
-                scrape_result = scraper.scrape_tvshow_forced(staging_path, provider, provider_id)
-
-            if scrape_result.error or scrape_result.action == "error":
-                detail = scrape_result.error or scrape_result.action
-                console.print(f"[red]Scrape failed for '{staging_path.name}': {detail}[/red]")
-                raise typer.Exit(1)
-
-            # ── 5b. Verify an NFO actually landed before marking resolved ──
-            # 'resolved' must imply a scraped folder (an NFO on disk). The forced
-            # write may have RENAMED the folder to its canonical ``Title (Year)``
-            # form, so check the RESULT's ``media_path`` (the post-rename path),
-            # not the original ``staging_path`` — otherwise a renamed-but-scraped
-            # item looks unscraped. A scrape that left no NFO — a write no-op, or
-            # an NFO removed mid-flight — must NOT report success, else the
-            # library shows a 'resolved' item as unscraped and the operator
-            # cannot tell it needs re-doing (webui-overhaul #3).
-            from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
-
-            final_path = scrape_result.media_path
-            if not glob_nfo_candidates(final_path):
-                console.print(
-                    f"[red]No NFO on disk after scraping '{final_path.name}' — "
-                    f"not marking decision {decision_id} resolved (it stays pending).[/red]"
-                )
-                raise typer.Exit(1)
-
-            # ── 6. Mark decision resolved ─────────────────────────────────
-            # Fail-loud (F05): the NFO/artwork are already on disk, but if the
-            # status write does not land the decision must NOT report success —
-            # otherwise the item stays pending and gets re-resolved (duplicate
-            # scrape). resolve() returns False when the row is no longer pending
-            # and raises DecisionWriteError on a DB error.
-            from personalscraper.scraper.decision_writer import (  # noqa: PLC0415
-                DecisionWriteError,
-                DecisionWriter,
-            )
-
-            writer = DecisionWriter(db_path)
+            # F2 (decisions-spine): hold a live provenance store so we can keep the spine
+            # in sync with the resolve — move ``current_path`` across the forced rename and
+            # mirror the 'resolved' verdict (see the writes after the resolve-mark below).
+            # The forced scrape does NOT auto-track the rename (that is why the move is
+            # explicit), so the store is NOT wired into the Scraper here. Advisory /
+            # fail-soft — never blocks the authoritative resolve.
+            prov_resolve = _open_provenance_store(config)
             try:
-                marked = writer.resolve(decision_id, provider, provider_id, via=via)
-            except DecisionWriteError as exc:
-                console.print(f"[red]NFO written but resolve-mark failed for decision {decision_id}: {exc}[/red]")
-                raise typer.Exit(1) from exc
-            if not marked:
-                console.print(
-                    f"[red]NFO written but decision {decision_id} was no longer pending — not marked resolved.[/red]"
+                scraper = Scraper(
+                    settings=settings,
+                    patterns=patterns,
+                    dry_run=False,
+                    config=config,
+                    event_bus=app_context.event_bus,
+                    registry=app_context.provider_registry,
                 )
-                raise typer.Exit(1)
+                if media_kind == "movie":
+                    scrape_result = scraper.scrape_movie_forced(staging_path, provider_id)
+                else:
+                    scrape_result = scraper.scrape_tvshow_forced(staging_path, provider, provider_id)
+
+                if scrape_result.error or scrape_result.action == "error":
+                    detail = scrape_result.error or scrape_result.action
+                    console.print(f"[red]Scrape failed for '{staging_path.name}': {detail}[/red]")
+                    raise typer.Exit(1)
+
+                # ── 5b. Verify an NFO actually landed before marking resolved ──
+                # 'resolved' must imply a scraped folder (an NFO on disk). The forced
+                # write may have RENAMED the folder to its canonical ``Title (Year)``
+                # form, so check the RESULT's ``media_path`` (the post-rename path),
+                # not the original ``staging_path`` — otherwise a renamed-but-scraped
+                # item looks unscraped. A scrape that left no NFO — a write no-op, or
+                # an NFO removed mid-flight — must NOT report success, else the
+                # library shows a 'resolved' item as unscraped and the operator
+                # cannot tell it needs re-doing (webui-overhaul #3).
+                from personalscraper.nfo_utils import glob_nfo_candidates  # noqa: PLC0415
+
+                final_path = scrape_result.media_path
+                if not glob_nfo_candidates(final_path):
+                    console.print(
+                        f"[red]No NFO on disk after scraping '{final_path.name}' — "
+                        f"not marking decision {decision_id} resolved (it stays pending).[/red]"
+                    )
+                    raise typer.Exit(1)
+
+                # ── 6. Mark decision resolved ─────────────────────────────────
+                # Fail-loud (F05): the NFO/artwork are already on disk, but if the
+                # status write does not land the decision must NOT report success —
+                # otherwise the item stays pending and gets re-resolved (duplicate
+                # scrape). resolve() returns False when the row is no longer pending
+                # and raises DecisionWriteError on a DB error.
+                from personalscraper.scraper.decision_writer import (  # noqa: PLC0415
+                    DecisionWriteError,
+                    DecisionWriter,
+                )
+
+                writer = DecisionWriter(db_path)
+                try:
+                    marked = writer.resolve(decision_id, provider, provider_id, via=via)
+                except DecisionWriteError as exc:
+                    console.print(f"[red]NFO written but resolve-mark failed for decision {decision_id}: {exc}[/red]")
+                    raise typer.Exit(1) from exc
+                if not marked:
+                    console.print(
+                        f"[red]NFO written but decision {decision_id} was no longer pending — "
+                        f"not marked resolved.[/red]"
+                    )
+                    raise typer.Exit(1)
+
+                # F2: keep the spine live across the forced rename, then mirror 'resolved'.
+                # The forced scrape (``scrape_{movie,tvshow}_forced``) may RENAME the folder
+                # to its canonical name, but — unlike the automatic pipeline — it does NOT
+                # call ``provenance.move_path`` (only ``process_movies``/``process_tvshows``
+                # do, via ``_track_scrape_rename``). So we move ``current_path`` explicitly
+                # here BEFORE the resolution write, otherwise the path-keyed update would
+                # miss the (still pre-rename) row and the spine would stay 'awaiting'
+                # forever (adversarial review — the resolve-rename gap). Both writes are
+                # advisory / fail-soft and normalization-robust (NFC/NFD).
+                if prov_resolve is not None:
+                    if str(final_path) != str(staging_path):
+                        prov_resolve.provenance.move_path(str(staging_path), str(final_path))
+                    prov_resolve.provenance.set_resolution(
+                        str(final_path),
+                        state="resolved",
+                        resolved_at=int(time.time()),
+                        decision_id=decision_id,
+                    )
+            finally:
+                if prov_resolve is not None:
+                    prov_resolve.close()
 
         console.print(f"[green]Successfully resolved decision {decision_id} via {provider}:{provider_id}.[/green]")
 

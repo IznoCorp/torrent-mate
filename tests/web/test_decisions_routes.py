@@ -1154,6 +1154,45 @@ class TestDismissDecision:
         assert row is not None
         assert row["status"] == "dismissed"
 
+    def test_dismiss_projects_dismissed_onto_the_spine(self, test_config, tmp_path: Path) -> None:
+        """A dismiss mirrors 'dismissed' onto the tracked item's provenance row (F2)."""
+        from personalscraper.acquire.store import build_acquire_store
+        from personalscraper.core.identity import MediaRef
+
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+        staging_path = tmp_path / "staging" / "Tracked Movie (2024)"
+
+        db_path = tmp_path / "library.db"
+        conn = _create_library_db(db_path)
+        _seed_decision(conn, decision_id=1, status="pending", staging_path=str(staging_path))
+        conn.close()
+
+        # Spine: a tracked follow-driven item ingested at the decision's staging folder.
+        acquire_db = tmp_path / "acquire.db"
+        acquire_cfg = test_config.acquire.model_copy(update={"db_path": acquire_db})
+        store = build_acquire_store(acquire_cfg)
+        store.provenance.upsert_grab("hh", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("hh", ingest_path=str(staging_path), ingested_at=2)
+        store.close()
+
+        client = _build_authenticated_client_with_decisions(
+            test_config,
+            tmp_path,
+            indexer=test_config.indexer.model_copy(update={"db_path": db_path}),
+            acquire=acquire_cfg,
+        )
+        resp = client.post("/api/decisions/1/dismiss", headers={"X-Requested-With": "TorrentMate"})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "dismissed"
+
+        store = build_acquire_store(acquire_cfg)
+        try:
+            row = store.provenance.by_path(str(staging_path))
+            assert row is not None
+            assert row.resolution_state == "dismissed"
+        finally:
+            store.close()
+
     def test_dismiss_404_unknown_id(self, test_config, tmp_path: Path) -> None:
         """404 — decision id does not exist."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)

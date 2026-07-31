@@ -859,6 +859,9 @@ def get_journeys(request: Request) -> JourneysResponse:
                     ingested_at=row.ingested_at,
                     scraped_at=row.scraped_at,
                     dispatched_at=row.dispatched_at,
+                    resolution_state=row.resolution_state,
+                    decision_id=row.decision_id,
+                    resolution_trigger=row.resolution_trigger,
                 )
             )
         return JourneysResponse(journeys=items)

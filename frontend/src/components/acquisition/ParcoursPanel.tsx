@@ -9,6 +9,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { type ReactElement } from "react";
+import { Link } from "react-router-dom";
 
 import { acqKeys, getJourneys, type JourneyItem } from "@/api/acquisition";
 import { relativeTime } from "@/components/acquisition/meta";
@@ -29,6 +30,40 @@ function journeyTitle(j: JourneyItem): string {
   const id = j.media_ref.tvdb_id ?? j.media_ref.tmdb_id;
   if (id != null) return `#${String(id)}`;
   return j.info_hash.slice(0, 8);
+}
+
+/**
+ * The scrape-arbiter resolution projection (decisions-spine F2) as an optional chip.
+ *
+ * ``awaiting`` → an actionable chip deep-linking to the resolution deck
+ * (``/medias?decision=<id>``, or ``/medias`` when the id is unknown) so the operator
+ * can act. ``resolved`` / ``dismissed`` → a subtle terminal marker. ``null`` (a
+ * confident scrape, no decision raised) → nothing.
+ *
+ * Returns:
+ *   The resolution chip, or ``null`` when no decision was raised.
+ */
+function ResolutionChip({ j }: { j: JourneyItem }): ReactElement | null {
+  const state = j.resolution_state;
+  if (state == null) return null;
+  if (state === "awaiting") {
+    const to =
+      j.decision_id != null
+        ? `/medias?decision=${String(j.decision_id)}`
+        : "/medias";
+    return (
+      <Link to={to} className="self-start">
+        <Badge tone="warning" dot>
+          En attente de résolution
+        </Badge>
+      </Link>
+    );
+  }
+  return (
+    <Badge tone="muted" className="self-start">
+      {state === "resolved" ? "Résolu" : "Écarté"}
+    </Badge>
+  );
 }
 
 /**
@@ -99,6 +134,7 @@ export function ParcoursPanel(): ReactElement {
               );
             })}
           </ol>
+          <ResolutionChip j={j} />
           {j.dispatch_path != null && (
             <p
               className="truncate text-xs text-muted-foreground"

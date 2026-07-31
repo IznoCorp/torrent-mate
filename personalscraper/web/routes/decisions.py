@@ -627,6 +627,33 @@ def resolve_decision(
     return ResolveResponse(run_uid=run_uid)
 
 
+def _project_decision_state_to_spine(request: Request, staging_path: str, state: str) -> None:
+    """Mirror a decision verdict onto the provenance spine (F2, advisory / fail-soft).
+
+    Path-keyed on ``current_path`` (the live staging folder) — a no-op for a manual/direct
+    item that has no spine row (its decision lives only in ``scrape_decision``). Best-effort:
+    any error is logged and swallowed so the authoritative decision response is never
+    affected (the spine is a projection, not the system-of-record).
+
+    Args:
+        request: The incoming request (carries ``app.state.config.acquire``).
+        staging_path: The decision's staging folder (``scrape_decision.staging_path``).
+        state: ``'awaiting'`` | ``'resolved'`` | ``'dismissed'``.
+    """
+    import time  # noqa: PLC0415
+
+    from personalscraper.acquire.store import build_acquire_store  # noqa: PLC0415
+
+    try:
+        store = build_acquire_store(request.app.state.config.acquire)
+        try:
+            store.provenance.set_resolution(staging_path, state=state, resolved_at=int(time.time()))
+        finally:
+            store.close()
+    except Exception as exc:  # noqa: BLE001 — advisory projection never fails the response
+        logger.warning("decision_spine_projection_failed", state=state, error=str(exc))
+
+
 # ── POST /{id}/dismiss ───────────────────────────────────────────────────────
 
 
@@ -675,6 +702,9 @@ def dismiss_decision(
         # the write — surface it rather than returning a stale 200.
         raise HTTPException(status_code=409, detail="Decision is no longer pending")
 
-    # 3. Re-fetch the refreshed row for the response.
+    # 3. Mirror the dismissed verdict onto the provenance spine (F2, advisory).
+    _project_decision_state_to_spine(request, row["staging_path"], "dismissed")
+
+    # 4. Re-fetch the refreshed row for the response.
     refreshed = _fetch_decision_row(db_path, decision_id)
     return _row_to_detail(refreshed)
