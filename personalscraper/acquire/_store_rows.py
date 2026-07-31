@@ -61,6 +61,9 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
     Returns:
         The frozen :class:`FollowedSeries` value object with ``id`` set.
     """
+    # year is optional in the SELECT (only the grab-title/year path fetches it);
+    # decode defensively so every other read keeps working without column churn.
+    year = row["year"] if "year" in row.keys() else None
     return FollowedSeries(
         id=row["id"],
         media_ref=_media_ref_from_json(row["media_ref_json"]),
@@ -70,6 +73,7 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
         quality_profile_json=row["quality_profile_json"],
         cadence_json=row["cadence_json"],
         kind=row["kind"],
+        year=year,
     )
 
 

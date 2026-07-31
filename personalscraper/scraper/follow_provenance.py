@@ -78,16 +78,37 @@ def _folder_year(folder_name: str) -> int | None:
     return int(match.group(0)) if match is not None else None
 
 
+def _title_tokens(text: str) -> set[str]:
+    """Lowercased alphanumeric word tokens of a title (punctuation stripped)."""
+    return {tok for tok in re.findall(r"[a-z0-9]+", text.lower()) if tok}
+
+
 def _title_matches(folder_name: str, follow_title: str) -> bool:
     """Whether the folder title is similar enough to the follow title.
 
-    Uses rapidfuzz ``token_set_ratio`` (subset-tolerant: "Rooster Fighter" vs
-    "Rooster" scores high). Fail-soft: any error → ``False`` (abstain).
+    Two ways to match (either suffices):
+
+    1. rapidfuzz ``token_set_ratio`` ≥ threshold — the general fuzzy guard.
+    2. **Subset (#29)**: every token of the folder name is contained in the
+       follow title. A generic release folder (``"Star Trek"``) is a
+       less-specific name of a longer followed title (``"Star Trek: Strange New
+       Worlds"``) — a strong, non-coincidental match that ``token_set_ratio``
+       scores LOW (61.5) because the follow's extra words dilute it. Accepting
+       the subset is safe: ``resolve_followed_tvdb`` still requires ONE follow to
+       cover ALL the folder's episodes (coverage-all uniqueness is the real
+       anti-collision guard), so a folder matching several Star Trek follows by
+       title still only forces the one that grabbed exactly these episodes.
+
+    Fail-soft: any error → ``False`` (abstain).
     """
     try:
         from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
 
-        return fuzz.token_set_ratio(folder_name, follow_title) >= _TITLE_MATCH_THRESHOLD
+        if fuzz.token_set_ratio(folder_name, follow_title) >= _TITLE_MATCH_THRESHOLD:
+            return True
+        folder_tokens = _title_tokens(folder_name)
+        follow_tokens = _title_tokens(follow_title)
+        return bool(folder_tokens) and folder_tokens <= follow_tokens
     except Exception:  # noqa: BLE001 — fail-soft: a fuzzy error must not force an id
         return False
 

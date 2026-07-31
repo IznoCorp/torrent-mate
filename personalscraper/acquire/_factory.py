@@ -146,12 +146,23 @@ def build_acquire_context(
             row = store.follow.get(item.followed_id)
             return row.title if row is not None else None
 
+        # Follow year resolver (#28): the followed_series row carries the release
+        # year chosen at `follow add`, which disambiguates an ambiguous movie
+        # title ("Wicker" → every "Wicker*" film). Store-backed like the title
+        # resolver; None for standalone items or a missing row.
+        def _year_resolver(item: WantedItem) -> int | None:
+            if item.followed_id is None:
+                return None
+            row = store.follow.get(item.followed_id)
+            return row.year if row is not None else None
+
         orchestrator = GrabOrchestrator(
             tracker_registry=tracker_registry,
             torrent_client=torrent_client,
             event_bus=event_bus,
             ranking=config.ranking,
             title_resolver=_title_resolver,
+            year_resolver=_year_resolver,
         )
         service = AcquisitionService(
             store=store,
