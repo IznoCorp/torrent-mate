@@ -190,16 +190,16 @@ def test_ingest_records_provenance_hash_to_folder(
     assert ingest_path.endswith(completed.name), f"ingest_path {ingest_path} should be the staging folder"
 
 
-def test_ingest_stamps_ingest_run_uid_from_bound_correlation(
+def test_ingest_stamps_ingest_run_uid_from_pipeline_run(
     fake_qbit: FakeQBitClient,
     staging_tree: Path,
     integration_config: Config,
     tmp_path: Path,
 ) -> None:
-    """F3: ingest stamps the running run's uid (hex) when a correlation is bound."""
+    """F3: ingest stamps the running pipeline run's uid when the pipeline-run var is bound."""
     from uuid import uuid4
 
-    from personalscraper.core.event_bus import current_correlation_id
+    from personalscraper.core.event_bus import current_pipeline_run_uid
 
     torrent_source = tmp_path / "complete"
     torrent_source.mkdir()
@@ -208,8 +208,8 @@ def test_ingest_stamps_ingest_run_uid_from_bound_correlation(
     integration_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
     spy = _ProvenanceSpy()
 
-    run_id = uuid4()
-    token = current_correlation_id.set(str(run_id))  # a full run binds the dashed form
+    run_uid = uuid4().hex
+    token = current_pipeline_run_uid.set(run_uid)  # as Pipeline.run() binds it
     try:
         run_ingest(
             _make_settings(),
@@ -221,9 +221,9 @@ def test_ingest_stamps_ingest_run_uid_from_bound_correlation(
             provenance=spy,
         )
     finally:
-        current_correlation_id.reset(token)
+        current_pipeline_run_uid.reset(token)
 
-    assert spy.ingest_run_uids == [run_id.hex]
+    assert spy.ingest_run_uids == [run_uid]
 
 
 # ---------------------------------------------------------------------------

@@ -32,10 +32,11 @@ class StagingProvenanceWriter(Protocol):
         """Re-point a tracked folder old_path → new_path across a sort/rename (path-keyed)."""
         ...
 
-    def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
-        """Stamp the run that scraped the folder at *staging_path* (path-keyed, F3).
+    def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
+        """Record the scrape stage for the folder at *staging_path* (path-keyed, F3).
 
-        No-op when the folder is untracked or *run_uid* is None. Advisory: never raises.
+        Advances the row to ``status='scraped'`` + ``scraped_at`` and stamps the scraping
+        run. No-op when the folder is untracked. Advisory: never raises.
         """
         ...
 

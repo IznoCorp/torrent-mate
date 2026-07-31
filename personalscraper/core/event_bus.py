@@ -217,27 +217,27 @@ current_correlation_id: ContextVar[str | None] = ContextVar(
 )
 
 
+# Bound EXCLUSIVELY by ``Pipeline.run()`` to the run's own ``pipeline_run.run_uid`` (hex).
+# A standalone CLI step (``per_step_boundary``) does NOT bind it, so its stages stamp NULL
+# rather than a phantom uid no ``pipeline_run`` owns (F3 review). Kept separate from
+# ``current_correlation_id`` (whose value a standalone boundary sets to a fresh uuid that
+# is NOT a real run's id).
+current_pipeline_run_uid: ContextVar[str | None] = ContextVar(
+    "current_pipeline_run_uid",
+    default=None,
+)
+
+
 def current_run_uid() -> str | None:
-    """Return the current run's ``pipeline_run.run_uid`` (hex), or ``None``.
+    """Return the current pipeline run's ``pipeline_run.run_uid`` (hex), or ``None``.
 
-    A full ``personalscraper run`` binds :data:`current_correlation_id` to the dashed
-    ``str(run_id)`` whose ``.hex`` equals the run's ``pipeline_run.run_uid`` — so a stage
-    executing inside that bound region can recover the run's hex id. Returns ``None`` when
-    no correlation is bound, or when the bound value is not a UUID (e.g. a caller set a
-    free-form correlation). This is the shared helper for the F3 per-stage run stamps
-    (mirrors the scrape finalizer's existing inline derivation).
-
-    NB: a standalone CLI step (``per_step_boundary``) binds a FRESH uuid that does not
-    equal its own maintenance ``pipeline_run.run_uid``; the grab stage therefore stamps
-    from its ``CliRunRecorder`` handle, not from this helper.
+    Bound EXCLUSIVELY by :meth:`Pipeline.run` to the run's own ``run_uid`` — so the F3
+    per-stage stamps (ingest/scrape/dispatch) record a run id that genuinely joins to a
+    ``pipeline_run`` row, and a standalone single-step CLI invocation stamps ``None``
+    instead of a phantom uid. The grab stage stamps from its ``CliRunRecorder`` handle
+    (a separate command with its own row), never this helper.
     """
-    corr = current_correlation_id.get()
-    if not corr:
-        return None
-    try:
-        return UUID(str(corr)).hex
-    except (ValueError, TypeError):
-        return None
+    return current_pipeline_run_uid.get()
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -449,8 +449,8 @@ class ProvenanceSubStore(Protocol):
         """Re-point a tracked folder old_path → new_path (path-keyed sort/rename)."""
         ...
 
-    def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
-        """Stamp the run that scraped the folder at *staging_path* (path-keyed, F3)."""
+    def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
+        """Record the scrape stage (status='scraped' + scraped_at) + the run (path-keyed, F3)."""
         ...
 
     def record_dispatch_by_path(

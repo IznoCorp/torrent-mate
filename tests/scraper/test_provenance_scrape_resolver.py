@@ -99,8 +99,8 @@ class TestMovieProvenanceResolver:
 class TestScrapeRenameTracking:
     """Review A/B: the orchestrator keeps provenance current_path live across the rename."""
 
-    def test_track_scrape_rename_stamps_scrape_run_uid_on_real_store(self, tmp_path: Path) -> None:
-        """F3: _track_scrape_rename moves current_path AND stamps scrape_run_uid (real store)."""
+    def test_track_scrape_rename_records_scrape_stage_and_run_on_real_store(self, tmp_path: Path) -> None:
+        """F3: a CONFIDENT scrape moves current_path AND records the scrape stage + run."""
         from personalscraper.scraper._shared import ScrapeResult
         from personalscraper.scraper.orchestrator import Scraper
 
@@ -111,6 +111,7 @@ class TestScrapeRenameTracking:
             )
             store.provenance.set_ingest("h", ingest_path="/001-MOVIES/Some.Movie.2020.WEB", ingested_at=2)
             result = ScrapeResult(media_path=Path("/001-MOVIES/Some Movie (2020)"), media_type="movie")
+            result.action = "scraped"  # a confident scrape marks the stage
             Scraper._track_scrape_rename(
                 SimpleNamespace(_provenance=store.provenance, _run_uid="scrapeRUN"),  # type: ignore[arg-type]
                 Path("/001-MOVIES/Some.Movie.2020.WEB"),
@@ -119,7 +120,35 @@ class TestScrapeRenameTracking:
             row = store.provenance.by_hash("h")
             assert row is not None
             assert row.current_path == "/001-MOVIES/Some Movie (2020)"  # rename tracked
+            assert row.status == "scraped"  # F1 stage now recorded (was never written before)
+            assert row.scraped_at is not None
             assert row.scrape_run_uid == "scrapeRUN"  # scraping run stamped
+        finally:
+            store.close()
+
+    def test_track_scrape_rename_does_not_mark_ambiguous_item_scraped(self, tmp_path: Path) -> None:
+        """An ambiguous item (queued_for_decision) is NOT marked scraped (it awaits resolution)."""
+        from personalscraper.scraper._shared import ScrapeResult
+        from personalscraper.scraper.orchestrator import Scraper
+
+        store = build_acquire_store(AcquireConfig(db_path=tmp_path / "a.db"))
+        try:
+            store.provenance.upsert_grab(
+                "h", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1
+            )
+            store.provenance.set_ingest("h", ingest_path="/001-MOVIES/Ambiguous", ingested_at=2)
+            result = ScrapeResult(media_path=Path("/001-MOVIES/Ambiguous"), media_type="movie")
+            result.action = "queued_for_decision"
+            Scraper._track_scrape_rename(
+                SimpleNamespace(_provenance=store.provenance, _run_uid="scrapeRUN"),  # type: ignore[arg-type]
+                Path("/001-MOVIES/Ambiguous"),
+                result,
+            )
+            row = store.provenance.by_hash("h")
+            assert row is not None
+            assert row.status == "ingested"  # NOT advanced to scraped
+            assert row.scraped_at is None
+            assert row.scrape_run_uid is None
         finally:
             store.close()
 
@@ -136,7 +165,7 @@ class TestScrapeRenameTracking:
             def move_path(self, old_path: str, new_path: str) -> None:
                 calls.append((old_path, new_path))
 
-            def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
+            def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
                 pass  # F3 stamp — not under test here
 
         result = ScrapeResult(media_path=Path("/001-MOVIES/Some Movie (2020)"), media_type="movie")
@@ -160,7 +189,7 @@ class TestScrapeRenameTracking:
             def move_path(self, old_path: str, new_path: str) -> None:  # pragma: no cover - must not fire
                 calls.append((old_path, new_path))
 
-            def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
+            def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
                 pass  # F3 stamp — not under test here
 
         same = Path("/001-MOVIES/Already Canonical (2020)")

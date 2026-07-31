@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -220,13 +221,16 @@ class Scraper(
                 self._provenance.move_path(str(input_dir), str(final))
             except Exception as exc:  # noqa: BLE001 — advisory: never fails the scrape
                 log.warning("scrape_provenance_move_failed", directory=input_dir.name, error=str(exc))
-        # F3: stamp the scraping run onto the (now live-at-``final``) row — for every
-        # scraped item, renamed or not. No-op when run_uid is None or the item is untracked.
-        stamp_path = final if final is not None else input_dir
-        try:
-            self._provenance.set_scrape_run(str(stamp_path), run_uid=self._run_uid)
-        except Exception as exc:  # noqa: BLE001 — advisory: never fails the scrape
-            log.warning("scrape_provenance_run_stamp_failed", directory=stamp_path.name, error=str(exc))
+        # F3: record the scrape STAGE (scraped_at + status='scraped') + the scraping run
+        # onto the (now live-at-``final``) row — ONLY for a CONFIDENTLY-scraped item. An
+        # ambiguous item (queued_for_decision) is NOT marked scraped (it awaits resolution).
+        # No-op when the item is untracked. Advisory — never fails the scrape.
+        if result.action in ("scraped", "artwork_recovered"):
+            stamp_path = final if final is not None else input_dir
+            try:
+                self._provenance.set_scrape_run(str(stamp_path), run_uid=self._run_uid, scraped_at=int(time.time()))
+            except Exception as exc:  # noqa: BLE001 — advisory: never fails the scrape
+                log.warning("scrape_provenance_run_stamp_failed", directory=stamp_path.name, error=str(exc))
 
     def process_movies(self, movies_dir: Path) -> list[ScrapeResult]:
         """Scrape all movies in a directory using the registry chain.

@@ -254,20 +254,21 @@ class _ProvenanceSubStore:
             (dispatch_path, dispatched_at, run_uid, nfc, nfd),
         )
 
-    def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
-        """Stamp the run that scraped the folder at *staging_path* (F3, UPDATE-only).
+    def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
+        """Record the scrape STAGE for the folder at *staging_path* (F3, UPDATE-only).
 
-        Path-keyed on ``current_path`` (NFC/NFD-robust), so the scrape orchestrator —
-        which works on folders, not hashes — records the scraping run for every scraped
-        item (confident or ambiguous) without a hash lookup. No-op when untracked / when
-        *run_uid* is None. Advisory: never raises.
+        Advances the row to ``status='scraped'`` + ``scraped_at`` (so the journey stepper
+        lights up the « Scrapé » stage) and stamps ``scrape_run_uid`` (the scraping run —
+        None outside a run). Path-keyed on ``current_path`` (NFC/NFD-robust), so the scrape
+        orchestrator — which works on folders, not hashes — records the stage without a hash
+        lookup. Called once per CONFIDENTLY-scraped item; an ambiguous item awaiting
+        resolution is NOT marked scraped. No-op when untracked. Advisory: never raises.
         """
-        if run_uid is None:
-            return
         nfc, nfd = _path_key_forms(staging_path)
         self._safe_write(
-            "UPDATE staging_provenance SET scrape_run_uid = ? WHERE current_path IN (?, ?)",
-            (run_uid, nfc, nfd),
+            "UPDATE staging_provenance SET scraped_at = ?, status = 'scraped', scrape_run_uid = ? "
+            "WHERE current_path IN (?, ?)",
+            (scraped_at, run_uid, nfc, nfd),
         )
 
     def set_resolution(

@@ -176,10 +176,10 @@ def test_record_dispatch_hit_writes_obligation(
 
 
 def test_record_dispatch_stamps_dispatch_run_uid(store: ConcreteAcquireStore, tmp_path: Path) -> None:
-    """F3: record_dispatch stamps the dispatching run's uid (from the bound correlation)."""
+    """F3: record_dispatch stamps the dispatching pipeline run's uid."""
     from uuid import uuid4
 
-    from personalscraper.core.event_bus import current_correlation_id
+    from personalscraper.core.event_bus import current_pipeline_run_uid
     from personalscraper.core.identity import MediaRef
 
     staging = tmp_path / "staging" / "MyShow.S01E01.mkv"
@@ -197,17 +197,17 @@ def test_record_dispatch_stamps_dispatch_run_uid(store: ConcreteAcquireStore, tm
     client = _client([item], is_seeding=True)
     auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
 
-    run_id = uuid4()
-    token = current_correlation_id.set(str(run_id))  # a full run binds the dashed form
+    run_uid = uuid4().hex
+    token = current_pipeline_run_uid.set(run_uid)  # as Pipeline.run() binds it
     try:
         auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
     finally:
-        current_correlation_id.reset(token)
+        current_pipeline_run_uid.reset(token)
 
     row = store.provenance.by_hash("abc123def456")
     assert row is not None
     assert row.status == "dispatched"
-    assert row.dispatch_run_uid == run_id.hex
+    assert row.dispatch_run_uid == run_uid
 
 
 def test_record_dispatch_hit_calls_is_seeding_with_item(store: ConcreteAcquireStore, tmp_path: Path) -> None:

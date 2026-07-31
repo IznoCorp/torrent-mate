@@ -157,31 +157,33 @@ def test_correlation_id_isolated_across_threads() -> None:
 
 
 def test_current_run_uid_none_outside_bound_region() -> None:
-    """No bind → current_run_uid() is None (a stage stamps NULL)."""
+    """No pipeline-run bind → current_run_uid() is None (a stage stamps NULL)."""
     from personalscraper.core.event_bus import current_run_uid
 
     assert current_run_uid() is None
 
 
-def test_current_run_uid_returns_hex_of_bound_uuid() -> None:
-    """A full run binds str(run_id); current_run_uid() returns its .hex (== run_uid)."""
+def test_current_run_uid_returns_pipeline_bound_uid() -> None:
+    """Pipeline.run() binds the run's hex run_uid; current_run_uid() returns it verbatim."""
     from uuid import uuid4
 
-    from personalscraper.core.event_bus import current_run_uid
+    from personalscraper.core.event_bus import current_pipeline_run_uid, current_run_uid
 
-    run_id = uuid4()
-    token = current_correlation_id.set(str(run_id))  # dashed form, as Pipeline.run() binds
+    run_uid = uuid4().hex
+    token = current_pipeline_run_uid.set(run_uid)  # as Pipeline.run() binds it
     try:
-        assert current_run_uid() == run_id.hex
+        assert current_run_uid() == run_uid
     finally:
-        current_correlation_id.reset(token)
+        current_pipeline_run_uid.reset(token)
 
 
-def test_current_run_uid_none_when_correlation_not_a_uuid() -> None:
-    """A free-form correlation (not a UUID) yields None, never a crash."""
+def test_current_run_uid_ignores_the_correlation_var() -> None:
+    """A standalone step's fresh correlation uuid must NOT leak as a run stamp (F3)."""
     from personalscraper.core.event_bus import current_run_uid
 
-    token = current_correlation_id.set("not-a-uuid")
+    # A per_step_boundary binds current_correlation_id to a fresh uuid, but NOT the
+    # pipeline-run var — so current_run_uid() stays None (no phantom deep-link).
+    token = current_correlation_id.set("some-standalone-uuid")
     try:
         assert current_run_uid() is None
     finally:

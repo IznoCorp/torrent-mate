@@ -329,7 +329,7 @@ class TestRunLinkage:
             "h1", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1, run_uid="grabRUN"
         )
         store.provenance.set_ingest("h1", ingest_path="/stage/Item", ingested_at=2, run_uid="ingRUN")
-        store.provenance.set_scrape_run("/stage/Item", run_uid="scrRUN")
+        store.provenance.set_scrape_run("/stage/Item", run_uid="scrRUN", scraped_at=3)
         store.provenance.record_dispatch_by_path(
             "/stage/Item", dispatch_path="/Volumes/D/Item", dispatched_at=4, run_uid="dispRUN"
         )
@@ -349,16 +349,20 @@ class TestRunLinkage:
         assert row.grab_run_uid is None
         assert row.ingest_run_uid is None
 
-    def test_set_scrape_run_noop_when_run_uid_none(self, store: ConcreteAcquireStore) -> None:
-        """set_scrape_run with run_uid=None is a no-op (no spurious write)."""
+    def test_set_scrape_run_marks_stage_even_without_run_uid(self, store: ConcreteAcquireStore) -> None:
+        """set_scrape_run with run_uid=None still advances the scrape STAGE (scraped_at + status)."""
         store.provenance.upsert_grab("h3", followed_id=None, media_ref=MediaRef(tmdb_id=3), kind="movie", grabbed_at=1)
         store.provenance.set_ingest("h3", ingest_path="/stage/C", ingested_at=2)
-        store.provenance.set_scrape_run("/stage/C", run_uid=None)
-        assert store.provenance.by_hash("h3").scrape_run_uid is None  # type: ignore[union-attr]
+        store.provenance.set_scrape_run("/stage/C", run_uid=None, scraped_at=5)
+        row = store.provenance.by_hash("h3")
+        assert row is not None
+        assert row.scrape_run_uid is None  # no run stamp (standalone scrape)
+        assert row.scraped_at == 5  # but the stage IS recorded (chip lights up)
+        assert row.status == "scraped"
 
     def test_set_scrape_run_noop_when_untracked(self, store: ConcreteAcquireStore) -> None:
         """set_scrape_run on an untracked (manual) folder never creates a row (ACC-06)."""
-        store.provenance.set_scrape_run("/stage/manual", run_uid="scrRUN")
+        store.provenance.set_scrape_run("/stage/manual", run_uid="scrRUN", scraped_at=1)
         assert store.provenance.by_path("/stage/manual") is None
 
     def test_list_journeys_for_run_matches_any_stage(self, store: ConcreteAcquireStore) -> None:
@@ -366,7 +370,7 @@ class TestRunLinkage:
         # Item A: scraped by RUN_X.
         store.provenance.upsert_grab("a", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=10)
         store.provenance.set_ingest("a", ingest_path="/s/A", ingested_at=11)
-        store.provenance.set_scrape_run("/s/A", run_uid="RUN_X")
+        store.provenance.set_scrape_run("/s/A", run_uid="RUN_X", scraped_at=12)
         # Item B: dispatched by RUN_X (different stage).
         store.provenance.upsert_grab("b", followed_id=None, media_ref=MediaRef(tmdb_id=2), kind="movie", grabbed_at=20)
         store.provenance.set_ingest("b", ingest_path="/s/B", ingested_at=21)
