@@ -4841,7 +4841,7 @@
     },
     "/api/acquisition/journeys": {
       "get": {
-        "description": "List each acquisition's pipeline journey from the provenance registry (F1).\n\nRead-only + fail-soft: opens a fresh acquire store per request, reads the\nprovenance journeys (most-recent first), and joins each row's follow title so\nthe \u00ab Parcours \u00bb view is human-readable. An unreadable store yields an empty\nlist rather than a 500 (the provenance registry is advisory).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`JourneysResponse` \u2014 the acquisition journeys, most-recent first.",
+        "description": "List each acquisition's pipeline journey from the provenance registry (F1).\n\nRead-only: opens a fresh acquire store per request (like the other acquisition\nroutes), reads the provenance journeys (most-recent first), and joins each row's\nfollow title so the \u00ab Parcours \u00bb view is human-readable. The provenance READ is\nfail-soft (``list_journeys`` yields an empty list on a query error); a store\nopen/migration failure surfaces as a 500, consistent with every other\n``build_acquire_store`` route.\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`JourneysResponse` \u2014 the acquisition journeys, most-recent first.",
         "operationId": "get_journeys_api_acquisition_journeys_get",
         "responses": {
           "200": {

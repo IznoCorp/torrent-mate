@@ -288,10 +288,12 @@ export interface paths {
          * Get Journeys
          * @description List each acquisition's pipeline journey from the provenance registry (F1).
          *
-         *     Read-only + fail-soft: opens a fresh acquire store per request, reads the
-         *     provenance journeys (most-recent first), and joins each row's follow title so
-         *     the « Parcours » view is human-readable. An unreadable store yields an empty
-         *     list rather than a 500 (the provenance registry is advisory).
+         *     Read-only: opens a fresh acquire store per request (like the other acquisition
+         *     routes), reads the provenance journeys (most-recent first), and joins each row's
+         *     follow title so the « Parcours » view is human-readable. The provenance READ is
+         *     fail-soft (``list_journeys`` yields an empty list on a query error); a store
+         *     open/migration failure surfaces as a 500, consistent with every other
+         *     ``build_acquire_store`` route.
          *
          *     Args:
          *         request: The incoming FastAPI request.
