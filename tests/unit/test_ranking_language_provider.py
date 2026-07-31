@@ -105,6 +105,46 @@ class TestProviderCriterion:
         assert score == 25  # 15 provider + 10 freeleech bonus
 
 
+class TestCaseInsensitiveCategoricalLookup:
+    """Review defect 2: a differently-cased release token still scores its value."""
+
+    def test_audio_lowercase_token_scores(self) -> None:
+        """A « dts-hd » release scores the « DTS-HD » criterion value (case-insensitive)."""
+        cfg = RankingConfig(
+            criteria=[RankingCriterion(field="audio", weight=2, values={"DTS-HD": 10})],
+            min_seeders=1,
+        )
+        result = TrackerResult(
+            provider="lacale",
+            tracker_id="t",
+            title="Film 2024 dts-hd",
+            size=ByteSize(4_000_000_000),
+            seeders=10,
+            leechers=0,
+            audio="dts-hd",
+        )
+        ((_, score),) = rank([result], cfg)
+        assert score == 20  # 10 * weight 2 — NOT 0
+
+    def test_codec_uppercase_token_scores(self) -> None:
+        """A « X265 » release scores the « x265 » criterion value (case-insensitive)."""
+        cfg = RankingConfig(
+            criteria=[RankingCriterion(field="codec", weight=3, values={"x265": 10})],
+            min_seeders=1,
+        )
+        result = TrackerResult(
+            provider="lacale",
+            tracker_id="t",
+            title="Film 2024 X265",
+            size=ByteSize(4_000_000_000),
+            seeders=10,
+            leechers=0,
+            codec="X265",
+        )
+        ((_, score),) = rank([result], cfg)
+        assert score == 30  # 10 * weight 3 — NOT 0
+
+
 class TestTemplateCarriesNewCriteria:
     """The TRACKED template ships the language + provider criteria (else no feature)."""
 

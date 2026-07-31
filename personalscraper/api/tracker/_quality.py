@@ -46,6 +46,25 @@ _TITLE_PATTERNS: dict[str, re.Pattern[str]] = {
     "format": re.compile(r"\.(mkv|mp4|avi|m4v|wmv|mov)$", re.IGNORECASE),
 }
 
+#: Language token priority (best → weakest). A release title can carry SEVERAL
+#: language tokens — most decisively when a title WORD collides with a marker
+#: (``The French Dispatch MULTi`` → both ``FRENCH`` and ``MULTI``). Selecting by
+#: this priority (rather than the leftmost regex match) makes ``MULTI`` — the
+#: multi-track release the operator prefers — win over a mere ``FRENCH`` title
+#: word, so the language score reflects the release, not the film's name.
+_LANGUAGE_PRIORITY: tuple[str, ...] = (
+    "MULTI",
+    "VFF",
+    "VFQ",
+    "VFI",
+    "VOF",
+    "TRUEFRENCH",
+    "FRENCH",
+    "VOSTFR",
+    "SUBFRENCH",
+    "VO",
+)
+
 
 def parse_title_quality(title: str) -> dict[str, str | None]:
     """Extract quality fields from a release title.
@@ -65,9 +84,13 @@ def parse_title_quality(title: str) -> dict[str, str | None]:
     """
     out: dict[str, str | None] = {}
     for field, pattern in _TITLE_PATTERNS.items():
+        if field == "language":
+            # ALL matches, not the leftmost: a title word (``French``…) can
+            # precede the real marker (``MULTi``). Normalize to UPPERCASE (the
+            # one case-stable axis) and pick the highest-priority token present.
+            found = {tok.upper() for tok in pattern.findall(title)}
+            out[field] = next((tok for tok in _LANGUAGE_PRIORITY if tok in found), None)
+            continue
         match = pattern.search(title)
-        token = match.group(1) if match else None
-        # Language is the one normalized axis: a case-stable canonical token
-        # makes « prefer MULTi » a reliable config value across « MULTi »/« MULTI ».
-        out[field] = token.upper() if (token is not None and field == "language") else token
+        out[field] = match.group(1) if match else None
     return out

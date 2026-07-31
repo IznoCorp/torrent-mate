@@ -115,6 +115,19 @@ class TestLanguageParsing:
         """A release with no language token leaves the field None."""
         assert parse_title_quality("Some.Show.S01E02.720p.HDTV.x264")["language"] is None
 
+    def test_title_word_french_does_not_beat_multi_tag(self) -> None:
+        """Review defect 1: a « French »-titled MULTi release reports MULTI, not FRENCH.
+
+        The leftmost regex match would pick the FRENCH title word that precedes
+        the real MULTi tag; priority selection makes the multi-track marker win.
+        """
+        assert parse_title_quality("The.French.Dispatch.2021.MULTi.2160p.BluRay")["language"] == "MULTI"
+        assert parse_title_quality("French.Connection.1971.MULTi.1080p.x265")["language"] == "MULTI"
+
+    def test_priority_multi_over_truefrench_regardless_of_order(self) -> None:
+        """MULTI outranks TRUEFRENCH even when TRUEFRENCH appears first."""
+        assert parse_title_quality("Film.2023.TRUEFRENCH.MULTi.1080p")["language"] == "MULTI"
+
 
 class TestTrackerQualitySymmetry:
     """lacale/c411/tr4ker surface the SAME quality tokens on a shared title."""

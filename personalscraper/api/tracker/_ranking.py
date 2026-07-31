@@ -65,6 +65,15 @@ def rank(
     Returns:
         Sorted list of (result, score) pairs, highest score first.
     """
+    # Pre-casefold each categorical criterion's value map ONCE. A release token
+    # carries the title's own casing (``dts-hd`` / ``TRUEHD`` / ``X265``), while
+    # only ``language`` is normalized at parse time — so a case-sensitive lookup
+    # silently scored 0 for a differently-cased token (e.g. a ``dts-hd`` release
+    # under an ``audio: {"DTS-HD": …}`` criterion). Matching on the casefolded key
+    # makes the score depend on the token's meaning, not its capitalization.
+    cf_values: list[dict[str, int] | None] = [
+        {k.casefold(): val for k, val in c.values.items()} if c.values is not None else None for c in ranking.criteria
+    ]
     scored: list[tuple[TrackerResult, int]] = []
     for r in results:
         if r.seeders < ranking.min_seeders:
@@ -75,13 +84,13 @@ def rank(
         if r.info_hash is not None and r.info_hash.lower() in exclude_hashes:
             continue
         total = 0
-        for c in ranking.criteria:
+        for c, cf in zip(ranking.criteria, cf_values, strict=True):
             v = getattr(r, c.field, None)
             if v is None:
                 continue
             pts = 0
-            if c.values is not None:
-                pts = c.values.get(str(v), 0)
+            if cf is not None:
+                pts = cf.get(str(v).casefold(), 0)
             elif c.thresholds:
                 numeric = v.bytes if isinstance(v, ByteSize) else int(v)
                 if c.prefer == "lower":
