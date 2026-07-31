@@ -75,7 +75,7 @@ class TestLanguageCriterion:
             criteria=[RankingCriterion(field="language", weight=2, values={"MULTI": 20})],
             min_seeders=1,
         )
-        (_, score), = rank([_result(language=None)], cfg)
+        ((_, score),) = rank([_result(language=None)], cfg)
         assert score == 0
 
 
@@ -101,7 +101,7 @@ class TestProviderCriterion:
             criteria=[RankingCriterion(field="provider", weight=1, values={"tr4ker": 15})],
             min_seeders=1,
         )
-        (_, score), = rank([_result(provider="tr4ker", is_freeleech=True)], cfg)
+        ((_, score),) = rank([_result(provider="tr4ker", is_freeleech=True)], cfg)
         assert score == 25  # 15 provider + 10 freeleech bonus
 
 
