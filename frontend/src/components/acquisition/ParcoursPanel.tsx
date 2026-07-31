@@ -44,10 +44,16 @@ export function ParcoursPanel(): ReactElement {
   });
 
   if (query.isLoading) {
-    return <p className="text-sm text-muted-foreground">Chargement des parcours…</p>;
+    return (
+      <p className="text-sm text-muted-foreground">Chargement des parcours…</p>
+    );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">Impossible de charger les parcours d'acquisition.</p>;
+    return (
+      <p className="text-sm text-danger">
+        Impossible de charger les parcours d'acquisition.
+      </p>
+    );
   }
 
   const journeys = query.data?.journeys ?? [];
@@ -63,11 +69,20 @@ export function ParcoursPanel(): ReactElement {
   return (
     <ul className="flex flex-col gap-2">
       {journeys.map((j) => (
-        <li key={j.info_hash} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+        <li
+          key={j.info_hash}
+          className="flex flex-col gap-2 rounded-lg border border-border p-3"
+        >
           <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{journeyTitle(j)}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {journeyTitle(j)}
+            </span>
             <Badge tone="neutral" className="shrink-0">
-              {j.kind === "movie" ? "Film" : "Série"}
+              {j.kind === "movie"
+                ? "Film"
+                : j.kind === "episode"
+                  ? "Série"
+                  : "—"}
             </Badge>
           </div>
           <ol className="flex flex-wrap gap-1.5">
@@ -85,7 +100,10 @@ export function ParcoursPanel(): ReactElement {
             })}
           </ol>
           {j.dispatch_path != null && (
-            <p className="truncate text-xs text-muted-foreground" title={j.dispatch_path}>
+            <p
+              className="truncate text-xs text-muted-foreground"
+              title={j.dispatch_path}
+            >
               → {j.dispatch_path}
             </p>
           )}
