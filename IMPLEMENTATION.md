@@ -44,7 +44,7 @@ scrape identity, films + séries), zero regression on manual/direct grabs.
 
 | #   | Phase                                   | File                            | Status |
 | --- | --------------------------------------- | ------------------------------- | ------ |
-| 1   | Schema + ProvenanceStore                | phase-01-schema-store.md        | [ ]    |
+| 1   | Schema + ProvenanceStore                | phase-01-schema-store.md        | [x]    |
 | 2   | Grab + ingest write points              | phase-02-grab-ingest.md         | [ ]    |
 | 3   | Sort/rename + dispatch write points     | phase-03-sort-dispatch.md       | [ ]    |
 | 4   | #30 consumer — scrape identity resolver | phase-04-scrape-consumer.md     | [ ]    |

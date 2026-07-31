@@ -61,6 +61,7 @@ from pathlib import Path
 
 from personalscraper.acquire._aired_store import _AiredSubStore  # noqa: PLC0415
 from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore  # noqa: PLC0415
+from personalscraper.acquire._provenance_store import _ProvenanceSubStore  # noqa: PLC0415
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
     _row_to_followed,
@@ -736,6 +737,7 @@ class ConcreteAcquireStore:
         self._ratio: _RatioSubStore | None = None
         self._cross_seed: _CrossSeedSubStore | None = None
         self._watch: _WatchSubStore | None = None
+        self._provenance: _ProvenanceSubStore | None = None
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -829,6 +831,13 @@ class ConcreteAcquireStore:
         if self._watch is None:
             self._watch = _WatchSubStore(self._ensure_open(), _write_tx)
         return self._watch
+
+    @property
+    def provenance(self) -> _ProvenanceSubStore:
+        """``staging_provenance`` advisory registry sub-store (ensures open)."""
+        if self._provenance is None:
+            self._provenance = _ProvenanceSubStore(self._ensure_open(), _write_tx)
+        return self._provenance
 
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).
