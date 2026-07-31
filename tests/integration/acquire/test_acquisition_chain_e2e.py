@@ -153,8 +153,15 @@ def _real_orchestrator(
 
 
 def _follow_movie(store: ConcreteAcquireStore, *, title: str, year: int, tmdb_id: int) -> int:
-    """Add a followed MOVIE with a permissive 720p-floor profile; return its id."""
-    return store.follow.add(
+    """Add a followed MOVIE with a permissive 720p-floor profile; return its id.
+
+    NOTE (faithful to production): ``follow.add`` does NOT persist ``year`` — the
+    INSERT omits the column — so the year the #28 identity filter reads is written
+    separately by ``merge_metadata`` (the add-by-search candidate / provider
+    enrichment path). Seeding via ``add`` alone leaves ``year`` NULL and the
+    filter inert; we mirror the real write so the chain exercises #28 for real.
+    """
+    fid = store.follow.add(
         FollowedSeries(
             media_ref=MediaRef(tmdb_id=tmdb_id),
             title=title,
@@ -164,6 +171,8 @@ def _follow_movie(store: ConcreteAcquireStore, *, title: str, year: int, tmdb_id
             quality_profile_json=quality_profile_to_json(QualityProfile(min_resolution=Resolution.R720P)),
         )
     )
+    store.follow.merge_metadata(fid, poster_url=None, overview=None, year=year)
+    return fid
 
 
 def _detect(store: ConcreteAcquireStore, bus: EventBus) -> None:
@@ -230,8 +239,17 @@ class TestFullAcquisitionChain:
         """#28 END-TO-END: a wrong-year « Wicker » release is filtered, not grabbed.
 
         The tracker returns ONLY a different-year film for a « Wicker » (2026)
-        follow; the real movie-identity filter must drop it, so the row stays
-        searching-but-not-available and the client is NEVER called.
+        follow; the real ``filter_to_movie`` year guard must drop it at SEARCH
+        time, so the row never concludes ``available`` and the client is never
+        called.
+
+        The load-bearing assertion is on the SEARCH pass's own conclusion
+        (``status='pending'`` + ``all_filtered`` + zero found), NOT merely on
+        ``grabbed==0``: the grab would fail anyway (the fake transport can't be
+        fetched), so a grab-only assertion would stay green even if the year
+        filter regressed — the exact #28 bug would ship undetected. Asserting the
+        search verdict fails the instant ``filter_to_movie`` stops dropping the
+        wrong-year film, independent of the grab path.
         """
         bus = EventBus()
         fid = _follow_movie(store, title="Wicker", year=2026, tmdb_id=1195803)
@@ -247,6 +265,14 @@ class TestFullAcquisitionChain:
 
         with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
             service.run_search(limit=10)
+            # SEARCH pass isolates the year filter: a broken filter would conclude
+            # « available » with found>=1 here, failing cleanly.
+            searched = store.wanted.find(followed_id=fid, kind="movie", season=None, episode=None)
+            assert searched is not None
+            assert searched.status == "pending", "wrong-year-only search must NOT conclude available"
+            assert searched.last_search_outcome == "all_filtered"
+            assert searched.last_search_found == 0
+
             summary = service.run(limit=10)
 
         assert summary.grabbed == 0, "a wrong-year film must never be grabbed"

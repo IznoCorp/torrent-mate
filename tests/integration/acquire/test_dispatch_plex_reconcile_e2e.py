@@ -63,6 +63,23 @@ class _OwnsAll:
         return True
 
 
+class _OwnsOnly:
+    """Ownership stub: owns exactly the media_refs it was given (value equality)."""
+
+    def __init__(self, owned: set[MediaRef]) -> None:
+        self._owned = owned
+
+    def owns(
+        self,
+        media_ref: MediaRef,
+        *,
+        kind: Literal["movie", "episode"],
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> bool:
+        return media_ref in self._owned
+
+
 class _SyncThread:
     """A ``threading.Thread`` stand-in that runs its target inline on ``start()``.
 
@@ -167,3 +184,30 @@ def test_dispatch_without_target_path_skips_plex_but_still_reconciles(store: Con
     bus.emit(LibraryScanCompleted(mode="enrich", scanned=1, errors=0, elapsed_s=0.1))
     row = store.wanted.get(wanted_id)
     assert row is not None and row.status == "done"
+
+
+def test_reconcile_closes_only_owned_rows(store: ConcreteAcquireStore) -> None:
+    """Ownership is consulted: a grabbed-but-NOT-owned row is never closed to done.
+
+    Guards against a reconcile that ignored ownership and closed every open row.
+    Two grabbed films, ownership owns only the first → only the first goes done.
+    """
+    owned_ref = MediaRef(tmdb_id=40_004)
+    unowned_ref = MediaRef(tmdb_id=50_005)
+    owned_id = store.wanted.add(
+        WantedItem(media_ref=owned_ref, kind="movie", status="pending", enqueued_at=1, followed_id=None)
+    )
+    unowned_id = store.wanted.add(
+        WantedItem(media_ref=unowned_ref, kind="movie", status="pending", enqueued_at=1, followed_id=None)
+    )
+    store.wanted.mark_grabbed(owned_id, "aaaa1111")
+    store.wanted.mark_grabbed(unowned_id, "bbbb2222")
+
+    bus = EventBus()
+    PostDispatchReconcileSubscriber(bus, store, _OwnsOnly({owned_ref}))
+    bus.emit(LibraryScanCompleted(mode="enrich", scanned=1, errors=0, elapsed_s=0.1))
+
+    owned_row = store.wanted.get(owned_id)
+    unowned_row = store.wanted.get(unowned_id)
+    assert owned_row is not None and owned_row.status == "done"
+    assert unowned_row is not None and unowned_row.status != "done"

@@ -131,3 +131,29 @@ class TestScrapeFollowProvenanceE2E:
         resolver = _build_follow_tvdb_resolver(_config(db))
         assert resolver is not None
         assert resolver(other) is None
+
+    def test_title_matches_but_episodes_not_covered_abstains(
+        self, store_and_db: tuple[ConcreteAcquireStore, Path], tmp_path: Path
+    ) -> None:
+        """Coverage-all in isolation: a TITLE-matching folder abstains when uncovered.
+
+        The folder « Star Trek » passes the subset title guard against the follow,
+        so the ONLY thing left to decide is coverage-all — its S05E01 file is NOT
+        in the grabbed set (S03E09). A regression that weakened coverage-all
+        (e.g. « any shared episode » instead of « covers ALL ») would wrongly
+        force the tvdb; this abstains, proving the coverage check alone.
+        """
+        store, db = store_and_db
+        fid = store.follow.add(
+            FollowedSeries(
+                media_ref=MediaRef(tvdb_id=382389),
+                title="Star Trek: Strange New Worlds",
+                added_at=1,
+            )
+        )
+        _seed_grabbed_episodes(store, tvdb=382389, followed_id=fid, eps=[(3, 9)])
+        # Title matches (« Star Trek » ⊆ follow), but the episode is NOT grabbed.
+        show = _show_dir(tmp_path, "Star Trek", [(5, 1)])
+        resolver = _build_follow_tvdb_resolver(_config(db))
+        assert resolver is not None
+        assert resolver(show) is None
