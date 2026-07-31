@@ -24,6 +24,7 @@ import {
 
 /** Tab ids for the panels. */
 export type TabId =
+  | "apercu"
   | "followed"
   | "file"
   | "obligations"
@@ -82,6 +83,7 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
 
 /** Tabs displayed in the page header. */
 export const TABS: readonly { id: TabId; label: string }[] = [
+  { id: "apercu", label: "Vue d'ensemble" },
   { id: "followed", label: "Suivis" },
   { id: "file", label: "File d'acquisition" },
   { id: "obligations", label: "Obligations" },

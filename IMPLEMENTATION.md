@@ -34,7 +34,7 @@ the F0–F4 spine. Backend aggregate endpoint + « Vue d'ensemble » tab on the 
 
 | #   | Phase                                                                            | File                 | Status |
 | --- | -------------------------------------------------------------------------------- | -------------------- | ------ |
-| 1   | Backend aggregate (stage_counts + AcquisitionOverviewResponse + GET /overview)   | phase-01-backend.md  | [ ]    |
-| 2   | Frontend « Vue d'ensemble » tab (OverviewPanel + tiles + deep-links) + gate + PR | phase-02-frontend.md | [ ]    |
+| 1   | Backend aggregate (stage_counts + AcquisitionOverviewResponse + GET /overview)   | phase-01-backend.md  | [x]    |
+| 2   | Frontend « Vue d'ensemble » tab (OverviewPanel + tiles + deep-links) + gate + PR | phase-02-frontend.md | [x]    |
 
-**Next action**: Phase 1 — backend aggregate.
+**Next action**: all phases complete — phase gate + feature-PR.

@@ -153,6 +153,9 @@ export const acqKeys = {
 
   /** Downloads query key: ``['acquisition', 'downloads']`` (A4). */
   downloads: () => [...acqKeys.all, "downloads"] as const,
+
+  /** Machine-state overview query key: ``['acquisition', 'overview']`` (F5). */
+  overview: () => [...acqKeys.all, "overview"] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -510,6 +513,19 @@ export type JourneyItem = JourneysResponse["journeys"][number];
  */
 export function getJourneys(): Promise<JourneysResponse> {
   return apiFetch("/api/acquisition/journeys", { method: "get" });
+}
+
+/** The « état de la machine » rollup (F5): ``GET /api/acquisition/overview``. */
+export type OverviewResponse = SuccessBody<
+  paths["/api/acquisition/overview"]["get"]["responses"]
+>;
+
+/**
+ * Fetch the unified machine-state overview (acquisitions + décisions + en-attente).
+ * Read-only, header-free.
+ */
+export function getOverview(): Promise<OverviewResponse> {
+  return apiFetch("/api/acquisition/overview", { method: "get" });
 }
 
 /** Response of a spine-driven per-item action (rescrape / requeue) — the launched run. */

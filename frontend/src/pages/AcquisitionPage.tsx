@@ -31,6 +31,7 @@ import {
   type TabId,
 } from "@/components/acquisition/meta";
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
+import { OverviewPanel } from "@/components/acquisition/OverviewPanel";
 import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 import { ReglagesPanel } from "@/components/acquisition/ReglagesPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
@@ -181,6 +182,7 @@ export default function AcquisitionPage(): ReactElement {
           (esp. mobile), where a Card's border + padding stacked on the section
           margin wasted space on both sides (#12). Vertical rhythm kept via gap. */}
       <div className="flex flex-col gap-4 pt-1">
+        {activeTab === "apercu" && <OverviewPanel />}
         {activeTab === "followed" && (
           <div className="flex flex-col gap-6">
             <MediaSearchAdd />

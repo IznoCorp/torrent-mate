@@ -452,9 +452,7 @@ class _ProvenanceSubStore:
         """
         try:
             self._conn.row_factory = sqlite3.Row
-            rows = self._conn.execute(
-                "SELECT status, COUNT(*) AS n FROM staging_provenance GROUP BY status"
-            ).fetchall()
+            rows = self._conn.execute("SELECT status, COUNT(*) AS n FROM staging_provenance GROUP BY status").fetchall()
             return {r["status"]: r["n"] for r in rows if r["status"] is not None}
         except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty dict
             log.warning("acquire.provenance.stage_counts_failed", error=str(exc))

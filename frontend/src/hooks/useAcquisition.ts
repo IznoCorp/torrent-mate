@@ -17,6 +17,7 @@ import {
   getDownloads,
   getFollowed,
   getObligations,
+  getOverview,
   getWanted,
   searchMedia,
   updateFollow,
@@ -140,6 +141,14 @@ export function useAcquisitionStatus() {
   return useQuery({
     queryKey: acqKeys.status(),
     queryFn: getAcquisitionStatus,
+  });
+}
+
+/** The « état de la machine » overview rollup (F5 capstone). */
+export function useOverview() {
+  return useQuery({
+    queryKey: acqKeys.overview(),
+    queryFn: getOverview,
   });
 }
 
