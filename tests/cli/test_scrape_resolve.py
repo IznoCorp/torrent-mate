@@ -562,6 +562,68 @@ class TestScrapeResolveExit0:
         assert resolution["provider_id"] == 550
         assert resolution["via"] == "pick"
 
+    def test_resolve_projects_resolved_onto_the_spine(self, tmp_path: Path, test_config: Any) -> None:
+        """A successful scrape-resolve mirrors 'resolved' onto the tracked item's spine row (F2).
+
+        Anti-regression: the authoritative decision resolve is unchanged (status 'resolved');
+        the spine projection is additive and advisory, path-keyed on the (post-scrape) folder.
+        """
+        from personalscraper.acquire.store import build_acquire_store
+        from personalscraper.core.identity import MediaRef
+
+        staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
+        staging.mkdir(parents=True)
+        test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+
+        acquire_db = tmp_path / "acquire.db"
+        cfg = test_config.model_copy(
+            update={"acquire": test_config.acquire.model_copy(update={"db_path": acquire_db})}
+        )
+        _create_db(cfg.indexer.db_path)
+        decision_id = _insert_decision(cfg.indexer.db_path, str(staging.resolve()))
+
+        # Spine: a tracked follow-driven item ingested at the staging folder. current_path
+        # is seeded with the UN-resolved form the stubbed scrape returns as media_path.
+        store = build_acquire_store(cfg.acquire)
+        store.provenance.upsert_grab(
+            "hh", followed_id=None, media_ref=MediaRef(tmdb_id=550), kind="movie", grabbed_at=1
+        )
+        store.provenance.set_ingest("hh", ingest_path=str(staging), ingested_at=2)
+        store.close()
+
+        mock_client = MagicMock()
+        mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(
+                "personalscraper.commands.scrape_resolve.acquire_scrape_resolve_lock",
+                return_value=Path("/fake/scrape.lock"),
+            ),
+            patch("personalscraper.commands.scrape_resolve.release_scrape_resolve_lock"),
+            patch(
+                "personalscraper.commands.scrape_resolve.per_step_boundary",
+                _make_mock_per_step_boundary(mock_client),
+            ),
+            patch(_PATCH_SCRAPER_MOVIE_FORCED, side_effect=_forced_movie_ok),
+        ):
+            result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
+
+        assert result.exit_code == 0, result.output
+        row = _select_decision(cfg.indexer.db_path, decision_id)
+        assert row is not None
+        assert row["status"] == "resolved"  # authoritative resolve unchanged
+
+        store = build_acquire_store(cfg.acquire)
+        try:
+            prow = store.provenance.by_path(str(staging))
+            assert prow is not None
+            assert prow.resolution_state == "resolved"
+            assert prow.decision_id == decision_id
+        finally:
+            store.close()
+
     def test_no_nfo_written_exits_1_and_stays_pending(self, tmp_path: Path, test_config: Any) -> None:
         """A scrape that leaves no NFO on disk must NOT mark the decision resolved.
 

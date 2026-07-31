@@ -8,6 +8,7 @@ Lock is acquired at the CLI level, not here.
 """
 
 import json
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -475,22 +476,40 @@ def run_scrape(
                 run_uid = None
 
         writer = DecisionWriter(db_path)
-        for r in all_results:
-            if _is_enqueued(r):
-                title, year = _parse_folder_name(r.media_path.name)
-                candidates_json = (
-                    json.dumps([c.model_dump() for c in r.decision_candidates]) if r.decision_candidates else "[]"
-                )
-                writer.upsert(
-                    staging_path=r.media_path,
-                    media_kind=r.media_type,
-                    extracted_title=title,
-                    extracted_year=year,
-                    trigger=r.decision_trigger or "mid_band",
-                    candidates_json=candidates_json,
-                    run_uid=run_uid,
-                )
-        writer.mark_superseded_orphans()
+        # F2 (decisions-spine): mirror each 'awaiting' verdict onto the provenance spine
+        # so the acquisition timeline shows the item needs resolution. ADVISORY — a fresh
+        # store (the scrape's prov_store is already closed above), path-keyed on
+        # current_path, a no-op on an untracked manual item. Best-effort: a failure here
+        # never affects the authoritative DecisionWriter.upsert.
+        prov_resolution = _open_provenance_store(config)
+        try:
+            for r in all_results:
+                if _is_enqueued(r):
+                    title, year = _parse_folder_name(r.media_path.name)
+                    candidates_json = (
+                        json.dumps([c.model_dump() for c in r.decision_candidates]) if r.decision_candidates else "[]"
+                    )
+                    decision_id = writer.upsert(
+                        staging_path=r.media_path,
+                        media_kind=r.media_type,
+                        extracted_title=title,
+                        extracted_year=year,
+                        trigger=r.decision_trigger or "mid_band",
+                        candidates_json=candidates_json,
+                        run_uid=run_uid,
+                    )
+                    if prov_resolution is not None:
+                        prov_resolution.provenance.set_resolution(
+                            str(r.media_path),
+                            state="awaiting",
+                            resolved_at=int(time.time()),
+                            decision_id=decision_id,
+                            trigger=r.decision_trigger or "mid_band",
+                        )
+            writer.mark_superseded_orphans()
+        finally:
+            if prov_resolution is not None:
+                prov_resolution.close()
 
     # Convert to StepReport
     return _build_scrape_report(all_results)
