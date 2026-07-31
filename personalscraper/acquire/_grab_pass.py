@@ -277,6 +277,20 @@ class GrabPassMixin(PassGatesMixin):
         # re-grab on the next run emits exactly once.
         self._store.wanted.record_search_outcome(item.id, "grabbed", outcome.found)
         self._store.wanted.mark_grabbed(item.id, info_hash)
+        # Provenance seed (feature provenance / #30): record the grabbed identity so
+        # the scrape can later resolve it DETERMINISTICALLY (via staging_path → hash →
+        # this row → media_ref) instead of re-inferring it from the renamed folder.
+        # This is the grab pass over FOLLOW-DRIVEN wanted items, so a manual/direct
+        # grab never reaches here → no row (ACC-06). The write is best-effort (the
+        # store swallows any error), so it never affects the grab persist/emit contract.
+        if info_hash:
+            self._store.provenance.upsert_grab(
+                info_hash,
+                followed_id=item.followed_id,
+                media_ref=item.media_ref,
+                kind=item.kind,
+                grabbed_at=int(time.time()),
+            )
         # Seed obligation at GRAB time (2026-07-15): the dispatch-time
         # name+size correlation can never match a renamed/aggregated TV show
         # folder, so TV grabs left the seed_obligation table empty. Here the

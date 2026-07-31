@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,6 +25,7 @@ from personalscraper.config import Settings
 from personalscraper.core.delete_permit import SeedObligationChecker
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import FileType
+from personalscraper.core.provenance_port import StagingProvenanceWriter
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
@@ -272,6 +274,7 @@ def run_ingest(
     event_bus: EventBus,
     torrent_client: QBitClient | TransmissionClient | None = None,
     seed_checker: SeedObligationChecker | None = None,
+    provenance: StagingProvenanceWriter | None = None,
     recover_orphans: bool = True,
 ) -> StepReport:
     """Run the ingest pipeline step.
@@ -298,6 +301,11 @@ def run_ingest(
             port). Drives the fail-safe copy-vs-move decision (§7 HnR): a
             paused torrent that still owes a seed is copied, not moved. ``None``
             ⇒ the decision relies on the live seeding probe alone.
+        provenance: Optional advisory provenance writer (the acquire store's
+            ``staging_provenance`` sub-store, injected via the core port). Links
+            each ingested torrent's hash → its staging folder for the #30
+            deterministic scrape. Best-effort + no-op for an untracked
+            (manual/direct) grab; ``None`` ⇒ no provenance is recorded.
         recover_orphans: When True (standalone ingest), sweep ``.ingest_tmp_*``
             orphans before ingesting. The full-run
             :class:`~personalscraper.pipeline_steps.IngestStep` passes False
@@ -556,6 +564,15 @@ def run_ingest(
                         report.success_count += 1
                         _copied.append(name)
                         report.details.append(f"{name} → {action}")
+                        # Provenance (advisory / best-effort): link this torrent's hash
+                        # to its freshly-ingested staging folder so the scrape resolves
+                        # identity deterministically (#30). No-op for an untracked
+                        # (manual/direct) grab; a write error never fails the ingest.
+                        if provenance is not None and not dry_run:
+                            try:
+                                provenance.set_ingest(torrent_hash, ingest_path=str(dest), ingested_at=int(time.time()))
+                            except Exception as exc:  # noqa: BLE001 — advisory: never fails ingest
+                                log.warning("ingest_provenance_write_failed", name=name, error=str(exc))
                         event_bus.emit(
                             ItemProgressed(
                                 step="ingest",

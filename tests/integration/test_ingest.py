@@ -136,6 +136,58 @@ def test_ingest_filters_completed_and_untracked(
     assert report.error_count == 0, f"Unexpected errors: {report.details}"
 
 
+class _ProvenanceSpy:
+    """A StagingProvenanceWriter spy recording set_ingest calls (feature provenance)."""
+
+    def __init__(self) -> None:
+        self.ingests: list[tuple[str, str]] = []
+
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
+        self.ingests.append((info_hash, ingest_path))
+
+    def set_current_path(self, info_hash: str, *, path: str) -> None:  # pragma: no cover - unused here
+        pass
+
+    def set_dispatch(self, info_hash: str, *, dispatch_path: str, dispatched_at: int) -> None:  # pragma: no cover
+        pass
+
+
+def test_ingest_records_provenance_hash_to_folder(
+    fake_qbit: FakeQBitClient,
+    staging_tree: Path,
+    integration_config: Config,
+    tmp_path: Path,
+) -> None:
+    """Phase 2: a successful ingest links the torrent hash → its staging folder.
+
+    This is the hash↔folder seam #30 needs (the knowledge that exists at ingest and
+    was previously discarded). The write is advisory; here a spy captures it.
+    """
+    torrent_source = tmp_path / "complete"
+    torrent_source.mkdir()
+    completed = _make_torrent_dir(torrent_source, "Inception.2010.1080p")
+    fake_qbit.seed([completed])
+    integration_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    ingest_dir = staging_tree / "097-TEMP"
+    spy = _ProvenanceSpy()
+
+    report = run_ingest(
+        _make_settings(),
+        config=integration_config,
+        ingest_dir=ingest_dir,
+        staging_dir=staging_tree,
+        event_bus=EventBus(),
+        torrent_client=fake_qbit,
+        provenance=spy,
+    )
+
+    assert report.error_count == 0, f"Unexpected errors: {report.details}"
+    assert len(spy.ingests) == 1, f"expected one provenance set_ingest, got {spy.ingests}"
+    info_hash, ingest_path = spy.ingests[0]
+    assert info_hash == completed.hash
+    assert ingest_path.endswith(completed.name), f"ingest_path {ingest_path} should be the staging folder"
+
+
 # ---------------------------------------------------------------------------
 # Catalogue #2 — ratio threshold guard
 # ---------------------------------------------------------------------------

@@ -23,9 +23,12 @@ domain VOs + stdlib — never from triage packages (layering, RP5c D3).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from personalscraper.acquire._provenance_store import ProvenanceRow
 
 from personalscraper.acquire.domain import (
     AiredEpisodeRow,
@@ -394,8 +397,63 @@ class AcquireStore(Protocol):
         """``aired_episode`` catalog-cache sub-store (opens on access)."""
         ...
 
+    @property
+    def provenance(self) -> ProvenanceSubStore:
+        """``staging_provenance`` advisory registry sub-store (opens on access)."""
+        ...
+
     def close(self) -> None:
         """Release all resources held by the store (fail-soft — never raises)."""
+        ...
+
+
+@runtime_checkable
+class ProvenanceSubStore(Protocol):
+    """Advisory writer + reader for the ``staging_provenance`` registry (F0).
+
+    All writes are best-effort (never raise); reads are fail-soft (``None`` on
+    error). ``upsert_grab`` is the ONLY row-creator (follow-driven grabs); the
+    setters are UPDATE-only no-ops when untracked (a manual/direct grab).
+    """
+
+    def upsert_grab(
+        self,
+        info_hash: str,
+        *,
+        followed_id: int | None,
+        media_ref: MediaRef | None,
+        kind: str | None,
+        grabbed_at: int,
+    ) -> None:
+        """Create/refresh the row for a follow-driven grab (the identity seed)."""
+        ...
+
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
+        """Record the staging folder at ingest (no-op if untracked)."""
+        ...
+
+    def set_current_path(self, info_hash: str, *, path: str) -> None:
+        """Keep the live folder path in sync across a sort/rename (no-op if untracked)."""
+        ...
+
+    def set_scraped(self, info_hash: str, *, scraped_ref: MediaRef | None, scraped_at: int) -> None:
+        """Record the identity actually scraped (no-op if untracked)."""
+        ...
+
+    def set_dispatch(self, info_hash: str, *, dispatch_path: str, dispatched_at: int) -> None:
+        """Record the final destination at dispatch (no-op if untracked)."""
+        ...
+
+    def by_hash(self, info_hash: str) -> ProvenanceRow | None:
+        """Return the row for *info_hash*, or ``None`` (fail-soft)."""
+        ...
+
+    def by_path(self, path: str) -> ProvenanceRow | None:
+        """Return the row whose ``current_path`` equals *path*, or ``None``."""
+        ...
+
+    def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
+        """Delete rows whose ``current_path`` no longer exists (FS = truth)."""
         ...
 
 
