@@ -16,7 +16,7 @@ from uuid import UUID
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
-from personalscraper.core.event_bus import EventBus
+from personalscraper.core.event_bus import EventBus, current_run_uid
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, FileType
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -355,6 +355,8 @@ def run_scrape(
         # #30 / ACC-05: force a followed MOVIE's TMDB id from the provenance registry.
         follow_movie_resolver=_build_provenance_movie_resolver(config),
         provenance=prov_store.provenance if prov_store is not None else None,
+        # F3 run-linkage: stamp the scraping run onto each item's provenance row.
+        run_uid=current_run_uid(),
     )
 
     all_results: list[ScrapeResult] = []

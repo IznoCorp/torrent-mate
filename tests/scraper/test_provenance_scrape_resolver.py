@@ -99,6 +99,30 @@ class TestMovieProvenanceResolver:
 class TestScrapeRenameTracking:
     """Review A/B: the orchestrator keeps provenance current_path live across the rename."""
 
+    def test_track_scrape_rename_stamps_scrape_run_uid_on_real_store(self, tmp_path: Path) -> None:
+        """F3: _track_scrape_rename moves current_path AND stamps scrape_run_uid (real store)."""
+        from personalscraper.scraper._shared import ScrapeResult
+        from personalscraper.scraper.orchestrator import Scraper
+
+        store = build_acquire_store(AcquireConfig(db_path=tmp_path / "a.db"))
+        try:
+            store.provenance.upsert_grab(
+                "h", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1
+            )
+            store.provenance.set_ingest("h", ingest_path="/001-MOVIES/Some.Movie.2020.WEB", ingested_at=2)
+            result = ScrapeResult(media_path=Path("/001-MOVIES/Some Movie (2020)"), media_type="movie")
+            Scraper._track_scrape_rename(
+                SimpleNamespace(_provenance=store.provenance, _run_uid="scrapeRUN"),  # type: ignore[arg-type]
+                Path("/001-MOVIES/Some.Movie.2020.WEB"),
+                result,
+            )
+            row = store.provenance.by_hash("h")
+            assert row is not None
+            assert row.current_path == "/001-MOVIES/Some Movie (2020)"  # rename tracked
+            assert row.scrape_run_uid == "scrapeRUN"  # scraping run stamped
+        finally:
+            store.close()
+
     def test_track_scrape_rename_moves_path_on_rename(self) -> None:
         """A renamed scrape result triggers provenance.move_path(input → final)."""
         from types import SimpleNamespace
@@ -112,9 +136,12 @@ class TestScrapeRenameTracking:
             def move_path(self, old_path: str, new_path: str) -> None:
                 calls.append((old_path, new_path))
 
+            def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
+                pass  # F3 stamp — not under test here
+
         result = ScrapeResult(media_path=Path("/001-MOVIES/Some Movie (2020)"), media_type="movie")
         Scraper._track_scrape_rename(  # call the method with a minimal fake self
-            SimpleNamespace(_provenance=_Spy()),  # type: ignore[arg-type]
+            SimpleNamespace(_provenance=_Spy(), _run_uid=None),  # type: ignore[arg-type]
             Path("/001-MOVIES/Some.Movie.2020.1080p.WEB"),
             result,
         )
@@ -133,8 +160,11 @@ class TestScrapeRenameTracking:
             def move_path(self, old_path: str, new_path: str) -> None:  # pragma: no cover - must not fire
                 calls.append((old_path, new_path))
 
+            def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
+                pass  # F3 stamp — not under test here
+
         same = Path("/001-MOVIES/Already Canonical (2020)")
         Scraper._track_scrape_rename(
-            SimpleNamespace(_provenance=_Spy()), same, ScrapeResult(media_path=same, media_type="movie")
+            SimpleNamespace(_provenance=_Spy(), _run_uid=None), same, ScrapeResult(media_path=same, media_type="movie")
         )  # type: ignore[arg-type]
         assert calls == []

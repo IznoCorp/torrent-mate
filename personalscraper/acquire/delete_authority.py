@@ -23,6 +23,7 @@ from personalscraper.core.delete_permit import (
     PermitDecision,
     veto,
 )
+from personalscraper.core.event_bus import current_run_uid
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -264,6 +265,7 @@ class DeleteAuthority:
                 str(staging_source),
                 dispatch_path=str(dispatched_dest),
                 dispatched_at=int(time.time()),
+                run_uid=current_run_uid(),  # F3: the dispatching run (None outside a run)
             )
 
         if self._store is None or self._torrent_client is None:

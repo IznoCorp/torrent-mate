@@ -175,6 +175,41 @@ def test_record_dispatch_hit_writes_obligation(
     assert "acquire.record_dispatch.hit" in caplog.text
 
 
+def test_record_dispatch_stamps_dispatch_run_uid(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """F3: record_dispatch stamps the dispatching run's uid (from the bound correlation)."""
+    from uuid import uuid4
+
+    from personalscraper.core.event_bus import current_correlation_id
+    from personalscraper.core.identity import MediaRef
+
+    staging = tmp_path / "staging" / "MyShow.S01E01.mkv"
+    staging.parent.mkdir()
+    staging.write_bytes(b"x" * 2048)
+    dest = tmp_path / "library" / "MyShow.S01E01.mkv"
+
+    # Seed a tracked provenance row whose current_path is the staging source.
+    store.provenance.upsert_grab(
+        "abc123def456", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="episode", grabbed_at=1
+    )
+    store.provenance.set_ingest("abc123def456", ingest_path=str(staging), ingested_at=2)
+
+    item = _torrent_item(name="MyShow.S01E01.mkv", size_bytes=2048, tags=["lacale"], info_hash="abc123def456")
+    client = _client([item], is_seeding=True)
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+
+    run_id = uuid4()
+    token = current_correlation_id.set(str(run_id))  # a full run binds the dashed form
+    try:
+        auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+    finally:
+        current_correlation_id.reset(token)
+
+    row = store.provenance.by_hash("abc123def456")
+    assert row is not None
+    assert row.status == "dispatched"
+    assert row.dispatch_run_uid == run_id.hex
+
+
 def test_record_dispatch_hit_calls_is_seeding_with_item(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """The seeding check goes through the CLIENT method ``is_seeding(item)``.
 

@@ -23,7 +23,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import SeedObligationChecker
-from personalscraper.core.event_bus import EventBus
+from personalscraper.core.event_bus import EventBus, current_run_uid
 from personalscraper.core.media_types import FileType
 from personalscraper.core.provenance_port import StagingProvenanceWriter
 from personalscraper.core.tags import SEED_PURE
@@ -570,7 +570,12 @@ def run_ingest(
                         # (manual/direct) grab; a write error never fails the ingest.
                         if provenance is not None and not dry_run:
                             try:
-                                provenance.set_ingest(torrent_hash, ingest_path=str(dest), ingested_at=int(time.time()))
+                                provenance.set_ingest(
+                                    torrent_hash,
+                                    ingest_path=str(dest),
+                                    ingested_at=int(time.time()),
+                                    run_uid=current_run_uid(),  # F3: the ingesting run (None outside a run)
+                                )
                             except Exception as exc:  # noqa: BLE001 — advisory: never fails ingest
                                 log.warning("ingest_provenance_write_failed", name=name, error=str(exc))
                         event_bus.emit(

@@ -149,3 +149,40 @@ def test_correlation_id_isolated_across_threads() -> None:
     t_a.join()
     t_b.join()
     assert results == {"a": "thread-A", "b": "thread-B"}
+
+
+# ---------------------------------------------------------------------------
+# current_run_uid — F3 run-linkage helper (hex pipeline_run.run_uid from the bind)
+# ---------------------------------------------------------------------------
+
+
+def test_current_run_uid_none_outside_bound_region() -> None:
+    """No bind → current_run_uid() is None (a stage stamps NULL)."""
+    from personalscraper.core.event_bus import current_run_uid
+
+    assert current_run_uid() is None
+
+
+def test_current_run_uid_returns_hex_of_bound_uuid() -> None:
+    """A full run binds str(run_id); current_run_uid() returns its .hex (== run_uid)."""
+    from uuid import uuid4
+
+    from personalscraper.core.event_bus import current_run_uid
+
+    run_id = uuid4()
+    token = current_correlation_id.set(str(run_id))  # dashed form, as Pipeline.run() binds
+    try:
+        assert current_run_uid() == run_id.hex
+    finally:
+        current_correlation_id.reset(token)
+
+
+def test_current_run_uid_none_when_correlation_not_a_uuid() -> None:
+    """A free-form correlation (not a UUID) yields None, never a crash."""
+    from personalscraper.core.event_bus import current_run_uid
+
+    token = current_correlation_id.set("not-a-uuid")
+    try:
+        assert current_run_uid() is None
+    finally:
+        current_correlation_id.reset(token)
