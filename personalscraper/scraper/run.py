@@ -28,6 +28,7 @@ from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from personalscraper.acquire.store import ConcreteAcquireStore
     from personalscraper.api.metadata.registry import ProviderRegistry
 
 log = get_logger("run")
@@ -234,6 +235,27 @@ def _build_provenance_movie_resolver(config: Config) -> "Callable[[Path], int | 
     return _resolver
 
 
+def _open_provenance_store(config: Config) -> "ConcreteAcquireStore | None":
+    """Open a LIVE acquire store for provenance writes during the scrape (fail-soft).
+
+    Unlike the resolver builders (which read a snapshot and close), the scrape needs
+    a store held open so ``move_path`` can keep ``current_path`` live as each folder
+    is renamed to its canonical name (review A/B). ``None`` when the store is not
+    configured or cannot be opened — the scrape then simply records no rename move.
+    The caller MUST ``close()`` it.
+    """
+    from personalscraper.acquire.store import build_acquire_store  # noqa: PLC0415
+
+    db_path = getattr(config.acquire, "db_path", None)
+    if not isinstance(db_path, (str, Path)):
+        return None
+    try:
+        return build_acquire_store(config.acquire)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: no rename tracking if unavailable
+        log.warning("scrape_provenance_store_open_failed", error=str(exc))
+        return None
+
+
 def _read_follow_years(db_path: "str | Path") -> dict[int, int | None]:
     """Read ``followed_id -> year`` from the acquire DB (year guard input).
 
@@ -314,6 +336,10 @@ def run_scrape(
         log.info("scrape_fast_skip")
         return StepReport(name="scrape")
 
+    # Live provenance store held open for the scrape: when a scrape renames a tracked
+    # folder to its canonical name, the orchestrator calls provenance.move_path so
+    # current_path stays live for the dispatch record (review A/B). Fail-soft.
+    prov_store = _open_provenance_store(config)
     scraper = Scraper(
         settings=settings,
         patterns=PATTERNS,
@@ -327,23 +353,26 @@ def run_scrape(
         follow_tvdb_resolver=_build_follow_tvdb_resolver(config),
         # #30 / ACC-05: force a followed MOVIE's TMDB id from the provenance registry.
         follow_movie_resolver=_build_provenance_movie_resolver(config),
+        provenance=prov_store.provenance if prov_store is not None else None,
     )
 
     all_results: list[ScrapeResult] = []
 
-    # Process movies
-    if not tvshows_only:
-        movies_dir = staging / movies_dir_name
-        if movies_dir.exists():
-            results = scraper.process_movies(movies_dir)
-            all_results.extend(results)
+    try:
+        # Process movies
+        if not tvshows_only:
+            movies_dir = staging / movies_dir_name
+            if movies_dir.exists():
+                all_results.extend(scraper.process_movies(movies_dir))
 
-    # Process TV shows
-    if not movies_only:
-        tvshows_dir = staging / tvshows_dir_name
-        if tvshows_dir.exists():
-            results = scraper.process_tvshows(tvshows_dir)
-            all_results.extend(results)
+        # Process TV shows
+        if not movies_only:
+            tvshows_dir = staging / tvshows_dir_name
+            if tvshows_dir.exists():
+                all_results.extend(scraper.process_tvshows(tvshows_dir))
+    finally:
+        if prov_store is not None:
+            prov_store.close()
 
     # Emit per-folder progress events
     for r in all_results:

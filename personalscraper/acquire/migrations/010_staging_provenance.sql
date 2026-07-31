@@ -24,7 +24,13 @@ BEGIN TRANSACTION;
 
 CREATE TABLE staging_provenance (
     info_hash        TEXT PRIMARY KEY,     -- grabbed torrent hash (lowercase hex)
-    followed_id      INTEGER REFERENCES followed_series(id) ON DELETE SET NULL,
+    -- Plain INTEGER back-link, NOT a FOREIGN KEY: this advisory table must never
+    -- be able to brick the store. `open_db` runs `PRAGMA foreign_key_check` on every
+    -- open and RAISES on any orphan; an operator who hard-deletes a followed_series
+    -- row via the sqlite CLI (foreign_keys OFF there — a documented repair habit)
+    -- would orphan a followed_id here and make the WHOLE acquire.db fail to open.
+    -- No join depends on FK enforcement — followed_id is informational only (review A/C).
+    followed_id      INTEGER,
     media_ref_json   TEXT,                 -- identity KNOWN at grab (tvdb/tmdb) — the seed
     kind             TEXT CHECK (kind IN ('movie', 'episode')),
     ingest_path      TEXT,                 -- staging folder the watcher created

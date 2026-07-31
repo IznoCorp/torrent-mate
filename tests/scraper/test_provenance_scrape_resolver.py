@@ -94,3 +94,47 @@ class TestMovieProvenanceResolver:
         """No tracked rows ⇒ the builder returns None (free match)."""
         _, db = store_and_db
         assert _build_provenance_movie_resolver(_config(db)) is None
+
+
+class TestScrapeRenameTracking:
+    """Review A/B: the orchestrator keeps provenance current_path live across the rename."""
+
+    def test_track_scrape_rename_moves_path_on_rename(self) -> None:
+        """A renamed scrape result triggers provenance.move_path(input → final)."""
+        from types import SimpleNamespace
+
+        from personalscraper.scraper._shared import ScrapeResult
+        from personalscraper.scraper.orchestrator import Scraper
+
+        calls: list[tuple[str, str]] = []
+
+        class _Spy:
+            def move_path(self, old_path: str, new_path: str) -> None:
+                calls.append((old_path, new_path))
+
+        result = ScrapeResult(media_path=Path("/001-MOVIES/Some Movie (2020)"), media_type="movie")
+        Scraper._track_scrape_rename(  # call the method with a minimal fake self
+            SimpleNamespace(_provenance=_Spy()),  # type: ignore[arg-type]
+            Path("/001-MOVIES/Some.Movie.2020.1080p.WEB"),
+            result,
+        )
+        assert calls == [("/001-MOVIES/Some.Movie.2020.1080p.WEB", "/001-MOVIES/Some Movie (2020)")]
+
+    def test_track_scrape_rename_noop_when_not_renamed(self) -> None:
+        """When media_path == input (no rename), no move_path call is made."""
+        from types import SimpleNamespace
+
+        from personalscraper.scraper._shared import ScrapeResult
+        from personalscraper.scraper.orchestrator import Scraper
+
+        calls: list[tuple[str, str]] = []
+
+        class _Spy:
+            def move_path(self, old_path: str, new_path: str) -> None:  # pragma: no cover - must not fire
+                calls.append((old_path, new_path))
+
+        same = Path("/001-MOVIES/Already Canonical (2020)")
+        Scraper._track_scrape_rename(
+            SimpleNamespace(_provenance=_Spy()), same, ScrapeResult(media_path=same, media_type="movie")
+        )  # type: ignore[arg-type]
+        assert calls == []

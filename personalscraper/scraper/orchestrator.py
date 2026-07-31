@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.core.event_bus import EventBus
+    from personalscraper.core.provenance_port import StagingProvenanceWriter
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.artwork import ArtworkDownloader
@@ -69,6 +70,7 @@ class Scraper(
         registry: ProviderRegistry,
         follow_tvdb_resolver: "Callable[[Path], int | None] | None" = None,
         follow_movie_resolver: "Callable[[Path], int | None] | None" = None,
+        provenance: "StagingProvenanceWriter | None" = None,
     ):
         """Initialize the scraper with the provider registry and helpers.
 
@@ -97,6 +99,10 @@ class Scraper(
                 movie's TMDB id so the scrape forces that id
                 (``scrape_movie_forced``) instead of free-matching by title+year.
                 ``None`` (default) keeps the legacy free-match behaviour.
+            provenance: Optional advisory provenance writer. When a scrape renames a
+                tracked folder to its canonical name, ``move_path`` keeps the
+                registry's ``current_path`` live so the later dispatch record matches
+                (review A/B). Best-effort; ``None`` (default) ⇒ no rename tracking.
         """
         self.settings = settings
         self.config = config
@@ -115,6 +121,11 @@ class Scraper(
         # (``scrape_movie_forced``) instead of free-matching by title+year. None ⇒
         # free match (retro-compatible).
         self._follow_movie_resolver = follow_movie_resolver
+        # Advisory provenance writer (feature provenance / #30). When a scrape renames
+        # a tracked folder to its canonical name, move_path keeps current_path live so
+        # the DISPATCH record (record_dispatch_by_path) matches and the row reaches
+        # status='dispatched' (review A/B). Best-effort; None ⇒ not tracked.
+        self._provenance = provenance
         scraper_config = config.scraper if config is not None else None
         self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
         self._scraper_fallback_language = scraper_config.fallback_language if scraper_config is not None else "en-US"
@@ -179,6 +190,28 @@ class Scraper(
         except UnknownProviderError:
             return None
 
+    def _track_scrape_rename(self, input_dir: Path, result: ScrapeResult) -> None:
+        """Keep provenance ``current_path`` live across the scrape's canonical rename.
+
+        The scrape renames a folder to ``Title (Year)`` AFTER the identity resolver
+        ran; without this, ``current_path`` would stay the sorted release name and
+        the dispatch record (keyed on ``current_path``) would never match (review
+        A/B). Advisory + best-effort — a provenance error never affects the scrape.
+
+        Args:
+            input_dir: The folder the scrape started from (the sorted path).
+            result: The scrape result (``media_path`` is the FINAL, possibly-renamed
+                folder — set by ``apply_canonical_dir_rename`` on a successful move).
+        """
+        if self._provenance is None:
+            return
+        final = result.media_path
+        if final is not None and final != input_dir:
+            try:
+                self._provenance.move_path(str(input_dir), str(final))
+            except Exception as exc:  # noqa: BLE001 — advisory: never fails the scrape
+                log.warning("scrape_provenance_move_failed", directory=input_dir.name, error=str(exc))
+
     def process_movies(self, movies_dir: Path) -> list[ScrapeResult]:
         """Scrape all movies in a directory using the registry chain.
 
@@ -242,6 +275,7 @@ class Scraper(
                     result = self.scrape_movie_forced(movie_dir, forced_tmdb)
                 else:
                     result = self.scrape_movie(movie_dir)
+                self._track_scrape_rename(movie_dir, result)
                 results.append(result)
             except CircuitOpenError as e:
                 # Circuit opened during this item's processing
@@ -338,6 +372,7 @@ class Scraper(
                     result = self.scrape_tvshow_forced(show_dir, "tvdb", forced_tvdb)
                 else:
                     result = self.scrape_tvshow(show_dir)
+                self._track_scrape_rename(show_dir, result)
                 results.append(result)
             except CircuitOpenError as e:
                 # Both providers went down during this item

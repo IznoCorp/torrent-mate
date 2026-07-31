@@ -127,6 +127,33 @@ class TestProvenanceCrud:
         store.provenance.record_dispatch_by_path("/y", dispatch_path="/z", dispatched_at=1)
         assert store.provenance.by_path("/y") is None
 
+    def test_scrape_rename_then_dispatch_records_and_prune_keeps(self, store: ConcreteAcquireStore) -> None:
+        """Review A/B regression: the sort→scrape-rename→dispatch chain reaches 'dispatched'.
+
+        Before the fix, the scrape's canonical rename left current_path at the sorted
+        name while dispatch keyed on the canonical name → record_dispatch_by_path
+        matched 0 rows (never 'dispatched'), and the prune then deleted the completed
+        journey. With move_path tracking the rename, dispatch matches and the row is
+        kept.
+        """
+        store.provenance.upsert_grab(
+            "h", followed_id=None, media_ref=MediaRef(tmdb_id=27205), kind="movie", grabbed_at=1
+        )
+        # ingest/sort → current_path is the sorted release name.
+        store.provenance.set_ingest("h", ingest_path="/001-MOVIES/Some.Movie.2020.1080p.WEB", ingested_at=2)
+        # scrape renames the folder to its canonical name (the orchestrator's move_path).
+        store.provenance.move_path("/001-MOVIES/Some.Movie.2020.1080p.WEB", "/001-MOVIES/Some Movie (2020)")
+        # dispatch keys on the (now current) canonical staging path.
+        store.provenance.record_dispatch_by_path(
+            "/001-MOVIES/Some Movie (2020)", dispatch_path="/Volumes/Disk/films/Some Movie (2020)", dispatched_at=3
+        )
+        row = store.provenance.by_hash("h")
+        assert row is not None and row.status == "dispatched", "the dispatch record must now match (review A)"
+        assert row.dispatch_path == "/Volumes/Disk/films/Some Movie (2020)"
+        # The prune KEEPS the completed journey even though its staging path is gone.
+        assert store.provenance.prune_stale(lambda _p: False) == 0, "a dispatched row must not be pruned (review B)"
+        assert store.provenance.by_hash("h") is not None
+
 
 class TestAdvisoryInvariants:
     """ACC-06 (untracked = no row) + best-effort writes."""
