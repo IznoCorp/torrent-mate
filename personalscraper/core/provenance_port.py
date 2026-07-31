@@ -25,10 +25,10 @@ class StagingProvenanceWriter(Protocol):
         """Record the staging folder created for *info_hash* at ingest (no-op if untracked)."""
         ...
 
-    def set_current_path(self, info_hash: str, *, path: str) -> None:
-        """Keep the live folder path in sync across a sort/rename (no-op if untracked)."""
+    def move_path(self, old_path: str, new_path: str) -> None:
+        """Re-point a tracked folder old_path → new_path across a sort/rename (path-keyed)."""
         ...
 
-    def set_dispatch(self, info_hash: str, *, dispatch_path: str, dispatched_at: int) -> None:
-        """Record the final destination for *info_hash* at dispatch (no-op if untracked)."""
+    def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
+        """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
         ...

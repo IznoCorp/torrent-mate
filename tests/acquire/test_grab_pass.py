@@ -442,9 +442,7 @@ def test_claim_stamps_a_fresh_clock_not_the_pass_start(store: ConcreteAcquireSto
     # value feeds the provenance grabbed_at read (feature provenance) that now
     # follows mark_grabbed — a later call than the claim, so last_search_at (the
     # 2nd value) is unaffected. patch() targets the shared `time` module globally.
-    clock = iter(
-        [float(_PINNED_NOW), float(_PINNED_NOW + 600), float(_PINNED_NOW + 600), float(_PINNED_NOW + 600)]
-    )
+    clock = iter([float(_PINNED_NOW), float(_PINNED_NOW + 600), float(_PINNED_NOW + 600), float(_PINNED_NOW + 600)])
 
     orch = MagicMock(spec=GrabOrchestrator)
     orch.grab.return_value = GrabOutcome(disposition="success", info_hash="h", found=2)

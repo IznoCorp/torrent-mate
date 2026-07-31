@@ -172,6 +172,32 @@ class _ProvenanceSubStore:
             (dispatch_path, dispatched_at, info_hash.lower()),
         )
 
+    # -- path-keyed writes (pipeline steps work on folders, not hashes) ---------
+
+    def move_path(self, old_path: str, new_path: str) -> None:
+        """Re-point a tracked folder from *old_path* to *new_path* (sort/rename).
+
+        Keyed on ``current_path`` so a pipeline step that only knows the folder
+        (not the hash) keeps the join key live across a move. UPDATE-only — a
+        no-op when the moved folder is untracked (a manual/direct item).
+        """
+        self._safe_write(
+            "UPDATE staging_provenance SET current_path = ? WHERE current_path = ?",
+            (new_path, old_path),
+        )
+
+    def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
+        """Record the dispatch of the folder currently at *staging_path* (UPDATE-only).
+
+        Keyed on ``current_path`` (the live staging folder) so dispatch needs no
+        hash. No-op when untracked.
+        """
+        self._safe_write(
+            "UPDATE staging_provenance SET dispatch_path = ?, dispatched_at = ?, "
+            "status = 'dispatched' WHERE current_path = ?",
+            (dispatch_path, dispatched_at, staging_path),
+        )
+
     # -- reads (fail-soft: None on any error) -----------------------------------
 
     def by_hash(self, info_hash: str) -> ProvenanceRow | None:

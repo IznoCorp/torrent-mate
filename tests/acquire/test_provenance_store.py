@@ -101,6 +101,32 @@ class TestProvenanceCrud:
         assert store.provenance.by_hash("nope") is None
         assert store.provenance.by_path("/nowhere") is None
 
+    def test_move_path_repoints_by_path(self, store: ConcreteAcquireStore) -> None:
+        """move_path (path-keyed, for sort) re-points current_path old → new."""
+        store.provenance.upsert_grab("mp", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("mp", ingest_path="/097-TEMP/Rel", ingested_at=2)
+        store.provenance.move_path("/097-TEMP/Rel", "/001-MOVIES/Rel")
+        assert store.provenance.by_path("/097-TEMP/Rel") is None
+        row = store.provenance.by_path("/001-MOVIES/Rel")
+        assert row is not None and row.info_hash == "mp"
+
+    def test_record_dispatch_by_path(self, store: ConcreteAcquireStore) -> None:
+        """record_dispatch_by_path (path-keyed, for dispatch) records the destination."""
+        store.provenance.upsert_grab("dp", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("dp", ingest_path="/001-MOVIES/Rel", ingested_at=2)
+        store.provenance.record_dispatch_by_path(
+            "/001-MOVIES/Rel", dispatch_path="/Volumes/Disk/films/Rel", dispatched_at=9
+        )
+        row = store.provenance.by_hash("dp")
+        assert row is not None and row.status == "dispatched"
+        assert row.dispatch_path == "/Volumes/Disk/films/Rel"
+
+    def test_path_keyed_writes_noop_when_untracked(self, store: ConcreteAcquireStore) -> None:
+        """move_path / record_dispatch_by_path never create a row (ACC-06)."""
+        store.provenance.move_path("/x", "/y")
+        store.provenance.record_dispatch_by_path("/y", dispatch_path="/z", dispatched_at=1)
+        assert store.provenance.by_path("/y") is None
+
 
 class TestAdvisoryInvariants:
     """ACC-06 (untracked = no row) + best-effort writes."""

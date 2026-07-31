@@ -30,6 +30,7 @@ from personalscraper.acquire.domain import SeedObligation
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import TrackerEconomyConfig
+from personalscraper.core.identity import MediaRef
 
 # A representative per-tracker economy: lacale, 72h min seed, ratio floor 1.0.
 _LACALE_ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
@@ -596,7 +597,6 @@ def test_record_dispatch_never_closes_wanted_row(store: ConcreteAcquireStore, tm
     pass closes it after the enrich scan.
     """
     from personalscraper.acquire.domain import WantedItem
-    from personalscraper.core.identity import MediaRef
 
     wanted_id = store.wanted.add(
         WantedItem(
@@ -630,7 +630,6 @@ def test_record_dispatch_never_closes_wanted_row(store: ConcreteAcquireStore, tm
 def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteAcquireStore, tmp_path: Path) -> None:
     """No torrent matches the dispatch → the grabbed row stays (ownership sweep's job)."""
     from personalscraper.acquire.domain import WantedItem
-    from personalscraper.core.identity import MediaRef
 
     wanted_id = store.wanted.add(
         WantedItem(
@@ -698,3 +697,23 @@ def test_record_dispatch_hit_backfills_grab_time_obligation(store: ConcreteAcqui
     rows = store._conn.execute("SELECT info_hash, dispatched_path FROM seed_obligation").fetchall()
     assert len(rows) == 1, f"the correlation must backfill, not duplicate — got {len(rows)} rows"
     assert rows[0][1] == str(dest), "dispatched_path must be attached to the grab-time row"
+
+
+def test_record_dispatch_updates_provenance(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """record_dispatch records the dispatch destination on the provenance row (#30 / F0).
+
+    Advisory + acquire-internal: even with no torrent client (so the seed-obligation
+    correlation no-ops), the provenance journey record is still completed — it needs
+    only the store.
+    """
+    staging = tmp_path / "001-MOVIES" / "Inception (2010)"
+    store.provenance.upsert_grab("hh", followed_id=None, media_ref=MediaRef(tmdb_id=27205), kind="movie", grabbed_at=1)
+    store.provenance.set_ingest("hh", ingest_path=str(staging), ingested_at=2)
+
+    auth = DeleteAuthority(store=store, torrent_client=None, economy={})
+    dest = Path("/Volumes/Disk/films/Inception (2010)")
+    auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
+
+    row = store.provenance.by_hash("hh")
+    assert row is not None and row.status == "dispatched"
+    assert row.dispatch_path == str(dest)

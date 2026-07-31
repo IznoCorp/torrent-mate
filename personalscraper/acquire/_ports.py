@@ -444,6 +444,14 @@ class ProvenanceSubStore(Protocol):
         """Record the final destination at dispatch (no-op if untracked)."""
         ...
 
+    def move_path(self, old_path: str, new_path: str) -> None:
+        """Re-point a tracked folder old_path → new_path (path-keyed sort/rename)."""
+        ...
+
+    def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
+        """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
+        ...
+
     def by_hash(self, info_hash: str) -> ProvenanceRow | None:
         """Return the row for *info_hash*, or ``None`` (fail-soft)."""
         ...
