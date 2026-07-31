@@ -229,10 +229,10 @@ class TestMigration011ResolutionColumns:
         indexes = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
         assert "idx_provenance_resolution_state" in indexes
 
-    def test_user_version_is_11(self, store: ConcreteAcquireStore) -> None:
-        """The migrated store publishes user_version 11."""
+    def test_user_version_at_least_11(self, store: ConcreteAcquireStore) -> None:
+        """Migration 011 (and any later) has been applied — user_version >= 11."""
         conn = store._ensure_open()  # noqa: SLF001
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 11
+        assert conn.execute("PRAGMA user_version").fetchone()[0] >= 11
 
 
 class TestResolutionProjection:
@@ -307,3 +307,73 @@ class TestResolutionProjection:
         assert row.resolution_state == "dismissed"
         # by_path is likewise normalization-robust.
         assert store.provenance.by_path(nfc_path) is not None
+
+
+class TestMigration012RunLinkage:
+    """The F3 per-stage run-uid columns exist after migration 012."""
+
+    def test_run_columns_present_and_version_12(self, store: ConcreteAcquireStore) -> None:
+        """A fresh store carries the four *_run_uid columns and user_version 12."""
+        conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
+        cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
+        assert {"grab_run_uid", "ingest_run_uid", "scrape_run_uid", "dispatch_run_uid"} <= cols
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 12
+
+
+class TestRunLinkage:
+    """Each stage stamps its run_uid; the converse query answers 'items in run X' (F3)."""
+
+    def test_each_stage_stamps_its_run_uid(self, store: ConcreteAcquireStore) -> None:
+        """grab/ingest/scrape/dispatch each record their own run on the row."""
+        store.provenance.upsert_grab(
+            "h1", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1, run_uid="grabRUN"
+        )
+        store.provenance.set_ingest("h1", ingest_path="/stage/Item", ingested_at=2, run_uid="ingRUN")
+        store.provenance.set_scrape_run("/stage/Item", run_uid="scrRUN")
+        store.provenance.record_dispatch_by_path(
+            "/stage/Item", dispatch_path="/Volumes/D/Item", dispatched_at=4, run_uid="dispRUN"
+        )
+        row = store.provenance.by_hash("h1")
+        assert row is not None
+        assert row.grab_run_uid == "grabRUN"
+        assert row.ingest_run_uid == "ingRUN"
+        assert row.scrape_run_uid == "scrRUN"
+        assert row.dispatch_run_uid == "dispRUN"
+
+    def test_run_uids_default_none_when_omitted(self, store: ConcreteAcquireStore) -> None:
+        """Omitting run_uid (grab via qBit-direct / no run) leaves the columns NULL."""
+        store.provenance.upsert_grab("h2", followed_id=None, media_ref=MediaRef(tmdb_id=2), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("h2", ingest_path="/stage/B", ingested_at=2)
+        row = store.provenance.by_hash("h2")
+        assert row is not None
+        assert row.grab_run_uid is None
+        assert row.ingest_run_uid is None
+
+    def test_set_scrape_run_noop_when_run_uid_none(self, store: ConcreteAcquireStore) -> None:
+        """set_scrape_run with run_uid=None is a no-op (no spurious write)."""
+        store.provenance.upsert_grab("h3", followed_id=None, media_ref=MediaRef(tmdb_id=3), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("h3", ingest_path="/stage/C", ingested_at=2)
+        store.provenance.set_scrape_run("/stage/C", run_uid=None)
+        assert store.provenance.by_hash("h3").scrape_run_uid is None  # type: ignore[union-attr]
+
+    def test_set_scrape_run_noop_when_untracked(self, store: ConcreteAcquireStore) -> None:
+        """set_scrape_run on an untracked (manual) folder never creates a row (ACC-06)."""
+        store.provenance.set_scrape_run("/stage/manual", run_uid="scrRUN")
+        assert store.provenance.by_path("/stage/manual") is None
+
+    def test_list_journeys_for_run_matches_any_stage(self, store: ConcreteAcquireStore) -> None:
+        """The converse query returns items a run touched at ANY stage, and excludes others."""
+        # Item A: scraped by RUN_X.
+        store.provenance.upsert_grab("a", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=10)
+        store.provenance.set_ingest("a", ingest_path="/s/A", ingested_at=11)
+        store.provenance.set_scrape_run("/s/A", run_uid="RUN_X")
+        # Item B: dispatched by RUN_X (different stage).
+        store.provenance.upsert_grab("b", followed_id=None, media_ref=MediaRef(tmdb_id=2), kind="movie", grabbed_at=20)
+        store.provenance.set_ingest("b", ingest_path="/s/B", ingested_at=21)
+        store.provenance.record_dispatch_by_path("/s/B", dispatch_path="/D/B", dispatched_at=22, run_uid="RUN_X")
+        # Item C: untouched by RUN_X.
+        store.provenance.upsert_grab(
+            "c", followed_id=None, media_ref=MediaRef(tmdb_id=3), kind="movie", grabbed_at=30, run_uid="RUN_Y"
+        )
+        hashes = {r.info_hash for r in store.provenance.list_journeys_for_run("RUN_X")}
+        assert hashes == {"a", "b"}

@@ -74,6 +74,14 @@ class ProvenanceRow:
     decision_id: int | None = None
     resolution_trigger: str | None = None
     resolution_at: int | None = None
+    # Pipeline-run linkage (F3, run-linkage) — the run that advanced this acquisition at
+    # each stage (hex ``pipeline_run.run_uid``, cross-DB back-link, no FK). Each is None
+    # until that stage runs under a resolvable run (a grab via qBittorrent-direct or a
+    # stage with no run stays NULL).
+    grab_run_uid: str | None = None
+    ingest_run_uid: str | None = None
+    scrape_run_uid: str | None = None
+    dispatch_run_uid: str | None = None
 
 
 def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
@@ -101,6 +109,12 @@ def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
         decision_id=row["decision_id"] if "decision_id" in keys else None,
         resolution_trigger=row["resolution_trigger"] if "resolution_trigger" in keys else None,
         resolution_at=row["resolution_at"] if "resolution_at" in keys else None,
+        # F3 run linkage — tolerate a pre-012 row shape (defensive against a SELECT *
+        # against an un-migrated table).
+        grab_run_uid=row["grab_run_uid"] if "grab_run_uid" in keys else None,
+        ingest_run_uid=row["ingest_run_uid"] if "ingest_run_uid" in keys else None,
+        scrape_run_uid=row["scrape_run_uid"] if "scrape_run_uid" in keys else None,
+        dispatch_run_uid=row["dispatch_run_uid"] if "dispatch_run_uid" in keys else None,
     )
 
 
@@ -139,24 +153,27 @@ class _ProvenanceSubStore:
         media_ref: MediaRef | None,
         kind: str | None,
         grabbed_at: int,
+        run_uid: str | None = None,
     ) -> None:
         """Create/refresh the row for a FOLLOW-DRIVEN grab (the identity seed).
 
         The ONLY row-creating method — called exclusively when a grab carries a
         wanted-derived identity. A manual/direct grab never reaches here, so it
-        never gets a row (ACC-06).
+        never gets a row (ACC-06). ``run_uid`` (F3) is the grab command's own
+        ``pipeline_run.run_uid`` (hex) — None when grab runs with no run row.
         """
         self._safe_write(
             """
             INSERT INTO staging_provenance
-              (info_hash, followed_id, media_ref_json, kind, grabbed_at, status)
-            VALUES (?, ?, ?, ?, ?, 'grabbed')
+              (info_hash, followed_id, media_ref_json, kind, grabbed_at, status, grab_run_uid)
+            VALUES (?, ?, ?, ?, ?, 'grabbed', ?)
             ON CONFLICT(info_hash) DO UPDATE SET
               followed_id    = excluded.followed_id,
               media_ref_json = excluded.media_ref_json,
               kind           = excluded.kind,
               grabbed_at     = excluded.grabbed_at,
-              status         = 'grabbed'
+              status         = 'grabbed',
+              grab_run_uid   = excluded.grab_run_uid
             """,
             (
                 info_hash.lower(),
@@ -164,15 +181,19 @@ class _ProvenanceSubStore:
                 _media_ref_to_json(media_ref) if media_ref is not None else None,
                 kind,
                 grabbed_at,
+                run_uid,
             ),
         )
 
-    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
-        """Record the staging folder at ingest (UPDATE-only — no-op if untracked)."""
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int, run_uid: str | None = None) -> None:
+        """Record the staging folder at ingest (UPDATE-only — no-op if untracked).
+
+        ``run_uid`` (F3) is the ingesting run's ``pipeline_run.run_uid`` (hex), or None.
+        """
         self._safe_write(
             "UPDATE staging_provenance SET ingest_path = ?, current_path = ?, "
-            "ingested_at = ?, status = 'ingested' WHERE info_hash = ?",
-            (ingest_path, ingest_path, ingested_at, info_hash.lower()),
+            "ingested_at = ?, status = 'ingested', ingest_run_uid = ? WHERE info_hash = ?",
+            (ingest_path, ingest_path, ingested_at, run_uid, info_hash.lower()),
         )
 
     def set_current_path(self, info_hash: str, *, path: str) -> None:
@@ -217,17 +238,36 @@ class _ProvenanceSubStore:
             (new_path, nfc_old, nfd_old),
         )
 
-    def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
+    def record_dispatch_by_path(
+        self, staging_path: str, *, dispatch_path: str, dispatched_at: int, run_uid: str | None = None
+    ) -> None:
         """Record the dispatch of the folder currently at *staging_path* (UPDATE-only).
 
         Keyed on ``current_path`` (the live staging folder) so dispatch needs no
-        hash. No-op when untracked.
+        hash. No-op when untracked. ``run_uid`` (F3) is the dispatching run's
+        ``pipeline_run.run_uid`` (hex), or None.
         """
         nfc, nfd = _path_key_forms(staging_path)
         self._safe_write(
             "UPDATE staging_provenance SET dispatch_path = ?, dispatched_at = ?, "
-            "status = 'dispatched' WHERE current_path IN (?, ?)",
-            (dispatch_path, dispatched_at, nfc, nfd),
+            "status = 'dispatched', dispatch_run_uid = ? WHERE current_path IN (?, ?)",
+            (dispatch_path, dispatched_at, run_uid, nfc, nfd),
+        )
+
+    def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
+        """Stamp the run that scraped the folder at *staging_path* (F3, UPDATE-only).
+
+        Path-keyed on ``current_path`` (NFC/NFD-robust), so the scrape orchestrator —
+        which works on folders, not hashes — records the scraping run for every scraped
+        item (confident or ambiguous) without a hash lookup. No-op when untracked / when
+        *run_uid* is None. Advisory: never raises.
+        """
+        if run_uid is None:
+            return
+        nfc, nfd = _path_key_forms(staging_path)
+        self._safe_write(
+            "UPDATE staging_provenance SET scrape_run_uid = ? WHERE current_path IN (?, ?)",
+            (run_uid, nfc, nfd),
         )
 
     def set_resolution(
@@ -326,6 +366,25 @@ class _ProvenanceSubStore:
             return [_row_to_provenance(r) for r in rows]
         except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty list
             log.warning("acquire.provenance.list_journeys_failed", error=str(exc))
+            return []
+
+    def list_journeys_for_run(self, run_uid: str, limit: int = 500) -> list[ProvenanceRow]:
+        """Return the acquisitions a given run advanced at ANY stage (F3, fail-soft).
+
+        Matches ``run_uid`` against any of the four per-stage run columns — answers
+        « quelles acquisitions ce run a-t-il traitées ? ». Empty list on any error.
+        """
+        try:
+            self._conn.row_factory = sqlite3.Row
+            rows = self._conn.execute(
+                "SELECT * FROM staging_provenance WHERE grab_run_uid = ? OR ingest_run_uid = ? "
+                "OR scrape_run_uid = ? OR dispatch_run_uid = ? "
+                "ORDER BY grabbed_at DESC, rowid DESC LIMIT ?",
+                (run_uid, run_uid, run_uid, run_uid, limit),
+            ).fetchall()
+            return [_row_to_provenance(r) for r in rows]
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty list
+            log.warning("acquire.provenance.list_journeys_for_run_failed", error=str(exc))
             return []
 
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:

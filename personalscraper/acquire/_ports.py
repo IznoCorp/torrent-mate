@@ -424,11 +424,12 @@ class ProvenanceSubStore(Protocol):
         media_ref: MediaRef | None,
         kind: str | None,
         grabbed_at: int,
+        run_uid: str | None = None,
     ) -> None:
         """Create/refresh the row for a follow-driven grab (the identity seed)."""
         ...
 
-    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int) -> None:
+    def set_ingest(self, info_hash: str, *, ingest_path: str, ingested_at: int, run_uid: str | None = None) -> None:
         """Record the staging folder at ingest (no-op if untracked)."""
         ...
 
@@ -448,7 +449,13 @@ class ProvenanceSubStore(Protocol):
         """Re-point a tracked folder old_path → new_path (path-keyed sort/rename)."""
         ...
 
-    def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
+    def set_scrape_run(self, staging_path: str, *, run_uid: str | None) -> None:
+        """Stamp the run that scraped the folder at *staging_path* (path-keyed, F3)."""
+        ...
+
+    def record_dispatch_by_path(
+        self, staging_path: str, *, dispatch_path: str, dispatched_at: int, run_uid: str | None = None
+    ) -> None:
         """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
         ...
 
@@ -478,6 +485,10 @@ class ProvenanceSubStore(Protocol):
 
     def list_journeys(self, limit: int = 200) -> "list[ProvenanceRow]":
         """Return provenance rows most-recent first (F1 journey view; fail-soft)."""
+        ...
+
+    def list_journeys_for_run(self, run_uid: str, limit: int = 500) -> "list[ProvenanceRow]":
+        """Return acquisitions a run advanced at any stage (F3 converse view; fail-soft)."""
         ...
 
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
