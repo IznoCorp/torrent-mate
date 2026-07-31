@@ -101,6 +101,18 @@ class TestProvenanceCrud:
         assert store.provenance.by_hash("nope") is None
         assert store.provenance.by_path("/nowhere") is None
 
+    def test_list_journeys_most_recent_first(self, store: ConcreteAcquireStore) -> None:
+        """F1: list_journeys returns rows most-recent (grabbed_at) first."""
+        store.provenance.upsert_grab(
+            "old", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=100
+        )
+        store.provenance.upsert_grab(
+            "new", followed_id=None, media_ref=MediaRef(tvdb_id=2), kind="movie", grabbed_at=200
+        )
+        journeys = store.provenance.list_journeys()
+        assert [j.info_hash for j in journeys] == ["new", "old"]
+        assert journeys[0].media_ref == MediaRef(tvdb_id=2)
+
     def test_move_path_repoints_by_path(self, store: ConcreteAcquireStore) -> None:
         """move_path (path-keyed, for sort) re-points current_path old → new."""
         store.provenance.upsert_grab("mp", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="movie", grabbed_at=1)

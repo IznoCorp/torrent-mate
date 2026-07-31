@@ -69,6 +69,9 @@ from personalscraper.web.models.acquisition import (
     CreateFollowRequest,
     FollowedResponse,
     FollowedSeriesItem,
+    JourneyItem,
+    JourneysResponse,
+    MediaRefResponse,
     MediaSearchResponse,
     ObligationItem,
     ObligationsResponse,
@@ -799,6 +802,66 @@ def preview_ranking(body: RankingConfig) -> RankingPreviewResponse:
     # Excluded rows sink to the end; within each group keep the score order.
     rows.sort(key=lambda r: (r.excluded, -r.score))
     return RankingPreviewResponse(ranked=rows)
+
+
+# ── provenance journeys (« parcours » — F1) ───────────────────────────────
+
+
+def _journey_media_ref(ref: "MediaRef | None") -> MediaRefResponse:
+    """Convert a provenance MediaRef to the API response shape (empty when None)."""
+    if ref is None:
+        return MediaRefResponse()
+    return MediaRefResponse(tvdb_id=ref.tvdb_id, tmdb_id=ref.tmdb_id, imdb_id=ref.imdb_id)
+
+
+@router.get("/journeys", response_model=JourneysResponse)
+def get_journeys(request: Request) -> JourneysResponse:
+    """List each acquisition's pipeline journey from the provenance registry (F1).
+
+    Read-only + fail-soft: opens a fresh acquire store per request, reads the
+    provenance journeys (most-recent first), and joins each row's follow title so
+    the « Parcours » view is human-readable. An unreadable store yields an empty
+    list rather than a 500 (the provenance registry is advisory).
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`JourneysResponse` — the acquisition journeys, most-recent first.
+    """
+    store = build_acquire_store(request.app.state.config.acquire)
+    try:
+        rows = store.provenance.list_journeys()
+        title_cache: dict[int, str | None] = {}
+        items: list[JourneyItem] = []
+        for row in rows:
+            follow_title: str | None = None
+            if row.followed_id is not None:
+                if row.followed_id not in title_cache:
+                    follow = store.follow.get(row.followed_id)
+                    title_cache[row.followed_id] = follow.title if follow is not None else None
+                follow_title = title_cache[row.followed_id]
+            items.append(
+                JourneyItem(
+                    info_hash=row.info_hash,
+                    kind=row.kind,
+                    media_ref=_journey_media_ref(row.media_ref),
+                    scraped_ref=_journey_media_ref(row.scraped_ref) if row.scraped_ref is not None else None,
+                    followed_id=row.followed_id,
+                    follow_title=follow_title,
+                    status=row.status,
+                    ingest_path=row.ingest_path,
+                    current_path=row.current_path,
+                    dispatch_path=row.dispatch_path,
+                    grabbed_at=row.grabbed_at,
+                    ingested_at=row.ingested_at,
+                    scraped_at=row.scraped_at,
+                    dispatched_at=row.dispatched_at,
+                )
+            )
+        return JourneysResponse(journeys=items)
+    finally:
+        store.close()
 
 
 # ── media search (add-by-search, OBJ3) ───────────────────────────────────

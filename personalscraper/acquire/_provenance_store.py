@@ -244,6 +244,23 @@ class _ProvenanceSubStore:
             log.warning("acquire.provenance.read_failed", error=str(exc))
             return None
 
+    def list_journeys(self, limit: int = 200) -> list[ProvenanceRow]:
+        """Return provenance rows, most-recent (``grabbed_at``) first (F1 journey view).
+
+        Read-only + fail-soft: an empty list on any error. The web journey endpoint
+        joins each row's follow title on top of this snapshot.
+        """
+        try:
+            self._conn.row_factory = sqlite3.Row
+            rows = self._conn.execute(
+                "SELECT * FROM staging_provenance ORDER BY grabbed_at DESC, rowid DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [_row_to_provenance(r) for r in rows]
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a read error yields the empty list
+            log.warning("acquire.provenance.list_journeys_failed", error=str(exc))
+            return []
+
     def prune_stale(self, exists_fn: Callable[[str], bool]) -> int:
         """Prune ORPHANED in-flight rows whose ``current_path`` no longer exists.
 
