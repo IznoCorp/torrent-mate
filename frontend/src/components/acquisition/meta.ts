@@ -22,8 +22,8 @@ import {
   STATE_TONE,
 } from "@/lib/outcome-labels";
 
-/** Tab ids for the four panels. */
-export type TabId = "followed" | "file" | "obligations" | "watcher";
+/** Tab ids for the panels. */
+export type TabId = "followed" | "file" | "obligations" | "watcher" | "reglages";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -80,6 +80,7 @@ export const TABS: readonly { id: TabId; label: string }[] = [
   { id: "file", label: "File d'acquisition" },
   { id: "obligations", label: "Obligations" },
   { id: "watcher", label: "Watcher" },
+  { id: "reglages", label: "Réglages" },
 ];
 
 /** Allowed status filter values for the wanted queue (includes "all"). */

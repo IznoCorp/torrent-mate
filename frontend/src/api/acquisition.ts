@@ -10,7 +10,7 @@
  */
 
 import type { QueryParamsOf, SuccessBody } from "./_schema-helpers";
-import type { paths } from "./schema";
+import type { components, paths } from "./schema";
 import { XRW_HEADERS, apiFetch } from "./client";
 
 // ---------------------------------------------------------------------------
@@ -448,5 +448,45 @@ export function deleteFollow(id: number): Promise<void> {
     method: "delete",
     headers: XRW_HEADERS,
     params: { path: { followed_id: id } },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Ranking editor (#18) — live preview of the acquisition ranking
+// ---------------------------------------------------------------------------
+
+/** The full ranking configuration (criteria + bonuses + min_seeders). */
+export type RankingConfig = components["schemas"]["RankingConfig"];
+
+/** One ranking criterion (field + weight + values|thresholds). */
+export type RankingCriterion = components["schemas"]["RankingCriterion"];
+
+/** Response for ``POST /api/acquisition/ranking/preview``. */
+export type RankingPreviewResponse = SuccessBody<
+  paths["/api/acquisition/ranking/preview"]["post"]["responses"]
+>;
+
+/** One scored sample release in the preview. */
+export type RankingPreviewRelease = RankingPreviewResponse["ranked"][number];
+
+/**
+ * Score the representative sample set under a candidate ranking (live preview).
+ *
+ * Sends ``POST /api/acquisition/ranking/preview`` — pure/read-only, so it needs
+ * no cache invalidation and is safe to call on every debounced edit.
+ *
+ * Args:
+ *   body: The candidate ranking configuration to score with.
+ *
+ * Returns:
+ *   A {@link RankingPreviewResponse} with the scored, sorted samples.
+ */
+export function previewRanking(
+  body: RankingConfig,
+): Promise<RankingPreviewResponse> {
+  return apiFetch("/api/acquisition/ranking/preview", {
+    method: "post",
+    body,
+    headers: XRW_HEADERS,
   });
 }
