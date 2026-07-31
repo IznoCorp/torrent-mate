@@ -284,3 +284,26 @@ class TestResolutionProjection:
 
         sub = _ProvenanceSubStore(_RaisingConn(), _write_tx)  # type: ignore[arg-type]
         sub.set_resolution("/x", state="awaiting", resolved_at=1)  # must NOT raise
+
+    def test_set_resolution_matches_across_unicode_normalization(self, store: ConcreteAcquireStore) -> None:
+        """A row stored under its NFD path is still hit when keyed with the NFC form (F2 #2).
+
+        The dismiss route keys on ``scrape_decision.staging_path`` (NFC-normalized), while
+        ``current_path`` is stored raw (NFD from ``iterdir`` on macOS). The projection must
+        match regardless of normalization, else an accented-title dismiss silently misses.
+        """
+        import unicodedata
+
+        nfd_path = unicodedata.normalize("NFD", "/stage/Amélie (2001)")
+        nfc_path = unicodedata.normalize("NFC", "/stage/Amélie (2001)")
+        assert nfd_path != nfc_path  # the title actually decomposes (guards the test)
+
+        store.provenance.upsert_grab("h", followed_id=None, media_ref=MediaRef(tmdb_id=194), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("h", ingest_path=nfd_path, ingested_at=2)  # stored NFD
+        # Key with the NFC form (as the dismiss route would):
+        store.provenance.set_resolution(nfc_path, state="dismissed", resolved_at=3)
+        row = store.provenance.by_hash("h")
+        assert row is not None
+        assert row.resolution_state == "dismissed"
+        # by_path is likewise normalization-robust.
+        assert store.provenance.by_path(nfc_path) is not None

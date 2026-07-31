@@ -326,6 +326,29 @@ def _forced_no_nfo(staging_path: Path, *args: Any) -> Any:
     return result
 
 
+def _forced_movie_ok_renames_to(canonical_name: str) -> Any:
+    """Build a stub forced-movie scrape that RENAMES the folder to *canonical_name*.
+
+    Mirrors production: ``scrape_movie_forced`` renames a non-canonical staging folder
+    to its ``Title (Year)`` form and returns the POST-rename ``media_path``. Exercises the
+    resolve-rename gap (the forced path does not auto-track the rename) that a
+    same-name stub would mask.
+    """
+
+    def _stub(staging_path: Path, provider_id: int) -> Any:
+        from personalscraper.scraper._shared import ScrapeResult
+
+        canonical = staging_path.parent / canonical_name
+        staging_path.rename(canonical)
+        title = canonical.name.rsplit(" (", 1)[0]
+        (canonical / f"{title}.nfo").write_text("<movie/>")
+        result = ScrapeResult(media_path=canonical, media_type="movie")
+        result.action = "scraped"
+        return result
+
+    return _stub
+
+
 def _setup_command_args(staging_dir: Path, provider: str, provider_id: int) -> list[str]:
     """Build CLI argv for the scrape-resolve command."""
     return [
@@ -562,16 +585,20 @@ class TestScrapeResolveExit0:
         assert resolution["provider_id"] == 550
         assert resolution["via"] == "pick"
 
-    def test_resolve_projects_resolved_onto_the_spine(self, tmp_path: Path, test_config: Any) -> None:
-        """A successful scrape-resolve mirrors 'resolved' onto the tracked item's spine row (F2).
+    def test_resolve_projects_resolved_onto_the_spine_across_rename(self, tmp_path: Path, test_config: Any) -> None:
+        """scrape-resolve moves current_path across the forced rename, then mirrors 'resolved'.
 
-        Anti-regression: the authoritative decision resolve is unchanged (status 'resolved');
-        the spine projection is additive and advisory, path-keyed on the (post-scrape) folder.
+        Regression guard (adversarial review): the forced scrape renames a NON-canonical
+        staging folder to its canonical name but — unlike the automatic pipeline — does NOT
+        auto-track the rename. The command must move ``current_path`` explicitly, else the
+        path-keyed resolution write misses the pre-rename row and the spine stays 'awaiting'.
+        Anti-regression: the authoritative decision resolve is unchanged (status 'resolved').
         """
         from personalscraper.acquire.store import build_acquire_store
         from personalscraper.core.identity import MediaRef
 
-        staging = tmp_path / "staging" / "001-MOVIES" / "Fight Club (1999)"
+        # A NON-canonical release folder — the forced scrape will rename it.
+        staging = tmp_path / "staging" / "001-MOVIES" / "fight.club.1999.1080p.x264-GRP"
         staging.mkdir(parents=True)
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -580,8 +607,7 @@ class TestScrapeResolveExit0:
         _create_db(cfg.indexer.db_path)
         decision_id = _insert_decision(cfg.indexer.db_path, str(staging.resolve()))
 
-        # Spine: a tracked follow-driven item ingested at the staging folder. current_path
-        # is seeded with the UN-resolved form the stubbed scrape returns as media_path.
+        # Spine: a tracked follow-driven item ingested at the PRE-rename folder.
         store = build_acquire_store(cfg.acquire)
         store.provenance.upsert_grab(
             "hh", followed_id=None, media_ref=MediaRef(tmdb_id=550), kind="movie", grabbed_at=1
@@ -589,6 +615,7 @@ class TestScrapeResolveExit0:
         store.provenance.set_ingest("hh", ingest_path=str(staging), ingested_at=2)
         store.close()
 
+        canonical = staging.parent / "Fight Club (1999)"
         mock_client = MagicMock()
         mock_client.get_movie.return_value = REALISTIC_MOVIE_PAYLOAD
 
@@ -604,7 +631,7 @@ class TestScrapeResolveExit0:
                 "personalscraper.commands.scrape_resolve.per_step_boundary",
                 _make_mock_per_step_boundary(mock_client),
             ),
-            patch(_PATCH_SCRAPER_MOVIE_FORCED, side_effect=_forced_movie_ok),
+            patch(_PATCH_SCRAPER_MOVIE_FORCED, side_effect=_forced_movie_ok_renames_to("Fight Club (1999)")),
         ):
             result = runner.invoke(app, _setup_command_args(staging, "tmdb", 550))
 
@@ -615,10 +642,14 @@ class TestScrapeResolveExit0:
 
         store = build_acquire_store(cfg.acquire)
         try:
-            prow = store.provenance.by_path(str(staging))
-            assert prow is not None
+            # current_path moved to the canonical folder AND carries the resolved verdict.
+            prow = store.provenance.by_path(str(canonical))
+            assert prow is not None, "current_path was not moved across the forced rename"
+            assert prow.current_path == str(canonical)
             assert prow.resolution_state == "resolved"
             assert prow.decision_id == decision_id
+            # The pre-rename row no longer exists under the old path.
+            assert store.provenance.by_path(str(staging)) is None
         finally:
             store.close()
 

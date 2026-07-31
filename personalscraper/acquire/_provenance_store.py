@@ -23,6 +23,7 @@ ADVISORY OVERLAY — the filesystem stays the source of truth:
 from __future__ import annotations
 
 import sqlite3
+import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
@@ -32,6 +33,20 @@ from personalscraper.core.identity import MediaRef
 from personalscraper.logger import get_logger
 
 log = get_logger(__name__)
+
+
+def _path_key_forms(path: str) -> tuple[str, str]:
+    """Return the (NFC, NFD) unicode forms of *path* for normalization-robust matching.
+
+    ``current_path`` is persisted un-normalized — whatever ``str(Path)`` the pipeline
+    produced (NFD from ``iterdir`` on macOS for a decomposable name, NFC elsewhere) —
+    while a cross-store caller may hold the OTHER form (a decision's ``staging_path`` is
+    NFC-normalized by ``DecisionWriter``; a scrape's ``media_path`` is raw NFD). Matching
+    a path-keyed write against BOTH forms makes it hit regardless of the stored
+    normalization. For an ASCII path the two forms are identical, so this never changes
+    the behaviour of the (ASCII) paths that shipped in F0.
+    """
+    return unicodedata.normalize("NFC", path), unicodedata.normalize("NFD", path)
 
 
 @dataclass(frozen=True)
@@ -196,9 +211,10 @@ class _ProvenanceSubStore:
         (not the hash) keeps the join key live across a move. UPDATE-only — a
         no-op when the moved folder is untracked (a manual/direct item).
         """
+        nfc_old, nfd_old = _path_key_forms(old_path)
         self._safe_write(
-            "UPDATE staging_provenance SET current_path = ? WHERE current_path = ?",
-            (new_path, old_path),
+            "UPDATE staging_provenance SET current_path = ? WHERE current_path IN (?, ?)",
+            (new_path, nfc_old, nfd_old),
         )
 
     def record_dispatch_by_path(self, staging_path: str, *, dispatch_path: str, dispatched_at: int) -> None:
@@ -207,10 +223,11 @@ class _ProvenanceSubStore:
         Keyed on ``current_path`` (the live staging folder) so dispatch needs no
         hash. No-op when untracked.
         """
+        nfc, nfd = _path_key_forms(staging_path)
         self._safe_write(
             "UPDATE staging_provenance SET dispatch_path = ?, dispatched_at = ?, "
-            "status = 'dispatched' WHERE current_path = ?",
-            (dispatch_path, dispatched_at, staging_path),
+            "status = 'dispatched' WHERE current_path IN (?, ?)",
+            (dispatch_path, dispatched_at, nfc, nfd),
         )
 
     def set_resolution(
@@ -238,10 +255,11 @@ class _ProvenanceSubStore:
             decision_id: The ``scrape_decision.id`` back-link (deep-link target), or None.
             trigger: The decision trigger (``below_threshold``/``mid_band``/``ambiguous``).
         """
+        nfc, nfd = _path_key_forms(staging_path)
         self._safe_write(
             "UPDATE staging_provenance SET resolution_state = ?, decision_id = ?, "
-            "resolution_trigger = ?, resolution_at = ? WHERE current_path = ?",
-            (state, decision_id, trigger, resolved_at, staging_path),
+            "resolution_trigger = ?, resolution_at = ? WHERE current_path IN (?, ?)",
+            (state, decision_id, trigger, resolved_at, nfc, nfd),
         )
 
     # -- reads (fail-soft: None on any error) -----------------------------------
@@ -254,8 +272,11 @@ class _ProvenanceSubStore:
         """Return the row whose ``current_path`` equals *path*, or ``None``.
 
         The #30 scrape consumer's join: a staging folder → its provenance seed.
+        Matches both unicode forms so a caller holding the NFC path still finds a
+        row stored under its NFD form (and vice-versa).
         """
-        return self._read_one("WHERE current_path = ?", (path,))
+        nfc, nfd = _path_key_forms(path)
+        return self._read_one("WHERE current_path IN (?, ?)", (nfc, nfd))
 
     def path_ref_index(self) -> dict[str, MediaRef]:
         """Snapshot ``{current_path: media_ref}`` for every tracked, identified row.

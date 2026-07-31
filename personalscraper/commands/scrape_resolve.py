@@ -230,11 +230,12 @@ def scrape_resolve(
             from personalscraper.scraper.orchestrator import Scraper  # noqa: PLC0415
             from personalscraper.scraper.run import _open_provenance_store  # noqa: PLC0415
 
-            # F2 (decisions-spine): hold a live provenance store for the resolve so the
-            # orchestrator's move_path keeps ``current_path`` live across the canonical
-            # rename (mirrors the automatic pipeline — F0 review A/B; otherwise a later
-            # dispatch record would miss) AND we can mirror the 'resolved' verdict onto
-            # the spine. Advisory / fail-soft — never blocks the authoritative resolve.
+            # F2 (decisions-spine): hold a live provenance store so we can keep the spine
+            # in sync with the resolve — move ``current_path`` across the forced rename and
+            # mirror the 'resolved' verdict (see the writes after the resolve-mark below).
+            # The forced scrape does NOT auto-track the rename (that is why the move is
+            # explicit), so the store is NOT wired into the Scraper here. Advisory /
+            # fail-soft — never blocks the authoritative resolve.
             prov_resolve = _open_provenance_store(config)
             try:
                 scraper = Scraper(
@@ -244,7 +245,6 @@ def scrape_resolve(
                     config=config,
                     event_bus=app_context.event_bus,
                     registry=app_context.provider_registry,
-                    provenance=prov_resolve.provenance if prov_resolve is not None else None,
                 )
                 if media_kind == "movie":
                     scrape_result = scraper.scrape_movie_forced(staging_path, provider_id)
@@ -299,9 +299,18 @@ def scrape_resolve(
                     )
                     raise typer.Exit(1)
 
-                # F2: mirror the resolved verdict onto the spine (advisory, path-keyed on
-                # the post-rename folder — move_path above kept ``current_path`` live).
+                # F2: keep the spine live across the forced rename, then mirror 'resolved'.
+                # The forced scrape (``scrape_{movie,tvshow}_forced``) may RENAME the folder
+                # to its canonical name, but — unlike the automatic pipeline — it does NOT
+                # call ``provenance.move_path`` (only ``process_movies``/``process_tvshows``
+                # do, via ``_track_scrape_rename``). So we move ``current_path`` explicitly
+                # here BEFORE the resolution write, otherwise the path-keyed update would
+                # miss the (still pre-rename) row and the spine would stay 'awaiting'
+                # forever (adversarial review — the resolve-rename gap). Both writes are
+                # advisory / fail-soft and normalization-robust (NFC/NFD).
                 if prov_resolve is not None:
+                    if str(final_path) != str(staging_path):
+                        prov_resolve.provenance.move_path(str(staging_path), str(final_path))
                     prov_resolve.provenance.set_resolution(
                         str(final_path),
                         state="resolved",
