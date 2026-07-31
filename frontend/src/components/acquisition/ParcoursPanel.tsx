@@ -10,7 +10,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactElement } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import {
   acqKeys,
   getJourneys,
@@ -89,16 +91,34 @@ function ResolutionChip({ j }: { j: JourneyItem }): ReactElement | null {
  */
 function JourneyActions({ j }: { j: JourneyItem }): ReactElement | null {
   const qc = useQueryClient();
-  const invalidate = (): void => {
+  const onSuccess = (label: string) => (): void => {
     void qc.invalidateQueries({ queryKey: acqKeys.all });
+    toast.info(`${label} lancé.`); // 202 = launched (tracked to its numeric result), not done
+  };
+  // Never fail silently (product-intent §pipeline-lisible / « rien silencieux »): a 409
+  // (already in flight) is an information, a 404/500 an error.
+  const onError = (err: unknown): void => {
+    if (err instanceof ApiError) {
+      if (err.status === 409) {
+        toast.info("Une action est déjà en cours pour cet item.");
+      } else if (err.status === 404) {
+        toast.error("Acquisition introuvable.");
+      } else {
+        toast.error(err.detail);
+      }
+    } else {
+      toast.error("Erreur lors du lancement de l'action.");
+    }
   };
   const rescrape = useMutation({
     mutationFn: () => rescrapeJourney(j.info_hash),
-    onSuccess: invalidate,
+    onSuccess: onSuccess("Re-scrape"),
+    onError,
   });
   const requeue = useMutation({
     mutationFn: () => requeueJourney(j.info_hash),
-    onSuccess: invalidate,
+    onSuccess: onSuccess("Requeue"),
+    onError,
   });
   const inFlight = j.dispatched_at == null;
   if (!inFlight) return null;

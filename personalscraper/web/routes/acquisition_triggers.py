@@ -528,6 +528,9 @@ def _launch_hash_action(request: Request, info_hash: str, action: str) -> GrabTr
         HTTPException: 404 (untracked grab), 409 (same action in flight), 500 (spawn failed).
     """
     row_command = _HASH_ACTIONS[action]
+    # Canonicalise to the stored lowercase form (the spine lowercases info-hashes) so the
+    # 409 idempotence guard and the spawned scope can never diverge by URL casing.
+    info_hash = info_hash.lower()
     config = request.app.state.config
     db_path = cast(Path, config.indexer.db_path)
 

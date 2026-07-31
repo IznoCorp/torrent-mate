@@ -93,33 +93,41 @@ def _rescrape_row(row: ProvenanceRow, config: Config, settings: Settings, run_ui
 
         prov = _open_provenance_store(config)
         try:
-            with per_step_boundary(config, settings) as app_context:
-                scraper = Scraper(
-                    settings=settings,
-                    patterns=NamingPatterns(),
-                    dry_run=False,
-                    config=config,
-                    event_bus=app_context.event_bus,
-                    registry=app_context.provider_registry,
-                    run_uid=run_uid,
-                )
-                if row.kind == "movie":
-                    result = scraper.scrape_movie_forced(path, provider_id)
-                else:
-                    result = scraper.scrape_tvshow_forced(path, provider, provider_id)
+            # A per-item scrape can RAISE (CircuitOpenError, an OSError on the canonical
+            # rename / artwork write), not just return action='error' — mirror the automatic
+            # loops (orchestrator process_movies/process_tvshows) which catch it so ONE bad
+            # item never aborts a --stuck batch (DESIGN §6 "never aborts the batch").
+            try:
+                with per_step_boundary(config, settings) as app_context:
+                    scraper = Scraper(
+                        settings=settings,
+                        patterns=NamingPatterns(),
+                        dry_run=False,
+                        config=config,
+                        event_bus=app_context.event_bus,
+                        registry=app_context.provider_registry,
+                        run_uid=run_uid,
+                    )
+                    if row.kind == "movie":
+                        result = scraper.scrape_movie_forced(path, provider_id)
+                    else:
+                        result = scraper.scrape_tvshow_forced(path, provider, provider_id)
 
-            if result.error or result.action == "error":
+                if result.error or result.action == "error":
+                    return "failed"
+                final = result.media_path
+                if not glob_nfo_candidates(final):
+                    return "failed"
+                # Keep the spine live — the forced scrape does NOT auto-track the rename (only
+                # process_movies/process_tvshows do), so move current_path explicitly, then
+                # record the scrape stage + run (advisory / fail-soft).
+                if prov is not None:
+                    if str(final) != str(path):
+                        prov.provenance.move_path(str(path), str(final))
+                    prov.provenance.set_scrape_run(str(final), run_uid=run_uid, scraped_at=int(time.time()))
+            except Exception as exc:  # noqa: BLE001 — a per-item scrape failure never aborts the batch
+                log.warning("acquisition_rescrape_item_failed", path=str(path), error=str(exc))
                 return "failed"
-            final = result.media_path
-            if not glob_nfo_candidates(final):
-                return "failed"
-            # Keep the spine live — the forced scrape does NOT auto-track the rename (only
-            # process_movies/process_tvshows do), so move current_path explicitly, then
-            # record the scrape stage + run (advisory / fail-soft).
-            if prov is not None:
-                if str(final) != str(path):
-                    prov.provenance.move_path(str(path), str(final))
-                prov.provenance.set_scrape_run(str(final), run_uid=run_uid, scraped_at=int(time.time()))
         finally:
             if prov is not None:
                 prov.close()
@@ -177,10 +185,13 @@ def acquisition_rescrape(
 
     counts = {"rescraped": 0, "skipped": 0, "failed": 0}
     with cli_run_row(config, "acquisition-rescrape") as run_rec:
-        for row in targets:
-            outcome = _rescrape_row(row, config, settings, run_rec.run_uid)
-            counts[outcome] += 1
-        run_rec.record_counts(counts)
+        try:
+            for row in targets:
+                outcome = _rescrape_row(row, config, settings, run_rec.run_uid)
+                counts[outcome] += 1
+        finally:
+            # Record even a partial batch (an unexpected raise still persists what landed).
+            run_rec.record_counts(counts)
     console.print(f"[green]Re-scrape done:[/green] {counts}")
 
 
@@ -209,8 +220,15 @@ def acquisition_requeue(
         if dry_run:
             console.print(f"[bold]\\[dry-run] would requeue {len(targets)} wanted row(s).[/bold]")
             return
+        # requeue_for_reswitch (→ pending) ALSO remembers this hash as tried, so the next
+        # search+grab picks a DIFFERENT release rather than re-grabbing the same stuck one
+        # (requeue_missing would clear the hash and let it be re-picked — wrong for a
+        # deliberate "this release is bad, get another" requeue).
+        now = int(time.time())
         with cli_run_row(config, "acquisition-requeue") as run_rec:
-            requeued = sum(1 for w in targets if w.id is not None and store.wanted.requeue_missing(w.id))
+            requeued = sum(
+                1 for w in targets if w.id is not None and store.wanted.requeue_for_reswitch(w.id, info_hash, now)
+            )
             run_rec.record_counts({"requeued": requeued})
         console.print(f"[green]Requeued {requeued} wanted row(s).[/green]")
     finally:

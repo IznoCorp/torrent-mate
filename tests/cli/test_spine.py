@@ -87,6 +87,45 @@ def test_requeue_sends_grabbed_wanted_row_to_pending(test_config: Any, tmp_path:
         assert row is not None
         assert row.status == "pending"  # requeued
         assert row.grabbed_hash is None  # hash cleared
+        # The stuck release's hash is remembered so the next grab picks a DIFFERENT one.
+        tried = [h.lower() for h in store.wanted.list_tried_hashes(wid)]
+        assert "grabhash" in tried
+    finally:
+        store.close()
+
+
+def test_rescrape_survives_a_raising_scrape(test_config: Any, tmp_path: Path) -> None:
+    """A forced scrape that RAISES is counted failed, not propagated (batch stays alive)."""
+    staging = tmp_path / "staging" / "001-MOVIES" / "Boom"
+    staging.mkdir(parents=True)
+    test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    acquire_db = tmp_path / "acquire.db"
+    cfg = _cfg_with_acquire(test_config, acquire_db)
+
+    store = build_acquire_store(cfg.acquire)
+    try:
+        store.provenance.upsert_grab("h", followed_id=None, media_ref=MediaRef(tmdb_id=1), kind="movie", grabbed_at=1)
+        store.provenance.set_ingest("h", ingest_path=str(staging), ingested_at=2)
+    finally:
+        store.close()
+
+    def _boom(_staging: Path, _pid: int) -> Any:
+        raise RuntimeError("circuit open")
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+        patch("personalscraper.commands.spine.acquire_scrape_resolve_lock", return_value=Path("/fake/scrape.lock")),
+        patch("personalscraper.commands.spine.release_scrape_resolve_lock"),
+        patch("personalscraper.commands.spine.per_step_boundary", _mock_boundary(MagicMock())),
+        patch(_PATCH_MOVIE_FORCED, side_effect=_boom),
+    ):
+        result = runner.invoke(app, ["acquisition-rescrape", "--hash", "h"])
+
+    assert result.exit_code == 0, result.output  # a raising item does NOT crash the command
+    store = build_acquire_store(cfg.acquire)
+    try:
+        assert store.provenance.by_hash("h").status == "ingested"  # type: ignore[union-attr]
     finally:
         store.close()
 
