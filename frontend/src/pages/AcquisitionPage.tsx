@@ -31,6 +31,7 @@ import {
   type TabId,
 } from "@/components/acquisition/meta";
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
+import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 import { ReglagesPanel } from "@/components/acquisition/ReglagesPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
@@ -194,6 +195,7 @@ export default function AcquisitionPage(): ReactElement {
         {activeTab === "file" && <FileDAcquisitionPanel />}
         {activeTab === "obligations" && <ObligationsPanel />}
         {activeTab === "watcher" && <WatcherPanel />}
+        {activeTab === "parcours" && <ParcoursPanel />}
         {activeTab === "reglages" && <ReglagesPanel />}
       </div>
     </section>

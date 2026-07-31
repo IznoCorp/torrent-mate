@@ -490,3 +490,24 @@ export function previewRanking(
     headers: XRW_HEADERS,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Provenance F1 — the « Parcours » journey view
+// ---------------------------------------------------------------------------
+
+/** Response for ``GET /api/acquisition/journeys``. */
+export type JourneysResponse = SuccessBody<
+  paths["/api/acquisition/journeys"]["get"]["responses"]
+>;
+
+/** One acquisition's pipeline journey. */
+export type JourneyItem = JourneysResponse["journeys"][number];
+
+/**
+ * List each acquisition's pipeline journey (grabbed → ingested → scraped →
+ * dispatched) from the provenance registry: ``GET /api/acquisition/journeys``.
+ * Read-only, header-free.
+ */
+export function getJourneys(): Promise<JourneysResponse> {
+  return apiFetch("/api/acquisition/journeys", { method: "get" });
+}
