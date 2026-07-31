@@ -681,3 +681,28 @@ class JourneysResponse(BaseModel):
     """
 
     journeys: list[JourneyItem] = []
+
+
+class AcquisitionOverviewResponse(BaseModel):
+    """The « état de la machine » rollup (F5 capstone) — one page over the F0–F4 spine.
+
+    Aggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente
+    (``stuck``), décisions (``awaiting_resolution``), and the watcher/last-run context.
+    Every count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped
+    journey list — product-intent §méthode rule 6).
+
+    Attributes:
+        by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).
+        in_flight: Non-terminal total = grabbed + ingested + scraped.
+        stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).
+        awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.
+        watcher_enabled: Whether the acquisition watcher is running (not paused).
+        last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.
+    """
+
+    by_status: dict[str, int] = {}
+    in_flight: int = 0
+    stuck: int = 0
+    awaiting_resolution: int = 0
+    watcher_enabled: bool = True
+    last_successful_run_at: int | None = None

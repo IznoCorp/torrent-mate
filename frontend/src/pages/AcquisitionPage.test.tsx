@@ -1151,8 +1151,8 @@ describe("AcquisitionPage", () => {
 
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     const tabs = screen.getAllByRole("tab");
-    // Suivis, File d'acquisition, Obligations, Watcher, Parcours (F1), Réglages (#18).
-    expect(tabs).toHaveLength(6);
+    // Vue d'ensemble (F5), Suivis, File d'acquisition, Obligations, Watcher, Parcours (F1), Réglages.
+    expect(tabs).toHaveLength(7);
   });
 
   it("renders the followed watch list as compact rows", () => {

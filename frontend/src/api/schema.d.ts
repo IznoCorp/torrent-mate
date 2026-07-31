@@ -387,6 +387,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Overview
+         * @description The unified « état de la machine » rollup (F5 capstone). Read-only, fail-soft.
+         *
+         *     Composes the F0–F4 spine into one view — acquisitions by status + in-flight total,
+         *     the F4 stuck count (FS-truth), the authoritative awaiting-resolution count, and the
+         *     watcher / last-run context — each an UNCAPPED aggregate (never a count over the
+         *     200-capped journey list; product-intent §2/§5/§8 + §méthode rule 6). NOT staging-guarded
+         *     (a read; writes nothing).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         An :class:`AcquisitionOverviewResponse` — the machine-state rollup.
+         */
+        get: operations["get_overview_api_acquisition_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/ranking/preview": {
         parameters: {
             query?: never;
@@ -2051,6 +2083,54 @@ export interface components {
              * @default []
              */
             downloads: components["schemas"]["AcquisitionDownload"][];
+        };
+        /**
+         * AcquisitionOverviewResponse
+         * @description The « état de la machine » rollup (F5 capstone) — one page over the F0–F4 spine.
+         *
+         *     Aggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente
+         *     (``stuck``), décisions (``awaiting_resolution``), and the watcher/last-run context.
+         *     Every count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped
+         *     journey list — product-intent §méthode rule 6).
+         *
+         *     Attributes:
+         *         by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).
+         *         in_flight: Non-terminal total = grabbed + ingested + scraped.
+         *         stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).
+         *         awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.
+         *         watcher_enabled: Whether the acquisition watcher is running (not paused).
+         *         last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.
+         */
+        AcquisitionOverviewResponse: {
+            /**
+             * Awaiting Resolution
+             * @default 0
+             */
+            awaiting_resolution: number;
+            /**
+             * By Status
+             * @default {}
+             */
+            by_status: {
+                [key: string]: number;
+            };
+            /**
+             * In Flight
+             * @default 0
+             */
+            in_flight: number;
+            /** Last Successful Run At */
+            last_successful_run_at?: number | null;
+            /**
+             * Stuck
+             * @default 0
+             */
+            stuck: number;
+            /**
+             * Watcher Enabled
+             * @default true
+             */
+            watcher_enabled: boolean;
         };
         /**
          * AcquisitionStatusResponse
@@ -5242,6 +5322,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_overview_api_acquisition_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcquisitionOverviewResponse"];
                 };
             };
         };
