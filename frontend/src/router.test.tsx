@@ -186,12 +186,12 @@ function renderAt(path: string): void {
 }
 
 describe("router", () => {
-  it("monte le shell et le tableau de bord sur « / »", async () => {
+  it("redirige « / » vers /acquisition (page principale) dans le shell", async () => {
     renderAt("/");
 
-    // Dashboard page rendered inside the shell (once `me` resolves authed).
+    // Root redirects to the acquisitions landing (operator directive), inside the shell.
     expect(
-      await screen.findByRole("heading", { name: /contrôle/i }),
+      await screen.findByRole("heading", { name: /acquisition/i }),
     ).toBeInTheDocument();
     // Shell chrome present: the top bar's user menu and the mobile nav.
     expect(
@@ -483,8 +483,8 @@ describe("router", () => {
     expect(
       within(bottomBar).getByRole("link", { name: "Pipeline" }),
     ).toHaveAttribute("aria-current", "page");
-    // …inactive tabs do not (Contrôle leads the bar since the
-    // 2026-07-15 operator review; Maintenance left it).
+    // …inactive tabs do not (Acquisition leads the bar since the operator
+    // reorder; Contrôle closes it).
     expect(
       within(bottomBar).getByRole("link", { name: "Contrôle" }),
     ).not.toHaveAttribute("aria-current");
@@ -511,9 +511,9 @@ describe("router", () => {
   it("rejette un « ?redirect » protocol-relative et retombe sur « / »", async () => {
     renderAt("/login?redirect=//evil.example/pwned");
 
-    // Open-redirect guard: `//evil` collapses to the app root (Dashboard).
+    // Open-redirect guard: `//evil` collapses to the app root → acquisitions landing.
     expect(
-      await screen.findByRole("heading", { name: /contrôle/i }),
+      await screen.findByRole("heading", { name: /acquisition/i }),
     ).toBeInTheDocument();
   });
 
@@ -581,7 +581,7 @@ describe("router", () => {
       );
     });
 
-    renderAtWithSingleton("/");
+    renderAtWithSingleton("/controle");
 
     // The stale-success `me` is invalidated on the health 401 → we land on the
     // login form and STAY there (no bounce back to the dashboard, no loop).

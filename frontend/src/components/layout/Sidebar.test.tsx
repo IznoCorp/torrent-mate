@@ -80,7 +80,7 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("link", { name: "Contrôle" })).toHaveAttribute(
       "href",
-      "/",
+      "/controle",
     );
     expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
     expect(
