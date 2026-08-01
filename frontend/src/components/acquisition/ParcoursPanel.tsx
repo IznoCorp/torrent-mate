@@ -8,7 +8,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactElement } from "react";
+import { Check, Copy } from "lucide-react";
+import { useCallback, useState, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -165,6 +166,25 @@ export function ParcoursPanel(): ReactElement {
     queryFn: getJourneys,
   });
 
+  // ACQUISITION-5 (ticket 250): the truncated hash gets a copy affordance —
+  // check icon for ~1.5 s + a toast naming the outcome (same recipe as the
+  // Obligations table).
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
+  const handleCopyHash = useCallback((hash: string): void => {
+    void navigator.clipboard
+      .writeText(hash)
+      .then(() => {
+        setCopiedHash(hash);
+        toast.success("Hash copié.");
+        setTimeout(() => {
+          setCopiedHash((prev) => (prev === hash ? null : prev));
+        }, 1500);
+      })
+      .catch(() => {
+        toast.error("Copie du hash impossible");
+      });
+  }, []);
+
   if (query.isLoading) {
     return (
       <p className="text-sm text-muted-foreground">Chargement des parcours…</p>
@@ -211,6 +231,23 @@ export function ParcoursPanel(): ReactElement {
             >
               {journeyTitle(j)}
             </span>
+            {/* ACQUISITION-5: copy the full info_hash (the visible title may
+                be a truncated fallback of it). */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-5 shrink-0"
+              aria-label={`Copier le hash ${j.info_hash}`}
+              onClick={() => {
+                handleCopyHash(j.info_hash);
+              }}
+            >
+              {copiedHash === j.info_hash ? (
+                <Check className="size-3 text-success" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </Button>
             <Badge tone="neutral" className="shrink-0">
               {j.kind === "movie"
                 ? "Film"

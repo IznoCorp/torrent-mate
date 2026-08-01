@@ -24,7 +24,14 @@ import { StagingBanner } from "@/components/StagingBanner";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigEditor } from "@/hooks/useConfigEditor";
+import { handleTablistKeyDown } from "@/lib/tablist";
 import { cn } from "@/lib/utils";
+
+/** The desktop tab bar entries (Fichiers / Secrets), in display order. */
+const CONFIG_TABS = [
+  { id: "files", label: "Fichiers" },
+  { id: "secrets", label: "Secrets" },
+] as const;
 
 /**
  * Config — the authenticated config editor route (``/config``).
@@ -105,49 +112,55 @@ export default function Config(): ReactElement {
         onSelectSecrets={editor.handleSelectSecrets}
       />
 
-      {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above. */}
+      {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above.
+          ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
+          tabIndex + arrow-key navigation + tab/panel linkage. */}
       <div
         className="hidden md:flex gap-0.5 rounded-lg bg-muted p-1 w-fit"
         role="tablist"
         aria-label="Section"
+        onKeyDown={(e) => {
+          handleTablistKeyDown(
+            e,
+            CONFIG_TABS.map((t) => t.id),
+            editor.leftTab,
+            editor.setLeftTab,
+            (id) => `config-tab-${id}`,
+          );
+        }}
       >
-        <button
-          role="tab"
-          aria-selected={editor.leftTab === "files"}
-          type="button"
-          onClick={() => {
-            editor.setLeftTab("files");
-          }}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            editor.leftTab === "files"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Fichiers
-        </button>
-        <button
-          role="tab"
-          aria-selected={editor.leftTab === "secrets"}
-          type="button"
-          onClick={() => {
-            editor.setLeftTab("secrets");
-          }}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            editor.leftTab === "secrets"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Secrets
-        </button>
+        {CONFIG_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            id={`config-tab-${tab.id}`}
+            role="tab"
+            aria-selected={editor.leftTab === tab.id}
+            aria-controls="config-tabpanel"
+            tabIndex={editor.leftTab === tab.id ? 0 : -1}
+            type="button"
+            onClick={() => {
+              editor.setLeftTab(tab.id);
+            }}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              editor.leftTab === tab.id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Files tab: two-panel layout (FileList sidebar + SchemaForm editor). */}
       {editor.leftTab === "files" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+        <div
+          id="config-tabpanel"
+          role="tabpanel"
+          aria-labelledby="config-tab-files"
+          className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]"
+        >
           {/* Left panel: file list (hidden < md — replaced by the mobile
               Select). X6: DS Card instead of a hand-rolled bordered div. */}
           <Card className="hidden gap-0 p-2 md:block">
@@ -186,7 +199,12 @@ export default function Config(): ReactElement {
       {/* Secrets tab (sibling of the file list — no more scroll-to-find,
           G2/E3). X6: DS Card instead of a hand-rolled bordered div. */}
       {editor.leftTab === "secrets" && (
-        <Card className="gap-0 p-4">
+        <Card
+          id="config-tabpanel"
+          role="tabpanel"
+          aria-labelledby="config-tab-secrets"
+          className="gap-0 p-4"
+        >
           <SecretsTab readOnly={editor.readOnly} />
         </Card>
       )}

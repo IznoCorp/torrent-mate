@@ -306,6 +306,46 @@ describe("ObligationsPanel — status badges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Mobile column collapse + full-value titles (ticket 250)
+// ---------------------------------------------------------------------------
+
+describe("ObligationsPanel — repli mobile des colonnes (ACQUISITION-4, ticket 250)", () => {
+  // Mobile-truth rule: jsdom does not lay out — these are structural
+  // class-presence checks; the 390px proof happens post-deploy in Chrome.
+  it("replie les colonnes machine sous md via hidden md:table-cell", () => {
+    renderPanel({ items: [makeObligation({ title: "Top Chef" })] });
+
+    for (const name of ["Hash", "Tracker", "Ratio min", "Seed min"]) {
+      const th = screen.getByRole("columnheader", { name });
+      expect(th.className).toContain("hidden");
+      expect(th.className).toContain("md:table-cell");
+    }
+  });
+
+  it("garde Titre / Ratio obs. / HnR / Statut visibles à toutes les largeurs", () => {
+    renderPanel({ items: [makeObligation({ title: "Top Chef" })] });
+
+    for (const name of ["Titre", "Ratio obs.", "HnR", "Statut"]) {
+      const th = screen.getByRole("columnheader", { name });
+      expect(th.className).not.toContain("hidden");
+    }
+  });
+
+  it("porte la valeur complète dans le title de la cellule Titre (ACQUISITION-5)", () => {
+    renderPanel({ items: [makeObligation({ title: "Top Chef" })] });
+    expect(screen.getByTitle("Top Chef")).toBeInTheDocument();
+  });
+
+  it("porte le hash complet dans le title de la cellule Titre en repli hash", () => {
+    renderPanel({ items: [makeObligation({ title: null })] });
+    // Title cell (fallback) + hash cell both carry the full hash title.
+    expect(
+      screen.getAllByTitle("abcdef1234567890abcdef1234567890abcdef12").length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Empty / error states
 // ---------------------------------------------------------------------------
 

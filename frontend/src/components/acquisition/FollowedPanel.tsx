@@ -105,6 +105,11 @@ export function FollowedPanel({
   // order stays stable. Default « Séries » (the primary followed-media kind).
   const [kindTab, setKindTab] = useState<"show" | "movie">("show");
 
+  // ACQUISITION-3 (ticket 250): « Retirer » is destructive — it must confirm
+  // before mutating. Holds the item pending confirmation, or null.
+  const [confirmUnfollow, setConfirmUnfollow] =
+    useState<FollowedSeriesItem | null>(null);
+
   // ── Loading ────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -351,7 +356,9 @@ export function FollowedPanel({
                       variant="destructive"
                       disabled={unfollowPending}
                       onSelect={() => {
-                        handleUnfollow(item.id);
+                        // ACQUISITION-3: open the confirmation dialog — the
+                        // mutation only fires on the dialog's « Retirer ».
+                        setConfirmUnfollow(item);
                       }}
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
@@ -416,6 +423,48 @@ export function FollowedPanel({
           </ul>
         </details>
       )}
+
+      {/* ACQUISITION-3 (ticket 250): unfollow confirmation dialog — mirrors the
+          edit-cadence Dialog pattern of this same panel. Cancel keeps the
+          follow untouched; confirm fires the (soft-delete) unfollow. */}
+      <Dialog
+        open={confirmUnfollow !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmUnfollow(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Retirer ce suivi ?</DialogTitle>
+            <DialogDescription>
+              « {confirmUnfollow?.title ?? ""} » ne sera plus surveillé. Le
+              suivi est désactivé, pas supprimé : vous pourrez le réactiver
+              depuis la liste « Suivis retirés ».
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmUnfollow(null);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={unfollowPending}
+              onClick={() => {
+                if (confirmUnfollow !== null)
+                  handleUnfollow(confirmUnfollow.id);
+                setConfirmUnfollow(null);
+              }}
+            >
+              Retirer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit-cadence dialog */}
       <Dialog

@@ -216,12 +216,17 @@ export function WatcherPanel(): ReactElement {
               Aucune exécution récente enregistrée.
             </p>
           ) : (
+            // ACQUISITION-4 (ticket 250): the numeric « Résultat » column is
+            // the lowest-priority one — collapse it below md so the nowrap
+            // cells fit a 375px viewport.
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Type</TableHead>
                   <TableHead>Démarré</TableHead>
-                  <TableHead>Résultat</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Résultat
+                  </TableHead>
                   <TableHead>État</TableHead>
                 </TableRow>
               </TableHeader>
@@ -248,7 +253,7 @@ export function WatcherPanel(): ReactElement {
                           ({relativeTime(run.started_at)})
                         </span>
                       </TableCell>
-                      <TableCell className="font-mono text-xs tabular-nums">
+                      <TableCell className="hidden font-mono text-xs tabular-nums md:table-cell">
                         {numeric || (
                           <span className="text-muted-foreground">—</span>
                         )}

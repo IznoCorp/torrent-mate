@@ -144,16 +144,18 @@ export function ObligationsPanel(): ReactElement {
         </Select>
       </div>
 
-      {/* Table */}
+      {/* Table — ACQUISITION-4 (ticket 250): 8 columns overflow a 375px
+          viewport; the low-priority machine columns (hash, tracker, minima)
+          collapse below md. Titre / Ratio obs. / HnR / Statut stay. */}
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Titre</TableHead>
-            <TableHead>Hash</TableHead>
-            <TableHead>Tracker</TableHead>
-            <TableHead>Ratio min</TableHead>
+            <TableHead className="hidden md:table-cell">Hash</TableHead>
+            <TableHead className="hidden md:table-cell">Tracker</TableHead>
+            <TableHead className="hidden md:table-cell">Ratio min</TableHead>
             <TableHead>Ratio obs.</TableHead>
-            <TableHead>Seed min</TableHead>
+            <TableHead className="hidden md:table-cell">Seed min</TableHead>
             <TableHead>HnR</TableHead>
             <TableHead>Statut</TableHead>
           </TableRow>
@@ -165,12 +167,17 @@ export function ObligationsPanel(): ReactElement {
             const copied = copiedHash === item.info_hash;
             return (
               <TableRow key={`o-${item.info_hash}-${item.source_tracker}`}>
-                {/* Primary: resolved title, or fallback to truncated hash. */}
-                <TableCell className="max-w-[200px] truncate text-xs font-medium">
+                {/* Primary: resolved title, or fallback to truncated hash.
+                    ACQUISITION-5: the truncated cell carries the full value
+                    in its title. */}
+                <TableCell
+                  className="max-w-[200px] truncate text-xs font-medium"
+                  title={item.title ?? item.info_hash}
+                >
                   {item.title ?? truncatedHash}
                 </TableCell>
                 {/* Hash — mono, truncated, with copy button. */}
-                <TableCell className="font-mono text-xs">
+                <TableCell className="hidden font-mono text-xs md:table-cell">
                   <span className="flex items-center gap-1">
                     <span title={item.info_hash}>{truncatedHash}</span>
                     <Button
@@ -190,10 +197,10 @@ export function ObligationsPanel(): ReactElement {
                     </Button>
                   </span>
                 </TableCell>
-                <TableCell className="font-mono text-xs">
+                <TableCell className="hidden font-mono text-xs md:table-cell">
                   {item.source_tracker}
                 </TableCell>
-                <TableCell className="font-mono text-xs">
+                <TableCell className="hidden font-mono text-xs md:table-cell">
                   {item.min_ratio.toFixed(2)}
                 </TableCell>
                 <TableCell className="font-mono text-xs">
@@ -201,7 +208,7 @@ export function ObligationsPanel(): ReactElement {
                     ? item.observed_ratio.toFixed(2)
                     : "—"}
                 </TableCell>
-                <TableCell className="font-mono text-xs">
+                <TableCell className="hidden font-mono text-xs md:table-cell">
                   {item.min_seed_time_s > 0
                     ? `${String(Math.round(item.min_seed_time_s / 3600))} h`
                     : "—"}

@@ -6,7 +6,13 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -258,5 +264,52 @@ describe("WatcherPanel — recent-run outcome badges (sub-phase 5.2)", () => {
       "title",
       "weird_new_reason",
     );
+  });
+});
+
+describe("WatcherPanel — repli mobile de la colonne Résultat (ACQUISITION-4, ticket 250)", () => {
+  // Mobile-truth rule: structural class-presence check only — jsdom does not
+  // lay out; the 390px proof happens post-deploy in Chrome.
+  it("la colonne Résultat porte hidden md:table-cell (en-tête et cellule)", () => {
+    // This file has no global auto-cleanup — drop the previous tests' DOM so
+    // the single-table queries below stay unambiguous.
+    cleanup();
+    vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
+      data: {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [
+          {
+            run_uid: "ok-run-1",
+            command: "follow-detect",
+            started_at: 1_720_000_000,
+            ended_at: 1_720_000_010,
+            outcome: "success",
+            result: null,
+          },
+        ],
+        deferred: [],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof hooks.useAcquisitionStatus>);
+    vi.spyOn(hooks, "useTrackedAcquisitionRun").mockReturnValue(undefined);
+
+    renderPanel();
+
+    const th = screen.getByRole("columnheader", { name: "Résultat" });
+    expect(th.className).toContain("hidden");
+    expect(th.className).toContain("md:table-cell");
+    // The matching data cell collapses with it.
+    const cell = document.querySelector("td.hidden");
+    expect(cell).not.toBeNull();
+    expect(cell?.className).toContain("md:table-cell");
+
+    // The always-visible columns carry no collapse class.
+    for (const name of ["Type", "Démarré", "État"]) {
+      const head = screen.getByRole("columnheader", { name });
+      expect(head.className).not.toContain("hidden");
+    }
   });
 });

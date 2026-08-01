@@ -38,6 +38,7 @@ import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
 import { useDownloads, useFollowed } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
+import { handleTablistKeyDown } from "@/lib/tablist";
 
 /**
  * AcquisitionPage — the authenticated acquisition route (``/acquisition``).
@@ -151,16 +152,32 @@ export default function AcquisitionPage(): ReactElement {
 
       {/* Tabs — horizontal scroll on narrow screens (5 tabs at ~390px: no wrap,
           natural width per tab, scroll inside the tablist). On sm+ tabs fill
-          the row evenly (flex-1). E5 segmented control. */}
+          the row evenly (flex-1). E5 segmented control.
+          ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
+          tabIndex + arrow-key navigation + tab/panel linkage. */}
       <div
         role="tablist"
+        aria-label="Sections de la page Acquisition"
         className="flex flex-nowrap gap-1 overflow-x-auto rounded-lg bg-muted p-1"
+        onKeyDown={(e) => {
+          handleTablistKeyDown(
+            e,
+            TABS.map((t) => t.id),
+            activeTab,
+            setActiveTab,
+            (id) => `acq-tab-${id}`,
+          );
+        }}
       >
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            type="button"
+            id={`acq-tab-${tab.id}`}
             role="tab"
             aria-selected={activeTab === tab.id}
+            aria-controls="acq-tabpanel"
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => {
               setActiveTab(tab.id);
             }}
@@ -181,7 +198,12 @@ export default function AcquisitionPage(): ReactElement {
       {/* Active panel — no wrapping Card: the tab content uses the full width
           (esp. mobile), where a Card's border + padding stacked on the section
           margin wasted space on both sides (#12). Vertical rhythm kept via gap. */}
-      <div className="flex flex-col gap-4 pt-1">
+      <div
+        id="acq-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`acq-tab-${activeTab}`}
+        className="flex flex-col gap-4 pt-1"
+      >
         {activeTab === "apercu" && <OverviewPanel />}
         {activeTab === "followed" && (
           <div className="flex flex-col gap-6">
