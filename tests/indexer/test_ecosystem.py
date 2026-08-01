@@ -51,7 +51,7 @@ _NON_PYTHON_APP_NAMES = frozenset({"torrentmate-autodeploy"})
 #: from the dev checkout (so a cron never executes an in-flight feature branch).
 _PROD_CLONE = "/Users/izno/deploy/torrentmate"
 _PROD_BIN = "/Users/izno/deploy/torrentmate-venv/bin/personalscraper"
-_CANONICAL_CONFIG = "/Users/izno/dev/PersonalScraper/config"
+_CANONICAL_CONFIG = "/Users/izno/.torrentmate/config"
 
 #: Python daemon/cron apps — all run the prod-clone venv binary from the prod-clone
 #: cwd with the canonical config dir passed explicitly (ENV-SEP). The web apps run
@@ -280,6 +280,30 @@ def test_no_app_runs_from_the_dev_checkout() -> None:
         assert cwd != "__dirname", f"{name}: cwd must not be __dirname (the dev checkout)"
         assert "/dev/PersonalScraper" not in cwd, f"{name}: cwd must not be under the dev checkout, got {cwd!r}"
         assert ".pyenv" not in script, f"{name}: script must not be the pyenv editable binary, got {script!r}"
+
+
+def test_no_app_config_points_inside_a_git_worktree() -> None:
+    """Invariant: no PM2 app's PERSONALSCRAPER_CONFIG may point inside a git working tree.
+
+    This is the REAL invariant (DESIGN §3.4) — after relocation, the canonical
+    config at ~/.torrentmate/config is outside every working tree by construction.
+    If any app still points at a path inside a checkout, the pre-relocation
+    boot-break vector is still active for that app.
+    """
+    from personalscraper.verify.config_home import _is_inside_worktree
+
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    violations: list[tuple[str, str]] = []
+    for app in apps:
+        config_path = app.get("PERSONALSCRAPER_CONFIG")
+        if config_path is None:
+            continue
+        path = Path(str(config_path))
+        if _is_inside_worktree(path):
+            violations.append((str(app["name"]), str(path)))
+    assert violations == [], (
+        f"{len(violations)} app(s) have PERSONALSCRAPER_CONFIG inside a git working tree: {violations}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -518,7 +542,7 @@ def test_web_apps_run_from_their_deploy_clones() -> None:
     # Both clones share the single canonical config dir (parser flattens nested
     # env keys, so PERSONALSCRAPER_CONFIG surfaces as a top-level app key).
     for app in (prod, staging):
-        assert app.get("PERSONALSCRAPER_CONFIG") == "/Users/izno/dev/PersonalScraper/config", (
+        assert app.get("PERSONALSCRAPER_CONFIG") == _CANONICAL_CONFIG, (
             f"{app.get('name')}: PERSONALSCRAPER_CONFIG must point at the canonical config dir, "
             f"got {app.get('PERSONALSCRAPER_CONFIG')!r}"
         )
