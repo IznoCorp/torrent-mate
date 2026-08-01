@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.events import SeasonAbsorbedEpisodes, WantedEnqueued
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
@@ -200,3 +201,181 @@ def test_search_pass_works_without_torrent_client(store: ConcreteAcquireStore) -
     assert summary.available == 1
     available = store.wanted.list_available()
     assert len(available) == 1
+
+
+# ---------------------------------------------------------------------------
+# R2: Episode→Season Conversion tests
+# ---------------------------------------------------------------------------
+
+
+def _episode_item(
+    tvdb_id: int = 99,
+    season: int = 3,
+    episode: int = 5,
+    followed_id: int = 1,
+) -> WantedItem:
+    """Minimal pending episode WantedItem for conversion tests."""
+    return WantedItem(
+        media_ref=MediaRef(tvdb_id=tvdb_id),
+        kind="episode",
+        status="pending",
+        enqueued_at=1_700_000_000,
+        followed_id=followed_id,
+        season=season,
+        episode=episode,
+    )
+
+
+def _season_pack_result(title: str = "Show S03E01-E12 COMPLETE 1080p") -> TrackerResult:
+    """A tracker result that ``filter_to_season`` keeps."""
+    return TrackerResult(
+        provider="lacale",
+        tracker_id="t99",
+        title=title,
+        size=ByteSize(20_000_000_000),
+        seeders=100,
+        leechers=0,
+        resolution="1080p",
+        info_hash="seasonpack99",
+        download_url="https://lacale.test/torrent/99",
+    )
+
+
+def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStore) -> None:
+    """R2: episode search 0-exact + pack present → season wanted enqueued.
+
+    When an episode search returns ``no_matching_episode`` with raw_results
+    carrying a whole-season pack, the search pass enqueues a season wanted
+    (kind=season, status=pending), absorbs the episode's live siblings, and
+    returns ``waiting``.
+    """
+    from personalscraper.acquire.domain import FollowedSeries
+
+    # Create the parent followed series so the FK resolves.
+    store.follow.add(FollowedSeries(
+        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
+    ))
+
+    item = _episode_item()
+    store.wanted.add(item)
+
+    # Seed the aired catalog so _aired_episodes_for_season returns live eps.
+    store.aired.replace_for_followed(
+        1,
+        [(3, 1, "E01", "2024-01-01"), (3, 2, "E02", "2024-01-08"),
+         (3, 3, "E03", "2024-01-15"), (3, 4, "E04", "2024-01-22"),
+         (3, 5, "E05", "2024-01-29")],
+        now=1_700_000_000,
+    )
+    # Create sibling episode wanteds (episodes 1-4) that should be absorbed.
+    for ep_num in (1, 2, 3, 4):
+        store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=99),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_700_000_000,
+                followed_id=1,
+                season=3,
+                episode=ep_num,
+            ),
+        )
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found",
+        outcome="no_matching_episode",
+        found=0,
+        raw_results=(_season_pack_result(),),
+    )
+
+    event_bus = MagicMock()
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    svc = AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=event_bus,  # type: ignore[arg-type]
+        config=config,
+    )
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        svc.run_search()
+
+    # The season wanted should exist.
+    season_item = store.wanted.find(
+        followed_id=1, kind="season", season=3, episode=None,
+    )
+    assert season_item is not None, "season wanted must be enqueued"
+    assert season_item.kind == "season"
+    assert season_item.status == "pending"
+
+    # WantedEnqueued must have been emitted for the season.
+    enqueued_calls = [
+        c for c in event_bus.emit.call_args_list
+        if isinstance(c[0][0], WantedEnqueued) and c[0][0].kind == "season"
+    ]
+    assert len(enqueued_calls) >= 1, "WantedEnqueued(season) must be emitted"
+
+    # SeasonAbsorbedEpisodes must have been emitted.
+    absorbed_calls = [
+        c for c in event_bus.emit.call_args_list
+        if isinstance(c[0][0], SeasonAbsorbedEpisodes)
+    ]
+    assert len(absorbed_calls) >= 1, "SeasonAbsorbedEpisodes must be emitted"
+
+    # The converted season wanted absorbs the triggering episode + its siblings.
+    absorbed_event = absorbed_calls[0][0][0]
+    assert len(absorbed_event.absorbed_ids) >= 1
+
+
+def test_conversion_noop_when_no_pack_in_results(store: ConcreteAcquireStore) -> None:
+    """R2: raw results present but no season pack → no conversion.
+
+    When the raw results exist but ``filter_to_season`` returns nothing,
+    the conversion path is a no-op and the item stays pending.
+    """
+    from personalscraper.acquire.domain import FollowedSeries
+
+    # Create the parent followed series so the FK resolves.
+    store.follow.add(FollowedSeries(
+        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
+    ))
+
+    item = _episode_item()
+    store.wanted.add(item)
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    # A raw result that is NOT a season pack — an individual episode.
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found",
+        outcome="no_matching_episode",
+        found=0,
+        raw_results=(
+            _season_pack_result(title="Show S03E06 Single Episode 1080p"),
+        ),
+    )
+
+    event_bus = MagicMock()
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    svc = AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=event_bus,  # type: ignore[arg-type]
+        config=config,
+    )
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        svc.run_search()
+
+    # No season wanted should have been enqueued.
+    season_item = store.wanted.find(
+        followed_id=1, kind="season", season=3, episode=None,
+    )
+    assert season_item is None, "no season wanted when no pack in results"
+
+    # No SeasonAbsorbedEpisodes should have been emitted.
+    absorbed_calls = [
+        c for c in event_bus.emit.call_args_list
+        if isinstance(c[0][0], SeasonAbsorbedEpisodes)
+    ]
+    assert len(absorbed_calls) == 0, "no absorption when no pack"

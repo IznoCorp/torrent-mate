@@ -163,6 +163,7 @@ class _SearchChainResult:
     exit_path: str
     ranked: list[tuple[TrackerResult, int]]
     top: tuple[TrackerResult, int] | None
+    raw_before_filter: list[TrackerResult] | None = None
 
 
 #: High-level bucket a search verdict falls into. Kept as a named alias so the
@@ -196,6 +197,14 @@ class SearchVerdict:
     outcome: str  # member of SEARCH_OUTCOMES
     found: int | None  # takeable count; None = not concluded (NEVER 0 on outage)
     chosen: TrackerResult | None = None  # top-ranked candidate, for logging only
+    raw_results: tuple[TrackerResult, ...] | None = None
+    """Raw results before the per-kind filter, captured for R2 conversion.
+
+    Populated when the search path reaches ``no_matching_episode`` —
+    the raw results from the trackers carried season packs the episode
+    filter dropped. ``None`` on every other path (the conversion path
+    has no use for them).
+    """
 
 
 def build_search_query(item: "WantedItem", title: str | None, year: int | None = None) -> str:
@@ -759,9 +768,13 @@ class GrabOrchestrator:
         # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
         results = outcome.results
         if item.kind == "episode" and item.season is not None and item.episode is not None:
+            raw_before_filter = list(results)  # R2: snapshot for season conversion
             results = filter_to_episode(results, item.season, item.episode)
             if not results:
-                return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
+                return _SearchChainResult(
+                    exit_path="no_matching_episode", ranked=[], top=None,
+                    raw_before_filter=raw_before_filter,
+                )
         elif item.kind == "season" and item.season is not None:
             results = filter_to_season(results, item.season)
             if not results:
@@ -867,6 +880,11 @@ class GrabOrchestrator:
         disposition, outcome, found = mapping[result.exit_path]
 
         chosen = result.top[0] if result.top is not None else None
+        raw_results = (
+            tuple(result.raw_before_filter)
+            if result.raw_before_filter is not None
+            else None
+        )
         log.debug(
             "acquire.search.verdict",
             disposition=disposition,
@@ -874,7 +892,10 @@ class GrabOrchestrator:
             found=found,
             kind=item.kind,
         )
-        return SearchVerdict(disposition=disposition, outcome=outcome, found=found, chosen=chosen)
+        return SearchVerdict(
+            disposition=disposition, outcome=outcome, found=found,
+            chosen=chosen, raw_results=raw_results,
+        )
 
     def grab(
         self,
