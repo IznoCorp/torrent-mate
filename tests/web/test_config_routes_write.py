@@ -678,18 +678,52 @@ class TestPutFileEndpoint:
         )
         assert "config_edit: paths.json5 (web-UI)" in log.stdout
 
-    def test_put_file_save_succeeds_even_when_git_fails(self, client: TestClient, config_dir: Path) -> None:
-        """Fail-soft: a broken git repo does not block the config save."""
-        # Corrupt .git to simulate a git failure.
-        git_dir = config_dir / ".git"
-        git_dir.mkdir(exist_ok=True)
-        (git_dir / "HEAD").write_text("garbage")
+    def test_put_file_save_succeeds_even_when_git_fails(
+        self,
+        client: TestClient,
+        config_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Fail-soft pin: a ``commit_config_dir`` that RAISES does not block the save.
+
+        Patches ``commit_config_dir`` to raise ``RuntimeError`` (simulating a
+        catastrophic git failure that escapes the function's own try/except)
+        and ``ensure_config_repo`` to return ``True`` so the commit path is
+        reached.  Asserts:
+
+        * PUT returns 200 (fail-soft, never 500).
+        * The file content was actually persisted.
+        * No ERROR-level log record was emitted (the exception did not escape
+          the route's try/except wrapper).
+
+        This test FAILS if the route's ``try: … except Exception: pass`` guard
+        is removed, and FAILS if the save is aborted on git failure — a real
+        fail-soft pin rather than a tautology.
+        """
+        import logging
+
+        caplog.set_level(logging.ERROR)
+
+        # Force the git commit path to trigger, then blow up.
+        monkeypatch.setattr(
+            "personalscraper.conf.config_git.ensure_config_repo",
+            lambda _cd: True,
+        )
+
+        def _raise_git_catastrophe(_cd: object, _msg: object) -> None:
+            raise RuntimeError("simulated git catastrophe")
+
+        monkeypatch.setattr(
+            "personalscraper.conf.config_git.commit_config_dir",
+            _raise_git_catastrophe,
+        )
 
         file_path = config_dir / "paths.json5"
         original = json5.loads(file_path.read_text(encoding="utf-8"))
         original_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
         new_values = dict(original)
-        new_values["paths"] = {**original["paths"], "staging_dir": "/tmp/git_fail_test", "data_dir": "/tmp/data"}
+        new_values["paths"] = {**original["paths"], "staging_dir": "/tmp/git_raise_test", "data_dir": "/tmp/data"}
 
         resp = client.put(
             "/api/config/files/paths.json5",
@@ -698,6 +732,14 @@ class TestPutFileEndpoint:
         )
         # Save must still succeed (git failure is non-blocking).
         assert resp.status_code == 200
+
+        # File content was actually written — save was not aborted.
+        file_text = file_path.read_text(encoding="utf-8")
+        assert "/tmp/git_raise_test" in file_text
+
+        # No exception escaped to the client — verify no ERROR-level log records.
+        errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert not errors, f"ERROR log records found: {errors}"
 
 
 # ── GET /secrets ────────────────────────────────────────────────────────────
