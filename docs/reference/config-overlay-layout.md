@@ -1,5 +1,9 @@
 # Config Overlay Layout (v2 Split Config)
 
+> **Canonical location** (≥0.73.0): The live config directory is
+> `~/.torrentmate/config` — outside every git working tree. The repo
+> carries `config.example/` only. See `docs/features/config-home/DESIGN.md`.
+
 ## Directory structure
 
 The v2 config is a directory of JSON5 files rather than a single monolith:

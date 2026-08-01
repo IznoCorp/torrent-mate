@@ -317,7 +317,7 @@ from the dev editable install.
 | Staging | `~/staging/torrentmate` | `staging` | `torrentmate-web-staging` | 8711 |
 
 Both clones share the **real config directory** via
-`PERSONALSCRAPER_CONFIG=/Users/izno/dev/PersonalScraper/config` in the PM2
+`PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config` in the PM2
 environment. Staging safety is enforced by the `require_not_staging` guard
 (403) on every mutating route, because prod and staging share the real config
 and data directories.
@@ -412,8 +412,9 @@ In `ecosystem.config.js`. **Every daemon/cron runs from the prod clone**
 ### Environment separation (ENV-SEP)
 
 Three roles, one shared data plane. The **code** each process runs (which git
-branch) and process ownership are separated; `library.db`, `.data/`, `config/`,
-and the storage disks are **shared**.
+branch) and process ownership are separated; `library.db`, `.data/`,
+and the storage disks are **shared** (the canonical config lives at
+`~/.torrentmate/config`, outside all working trees).
 
 | Role        | Path                    | Branch                 | Runs                                                          |
 | ----------- | ----------------------- | ---------------------- | ------------------------------------------------------------- |

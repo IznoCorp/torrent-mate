@@ -211,7 +211,9 @@ Three checkouts on this host (full topology + deploy runbook: `docs/reference/we
 - **dev** = `~/dev/PersonalScraper` (this checkout) — feature branches, NO PM2 daemons.
 - **prod** = `~/deploy/torrentmate` (tracks `main`, autodeploy) — `torrentmate-web` on **8710** + watch + crons.
 - **staging** = `~/staging/torrentmate` (tracks the `staging` branch, autodeploy) — `torrentmate-web-staging` on **8711**, read-only role (`PERSONALSCRAPER_WEB_ROLE=staging` → 403 on writes).
-- Shared between all three: `library.db`, `.data/`, `config/`, storage disks. **NEVER start a local server on 8710/8711** (Caddy routes `tm.`/`tm-staging.` there) — test the frontend via `tm-staging.iznogoudatall.xyz`.
+- Shared between all three: `library.db`, `.data/`, storage disks.
+- Canonical config at `~/.torrentmate/config` (outside all working trees — see `docs/features/config-home/DESIGN.md` §3.1).
+- **NEVER start a local server on 8710/8711** (Caddy routes `tm.`/`tm-staging.` there) — test the frontend via `tm-staging.iznogoudatall.xyz`.
 
 Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.md` + `maintenance.md`):
 
@@ -256,6 +258,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner (S3 maint-dash)           | `docs/reference/maintenance.md`                 |
 | ffprobe stream extraction, codec/language → Kodi NFO mapping                                                          | `docs/reference/ffprobe-api.md`                 |
 | Config split layout, JSON5 overlay composition, per-file key ownership                                                | `docs/reference/config-overlay-layout.md`       |
+| Config home relocation — canonical location, migration runbook                                                        | `docs/features/config-home/DESIGN.md`           |
 | Feature lifecycle — ACCEPTANCE format, phase-gate vs deployment, deferred-criterion protocol                          | `docs/reference/feature-lifecycle.md`           |
 | Module-size budget tracking, BLOCK-threshold promise status                                                           | `docs/reference/promises.md`                    |
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                     | `docs/reference/runbook-post-merge.md`          |
