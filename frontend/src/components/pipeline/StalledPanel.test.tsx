@@ -79,7 +79,7 @@ describe("StalledPanel", () => {
     // The warning card is the parent of the heading <p>.
     const heading = screen.getByText("Ce qui n'a pas avancé");
     const card = heading.parentElement;
-    expect(card?.className).toContain("border-[var(--warning)]/30");
-    expect(card?.className).toContain("bg-[var(--warning)]/10");
+    expect(card?.className).toContain("border-warning/30");
+    expect(card?.className).toContain("bg-warning/10");
   });
 });

@@ -195,7 +195,7 @@ export function FileDAcquisitionPanel(): ReactElement {
         {capped && (
           <p
             role="status"
-            className="mb-3 rounded bg-[var(--warning)]/10 px-2 py-1 text-xs text-[var(--warning)]"
+            className="mb-3 rounded bg-warning/10 px-2 py-1 text-xs text-warning"
           >
             Affichage limité aux {String(HARD_CAP)} premières recherches (
             {String(totalItems)} au total).
@@ -361,7 +361,7 @@ export function FileDAcquisitionPanel(): ReactElement {
             {/* Fail-soft notice — hoisted out of length>0 so it shows even
                 when the download list is empty (NE-DOIT-PAS-1/5, F3). */}
             {!clientAvailable && (
-              <p className="mb-3 text-xs text-[var(--warning)]">
+              <p className="mb-3 text-xs text-warning">
                 Client torrent injoignable — progression indisponible, les
                 éléments récupérés restent listés.
               </p>

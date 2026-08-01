@@ -121,7 +121,7 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
           wsDead ? (
             <p
               role="alert"
-              className="rounded bg-[var(--danger)]/15 px-3 py-2 text-center text-xs font-medium text-[var(--danger)]"
+              className="rounded bg-danger/15 px-3 py-2 text-center text-xs font-medium text-danger"
             >
               Flux d&apos;événements déconnecté.
             </p>

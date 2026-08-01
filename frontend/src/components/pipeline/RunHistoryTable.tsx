@@ -288,7 +288,7 @@ export function RunHistoryTable({
                   >
                     <span
                       role="alert"
-                      className="rounded bg-[var(--danger)]/15 px-1.5 py-0.5 font-medium text-[var(--danger)]"
+                      className="rounded bg-danger/15 px-1.5 py-0.5 font-medium text-danger"
                     >
                       Historique indisponible — la base n&apos;a pas pu être
                       lue.

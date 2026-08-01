@@ -91,8 +91,8 @@ export function StalledPanel({
   if (stepReasons.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-4">
-      <p className="mb-2 text-xs font-semibold text-[var(--warning)]">
+    <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
+      <p className="mb-2 text-xs font-semibold text-warning">
         Ce qui n'a pas avancé
       </p>
       <div className="flex flex-col gap-2">
