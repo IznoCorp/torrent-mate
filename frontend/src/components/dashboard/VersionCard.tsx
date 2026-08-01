@@ -10,7 +10,9 @@
 
 import type { ReactElement } from "react";
 
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatPanel } from "@/components/ds/StatPanel";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { useVersion } from "@/hooks/useHealth";
 
@@ -32,8 +34,27 @@ function short(commit: string | undefined): string {
  *   The version card element.
  */
 export function VersionCard(): ReactElement {
-  const { data } = useVersion();
+  const { data, isPending, isError } = useVersion();
   const { buildCommit: liveCommit } = useEventStreamContext();
+
+  // X2 — a down /api/version must never collapse to a "—" placeholder
+  // indistinguishable from loading (data-illusion class).
+  if (isPending) {
+    return (
+      <div className="flex flex-col gap-2" aria-busy="true">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <ErrorState
+        title="Version indisponible"
+        message="La version déployée n'a pas pu être lue."
+      />
+    );
+  }
 
   const version = data?.version ?? "—";
   const restCommit = data?.build_commit;

@@ -68,7 +68,9 @@ function makeLocksResponse(
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getLocks: vi.fn(),
@@ -107,7 +109,8 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderPanel();
-    expect(screen.getByText("Chargement des verrous…")).toBeInTheDocument();
+    // X2 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   it("affiche l'état d'erreur avec role=alert", async () => {
@@ -116,7 +119,7 @@ describe("LocksPanel", () => {
     renderPanel();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveTextContent("Impossible de charger les verrous.");
     expect(alert).toHaveClass("text-danger");
   });
 
@@ -204,7 +207,11 @@ describe("LocksPanel", () => {
               prefix: "_tmp_dispatch_",
               age_s: 300,
             },
-            { path: "/tmp/.ingest_tmp_xyz", prefix: ".ingest_tmp_", age_s: 600 },
+            {
+              path: "/tmp/.ingest_tmp_xyz",
+              prefix: ".ingest_tmp_",
+              age_s: 600,
+            },
           ],
         },
       }),

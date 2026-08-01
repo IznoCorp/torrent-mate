@@ -19,6 +19,7 @@ import {
   type ActionsResponse,
   type MaintenanceAction,
 } from "@/api/maintenance";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { ActionForm } from "@/components/maintenance/ActionForm";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,6 +30,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 
 // ---------------------------------------------------------------------------
@@ -124,14 +126,14 @@ export function ActionCatalog(): ReactElement {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {isLoading && (
-          <p className="text-sm text-muted-foreground">
-            Chargement des actions…
-          </p>
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
         )}
         {isError && (
-          <p className="text-sm text-muted-foreground">
-            Erreur lors du chargement.
-          </p>
+          <ErrorState title="Impossible de charger le catalogue d'actions." />
         )}
 
         {!isLoading &&

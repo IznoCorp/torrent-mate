@@ -13,6 +13,7 @@ import { useState, type ReactElement } from "react";
 
 import { getLocks, type LocksResponse } from "@/api/maintenance";
 import type { components } from "@/api/schema";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatusDot } from "@/components/ds/StatusDot";
 import {
   Card,
@@ -126,15 +127,13 @@ export function LocksPanel(): ReactElement {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isLoading && (
-          <p className="text-sm text-muted-foreground">
-            Chargement des verrous…
-          </p>
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
         )}
-        {isError && (
-          <p className="text-sm text-danger" role="alert">
-            Erreur lors du chargement.
-          </p>
-        )}
+        {isError && <ErrorState title="Impossible de charger les verrous." />}
 
         {!isLoading && !isError && lock != null && lockInfo != null && (
           <>

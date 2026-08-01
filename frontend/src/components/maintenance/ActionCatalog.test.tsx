@@ -66,7 +66,9 @@ function makeActionsResponse(): ActionsResponse {
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getActions: vi.fn(),
@@ -105,17 +107,20 @@ describe("ActionCatalog", () => {
     const fn = await mockGetActions();
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderCatalog();
-    expect(screen.getByText("Chargement des actions…")).toBeInTheDocument();
+    // X2 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
-  it("affiche l'état d'erreur", async () => {
+  it("affiche l'état d'erreur avec role=alert", async () => {
     const fn = await mockGetActions();
     fn.mockRejectedValue(new Error("boom"));
     renderCatalog();
 
-    expect(
-      await screen.findByText("Erreur lors du chargement."),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Impossible de charger le catalogue d'actions.",
+    );
+    expect(alert).toHaveClass("text-danger");
   });
 
   it("groupe les actions par catégorie avec leur décompte", async () => {
