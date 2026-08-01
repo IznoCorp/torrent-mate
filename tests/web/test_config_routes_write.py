@@ -115,7 +115,9 @@ def secrets_tmp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Provision a tmp dir with ``.env.example`` and ``.env`` for secrets tests.
 
     Also creates a minimal config dir with ``config.json5`` so the config
-    router can resolve the project root (``config_dir.parent``).
+    router can resolve the project root.  Monkeypatches ``_CLONE_ROOT`` on
+    the config routes module so the secrets endpoints see the tmp dir as
+    the clone root (the real clone root is unaffected).
 
     Args:
         tmp_path: Pytest temporary directory.
@@ -132,6 +134,11 @@ def secrets_tmp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(config_dir))
 
     root = tmp_path
+    # Point the config routes module's _CLONE_ROOT at this tmp tree so the
+    # secrets endpoints resolve .env / .env.example from here — the real
+    # clone root is elsewhere after config-home relocation.
+    monkeypatch.setattr("personalscraper.web.routes.config._CLONE_ROOT", root)
+
     # Create .env.example with known keys.
     (root / ".env.example").write_text(
         "# ── API Keys ─────────────────\n"
@@ -614,6 +621,126 @@ class TestPutFileEndpoint:
         assert resp.status_code == 200
         assert "local.json5" in resp.json()["stale_files"]
 
+    def test_put_file_auto_commits_to_mini_repo(self, client: TestClient, config_dir: Path) -> None:
+        """After a successful PUT, the config dir gets a git commit (DESIGN §3.2)."""
+        # Initialize the config dir as a git repo.
+        subprocess.run(
+            ["git", "-C", str(config_dir), "init"],
+            capture_output=True,
+        )
+        # Set git user for the test (required for commit).
+        subprocess.run(
+            ["git", "-C", str(config_dir), "config", "user.email", "test@test"],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(config_dir), "config", "user.name", "Test"],
+            capture_output=True,
+        )
+
+        # Record HEAD SHA before the PUT (None if no commits yet).
+        sha_before = subprocess.run(
+            ["git", "-C", str(config_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        sha_before = sha_before.stdout.strip() if sha_before.returncode == 0 else None
+
+        # Perform a valid save (mirrors test_200_happy_path payload shape).
+        file_path = config_dir / "paths.json5"
+        original = json5.loads(file_path.read_text(encoding="utf-8"))
+        original_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        new_values = dict(original)
+        new_values["paths"] = {**original["paths"], "staging_dir": "/tmp/auto_commit_test", "data_dir": "/tmp/data"}
+
+        resp = client.put(
+            "/api/config/files/paths.json5",
+            json={"values": new_values, "base_sha256": original_sha256},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 200
+
+        # A new commit must have been created.
+        sha_after = subprocess.run(
+            ["git", "-C", str(config_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        sha_after = sha_after.stdout.strip() if sha_after.returncode == 0 else None
+        assert sha_after is not None
+        assert sha_after != sha_before
+
+        # Commit message must contain the edit marker.
+        log = subprocess.run(
+            ["git", "-C", str(config_dir), "log", "-1", "--format=%s"],
+            capture_output=True,
+            text=True,
+        )
+        assert "config_edit: paths.json5 (web-UI)" in log.stdout
+
+    def test_put_file_save_succeeds_even_when_git_fails(
+        self,
+        client: TestClient,
+        config_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Fail-soft pin: a ``commit_config_dir`` that RAISES does not block the save.
+
+        Patches ``commit_config_dir`` to raise ``RuntimeError`` (simulating a
+        catastrophic git failure that escapes the function's own try/except)
+        and ``ensure_config_repo`` to return ``True`` so the commit path is
+        reached.  Asserts:
+
+        * PUT returns 200 (fail-soft, never 500).
+        * The file content was actually persisted.
+        * No ERROR-level log record was emitted (the exception did not escape
+          the route's try/except wrapper).
+
+        This test FAILS if the route's ``try: … except Exception: pass`` guard
+        is removed, and FAILS if the save is aborted on git failure — a real
+        fail-soft pin rather than a tautology.
+        """
+        import logging
+
+        caplog.set_level(logging.ERROR)
+
+        # Force the git commit path to trigger, then blow up.
+        monkeypatch.setattr(
+            "personalscraper.conf.config_git.ensure_config_repo",
+            lambda _cd: True,
+        )
+
+        def _raise_git_catastrophe(_cd: object, _msg: object) -> None:
+            raise RuntimeError("simulated git catastrophe")
+
+        monkeypatch.setattr(
+            "personalscraper.conf.config_git.commit_config_dir",
+            _raise_git_catastrophe,
+        )
+
+        file_path = config_dir / "paths.json5"
+        original = json5.loads(file_path.read_text(encoding="utf-8"))
+        original_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        new_values = dict(original)
+        new_values["paths"] = {**original["paths"], "staging_dir": "/tmp/git_raise_test", "data_dir": "/tmp/data"}
+
+        resp = client.put(
+            "/api/config/files/paths.json5",
+            json={"values": new_values, "base_sha256": original_sha256},
+            headers=_xrw(),
+        )
+        # Save must still succeed (git failure is non-blocking).
+        assert resp.status_code == 200
+
+        # File content was actually written — save was not aborted.
+        file_text = file_path.read_text(encoding="utf-8")
+        assert "/tmp/git_raise_test" in file_text
+
+        # No exception escaped to the client — verify no ERROR-level log records.
+        errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert not errors, f"ERROR log records found: {errors}"
+
 
 # ── GET /secrets ────────────────────────────────────────────────────────────
 
@@ -669,6 +796,8 @@ class TestSecretsGetEndpoint:
 
     def test_200_empty_when_no_env_example(self, config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Returns empty list when .env.example is absent."""
+        # Point _CLONE_ROOT at tmp_path (which has config/ but no .env.example).
+        monkeypatch.setattr("personalscraper.web.routes.config._CLONE_ROOT", config_dir.parent)
         app = _build_app()
         client = TestClient(app)
         resp = client.get("/api/config/secrets")

@@ -1,40 +1,52 @@
-# Implementation Progress — machine-state
+# Implementation Progress — config-home
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Unified « état de la machine » overview (F5 capstone of the tracking-spine
-epic) — acquisitions + pipeline + décisions + en-attente rolled up on one view, consuming
-the F0–F4 spine. Backend aggregate endpoint + « Vue d'ensemble » tab on the Acquisition hub.
+**Feature**: Config Home — relocate the canonical config out of every git working tree
+(ticket #326 Config-Shared): canonical moves to `~/.torrentmate/config` (local mini git repo),
+`init-config --sync` additive migration, ecosystem/deploy/test pins updated, worktree-invariant
+guard test + `config_home` verify check.
 **Type**: feat
-**Version bump**: 0.71.0 → 0.72.0 (minor)
-**Branch**: feat/machine-state
-**Ticket**: #366 — claimed
-**PR merge**: auto (operator-authorized epic contract)
-**Design**: docs/features/machine-state/DESIGN.md
-**Epic roadmap**: docs/features/provenance/EPIC-ROADMAP.md (F0 → F5)
+**Version bump**: 0.72.2 → 0.73.0 (minor)
+**Branch**: feat/config-home
+**Ticket**: #326 — claimed (kanban-work, card in Brainstorming → advance as phases progress)
+**PR merge**: auto — operator contract: MULTIPLE adversarial reviews + solid tests REQUIRED
+before the auto-merge fires; merge only on clean adversarial review + green CI.
+**PR**: _(created after last phase)_
+**Design**: docs/features/config-home/DESIGN.md
+**Master plan**: docs/features/config-home/plan/INDEX.md
 
 ## Non-negotiable invariants
 
-- Product-intent (BINDING) §2/§5/§8: rollup of the spine; every tile deep-links to the
-  URL-addressable detail view. Counts are an UNCAPPED SQL aggregate (never a frontend count
-  over the 200-capped list_journeys — §méthode rule 6).
-- awaiting_resolution uses the AUTHORITATIVE scrape_decision pending count (not the advisory
-  spine mirror); no DB fusion; no migration (read-only aggregate).
-- The overview endpoint is read-only, NOT staging-guarded, side-effect-free (staging-safe).
-- No change to existing endpoints / decisions / pipeline flows; stage_counts fail-soft.
-
-## Autonomous epic contract (operator-authorized — run F0→F5 without stopping)
-
-- Auto-merge each feature's PR the moment adversarial review is clean AND CI is green.
-- Nothing left behind: every bug/gap found mid-epic is fixed inline. Nothing deferred.
-- Only stop-condition: an EXTERNAL CI outage (billing/runner) blocking a merge — surface,
-  do not bypass branch protection without sign-off.
+- The canonical config dir must NEVER live inside a git working tree (the #320/#322 risk
+  class) — enforced by the new ecosystem test invariant + the `config_home` verify check.
+- `extra="forbid"` strict loading STAYS (deliberate quality choice — rejected tolerance).
+- Single shared canonical config (prod + staging + crons + dev + web-UI S4) — only the
+  LOCATION changes (operator decision D2).
+- `init-config --sync` is ADDITIVE ONLY: never modifies or removes an existing key/value.
+- Mini-repo commits are fail-soft: a git failure never blocks a config save.
+- No VERSION file in this repo — version lives in `personalscraper/__init__.py`
+  (pyproject dynamic attr); do not recreate VERSION.
 
 ## Phases
 
-| #   | Phase                                                                            | File                 | Status |
-| --- | -------------------------------------------------------------------------------- | -------------------- | ------ |
-| 1   | Backend aggregate (stage_counts + AcquisitionOverviewResponse + GET /overview)   | phase-01-backend.md  | [x]    |
-| 2   | Frontend « Vue d'ensemble » tab (OverviewPanel + tiles + deep-links) + gate + PR | phase-02-frontend.md | [x]    |
+| #   | Phase                                                                                                            | File                             | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- | ------ |
+| 1   | Sync engine — additive JSON5 deep-merge + `init-config --sync` CLI + golden tests                                | phase-01-sync-engine.md          | [x]    |
+| 2   | Config git mini-repo — `config_git.py` helper + S4 auto-commit hook + unit tests                                 | phase-02-config-git.md           | [x]    |
+| 3   | Verify + ecosystem tests — `config_home` check + ecosystem test pins + worktree-invariant + integration tests    | phase-03-verify-and-tests.md     | [x]    |
+| 4   | Migration + config changes — `migrate-config-home.sh` + `ecosystem.config.js` + `deploy.sh` + git untrack + docs | phase-04-migration-and-config.md | [x]    |
+| 5   | ACCEPTANCE + final gate — ACCEPTANCE.md (ACC-01..06) + `make check`                                              | phase-05-acceptance-and-gate.md  | [x]    |
 
-**Next action**: all phases complete — phase gate + feature-PR.
+## Review cycles
+
+_(filled by implement:pr-review — operator contract: multiple adversarial review passes)_
+
+## Next action
+
+All phases complete — run /implement:feature-pr (push + PR + CI + adversarial reviews +
+auto-merge per operator contract). Then: run scripts/migrate-config-home.sh (the live
+migration), re-exercise ACC-01..06, and exercise the deferred manual gates (« web-UI save →
+config_edit commit »). Recorded anomaly: sub-phase 4.2 dispatch omitted the MODEL_IDENTITY
+probe (report-contract miss); work independently verified by orchestrator gates — accepted.
+Expected-red window CLOSED at phase 4 (ecosystem tests 40/40 green).

@@ -90,6 +90,13 @@ from personalscraper.web.models.config import (
 router = APIRouter(prefix="/api/config", tags=["config"])
 logger = get_logger(__name__)
 
+# Clone-root ``.env`` / ``.env.example`` — the secrets endpoints must resolve
+# these from the CLONE root (where the working tree and its .env live), NOT
+# from ``config_dir.parent`` (which after config-home relocation points at
+# ``~/.torrentmate/``, a directory with no .env file).  Mirrors the
+# ``commands/web.py`` _ENV_PATH pattern (4 parents from web/routes/config.py).
+_CLONE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
 #: Top-level config keys whose modification requires a web process restart.
 #: Unknown keys default to ``True`` at lookup time (fail-safe).  See
 #: docs/features/config-editor/plan/phase-02-backend-routes.md §2.4.
@@ -709,6 +716,24 @@ def put_file(
                 os.unlink(file_path.with_suffix(file_path.suffix + ".tmp"))
             raise
 
+        # Auto-commit to the canonical mini-repo (DESIGN §3.2).
+        # Fail-soft: a git failure never blocks or fails the save.
+        try:
+            from personalscraper.conf.config_git import (
+                commit_config_dir,
+                ensure_config_repo,
+            )
+
+            if ensure_config_repo(config_dir):
+                commit_config_dir(
+                    config_dir,
+                    f"config_edit: {name} (web-UI)",
+                )
+        except Exception:
+            # Fail-soft per DESIGN §3.2 — log already emitted by
+            # commit_config_dir; double-wrap for any import/other error.
+            pass
+
         # Register a pre-write hash entry for files absent from the boot
         # snapshot (e.g. local.json5 created post-boot) so they become
         # stale-tracked.  The boot hash is "" because the file did not exist
@@ -741,10 +766,7 @@ def get_secrets(request: Request) -> SecretsResponse:
     Returns:
         A :class:`SecretsResponse` with one :class:`SecretEntry` per key.
     """
-    config_dir = _config_dir()
-    repo_root = config_dir.parent
-
-    env_example_path = repo_root / ".env.example"
+    env_example_path = _CLONE_ROOT / ".env.example"
     if not env_example_path.is_file():
         logger.warning("env_example_missing", path=str(env_example_path))
         return SecretsResponse(secrets=[])
@@ -752,7 +774,7 @@ def get_secrets(request: Request) -> SecretsResponse:
     catalog = read_env_catalog(env_example_path)
 
     # Parse .env for is_set flags — values are never read or returned.
-    env_path = repo_root / ".env"
+    env_path = _CLONE_ROOT / ".env"
     env_set: set[str] = set()
     if env_path.is_file():
         for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -800,10 +822,7 @@ def put_secrets(
     if not body.root:
         raise HTTPException(status_code=422, detail="no keys provided")
 
-    config_dir = _config_dir()
-    repo_root = config_dir.parent
-
-    env_example_path = repo_root / ".env.example"
+    env_example_path = _CLONE_ROOT / ".env.example"
     if not env_example_path.is_file():
         raise HTTPException(status_code=404, detail=".env.example not found")
 
@@ -817,7 +836,7 @@ def put_secrets(
             detail={"unknown_keys": unknown_keys},
         )
 
-    env_path = repo_root / ".env"
+    env_path = _CLONE_ROOT / ".env"
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
     # R10: serialize the .env read-modify-write under the same module lock as
     # PUT /files. write_env_keys reads .env, upserts, and atomically rewrites

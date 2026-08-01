@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json5
+
 from tests.commands._e2e_helpers import (
     assert_no_python_traceback,
     run_cli,
@@ -324,7 +326,275 @@ def test_init_config_error_output_user_friendly(tmp_path: Path) -> None:
     assert "not found" in result.output.lower()
 
 
-# ── 7. Events ──
+# ── 7. --sync flag ──
+
+
+def test_init_config_sync_dry_run_reports(tmp_path: Path) -> None:
+    """``init-config --sync --dry-run`` exits 0, reports DRY-RUN, creates no files."""
+    example = _make_minimal_example(tmp_path)
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--dry-run",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "DRY-RUN" in result.output
+    # Dry-run must NOT create the target directory at all.
+    assert not output.exists(), f"--sync --dry-run must not create {output}"
+
+
+def test_init_config_sync_additive_apply(tmp_path: Path) -> None:
+    """``init-config --sync`` copies missing files from example to target."""
+    example = _make_minimal_example(tmp_path)
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert output.is_dir()
+    assert (output / "config.json5").is_file()
+    assert (output / "paths.json5").is_file()
+
+
+def test_init_config_sync_and_force_mutually_exclusive(tmp_path: Path) -> None:
+    """``init-config --sync --force`` exits 2 with a clear error message."""
+    example = _make_minimal_example(tmp_path)
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--force",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "mutually exclusive" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+# ── 8. Malformed JSON5 (F-C) ──
+
+
+def test_init_config_sync_malformed_json5_clean_error(tmp_path: Path) -> None:
+    """Malformed JSON5 in example → clean user error, exit 1, no traceback."""
+    example = tmp_path / "config.example"
+    example.mkdir()
+    (example / "config.json5").write_text("{\n  valid: true\n}\n")
+    (example / "broken.json5").write_text("not valid { json ~~~\n")
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "broken.json5" in result.output
+    assert_no_python_traceback(result)
+
+
+# ── 8c. M8: non-iterable overlays guard ──
+
+
+def test_init_config_sync_non_iterable_overlays_no_traceback(tmp_path: Path) -> None:
+    """Non-iterable overlays (e.g. int 5) → clean report, exit 0, no traceback (M8).
+
+    Before the fix, ``list(5)`` raised TypeError through the CLI as a raw
+    Python traceback.  The guard (isinstance list check) catches it and emits
+    a clean conflict report line instead.
+    """
+    example = tmp_path / "config.example"
+    example.mkdir()
+    (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": 5}, indent=2))
+    (example / "paths.json5").write_text('{"paths": {"staging_dir": "/s"}}')
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    # Must exit cleanly (0).
+    assert result.exit_code == 0, result.output
+    # No raw traceback.
+    assert_no_python_traceback(result)
+    # Files were copied normally — the guard prevented the TypeError without
+    # blocking the rest of the sync (no overlay names to register from int 5).
+    assert "copy new file" in result.output.lower()
+
+
+# ── 8b. F-G: --sync target resolution ──
+
+
+def test_init_config_sync_no_output_no_env_fails(tmp_path: Path, monkeypatch) -> None:
+    """``init-config --sync`` without --output and no env → exit 2, friendly message.
+
+    Patches ``resolve_config_path`` to return a non-existent path so the guard
+    fires (inside the repo the pkg_root/config fallback would prevent it).
+    """
+    from unittest.mock import patch
+
+    monkeypatch.delenv("PERSONALSCRAPER_CONFIG", raising=False)
+    example = _make_minimal_example(tmp_path)
+    nonexistent = tmp_path / "nonexistent-config"
+
+    with patch(
+        "personalscraper.conf.loader.resolve_config_path",
+        return_value=nonexistent,
+    ):
+        result = run_cli(
+            [
+                "init-config",
+                "--sync",
+                "--example",
+                str(example),
+            ]
+        )
+
+    assert result.exit_code == 2, result.output
+    assert "not found" in result.output.lower()
+    assert "PERSONALSCRAPER_CONFIG" in result.output
+    assert_no_python_traceback(result)
+
+
+def test_init_config_sync_with_env_works(tmp_path: Path, monkeypatch) -> None:
+    """``init-config --sync`` with PERSONALSCRAPER_CONFIG → resolves target from env."""
+    example = _make_minimal_example(tmp_path)
+    target = tmp_path / "canonical"
+    target.mkdir()
+
+    monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(target))
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Target config:" in result.output
+
+
+def test_init_config_sync_output_explicit_wins(tmp_path: Path, monkeypatch) -> None:
+    """``init-config --sync --output`` always wins over env or default."""
+    example = _make_minimal_example(tmp_path)
+    explicit = tmp_path / "my-config"
+    explicit.mkdir()
+
+    monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(tmp_path / "ignored"))
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(explicit),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+
+
+# ── 8c. F-J: sync commits the canonical mini-repo ──
+
+
+def test_init_config_sync_commits_to_git_repo(tmp_path: Path) -> None:
+    """``init-config --sync`` with git-initialized target creates a commit (F-J)."""
+    import subprocess
+
+    example = _make_minimal_example(tmp_path)
+    target = tmp_path / "config"
+    target.mkdir()
+
+    # Init git repo + configure user.
+    subprocess.run(
+        ["git", "-C", str(target), "init"],
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(target), "config", "user.email", "test@test"],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(target), "config", "user.name", "Test"],
+        capture_output=True,
+    )
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(target),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+
+    # Verify a commit was created.
+    log = subprocess.run(
+        ["git", "-C", str(target), "log", "--oneline"],
+        capture_output=True,
+        text=True,
+    )
+    assert "config_sync:" in log.stdout
+
+    # ls-tree content assertion.
+    ls = subprocess.run(
+        ["git", "-C", str(target), "ls-tree", "-r", "HEAD", "--name-only"],
+        capture_output=True,
+        text=True,
+    )
+    files = ls.stdout.strip().splitlines()
+    assert "config.json5" in files
+    assert "paths.json5" in files
+
+
+# ── 9. Events ──
 
 # N/A: init-config is a filesystem bootstrap operation that runs before any
 # config or BDD exists. It has no EventBus — the command body constructs a
@@ -332,7 +602,7 @@ def test_init_config_error_output_user_friendly(tmp_path: Path) -> None:
 # for init-config (it runs before config exists). No pipeline events are
 # relevant.
 
-# ── 8. Closure-of-loop ──
+# ── 9. Closure-of-loop ──
 
 # N/A: init-config creates config files from a template; there is no BDD
 # cycle to close. The files are written once and verified by template-copy

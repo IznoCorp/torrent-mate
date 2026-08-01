@@ -55,12 +55,14 @@ def config_migrate_category(
 
 @app.command("init-config")
 def init_config_cmd(
+    ctx: typer.Context,
     example: Path = typer.Option(
         Path("config.example"),
         help="Path to the example template directory to copy from.",
     ),
-    output: Path = typer.Option(
-        Path("./config"),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
         help="Destination path for the new config directory.",
     ),
     non_interactive: bool = typer.Option(
@@ -81,6 +83,11 @@ def init_config_cmd(
             "Checks that config.example/ exists and reports the target path."
         ),
     ),
+    sync: bool = typer.Option(
+        False,
+        "--sync",
+        help="Additive sync from config.example to canonical config (non-destructive).",
+    ),
 ) -> None:
     """Create ./config/ from the config.example/ template directory.
 
@@ -95,6 +102,43 @@ def init_config_cmd(
         personalscraper init-config --dry-run
     """
     from personalscraper.commands.init_config import init_config
+
+    # Resolve output path: --sync mode uses the canonical config by default;
+    # non-sync mode falls back to ./config/ (backwards-compatible).
+    explicit_output: bool = output is not None
+    if output is None:
+        if sync:
+            from personalscraper.conf.loader import resolve_config_path  # noqa: PLC0415
+
+            global_config: Optional[Path] = ctx.obj.config_override if ctx.obj is not None else None
+            output = resolve_config_path(global_config)
+        else:
+            output = Path("./config")
+
+    if sync:
+        if force:
+            typer.echo("Error: --sync and --force are mutually exclusive.", err=True)
+            raise typer.Exit(code=2)
+
+        # Guard: in --sync mode, if the resolved target does not exist AND the
+        # operator did not explicitly pass --output, fail with a clear message
+        # instead of silently creating a fresh directory.
+        if not explicit_output and not output.is_dir():
+            from personalscraper.conf.loader import ENV_CONFIG_PATH  # noqa: PLC0415
+
+            typer.echo(
+                f"Error: canonical config directory not found: {output}\n"
+                f"Set ${ENV_CONFIG_PATH} to point to your config directory, "
+                f"or pass --output explicitly to target a different location.",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+
+        from personalscraper.commands.init_config import init_config_sync  # noqa: PLC0415
+
+        typer.echo(f"Target config: {output}")
+        init_config_sync(example=example.resolve(), target=output.resolve(), dry_run=dry_run)
+        return
 
     if dry_run:
         typer.echo(f"[DRY-RUN] Would copy {example} → {output}")

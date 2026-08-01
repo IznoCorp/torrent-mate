@@ -31,6 +31,18 @@ HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
 fail() { printf '\n❌ DÉPLOIEMENT REFUSÉ: %s\n' "$*" >&2; exit 1; }
 
+# ── Guard 0: config-home migration must have run if pins point there ──────────
+# If this clone's ecosystem.config.js pins PERSONALSCRAPER_CONFIG to the
+# canonical .torrentmate/config, the migration MUST have been run — a boot
+# without the canonical config dir is a silent no-op (no library.db, no state).
+# If the pins still point at the old dev config path, this guard is a no-op
+# (pre-merge deploys and deploys on hosts that have not yet migrated are
+# unaffected).
+if grep -q '.torrentmate/config' ecosystem.config.js 2>/dev/null; then
+  [ -d "/Users/izno/.torrentmate/config" ] \
+    || fail "config-home migration not done — refusing to deploy (run scripts/migrate-config-home.sh)"
+fi
+
 # ── Guard 1: must be on `main` ────────────────────────────────────────────────
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" = "main" ] || fail "branche '$branch' ≠ main. On ne déploie QUE main."
@@ -113,7 +125,7 @@ fi
 # fail-soft ; MISMATCH ou timeout → échec dur.
 VERSION_URL="http://127.0.0.1:${PORT}/api/version"
 tm_token="$("$VENV/bin/python" - "$REPO" 2>/dev/null <<'PYEOF' || true
-import re, sys, time
+import os, re, sys, time
 from pathlib import Path
 
 import jwt  # PyJWT — ships with the web extra in the prod venv
@@ -127,7 +139,8 @@ secret = next(
     ),
     "",
 )
-web_cfg = (repo / "config" / "web.json5").read_text()
+config_dir = Path(os.environ.get("PERSONALSCRAPER_CONFIG", str(Path.home() / ".torrentmate" / "config")))
+web_cfg = (config_dir / "web.json5").read_text()
 match = re.search(r'username:\s*"([^"]+)"', web_cfg)
 if not secret or match is None:
     raise SystemExit(1)

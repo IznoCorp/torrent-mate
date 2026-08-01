@@ -111,6 +111,31 @@ def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _hermetic_config_dir(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Point config resolution at a throwaway COPY of config.example (config-home #326).
+
+    Live incident (2026-08-01, on the config-home branch itself): an e2e
+    ``--sync`` test resolved the LIVE ``./config`` via the CWD fallback and
+    rewrote ``config/config.json5`` (injected fixture keys, destroyed the
+    header comments) — the exact working-tree contamination class this
+    feature eliminates. This session-scoped guard makes the whole suite
+    hermetic: any test that resolves a config dir without explicit isolation
+    reads a valid example copy (CI parity — the CI test job pins the same
+    via job env), and any leaky WRITE lands in the throwaway copy, never in
+    the repo or the canonical dir. Tests that need a specific config still
+    override per-test (monkeypatch.setenv / --config / --output).
+    """
+    import shutil
+
+    example_src = Path(__file__).parent.parent / "config.example"
+    session_config: Path = tmp_path_factory.mktemp("hermetic-config", numbered=True) / "config"
+    shutil.copytree(example_src, session_config)
+    mp = pytest.MonkeyPatch()
+    mp.setenv("PERSONALSCRAPER_CONFIG", str(session_config))
+    # Session-scoped patch: no undo needed (the env must hold for the whole run).
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _configure_logging_for_tests(tmp_path_factory: pytest.TempPathFactory) -> None:
     """Configure structlog once per session for caplog interop.
 
