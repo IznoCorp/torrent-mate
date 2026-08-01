@@ -20,8 +20,9 @@ from personalscraper.conf.models._ranking import RankingConfig, RankingCriterion
 from personalscraper.config import Settings
 from personalscraper.web.auth.tokens import create_session_token
 from personalscraper.web.models.acquisition import RankingPreviewResponse
-from personalscraper.web.routes.acquisition import preview_ranking
 from personalscraper.web.routes.acquisition import router as acquisition_router
+from personalscraper.web.routes.acquisition_ranking import preview_ranking
+from personalscraper.web.routes.acquisition_ranking import router as ranking_router
 from tests.web._web_harness import guarded_client
 
 
@@ -81,7 +82,7 @@ class TestPreviewRankingRoute:
         client = guarded_client(
             config=test_config,
             settings=settings,
-            routers=acquisition_router,
+            routers=[acquisition_router, ranking_router],
             with_auth=False,
             https=False,
         )
@@ -111,7 +112,7 @@ class TestPreviewRankingRoute:
         client = guarded_client(
             config=test_config,
             settings=settings,
-            routers=acquisition_router,
+            routers=[acquisition_router, ranking_router],
             with_auth=False,
             https=False,
         )
