@@ -501,7 +501,9 @@ describe("ReglagesPanel", () => {
     expect(epGbInputs[0]).toHaveValue(0.5);
 
     // Season inherits (absent key).
-    expect(screen.getByText("Hérite des paliers génériques.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Hérite des paliers génériques."),
+    ).toBeInTheDocument();
   });
 
   it("adding a row to Films marks dirty and the save payload carries the new entry sorted", async () => {
@@ -562,10 +564,13 @@ describe("ReglagesPanel", () => {
     expect(tiers).toBeDefined();
     const movieTiers = tiers.movie;
     expect(movieTiers).toBeDefined();
-    // Sorted by at ascending: 1 GB (1e9) first, 8 GB (8e9) second.
-    expect(movieTiers).toHaveLength(2);
-    expect(movieTiers?.[0]?.at).toBe(1_000_000_000);
-    expect(movieTiers?.[1]?.at).toBe(8_000_000_000);
+    // Sorted by at ascending: 1 GB (1e9) first, 8 GB (8e9) second —
+    // structural assertion (no indexing: satisfies noUncheckedIndexedAccess
+    // without optional chains that no-unnecessary-condition rejects).
+    expect(movieTiers).toEqual([
+      expect.objectContaining({ at: 1_000_000_000 }),
+      expect.objectContaining({ at: 8_000_000_000 }),
+    ]);
   });
 
   it("a type without entry shows the inherit state", async () => {
