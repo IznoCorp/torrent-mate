@@ -262,6 +262,4 @@ def test_ensure_config_repo_gitignore_is_idempotent(tmp_path: Path):
 
     # Second call — content unchanged.
     ensure_config_repo(cfg)
-    assert (cfg / ".gitignore").read_text() == original_content, (
-        "M9b: existing .gitignore must not be overwritten"
-    )
+    assert (cfg / ".gitignore").read_text() == original_content, "M9b: existing .gitignore must not be overwritten"

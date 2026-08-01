@@ -435,9 +435,7 @@ def test_init_config_sync_non_iterable_overlays_no_traceback(tmp_path: Path) -> 
     """
     example = tmp_path / "config.example"
     example.mkdir()
-    (example / "config.json5").write_text(
-        json5.dumps({"config_version": 1, "overlays": 5}, indent=2)
-    )
+    (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": 5}, indent=2))
     (example / "paths.json5").write_text('{"paths": {"staging_dir": "/s"}}')
     output = tmp_path / "config"
 

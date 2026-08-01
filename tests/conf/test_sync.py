@@ -466,23 +466,14 @@ def test_conflict_only_merge_does_not_rewrite_file(tmp_path: Path):
     target.mkdir()
 
     # Target: file WITH a comment.  json5 preserves // comments.
-    target_content = (
-        "{\n"
-        '  // This is a user comment that must survive\n'
-        '  "paths": "/custom/scalar/path"\n'
-        "}\n"
-    )
+    target_content = '{\n  // This is a user comment that must survive\n  "paths": "/custom/scalar/path"\n}\n'
     tgt_file = target / "paths.json5"
     tgt_file.write_text(target_content)
     original_bytes = tgt_file.read_bytes()
 
     # Example: same filename but with a DICT value at "paths" (scalar vs dict conflict).
-    (example / "config.json5").write_text(
-        json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2)
-    )
-    (example / "paths.json5").write_text(
-        json5.dumps({"paths": {"staging_dir": "/s"}}, indent=2)
-    )
+    (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
+    (example / "paths.json5").write_text(json5.dumps({"paths": {"staging_dir": "/s"}}, indent=2))
 
     result = sync_config_dir(example, target, dry_run=False)
 
@@ -536,9 +527,7 @@ def test_overlay_registration_skips_when_overlays_is_dict(tmp_path: Path):
 
     # Must report the conflict, not crash.
     conflict_lines = [r for r in result if "overlays not a list" in r]
-    assert len(conflict_lines) >= 1, (
-        f"Expected 'overlays not a list' conflict, got: {result}"
-    )
+    assert len(conflict_lines) >= 1, f"Expected 'overlays not a list' conflict, got: {result}"
     assert "categories.json5" in conflict_lines[0]
 
     # Target master must NOT be rewritten.
@@ -558,9 +547,7 @@ def test_dry_run_reports_overlay_registration(tmp_path: Path):
     target.mkdir()
 
     # First: sync the base config.
-    (example / "config.json5").write_text(
-        json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2)
-    )
+    (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
     (example / "paths.json5").write_text(json5.dumps({"paths": {"staging_dir": "/s"}}, indent=2))
     sync_config_dir(example, target, dry_run=False)
 
@@ -576,9 +563,7 @@ def test_dry_run_reports_overlay_registration(tmp_path: Path):
     # Dry-run.
     dry_result = sync_config_dir(example, target, dry_run=True)
     dry_reg_lines = [r for r in dry_result if "register overlay:" in r]
-    assert len(dry_reg_lines) >= 1, (
-        f"L10 violation: dry-run missing 'register overlay:' lines, got: {dry_result}"
-    )
+    assert len(dry_reg_lines) >= 1, f"L10 violation: dry-run missing 'register overlay:' lines, got: {dry_result}"
 
     # Real run (fresh target clone — because dry-run didn't write).
     # We need a fresh setup since dry-run doesn't create files.
@@ -586,9 +571,7 @@ def test_dry_run_reports_overlay_registration(tmp_path: Path):
     target2.mkdir()
     # Re-sync base onto target2.
     (example2 := tmp_path / "example2").mkdir()
-    (example2 / "config.json5").write_text(
-        json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2)
-    )
+    (example2 / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
     (example2 / "paths.json5").write_text(json5.dumps({"paths": {"staging_dir": "/s"}}, indent=2))
     sync_config_dir(example2, target2, dry_run=False)
 
@@ -612,12 +595,8 @@ def test_merge_write_preserves_file_mode(tmp_path: Path):
     target.mkdir()
 
     # Create target with a restrictive mode.
-    (example / "config.json5").write_text(
-        json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2)
-    )
-    (example / "paths.json5").write_text(
-        json5.dumps({"paths": {"staging_dir": "/s"}}, indent=2)
-    )
+    (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
+    (example / "paths.json5").write_text(json5.dumps({"paths": {"staging_dir": "/s"}}, indent=2))
 
     # First sync to get base files.
     sync_config_dir(example, target, dry_run=False)
@@ -638,9 +617,7 @@ def test_merge_write_preserves_file_mode(tmp_path: Path):
 
     # Mode must still be 0600.
     actual_mode = tgt_paths.stat().st_mode & 0o777
-    assert actual_mode == 0o600, (
-        f"L11 violation: mode changed from 0o600 to {oct(actual_mode)}"
-    )
+    assert actual_mode == 0o600, f"L11 violation: mode changed from 0o600 to {oct(actual_mode)}"
 
 
 # ── Helpers ──
