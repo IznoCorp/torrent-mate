@@ -188,6 +188,7 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
     clearRunResult,
     pending,
     applyDisabled,
+    dryRunValidated,
     submit,
   } = useMaintenanceAction(action);
 
@@ -283,6 +284,23 @@ export function ActionForm({ action, onClose }: ActionFormProps): ReactElement {
           queued={runResult.queued}
           onDismiss={clearRunResult}
         />
+      )}
+
+      {/* MAINTENANCE-8 (ticket 250): the destructive dry-run gate must be
+          VISIBLE — say why « Appliquer » is locked, and flip once the
+          polled dry-run validated the current option values. */}
+      {action.risk === "destructive" && (
+        <p
+          className={
+            dryRunValidated
+              ? "text-xs text-success"
+              : "text-xs text-muted-foreground"
+          }
+        >
+          {dryRunValidated
+            ? "Dry-run validé — Appliquer débloqué."
+            : "Lancez d'abord un dry-run réussi pour débloquer Appliquer."}
+        </p>
       )}
 
       {/* Action buttons — layout depends on risk. */}

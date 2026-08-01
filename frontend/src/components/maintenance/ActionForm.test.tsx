@@ -347,6 +347,57 @@ describe("ActionForm — destructive dry-run-first flow", () => {
     expect(apply()).toBeDisabled();
   });
 
+  it("rend le gate visible : le texte d'aide bascule au dry-run validé (MAINTENANCE-8, ticket 250)", async () => {
+    const run = await mockRun();
+    run.mockResolvedValue({ run_uid: "dry-ok" });
+    const detail = await mockDetail();
+    detail.mockResolvedValue(
+      makeRunDetail({
+        run_uid: "dry-ok",
+        outcome: "success",
+        ended_at: "2026-07-06T10:05:00Z",
+      }),
+    );
+
+    renderForm(destructiveAction());
+
+    // Locked: the muted helper explains WHY Appliquer is disabled.
+    expect(
+      screen.getByText(
+        "Lancez d'abord un dry-run réussi pour débloquer Appliquer.",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dry-run" }));
+    await waitFor(() => {
+      expect(
+        screen.getByText("Dry-run validé — Appliquer débloqué."),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(
+        "Lancez d'abord un dry-run réussi pour débloquer Appliquer.",
+      ),
+    ).not.toBeInTheDocument();
+
+    // Editing a field re-locks the gate — the helper flips back with it.
+    fireEvent.change(screen.getByLabelText("Cible"), {
+      target: { value: "/data/y" },
+    });
+    expect(
+      screen.getByText(
+        "Lancez d'abord un dry-run réussi pour débloquer Appliquer.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("aucun texte de gate pour une action non destructive (ticket 250)", () => {
+    renderForm(makeAction({ risk: "ro", dry_run: "unsupported" }));
+    expect(
+      screen.queryByText(/dry-run réussi pour débloquer/),
+    ).not.toBeInTheDocument();
+  });
+
   it("laisse Appliquer verrouillé si le dry-run POLLÉ échoue (error)", async () => {
     const run = await mockRun();
     run.mockResolvedValue({ run_uid: "dry-err" });

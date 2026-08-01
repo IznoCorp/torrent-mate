@@ -208,8 +208,13 @@ export function IndexHealthPanel(): ReactElement {
     return (
       <div key={v.label} className="flex items-center justify-between gap-2">
         <StatusDot status={v.status} label={v.label} />
+        {/* MAINTENANCE-10 (ticket 250): min-w-0 + text-right so a long detail
+            (« 12 en attente — + ancien : 3 j 4 h ») wraps inside the narrow
+            card track instead of fighting the label at 375px. */}
         {v.detail != null && (
-          <span className="text-xs text-muted-foreground">{v.detail}</span>
+          <span className="min-w-0 text-right text-xs text-muted-foreground">
+            {v.detail}
+          </span>
         )}
       </div>
     );

@@ -74,6 +74,12 @@ export interface MaintenanceActionMachine {
    * dry-run succeeded for the exact current option values.
    */
   readonly applyDisabled: boolean;
+  /**
+   * ``true`` once a dry-run succeeded for the exact current option values —
+   * the destructive gate state, independent of the transient ``pending``
+   * (MAINTENANCE-8, ticket 250: drives the visible gate helper text).
+   */
+  readonly dryRunValidated: boolean;
   /** Validate required fields then launch the run in the given mode. */
   readonly submit: (dryRun: boolean) => void;
 }
@@ -364,8 +370,8 @@ export function useMaintenanceAction(
   const pending = mutation.isPending;
   // Destructive "Appliquer" unlocks only when a dry-run succeeded for the
   // exact current option values.
-  const applyDisabled =
-    pending || dryRunOkFor === null || dryRunOkFor !== canonical;
+  const dryRunValidated = dryRunOkFor !== null && dryRunOkFor === canonical;
+  const applyDisabled = pending || !dryRunValidated;
 
   return {
     values,
@@ -379,6 +385,7 @@ export function useMaintenanceAction(
     },
     pending,
     applyDisabled,
+    dryRunValidated,
     submit,
   };
 }
