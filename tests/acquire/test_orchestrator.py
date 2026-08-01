@@ -1247,3 +1247,60 @@ def test_build_search_query_season_zero_pads() -> None:
     )
     q = build_search_query(item, "Show")
     assert q == "Show S11"
+
+
+# ---------------------------------------------------------------------------
+# rank() with media_kind="season" — season-grab phase 2.3 golden
+# ---------------------------------------------------------------------------
+
+
+def test_rank_season_media_kind_uses_season_tiers() -> None:
+    """rank() with media_kind='season' applies season-specific size thresholds.
+
+    Proves that the per-media-type mechanism (#376) activates for ``"season"``:
+    the size criterion's own ``thresholds`` are overridden by
+    ``size_thresholds_by_type["season"]`` when ``media_kind="season"`` is passed.
+    """
+    from personalscraper.api.tracker._ranking import rank as rank_func
+
+    # 80 GB — above the 50GB season tier
+    big = TrackerResult(
+        provider="tr4ker", tracker_id="s1",
+        title="Show.S01.Complete.1080p",
+        size=ByteSize(80_000_000_000),
+        seeders=50, leechers=2,
+    )
+    # 15 GB — below the 50GB season tier, but above the 10GB generic tier
+    below_season_tier = TrackerResult(
+        provider="tr4ker", tracker_id="s2",
+        title="Show.S01.Complete.720p",
+        size=ByteSize(15_000_000_000),
+        seeders=100, leechers=5,
+    )
+
+    cfg = RankingConfig(
+        criteria=[
+            RankingCriterion(field="size", weight=1, thresholds=[
+                ThresholdEntry(at=10_000_000_000, score=1),  # generic: ≥10GB = 1pt
+            ]),
+        ],
+        min_seeders=0,
+        size_thresholds_by_type={
+            "season": [ThresholdEntry(at=50_000_000_000, score=5)],
+        },
+    )
+
+    # media_kind=None → generic thresholds: both ≥10GB → both score 1.
+    scored_generic = rank_func([big, below_season_tier], cfg, media_kind=None)
+    assert scored_generic[0][1] == 1
+    assert scored_generic[1][1] == 1
+
+    # media_kind="season" → season thresholds override: big (80GB) ≥ 50GB → 5;
+    # below_season_tier (15GB) < 50GB → 0.
+    scored_season = rank_func([big, below_season_tier], cfg, media_kind="season")
+    assert len(scored_season) == 2
+    # big wins because the season tier gives it 5 pts while below_season_tier
+    # gets 0 — proving the per-media-type override is active for "season".
+    assert scored_season[0][1] == 5
+    assert scored_season[0][0].title == "Show.S01.Complete.1080p"
+    assert scored_season[1][1] == 0

@@ -728,7 +728,7 @@ class GrabOrchestrator:
             :data:`SEARCH_OUTCOMES` values.
         """
         media_ref = item.media_ref
-        media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
+        media_type = MediaType.TV if item.kind in ("episode", "season") else MediaType.MOVIE
         title = self._title_resolver(item) if self._title_resolver is not None else None
         # #28 — resolve the follow's release year to narrow an ambiguous movie
         # title (« Wicker » → every « Wicker* » film) in BOTH the query and the
@@ -760,6 +760,10 @@ class GrabOrchestrator:
         results = outcome.results
         if item.kind == "episode" and item.season is not None and item.episode is not None:
             results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
+        elif item.kind == "season" and item.season is not None:
+            results = filter_to_season(results, item.season)
             if not results:
                 return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
         elif item.kind == "movie" and title is not None:
