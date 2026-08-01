@@ -43,13 +43,18 @@ def _fs(followed_id: int = 1, tvdb_id: int = 99) -> FollowedSeries:
     )
 
 
-def _ep(tvdb_id: int = 99, season: int = 1, ep: int = 1) -> AiredEpisode:
+def _ep(
+    tvdb_id: int = 99,
+    season: int = 1,
+    ep: int = 1,
+    air_date: date = date(2024, 1, 1),
+) -> AiredEpisode:
     """Build an aired-episode VO whose media_ref maps back to ``_fs``."""
     return AiredEpisode(
         media_ref=MediaRef(tvdb_id=tvdb_id),
         season=season,
         episode=ep,
-        air_date=date(2024, 1, 1),
+        air_date=air_date,
         title="Episode Title",
     )
 
@@ -124,11 +129,18 @@ def _run_detect(
 
 
 def test_detect_golden_enqueues_unowned_episode() -> None:
-    """GOLDEN: non-owned, non-dup episode → add() once, WantedEnqueued once."""
+    """GOLDEN: non-owned, non-dup episode → add() once, WantedEnqueued once.
+
+    Uses a recent air_date (within 7 days of today) so the season-grab R1
+    post-pass skips this single-episode season — the golden's original intent
+    is verifying the per-episode enqueue path, not exercising season detection.
+    """
+    from datetime import date as _date
+
     from personalscraper.acquire.events import WantedEnqueued
 
     fs = _fs(followed_id=1, tvdb_id=99)
-    ep = _ep(tvdb_id=99, season=1, ep=1)
+    ep = _ep(tvdb_id=99, season=1, ep=1, air_date=_date(2026, 7, 30))
     app_context, store, bus = _make_ctx([fs], owned=False, existing=None)
 
     _run_detect(app_context, [ep])
@@ -380,7 +392,7 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
             media_ref=MediaRef(tvdb_id=81189),  # equals the followed media_ref
             season=2,
             episode=5,
-            air_date=date(2024, 3, 1),
+            air_date=date(2026, 7, 30),  # recent — within 7d so R1 season gate skips
             title="Better Call Saul",
         )
 

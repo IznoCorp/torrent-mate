@@ -359,6 +359,8 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     GrabReswitched,
     GrabSucceeded,
     RatioMeasured,
+    SeasonAbsorbedEpisodes,
+    SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
     SeedObligationSatisfied,
@@ -521,6 +523,28 @@ def make_cross_seed_rejected() -> CrossSeedRejected:
 def make_watcher_run_triggered() -> WatcherRunTriggered:
     """Realistic WatcherRunTriggered factory — daemon completion trigger."""
     return WatcherRunTriggered(reason="completion")
+
+
+@register_factory(SeasonAbsorbedEpisodes)
+def make_season_absorbed_episodes() -> SeasonAbsorbedEpisodes:
+    """Realistic SeasonAbsorbedEpisodes factory — Breaking Bad S05 absorbs 3 episodes."""
+    return SeasonAbsorbedEpisodes(
+        season_wanted_id=42,
+        media_ref=_BREAKING_BAD_REF,
+        season=5,
+        absorbed_ids=(10, 11, 12),
+    )
+
+
+@register_factory(SeasonFellBackToEpisodes)
+def make_season_fell_back_to_episodes() -> SeasonFellBackToEpisodes:
+    """Realistic SeasonFellBackToEpisodes factory — Breaking Bad S05 fell back, 3 re-enqueued."""
+    return SeasonFellBackToEpisodes(
+        season_wanted_id=42,
+        media_ref=_BREAKING_BAD_REF,
+        season=5,
+        reenqueued_count=3,
+    )
 
 
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]

@@ -107,7 +107,7 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_all_v1_events() -> None:
-    """The catalog is pinned at 37 events.
+    """The catalog is pinned at 44 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
@@ -135,14 +135,17 @@ def test_event_registry_has_all_v1_events() -> None:
     (→ 41).
     The ``reswitch`` #342 auto-reswitch adds ``GrabReswitched`` — a dead-stalled
     grab was switched to another release (→ 42).
+    The ``season-grab`` feature adds ``SeasonAbsorbedEpisodes`` and
+    ``SeasonFellBackToEpisodes`` — season wanted lifecycle events for R5
+    absorption and R6 fallback (→ 44).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 42, (
-        f"Expected 42 events (41 existing + 1 reswitch GrabReswitched), "
+    assert len(_EVENT_CLASS_REGISTRY) == 44, (
+        f"Expected 44 events (42 existing + 2 season-grab SeasonAbsorbedEpisodes/SeasonFellBackToEpisodes), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
