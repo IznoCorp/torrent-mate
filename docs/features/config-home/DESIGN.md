@@ -87,10 +87,12 @@ info` smoke) → operator flips `ecosystem.config.js` + dev env → `pm2 startOr
   post-checks (`/api/version`, one pipeline `--dry-run`).
 - `tests/indexer/test_ecosystem.py`: `_CANONICAL_CONFIG` becomes
   `/Users/izno/.torrentmate/config`; plus a **new invariant test**: for every app,
-  `PERSONALSCRAPER_CONFIG` must NOT point inside any git working tree (walk up from the
-  path looking for a `.git` — the REAL invariant, expressed as a test).
+  `PERSONALSCRAPER_CONFIG` must NOT point inside any **ancestor** git working tree (walk
+  up from the path's **parent** looking for a `.git` — the REAL invariant; the config
+  dir's own mini-repo is the sanctioned D3 exemption).
 - New lightweight `verify` check `config_home`: WARN when the RESOLVED config dir lives
-  inside a git working tree (defense in depth on every host/clone).
+  inside an **ancestor** git working tree (the path's own `.git` is the sanctioned
+  mini-repo — defense in depth on every host/clone).
 
 ## 4. Non-goals
 

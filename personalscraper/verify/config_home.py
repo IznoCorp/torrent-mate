@@ -1,8 +1,9 @@
 """Config-home safety check.
 
-Warns when the resolved config directory lives inside a git working tree
-(defense-in-depth against the pre-relocation vector that made a dev branch
-checkout crash prod at boot — DESIGN §1, §3.4).
+Warns when the resolved config directory lives inside an **ancestor** git
+working tree (defense-in-depth against the pre-relocation vector that made
+a dev branch checkout crash prod at boot — DESIGN §1, §3.4).  The config
+dir's own ``.git`` (the sanctioned mini-repo, D3) is explicitly excluded.
 """
 
 from __future__ import annotations
@@ -15,20 +16,23 @@ log = get_logger("verify.config_home")
 
 
 def _is_inside_worktree(path: Path) -> bool:
-    """Walk up from *path* to the filesystem root looking for ``.git``.
+    """Walk up from *path*'s **parent** to the filesystem root looking for ``.git``.
 
-    A ``.git`` entry (file or directory) at any ancestor means *path* is
-    inside a git working tree.  This is the REAL invariant: the canonical
-    config must NOT live inside any git checkout.
+    A ``.git`` entry (file or directory) at any **ancestor** means *path* is
+    inside a git working tree — the REAL invariant (DESIGN §3.4).  The path's
+    OWN ``.git`` is explicitly **excluded**: the canonical config dir at
+    ``~/.torrentmate/config`` is itself a git repo (the sanctioned mini-repo,
+    D3), so its own ``.git`` is NOT a violation.  Only an ancestor ``.git``
+    makes the config ``inside a worktree``.
 
     Args:
         path: Absolute path to check.
 
     Returns:
-        ``True`` if a ``.git`` file or directory is found at *path* or any
-        of its ancestors up to the filesystem root.
+        ``True`` if a ``.git`` file or directory is found at any ancestor of
+        *path* (excluding *path* itself) up to the filesystem root.
     """
-    current = path.resolve()
+    current = path.resolve().parent
     root = Path(current.anchor)  # "/" on Unix
     while current != root:
         if (current / ".git").exists():
@@ -39,19 +43,23 @@ def _is_inside_worktree(path: Path) -> bool:
 
 
 def check_config_home(config_dir: Path) -> list[str]:
-    """Verify that *config_dir* is NOT inside any git working tree.
+    """Verify that *config_dir* is NOT inside any **ancestor** git working tree.
 
     This is a lightweight startup guard.  After relocation (§3.1), the
     canonical config lives at ``~/.torrentmate/config`` which is NOT inside
-    any working tree by construction.  If this check fires, someone (or a
-    stale env var) is still pointing at the old in-repo location.
+    any working tree by construction.  The config dir's OWN ``.git`` is the
+    sanctioned mini-repo (D3) — it does NOT trigger a warning; only an
+    ancestor ``.git`` makes the config ``inside a worktree``.
+
+    If this check fires, someone (or a stale env var) is still pointing at
+    the old in-repo location.
 
     Args:
         config_dir: Resolved path to the active config directory.
 
     Returns:
         List of warning strings.  Empty if the config is safely outside all
-        working trees.
+        ancestor working trees.
     """
     warnings: list[str] = []
 

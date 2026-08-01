@@ -283,12 +283,14 @@ def test_no_app_runs_from_the_dev_checkout() -> None:
 
 
 def test_no_app_config_points_inside_a_git_worktree() -> None:
-    """Invariant: no PM2 app's PERSONALSCRAPER_CONFIG may point inside a git working tree.
+    """Invariant: no PM2 app's PERSONALSCRAPER_CONFIG may point inside an ANCESTOR git working tree.
 
     This is the REAL invariant (DESIGN §3.4) — after relocation, the canonical
     config at ~/.torrentmate/config is outside every working tree by construction.
-    If any app still points at a path inside a checkout, the pre-relocation
-    boot-break vector is still active for that app.
+    The canonical dir's OWN .git is the sanctioned mini-repo (D3) and is explicitly
+    excluded by the predicate (ancestor-only walk).  If any app still points at a
+    path inside a checkout, the pre-relocation boot-break vector is still active
+    for that app.
     """
     from personalscraper.verify.config_home import _is_inside_worktree
 
