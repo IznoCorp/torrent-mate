@@ -335,6 +335,86 @@ def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStor
     assert len(absorbed_event.absorbed_ids) >= 1
 
 
+def test_conversion_refused_on_terminal_season_row_keeps_episodes_live(store: ConcreteAcquireStore) -> None:
+    """F1 REGRESSION: R6→R2 ping-pong must not starve the season.
+
+    Proved scenario: a season row at ``fallback_episodes`` + freshly
+    re-enqueued pending episodes (R6) + a season pack visible in the raw
+    results. The conversion used to reuse the terminal season row and absorb
+    the fresh episodes onto it — whole season permanently lost, queue empty.
+
+    After the fix: the episodes are STILL open (not absorbed), the season row
+    is still ``fallback_episodes``, no new season row is minted, and the
+    pending queue is non-empty.
+    """
+    from personalscraper.acquire.domain import FollowedSeries
+
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1))
+    store.aired.replace_for_followed(
+        1,
+        [(3, n, f"E0{n}", f"2024-01-{n:02d}") for n in range(1, 6)],
+        now=1_700_000_000,
+    )
+
+    # The season's FIRST life: episode rows absorbed by a season wanted...
+    old_ep_ids = [store.wanted.add(_episode_item(episode=n)) for n in range(1, 6)]
+    season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=99),
+            kind="season",
+            status="pending",
+            enqueued_at=1_700_000_000,
+            followed_id=1,
+            season=3,
+            episode=None,
+        ),
+    )
+    store.wanted.absorb_episodes(season_wid, tuple(old_ep_ids))
+    # ...then the season hit its cutoff: R6 fallback + fresh episode re-enqueues.
+    assert store.wanted.fallback_season(season_wid) is True
+    fresh_ep_ids = [store.wanted.add(_episode_item(episode=n)) for n in range(1, 6)]
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found",
+        outcome="no_matching_episode",
+        found=0,
+        raw_results=(_season_pack_result(),),  # a pack IS visible
+    )
+    event_bus = MagicMock()
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    svc = AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=event_bus,  # type: ignore[arg-type]
+        config=config,
+    )
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        svc.run_search()
+
+    # The season row is untouched — still terminal, never reused.
+    season_row = store.wanted.get(season_wid)
+    assert season_row is not None and season_row.status == "fallback_episodes"
+
+    # No second season row was minted (anti ping-pong).
+    season_rows = store.wanted.list_for_followed(1, kind="season")
+    assert len(season_rows) == 1
+
+    # The freshly re-enqueued episodes are STILL live — none absorbed.
+    for wid in fresh_ep_ids:
+        row = store.wanted.get(wid)
+        assert row is not None
+        assert row.status == "pending", f"fresh episode {wid} must stay live, got {row.status!r}"
+
+    # Nothing was absorbed in this pass.
+    absorbed_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonAbsorbedEpisodes)]
+    assert absorbed_calls == [], "conversion must not absorb onto a terminal season row"
+
+    # The pending queue is non-empty — the season is not starved.
+    assert store.wanted.list_pending(), "pending queue must not be emptied by a refused conversion"
+
+
 def test_conversion_noop_when_no_pack_in_results(store: ConcreteAcquireStore) -> None:
     """R2: raw results present but no season pack → no conversion.
 

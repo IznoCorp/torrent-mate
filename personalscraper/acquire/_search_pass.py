@@ -19,7 +19,7 @@ import time
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire._pass_gates import PassGatesMixin
-from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
 from personalscraper.acquire.events import SeasonAbsorbedEpisodes, WantedAbandoned, WantedEnqueued
 from personalscraper.logger import get_logger
 
@@ -148,16 +148,21 @@ class SearchPassMixin(PassGatesMixin):
 
             season_packs = filter_to_season(list(verdict.raw_results), current.season)
             if season_packs:
-                self._enqueue_season_from_conversion(
+                converted = self._enqueue_season_from_conversion(
                     current,
                     list(verdict.raw_results),
                     season_packs,
                     now,
                 )
-                # The episode row stays pending; the season is enqueued pending.
-                # _enqueue_season_from_conversion emits WantedEnqueued (if new)
-                # and SeasonAbsorbedEpisodes.
-                return "waiting"
+                if converted:
+                    # The episode row is absorbed into the season row (R5); the
+                    # season is enqueued/reused pending.
+                    # _enqueue_season_from_conversion emits WantedEnqueued (if
+                    # new) and SeasonAbsorbedEpisodes.
+                    return "waiting"
+                # Conversion refused (terminal season row — post-R6 fallback):
+                # fall through to the ordinary verdict path so the episode row
+                # records its verdict and stays live.
 
         return self._apply_search_verdict(current, verdict)
 
@@ -257,12 +262,18 @@ class SearchPassMixin(PassGatesMixin):
         raw_results: list[TrackerResult],
         season_packs: list[TrackerResult],
         now: int,
-    ) -> None:
+    ) -> bool:
         """Enqueue/reuse a season wanted for the episode's season (R2).
 
         Called from :meth:`_search_item` when a ``no_matching_episode`` verdict
         reveals a whole-season pack in the raw results. Absorption is idempotent
-        — if a season wanted already exists, only absorption runs.
+        — if an OPEN season wanted already exists, only absorption runs.
+
+        A TERMINAL season row (``fallback_episodes`` / ``abandoned`` / ``done``)
+        refuses the conversion entirely (review F1): after an R6 fallback the
+        re-enqueued episodes must stay live, and absorbing them onto a dead
+        season row would empty the queue permanently. Anti ping-pong: the
+        season is never re-minted from conversion after a fallback.
 
         The season wanted is enqueued as ``pending`` (not advanced to available
         in this tick) so the next pass evaluates it cleanly.
@@ -273,6 +284,12 @@ class SearchPassMixin(PassGatesMixin):
             raw_results: The raw tracker results (for logging, unused here).
             season_packs: The results that survived ``filter_to_season``.
             now: Unix epoch seconds (stamps ``enqueued_at``).
+
+        Returns:
+            ``True`` when the conversion ran (season enqueued/reused and
+            absorption attempted); ``False`` when it was refused because the
+            existing season row is terminal — the caller then applies the
+            ordinary search verdict so the episode stays live.
         """
         assert episode_item.followed_id is not None  # noqa: S101
         assert episode_item.season is not None  # noqa: S101
@@ -286,6 +303,16 @@ class SearchPassMixin(PassGatesMixin):
             season=season_num,
             episode=None,
         )
+        if existing is not None and existing.status not in OPEN_WANTED_STATUSES:
+            # Terminal season row (post-R6 fallback, abandon, or done): never
+            # absorb live episodes onto a dead row, never re-mint the season.
+            log.info(
+                "acquire.service.season_conversion_skipped_terminal",
+                wanted_id=existing.id,
+                status=existing.status,
+                season=season_num,
+            )
+            return False
         season_wid = existing.id if existing is not None else None
 
         if season_wid is None:
@@ -315,7 +342,10 @@ class SearchPassMixin(PassGatesMixin):
                 season_wanted_id=season_wid,
             )
 
-        # Absorb the triggering episode + its live siblings
+        # Absorb the triggering episode + its live siblings. The statuses
+        # filter targets the LIVE row directly: after an R6 fallback an older
+        # 'absorbed' row shares the coordinates of the freshly re-enqueued one,
+        # and the status-agnostic find would return that dead shadow (review F1).
         live_episode_ids: list[int] = []
         for ep_num in self._aired_episodes_for_season(fid, season_num):
             ep_wanted = self._store.wanted.find(
@@ -323,10 +353,10 @@ class SearchPassMixin(PassGatesMixin):
                 kind="episode",
                 season=season_num,
                 episode=ep_num,
+                statuses=("pending", "searching", "available"),
             )
             if ep_wanted is not None and ep_wanted.id is not None:
-                if ep_wanted.status in ("pending", "searching", "available"):
-                    live_episode_ids.append(ep_wanted.id)
+                live_episode_ids.append(ep_wanted.id)
 
         if live_episode_ids:
             self._store.wanted.absorb_episodes(season_wid, tuple(live_episode_ids))
