@@ -99,6 +99,27 @@ def _make_ctx(
     return app_context, store, bus
 
 
+@contextmanager
+def _pinned_today(fixed: date) -> Any:
+    """Pin ``personalscraper.commands.follow.date.today()`` to *fixed*.
+
+    ``follow_detect`` reads the wall clock via ``date.today()`` (module-level
+    import). A real ``date`` subclass keeps every other ``date`` behavior
+    (comparisons with the AiredEpisode air_dates) intact, so a test can anchor
+    « today » next to its hardcoded air-date literals and pass on ANY system
+    date (review F3 — the previous recent-air-date trick expired with the
+    wall clock).
+    """
+
+    class _FixedDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return fixed
+
+    with patch("personalscraper.commands.follow.date", _FixedDate):
+        yield
+
+
 def _run_detect(
     app_context: Any,
     aired_eps: list[AiredEpisode],
@@ -131,19 +152,19 @@ def _run_detect(
 def test_detect_golden_enqueues_unowned_episode() -> None:
     """GOLDEN: non-owned, non-dup episode → add() once, WantedEnqueued once.
 
-    Uses a recent air_date (within 7 days of today) so the season-grab R1
-    post-pass skips this single-episode season — the golden's original intent
-    is verifying the per-episode enqueue path, not exercising season detection.
+    « today » is PINNED 2 days after the episode's air date (deterministic —
+    passes on any system date, review F3): within 7 days, so the season-grab
+    R1 post-pass skips this single-episode season — the golden's intent is
+    verifying the per-episode enqueue path, not exercising season detection.
     """
-    from datetime import date as _date
-
     from personalscraper.acquire.events import WantedEnqueued
 
     fs = _fs(followed_id=1, tvdb_id=99)
-    ep = _ep(tvdb_id=99, season=1, ep=1, air_date=_date(2026, 7, 30))
+    ep = _ep(tvdb_id=99, season=1, ep=1, air_date=date(2024, 1, 10))
     app_context, store, bus = _make_ctx([fs], owned=False, existing=None)
 
-    _run_detect(app_context, [ep])
+    with _pinned_today(date(2024, 1, 12)):
+        _run_detect(app_context, [ep])
 
     store.wanted.add.assert_called_once()
     added: WantedItem = store.wanted.add.call_args[0][0]
@@ -392,7 +413,9 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
             media_ref=MediaRef(tvdb_id=81189),  # equals the followed media_ref
             season=2,
             episode=5,
-            air_date=date(2026, 7, 30),  # recent — within 7d so R1 season gate skips
+            # Aired 2 days before the PINNED today below — within 7d so the R1
+            # season gate skips; deterministic on any system date (review F3).
+            air_date=date(2024, 1, 10),
             title="Better Call Saul",
         )
 
@@ -405,6 +428,7 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
 
         poll_spy = MagicMock(return_value=[aired])
         with (
+            _pinned_today(date(2024, 1, 12)),
             patch("personalscraper.commands.follow.per_step_boundary", _boundary),
             patch("personalscraper.acquire.detect.poll_known", poll_spy),
         ):
