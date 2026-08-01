@@ -27,7 +27,7 @@ from personalscraper.acquire.desired import (
     quality_profile_from_json,
     source_criteria_from_json,
 )
-from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
 from personalscraper.acquire.events import SeasonFellBackToEpisodes, WantedAbandoned
 from personalscraper.logger import get_logger
 
@@ -129,8 +129,10 @@ class PassGatesMixin:
         """R6: season cutoff → re-enqueue missing episodes, set ``fallback_episodes``.
 
         Reads the aired catalog to know which episodes exist, re-enqueues
-        them all as fresh episode wanteds, transitions the season row to
-        ``fallback_episodes``, and emits :class:`SeasonFellBackToEpisodes`.
+        each one that has no OPEN wanted row yet (a live row is reused as-is
+        — never duplicated), transitions the season row to
+        ``fallback_episodes``, and emits :class:`SeasonFellBackToEpisodes`
+        whose ``reenqueued_count`` is the number of rows actually created.
 
         Ownership is NOT checked here (Option B from the plan): the detect
         pass already skips owned episodes, so re-enqueuing all aired
@@ -161,9 +163,23 @@ class PassGatesMixin:
         aired_rows = self._store.aired.list_for_followed(followed_id)
         episode_numbers = sorted(int(r.episode) for r in aired_rows if r.season == season_num)
 
-        # Re-enqueue ALL aired episodes as fresh individual wanteds.
+        # Re-enqueue the aired episodes as fresh individual wanteds — skipping
+        # any episode that already holds an OPEN row (review F11: a duplicate
+        # (follow, season, episode) row would double-search and double-grab).
+        # A row that exists only in a terminal/absorbed status DOES get a fresh
+        # one: absorption is irreversible by design, so the fallback re-mints.
         # The detect pass skips owned ones, so over-enqueueing is harmless.
+        reenqueued = 0
         for ep_num in episode_numbers:
+            existing = self._store.wanted.find(
+                followed_id=followed_id,
+                kind="episode",
+                season=season_num,
+                episode=ep_num,
+                statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
+            )
+            if existing is not None:
+                continue
             self._store.wanted.add(
                 WantedItem(
                     media_ref=item.media_ref,
@@ -175,6 +191,7 @@ class PassGatesMixin:
                     episode=ep_num,
                 ),
             )
+            reenqueued += 1
 
         # Transition the season row.
         self._store.wanted.fallback_season(season_wanted_id)
@@ -184,14 +201,14 @@ class PassGatesMixin:
                 season_wanted_id=season_wanted_id,
                 media_ref=item.media_ref,
                 season=season_num,
-                reenqueued_count=len(episode_numbers),
+                reenqueued_count=reenqueued,
             ),
         )
         log.info(
             "acquire.service.season_fallback",
             wanted_id=season_wanted_id,
             season=season_num,
-            reenqueued=len(episode_numbers),
+            reenqueued=reenqueued,
         )
         return "abandoned"
 

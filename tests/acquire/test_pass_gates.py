@@ -178,6 +178,78 @@ def test_season_fallback_reenqueues_exact_missing_count(store: ConcreteAcquireSt
     assert reenqueued_numbers == [1, 2, 3, 4, 5]
 
 
+def test_season_fallback_skips_episode_with_open_row(store: ConcreteAcquireStore) -> None:
+    """F11 REGRESSION: the fallback never duplicates an OPEN episode row.
+
+    One episode of the season already holds an open pending wanted row when
+    the season hits its cutoff. The fallback must reuse it (no duplicate
+    ``(follow, season, episode)`` row) and ``reenqueued_count`` must reflect
+    only the rows actually created.
+    """
+    from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
+
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=99),
+            title="Test Show",
+            added_at=1,
+        )
+    )
+
+    # 5 aired episodes in season 2.
+    episodes = [(2, i, f"E{i:02d}", f"2024-01-{i:02d}") for i in range(1, 6)]
+    store.aired.replace_for_followed(1, episodes, now=_NOW)
+
+    store.wanted.add(_season_item(season=2))
+    # Episode 2 already has a LIVE pending row (recent — not past cutoff itself).
+    preexisting_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=99),
+            kind="episode",
+            status="pending",
+            enqueued_at=_NOW - 3600,
+            followed_id=1,
+            season=2,
+            episode=2,
+            attempts=0,
+        )
+    )
+
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    event_bus = MagicMock()
+    # A spec'd orchestrator with a clean verdict: the pre-existing pending row
+    # is also walked by this pass and must persist a real verdict.
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(disposition="not_found", outcome="no_candidates", found=0)
+
+    svc = AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=event_bus,  # type: ignore[arg-type]
+        config=config,
+    )
+
+    with patch("personalscraper.acquire.service.time.time", return_value=_NOW):
+        svc.run_search()
+
+    # Only 4 rows were created — episode 2 was NOT duplicated.
+    fallback_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonFellBackToEpisodes)]
+    assert len(fallback_calls) == 1
+    emitted = fallback_calls[0][0][0]
+    assert emitted.reenqueued_count == 4, f"expected reenqueued_count=4, got {emitted.reenqueued_count}"
+
+    # Exactly ONE row exists for (follow=1, S02E02) — the pre-existing one.
+    all_eps = store.wanted.list_for_followed(1, kind="episode")
+    ep2_rows = [r for r in all_eps if r.season == 2 and r.episode == 2]
+    assert len(ep2_rows) == 1, f"expected a single S02E02 row, got {len(ep2_rows)}"
+    assert ep2_rows[0].id == preexisting_wid
+
+    # The season's episode queue covers all 5 episodes, once each.
+    numbers = sorted(r.episode for r in all_eps if r.season == 2 and r.episode is not None)
+    assert numbers == [1, 2, 3, 4, 5]
+
+
 def test_season_fallback_not_triggered_for_episode(store: ConcreteAcquireStore) -> None:
     """R6 guard: an episode past cutoff still abandons normally, not via fallback."""
     store.follow.add(
