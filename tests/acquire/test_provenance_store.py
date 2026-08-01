@@ -313,11 +313,11 @@ class TestMigration012RunLinkage:
     """The F3 per-stage run-uid columns exist after migration 012."""
 
     def test_run_columns_present_and_version_12(self, store: ConcreteAcquireStore) -> None:
-        """A fresh store carries the four *_run_uid columns and user_version 12."""
+        """A fresh store carries the four *_run_uid columns and the latest user_version."""
         conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
         cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
         assert {"grab_run_uid", "ingest_run_uid", "scrape_run_uid", "dispatch_run_uid"} <= cols
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 12
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 13
 
 
 class TestRunLinkage:
