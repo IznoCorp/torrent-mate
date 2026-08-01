@@ -224,6 +224,8 @@ def build_search_query(item: "WantedItem", title: str | None, year: int | None =
     if title:
         if item.kind == "episode" and item.season is not None and item.episode is not None:
             return f"{title} S{item.season:02d}E{item.episode:02d}"
+        if item.kind == "season" and item.season is not None:
+            return f"{title} S{item.season:02d}"
         if year is not None:
             return f"{title} {year}"
         return title

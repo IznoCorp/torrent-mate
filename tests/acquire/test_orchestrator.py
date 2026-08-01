@@ -37,7 +37,13 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
-from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, filter_to_season, rank_candidates
+from personalscraper.acquire.orchestrator import (
+    GrabOrchestrator,
+    GrabOutcome,
+    build_search_query,
+    filter_to_season,
+    rank_candidates,
+)
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
@@ -1206,3 +1212,38 @@ def test_filter_to_season_parse_error_skips() -> None:
     # Must not raise — fail-soft per the contract.
     kept = filter_to_season(results, 1)
     assert len(kept) == 0
+
+
+# ---------------------------------------------------------------------------
+# build_search_query — season kind (season-grab phase 2.2)
+# ---------------------------------------------------------------------------
+
+
+def test_build_search_query_season() -> None:
+    """A season wanted item builds ``"Breaking Bad S03"``."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345), kind="season",
+        status="pending", enqueued_at=0, season=3, episode=None,
+    )
+    q = build_search_query(item, "Breaking Bad")
+    assert q == "Breaking Bad S03"
+
+
+def test_build_search_query_season_no_title_falls_back() -> None:
+    """A season item with no resolved title falls back to provider ID."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345), kind="season",
+        status="pending", enqueued_at=0, season=3, episode=None,
+    )
+    q = build_search_query(item, None)
+    assert q == "12345"
+
+
+def test_build_search_query_season_zero_pads() -> None:
+    """Season 3 → ``S03``, season 11 → ``S11``."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345), kind="season",
+        status="pending", enqueued_at=0, season=11, episode=None,
+    )
+    q = build_search_query(item, "Show")
+    assert q == "Show S11"
