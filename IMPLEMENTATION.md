@@ -36,7 +36,7 @@ fallback to episodes, manual per-season grab button, season ranking tiers (#376)
 | 3   | Auto detection R1 + absorption R5               | phase-03-detection-auto-r1.md   | [x]    |
 | 4   | Episode→season conversion R2 + fallback R6      | phase-04-conversion-fallback.md | [x]    |
 | 5   | Web API (grab endpoint) + frontend              | phase-05-web-api-frontend.md    | [x]    |
-| 6   | ACCEPTANCE.md + full gate                       | phase-06-acceptance.md          | [ ]    |
+| 6   | ACCEPTANCE.md + full gate                       | phase-06-acceptance.md          | [x]    |
 
 ## Review cycles
 
