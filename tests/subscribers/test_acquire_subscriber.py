@@ -8,7 +8,8 @@ Tests verify:
 4. Fail-soft guards: _send handles False return / None notifier (synchronous),
    and _spawn worker-crashed WARNING (daemon thread, poll-based).
 5. Regression: WantedEnqueued season=0 formats S00E05, not '?'.
-6. close() unsubscribes all 11 subscriptions — emit post-close is a no-op.
+6. close() unsubscribes all 12 subscriptions — emit post-close is a no-op.
+7. Counter-review F-C: SeasonFellBackToEpisodes reaches the notifier (DESIGN §2 R6).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from personalscraper.acquire.events import (
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
+    SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
     SeedObligationSatisfied,
@@ -44,6 +46,7 @@ _ALL_ACQUIRE_EVENT_CLASSES = [
     SeriesUnfollowed,
     WantedEnqueued,
     WantedAbandoned,
+    SeasonFellBackToEpisodes,
     GrabSucceeded,
     GrabFailed,
     SeedObligationRecorded,
@@ -238,15 +241,43 @@ def test_wanted_enqueued_movie_no_season_placeholder() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 4c. Counter-review F-C: season fallback is no longer silent on Telegram
+# ---------------------------------------------------------------------------
+
+
+def test_season_fell_back_to_episodes_notifies_operator() -> None:
+    """SeasonFellBackToEpisodes reaches the notifier with the R6 message (F-C).
+
+    DESIGN §2 R6 promises the operator hears about a season falling back to
+    per-episode retry; the event previously had zero subscribers.
+    """
+    bus, sub, notifier = _make_bus_and_sub(enabled=True)
+    event = SeasonFellBackToEpisodes(
+        season_wanted_id=42,
+        media_ref=_REF,
+        season=3,
+        reenqueued_count=5,
+    )
+    bus.emit(event)
+    _wait_for(lambda: notifier.send.call_count >= 1)
+    msg = notifier.send.call_args[0][0]
+    assert "Saison 3" in msg, f"Expected 'Saison 3' in message, got: {msg}"
+    assert "bascule en épisodes" in msg, f"Expected fallback wording in message, got: {msg}"
+    assert "5 re-mis en file" in msg, f"Expected re-enqueued count in message, got: {msg}"
+    assert "tvdb:81189" in msg, f"Expected media ref in message, got: {msg}"
+    sub.close()
+
+
+# ---------------------------------------------------------------------------
 # 5. close() unsubscribes all
 # ---------------------------------------------------------------------------
 
 
 def test_close_unsubscribes_all() -> None:
-    """close() unregisters all 11 subscriptions."""
+    """close() unregisters all 12 subscriptions."""
     bus = EventBus()
     sub = AcquisitionTelegramSubscriber(bus, enabled=False)
-    assert len(sub._tokens) == 11
+    assert len(sub._tokens) == 12
     sub.close()
     assert len(sub._tokens) == 0
     # Emit after close — notifier.send must not be called (no subscriptions)
