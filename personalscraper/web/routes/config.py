@@ -709,6 +709,24 @@ def put_file(
                 os.unlink(file_path.with_suffix(file_path.suffix + ".tmp"))
             raise
 
+        # Auto-commit to the canonical mini-repo (DESIGN §3.2).
+        # Fail-soft: a git failure never blocks or fails the save.
+        try:
+            from personalscraper.conf.config_git import (
+                commit_config_dir,
+                ensure_config_repo,
+            )
+
+            if ensure_config_repo(config_dir):
+                commit_config_dir(
+                    config_dir,
+                    f"config_edit: {name} (web-UI)",
+                )
+        except Exception:
+            # Fail-soft per DESIGN §3.2 — log already emitted by
+            # commit_config_dir; double-wrap for any import/other error.
+            pass
+
         # Register a pre-write hash entry for files absent from the boot
         # snapshot (e.g. local.json5 created post-boot) so they become
         # stale-tracked.  The boot hash is "" because the file did not exist

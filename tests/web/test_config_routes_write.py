@@ -614,6 +614,84 @@ class TestPutFileEndpoint:
         assert resp.status_code == 200
         assert "local.json5" in resp.json()["stale_files"]
 
+    def test_put_file_auto_commits_to_mini_repo(self, client: TestClient, config_dir: Path) -> None:
+        """After a successful PUT, the config dir gets a git commit (DESIGN §3.2)."""
+        # Initialize the config dir as a git repo.
+        subprocess.run(
+            ["git", "-C", str(config_dir), "init"],
+            capture_output=True,
+        )
+        # Set git user for the test (required for commit).
+        subprocess.run(
+            ["git", "-C", str(config_dir), "config", "user.email", "test@test"],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(config_dir), "config", "user.name", "Test"],
+            capture_output=True,
+        )
+
+        # Record HEAD SHA before the PUT (None if no commits yet).
+        sha_before = subprocess.run(
+            ["git", "-C", str(config_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        sha_before = sha_before.stdout.strip() if sha_before.returncode == 0 else None
+
+        # Perform a valid save (mirrors test_200_happy_path payload shape).
+        file_path = config_dir / "paths.json5"
+        original = json5.loads(file_path.read_text(encoding="utf-8"))
+        original_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        new_values = dict(original)
+        new_values["paths"] = {**original["paths"], "staging_dir": "/tmp/auto_commit_test", "data_dir": "/tmp/data"}
+
+        resp = client.put(
+            "/api/config/files/paths.json5",
+            json={"values": new_values, "base_sha256": original_sha256},
+            headers=_xrw(),
+        )
+        assert resp.status_code == 200
+
+        # A new commit must have been created.
+        sha_after = subprocess.run(
+            ["git", "-C", str(config_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        sha_after = sha_after.stdout.strip() if sha_after.returncode == 0 else None
+        assert sha_after is not None
+        assert sha_after != sha_before
+
+        # Commit message must contain the edit marker.
+        log = subprocess.run(
+            ["git", "-C", str(config_dir), "log", "-1", "--format=%s"],
+            capture_output=True,
+            text=True,
+        )
+        assert "config_edit: paths.json5 (web-UI)" in log.stdout
+
+    def test_put_file_save_succeeds_even_when_git_fails(self, client: TestClient, config_dir: Path) -> None:
+        """Fail-soft: a broken git repo does not block the config save."""
+        # Corrupt .git to simulate a git failure.
+        git_dir = config_dir / ".git"
+        git_dir.mkdir(exist_ok=True)
+        (git_dir / "HEAD").write_text("garbage")
+
+        file_path = config_dir / "paths.json5"
+        original = json5.loads(file_path.read_text(encoding="utf-8"))
+        original_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        new_values = dict(original)
+        new_values["paths"] = {**original["paths"], "staging_dir": "/tmp/git_fail_test", "data_dir": "/tmp/data"}
+
+        resp = client.put(
+            "/api/config/files/paths.json5",
+            json={"values": new_values, "base_sha256": original_sha256},
+            headers=_xrw(),
+        )
+        # Save must still succeed (git failure is non-blocking).
+        assert resp.status_code == 200
+
 
 # ── GET /secrets ────────────────────────────────────────────────────────────
 
