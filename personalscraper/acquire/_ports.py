@@ -268,6 +268,19 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def fallback_season(self, season_wanted_id: int) -> bool:
+        """Transition a season row to ``fallback_episodes`` — the cutoff path (R6).
+
+        Guarded on ``kind='season'`` and OPEN_WANTED_STATUSES.
+
+        Args:
+            season_wanted_id: Rowid of the season ``wanted`` row.
+
+        Returns:
+            ``True`` iff the row transitioned.
+        """
+        ...
+
 
 @runtime_checkable
 class SeedSubStore(Protocol):

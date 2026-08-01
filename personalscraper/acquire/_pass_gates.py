@@ -27,13 +27,13 @@ from personalscraper.acquire.desired import (
     quality_profile_from_json,
     source_criteria_from_json,
 )
-from personalscraper.acquire.events import WantedAbandoned
+from personalscraper.acquire.domain import WantedItem
+from personalscraper.acquire.events import SeasonFellBackToEpisodes, WantedAbandoned
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.cadence import Cadence
-    from personalscraper.acquire.domain import WantedItem
     from personalscraper.acquire.service import _GateVerdict
     from personalscraper.core.event_bus import EventBus
 
@@ -107,12 +107,93 @@ class PassGatesMixin:
         # distinct so consumers can tell an age-out from a terminal verdict. No
         # claim.
         if is_past_cutoff(cadence, now=now, enqueued_at=item.enqueued_at):
+            # R6: season kind → fallback instead of plain abandon.
+            # Re-enqueue missing episodes individually so the per-episode
+            # retry loop can still resolve them after the season-level
+            # attempt timed out.
+            if item.kind == "season" and item.season is not None and item.followed_id is not None:
+                return self._fallback_season(item, now)
+
             self._store.wanted.set_status(wanted_id, "abandoned")
             self._event_bus.emit(WantedAbandoned(media_ref=item.media_ref, reason="cutoff_reached"))
             log.info("acquire.service.cutoff_abandoned", wanted_id=wanted_id)
             return "abandoned"
 
         return "proceed"
+
+    # ------------------------------------------------------------------
+    # R6: Season Cutoff Fallback
+    # ------------------------------------------------------------------
+
+    def _fallback_season(self, item: WantedItem, now: int) -> _GateVerdict:
+        """R6: season cutoff → re-enqueue missing episodes, set ``fallback_episodes``.
+
+        Reads the aired catalog to know which episodes exist, re-enqueues
+        them all as fresh episode wanteds, transitions the season row to
+        ``fallback_episodes``, and emits :class:`SeasonFellBackToEpisodes`.
+
+        Ownership is NOT checked here (Option B from the plan): the detect
+        pass already skips owned episodes, so re-enqueuing all aired
+        episodes is safe — the cost of creating-then-skipping rows is
+        acceptable for a cutoff that fires rarely.
+
+        The caller (``_apply_cutoff_gate``) suppresses its own
+        ``WantedAbandoned`` emit — the season row is terminal with a
+        different status, so the ``abandoned`` reason would be misleading.
+
+        Args:
+            item: The season ``wanted`` row past its cutoff.
+            now: Unix epoch seconds (stamps ``enqueued_at`` on the
+                re-enqueued rows).
+
+        Returns:
+            ``"abandoned"`` — the season row is terminal; the gate outcome
+            maps to abandoned for the caller's counter.
+        """
+        assert item.id is not None  # noqa: S101
+        assert item.followed_id is not None  # noqa: S101
+        assert item.season is not None  # noqa: S101
+        season_wanted_id = item.id
+        followed_id = item.followed_id
+        season_num = item.season
+
+        # List aired episodes for this season from the catalog cache.
+        aired_rows = self._store.aired.list_for_followed(followed_id)
+        episode_numbers = sorted(int(r.episode) for r in aired_rows if r.season == season_num)
+
+        # Re-enqueue ALL aired episodes as fresh individual wanteds.
+        # The detect pass skips owned ones, so over-enqueueing is harmless.
+        for ep_num in episode_numbers:
+            self._store.wanted.add(
+                WantedItem(
+                    media_ref=item.media_ref,
+                    kind="episode",
+                    status="pending",
+                    enqueued_at=now,
+                    followed_id=followed_id,
+                    season=season_num,
+                    episode=ep_num,
+                ),
+            )
+
+        # Transition the season row.
+        self._store.wanted.fallback_season(season_wanted_id)
+
+        self._event_bus.emit(
+            SeasonFellBackToEpisodes(
+                season_wanted_id=season_wanted_id,
+                media_ref=item.media_ref,
+                season=season_num,
+                reenqueued_count=len(episode_numbers),
+            ),
+        )
+        log.info(
+            "acquire.service.season_fallback",
+            wanted_id=season_wanted_id,
+            season=season_num,
+            reenqueued=len(episode_numbers),
+        )
+        return "abandoned"
 
     def _apply_cadence_gates(self, item: WantedItem, now: int, *, cadence: Cadence) -> _GateVerdict:
         """Run the pre-claim gates of the SEARCH pass (DESIGN §7).
