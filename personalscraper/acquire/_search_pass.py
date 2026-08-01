@@ -282,11 +282,18 @@ class SearchPassMixin(PassGatesMixin):
         reveals a whole-season pack in the raw results. Absorption is idempotent
         — if an OPEN season wanted already exists, only absorption runs.
 
-        A TERMINAL season row (``fallback_episodes`` / ``abandoned`` / ``done``)
-        refuses the conversion entirely (review F1): after an R6 fallback the
-        re-enqueued episodes must stay live, and absorbing them onto a dead
-        season row would empty the queue permanently. Anti ping-pong: the
-        season is never re-minted from conversion after a fallback.
+        The dedup consults the LIVE season row FIRST (counter-review F-A):
+        the status-agnostic ``find()`` returns the OLDEST row, so a stale
+        terminal season row would otherwise mask a NEWER live one (e.g.
+        re-minted by the manual web re-grab, review F5) and starve it of
+        absorption. A live row always wins and absorption proceeds onto it.
+
+        Only when NO live row exists does a TERMINAL season row
+        (``fallback_episodes`` / ``abandoned`` / ``done``) refuse the
+        conversion entirely (review F1): after an R6 fallback the re-enqueued
+        episodes must stay live, and absorbing them onto a dead season row
+        would empty the queue permanently. Anti ping-pong: the season is
+        never re-minted from conversion after a fallback.
 
         The season wanted is enqueued as ``pending`` (not advanced to available
         in this tick) so the next pass evaluates it cleanly.
@@ -309,23 +316,36 @@ class SearchPassMixin(PassGatesMixin):
         fid = episode_item.followed_id
         season_num = episode_item.season
 
-        # Dedup: one season wanted per follow+season
+        # Dedup: one season wanted per follow+season. Consult the LIVE row
+        # FIRST (counter-review F-A) — the status-agnostic find() returns the
+        # OLDEST row, so an old terminal season row (post-R6 fallback) would
+        # mask a newer live one (manual web re-grab, review F5) and the
+        # conversion would refuse absorption the live row is entitled to.
         existing = self._store.wanted.find(
             followed_id=fid,
             kind="season",
             season=season_num,
             episode=None,
+            statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
         )
-        if existing is not None and existing.status not in OPEN_WANTED_STATUSES:
-            # Terminal season row (post-R6 fallback, abandon, or done): never
-            # absorb live episodes onto a dead row, never re-mint the season.
-            log.info(
-                "acquire.service.season_conversion_skipped_terminal",
-                wanted_id=existing.id,
-                status=existing.status,
+        if existing is None:
+            # No live row: only now may a terminal row veto the conversion.
+            terminal = self._store.wanted.find(
+                followed_id=fid,
+                kind="season",
                 season=season_num,
+                episode=None,
             )
-            return False
+            if terminal is not None:
+                # Terminal season row (post-R6 fallback, abandon, or done): never
+                # absorb live episodes onto a dead row, never re-mint the season.
+                log.info(
+                    "acquire.service.season_conversion_skipped_terminal",
+                    wanted_id=terminal.id,
+                    status=terminal.status,
+                    season=season_num,
+                )
+                return False
         season_wid = existing.id if existing is not None else None
 
         if season_wid is None:

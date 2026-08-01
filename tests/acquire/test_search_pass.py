@@ -467,6 +467,106 @@ def test_conversion_refused_on_terminal_season_row_keeps_episodes_live(store: Co
     assert store.wanted.list_pending(), "pending queue must not be emptied by a refused conversion"
 
 
+def test_conversion_reuses_live_season_row_over_stale_terminal_one(store: ConcreteAcquireStore) -> None:
+    """F-A REGRESSION (counter-review): a stale terminal row must not mask a live one.
+
+    Proved scenario: an OLD season row at ``fallback_episodes`` coexists with
+    a NEWER LIVE season row (re-minted by the manual web re-grab, review F5).
+    The status-agnostic ``find()`` returns the OLDEST row, so the conversion
+    guard used to see the terminal row, refuse, and never absorb the live
+    episode onto the live season row — two parallel acquisition tracks for
+    the same content.
+
+    After the fix: the episode is absorbed onto the NEW live row
+    (``absorbed_by`` == new row id), the old terminal row is untouched, and
+    no third season row is minted.
+    """
+    from personalscraper.acquire.domain import FollowedSeries
+
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1))
+    store.aired.replace_for_followed(
+        1,
+        [(3, n, f"E0{n}", f"2024-01-{n:02d}") for n in range(1, 6)],
+        now=1_700_000_000,
+    )
+
+    # The season's FIRST life: absorbed episodes, then an R6 fallback → the
+    # OLD season row is terminal (fallback_episodes).
+    old_ep_ids = [store.wanted.add(_episode_item(episode=n)) for n in range(1, 6)]
+    old_season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=99),
+            kind="season",
+            status="pending",
+            enqueued_at=1_700_000_000,
+            followed_id=1,
+            season=3,
+            episode=None,
+        ),
+    )
+    store.wanted.absorb_episodes(old_season_wid, tuple(old_ep_ids))
+    assert store.wanted.fallback_season(old_season_wid) is True
+
+    # SECOND life: a NEWER LIVE season row (manual web re-grab, review F5)
+    # plus a live pending episode awaiting absorption.
+    new_season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=99),
+            kind="season",
+            status="pending",
+            enqueued_at=1_700_000_000,
+            followed_id=1,
+            season=3,
+            episode=None,
+        ),
+    )
+    live_ep_wid = store.wanted.add(_episode_item(episode=5))
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found",
+        outcome="no_matching_episode",
+        found=0,
+        raw_results=(_season_pack_result(),),  # a pack IS visible
+    )
+    event_bus = MagicMock()
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    svc = AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=event_bus,  # type: ignore[arg-type]
+        config=config,
+    )
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        svc.run_search()
+
+    # The live episode was absorbed onto the NEW live season row.
+    ep_row = store.wanted.get(live_ep_wid)
+    assert ep_row is not None
+    assert ep_row.status == "absorbed", f"live episode must be absorbed, got {ep_row.status!r}"
+    assert ep_row.absorbed_by == new_season_wid, (
+        f"episode must be absorbed by the LIVE row {new_season_wid}, got {ep_row.absorbed_by!r}"
+    )
+
+    # The old terminal row is untouched.
+    old_row = store.wanted.get(old_season_wid)
+    assert old_row is not None and old_row.status == "fallback_episodes"
+
+    # No third season row was minted — reuse, not re-mint.
+    season_rows = store.wanted.list_for_followed(1, kind="season")
+    assert len(season_rows) == 2, f"expected exactly 2 season rows (old+new), got {len(season_rows)}"
+    enqueued_calls = [
+        c for c in event_bus.emit.call_args_list if isinstance(c[0][0], WantedEnqueued) and c[0][0].kind == "season"
+    ]
+    assert enqueued_calls == [], "reusing the live row must not emit WantedEnqueued(season)"
+
+    # Absorption targeted the live row.
+    absorbed_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonAbsorbedEpisodes)]
+    assert len(absorbed_calls) == 1
+    assert absorbed_calls[0][0][0].season_wanted_id == new_season_wid
+
+
 def test_conversion_noop_when_no_pack_in_results(store: ConcreteAcquireStore) -> None:
     """R2: raw results present but no season pack → no conversion.
 
