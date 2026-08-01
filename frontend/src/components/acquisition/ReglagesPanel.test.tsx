@@ -3,7 +3,7 @@
  *
  * Proves the editor (a) renders the loaded criteria, (b) scores a live preview
  * against the current draft, and (c) saves through the S4 write-path carrying
- * the SHA-256 precondition. The config + preview APIs are mocked; the real
+ * the SHA-256 precondition.  The config + preview APIs are mocked; the real
  * TanStack hooks and component logic run.
  */
 
@@ -75,31 +75,41 @@ const RANKING = {
   min_seeders: 1,
 };
 
-function seedApis(): void {
+function seedApis(
+  overrides?: Partial<{
+    knownTrackers: string[];
+    ranked: typeof MOCK_RANKED;
+  }>,
+): void {
   getFileMock.mockResolvedValue({
     name: "ranking.json5",
     values: { ranking: RANKING },
     sha256: "sha-abc",
     shadowed_keys: [],
   });
+  const ranked = overrides?.ranked ?? MOCK_RANKED;
   previewMock.mockResolvedValue({
-    ranked: [
-      {
-        title: "Sample tr4ker MULTI",
-        provider: "tr4ker",
-        resolution: "2160p",
-        codec: "x265",
-        language: "MULTI",
-        source: "BluRay",
-        seeders: 40,
-        is_freeleech: true,
-        score: 55,
-        excluded: false,
-      },
-    ],
+    ranked,
+    known_trackers: overrides?.knownTrackers ?? ["c411", "tr4ker"],
   });
   putFileMock.mockResolvedValue({ warnings: [], restart_required: false });
 }
+
+const MOCK_RANKED = [
+  {
+    title: "Sample tr4ker MULTI",
+    provider: "tr4ker",
+    resolution: "2160p",
+    codec: "x265",
+    language: "MULTI",
+    source: "BluRay",
+    seeders: 40,
+    leechers: 2,
+    is_freeleech: true,
+    score: 55,
+    excluded: false,
+  },
+];
 
 function renderPanel(): void {
   const qc = new QueryClient({
@@ -137,6 +147,179 @@ describe("ReglagesPanel", () => {
       expect(previewMock).toHaveBeenCalled();
     });
     expect(await screen.findByText("Sample tr4ker MULTI")).toBeInTheDocument();
+  });
+
+  it("preview rows show seeders/leechers values from the mocked response", async () => {
+    renderPanel();
+    await screen.findByText("Sample tr4ker MULTI");
+    // Seeders/leechers displayed compactly: S:XX L:YY.
+    expect(screen.getByText("S:40")).toBeInTheDocument();
+    expect(screen.getByText("L:2")).toBeInTheDocument();
+  });
+
+  it("tracker criterion renders a select with known trackers minus already-used", async () => {
+    renderPanel();
+    await screen.findByText("Tracker");
+
+    // Wait for the preview to load (debounced, 300ms) — the tracker criterion
+    // only gets the select treatment once known_trackers arrives via the preview.
+    await screen.findByText("S:40");
+
+    // The tracker criterion (provider) gets a select instead of free-text input.
+    const select = screen.getByRole("combobox", {
+      name: "Ajouter un tracker",
+    });
+    expect(select).toBeInTheDocument();
+
+    // "c411" and "tr4ker" are already in values → disabled.
+    const c411Opt = screen.getByText("c411 (déjà présent)");
+    const tr4kerOpt = screen.getByText("tr4ker (déjà présent)");
+    expect(c411Opt).toBeInTheDocument();
+    expect(tr4kerOpt).toBeInTheDocument();
+
+    // With only 2 known trackers and both used, no available options remain other
+    // than the placeholder — the select shows the disabled placeholder + used entries.
+    const options = Array.from(select.querySelectorAll("option"));
+    expect(options.length).toBe(3); // placeholder + 2 disabled
+  });
+
+  it("tracker select has available options when a known tracker is unused", async () => {
+    // Use a RANKING with only tr4ker in provider values — c411 becomes available.
+    const rankingWithoutC411 = {
+      ...RANKING,
+      criteria: [
+        { field: "language", weight: 2, values: { MULTI: 20, VOSTFR: 6 } },
+        { field: "provider", weight: 1, values: { tr4ker: 15 } },
+        {
+          field: "seeders",
+          weight: 2,
+          prefer: "higher",
+          thresholds: [
+            { at: 0, score: 0 },
+            { at: 5, score: 8 },
+          ],
+        },
+      ],
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: rankingWithoutC411 },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Tracker");
+    // Wait for the debounced preview to load — the select only appears after.
+    await screen.findByText("S:40");
+
+    // "c411" should be available (not disabled).
+    const c411Opt = screen.getByText("c411");
+    expect(c411Opt).toBeInTheDocument();
+    // It must NOT have "(déjà présent)" suffix.
+    expect(c411Opt.closest("option")?.disabled).toBe(false);
+
+    // "tr4ker" is already present → disabled.
+    expect(screen.getByText("tr4ker (déjà présent)")).toBeInTheDocument();
+  });
+
+  it("selecting a tracker adds it with the default score", async () => {
+    // Only tr4ker in values, c411 is available.
+    const rankingWithOneTracker = {
+      ...RANKING,
+      criteria: [
+        { field: "provider", weight: 1, values: { tr4ker: 15 } },
+        {
+          field: "seeders",
+          weight: 2,
+          prefer: "higher",
+          thresholds: [
+            { at: 0, score: 0 },
+            { at: 5, score: 8 },
+          ],
+        },
+      ],
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: rankingWithOneTracker },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Tracker");
+    // Wait for the debounced preview to load.
+    await screen.findByText("S:40");
+
+    const select = screen.getByRole("combobox", {
+      name: "Ajouter un tracker",
+    });
+    fireEvent.change(select, { target: { value: "c411" } });
+
+    // After selection, c411 appears in the list with the default score.
+    // Default score for a single-value map (tr4ker=15) is the midpoint: 15.
+    await waitFor(() => {
+      expect(screen.getByText("c411")).toBeInTheDocument();
+    });
+
+    // The "Enregistrer" button should be enabled (dirty draft).
+    const saveBtn = () => screen.getByRole("button", { name: "Enregistrer" });
+    await waitFor(() => {
+      expect(saveBtn()).toBeEnabled();
+    });
+
+    // Click save and check the PUT payload includes c411 with the default score.
+    fireEvent.click(saveBtn());
+    await waitFor(() => {
+      expect(putFileMock).toHaveBeenCalled();
+    });
+    const [, body] = putFileMock.mock.calls[0] as [
+      string,
+      {
+        values: { ranking: typeof rankingWithOneTracker };
+        base_sha256: string;
+      },
+    ];
+    const providerCriterion = body.values.ranking.criteria.find(
+      (c) => c.field === "provider",
+    );
+    expect(providerCriterion?.values).toEqual({ tr4ker: 15, c411: 15 });
+  });
+
+  it("legacy unknown tracker key is still rendered in the editor", async () => {
+    // A legacy key not in known_trackers must still be displayed.
+    const rankingWithLegacy = {
+      ...RANKING,
+      criteria: [
+        { field: "provider", weight: 1, values: { tr4ker: 15, oldtracker: 7 } },
+        {
+          field: "seeders",
+          weight: 2,
+          prefer: "higher",
+          thresholds: [
+            { at: 0, score: 0 },
+            { at: 5, score: 8 },
+          ],
+        },
+      ],
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: rankingWithLegacy },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Tracker");
+
+    // The legacy key is rendered (never silently dropped).
+    expect(screen.getByText("oldtracker")).toBeInTheDocument();
+    // It has an editable score input.
+    expect(
+      screen.getByRole("spinbutton", { name: "Score oldtracker" }),
+    ).toBeInTheDocument();
   });
 
   it("save does not snap back to stale values (issue 372)", async () => {

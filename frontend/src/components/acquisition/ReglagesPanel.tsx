@@ -64,19 +64,49 @@ function readRanking(
  *
  * Existing tokens are editable in place (score) and removable; a small add-row
  * appends a new token (e.g. a new language marker), so the operator can grow
- * the preference list without touching JSON.
+ * the preference list without touching JSON.  When *knownTrackers* is set, the
+ * free-text key input becomes a ``<select>`` fed by that roster — used for the
+ * ``provider`` (tracker) criterion so the operator picks from actual providers,
+ * not free-text (ticket 374).  A tracker already present is disabled; selecting one
+ * auto-adds it with a DEFAULT score.  Legacy / unknown keys already in
+ * ``values`` are still displayed and remain editable/removable — the select is
+ * additive, never a replacement.
  */
 function ValuesEditor({
   values,
   onChange,
+  knownTrackers,
 }: {
   values: Record<string, number>;
   onChange: (next: Record<string, number>) => void;
+  /** When set, the key input becomes a select of these trackers (provider criterion). */
+  knownTrackers?: string[];
 }): ReactElement {
   const [newKey, setNewKey] = useState("");
   const [newScore, setNewScore] = useState("");
 
   const entries = Object.entries(values);
+
+  // Default score when auto-adding a known tracker: midpoint of existing values
+  // or 10 when there are none (ticket 374).
+  const defaultScore = useMemo(() => {
+    const scores = Object.values(values);
+    if (scores.length === 0) return 10;
+    const sorted = [...scores].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+      ? Math.round(((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2)
+      : (sorted[mid] ?? 10);
+  }, [values]);
+
+  const addTracker = (key: string): void => {
+    onChange({ ...values, [key]: defaultScore });
+  };
+
+  // Known trackers not yet present — shown in the select; already-used ones are
+  // disabled (not dropped — the operator can still see them).
+  const available = (knownTrackers ?? []).filter((k) => !(k in values));
+  const isTrackerEditor = knownTrackers != null && knownTrackers.length > 0;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -105,40 +135,70 @@ function ValuesEditor({
           </Button>
         </div>
       ))}
-      <div className="flex items-center gap-2 pt-1">
-        <Input
-          value={newKey}
-          placeholder="valeur (ex. MULTI)"
-          aria-label="Nouvelle valeur"
-          className="h-8 min-w-0 flex-1"
-          onChange={(e) => {
-            setNewKey(e.target.value);
-          }}
-        />
-        <Input
-          type="number"
-          value={newScore}
-          placeholder="score"
-          aria-label="Score de la nouvelle valeur"
-          className="h-8 w-20"
-          onChange={(e) => {
-            setNewScore(e.target.value);
-          }}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={newKey.trim() === "" || newScore.trim() === ""}
-          onClick={() => {
-            onChange({ ...values, [newKey.trim()]: parseNum(newScore, 0) });
-            setNewKey("");
-            setNewScore("");
-          }}
-        >
-          Ajouter
-        </Button>
-      </div>
+      {isTrackerEditor ? (
+        <div className="flex items-center gap-2 pt-1">
+          <select
+            value=""
+            aria-label="Ajouter un tracker"
+            className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+            onChange={(e) => {
+              const key = e.target.value;
+              if (key) addTracker(key);
+            }}
+          >
+            <option value="" disabled>
+              Ajouter un tracker…
+            </option>
+            {available.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+            {knownTrackers
+              .filter((t) => t in values)
+              .map((t) => (
+                <option key={t} value={t} disabled>
+                  {t} (déjà présent)
+                </option>
+              ))}
+          </select>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 pt-1">
+          <Input
+            value={newKey}
+            placeholder="valeur (ex. MULTI)"
+            aria-label="Nouvelle valeur"
+            className="h-8 min-w-0 flex-1"
+            onChange={(e) => {
+              setNewKey(e.target.value);
+            }}
+          />
+          <Input
+            type="number"
+            value={newScore}
+            placeholder="score"
+            aria-label="Score de la nouvelle valeur"
+            className="h-8 w-20"
+            onChange={(e) => {
+              setNewScore(e.target.value);
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={newKey.trim() === "" || newScore.trim() === ""}
+            onClick={() => {
+              onChange({ ...values, [newKey.trim()]: parseNum(newScore, 0) });
+              setNewKey("");
+              setNewScore("");
+            }}
+          >
+            Ajouter
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -147,9 +207,11 @@ function ValuesEditor({
 function CriterionCard({
   criterion,
   onChange,
+  knownTrackers,
 }: {
   criterion: RankingCriterion;
   onChange: (next: RankingCriterion) => void;
+  knownTrackers?: string[];
 }): ReactElement {
   const label = FIELD_LABEL[criterion.field] ?? criterion.field;
   return (
@@ -179,6 +241,7 @@ function CriterionCard({
           onChange={(next) => {
             onChange({ ...criterion, values: next });
           }}
+          knownTrackers={knownTrackers}
         />
       ) : criterion.thresholds != null ? (
         <p className="text-xs text-muted-foreground">
@@ -213,7 +276,7 @@ function PreviewColumn({
         visible immédiatement, sans lancer de recherche.
       </p>
       {error != null && <p className="text-xs text-danger">{error}</p>}
-      <ol className="flex flex-col gap-1.5">
+      <ol className="flex flex-col gap-1.5 overflow-x-auto">
         {(preview?.ranked ?? []).map((r, i) => (
           <li
             key={`${r.provider}-${r.title}-${String(i)}`}
@@ -224,8 +287,14 @@ function PreviewColumn({
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs">{r.title}</span>
-              <span className="flex flex-wrap gap-1 pt-0.5">
+              <span className="flex flex-wrap items-center gap-1 pt-0.5">
                 <Badge tone="neutral">{r.provider}</Badge>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  S:{String(r.seeders)}
+                </span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  L:{String(r.leechers)}
+                </span>
                 {r.language != null && <Badge tone="info">{r.language}</Badge>}
                 {r.is_freeleech && <Badge tone="success">freeleech</Badge>}
                 {r.excluded && <Badge tone="danger">exclu (seeders)</Badge>}
@@ -467,6 +536,11 @@ export function ReglagesPanel(): ReactElement {
               onChange={(next) => {
                 setCriterion(index, next);
               }}
+              knownTrackers={
+                criterion.field === "provider"
+                  ? preview?.known_trackers
+                  : undefined
+              }
             />
           ))}
         </div>
