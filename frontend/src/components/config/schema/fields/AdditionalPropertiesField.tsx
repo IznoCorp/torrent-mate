@@ -156,8 +156,17 @@ export function AdditionalPropertiesField({
           // CONFIG-10 (ticket 250): rows are keyed by entry index, not by the
           // dict key — a committed rename changes the key, and a key-based row
           // would remount, dropping focus and detaching the remove button
-          // mid-click. Index identity is deliberate and stable here: renames
-          // preserve entry order and every input is controlled.
+          // mid-click. Index identity is deliberate and safe here because
+          // renames preserve entry order and every REACHABLE input is
+          // controlled (key drafts/errors live in maps keyed by dict key; the
+          // scalar value Input reads straight from the object). Known
+          // limitation: the nested SchemaFormRenderer branch below is NOT
+          // fully controlled — its descendants (NumberField/StringField
+          // clientErr, JsonFallback draft) hold internal state that would
+          // migrate across rows on a middle-row removal under index keys. That
+          // branch is unreachable with the current config schema (no
+          // inline-object additionalProperties — all $refs) and would need
+          // stable synthetic row ids before it ever becomes reachable.
           <div key={idx} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               {/* CONFIG-10: the key is EDITABLE, as the field docstring promises

@@ -291,6 +291,23 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
     expect(followMutate).not.toHaveBeenCalled();
   });
 
+  it("affiche l'erreur inline pour un ID trop long qui perdrait sa précision et ne suit pas (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // TVDB is the default provider. A 23-digit string passes the digits-only
+    // gate AND Number.isInteger, but Number() has already mangled it
+    // (JSON would emit 1e+23) — the safe-integer gate in buildIdFollowBody
+    // must refuse it rather than follow a wrong id.
+    const input = screen.getByLabelText("ID TVDB");
+    fireEvent.change(input, { target: { value: "12345678901234567890123" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Identifiant invalide — entrez un nombre entier positif.",
+    );
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+    expect(followMutate).not.toHaveBeenCalled();
+  });
+
   it("garde le clavier numérique mobile via inputMode sur un champ type text (ticket 250)", () => {
     render(<MediaSearchAdd />);
     expandById();

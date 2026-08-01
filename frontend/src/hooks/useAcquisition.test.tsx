@@ -453,9 +453,16 @@ describe("useFollow", () => {
       buildResponse(409, { detail: "Already actively followed" }),
     );
 
-    const { result } = renderHook(() => useFollow(), {
-      wrapper: createWrapper(),
+    const qc = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
     });
+    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+
+    const wrapper = ({ children }: { children: ReactNode }): ReactElement => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useFollow(), { wrapper });
 
     await expect(
       result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
@@ -465,6 +472,10 @@ describe("useFollow", () => {
       "Déjà suivi — ce média est déjà dans les suivis.",
     );
     expect(toastError).not.toHaveBeenCalled();
+    // The 409 proves the follow already exists — the stale local cache must
+    // resync exactly as a success would.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: acqKeys.all });
+    invalidateSpy.mockRestore();
   });
 });
 

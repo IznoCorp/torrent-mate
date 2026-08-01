@@ -284,6 +284,10 @@ export function useFollow() {
       // the same action — an information, never a failure (same house rule as
       // useFollowedPanel's trigger/grab 409 handling).
       if (err instanceof ApiError && err.status === 409) {
+        // The refusal itself proves the follow already exists server-side —
+        // the local "not followed" view that allowed this submit is stale, so
+        // resync the acquisition namespace just like a success would.
+        void qc.invalidateQueries({ queryKey: acqKeys.all });
         toast.info("Déjà suivi — ce média est déjà dans les suivis.");
         return;
       }
