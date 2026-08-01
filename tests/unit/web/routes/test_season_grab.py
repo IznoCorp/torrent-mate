@@ -336,18 +336,12 @@ class TestSeasonGrab:
         # Mutation-check on the DB, not just the response.
         conn = sqlite3.connect(str(acquire_path))
         conn.row_factory = sqlite3.Row
-        new_row = conn.execute(
-            "SELECT status FROM wanted WHERE id = ?", (data["season_wanted_id"],)
-        ).fetchone()
+        new_row = conn.execute("SELECT status FROM wanted WHERE id = ?", (data["season_wanted_id"],)).fetchone()
         assert new_row is not None and new_row["status"] == "pending"
-        old_row = conn.execute(
-            "SELECT status, absorbed_by FROM wanted WHERE id = ?", (old_season_id,)
-        ).fetchone()
+        old_row = conn.execute("SELECT status, absorbed_by FROM wanted WHERE id = ?", (old_season_id,)).fetchone()
         assert old_row["status"] == "fallback_episodes"  # untouched
         assert old_row["absorbed_by"] is None
-        episodes = conn.execute(
-            "SELECT id, status, absorbed_by FROM wanted WHERE id IN (?, ?)", (ep1, ep2)
-        ).fetchall()
+        episodes = conn.execute("SELECT id, status, absorbed_by FROM wanted WHERE id IN (?, ?)", (ep1, ep2)).fetchall()
         conn.close()
         assert {(r["status"], r["absorbed_by"]) for r in episodes} == {
             ("absorbed", data["season_wanted_id"]),
