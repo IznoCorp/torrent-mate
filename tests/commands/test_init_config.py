@@ -465,9 +465,7 @@ class TestInitConfigSync:
             capture_output=True,
             text=True,
         )
-        assert "config_sync:" in log.stdout, (
-            f"Expected config_sync commit, got log: {log.stdout}"
-        )
+        assert "config_sync:" in log.stdout, f"Expected config_sync commit, got log: {log.stdout}"
 
         # Verify the committed files are real (ls-tree content assertion).
         ls = subprocess.run(
@@ -517,9 +515,7 @@ class TestInitConfigSync:
             capture_output=True,
             text=True,
         )
-        assert "config_sync:" not in log.stdout, (
-            f"Unexpected commit when nothing was added: {log.stdout}"
-        )
+        assert "config_sync:" not in log.stdout, f"Unexpected commit when nothing was added: {log.stdout}"
 
     def test_sync_git_failure_does_not_block_sync(self, tmp_path: Path) -> None:
         """Sync with a broken git still completes — fail-soft (F-J)."""
@@ -736,9 +732,7 @@ class TestInitConfigCliCommand:
         assert "not found" in result.output.lower()
         assert "PERSONALSCRAPER_CONFIG" in result.output
 
-    def test_sync_with_env_resolves_target(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sync_with_env_resolves_target(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--sync without --output but with PERSONALSCRAPER_CONFIG → resolves to env."""
         from typer.testing import CliRunner
 
@@ -769,9 +763,7 @@ class TestInitConfigCliCommand:
         _args, kwargs = mock_sync.call_args
         assert kwargs["target"] == target.resolve()
 
-    def test_sync_output_explicit_wins_over_env(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_sync_output_explicit_wins_over_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--sync --output explicit wins even when PERSONALSCRAPER_CONFIG is set."""
         from typer.testing import CliRunner
 

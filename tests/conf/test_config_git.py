@@ -137,8 +137,7 @@ def test_commit_config_dir_handles_no_changes(tmp_path: Path):
     # NO new commit — rev-list count unchanged (F-H kill-probe).
     count_after = _rev_count(cfg)
     assert count_after == count_before, (
-        f"Expected {count_before} commits, got {count_after} — "
-        f"an empty commit was created when it should not have been"
+        f"Expected {count_before} commits, got {count_after} — an empty commit was created when it should not have been"
     )
 
 
@@ -191,11 +190,8 @@ def test_commit_config_dir_staging_not_skipped(tmp_path: Path):
     # A new commit must exist.
     count_after = _rev_count(cfg)
     assert count_after == count_before + 1, (
-        f"Expected {count_before + 1} commits, got {count_after} — "
-        f"commit_config_dir may have skipped staging"
+        f"Expected {count_before + 1} commits, got {count_after} — commit_config_dir may have skipped staging"
     )
     # The untracked file must be in the commit.
     files = _ls_tree_files(cfg)
-    assert "untracked.json5" in files, (
-        f"untracked.json5 not in commit, ls-tree: {files}"
-    )
+    assert "untracked.json5" in files, f"untracked.json5 not in commit, ls-tree: {files}"

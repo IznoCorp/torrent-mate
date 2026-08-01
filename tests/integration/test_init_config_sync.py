@@ -155,9 +155,7 @@ def test_sync_commits_to_git_repo_with_content(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert "config_sync:" in log.stdout, (
-        f"Expected config_sync commit, got: {log.stdout}"
-    )
+    assert "config_sync:" in log.stdout, f"Expected config_sync commit, got: {log.stdout}"
 
     # The committed tree must contain the synced file (ls-tree content assertion).
     ls = subprocess.run(
@@ -205,6 +203,4 @@ def test_sync_no_additions_no_commit_created(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert "config_sync:" not in log.stdout, (
-        f"Unexpected commit when nothing was added: {log.stdout}"
-    )
+    assert "config_sync:" not in log.stdout, f"Unexpected commit when nothing was added: {log.stdout}"
