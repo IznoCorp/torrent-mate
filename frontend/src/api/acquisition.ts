@@ -464,6 +464,9 @@ export type RankingConfig = components["schemas"]["RankingConfig"];
 /** One ranking criterion (field + weight + values|thresholds). */
 export type RankingCriterion = components["schemas"]["RankingCriterion"];
 
+/** A size-or-count threshold with a score value ({@link ThresholdEntry}). */
+export type ThresholdEntry = components["schemas"]["ThresholdEntry"];
+
 /** Response for ``POST /api/acquisition/ranking/preview``. */
 export type RankingPreviewResponse = SuccessBody<
   paths["/api/acquisition/ranking/preview"]["post"]["responses"]

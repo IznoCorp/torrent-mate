@@ -455,4 +455,205 @@ describe("ReglagesPanel", () => {
     expect(body.values.ranking.criteria[0]?.weight).toBe(5);
     expect(toastSuccess).toHaveBeenCalled();
   });
+
+  // -----------------------------------------------------------------------
+  // Size thresholds by type — per-media-type size tiers editor
+  // -----------------------------------------------------------------------
+
+  it("renders 3 type blocks with rows from a mocked config carrying by-type tiers", async () => {
+    const RANKING_WITH_TIERS = {
+      ...RANKING,
+      size_thresholds_by_type: {
+        movie: [
+          { at: 1_000_000_000, score: 5 },
+          { at: 5_000_000_000, score: 10 },
+        ],
+        episode: [{ at: 500_000_000, score: 3 }],
+        // season: absent → inherit
+      },
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: RANKING_WITH_TIERS },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Langue / piste audio");
+
+    // All three type blocks rendered.
+    expect(screen.getByText("Films")).toBeInTheDocument();
+    expect(screen.getByText("Saisons")).toBeInTheDocument();
+    expect(screen.getByText("Épisodes")).toBeInTheDocument();
+
+    // Films has 2 rows → GB values displayed.
+    const filmGbInputs = screen.getAllByLabelText("Seuil Films GB");
+    expect(filmGbInputs).toHaveLength(2);
+    // First row: 1 GB → "1"
+    expect(filmGbInputs[0]).toHaveValue(1);
+    // Second row: 5 GB → "5"
+    expect(filmGbInputs[1]).toHaveValue(5);
+
+    // Episode has 1 row → 0.5 GB.
+    const epGbInputs = screen.getAllByLabelText("Seuil Épisodes GB");
+    expect(epGbInputs).toHaveLength(1);
+    expect(epGbInputs[0]).toHaveValue(0.5);
+
+    // Season inherits (absent key).
+    expect(
+      screen.getByText("Hérite des paliers génériques."),
+    ).toBeInTheDocument();
+  });
+
+  it("adding a row to Films marks dirty and the save payload carries the new entry sorted", async () => {
+    const RANKING_WITH_TIERS = {
+      ...RANKING,
+      size_thresholds_by_type: {
+        movie: [{ at: 1_000_000_000, score: 5 }],
+      },
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: RANKING_WITH_TIERS },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Films");
+
+    const saveBtn = () => screen.getByRole("button", { name: "Enregistrer" });
+    // Not dirty initially.
+    expect(saveBtn()).toBeDisabled();
+
+    // Click "Ajouter un palier" for Films.
+    const addBtns = screen.getAllByRole("button", {
+      name: "Ajouter un palier",
+    });
+    expect(addBtns).toHaveLength(1); // Only Films is enabled.
+    const addBtn = addBtns[0];
+    if (!addBtn) throw new Error("add button not found");
+    fireEvent.click(addBtn);
+
+    await waitFor(() => {
+      expect(saveBtn()).toBeEnabled();
+    });
+
+    // The new row defaults to 1 GB / 5 score.
+    const filmGbInputs = screen.getAllByLabelText("Seuil Films GB");
+    expect(filmGbInputs).toHaveLength(2);
+    const secondGbInput = filmGbInputs[1];
+    if (!secondGbInput) throw new Error("second GB input not found");
+    expect(secondGbInput).toHaveValue(1);
+
+    // Edit the new row's at to 8 GB (higher than the existing 1 GB).
+    fireEvent.change(secondGbInput, { target: { value: "8" } });
+
+    // Save.
+    fireEvent.click(saveBtn());
+    await waitFor(() => {
+      expect(putFileMock).toHaveBeenCalled();
+    });
+
+    const [, body] = putFileMock.mock.calls[0] as [
+      string,
+      { values: { ranking: typeof RANKING_WITH_TIERS }; base_sha256: string },
+    ];
+    const tiers = body.values.ranking.size_thresholds_by_type;
+    expect(tiers).toBeDefined();
+    const movieTiers = tiers.movie;
+    expect(movieTiers).toBeDefined();
+    // Sorted by at ascending: 1 GB (1e9) first, 8 GB (8e9) second —
+    // structural assertion (no indexing: satisfies noUncheckedIndexedAccess
+    // without optional chains that no-unnecessary-condition rejects).
+    expect(movieTiers).toEqual([
+      expect.objectContaining({ at: 1_000_000_000 }),
+      expect.objectContaining({ at: 8_000_000_000 }),
+    ]);
+  });
+
+  it("a type without entry shows the inherit state", async () => {
+    const RANKING_WITH_PARTIAL = {
+      ...RANKING,
+      size_thresholds_by_type: {
+        movie: [{ at: 2_000_000_000, score: 5 }],
+        // episode: absent
+        // season: absent
+      },
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: RANKING_WITH_PARTIAL },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Films");
+
+    // Films is enabled (has entries).
+    const filmCheckbox = screen.getByLabelText("Activer les paliers Films");
+    expect(filmCheckbox).toBeChecked();
+
+    // Season checkbox is unchecked → inherit state visible.
+    const seasonCheckbox = screen.getByLabelText("Activer les paliers Saisons");
+    expect(seasonCheckbox).not.toBeChecked();
+
+    // Episode checkbox is unchecked → inherit state visible.
+    const epCheckbox = screen.getByLabelText("Activer les paliers Épisodes");
+    expect(epCheckbox).not.toBeChecked();
+
+    // "Hérite des paliers génériques" appears twice (season + episode).
+    const inheritTexts = screen.getAllByText("Hérite des paliers génériques.");
+    expect(inheritTexts).toHaveLength(2);
+  });
+
+  it("removing the last row of a type removes the key rather than leaving an empty list", async () => {
+    const RANKING_ONE_EP = {
+      ...RANKING,
+      size_thresholds_by_type: {
+        episode: [{ at: 500_000_000, score: 3 }],
+      },
+    };
+    getFileMock.mockResolvedValue({
+      name: "ranking.json5",
+      values: { ranking: RANKING_ONE_EP },
+      sha256: "sha-abc",
+      shadowed_keys: [],
+    });
+
+    renderPanel();
+    await screen.findByText("Épisodes");
+
+    const saveBtn = () => screen.getByRole("button", { name: "Enregistrer" });
+    expect(saveBtn()).toBeDisabled();
+
+    // Remove the single episode row.
+    const removeBtn = screen.getByLabelText("Retirer le seuil Épisodes");
+    fireEvent.click(removeBtn);
+
+    // All three types now show inherit state (key removed, dict is empty).
+    const inheritTexts = screen.getAllByText("Hérite des paliers génériques.");
+    expect(inheritTexts).toHaveLength(3);
+
+    // Draft is dirty (key was removed from the dict).
+    await waitFor(() => {
+      expect(saveBtn()).toBeEnabled();
+    });
+
+    // Save and verify the payload has NO "episode" key.
+    fireEvent.click(saveBtn());
+    await waitFor(() => {
+      expect(putFileMock).toHaveBeenCalled();
+    });
+
+    const [, body] = putFileMock.mock.calls[0] as [
+      string,
+      { values: { ranking: typeof RANKING_ONE_EP }; base_sha256: string },
+    ];
+    const tiers = body.values.ranking.size_thresholds_by_type;
+    // After removing the only key, the dict should be null (no entries left).
+    expect(tiers).toBeNull();
+  });
 });

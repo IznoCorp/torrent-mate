@@ -3761,6 +3761,15 @@ export interface components {
          *         criteria: Ordered list of :class:`RankingCriterion` to evaluate.
          *         bonuses: Bonus point configuration.
          *         min_seeders: Minimum seeders required for a result to be considered.
+         *         size_thresholds_by_type: Optional per-media-type size thresholds that
+         *             override the generic ``size`` criterion's ``thresholds`` when the
+         *             grab context knows the wanted item's kind.  Valid keys are
+         *             ``"movie"``, ``"episode"``, and ``"season"`` (forward-provisioned
+         *             for season-kind wanted items that will land with the whole-season
+         *             feature).  Empty lists are allowed (no override for that kind).
+         *             When ``None`` (default) or when a kind has no entry (or an empty
+         *             list), ``rank()`` falls back to the criterion's own ``thresholds``
+         *             — byte-identical to the current behavior.
          */
         RankingConfig: {
             bonuses?: components["schemas"]["RankingBonuses"];
@@ -3771,6 +3780,10 @@ export interface components {
              * @default 1
              */
             min_seeders: number;
+            /** Size Thresholds By Type */
+            size_thresholds_by_type?: {
+                [key: string]: components["schemas"]["ThresholdEntry"][];
+            } | null;
         };
         /**
          * RankingCriterion

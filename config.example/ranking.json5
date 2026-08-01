@@ -58,5 +58,32 @@
     ],
     bonuses: { freeleech: 10, silverleech: 5 },
     min_seeders: 1,
+    // Per-media-type size thresholds (#376). When the grab pass knows the
+    // wanted item's kind ("movie", "episode", or "season"), these override the
+    // generic "size" criterion's thresholds for that kind. The criterion's
+    // "prefer" still applies.  Omit or set to null to use the generic size
+    // thresholds for all kinds (current behaviour).
+    //
+    // size_thresholds_by_type: {
+    //   movie: [
+    //     { at: 0, score: 0 },
+    //     { at: "4GB", score: 5 },
+    //     { at: "8GB", score: 10 },
+    //     { at: "15GB", score: 15 },
+    //   ],
+    //   episode: [
+    //     { at: 0, score: 0 },
+    //     { at: "500MB", score: 5 },
+    //     { at: "1GB", score: 10 },
+    //   ],
+    //   // Forward-provisioned: season-kind wanted items will land with the
+    //   // whole-season feature. Sensible defaults for a full season pack.
+    //   season: [
+    //     { at: 0, score: 0 },
+    //     { at: "10GB", score: 5 },
+    //     { at: "30GB", score: 10 },
+    //     { at: "60GB", score: 15 },
+    //   ],
+    // },
   },
 }

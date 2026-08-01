@@ -209,3 +209,170 @@ class TestRankSortStability:
         )
         scored = rank([a, b, c], cfg)
         assert [r[0].title for r in scored] == ["A", "B", "C"]
+
+
+# ---------------------------------------------------------------------------
+# Per-media-type size thresholds (#376)
+# ---------------------------------------------------------------------------
+
+
+_MOVIE_TIERS: list[ThresholdEntry] = [
+    ThresholdEntry(at=0, score=0),
+    ThresholdEntry(at="4GB", score=5),  # type: ignore[arg-type]
+    ThresholdEntry(at="15GB", score=10),  # type: ignore[arg-type]
+]
+_EPISODE_TIERS: list[ThresholdEntry] = [
+    ThresholdEntry(at=0, score=0),
+    ThresholdEntry(at="500MB", score=5),  # type: ignore[arg-type]
+    ThresholdEntry(at="2GB", score=10),  # type: ignore[arg-type]
+]
+_GENERIC_SIZE_CRITERION = RankingCriterion(
+    field="size",
+    prefer="higher",
+    thresholds=[
+        ThresholdEntry(at=0, score=0),
+        ThresholdEntry(at="1GB", score=5),  # type: ignore[arg-type]
+        ThresholdEntry(at="5GB", score=10),  # type: ignore[arg-type]
+    ],
+)
+
+
+class TestRankMediaKind:
+    """media_kind parameter for per-type size thresholds."""
+
+    def test_media_kind_none_is_byte_identical(self) -> None:
+        """media_kind=None produces the same scores as today (golden pin)."""
+        cfg = RankingConfig(criteria=[_GENERIC_SIZE_CRITERION], min_seeders=0)
+        r = _result(size=5_000_000_000)
+        # With media_kind=None
+        scored_none = rank([r], cfg, media_kind=None)
+        # Without media_kind (default)
+        scored_default = rank([r], cfg)
+        assert scored_none[0][1] == scored_default[0][1] == 10
+
+    def test_movie_kind_uses_movie_tiers(self) -> None:
+        """A 6GB movie: generic tiers give 10pts (≥5GB), movie tiers give 5pts (≥4GB but <15GB)."""
+        cfg = RankingConfig(
+            criteria=[_GENERIC_SIZE_CRITERION],
+            min_seeders=0,
+            size_thresholds_by_type={"movie": _MOVIE_TIERS},
+        )
+        r = _result(size=6_000_000_000)
+        # Generic: ≥5GB → 10. Movie: ≥4GB but <15GB → 5.
+        assert rank([r], cfg)[0][1] == 10  # no override
+        assert rank([r], cfg, media_kind="movie")[0][1] == 5
+
+    def test_episode_kind_uses_episode_tiers(self) -> None:
+        """A 600MB episode: generic tiers give 0 (below 1GB), episode tiers give 5 (≥500MB)."""
+        cfg = RankingConfig(
+            criteria=[_GENERIC_SIZE_CRITERION],
+            min_seeders=0,
+            size_thresholds_by_type={"episode": _EPISODE_TIERS},
+        )
+        r = _result(size=600_000_000)
+        assert rank([r], cfg)[0][1] == 0  # generic: below 1GB → 0
+        assert rank([r], cfg, media_kind="episode")[0][1] == 5
+
+    def test_kind_set_but_no_entry_falls_back_to_generic(self) -> None:
+        """When media_kind='episode' but no episode entry exists, use generic thresholds."""
+        cfg = RankingConfig(
+            criteria=[_GENERIC_SIZE_CRITERION],
+            min_seeders=0,
+            size_thresholds_by_type={"movie": _MOVIE_TIERS},
+        )
+        r = _result(size=5_000_000_000)
+        # 'episode' has no by-type entry → falls back to generic
+        assert rank([r], cfg, media_kind="episode")[0][1] == 10
+
+    def test_empty_list_entry_falls_back_to_generic(self) -> None:
+        """An empty list for a kind → fall back to generic thresholds."""
+        cfg = RankingConfig(
+            criteria=[_GENERIC_SIZE_CRITERION],
+            min_seeders=0,
+            size_thresholds_by_type={"movie": []},
+        )
+        r = _result(size=5_000_000_000)
+        # Empty list → fall back to generic
+        assert rank([r], cfg, media_kind="movie")[0][1] == 10
+
+    def test_prefer_lower_still_applies_with_by_type(self) -> None:
+        """The criterion's prefer='lower' still applies with per-type thresholds."""
+        cfg = RankingConfig(
+            criteria=[
+                RankingCriterion(
+                    field="size",
+                    prefer="lower",
+                    thresholds=[
+                        ThresholdEntry(at="1GB", score=10),  # type: ignore[arg-type]
+                        ThresholdEntry(at="3GB", score=5),  # type: ignore[arg-type]
+                    ],
+                ),
+            ],
+            min_seeders=0,
+            size_thresholds_by_type={
+                "movie": [
+                    ThresholdEntry(at="2GB", score=10),  # type: ignore[arg-type]
+                    ThresholdEntry(at="8GB", score=5),  # type: ignore[arg-type]
+                ],
+            },
+        )
+        small = _result(size=1_500_000_000)
+        large = _result(size=10_000_000_000)
+        # prefer="lower": smaller is better. movie tier: <2GB → 10, >8GB → 0.
+        scored = rank([large, small], cfg, media_kind="movie")
+        assert scored[0][0] is small
+        assert scored[0][1] == 10
+        assert scored[1][1] == 0
+
+    def test_non_size_criterion_unaffected(self) -> None:
+        """media_kind only affects the 'size' field; other criteria are unchanged."""
+        cfg = RankingConfig(
+            criteria=[
+                RankingCriterion(field="seeders", thresholds=[ThresholdEntry(at=1, score=20)]),
+                _GENERIC_SIZE_CRITERION,
+            ],
+            min_seeders=0,
+            size_thresholds_by_type={"movie": _MOVIE_TIERS},
+        )
+        r = _result(size=6_000_000_000, seeders=10)
+        # seeders: 20pts + size: with movie tiers: 5pts = 25
+        assert rank([r], cfg, media_kind="movie")[0][1] == 25
+        # seeders: 20pts + size: generic: 10pts = 30
+        assert rank([r], cfg)[0][1] == 30
+
+    def test_media_kind_ignored_when_no_size_thresholds_by_type(self) -> None:
+        """When size_thresholds_by_type is None, media_kind is a no-op."""
+        cfg = RankingConfig(criteria=[_GENERIC_SIZE_CRITERION], min_seeders=0)
+        r = _result(size=6_000_000_000)
+        assert rank([r], cfg, media_kind="movie")[0][1] == 10
+        assert rank([r], cfg, media_kind="episode")[0][1] == 10
+
+    def test_exclude_hashes_and_media_kind_compose(self) -> None:
+        """exclude_hashes and media_kind both work when passed together."""
+        cfg = RankingConfig(
+            criteria=[_GENERIC_SIZE_CRITERION],
+            min_seeders=0,
+            size_thresholds_by_type={"movie": _MOVIE_TIERS},
+        )
+        excluded = _result(size=15_000_000_000)
+        # Give it an info_hash so it can be excluded.
+        excluded = TrackerResult(
+            provider="test",
+            tracker_id="t1",
+            title="excluded",
+            size=ByteSize.parse(15_000_000_000),
+            seeders=10,
+            leechers=0,
+            info_hash="deadbeef",
+        )
+        kept = _result(size=6_000_000_000)
+        scored = rank(
+            [excluded, kept],
+            cfg,
+            exclude_hashes=frozenset({"deadbeef"}),
+            media_kind="movie",
+        )
+        assert len(scored) == 1
+        assert scored[0][0] is kept
+        # 6GB vs movie tiers: ≥4GB → 5
+        assert scored[0][1] == 5
