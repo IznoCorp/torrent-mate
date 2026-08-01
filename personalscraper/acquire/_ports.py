@@ -254,6 +254,20 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def absorb_episodes(self, season_wanted_id: int, episode_ids: tuple[int, ...]) -> int:
+        """Transition episode wanteds to ``absorbed``, linking them to the season row.
+
+        Called when a season wanted absorbs its live episode siblings (R5).
+
+        Args:
+            season_wanted_id: Rowid of the absorbing season ``wanted`` row.
+            episode_ids: Rowids of the episode rows to absorb.
+
+        Returns:
+            Number of rows actually transitioned.
+        """
+        ...
+
 
 @runtime_checkable
 class SeedSubStore(Protocol):

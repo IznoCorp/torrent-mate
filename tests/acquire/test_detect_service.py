@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Literal
@@ -20,7 +20,7 @@ import pytest
 
 from personalscraper.acquire.detect import DetectOutcome, DetectService, DetectStatus
 from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, WantedItem
-from personalscraper.acquire.events import FilmAcquired, WantedEnqueued
+from personalscraper.acquire.events import FilmAcquired, SeasonAbsorbedEpisodes, WantedEnqueued
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig, CadenceConfig
 from personalscraper.core.event_bus import EventBus
@@ -198,9 +198,9 @@ def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquire
             series=None, dry_run=False, today=today, now=int(time.time())
         )
 
-    # Only the aired episode produced an enqueue action — the future produced none.
-    assert [a.outcome for a in result.actions] == [DetectOutcome.ENQUEUED]
-    assert result.summary.enqueued == 1
+    # Only the aired episode + season produced enqueue actions — the future produced none.
+    assert [a.outcome for a in result.actions] == [DetectOutcome.ENQUEUED, DetectOutcome.ENQUEUED]
+    assert result.summary.enqueued == 2
 
     # The cache holds BOTH the aired and the announced episode.
     cached = {(r.season, r.episode): r.air_date for r in store.aired.list_for_followed(fid)}
@@ -209,3 +209,258 @@ def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquire
     # The wanted queue holds the aired episode ONLY — the future is never enqueued.
     wanted = store.wanted.list_for_followed(fid, kind="episode")
     assert [(w.season, w.episode) for w in wanted] == [(2, 1)], "a future must NEVER become a wanted row"
+
+    # The season wanted was also enqueued.
+    season_row = store.wanted.find(followed_id=fid, kind="season", season=2, episode=None)
+    assert season_row is not None and season_row.kind == "season"
+
+
+# ── season detection (R1 + R5) ─────────────────────────────────────────
+
+
+class _StubPerEpisodeOwnership:
+    """Ownership stub that checks per-episode ownership via a set of (season, episode)."""
+
+    def __init__(self, owned_eps: set[tuple[int, int]]) -> None:
+        self._owned_eps = owned_eps
+
+    def owns(
+        self,
+        media_ref: MediaRef,
+        *,
+        kind: Literal["movie", "episode"],
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> bool:
+        if kind == "episode" and season is not None and episode is not None:
+            return (season, episode) in self._owned_eps
+        return False
+
+
+def _aired_season(
+    ref: MediaRef, season: int, count: int, *, today: date, last_days_ago: int = 14
+) -> list[AiredEpisode]:
+    """Build aired episodes for one season, all aired before ``today``.
+
+    The last episode (highest episode number) airs ``last_days_ago`` days
+    before ``today``; earlier episodes are spread further back.
+    """
+    eps = []
+    for ep_num in range(1, count + 1):
+        days_back = last_days_ago + (count - ep_num)  # ep 1 = oldest, ep N = last_days_ago ago
+        eps.append(
+            AiredEpisode(
+                media_ref=ref, season=season, episode=ep_num,
+                air_date=today - timedelta(days=days_back), title=f"Ep{ep_num}",
+            )
+        )
+    return eps
+
+
+def test_season_detect_enqueues_when_conditions_met(store: ConcreteAcquireStore) -> None:
+    """R1: last ep aired >= 7d, owned <= half → season wanted enqueued."""
+    ref = MediaRef(tvdb_id=99)
+    fid = store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=14)
+    # Own 2 of 6 → 2 <= 3 (half) → enqueue
+    owned = _StubPerEpisodeOwnership({(2, 1), (2, 2)})
+    bus = EventBus()
+    enqueued: list[WantedEnqueued] = []
+    bus.subscribe(WantedEnqueued, enqueued.append)
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=bus, config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    assert result.status is DetectStatus.OK
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 1
+    assert season_actions[0].outcome is DetectOutcome.ENQUEUED
+    season_wanted = store.wanted.find(followed_id=fid, kind="season", season=2, episode=None)
+    assert season_wanted is not None and season_wanted.kind == "season"
+    season_emitted = [e for e in enqueued if e.kind == "season"]
+    assert len(season_emitted) == 1
+
+
+def test_season_detect_skips_when_last_ep_recent(store: ConcreteAcquireStore) -> None:
+    """R1(b): last ep aired < 7d ago → no season wanted."""
+    ref = MediaRef(tvdb_id=99)
+    store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 4, today=today, last_days_ago=3)  # 3d ago < 7d
+    owned = _StubPerEpisodeOwnership(set())
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 0
+
+
+def test_season_detect_skips_when_more_than_half_owned(store: ConcreteAcquireStore) -> None:
+    """R1(c): owned > total/2 → skip."""
+    ref = MediaRef(tvdb_id=99)
+    store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=14)
+    owned = _StubPerEpisodeOwnership({(2, 1), (2, 2), (2, 3), (2, 4)})  # 4 of 6
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 0
+
+
+def test_season_detect_skips_when_fully_owned(store: ConcreteAcquireStore) -> None:
+    """R1(e): owned == total → skip."""
+    ref = MediaRef(tvdb_id=99)
+    store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 4, today=today, last_days_ago=14)
+    owned = _StubPerEpisodeOwnership({(2, 1), (2, 2), (2, 3), (2, 4)})
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 0
+
+
+def test_season_detect_skips_when_duplicate(store: ConcreteAcquireStore) -> None:
+    """R1(d): live season wanted already exists → skip."""
+    ref = MediaRef(tvdb_id=99)
+    fid = store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    # Pre-insert a season wanted
+    store.wanted.add(
+        WantedItem(
+            media_ref=ref, kind="season", status="pending",
+            enqueued_at=1, followed_id=fid, season=2, episode=None,
+        )
+    )
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=14)
+    owned = _StubPerEpisodeOwnership(set())
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 0
+
+
+def test_season_detect_absorbs_episode_wanteds(store: ConcreteAcquireStore) -> None:
+    """R5: enqueued season absorbs live episode wanteds."""
+    ref = MediaRef(tvdb_id=99)
+    fid = store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    # Pre-insert episode wanteds for the season
+    for ep_num in range(1, 7):
+        store.wanted.add(
+            WantedItem(
+                media_ref=ref, kind="episode", status="pending",
+                enqueued_at=1, followed_id=fid, season=2, episode=ep_num,
+            )
+        )
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=14)
+    owned = _StubPerEpisodeOwnership({(2, 1), (2, 2)})  # 2 owned, 4 unowned → 2 <= 3
+    bus = EventBus()
+    absorbed_events: list[SeasonAbsorbedEpisodes] = []
+    bus.subscribe(SeasonAbsorbedEpisodes, absorbed_events.append)
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=bus, config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    assert result.status is DetectStatus.OK
+    assert len(absorbed_events) == 1
+    assert absorbed_events[0].season == 2
+    assert len(absorbed_events[0].absorbed_ids) == 4  # 4 unowned → 4 pending eps absorbed
+
+    # Verify episode rows are now absorbed (or done for reconcile-closed owned ones)
+    for ep_num in range(1, 7):
+        row = store.wanted.find(followed_id=fid, kind="episode", season=2, episode=ep_num)
+        assert row is not None
+        if (2, ep_num) in owned._owned_eps:
+            assert row.status == "done"  # reconcile closed these owned pre-inserted rows
+        else:
+            assert row.status == "absorbed"
+
+
+def test_season_detect_boundary_exactly_7_days(store: ConcreteAcquireStore) -> None:
+    """R1 boundary: last ep aired exactly 7 days ago → enqueue."""
+    ref = MediaRef(tvdb_id=99)
+    store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=7)  # exactly 7
+    owned = _StubPerEpisodeOwnership(set())
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 1
+
+
+def test_season_detect_boundary_exactly_half_owned(store: ConcreteAcquireStore) -> None:
+    """R1 boundary: exactly half owned → enqueue."""
+    ref = MediaRef(tvdb_id=99)
+    store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=14)
+    owned = _StubPerEpisodeOwnership({(2, 1), (2, 2), (2, 3)})  # exactly 3 of 6
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 1
+
+
+def test_season_detect_dry_run_no_writes(store: ConcreteAcquireStore) -> None:
+    """Dry-run: actions recorded but no wanted rows / events."""
+    ref = MediaRef(tvdb_id=99)
+    store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=14)
+    owned = _StubPerEpisodeOwnership(set())
+
+    bus = EventBus()
+    emitted: list[WantedEnqueued] = []
+    bus.subscribe(WantedEnqueued, emitted.append)
+
+    svc = DetectService(
+        store=store, ownership=owned, registry=MagicMock(), event_bus=bus, config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=True, today=today, now=100)
+
+    season_actions = [a for a in result.actions if a.kind == "season"]
+    assert len(season_actions) == 1
+    # Dry-run: no wanted row persisted
+    assert store.wanted.find(followed_id=1, kind="season", season=2, episode=None) is None
+    # Dry-run: no events emitted
+    assert len(emitted) == 0

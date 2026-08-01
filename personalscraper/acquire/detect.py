@@ -30,7 +30,7 @@ from personalscraper.acquire.airing import poll_known
 from personalscraper.acquire.cadence import is_past_cutoff
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import WantedItem
-from personalscraper.acquire.events import FilmAcquired, WantedEnqueued
+from personalscraper.acquire.events import FilmAcquired, SeasonAbsorbedEpisodes, WantedEnqueued
 from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.logger import get_logger
 
@@ -226,6 +226,17 @@ class DetectService:
                 continue
             self._detect_episode(ep, by_ref, actions, counts, dry_run=dry_run, now=now)
 
+        # --- P3: season detection (R1) ---
+        self._detect_seasons(
+            [ep for ep in known if ep.air_date <= today],
+            by_ref,
+            actions,
+            counts,
+            dry_run=dry_run,
+            now=now,
+            today=today,
+        )
+
         summary = DetectSummary(
             enqueued=counts.enqueued,
             skipped_owned=counts.skipped_owned,
@@ -407,6 +418,160 @@ class DetectService:
                 WantedEnqueued(media_ref=ep.media_ref, kind="episode", season=ep.season, episode=ep.episode)
             )
             log.info("acquire.detect.enqueued", series=fs.title, season=ep.season, episode=ep.episode)
+
+    def _detect_seasons(
+        self,
+        aired: "list[AiredEpisode]",
+        by_ref: "dict[MediaRef, FollowedSeries]",
+        actions: list[DetectAction],
+        counts: "_MutableCounts",
+        *,
+        dry_run: bool,
+        now: int,
+        today: "date",
+    ) -> None:
+        """Post-pass: group aired episodes by season and enqueue season wanteds (R1).
+
+        Runs AFTER the per-episode pass so episode wanteds exist when absorption
+        runs. One season wanted per follow+season — same dedup rule as movies.
+
+        Args:
+            aired: Every aired episode (air_date <= today, per filter in run()).
+            by_ref: Followed-series lookup by MediaRef.
+            actions: Output list (mutated).
+            counts: Running counters (mutated).
+            dry_run: When True, no writes or events happen.
+            now: Unix epoch seconds (stamps enqueued_at).
+            today: The reference date (for the 7-day gate).
+        """
+        from datetime import timedelta
+
+        # Group aired episodes by (followed_id, season).
+        season_eps: dict[tuple[int, int], list[AiredEpisode]] = {}
+        for ep in aired:
+            fs = by_ref.get(ep.media_ref)
+            if fs is None or fs.id is None:
+                continue
+            key = (fs.id, ep.season)
+            season_eps.setdefault(key, []).append(ep)
+
+        cutoff = today - timedelta(days=7)
+
+        for (followed_id, season_num), eps in season_eps.items():
+            total = len(eps)
+
+            # (b) Last aired date must be >= 7 days ago.
+            last_air = max(ep.air_date for ep in eps)
+            if last_air > cutoff:
+                continue
+
+            # (c) Count owned episodes.
+            owned = 0
+            for ep in eps:
+                try:
+                    if self._ownership.owns(
+                        ep.media_ref, kind="episode", season=ep.season, episode=ep.episode
+                    ):
+                        owned += 1
+                except Exception:  # fail-soft
+                    pass
+
+            # (e) Not fully owned.
+            if owned == total:
+                continue
+
+            # (c) Owned <= total/2.
+            if owned > total / 2:
+                continue
+
+            # (d) Dedup: one live season wanted per follow+season.
+            existing = self._store.wanted.find(
+                followed_id=followed_id,
+                kind="season",
+                season=season_num,
+                episode=None,
+            )
+            if existing is not None:
+                continue
+
+            # Locate the FollowedSeries for title/events.
+            fs = next((s for s in by_ref.values() if s.id == followed_id), None)
+            if fs is None:
+                continue
+
+            # --- Enqueue the season wanted ---
+            actions.append(
+                DetectAction(
+                    "season",
+                    fs.title,
+                    season_num,
+                    None,
+                    str(last_air),
+                    None,
+                    DetectOutcome.ENQUEUED,
+                )
+            )
+            counts.enqueued += 1
+
+            if dry_run:
+                continue
+
+            season_wid = self._store.wanted.add(
+                WantedItem(
+                    media_ref=fs.media_ref,
+                    kind="season",
+                    status="pending",
+                    enqueued_at=now,
+                    followed_id=followed_id,
+                    season=season_num,
+                    episode=None,
+                )
+            )
+            self._event_bus.emit(
+                WantedEnqueued(
+                    media_ref=fs.media_ref,
+                    kind="season",
+                    season=season_num,
+                    episode=None,
+                )
+            )
+            log.info(
+                "acquire.detect.season_enqueued",
+                series=fs.title,
+                season=season_num,
+                aired=total,
+                owned=owned,
+                last_air=str(last_air),
+            )
+
+            # --- R5: Absorb live episode wanteds for this season ---
+            absorbed_ids: list[int] = []
+            for ep in eps:
+                ep_wanted = self._store.wanted.find(
+                    followed_id=followed_id,
+                    kind="episode",
+                    season=ep.season,
+                    episode=ep.episode,
+                )
+                if ep_wanted is not None and ep_wanted.id is not None:
+                    if ep_wanted.status in ("pending", "searching", "available"):
+                        absorbed_ids.append(ep_wanted.id)
+
+            if absorbed_ids:
+                self._store.wanted.absorb_episodes(season_wid, tuple(absorbed_ids))
+                self._event_bus.emit(
+                    SeasonAbsorbedEpisodes(
+                        season_wanted_id=season_wid,
+                        media_ref=fs.media_ref,
+                        season=season_num,
+                        absorbed_ids=tuple(absorbed_ids),
+                    )
+                )
+                log.info(
+                    "acquire.detect.season_absorbed",
+                    season_wanted_id=season_wid,
+                    absorbed_count=len(absorbed_ids),
+                )
 
 
 @dataclass
