@@ -24,6 +24,7 @@ import {
   type RankingConfig,
   type RankingCriterion,
   type RankingPreviewResponse,
+  type ThresholdEntry,
 } from "@/api/acquisition";
 import { ApiError } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
@@ -260,6 +261,206 @@ function CriterionCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Size thresholds by type — per-media-type size tiers editor
+// ---------------------------------------------------------------------------
+
+/** GB → bytes conversion factor (decimal GB: 10^9, matching ByteSize._DEC). */
+const GB_BYTES = 1_000_000_000;
+
+/** Convert bytes to GB for display. */
+function bytesToGB(bytes: number): number {
+  return bytes / GB_BYTES;
+}
+
+/** Convert GB to bytes for storage. */
+function gbToBytes(gb: number): number {
+  return Math.round(gb * GB_BYTES);
+}
+
+/** Valid media-type keys for size_thresholds_by_type. */
+const VALID_TYPE_KEYS = ["movie", "season", "episode"] as const;
+
+/** French labels for the three media types. */
+const TYPE_LABEL: Record<(typeof VALID_TYPE_KEYS)[number], string> = {
+  movie: "Films",
+  season: "Saisons",
+  episode: "Épisodes",
+};
+
+/**
+ * Normalize draft before save — sort each type's thresholds by ``at`` ascending.
+ *
+ * Does NOT mutate the draft; returns a shallow clone with sorted per-type
+ * arrays.  When ``size_thresholds_by_type`` is ``null`` / ``undefined`` the
+ * draft is returned unchanged.
+ */
+function normalizeThresholds(draft: RankingConfig): RankingConfig {
+  const byType = draft.size_thresholds_by_type;
+  if (byType == null) return draft;
+  let changed = false;
+  const normalized: Record<string, ThresholdEntry[]> = {};
+  for (const [type, rows] of Object.entries(byType)) {
+    const sorted = [...rows].sort((a, b) => a.at - b.at);
+    normalized[type] = sorted;
+    if (sorted.some((r, i) => r !== rows[i])) changed = true;
+  }
+  if (!changed) return draft;
+  return { ...draft, size_thresholds_by_type: normalized };
+}
+
+/**
+ * Per-media-type size tiers editor.
+ *
+ * Renders three sub-blocks — Films / Saisons / Épisodes — each with an
+ * enable/disable checkbox, editable (at-in-GB, score) rows, add/remove
+ * buttons, and an inherit-fallback label when the type is absent from
+ * ``size_thresholds_by_type``.  Removing the last row of a type deletes the
+ * key entirely (inherit) rather than leaving an empty list.
+ *
+ * Serves product-intent §1 (compréhensible sans être ingénieur) and §3
+ * (l'opérateur garde la main).
+ */
+function SizeThresholdsEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, ThresholdEntry[]> | null | undefined;
+  onChange: (next: Record<string, ThresholdEntry[]> | null) => void;
+}): ReactElement {
+  const current = value ?? {};
+
+  function removeKey(
+    obj: Record<string, ThresholdEntry[]>,
+    key: string,
+  ): Record<string, ThresholdEntry[]> | null {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructuring to remove the key
+    const { [key]: _removed, ...rest } = obj;
+    return Object.keys(rest).length > 0 ? rest : null;
+  }
+
+  function setTypeEnabled(type: string, enabled: boolean): void {
+    if (enabled) {
+      // Initialize with a sensible default row.
+      onChange({ ...current, [type]: [{ at: gbToBytes(1), score: 5 }] });
+    } else {
+      // Remove key → inherit from generic thresholds.
+      onChange(removeKey(current, type));
+    }
+  }
+
+  function updateRows(type: string, rows: ThresholdEntry[]): void {
+    if (rows.length === 0) {
+      // Remove key → inherit (cleaner than an empty list).
+      onChange(removeKey(current, type));
+    } else {
+      onChange({ ...current, [type]: rows });
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {VALID_TYPE_KEYS.map((type) => {
+        const rows = current[type];
+        const enabled = rows != null && rows.length > 0;
+        return (
+          <div
+            key={type}
+            className="flex flex-col gap-2 rounded-lg border border-border p-3"
+          >
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={enabled}
+                className="h-4 w-4"
+                aria-label={`Activer les paliers ${TYPE_LABEL[type]}`}
+                onChange={(e) => {
+                  setTypeEnabled(type, e.target.checked);
+                }}
+              />
+              <span className="text-sm font-medium">{TYPE_LABEL[type]}</span>
+            </label>
+
+            {type === "season" && (
+              <p className="text-xs text-muted-foreground italic">
+                Appliqué quand la récupération par saison entière sera
+                disponible.
+              </p>
+            )}
+
+            {!enabled ? (
+              <p className="text-xs text-muted-foreground">
+                Hérite des paliers génériques.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {rows.map((entry, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={String(bytesToGB(entry.at))}
+                      aria-label={`Seuil ${TYPE_LABEL[type]} GB`}
+                      className="h-8 w-20"
+                      onChange={(e) => {
+                        const gb = parseNum(
+                          e.target.value,
+                          bytesToGB(entry.at),
+                        );
+                        const updated = [...rows];
+                        updated[i] = { at: gbToBytes(gb), score: entry.score };
+                        updateRows(type, updated);
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">GB</span>
+                    <Input
+                      type="number"
+                      value={String(entry.score)}
+                      aria-label={`Score ${TYPE_LABEL[type]}`}
+                      className="h-8 w-20"
+                      onChange={(e) => {
+                        const score = parseNum(e.target.value, entry.score);
+                        const updated = [...rows];
+                        updated[i] = { ...entry, score };
+                        updateRows(type, updated);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Retirer le seuil ${TYPE_LABEL[type]}`}
+                      onClick={() => {
+                        updateRows(
+                          type,
+                          rows.filter((_, j) => j !== i),
+                        );
+                      }}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => {
+                    updateRows(type, [...rows, { at: gbToBytes(1), score: 5 }]);
+                  }}
+                >
+                  Ajouter un palier
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The live-preview column: the sample releases scored under the current draft. */
 function PreviewColumn({
   preview,
@@ -367,7 +568,10 @@ export function ReglagesPanel(): ReactElement {
 
   async function handleSave(): Promise<void> {
     if (draft == null || fileQ.data == null) return;
-    const values = { ...fileQ.data.values, ranking: draft };
+    const values = {
+      ...fileQ.data.values,
+      ranking: normalizeThresholds(draft),
+    };
     try {
       const res = await putFile.mutateAsync({
         values,
@@ -527,6 +731,25 @@ export function ReglagesPanel(): ReactElement {
                 />
               </label>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+            <span className="text-sm font-medium">
+              Paliers de taille par type
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Des seuils spécifiques par type de média qui remplacent les
+              paliers génériques du critère « Taille » quand le type est connu
+              au moment du grab.
+            </p>
+            <SizeThresholdsEditor
+              value={draft.size_thresholds_by_type}
+              onChange={(next) => {
+                setDraft((d) =>
+                  d ? { ...d, size_thresholds_by_type: next } : d,
+                );
+              }}
+            />
           </div>
 
           {(draft.criteria ?? []).map((criterion, index) => (
