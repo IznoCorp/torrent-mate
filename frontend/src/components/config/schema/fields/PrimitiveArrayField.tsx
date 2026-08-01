@@ -77,7 +77,8 @@ export function PrimitiveArrayField({
                 variant="ghost"
                 size="sm"
                 aria-label={`Supprimer l'élément ${String(i)}`}
-                className="mt-5 shrink-0"
+                // X4: 44px touch target on mobile, compact on desktop.
+                className="mt-5 min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
                 onClick={() => {
                   removeAt(i);
                 }}
@@ -94,7 +95,8 @@ export function PrimitiveArrayField({
           type="button"
           variant="outline"
           size="sm"
-          className="self-start"
+          // X4: 44px touch target on mobile, compact on desktop.
+          className="min-h-11 self-start md:min-h-8"
           aria-label="Ajouter un élément"
           onClick={addItem}
         >

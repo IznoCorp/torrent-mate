@@ -196,6 +196,8 @@ export function DecisionList({
                         type="button"
                         variant="ghost"
                         size="sm"
+                        // X4: 44px touch height on mobile, compact on desktop.
+                        className="min-h-11 md:min-h-8"
                         disabled={dismissingId === item.id}
                         onClick={() => {
                           onQuickDismiss(item.id);

@@ -78,6 +78,8 @@ export function ObjectArrayField({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  // X4: 44px touch target on mobile, compact on desktop.
+                  className="min-h-11 min-w-11 md:min-h-8 md:min-w-8"
                   aria-label={`Supprimer ${label} ${String(i + 1)}`}
                   onClick={() => {
                     removeAt(i);
@@ -109,7 +111,8 @@ export function ObjectArrayField({
           type="button"
           variant="outline"
           size="sm"
-          className="self-start"
+          // X4: 44px touch target on mobile, compact on desktop.
+          className="min-h-11 self-start md:min-h-8"
           aria-label={`Ajouter ${label}`}
           onClick={addItem}
         >

@@ -325,9 +325,11 @@ export default function Medias(): ReactElement {
         title="Médias"
         actions={
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            {/* X4: 44px touch height on mobile, compact sm height on desktop. */}
             <Button
               type="button"
               size="sm"
+              className="min-h-11 md:min-h-8"
               variant={tab === "library" ? "default" : "ghost"}
               onClick={() => {
                 setTab("library");
@@ -338,6 +340,7 @@ export default function Medias(): ReactElement {
             <Button
               type="button"
               size="sm"
+              className="min-h-11 md:min-h-8"
               variant={tab === "resolve" ? "default" : "ghost"}
               onClick={() => {
                 setTab("resolve");
@@ -349,6 +352,7 @@ export default function Medias(): ReactElement {
             <Button
               type="button"
               size="sm"
+              className="min-h-11 md:min-h-8"
               variant={tab === "decisions" ? "default" : "ghost"}
               onClick={() => {
                 setTab("decisions");
@@ -373,6 +377,8 @@ export default function Medias(): ReactElement {
                 key={seg.value}
                 type="button"
                 size="sm"
+                // X4: 44px touch height on mobile, compact on desktop.
+                className="min-h-11 md:min-h-8"
                 variant={segment === seg.value ? "default" : "ghost"}
                 aria-pressed={segment === seg.value}
                 onClick={() => {
@@ -423,6 +429,9 @@ export default function Medias(): ReactElement {
                         ? `${STATUS_TOOLTIP[status]} — échec du chargement`
                         : STATUS_TOOLTIP[status]
                     }
+                    // X4: the bare Badge is ~22px tall — give the chip a 44px
+                    // hit area on touch, compact again on desktop density.
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-8 md:min-w-8"
                     onClick={() => {
                       handleToggleStatus(status);
                     }}

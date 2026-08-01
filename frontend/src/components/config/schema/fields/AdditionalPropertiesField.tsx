@@ -117,7 +117,8 @@ export function AdditionalPropertiesField({
                 variant="ghost"
                 size="sm"
                 aria-label={`Supprimer la clé ${k}`}
-                className="mt-5 shrink-0"
+                // X4: 44px touch target on mobile, compact on desktop.
+                className="mt-5 min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
                 onClick={() => {
                   removeEntry(k);
                 }}
@@ -134,7 +135,8 @@ export function AdditionalPropertiesField({
           type="button"
           variant="outline"
           size="sm"
-          className="self-start"
+          // X4: 44px touch target on mobile, compact on desktop.
+          className="min-h-11 self-start md:min-h-8"
           aria-label="Ajouter une entrée"
           onClick={addEntry}
         >

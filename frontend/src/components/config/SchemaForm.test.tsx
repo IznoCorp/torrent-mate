@@ -263,6 +263,28 @@ describe("SchemaForm — array of primitives", () => {
     ).toBeInTheDocument();
   });
 
+  it("donne aux boutons ajouter/supprimer le minimum tactile mobile min-h-11 (X4)", () => {
+    render(
+      <SchemaForm
+        schema={{ type: "array", items: { type: "string" } }}
+        values={{ tags: ["alpha"] }}
+        onChange={vi.fn()}
+        path="tags"
+      />,
+    );
+
+    const add = screen.getByRole("button", { name: /Ajouter/ });
+    expect(add.className).toContain("min-h-11");
+    expect(add.className).toContain("md:min-h-8");
+
+    const remove = screen.getByRole("button", {
+      name: /Supprimer l'élément 0/,
+    });
+    expect(remove.className).toContain("min-h-11");
+    expect(remove.className).toContain("min-w-11");
+    expect(remove.className).toContain("md:min-h-8");
+  });
+
   it("ajoute un élément vide via le bouton +", () => {
     const onChange = vi.fn();
     render(

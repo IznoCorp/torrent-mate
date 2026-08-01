@@ -80,8 +80,7 @@ const useDecisionsMock = vi.fn();
 // (useDismissDecision for the inline quick-dismiss) so it still routes through
 // the mocked @/api/decisions dismissDecision asserted below.
 vi.mock("@/hooks/useDecisions", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/hooks/useDecisions")>();
+  const actual = await importOriginal<typeof import("@/hooks/useDecisions")>();
   return {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -350,6 +349,21 @@ describe("Medias", () => {
     expect(within(group).getByText("Résolues")).toBeInTheDocument();
     expect(within(group).getByText("Ignorées")).toBeInTheDocument();
     expect(within(group).getByText("Remplacées")).toBeInTheDocument();
+  });
+
+  it("donne aux chips le minimum tactile mobile min-h-11 (X4)", () => {
+    setupDecisionsList();
+    renderPage("decisions");
+    const group = screen.getByRole("group", {
+      name: /Filtrer les décisions par statut/,
+    });
+    // Every chip button holds the 44px touch minimum below md (min-h-11 /
+    // min-w-11) and compacts on desktop (md:min-h-8).
+    for (const chip of within(group).getAllByRole("button")) {
+      expect(chip.className).toContain("min-h-11");
+      expect(chip.className).toContain("min-w-11");
+      expect(chip.className).toContain("md:min-h-8");
+    }
   });
 
   it("affiche un compteur live par statut sur les chips", () => {
