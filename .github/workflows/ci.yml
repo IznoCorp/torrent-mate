@@ -104,6 +104,10 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     needs: [lint, typecheck]
+    # config-home (#326): the live config left the repo; fixtures that resolve a config
+    # dir (CWD fallback) get the tracked config.example via the resolver's env-first seam.
+    env:
+      PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
