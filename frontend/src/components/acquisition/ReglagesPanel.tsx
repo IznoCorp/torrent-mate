@@ -80,7 +80,7 @@ function ValuesEditor({
   values: Record<string, number>;
   onChange: (next: Record<string, number>) => void;
   /** When set, the key input becomes a select of these trackers (provider criterion). */
-  knownTrackers?: string[];
+  knownTrackers?: string[] | undefined;
 }): ReactElement {
   const [newKey, setNewKey] = useState("");
   const [newScore, setNewScore] = useState("");
@@ -211,7 +211,7 @@ function CriterionCard({
 }: {
   criterion: RankingCriterion;
   onChange: (next: RankingCriterion) => void;
-  knownTrackers?: string[];
+  knownTrackers?: string[] | undefined;
 }): ReactElement {
   const label = FIELD_LABEL[criterion.field] ?? criterion.field;
   return (
