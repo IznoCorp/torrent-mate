@@ -279,7 +279,7 @@ class TestInitConfigSync:
         assert (target / "config.json5").is_file()
         assert (target / "paths.json5").is_file()
 
-    def test_sync_up_to_date_reports_nothing(self, tmp_path: Path) -> None:
+    def test_sync_up_to_date_reports_nothing(self, tmp_path: Path, capsys) -> None:
         """Second sync with identical example reports no additions."""
         from personalscraper.commands.init_config import init_config_sync
 
@@ -291,7 +291,8 @@ class TestInitConfigSync:
         init_config_sync(example, target, dry_run=False)
         # Second sync: target already has everything
         init_config_sync(example, target, dry_run=False)
-        # No assertion needed — just ensure no error/exceptions
+        captured = capsys.readouterr()
+        assert "No new keys or files to add" in captured.out
 
     def test_sync_preserves_existing_target_values(self, tmp_path: Path) -> None:
         """After sync, a user-edited value in target remains unchanged."""
@@ -352,6 +353,81 @@ class TestInitConfigSync:
         # Verify new key was added
         final = json5.loads((target / "paths.json5").read_text())
         assert final["paths"]["data_dir"] == "/new/data"
+
+    def test_sync_conflicts_displayed_separately(self, tmp_path: Path, capsys) -> None:
+        """Type conflicts are displayed under 'Conflicts' section, excluded from 'Added' count."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        target.mkdir()
+
+        # Example has dict, but target will have a scalar → conflict.
+        (example / "paths.json5").write_text(json5.dumps({"paths": {"staging_dir": "/example/staging"}}, indent=2))
+        (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
+
+        # Pre-populate target with a scalar for "paths" — incompatible with example's dict.
+        (target / "paths.json5").write_text(json5.dumps({"paths": "scalar_value"}, indent=2))
+        (target / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
+
+        init_config_sync(example, target, dry_run=False)
+        captured = capsys.readouterr()
+
+        assert "Conflicts (kept your values):" in captured.out
+        assert "Added 0 item(s)" in captured.out
+        assert "paths" in captured.out
+
+    def test_sync_additions_count_excludes_conflicts(self, tmp_path: Path, capsys) -> None:
+        """Conflicts do not inflate the 'Added N item(s)' count."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        target.mkdir()
+
+        (example / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
+        (example / "paths.json5").write_text(
+            json5.dumps(
+                {"paths": {"staging_dir": "/s", "new_key": "added_val"}, "settings": {"theme": "dark"}},
+                indent=2,
+            )
+        )
+
+        # Target has "paths" as scalar (conflict) + "settings" as a dict with extra key.
+        (target / "config.json5").write_text(json5.dumps({"config_version": 1, "overlays": ["paths.json5"]}, indent=2))
+        (target / "paths.json5").write_text(json5.dumps({"paths": "scalar", "settings": {"existing": "ok"}}, indent=2))
+
+        init_config_sync(example, target, dry_run=False)
+        captured = capsys.readouterr()
+
+        # "paths" → conflict (example dict vs target scalar). "settings" → merged (both dicts),
+        # "theme" added. So: 1 addition ("settings.theme"), 1 conflict ("paths").
+        assert "Conflicts (kept your values):" in captured.out
+        assert "Added 1 item(s)" in captured.out
+        assert "paths" in captured.out
+
+    def test_sync_malformed_json5_exits_1(self, tmp_path: Path, capsys) -> None:
+        """Malformed JSON5 in example → clean error, Exit(1), no traceback."""
+        import typer as _typer
+
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        target.mkdir()
+
+        (example / "config.json5").write_text("{valid: true}")
+        (example / "broken.json5").write_text("not valid { json ~~~\n")
+
+        with pytest.raises(_typer.Exit) as exc_info:
+            init_config_sync(example, target, dry_run=False)
+        assert exc_info.value.exit_code == 1
+
+        captured = capsys.readouterr()
+        assert "Error:" in captured.err or "Error:" in captured.out
 
 
 class TestInitConfigCliCommand:

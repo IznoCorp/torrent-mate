@@ -394,7 +394,34 @@ def test_init_config_sync_and_force_mutually_exclusive(tmp_path: Path) -> None:
     assert_no_python_traceback(result)
 
 
-# ── 8. Events ──
+# ── 8. Malformed JSON5 (F-C) ──
+
+
+def test_init_config_sync_malformed_json5_clean_error(tmp_path: Path) -> None:
+    """Malformed JSON5 in example → clean user error, exit 1, no traceback."""
+    example = tmp_path / "config.example"
+    example.mkdir()
+    (example / "config.json5").write_text("{\n  valid: true\n}\n")
+    (example / "broken.json5").write_text("not valid { json ~~~\n")
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "broken.json5" in result.output
+    assert_no_python_traceback(result)
+
+
+# ── 9. Events ──
 
 # N/A: init-config is a filesystem bootstrap operation that runs before any
 # config or BDD exists. It has no EventBus — the command body constructs a

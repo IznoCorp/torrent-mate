@@ -10,6 +10,8 @@ from typing import Any
 
 import json5
 
+from personalscraper.conf.overlay import ConfigLoadError
+from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 
 log = get_logger("conf.sync")
@@ -26,7 +28,8 @@ def _deep_merge_additive(
     For every key in *example_dict*:
     - If the key is absent from *target_dict*, add it (with example value).
     - If both values are dicts, recurse.
-    - Otherwise, keep the target value (never overwrite).
+    - Otherwise, keep the target value (never overwrite) and report a conflict
+      when the types are structurally incompatible (dict vs non-dict).
 
     Args:
         example_dict: Source dict (from config.example).
@@ -34,24 +37,36 @@ def _deep_merge_additive(
         prefix: Dot-separated key path for reporting (e.g. ``"paths"``).
 
     Returns:
-        ``(merged_dict, additions)`` where *merged_dict* is the result and
-        *additions* is a list of human-readable descriptions.
+        ``(merged_dict, report_lines)`` where *merged_dict* is the result and
+        *report_lines* is a list of human-readable descriptions.  Addition
+        lines are plain strings like ``"add key: <path>"``; conflict lines are
+        prefixed ``"conflict (kept target):"``.
     """
     result = dict(target_dict)  # shallow copy — recursive calls re-copy
-    additions: list[str] = []
+    report: list[str] = []
 
     for key, example_val in example_dict.items():
         full_key = f"{prefix}.{key}" if prefix else key
         if key not in result:
             result[key] = example_val
-            additions.append(f"add key: {full_key}")
+            report.append(f"add key: {full_key}")
         elif isinstance(example_val, dict) and isinstance(result[key], dict):
-            merged_sub, sub_additions = _deep_merge_additive(example_val, result[key], prefix=full_key)
+            merged_sub, sub_report = _deep_merge_additive(example_val, result[key], prefix=full_key)
             result[key] = merged_sub
-            additions.extend(sub_additions)
-        # else: target value exists and is not a dict-to-dict — preserve as-is
+            report.extend(sub_report)
+        else:
+            # Key exists in target; only flag when structural types are
+            # incompatible (dict vs scalar/list).  Same non-dict types are
+            # intentionally silent — the target value is preserved and the
+            # example is ignored, which is the normal "user customised" case.
+            both_dicts = isinstance(example_val, dict) and isinstance(result[key], dict)
+            if not both_dicts and type(example_val) is not type(result[key]):
+                report.append(
+                    f"conflict (kept target): {full_key} "
+                    f"(example={type(example_val).__name__}, target={type(result[key]).__name__})"
+                )
 
-    return result, additions
+    return result, report
 
 
 def _files_to_sync(example: Path, target: Path) -> list[tuple[Path, Path, str]]:
@@ -97,11 +112,15 @@ def sync_config_dir(
         dry_run: If ``True``, report would-be additions without writing.
 
     Returns:
-        List of human-readable descriptions of every addition.
-        Empty if the target is already fully in sync.
+        List of human-readable descriptions of every addition.  Conflict
+        entries (preserved target values with incompatible shapes) are
+        prefixed ``"conflict (kept target):"``.  Empty if the target is
+        already fully in sync.
 
     Raises:
         FileNotFoundError: If *example* is not a directory.
+        ConfigLoadError: If an example or target file contains malformed
+            JSON5 that ``json5`` cannot parse.
     """
     if not example.is_dir():
         raise FileNotFoundError(f"Example directory not found: {example}")
@@ -109,25 +128,68 @@ def sync_config_dir(
     if not dry_run:
         target.mkdir(parents=True, exist_ok=True)
     pairs = _files_to_sync(example, target)
-    all_additions: list[str] = []
+    all_report: list[str] = []
+    copied_filenames: set[str] = set()
 
     for ex_path, tgt_path, action in pairs:
         if action == "copy":
+            # Validate the example file parses as valid JSON5 before copying
+            # — a malformed example shouldn't silently land in the target.
+            try:
+                json5.loads(ex_path.read_text(encoding="utf-8"))
+            except ValueError as exc:
+                raise ConfigLoadError(f"Malformed JSON5 in example file '{ex_path}': {exc}") from exc
             msg = f"copy new file: {tgt_path.name}"
-            all_additions.append(msg)
+            all_report.append(msg)
+            copied_filenames.add(tgt_path.name)
             if not dry_run:
-                tgt_path.write_text(ex_path.read_text(), encoding="utf-8")
+                atomic_write_text(tgt_path, ex_path.read_text(encoding="utf-8"))
         elif action == "merge":
-            ex_data = json5.loads(ex_path.read_text(encoding="utf-8"))
-            tgt_data = json5.loads(tgt_path.read_text(encoding="utf-8"))
-            merged, additions = _deep_merge_additive(ex_data, tgt_data)
-            if additions:
-                for a in additions:
-                    all_additions.append(f"{tgt_path.name}: {a}")
+            try:
+                ex_data = json5.loads(ex_path.read_text(encoding="utf-8"))
+            except ValueError as exc:
+                raise ConfigLoadError(f"Malformed JSON5 in example file '{ex_path}': {exc}") from exc
+            try:
+                tgt_data = json5.loads(tgt_path.read_text(encoding="utf-8"))
+            except ValueError as exc:
+                raise ConfigLoadError(f"Malformed JSON5 in target file '{tgt_path}': {exc}") from exc
+            merged, report = _deep_merge_additive(ex_data, tgt_data)
+            if report:
+                for line in report:
+                    all_report.append(f"{tgt_path.name}: {line}")
                 if not dry_run:
-                    tgt_path.write_text(json5.dumps(merged, indent=2), encoding="utf-8")
-            # else: no new keys to add — skip write (preserves comments in
-            # untouched sections, but a rewritten file loses hand-written
-            # comments in the merged sections — documented in DESIGN §3.3).
+                    atomic_write_text(tgt_path, json5.dumps(merged, indent=2))
 
-    return all_additions
+    # ── Overlay registration ──
+    # NEW overlay files copied from example must be registered in the target
+    # master config.json5 overlays list — otherwise their keys never load.
+    if copied_filenames and not dry_run:
+        master_name = "config.json5"
+        example_master = example / master_name
+        target_master = target / master_name
+        if example_master.is_file() and target_master.is_file():
+            try:
+                ex_master_data = json5.loads(example_master.read_text(encoding="utf-8"))
+            except ValueError:
+                ex_master_data = {}
+            try:
+                tgt_master_data = json5.loads(target_master.read_text(encoding="utf-8"))
+            except ValueError:
+                tgt_master_data = {}
+            ex_overlays: list[str] = list(ex_master_data.get("overlays", []))
+            tgt_overlays: list[str] = list(tgt_master_data.get("overlays", []))
+            tgt_overlay_set = set(tgt_overlays)
+
+            new_overlays: list[str] = []
+            for name in ex_overlays:
+                if name in copied_filenames and name not in tgt_overlay_set:
+                    new_overlays.append(name)
+
+            if new_overlays:
+                tgt_overlays.extend(new_overlays)
+                tgt_master_data["overlays"] = tgt_overlays
+                atomic_write_text(target_master, json5.dumps(tgt_master_data, indent=2))
+                for name in new_overlays:
+                    all_report.append(f"register overlay: {name}")
+
+    return all_report
