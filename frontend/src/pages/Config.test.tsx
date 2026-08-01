@@ -964,3 +964,64 @@ describe("Config — Secrets tab sibling (3.1)", () => {
     });
   });
 });
+
+describe("Config — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
+  it("relie chaque onglet au panneau : aria-controls, tabpanel, aria-labelledby", () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    const filesTab = screen.getByRole("tab", { name: "Fichiers" });
+    expect(filesTab).toHaveAttribute("id", "config-tab-files");
+    expect(filesTab).toHaveAttribute("aria-controls", "config-tabpanel");
+    expect(screen.getByRole("tab", { name: "Secrets" })).toHaveAttribute(
+      "aria-controls",
+      "config-tabpanel",
+    );
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", "config-tabpanel");
+    expect(panel).toHaveAttribute("aria-labelledby", "config-tab-files");
+  });
+
+  it("roving tabindex + ArrowRight bascule aria-selected sur Secrets", () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig();
+
+    // Roving tabindex: only the active tab is tabbable.
+    expect(screen.getByRole("tab", { name: "Fichiers" })).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+    expect(screen.getByRole("tab", { name: "Secrets" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+
+    const secretsTab = screen.getByRole("tab", { name: "Secrets" });
+    expect(secretsTab).toHaveAttribute("aria-selected", "true");
+    expect(secretsTab).toHaveAttribute("tabindex", "0");
+    // The tabpanel follows the newly-active tab.
+    expect(screen.getByRole("tabpanel")).toHaveAttribute(
+      "aria-labelledby",
+      "config-tab-secrets",
+    );
+  });
+
+  it("l'activation clavier ne touche pas l'URL (état local, zéro entrée d'historique)", () => {
+    mocks.useConfigFile.mockReturnValue(success(masterFileContent));
+    renderConfig("/config?file=master.json5");
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Secrets" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // leftTab is plain local state — keyboard tab switches must not rewrite
+    // the URL, so no history entry can pile up per keystroke here.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent(
+      "?file=master.json5",
+    );
+  });
+});

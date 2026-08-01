@@ -80,8 +80,12 @@ export default function AcquisitionPage(): ReactElement {
   const activeTab: TabId = TABS.some((t) => t.id === rawTab)
     ? (rawTab as TabId)
     : "followed";
+  // ACQUISITION-7 (ticket 250): keyboard-driven activation (arrows follow
+  // focus) REPLACES the current history entry — holding ArrowRight must not
+  // stack one entry per keystroke. Click activation keeps push (D3
+  // addressable URLs: Back returns to the previous tab).
   const setActiveTab = useCallback(
-    (id: TabId) => {
+    (id: TabId, viaKeyboard = false) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -89,7 +93,7 @@ export default function AcquisitionPage(): ReactElement {
           else next.set("tab", id);
           return next;
         },
-        { replace: false },
+        { replace: viaKeyboard },
       );
     },
     [setSearchParams],
@@ -165,7 +169,9 @@ export default function AcquisitionPage(): ReactElement {
             e,
             TABS.map((t) => t.id),
             activeTab,
-            setActiveTab,
+            (id) => {
+              setActiveTab(id, true);
+            },
             (id) => `acq-tab-${id}`,
           );
         }}

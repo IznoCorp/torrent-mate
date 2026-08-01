@@ -1408,6 +1408,35 @@ describe("AcquisitionPage — back-navigation probe (mutation-proof 5.2)", () =>
     // The tab param must be absent.
     expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
+
+  it("deux ArrowRight puis Back reviennent à l'onglet d'origine, pas à l'intermédiaire (ACQUISITION-7, ticket 250)", async () => {
+    mockAllEmpty();
+    // History: [/somewhere, /acquisition] — Suivis is the origin tab.
+    renderPageWithProbe();
+
+    // Click pushes one entry (D3 addressable URLs kept)…
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+
+    // …then each keyboard activation REPLACES that entry instead of pushing.
+    const tablist = screen.getByRole("tablist");
+    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // file → obligations
+    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // obligations → watcher
+    expect(screen.getByRole("tab", { name: "Watcher" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // One Back lands on the pre-click tab (Suivis), not an intermediate one.
+    fireEvent.click(screen.getByTestId("go-back"));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
+    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab=");
+  });
 });
 
 describe("AcquisitionPage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
