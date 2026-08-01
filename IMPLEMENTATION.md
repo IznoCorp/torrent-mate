@@ -34,7 +34,7 @@ before the auto-merge fires; merge only on clean adversarial review + green CI.
 | --- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- | ------ |
 | 1   | Sync engine — additive JSON5 deep-merge + `init-config --sync` CLI + golden tests                                | phase-01-sync-engine.md          | [x]    |
 | 2   | Config git mini-repo — `config_git.py` helper + S4 auto-commit hook + unit tests                                 | phase-02-config-git.md           | [x]    |
-| 3   | Verify + ecosystem tests — `config_home` check + ecosystem test pins + worktree-invariant + integration tests    | phase-03-verify-and-tests.md     | [ ]    |
+| 3   | Verify + ecosystem tests — `config_home` check + ecosystem test pins + worktree-invariant + integration tests    | phase-03-verify-and-tests.md     | [x]    |
 | 4   | Migration + config changes — `migrate-config-home.sh` + `ecosystem.config.js` + `deploy.sh` + git untrack + docs | phase-04-migration-and-config.md | [ ]    |
 | 5   | ACCEPTANCE + final gate — ACCEPTANCE.md (ACC-01..06) + `make check`                                              | phase-05-acceptance-and-gate.md  | [ ]    |
 
@@ -44,6 +44,7 @@ _(filled by implement:pr-review — operator contract: multiple adversarial revi
 
 ## Next action
 
-Phase 3 (verify check + ecosystem test pins + worktree-invariant). Note: the phase-2 manual
-gate item « web-UI save → config_edit commit » is exercised post-migration (phase 4/deploy),
-once the canonical dir exists.
+Phase 4 (migration script + ecosystem/deploy flips + git untrack + docs). Expected-red window
+open: 9 ecosystem tests (8 pins + 1 worktree-invariant) fail until phase 4 flips
+ecosystem.config.js — declared in the plan. The phase-2 manual gate item « web-UI save →
+config_edit commit » is exercised post-migration.
