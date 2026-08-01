@@ -362,8 +362,10 @@ def _detect_row(action: DetectAction, *, dry_run: bool) -> tuple[str | None, ...
     """Render one :class:`DetectAction` into its 6 table columns.
 
     Movie rows carry em-dashes in the season/episode/air-date columns and an
-    empty title cell; episode rows carry the real values — identical to the
-    pre-extraction ``table.add_row`` calls.
+    empty title cell; season rows (R1) carry the season number, an em-dash in
+    the episode column and the last air date; episode rows carry the real
+    values — the movie/episode forms are identical to the pre-extraction
+    ``table.add_row`` calls.
 
     Args:
         action: The detect action to render.
@@ -375,6 +377,10 @@ def _detect_row(action: DetectAction, *, dry_run: bool) -> tuple[str | None, ...
     cell = _detect_action_cell(action, dry_run=dry_run)
     if action.kind == "movie":
         return (action.title, "—", "—", "—", "", cell)
+    if action.kind == "season":
+        # A whole-season action has no single episode — render the em-dash,
+        # not the literal "None" (review F9).
+        return (action.title, str(action.season), "—", action.air_date or "", "", cell)
     return (action.title, str(action.season), str(action.episode), action.air_date or "", action.episode_title, cell)
 
 

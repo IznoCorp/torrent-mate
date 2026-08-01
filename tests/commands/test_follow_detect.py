@@ -453,6 +453,52 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         store.close()
 
 
+def test_detect_row_renders_season_action_without_none() -> None:
+    """F9 REGRESSION: a season action renders an em-dash episode cell.
+
+    ``_detect_row`` only special-cased movies, so a season action fell into
+    the episode branch and printed ``str(None)`` == "None" in the Episode
+    column. The season row must render like the movie special-case style:
+    real season number, em-dash episode, last air date, empty title cell.
+    """
+    from personalscraper.acquire.detect import DetectAction, DetectOutcome
+    from personalscraper.commands.follow import _detect_row
+
+    action = DetectAction(
+        kind="season",
+        title="Severance",
+        season=2,
+        episode=None,
+        air_date="2024-06-01",
+        episode_title=None,
+        outcome=DetectOutcome.ENQUEUED,
+    )
+
+    row = _detect_row(action, dry_run=False)
+
+    assert row == ("Severance", "2", "—", "2024-06-01", "", "[green]enqueued[/green]")
+    assert "None" not in row, "a season row must never print the literal 'None'"
+
+    # Episode rows keep their exact pre-existing shape (no regression).
+    ep_action = DetectAction(
+        kind="episode",
+        title="Severance",
+        season=2,
+        episode=3,
+        air_date="2024-05-01",
+        episode_title="Ep3",
+        outcome=DetectOutcome.ENQUEUED,
+    )
+    assert _detect_row(ep_action, dry_run=False) == (
+        "Severance",
+        "2",
+        "3",
+        "2024-05-01",
+        "Ep3",
+        "[green]enqueued[/green]",
+    )
+
+
 def test_detect_resurrects_wrongfully_abandoned_episode() -> None:
     """B.4: an abandoned aired-unowned episode within cutoff goes back to pending.
 
