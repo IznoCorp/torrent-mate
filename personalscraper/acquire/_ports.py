@@ -236,6 +236,7 @@ class WantedSubStore(Protocol):
         kind: WantedKind,
         season: int | None,
         episode: int | None,
+        statuses: tuple[str, ...] | None = None,
     ) -> WantedItem | None:
         """Return the first matching wanted row, or None (soft dedup guard).
 
@@ -243,11 +244,17 @@ class WantedSubStore(Protocol):
         ``episode`` so that a NULL episode in a future movie case does not
         accidentally match an episode row.
 
+        Without ``statuses`` the lookup is status-agnostic and returns the
+        OLDEST matching row; with ``statuses`` only rows in those statuses
+        match — the way to find the LIVE row when an older terminal one
+        shares the same coordinates.
+
         Args:
             followed_id: FK to ``followed_series`` row, or ``None``.
-            kind: ``"movie"`` or ``"episode"``.
+            kind: ``"movie"``, ``"episode"`` or ``"season"``.
             season: Season number, or ``None`` for movies.
             episode: Episode number, or ``None`` for movies.
+            statuses: When given, restrict the match to these statuses.
 
         Returns:
             The first matching :class:`WantedItem` if found, else ``None``.

@@ -125,6 +125,58 @@ def test_find_different_followed_id_no_match(store: ConcreteAcquireStore) -> Non
     assert result is None
 
 
+# ── find(statuses=...) — status-filtered lookup (review S1) ────────────────
+
+
+def test_find_statuses_filter_excludes_non_matching(store: ConcreteAcquireStore) -> None:
+    """find(statuses=...) returns None when the only row is in another status."""
+    fid = _add_series(store, tvdb_id=700)
+    wid = store.wanted.add(_episode(followed_id=fid, season=1, ep=1))
+    store.wanted.set_status(wid, "abandoned")
+
+    live = store.wanted.find(
+        followed_id=fid,
+        kind="episode",
+        season=1,
+        episode=1,
+        statuses=("pending", "searching", "available"),
+    )
+    assert live is None, "a terminal row must not match a live-statuses lookup"
+
+    # Status-agnostic lookup still sees it (existing dedup behavior unchanged).
+    any_row = store.wanted.find(followed_id=fid, kind="episode", season=1, episode=1)
+    assert any_row is not None and any_row.status == "abandoned"
+
+
+def test_find_statuses_filter_skips_older_terminal_row(store: ConcreteAcquireStore) -> None:
+    """S1 REGRESSION: the LIVE row wins over an OLDER terminal one.
+
+    After an R6 fallback re-enqueues episodes, an older ``absorbed`` row shares
+    the coordinates of the fresh ``pending`` one. The status-agnostic find
+    returns the OLDEST row (the absorbed one) — the statuses filter must find
+    the live row instead.
+    """
+    fid = _add_series(store, tvdb_id=701)
+    old_wid = store.wanted.add(_episode(followed_id=fid, season=2, ep=4))
+    store.wanted.set_status(old_wid, "absorbed")
+    new_wid = store.wanted.add(_episode(followed_id=fid, season=2, ep=4))
+
+    # Status-agnostic: OLDEST row (the absorbed shadow) — documented behavior.
+    oldest = store.wanted.find(followed_id=fid, kind="episode", season=2, episode=4)
+    assert oldest is not None and oldest.id == old_wid
+
+    # Statuses filter: the LIVE row.
+    live = store.wanted.find(
+        followed_id=fid,
+        kind="episode",
+        season=2,
+        episode=4,
+        statuses=("pending", "searching", "available"),
+    )
+    assert live is not None and live.id == new_wid
+    assert live.status == "pending"
+
+
 # ── list_for_followed — bulk read feeding the shared facts selector ────────
 
 

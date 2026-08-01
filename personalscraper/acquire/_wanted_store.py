@@ -861,6 +861,7 @@ class _WantedSubStore:
         kind: WantedKind,
         season: int | None,
         episode: int | None,
+        statuses: tuple[str, ...] | None = None,
     ) -> WantedItem | None:
         """Return the first matching wanted row, or None (soft dedup guard).
 
@@ -868,18 +869,26 @@ class _WantedSubStore:
         matches between episode rows (season/episode non-NULL) and future movie
         rows (season/episode NULL).
 
+        Without ``statuses`` the lookup is status-agnostic and returns the
+        OLDEST matching row — which is what callers deduplicating « does ANY
+        row exist » want, but the wrong answer for callers that need the LIVE
+        row when an older terminal one (``absorbed`` / ``fallback_episodes``)
+        shares the same coordinates.
+
         Args:
             followed_id: FK to ``followed_series`` row, or ``None``.
-            kind: ``"movie"`` or ``"episode"``.
+            kind: ``"movie"``, ``"episode"`` or ``"season"``.
             season: Season number, or ``None``.
             episode: Episode number, or ``None``.
+            statuses: When given, only rows whose ``status`` is in this tuple
+                match — e.g. pass the open statuses to find the LIVE row and
+                skip older closed rows with the same coordinates.
 
         Returns:
             The first matching :class:`WantedItem` if found, else ``None``.
         """
         self._conn.row_factory = sqlite3.Row
-        row = self._conn.execute(
-            """
+        query = """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
                    grabbed_hash, last_search_outcome, last_search_found, absorbed_by
@@ -888,9 +897,12 @@ class _WantedSubStore:
               AND kind = ?
               AND season IS ?
               AND episode IS ?
-            ORDER BY id
-            LIMIT 1
-            """,
-            (followed_id, kind, season, episode),
-        ).fetchone()
+            """
+        params: tuple[object, ...] = (followed_id, kind, season, episode)
+        if statuses is not None:
+            placeholders = ", ".join("?" for _ in statuses)
+            query += f" AND status IN ({placeholders})"
+            params += tuple(statuses)
+        query += " ORDER BY id LIMIT 1"
+        row = self._conn.execute(query, params).fetchone()
         return _row_to_wanted(row) if row is not None else None
