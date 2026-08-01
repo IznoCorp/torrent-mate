@@ -128,53 +128,81 @@ different clone (served sha reflects the deployed clone, not dev).
 
 **Status**: PENDING
 
-### ACC-06 — S4 save auto-commits to the mini-repo (verify by CONTENT, not count)
+### ACC-06 — S4 save auto-commits to the mini-repo (probe-based — verifies by CONTENT)
 
 ```bash
-# Trigger a save (via the config_git helper or through the web-UI), then verify
-# that the saved FILE is tracked in the mini-repo — not just that HEAD has ≥ 1
-# commit (a vacuous test: the initial commit alone satisfies count≥1).
-#
-# Pre-condition: the canonical mini-repo exists and has at least one commit.
-# This test exercises the save path (web or direct) and verifies the saved file
-# appears in the mini-repo's git tree.
+# Append a probe comment to web.json5 to create a real diff, commit it,
+# verify the committed file contains the probe via `git show`, then clean up.
+# This proves the save pipeline works end-to-end — a byte-identical rewrite
+# would produce no commit and the test would fail at the `git show` assertion.
 
-saved_file="web.json5"  # file modified by the S4 save
-pre_commits=$(git -C ~/.torrentmate/config rev-list --count HEAD 2>/dev/null || echo 0)
+saved_file="web.json5"
+probe_line="// acc-06 probe"
 
-# Exercise: perform a save (via python snippet or web-UI)
+# Pre-condition: canonical must exist (skip safely if not)
+if [ ! -f "$HOME/.torrentmate/config/$saved_file" ]; then
+  echo "SKIP: canonical config not found — run migration first"
+  exit 0
+fi
+
+pre_commits=$(git -C ~/.torrentmate/config rev-list --count HEAD)
+
+# Append probe comment to create a real diff
+echo "$probe_line" >> "$HOME/.torrentmate/config/$saved_file"
+
+# Exercise: commit the change (fails loud — no error swallowing)
 PERSONALSCRAPER_CONFIG="$HOME/.torrentmate/config" python3 -c "
 import os
 os.environ['PERSONALSCRAPER_CONFIG'] = os.path.expanduser('~/.torrentmate/config')
 from personalscraper.conf.config_git import commit_config_dir
-import json5
 from pathlib import Path
-
 cfg_dir = Path(os.environ['PERSONALSCRAPER_CONFIG'])
-# Touch web.json5 to trigger a real change (add/remove a comment line to force diff)
-web_path = cfg_dir / 'web.json5'
-data = web_path.read_text()
-web_path.write_text(data)  # no-op write updates mtime but NOT git content
-# Use commit_config_dir — it only commits if there is a diff
-ok = commit_config_dir(str(cfg_dir), 'config_edit: web.json5 (ACC-06 test)')
-print('commit_ok' if ok else 'commit_skipped_no_diff')
-" 2>/dev/null || echo "SAVE_FAILED"
+ok = commit_config_dir(cfg_dir, 'config_edit: web.json5 (ACC-06 probe)')
+if not ok:
+    raise SystemExit('commit_config_dir returned False')
+print('commit_ok')
+"
 
-post_commits=$(git -C ~/.torrentmate/config rev-list --count HEAD 2>/dev/null || echo 0)
-
-# Verify by CONTENT: the saved file must appear in ls-tree
-if git -C ~/.torrentmate/config ls-tree -r HEAD --name-only 2>/dev/null | grep -qF "$saved_file"; then
-  echo "PASS: $saved_file is tracked in the mini-repo git tree (commit $post_commits)"
+# Verify by CONTENT: the probe line must appear in the committed file
+if git -C "$HOME/.torrentmate/config" show "HEAD:$saved_file" | grep -qF "$probe_line"; then
+  echo "PASS: $saved_file committed with probe line visible in git show HEAD:$saved_file"
 else
-  echo "FAIL: $saved_file NOT in mini-repo git tree"
-  echo "  pre-commits: $pre_commits"
-  echo "  post-commits: $post_commits"
-  git -C ~/.torrentmate/config ls-tree -r HEAD --name-only 2>/dev/null || echo "  (no ls-tree output)"
+  echo "FAIL: probe line NOT found in committed $saved_file"
+  git -C "$HOME/.torrentmate/config" show "HEAD:$saved_file" | head -5
   exit 1
 fi
+
+# Cleanup: remove the probe line and commit the removal
+sed -i '' '/\/\/ acc-06 probe/d' "$HOME/.torrentmate/config/$saved_file"
+
+PERSONALSCRAPER_CONFIG="$HOME/.torrentmate/config" python3 -c "
+import os
+os.environ['PERSONALSCRAPER_CONFIG'] = os.path.expanduser('~/.torrentmate/config')
+from personalscraper.conf.config_git import commit_config_dir
+from pathlib import Path
+cfg_dir = Path(os.environ['PERSONALSCRAPER_CONFIG'])
+ok = commit_config_dir(cfg_dir, 'acc-06 probe cleanup')
+if not ok:
+    raise SystemExit('cleanup commit_config_dir returned False')
+print('cleanup_ok')
+"
+
+# Final assertion: probe line is gone from HEAD
+if git -C "$HOME/.torrentmate/config" show "HEAD:$saved_file" | grep -qF "$probe_line"; then
+  echo "FAIL: probe line still in HEAD after cleanup"
+  exit 1
+fi
+
+post_commits=$(git -C ~/.torrentmate/config rev-list --count HEAD)
+echo "PASS: probe committed then cleaned up (commits: $pre_commits → $post_commits)"
 ```
 
-Expected: `PASS: web.json5 is tracked in the mini-repo git tree (commit <N>)`
+Expected:
+
+```
+PASS: web.json5 committed with probe line visible in git show HEAD:web.json5
+PASS: probe committed then cleaned up (commits: <N> → <N+2>)
+```
 
 **Status**: PENDING
 
@@ -260,11 +288,11 @@ PASS: media_item count = <N> (matches pre-migration <N>)
 PERSONALSCRAPER_CONFIG="$HOME/.torrentmate/config" python3 -c "
 import os
 os.environ['PERSONALSCRAPER_CONFIG'] = os.path.expanduser('~/.torrentmate/config')
-from personalscraper.conf.loader import load_config
-cfg = load_config()
+from personalscraper.config import get_settings
+settings = get_settings()
 
 # Assert plex_token is non-empty (Plex refresh depends on it)
-token = getattr(cfg.settings, 'plex_token', '')
+token = settings.plex_token
 if token:
     print('PASS: plex_token is present (non-empty)')
 else:
@@ -280,7 +308,7 @@ else:
     raise SystemExit(1)
 
 # Assert WEB_JWT_SECRET is present (web auth depends on it)
-web_secret = getattr(cfg.settings, 'web_jwt_secret', '')
+web_secret = settings.web_jwt_secret
 if web_secret:
     print('PASS: web_jwt_secret is present (non-empty)')
 else:

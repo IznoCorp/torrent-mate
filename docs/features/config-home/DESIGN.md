@@ -131,6 +131,11 @@ torrentmate-web,torrentmate-web-staging,personalscraper-watch`, then `torrentmat
 - New lightweight `verify` check `config_home`: WARN when the RESOLVED config dir lives
   inside an **ancestor** git working tree (the path's own `.git` is the sanctioned
   mini-repo — defense in depth on every host/clone).
+- `tests/conf/test_watch_seed_config.py`'s local-config anti-drift guard
+  (`test_local_config_has_cross_seed_blocks`) is **retired** by the relocation — it
+  uses `@pytest.mark.skipif` to skip when `config/` is absent (the normal state after
+  migration). Its replacement is `init-config --sync --dry-run` (the additive drift
+  detector from D4).
 
 ## 4. Non-goals
 
@@ -147,7 +152,7 @@ torrentmate-web,torrentmate-web-staging,personalscraper-watch`, then `torrentmat
 test -d ~/.torrentmate/config/.git && ! git -C ~/dev/PersonalScraper ls-files --error-unmatch config/config.json5 2>/dev/null; echo $?   # expect: 0 then non-zero from ls-files (untracked)
 
 # ACC-02 — every PM2 app points at the canonical
-node -e "const e=require('/Users/izno/dev/ecosystem.config.js');process.exit(e.apps.every(a=>!a.env||!a.env.PERSONALSCRAPER_CONFIG||a.env.PERSONALSCRAPER_CONFIG==='/Users/izno/.torrentmate/config')?0:1)"   # expect: exit 0
+node -e "const e=require('/Users/izno/dev/PersonalScraper/ecosystem.config.js');process.exit(e.apps.every(a=>!a.env||!a.env.PERSONALSCRAPER_CONFIG||a.env.PERSONALSCRAPER_CONFIG==='/Users/izno/.torrentmate/config')?0:1)"   # expect: exit 0
 
 # ACC-03 — repo working tree carries no live config
 git -C ~/dev/PersonalScraper ls-files config/ | wc -l   # expect: 0
