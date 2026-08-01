@@ -198,9 +198,10 @@ def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquire
             series=None, dry_run=False, today=today, now=int(time.time())
         )
 
-    # Only the aired episode + season produced enqueue actions — the future produced none.
-    assert [a.outcome for a in result.actions] == [DetectOutcome.ENQUEUED, DetectOutcome.ENQUEUED]
-    assert result.summary.enqueued == 2
+    # Only the aired episode produced an enqueue action — the future produced
+    # none, and the announced future also blocks the R1 season mint (F2).
+    assert [a.outcome for a in result.actions] == [DetectOutcome.ENQUEUED]
+    assert result.summary.enqueued == 1
 
     # The cache holds BOTH the aired and the announced episode.
     cached = {(r.season, r.episode): r.air_date for r in store.aired.list_for_followed(fid)}
@@ -210,9 +211,9 @@ def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquire
     wanted = store.wanted.list_for_followed(fid, kind="episode")
     assert [(w.season, w.episode) for w in wanted] == [(2, 1)], "a future must NEVER become a wanted row"
 
-    # The season wanted was also enqueued.
+    # NO season wanted: the announced S02E02 proves the season is still running.
     season_row = store.wanted.find(followed_id=fid, kind="season", season=2, episode=None)
-    assert season_row is not None and season_row.kind == "season"
+    assert season_row is None, "a season with an announced future episode must not be minted"
 
 
 # ── season detection (R1 + R5) ─────────────────────────────────────────
@@ -290,6 +291,102 @@ def test_season_detect_enqueues_when_conditions_met(store: ConcreteAcquireStore)
     assert season_wanted is not None and season_wanted.kind == "season"
     season_emitted = [e for e in enqueued if e.kind == "season"]
     assert len(season_emitted) == 1
+
+
+def test_season_detect_skips_mid_season_break_and_keeps_episodes_live(store: ConcreteAcquireStore) -> None:
+    """F2 REGRESSION: a mid-season break must NOT mint a season wanted.
+
+    10-episode season, 4 aired (last one 20 days ago), 6 announced future.
+    The old code counted only AIRED episodes, so the break looked like a
+    finished 4-episode season: it minted the season and absorbed the live
+    episode wanteds. R1 requires the season's LAST episode to have aired.
+    """
+    ref = MediaRef(tvdb_id=99)
+    fid = store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    known = [
+        AiredEpisode(
+            media_ref=ref,
+            season=2,
+            episode=n,
+            air_date=today - timedelta(days=20 + (4 - n)),  # eps 1-4 aired, last 20d ago
+            title=f"Ep{n}",
+        )
+        for n in range(1, 5)
+    ] + [
+        AiredEpisode(
+            media_ref=ref,
+            season=2,
+            episode=n,
+            air_date=today + timedelta(days=(n - 4) * 7),  # eps 5-10 announced future
+            title=f"Ep{n}",
+        )
+        for n in range(5, 11)
+    ]
+    # Live episode wanteds for the 4 aired episodes (what detect enqueued before).
+    live_ids = [
+        store.wanted.add(
+            WantedItem(
+                media_ref=ref,
+                kind="episode",
+                status="pending",
+                enqueued_at=1,
+                followed_id=fid,
+                season=2,
+                episode=n,
+            )
+        )
+        for n in range(1, 5)
+    ]
+
+    bus = EventBus()
+    absorbed_events: list[SeasonAbsorbedEpisodes] = []
+    bus.subscribe(SeasonAbsorbedEpisodes, absorbed_events.append)
+
+    svc = DetectService(
+        store=store,
+        ownership=_StubPerEpisodeOwnership(set()),
+        registry=MagicMock(),
+        event_bus=bus,
+        config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=known):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    # NO season action, NO season row.
+    assert [a for a in result.actions if a.kind == "season"] == []
+    assert store.wanted.find(followed_id=fid, kind="season", season=2, episode=None) is None
+
+    # The live episode wanteds were NOT absorbed.
+    assert absorbed_events == []
+    for wid in live_ids:
+        row = store.wanted.get(wid)
+        assert row is not None and row.status == "pending", f"episode {wid} must stay live"
+
+
+def test_season_detect_skips_when_last_aired_six_days_ago(store: ConcreteAcquireStore) -> None:
+    """F2: all aired but the last episode aired 6 days ago → NOT enqueued.
+
+    Pins the exact 7-day threshold from the inside (the 3-day test is weaker):
+    6 days is one short of the inclusive >= 7d edge.
+    """
+    ref = MediaRef(tvdb_id=99)
+    fid = store.follow.add(FollowedSeries(media_ref=ref, title="Severance", added_at=1))
+    today = date(2024, 6, 15)
+    eps = _aired_season(ref, 2, 6, today=today, last_days_ago=6)
+
+    svc = DetectService(
+        store=store,
+        ownership=_StubPerEpisodeOwnership(set()),
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+        result = svc.run(series=None, dry_run=False, today=today, now=100)
+
+    assert [a for a in result.actions if a.kind == "season"] == []
+    assert store.wanted.find(followed_id=fid, kind="season", season=2, episode=None) is None
 
 
 def test_season_detect_skips_when_last_ep_recent(store: ConcreteAcquireStore) -> None:

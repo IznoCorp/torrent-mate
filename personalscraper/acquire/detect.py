@@ -227,8 +227,10 @@ class DetectService:
             self._detect_episode(ep, by_ref, actions, counts, dry_run=dry_run, now=now)
 
         # --- P3: season detection (R1) ---
+        # The UNFILTERED known list on purpose (review F2): the season gate
+        # needs to SEE announced future episodes to refuse a mid-season mint.
         self._detect_seasons(
-            [ep for ep in known if ep.air_date <= today],
+            known,
             by_ref,
             actions,
             counts,
@@ -421,7 +423,7 @@ class DetectService:
 
     def _detect_seasons(
         self,
-        aired: "list[AiredEpisode]",
+        known: "list[AiredEpisode]",
         by_ref: "dict[MediaRef, FollowedSeries]",
         actions: list[DetectAction],
         counts: "_MutableCounts",
@@ -430,25 +432,31 @@ class DetectService:
         now: int,
         today: "date",
     ) -> None:
-        """Post-pass: group aired episodes by season and enqueue season wanteds (R1).
+        """Post-pass: group KNOWN episodes by season and enqueue season wanteds (R1).
 
         Runs AFTER the per-episode pass so episode wanteds exist when absorption
         runs. One season wanted per follow+season — same dedup rule as movies.
 
+        Receives the UNFILTERED known list — futures included — because R1
+        requires the season's LAST episode to have aired: a known future
+        episode is proof the season is still running, and it must block the
+        mint (review F2). Gate (a) below drops such seasons first, so every
+        later gate operates over a complete, all-aired episode list.
+
         Args:
-            aired: Every aired episode (air_date <= today, per filter in run()).
+            known: Every known-date episode of the poll (futures INCLUDED).
             by_ref: Followed-series lookup by MediaRef.
             actions: Output list (mutated).
             counts: Running counters (mutated).
             dry_run: When True, no writes or events happen.
             now: Unix epoch seconds (stamps enqueued_at).
-            today: The reference date (for the 7-day gate).
+            today: The reference date (for the all-aired + 7-day gates).
         """
         from datetime import timedelta
 
-        # Group aired episodes by (followed_id, season).
+        # Group known episodes by (followed_id, season).
         season_eps: dict[tuple[int, int], list[AiredEpisode]] = {}
-        for ep in aired:
+        for ep in known:
             fs = by_ref.get(ep.media_ref)
             if fs is None or fs.id is None:
                 continue
@@ -458,6 +466,12 @@ class DetectService:
         cutoff = today - timedelta(days=7)
 
         for (followed_id, season_num), eps in season_eps.items():
+            # (a) ALL episodes must have aired — a known future episode means
+            # the season is still running (mid-season break included): never
+            # mint a season wanted, never absorb the live episode wanteds.
+            if any(ep.air_date > today for ep in eps):
+                continue
+
             total = len(eps)
 
             # (b) Last aired date must be >= 7 days ago.
